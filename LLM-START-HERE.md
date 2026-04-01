@@ -1,9 +1,9 @@
-# LLM-START-HERE.md — Developer & AI Guide to MapStudio
+# LLM-START-HERE.md — Developer & AI Guide to li'l Mappo
 
-Welcome to **MapStudio**, a cinematic map animation and export tool. This document provides a high-level technical map of the codebase, its architecture, and the mental model required to work with it effectively.
+Welcome to **li'l Mappo**, a cinematic map animation and export tool. This document provides a high-level technical map of the codebase, its architecture, and the mental model required to work with it effectively.
 
 ## 1. Project Identity & Purpose
-MapStudio is a browser-based "motion graphics" tool specifically for maps. Users can:
+**li'l Mappo** is a browser-based "motion graphics" tool specifically for maps. Users can:
 - **Import** route data (GPX/KML).
 - **Lookup** and highlight place boundaries (via Nominatim).
 - **Annotate** with 3D callout cards.
