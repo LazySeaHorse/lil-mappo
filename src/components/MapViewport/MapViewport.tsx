@@ -32,118 +32,56 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     }
   }, [updateItem]);
 
-  // Apply fog/atmosphere for satellite-like views
-  const applyAtmosphere = useCallback((map: any) => {
-    const currentStyle = useProjectStore.getState().mapStyle;
-    if (currentStyle === 'satellite' || currentStyle === 'satelliteStreets') {
-      try {
-        map.setFog({
-          'color': 'rgb(220, 159, 113)',     // warm sunset horizon
-          'high-color': 'rgb(36, 92, 223)',  // blue upper atmosphere
-          'horizon-blend': 0.4,
-          'space-color': 'rgb(11, 11, 25)',  // dark space
-          'star-intensity': 0.6,
-        });
-      } catch { /* fog may not be supported */ }
-    } else if (currentStyle === 'dark') {
-      try {
-        map.setFog({
-          'color': 'rgb(23, 23, 23)',       
-          'high-color': 'rgb(10, 10, 40)',  
-          'horizon-blend': 0.3,
-          'space-color': 'rgb(5, 5, 15)',   
-          'star-intensity': 0.8,
-        });
-      } catch {}
+  const fogConfig = useMemo(() => {
+    if (mapStyle === 'satellite' || mapStyle === 'satelliteStreets') {
+      return {
+        'color': 'rgb(220, 159, 113)',
+        'high-color': 'rgb(36, 92, 223)',
+        'horizon-blend': 0.4,
+        'space-color': 'rgb(11, 11, 25)',
+        'star-intensity': 0.6,
+      };
+    } else if (mapStyle === 'dark') {
+      return {
+        'color': 'rgb(23, 23, 23)',       
+        'high-color': 'rgb(10, 10, 40)',  
+        'horizon-blend': 0.3,
+        'space-color': 'rgb(5, 5, 15)',   
+        'star-intensity': 0.8,
+      };
     } else {
-      try {
-        map.setFog({
-          'color': 'rgb(186, 210, 235)',
-          'high-color': 'rgb(36, 92, 223)',
-          'horizon-blend': 0.02,
-          'space-color': 'rgb(11, 11, 25)',
-          'star-intensity': 0.6,
-        });
-      } catch {}
+      return {
+        'color': 'rgb(186, 210, 235)',
+        'high-color': 'rgb(36, 92, 223)',
+        'horizon-blend': 0.02,
+        'space-color': 'rgb(11, 11, 25)',
+        'star-intensity': 0.6,
+      };
     }
-  }, []);
+  }, [mapStyle]);
 
-  const handleStyleLoad = useCallback(() => {
-    const map = mapRef.current?.getMap();
-    if (!map) return;
-
-    if (terrainEnabled) {
-      if (!map.getSource('mapbox-dem')) {
-        map.addSource('mapbox-dem', {
-          type: 'raster-dem',
-          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-          tileSize: 512,
-          maxzoom: 14,
-        });
-      }
-      map.setTerrain({ source: 'mapbox-dem', exaggeration: terrainExaggeration });
-    }
-
-    if (buildingsEnabled && mapStyle !== 'standard') {
-      if (!map.getLayer('3d-buildings')) {
-        try {
-          map.addLayer({
-            id: '3d-buildings',
-            source: 'composite',
-            'source-layer': 'building',
-            type: 'fill-extrusion',
-            minzoom: 14,
-            paint: {
-              'fill-extrusion-color': '#ddd',
-              'fill-extrusion-height': ['get', 'height'],
-              'fill-extrusion-base': ['get', 'min_height'],
-              'fill-extrusion-opacity': 0.8,
-            },
-          });
-        } catch {}
-      }
-    }
-
-    applyAtmosphere(map);
-  }, [terrainEnabled, buildingsEnabled, terrainExaggeration, mapStyle, applyAtmosphere]);
-
-  useEffect(() => {
-    const map = mapRef.current?.getMap();
-    if (!map || !map.isStyleLoaded()) return;
-    if (terrainEnabled) {
-      if (!map.getSource('mapbox-dem')) {
-        map.addSource('mapbox-dem', { type: 'raster-dem', url: 'mapbox://mapbox.mapbox-terrain-dem-v1', tileSize: 512, maxzoom: 14 });
-      }
-      map.setTerrain({ source: 'mapbox-dem', exaggeration: terrainExaggeration });
-    } else {
-      map.setTerrain(null);
-    }
+  const terrainConfig = useMemo(() => {
+    return terrainEnabled ? { source: 'mapbox-dem', exaggeration: terrainExaggeration } : undefined;
   }, [terrainEnabled, terrainExaggeration]);
 
+  // Handle standard style 3D objects imperatively as it lacks a custom layer
   useEffect(() => {
     const map = mapRef.current?.getMap();
-    if (!map || !map.isStyleLoaded()) return;
-    if (mapStyle === 'standard') {
-      try { map.setConfigProperty('basemap', 'show3dObjects', buildingsEnabled); } catch {}
-      return;
-    }
-    if (buildingsEnabled) {
-      if (!map.getLayer('3d-buildings')) {
-        try {
-          map.addLayer({ id: '3d-buildings', source: 'composite', 'source-layer': 'building', type: 'fill-extrusion', minzoom: 14, paint: { 'fill-extrusion-color': '#ddd', 'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': ['get', 'min_height'], 'fill-extrusion-opacity': 0.8 } });
-        } catch {}
+    if (!map) return;
+    
+    const applyStandardConfig = () => {
+      if (useProjectStore.getState().mapStyle === 'standard' && map.isStyleLoaded()) {
+        try { map.setConfigProperty('basemap', 'show3dObjects', useProjectStore.getState().buildingsEnabled); } catch {}
       }
-    } else {
-      if (map.getLayer('3d-buildings')) map.removeLayer('3d-buildings');
-    }
-  }, [buildingsEnabled, mapStyle]);
+    };
 
-  // Re-apply atmosphere when map style changes
-  useEffect(() => {
-    const map = mapRef.current?.getMap();
-    if (!map || !map.isStyleLoaded()) return;
-    applyAtmosphere(map);
-  }, [mapStyle, applyAtmosphere]);
+    map.on('style.load', applyStandardConfig);
+    applyStandardConfig();
+
+    return () => {
+      map.off('style.load', applyStandardConfig);
+    };
+  }, [buildingsEnabled, mapStyle]);
 
   const routes: RouteItem[] = [];
   const boundaries: BoundaryItem[] = [];
@@ -166,10 +104,34 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
         onClick={handleMapClick}
-        onLoad={handleStyleLoad}
         interactive={!isPlaying}
         preserveDrawingBuffer
+        projection="globe"
+        fog={fogConfig}
+        terrain={terrainConfig}
       >
+        {/* Declarative Data Sources and Environment */}
+        {terrainEnabled && (
+          <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
+        )}
+
+        {buildingsEnabled && mapStyle !== 'standard' && (
+          <Layer
+            id="3d-buildings"
+            source="composite"
+            source-layer="building"
+            type="fill-extrusion"
+            minzoom={14}
+            paint={{
+              'fill-extrusion-color': '#ddd',
+              'fill-extrusion-height': ['get', 'height'],
+              'fill-extrusion-base': ['get', 'min_height'],
+              'fill-extrusion-opacity': 0.8,
+            }}
+          />
+        )}
+
+        {/* Project Items */}
         {routes.map((route) => (
           <RouteLayerGroup key={route.id} route={route} playheadTime={playheadTime} />
         ))}

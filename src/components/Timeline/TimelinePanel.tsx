@@ -31,24 +31,36 @@ export default function TimelinePanel() {
     setPlayheadTime(timeFromX(x));
   }, [timeFromX, setPlayheadTime]);
 
-  const handlePlayheadDrag = useCallback((e: React.MouseEvent) => {
+  const handleScrubberDrag = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDraggingPlayhead(true);
-    const handleMove = (ev: MouseEvent) => {
-      const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const x = ev.clientX - rect.left;
-      setPlayheadTime(timeFromX(x));
+    
+    // Capture the specific scrubber container element that was clicked
+    const scrubberContainer = e.currentTarget;
+    
+    const updateTimeFromMouse = (clientX: number) => {
+      const rect = scrubberContainer.getBoundingClientRect();
+      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      const percentage = x / rect.width;
+      setPlayheadTime(percentage * duration);
     };
+
+    // Apply immediately on mouse down
+    updateTimeFromMouse(e.clientX);
+
+    const handleMove = (ev: MouseEvent) => {
+      updateTimeFromMouse(ev.clientX);
+    };
+    
     const handleUp = () => {
       setDraggingPlayhead(false);
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
+    
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
-  }, [timeFromX, setPlayheadTime]);
+  }, [duration, setPlayheadTime]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -134,7 +146,7 @@ export default function TimelinePanel() {
         <span className="font-mono-time text-xs text-muted-foreground w-28 text-center">
           {formatTime(playheadTime)}
         </span>
-        <div className="flex-1 relative h-4 mx-2 cursor-pointer" onMouseDown={handlePlayheadDrag}>
+        <div className="flex-1 relative h-4 mx-2 cursor-pointer" onMouseDown={handleScrubberDrag}>
           <div className="absolute inset-y-1.5 left-0 right-0 bg-border rounded-full" />
           <div
             className="absolute top-0 w-3 h-4 bg-playhead rounded-sm -translate-x-1/2 cursor-ew-resize"
