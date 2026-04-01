@@ -105,6 +105,28 @@ export async function runExport(
     return;
   }
 
+  // Preserve original styles to restore after export
+  const mapContainer = map.getContainer();
+  const originalWidth = mapContainer.style.width;
+  const originalHeight = mapContainer.style.height;
+  const originalPosition = mapContainer.style.position;
+  const originalLeft = mapContainer.style.left;
+  const originalTop = mapContainer.style.top;
+  const originalZIndex = mapContainer.style.zIndex;
+
+  try {
+    // Resize map container to target resolution for accurate rendering
+    mapContainer.style.position = 'fixed';
+    mapContainer.style.width = `${width}px`;
+    mapContainer.style.height = `${height}px`;
+    mapContainer.style.left = '0';
+    mapContainer.style.top = '0';
+    mapContainer.style.zIndex = '-100'; // Render behind the modal/UI
+    map.resize();
+
+    // Small delay to allow Mapbox to re-allocate buffers
+    await new Promise(r => setTimeout(r, 200));
+
   // Helper: get route coords for camera follow-route
   const getRouteCoords = (routeId: string) => {
     const route = store.items[routeId] as RouteItem | undefined;
@@ -218,4 +240,16 @@ export async function runExport(
     const blob = new Blob(recordedChunks, { type: 'video/webm' });
     onComplete(blob);
   }
+} catch (e: any) {
+  onError(e.message || 'Export failed');
+} finally {
+  // Restore original map container state
+  mapContainer.style.width = originalWidth;
+  mapContainer.style.height = originalHeight;
+  mapContainer.style.position = originalPosition;
+  mapContainer.style.left = originalLeft;
+  mapContainer.style.top = originalTop;
+  mapContainer.style.zIndex = originalZIndex;
+  map.resize();
+}
 }
