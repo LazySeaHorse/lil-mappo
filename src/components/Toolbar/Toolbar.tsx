@@ -7,22 +7,35 @@ import type { RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
 import {
   Upload, MapPin, MessageSquare, Video, Play, Pause, Square,
-  Mountain, Building2, Crosshair
+  Mountain, Building2, Crosshair, ChevronDown, FilePlus2,
+  Save, Library, FileJson, Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { saveProjectToLibrary } from '@/services/projectLibrary';
+import { saveAs } from 'file-saver';
 
 interface ToolbarProps {
   onExport: () => void;
+  onLibrary: () => void;
 }
 
-export default function Toolbar({ onExport }: ToolbarProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
+  const routeInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
   const mapRef = useMapRef();
+  const projectState = useProjectStore();
   const {
     isPlaying, setIsPlaying, mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     addItem, playheadTime, addCameraKeyframe, selectItem,
-  } = useProjectStore();
+  } = projectState;
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -63,6 +76,47 @@ export default function Toolbar({ onExport }: ToolbarProps) {
     }
     e.target.value = '';
   }, [playheadTime, addItem, selectItem]);
+
+  const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (parsed.id && parsed.items) {
+        projectState.loadFullProject(parsed);
+        toast.success('Project imported successfully');
+      } else {
+        throw new Error('Invalid project file');
+      }
+    } catch {
+      toast.error('Failed to parse project file');
+    }
+    e.target.value = '';
+  };
+
+  const handleExportProject = () => {
+    const data = JSON.stringify(projectState, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.mapstudio`;
+    saveAs(blob, fileName);
+  };
+
+  const handleSaveToLibrary = async () => {
+    try {
+      await saveProjectToLibrary(projectState);
+      toast.success('Saved to library');
+    } catch {
+      toast.error('Failed to save to library');
+    }
+  };
+
+  const handleNewProject = () => {
+    if (window.confirm('Clear current project and start fresh? Unsaved changes will be lost.')) {
+      // Very basic reset by reloading the page for a truly clean slate (or we could store initial state)
+      window.location.reload();
+    }
+  };
 
   const handleAddBoundary = () => {
     const item: BoundaryItem = {
@@ -151,14 +205,54 @@ export default function Toolbar({ onExport }: ToolbarProps) {
   return (
     <div className="h-12 bg-background border-b border-border flex items-center px-2 gap-0.5 shrink-0">
       <input
-        ref={fileInputRef}
+        ref={routeInputRef}
         type="file"
         accept=".kml,.gpx"
         multiple
         className="hidden"
         onChange={handleImport}
       />
-      <ToolbarButton icon={<Upload size={16} />} label="Import" onClick={() => fileInputRef.current?.click()} />
+      <input
+        ref={projectInputRef}
+        type="file"
+        accept=".mapstudio,.json"
+        className="hidden"
+        onChange={handleImportProject}
+      />
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="h-8 px-2.5 flex items-center gap-1.5 rounded text-xs font-medium transition-colors hover:bg-secondary text-foreground outline-none">
+            Project <ChevronDown size={14} className="opacity-50" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuItem onClick={handleNewProject} className="gap-2 cursor-pointer">
+            <FilePlus2 size={14} /> New Project
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSaveToLibrary} className="gap-2 cursor-pointer">
+            <Save size={14} /> Save to Library
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onLibrary} className="gap-2 cursor-pointer">
+            <Library size={14} /> My Projects...
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleExportProject} className="gap-2 cursor-pointer">
+            <FileJson size={14} /> Export Project File
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => projectInputRef.current?.click()} className="gap-2 cursor-pointer">
+            <Upload size={14} /> Import Project File
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => selectItem(null)} className="gap-2 cursor-pointer">
+            <Settings size={14} /> Project Settings
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Divider />
+
+      <ToolbarButton icon={<Upload size={16} />} label="Import Route" onClick={() => routeInputRef.current?.click()} />
       <Divider />
       <ToolbarButton icon={<MapPin size={16} />} label="Boundary" onClick={handleAddBoundary} />
       <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" onClick={handleAddCallout} />

@@ -31,6 +31,9 @@ interface ProjectStore extends Project {
   setBuildingsEnabled: (v: boolean) => void;
   setTerrainExaggeration: (v: number) => void;
   setProjectName: (n: string) => void;
+
+  // Project loading
+  loadFullProject: (project: Project) => void;
 }
 
 const CAMERA_ID = 'camera-track';
@@ -130,6 +133,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setBuildingsEnabled: (v) => set({ buildingsEnabled: v }),
   setTerrainExaggeration: (v) => set({ terrainExaggeration: v }),
   setProjectName: (n) => set({ name: n }),
+
+  loadFullProject: (project) => set({ ...project }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;

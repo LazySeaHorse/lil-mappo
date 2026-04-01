@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "/map-animation-studio/",
+  base: mode === 'production' ? "/map-animation-studio/" : "/",
   server: {
     host: "::",
     port: 8080,
