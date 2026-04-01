@@ -15,6 +15,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
 
   const [exportRes, setExportRes] = useState<[number, number]>(resolution);
   const [exportFps, setExportFps] = useState<number>(fps);
+  const [startTime, setStartTime] = useState<number>(0);
+  const [endTime, setEndTime] = useState<number>(duration);
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
       await runExport(mapRef, {
         resolution: exportRes,
         fps: exportFps,
+        startTime,
+        endTime,
         onProgress: (pct) => setProgress(pct),
         onComplete: (blob) => {
           const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
@@ -51,7 +55,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
       setError(e.message || 'Export failed');
       setIsExporting(false);
     }
-  }, [mapRef, exportRes, exportFps, name]);
+  }, [mapRef, exportRes, exportFps, name, startTime, endTime]);
 
   const handleCancel = () => {
     abortRef.current?.abort();
@@ -59,7 +63,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     setProgress(0);
   };
 
-  const totalFrames = Math.ceil(duration * exportFps);
+  const exportDuration = Math.max(0, endTime - startTime);
+  const totalFrames = Math.ceil(exportDuration * exportFps);
   const estimatedTime = Math.ceil(totalFrames * 0.08); // rough ~80ms per frame
 
   return (
@@ -94,6 +99,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
               disabled={isExporting}
               className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
             >
+              <option value="854x480">854 × 480 (480p)</option>
+              <option value="1280x720">1280 × 720 (720p)</option>
               <option value="1920x1080">1920 × 1080 (1080p)</option>
               <option value="2560x1440">2560 × 1440 (1440p)</option>
               <option value="3840x2160">3840 × 2160 (4K)</option>
@@ -114,10 +121,40 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             </select>
           </div>
 
+          {/* Time Range */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Start Time (s)</label>
+              <input
+                type="number"
+                min={0}
+                max={endTime}
+                step={0.1}
+                value={startTime}
+                onChange={(e) => setStartTime(Number(e.target.value))}
+                disabled={isExporting}
+                className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">End Time (s)</label>
+              <input
+                type="number"
+                min={startTime}
+                max={duration}
+                step={0.1}
+                value={endTime}
+                onChange={(e) => setEndTime(Number(e.target.value))}
+                disabled={isExporting}
+                className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+              />
+            </div>
+          </div>
+
           {/* Info row */}
           <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">
             <div>
-              <span className="block font-semibold text-foreground">{duration.toFixed(1)}s</span>
+              <span className="block font-semibold text-foreground">{exportDuration.toFixed(1)}s</span>
               Duration
             </div>
             <div>

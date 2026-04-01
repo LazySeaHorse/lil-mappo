@@ -14,6 +14,9 @@ import { useMapRef } from '@/hooks/useMapRef';
 interface ExportOptions {
   resolution: [number, number];
   fps: number;
+  startTime?: number;
+  endTime?: number;
+  disableFading?: boolean;
   onProgress: (pct: number) => void;
   onComplete: (blob: Blob) => void;
   onError: (err: string) => void;
@@ -24,11 +27,15 @@ export async function runExport(
   mapRef: React.MutableRefObject<any>,
   options: ExportOptions,
 ) {
-  const { resolution, fps, onProgress, onComplete, onError, abortSignal } = options;
+  const { resolution, fps, startTime = 0, endTime: requestedEndTime, onProgress, onComplete, onError, abortSignal } = options;
   const [width, height] = resolution;
   const store = useProjectStore.getState();
   const { duration } = store;
-  const totalFrames = Math.ceil(duration * fps);
+  
+  const endTime = requestedEndTime !== undefined ? Math.min(requestedEndTime, duration) : duration;
+  const effectiveDuration = endTime - startTime;
+  const startFrame = Math.floor(startTime * fps);
+  const totalFrames = Math.ceil(effectiveDuration * fps);
 
   // We'll use MediaRecorder on a canvas captureStream — reliable cross-browser
   const compCanvas = document.createElement('canvas');
@@ -127,21 +134,28 @@ export async function runExport(
     // Small delay to allow Mapbox to re-allocate buffers
     await new Promise(r => setTimeout(r, 200));
 
-  // Helper: get route coords for camera follow-route
-  const getRouteCoords = (routeId: string) => {
-    const route = store.items[routeId] as RouteItem | undefined;
-    if (!route) return null;
-    const coords: number[][] = [];
-    for (const f of route.geojson.features) {
-      if (f.geometry.type === 'LineString') coords.push(...(f.geometry as any).coordinates);
-      else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as any).coordinates) coords.push(...l);
-    }
-    return coords.length >= 2 ? coords : null;
-  };
+    // Helper: Wait for map to be fully loaded (tiles, sources, etc.)
+    const waitForMapIdle = () => new Promise<void>((resolve) => {
+      if (map.loaded()) resolve();
+      else map.once('idle', () => resolve());
+    });
 
-  // Frame-by-frame rendering
-  for (let frame = 0; frame <= totalFrames; frame++) {
-    if (abortSignal.aborted) {
+    // Helper: get route coords for camera follow-route
+    const getRouteCoords = (routeId: string) => {
+      const route = store.items[routeId] as RouteItem | undefined;
+      if (!route) return null;
+      const coords: number[][] = [];
+      for (const f of route.geojson.features) {
+        if (f.geometry.type === 'LineString') coords.push(...(f.geometry as any).coordinates);
+        else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as any).coordinates) coords.push(...l);
+      }
+      return coords.length >= 2 ? coords : null;
+    };
+
+    // Frame-by-frame rendering
+    for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
+      const frame = startFrame + frameIndex;
+      if (abortSignal.aborted) {
       videoEncoder?.close();
       mediaRecorder?.stop();
       return;
@@ -168,13 +182,12 @@ export async function runExport(
       }
     }
 
-    // Wait for map to render
+    // Wait for map to render and tiles to load
     map.triggerRepaint();
-    await new Promise<void>((resolve) => {
-      map.once('render', () => resolve());
-    });
-    // Small additional delay for tiles
-    await new Promise(r => setTimeout(r, 50));
+    await waitForMapIdle();
+    
+    // Additional micro-delay for HTML2Canvas to find DOM markers reliably
+    await new Promise(r => setTimeout(r, 16));
 
     // Draw map canvas onto comp canvas
     const mapCanvas = map.getCanvas() as HTMLCanvasElement;
@@ -207,7 +220,7 @@ export async function runExport(
     // Encode frame
     if (videoEncoder) {
       const videoFrame = new VideoFrame(compCanvas, {
-        timestamp: frame * (1_000_000 / fps), // microseconds
+        timestamp: frameIndex * (1_000_000 / fps), // microseconds (relative to export start)
         duration: 1_000_000 / fps,
       });
       videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
@@ -221,7 +234,7 @@ export async function runExport(
       }
     }
 
-    onProgress(Math.round((frame / totalFrames) * 100));
+    onProgress(Math.round((frameIndex / totalFrames) * 100));
   }
 
   // Finalize
@@ -250,6 +263,7 @@ export async function runExport(
   mapContainer.style.left = originalLeft;
   mapContainer.style.top = originalTop;
   mapContainer.style.zIndex = originalZIndex;
+  
   map.resize();
 }
 }
