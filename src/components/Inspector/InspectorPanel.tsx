@@ -3,7 +3,7 @@ import type { TimelineItem, RouteItem, BoundaryItem, CalloutItem, CameraItem, Ea
 import { searchBoundary } from '@/services/nominatim';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
-import { Trash2, Search } from 'lucide-react';
+import { Trash2, Search, Crosshair, Check } from 'lucide-react';
 
 export default function InspectorPanel() {
   const { selectedItemId, selectedKeyframeId, items } = useProjectStore();
@@ -237,7 +237,7 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
 }
 
 function CalloutInspector({ item }: { item: CalloutItem }) {
-  const { updateItem, removeItem, selectItem } = useProjectStore();
+  const { updateItem, removeItem, selectItem, isMoveModeActive, setMoveModeActive } = useProjectStore();
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates as any);
   const us = (updates: Partial<CalloutItem['style']>) => u({ style: { ...item.style, ...updates } });
   const ua = (updates: Partial<CalloutItem['animation']>) => u({ animation: { ...item.animation, ...updates } });
@@ -247,8 +247,21 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
       <Field label="Title"><InputText value={item.title} onChange={(v) => u({ title: v })} /></Field>
       <Field label="Subtitle"><InputText value={item.subtitle} onChange={(v) => u({ subtitle: v })} /></Field>
       <Field label="Image URL"><InputText value={item.imageUrl || ''} onChange={(v) => u({ imageUrl: v || null })} /></Field>
-      <SectionTitle>Position</SectionTitle>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs text-muted-foreground block">Position</label>
+        <button
+          onClick={() => setMoveModeActive(!isMoveModeActive)}
+          className={`h-7 px-3 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-tight rounded-full transition-all ${
+            isMoveModeActive 
+            ? 'bg-primary text-primary-foreground shadow-lg scale-105' 
+            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+          }`}
+        >
+          {isMoveModeActive ? <Check size={12} /> : <Crosshair size={12} />}
+          {isMoveModeActive ? 'Done' : 'Move'}
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2 opacity-80 pointer-events-none">
         <Field label="Longitude"><InputNumber value={item.lngLat[0]} onChange={(v) => u({ lngLat: [v, item.lngLat[1]] })} step={0.001} /></Field>
         <Field label="Latitude"><InputNumber value={item.lngLat[1]} onChange={(v) => u({ lngLat: [item.lngLat[0], v] })} step={0.001} /></Field>
       </div>

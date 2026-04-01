@@ -32,6 +32,10 @@ interface ProjectStore extends Project {
   setTerrainExaggeration: (v: number) => void;
   setProjectName: (n: string) => void;
 
+  // Move Mode (Manual Positioning)
+  isMoveModeActive: boolean;
+  setMoveModeActive: (v: boolean) => void;
+
   // Project loading
   loadFullProject: (project: Project) => void;
 }
@@ -60,6 +64,7 @@ const defaultProject: Project = {
   isPlaying: false,
   selectedItemId: null,
   selectedKeyframeId: null,
+  isMoveModeActive: false,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -133,6 +138,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setBuildingsEnabled: (v) => set({ buildingsEnabled: v }),
   setTerrainExaggeration: (v) => set({ terrainExaggeration: v }),
   setProjectName: (n) => set({ name: n }),
+
+  setMoveModeActive: (v) => set({ isMoveModeActive: v }),
 
   loadFullProject: (project) => set({ ...project }),
 }));
