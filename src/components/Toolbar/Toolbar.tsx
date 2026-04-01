@@ -98,7 +98,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   const handleExportProject = () => {
     const data = JSON.stringify(projectState, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
-    const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.lilmappo`;
+    const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.lilmap`;
     saveAs(blob, fileName);
   };
 
@@ -217,7 +217,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
       <input
         ref={projectInputRef}
         type="file"
-        accept=".lilmappo,.json"
+        accept=".lilmap,.json"
         className="hidden"
         onChange={handleImportProject}
       />

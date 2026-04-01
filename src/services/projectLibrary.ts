@@ -1,6 +1,6 @@
 import { Project } from '@/store/types';
 
-const DB_NAME = 'MapStudioLibraryDB';
+const DB_NAME = 'LilMapLibraryDB';
 const STORE_NAME = 'projects';
 const DB_VERSION = 1;
 
