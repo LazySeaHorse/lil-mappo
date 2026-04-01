@@ -104,7 +104,9 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
 
   const handleSaveToLibrary = async () => {
     try {
-      await saveProjectToLibrary(projectState);
+      // Strip out all Zustand action functions before saving to IDB to avoid DataCloneError
+      const plainData = JSON.parse(JSON.stringify(projectState));
+      await saveProjectToLibrary(plainData);
       toast.success('Saved to library');
     } catch {
       toast.error('Failed to save to library');
