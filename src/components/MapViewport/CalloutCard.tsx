@@ -4,11 +4,12 @@ interface Props {
   callout: CalloutItem;
   phase: 'enter' | 'visible' | 'exit';
   progress: number;
+  altitudeOffset?: number;
 }
 
-export default function CalloutCard({ callout, phase, progress }: Props) {
+export default function CalloutCard({ callout, phase, progress, altitudeOffset = 0 }: Props) {
   let opacity = 1;
-  let transform = 'none';
+  let transform = '';
 
   if (phase === 'enter') {
     const p = Math.min(progress, 1);
@@ -34,17 +35,31 @@ export default function CalloutCard({ callout, phase, progress }: Props) {
     }
   }
 
+  // Add 3D perspective transform to make the card feel like it's in the map space
+  // This gives a subtle tilt that makes it feel 3D, similar to the route line
+  const perspectiveTransform = `perspective(800px) rotateX(2deg)`;
+  const fullTransform = [perspectiveTransform, transform].filter(Boolean).join(' ');
+
+  const poleHeight = callout.poleVisible ? Math.max(altitudeOffset, 20) : 0;
+
   return (
-    <div className="flex flex-col items-center">
+    <div
+      className="flex flex-col items-center pointer-events-auto"
+      style={{
+        filter: callout.style.shadow ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' : 'none',
+      }}
+    >
       <div
         style={{
           opacity,
-          transform,
+          transform: fullTransform,
+          transformOrigin: 'bottom center',
           backgroundColor: callout.style.bgColor,
           color: callout.style.textColor,
           borderRadius: callout.style.borderRadius,
           maxWidth: callout.style.maxWidth,
-          boxShadow: callout.style.shadow ? '0 4px 20px rgba(0,0,0,0.15)' : 'none',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,0.2)',
         }}
         className="px-3 py-2 text-sm"
       >
@@ -55,20 +70,33 @@ export default function CalloutCard({ callout, phase, progress }: Props) {
             className="w-full h-24 object-cover rounded mb-2"
           />
         )}
-        <div className="font-semibold text-sm leading-tight">{callout.title}</div>
+        <div className="font-semibold text-sm leading-tight whitespace-nowrap">{callout.title}</div>
         {callout.subtitle && (
-          <div className="text-xs mt-0.5 opacity-70">{callout.subtitle}</div>
+          <div className="text-xs mt-0.5 opacity-70 whitespace-nowrap">{callout.subtitle}</div>
         )}
       </div>
       {callout.poleVisible && (
-        <div
-          style={{
-            width: 2,
-            height: Math.max(callout.altitude * 0.5, 10),
-            backgroundColor: callout.poleColor,
-            opacity,
-          }}
-        />
+        <svg
+          width="2"
+          height={poleHeight}
+          style={{ opacity }}
+          className="overflow-visible"
+        >
+          {/* Vertical pole line */}
+          <line
+            x1="1" y1="0" x2="1" y2={poleHeight}
+            stroke={callout.poleColor}
+            strokeWidth="2"
+            strokeDasharray="4 2"
+          />
+          {/* Ground dot */}
+          <circle
+            cx="1" cy={poleHeight}
+            r="3"
+            fill={callout.poleColor}
+            opacity="0.8"
+          />
+        </svg>
       )}
     </div>
   );

@@ -4,14 +4,20 @@ import { nanoid } from 'nanoid';
 import { importRouteFile } from '@/services/fileImport';
 import { MAP_STYLES } from '@/config/mapbox';
 import type { RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
+import { useMapRef } from '@/hooks/useMapRef';
 import {
   Upload, MapPin, MessageSquare, Video, Play, Pause, Square,
   Mountain, Building2, Crosshair
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function Toolbar() {
+interface ToolbarProps {
+  onExport: () => void;
+}
+
+export default function Toolbar({ onExport }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mapRef = useMapRef();
   const {
     isPlaying, setIsPlaying, mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
@@ -116,11 +122,25 @@ export default function Toolbar() {
   };
 
   const handleAddCameraKF = () => {
-    // Will be populated with actual map state from MapViewport
+    // Capture the ACTUAL current viewport state from the map
+    const map = mapRef.current?.getMap?.();
+    let center: [number, number] = [0, 20];
+    let zoom = 2;
+    let pitch = 0;
+    let bearing = 0;
+
+    if (map) {
+      const c = map.getCenter();
+      center = [c.lng, c.lat];
+      zoom = map.getZoom();
+      pitch = map.getPitch();
+      bearing = map.getBearing();
+    }
+
     const kf = {
       id: nanoid(),
       time: playheadTime,
-      camera: { center: [0, 20] as [number, number], zoom: 2, pitch: 0, bearing: 0, altitude: null },
+      camera: { center, zoom, pitch, bearing, altitude: null },
       easing: 'easeInOutCubic' as const,
       followRoute: null,
     };
@@ -174,7 +194,7 @@ export default function Toolbar() {
         onClick={() => setIsPlaying(!isPlaying)}
         accent
       />
-      <ToolbarButton icon={<Video size={16} />} label="Export" onClick={() => toast.info('Export coming soon')} />
+      <ToolbarButton icon={<Video size={16} />} label="Export" onClick={onExport} />
       <div className="flex-1" />
       <span className="font-mono-time text-xs text-muted-foreground px-2">
         {formatTime(useProjectStore.getState().playheadTime)} / {formatTime(useProjectStore.getState().duration)}

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import MapGL, { Source, Layer, Marker } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MAPBOX_TOKEN, MAP_STYLES } from '@/config/mapbox';
@@ -8,8 +8,11 @@ import { getAnimatedLine } from '@/engine/lineAnimation';
 import { applyEasing } from '@/engine/easings';
 import CalloutCard from './CalloutCard';
 
-export default function MapViewport() {
-  const mapRef = useRef<MapRef>(null);
+interface MapViewportProps {
+  mapRef: React.MutableRefObject<MapRef | null>;
+}
+
+export default function MapViewport({ mapRef }: MapViewportProps) {
   const {
     mapStyle, terrainEnabled, buildingsEnabled, terrainExaggeration,
     items, itemOrder, playheadTime, isPlaying,
@@ -28,6 +31,42 @@ export default function MapViewport() {
       }
     }
   }, [updateItem]);
+
+  // Apply fog/atmosphere for satellite-like views
+  const applyAtmosphere = useCallback((map: any) => {
+    const currentStyle = useProjectStore.getState().mapStyle;
+    if (currentStyle === 'satellite' || currentStyle === 'satelliteStreets') {
+      try {
+        map.setFog({
+          'color': 'rgb(220, 159, 113)',     // warm sunset horizon
+          'high-color': 'rgb(36, 92, 223)',  // blue upper atmosphere
+          'horizon-blend': 0.4,
+          'space-color': 'rgb(11, 11, 25)',  // dark space
+          'star-intensity': 0.6,
+        });
+      } catch { /* fog may not be supported */ }
+    } else if (currentStyle === 'dark') {
+      try {
+        map.setFog({
+          'color': 'rgb(23, 23, 23)',       
+          'high-color': 'rgb(10, 10, 40)',  
+          'horizon-blend': 0.3,
+          'space-color': 'rgb(5, 5, 15)',   
+          'star-intensity': 0.8,
+        });
+      } catch {}
+    } else {
+      try {
+        map.setFog({
+          'color': 'rgb(186, 210, 235)',
+          'high-color': 'rgb(36, 92, 223)',
+          'horizon-blend': 0.02,
+          'space-color': 'rgb(11, 11, 25)',
+          'star-intensity': 0.6,
+        });
+      } catch {}
+    }
+  }, []);
 
   const handleStyleLoad = useCallback(() => {
     const map = mapRef.current?.getMap();
@@ -64,7 +103,9 @@ export default function MapViewport() {
         } catch {}
       }
     }
-  }, [terrainEnabled, buildingsEnabled, terrainExaggeration, mapStyle]);
+
+    applyAtmosphere(map);
+  }, [terrainEnabled, buildingsEnabled, terrainExaggeration, mapStyle, applyAtmosphere]);
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
@@ -97,6 +138,13 @@ export default function MapViewport() {
     }
   }, [buildingsEnabled, mapStyle]);
 
+  // Re-apply atmosphere when map style changes
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded()) return;
+    applyAtmosphere(map);
+  }, [mapStyle, applyAtmosphere]);
+
   const routes: RouteItem[] = [];
   const boundaries: BoundaryItem[] = [];
   const callouts: CalloutItem[] = [];
@@ -120,6 +168,7 @@ export default function MapViewport() {
         onClick={handleMapClick}
         onLoad={handleStyleLoad}
         interactive={!isPlaying}
+        preserveDrawingBuffer
       >
         {routes.map((route) => (
           <RouteLayerGroup key={route.id} route={route} playheadTime={playheadTime} />
@@ -128,7 +177,7 @@ export default function MapViewport() {
           <BoundaryLayerGroup key={boundary.id} boundary={boundary} playheadTime={playheadTime} />
         ))}
         {callouts.map((callout) => (
-          <CalloutMarker key={callout.id} callout={callout} playheadTime={playheadTime} />
+          <CalloutMarker key={callout.id} callout={callout} playheadTime={playheadTime} mapRef={mapRef} />
         ))}
       </MapGL>
     </div>
@@ -199,7 +248,7 @@ function BoundaryLayerGroup({ boundary, playheadTime }: { boundary: BoundaryItem
   );
 }
 
-function CalloutMarker({ callout, playheadTime }: { callout: CalloutItem; playheadTime: number }) {
+function CalloutMarker({ callout, playheadTime, mapRef }: { callout: CalloutItem; playheadTime: number; mapRef: React.MutableRefObject<MapRef | null> }) {
   if (callout.lngLat[0] === 0 && callout.lngLat[1] === 0) return null;
   if (playheadTime < callout.startTime || playheadTime > callout.endTime) return null;
   const enterEnd = callout.startTime + callout.animation.enterDuration;
@@ -209,9 +258,28 @@ function CalloutMarker({ callout, playheadTime }: { callout: CalloutItem; playhe
   if (playheadTime < enterEnd) { phase = 'enter'; animProgress = (playheadTime - callout.startTime) / callout.animation.enterDuration; }
   else if (playheadTime > exitStart) { phase = 'exit'; animProgress = (playheadTime - exitStart) / callout.animation.exitDuration; }
 
+  // Compute pixel offset for altitude (3D effect via marker offset)
+  // The offset moves the marker up proportionally to altitude and zoom level
+  const map = mapRef.current?.getMap?.();
+  let altitudeOffset = 0;
+  if (map && callout.altitude > 0) {
+    const zoom = map.getZoom();
+    // At higher zoom levels, altitude should translate to more pixels
+    // This formula gives a good visual mapping
+    const metersPerPixel = 156543.03392 * Math.cos(callout.lngLat[1] * Math.PI / 180) / Math.pow(2, zoom);
+    altitudeOffset = callout.altitude / metersPerPixel;
+    // Clamp so it doesn't go crazy at very high zoom
+    altitudeOffset = Math.min(altitudeOffset, 300);
+  }
+
   return (
-    <Marker longitude={callout.lngLat[0]} latitude={callout.lngLat[1]}>
-      <CalloutCard callout={callout} phase={phase} progress={animProgress} />
+    <Marker
+      longitude={callout.lngLat[0]}
+      latitude={callout.lngLat[1]}
+      anchor="bottom"
+      offset={[0, -altitudeOffset] as [number, number]}
+    >
+      <CalloutCard callout={callout} phase={phase} progress={animProgress} altitudeOffset={altitudeOffset} />
     </Marker>
   );
 }
