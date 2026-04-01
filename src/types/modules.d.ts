@@ -1,4 +1,4 @@
-declare module 'react-map-gl' {
+declare module 'react-map-gl/mapbox' {
   import * as React from 'react';
   import type { Map as MapboxMap } from 'mapbox-gl';
 
@@ -28,42 +28,32 @@ declare module 'react-map-gl' {
     [key: string]: any;
   }
 
-  export const Map: React.ForwardRefExoticComponent<MapProps & React.RefAttributes<MapRef>>;
+  const Map: React.ForwardRefExoticComponent<MapProps & React.RefAttributes<MapRef>>;
   export default Map;
 
-  export interface SourceProps {
+  export const Source: React.FC<{
     id: string;
     type: string;
     data?: any;
-    url?: string;
-    tileSize?: number;
-    maxzoom?: number;
     children?: React.ReactNode;
     [key: string]: any;
-  }
-  export const Source: React.FC<SourceProps>;
+  }>;
 
-  export interface LayerProps {
+  export const Layer: React.FC<{
     id: string;
     type: string;
-    source?: string;
-    'source-layer'?: string;
     paint?: Record<string, any>;
     layout?: Record<string, any>;
-    minzoom?: number;
     [key: string]: any;
-  }
-  export const Layer: React.FC<LayerProps>;
+  }>;
 
-  export interface MarkerProps {
+  export const Marker: React.FC<{
     longitude: number;
     latitude: number;
     anchor?: string;
-    offset?: [number, number];
     children?: React.ReactNode;
     [key: string]: any;
-  }
-  export const Marker: React.FC<MarkerProps>;
+  }>;
 
   export function useMap(): { current?: MapRef };
 }
