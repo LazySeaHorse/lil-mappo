@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import MapGL, { Source, Layer, Marker } from 'react-map-gl';
-import type { MapRef } from 'react-map-gl';
+import MapGL, { Source, Layer, Marker } from 'react-map-gl/mapbox';
+import type { MapRef } from 'react-map-gl/mapbox';
 import { MAPBOX_TOKEN, MAP_STYLES } from '@/config/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
