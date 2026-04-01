@@ -8,9 +8,7 @@ export default {
     container: {
       center: true,
       padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
+      screens: { "2xl": "1400px" },
     },
     extend: {
       colors: {
@@ -57,6 +55,30 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // MapStudio semantic colors
+        toolbar: {
+          bg: "hsl(var(--toolbar-bg))",
+          border: "hsl(var(--toolbar-border))",
+        },
+        panel: {
+          bg: "hsl(var(--panel-bg))",
+          border: "hsl(var(--panel-border))",
+        },
+        timeline: {
+          bg: "hsl(var(--timeline-bg))",
+          track: "hsl(var(--timeline-track))",
+          ruler: "hsl(var(--timeline-ruler))",
+        },
+        playhead: "hsl(var(--playhead))",
+        keyframe: "hsl(var(--keyframe))",
+        "item-route": "hsl(var(--item-route))",
+        "item-boundary": "hsl(var(--item-boundary))",
+        "item-callout": "hsl(var(--item-callout))",
+        "item-camera": "hsl(var(--item-camera))",
+        selection: {
+          DEFAULT: "hsl(var(--selection))",
+          bg: "hsl(var(--selection-bg))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,20 +87,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
