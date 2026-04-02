@@ -140,7 +140,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       items: { ...s.items, [CAMERA_ID]: { ...cam, keyframes } },
       selectedItemId: CAMERA_ID,
       selectedKeyframeId: kf.id,
-      isInspectorOpen: true,
     };
   }),
 

@@ -130,6 +130,7 @@ When a callout is selected and "Move Mode" is enabled:
 - **Scrolling**: Uses `ScrollArea` for both vertical (tracks) and horizontal (time) navigation, with sticky track labels on the left.
 - **Clip Dragging**: Items have handles for updating `startTime`/`endTime`. Dragging the center moves the entire clip.
 - **Keyframes**: Camera keyframes can be dragged horizontally with auto-sorting.
+- **Camera Keyframes**: Unlike other items, adding a camera keyframe does **not** automatically open the inspector. This is a deliberate design choice to prevent the viewport from being obstructed on desktop or mobile, ensuring the user can accurately center the map for subsequent keyframes.
 - **Feedback**: Instant store updates ensure the Map viewport remains perfectly in sync during edits.
 
 ### 5.3 Video Export (`src/services/videoExport.ts`)
