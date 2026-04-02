@@ -231,6 +231,13 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         onChange={handleImportProject}
       />
 
+      <div className="flex items-center gap-2 mr-3 pl-1">
+        <img src="/logo.svg" className="w-7 h-7 drop-shadow-sm" alt="li'l Mappo Logo" />
+        <span className="font-bold text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>
+      </div>
+
+      <Divider />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="h-8 px-2.5 flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0">

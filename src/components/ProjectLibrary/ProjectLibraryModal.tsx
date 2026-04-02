@@ -86,8 +86,8 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
               <span className="text-sm">Loading library...</span>
             </div>
           ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground gap-3 border border-dashed border-border rounded-lg bg-secondary/20">
-              <UploadCloud size={32} className="opacity-50" />
+            <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground gap-4 border border-dashed border-border rounded-lg bg-secondary/10">
+              <img src="/logo.svg" className="w-16 h-16 opacity-20 grayscale brightness-125" alt="li'l Mappo Logo" />
               <div>
                 <p className="text-sm font-medium text-foreground">Your library is empty</p>
                 <p className="text-xs mt-1">Save a project from the toolbar to see it here.</p>

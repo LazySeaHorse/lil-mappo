@@ -1,0 +1,36 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mapGradient" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="15"/>
+      <feOffset dx="0" dy="10" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.2"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Abstract Map Base -->
+  <rect x="64" y="96" width="320" height="320" rx="40" fill="url(#mapGradient)" filter="url(#shadow)"/>
+  
+  <!-- Map Lines -->
+  <path d="M64 224H384" stroke="white" stroke-width="12" stroke-opacity="0.3"/>
+  <path d="M64 320H384" stroke="white" stroke-width="12" stroke-opacity="0.3"/>
+  <path d="M192 96V416" stroke="white" stroke-width="12" stroke-opacity="0.3"/>
+  <path d="M288 96V416" stroke="white" stroke-width="12" stroke-opacity="0.3"/>
+
+  <!-- Camera -->
+  <g filter="url(#shadow)">
+    <rect x="340" y="200" width="108" height="80" rx="16" fill="white"/>
+    <circle cx="394" cy="240" r="24" fill="#3B82F6"/>
+    <rect x="382" y="184" width="24" height="16" rx="4" fill="white"/>
+    <!-- Lens highlight -->
+    <circle cx="400" cy="234" r="6" fill="white" fill-opacity="0.4"/>
+  </g>
+</svg>
