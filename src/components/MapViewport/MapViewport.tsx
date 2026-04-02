@@ -143,9 +143,19 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         map.setProjection({ name: s.projection });
       }
 
-      // 2. 3D Terrain — source is always mounted, sourcedata handler retries if not ready yet
+      // 2. 3D Terrain — now handles its own source addition for transition stability
       if (s.terrainEnabled) {
-        if (map.getSource('mapbox-dem')) {
+        if (!map.getSource('mapbox-dem')) {
+          map.addSource('mapbox-dem', {
+            type: 'raster-dem',
+            url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            tileSize: 512,
+            maxzoom: 14
+          });
+        }
+        
+        const currentTerrain = map.getTerrain();
+        if (!currentTerrain || currentTerrain.source !== 'mapbox-dem' || currentTerrain.exaggeration !== s.terrainExaggeration) {
           map.setTerrain({ source: 'mapbox-dem', exaggeration: s.terrainExaggeration });
         }
       } else {
@@ -307,9 +317,6 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}
         {styleLoaded && (
           <>
-            {/* DEM source always mounted — terrain controlled by sync engine */}
-            <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
-
             {/* Buildings layer for non-Standard styles — visibility controlled by sync engine */}
             {mapStyle !== 'standard' && mapStyle !== 'satellite' && (
               <Layer

@@ -58,10 +58,14 @@ When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
 ### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
 This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - **Universal Sync Engine**: Handles all imperative Mapbox state (Projection, Terrain, Fog, Config, and Labels) across all styles. Uses a **two-effect architecture**:
-  1. **Mount-once Effect**: Registers `style.load`, `styleimportdata`, `sourcedata`, and `idle` listeners exactly once. These call through a `syncRef` (a ref that always points to the latest sync closure) so they never go stale and never need teardown/re-registration.
-  2. **Reactive Effect**: Fires `syncRef.current()` whenever any relevant store value changes. This handles direct state changes (user toggles terrain ON) while the mount-once listeners handle async events (style finishes loading, DEM source emits data).
-- **Style-Loaded Gate**: All `<Source>`/`<Layer>` children are conditionally rendered behind a `styleLoaded` React state flag. This flag is cleared immediately when `mapStyle` changes and set to `true` only when the `style.load` event fires. This prevents `"Style is not done loading"` crashes caused by `react-map-gl` trying to call `map.addSource()` during a style transition.
-- **Component Lifecycle**: Critical sources (like `mapbox-dem`) and base layers (like `3d-buildings` for legacy styles) are mounted in the React tree **once the style is loaded**. Visibility and enablement are controlled imperatively via the Sync Engine.
+  1. **Mount-once Effect**: Registered once `mapReady` is true (from `<MapGL onLoad>`). It hooks `style.load`, `styleimportdata`, `sourcedataloading`, `sourcedata`, and `idle` listeners exactly once. These use a `syncRef` pattern to call the latest sync logic without re-registration.
+  2. **Reactive Effect**: Calls `syncRef.current()` on every store change to ensure the map matches the UI state.
+- **Initialization Gates**: 
+  - `mapReady`: Set by `onLoad`. Defers all imperative listeners until the Mapbox instance is fully available.
+  - `styleLoaded`: Set by `style.load` and cleared on `mapStyle` changes. Conditional rendering gates all `<Source>`/`<Layer>` children to prevent the `"Style is not done loading"` crash.
+- **Reactive Loading States**: `terrainLoading` is driven by `sourcedataloading` and `sourcedata` (checking `isSourceLoaded`) for the `mapbox-dem` source. This ensures accurate spinner behavior when panning to areas with missing elevation data. Loading checks are automatically **bypassed during `isPlaying`** to prevent UI flickering.
+- **Component Lifecycle**: Base layers (like `3d-buildings` for legacy styles) are mounted inside the `styleLoaded` gate. Visibility is then fine-tuned imperatively via the Sync Engine. Critical sources like `mapbox-dem` are managed **entirely imperatively** within the Sync Engine to prevent unmount crashes during style transitions. 
+- **Defensive Sync**: Controls like `setLanguage` are wrapped in redundant safety checks (checking `getLanguage()` first and using isolated `try/catch`) to prevent Mapbox-internal AJAX crashes during style transitions.
 - **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
 - **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`offset: [0,0]`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards to push the card into the sky.
 
@@ -108,9 +112,9 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - **Callouts**: Animated using CSS transitions (`fadeIn`, `scaleUp`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`. Supports custom **Google Fonts** via dynamic injection.
 
 ### 5.2 3D Effects & Atmosphere
-- **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar or Map settings. The source remains mounted; the engine retries terrain activation on every `sourcedata` event to ensure reliability.
-- **Buildings (3D Details)**: Supports a hierarchical "Master Toggle" logic. In 'Standard' style, this uses `map.setConfigProperty`. For other styles, it relies on a dedicated `3d-buildings` fill-extrusion layer managed by the engine.
-- **Fog & Stars**: Configures atmospheric haze and starry skies. Works seamlessly in **both Globe and Mercator**. Uses style-aware defaults (e.g., `#5d7883` for Satellite) when no override is present.
+- **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar or Map settings. To ensure stability, the `mapbox-dem` source is **added imperatively** by the Sync Engine only when terrain is enabled. This avoids the "Source cannot be removed while terrain is using it" crash that occurs if a React-managed source unmounts before the terrain property is cleared. The engine uses source-specific handlers to drive a reactive loading spinner. For stability, **terrain and 3D buildings are automatically reset to `false`** when switching map styles or importing files.
+- **Buildings (3D Details)**: Supports a hierarchical "Master Toggle" logic. In 'Standard' style, this uses `map.setConfigProperty`. For other styles, it relies on a dedicated `3d-buildings` fill-extrusion layer managed by the engine. 
+- **Fog & Stars**: Configures atmospheric haze and starry skies. Works seamlessly in **both Globe and Mercator**. Uses style-aware defaults (e.g., `#5d7883` for Satellite) when no override is present. Config is re-applied after every style switch to prevent property loss.
 - **Projections**: Seamlessly switch between **Globe** and **Mercator**. Transition matrix overflows are prevented by imperative order-of-operations (Projection → Terrain → Fog).
 - **Altitude**: Callouts use a `Marker` with a ground-locked anchor. To keep the altitude visually consistent as the user zooms, we recalculate a pixel `altitudeOffset` which drives the internal height of the card's pole. This ensures the base dot stays geographically pinned while the card floats.
 
@@ -166,11 +170,13 @@ The export process is **non-realtime (offline)** for maximum quality:
 
 ## 8. Common Gotchas
 - **Map Style Changes**: When changing the map style, Mapbox removes all custom sources and layers. The `styleLoaded` gate in `MapViewport.tsx` automatically unmounts and remounts all `<Source>`/`<Layer>` children across style transitions. New layers must be placed inside this gate.
-- **Sync Engine Stability**: Event listeners (`style.load`, `sourcedata`, etc.) are registered **once** at mount using a ref-based pattern (`syncRef`). **Never** add store dependencies to the mount-once `useEffect` — this was the root cause of a critical race condition where listeners were lost during teardown/re-registration gaps.
+- **Sync Engine Stability**: Event listeners (`style.load`, `sourcedata`, etc.) are registered **once** at mount using a ref-based pattern (`syncRef`). **Never** add store dependencies to the mount-once `useEffect` — this ensures listeners aren't lost during teardown gaps.
+- **State Updates during Render**: Any store updates triggered from Mapbox event listeners (like `terrainLoading`) MUST be wrapped in `requestAnimationFrame` to prevent React from throwing errors about updating parent state during a child component's render cycle.
+- **Defensive Map API**: Always check Mapbox instance availability and use `try/catch` for plugin-like calls (e.g., `setLanguage`) which can throw internal network errors during transitions.
 - **Zustand Subscriptions**: We use a manual subscription in `usePlayback` to avoid React render cycles for the camera driver, keeping the playback smooth.
 - **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
 - **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.
-- **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors during rapid toggles.
+- **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors. **Crucially: Never use a React `<Source>` for a source that is currently bound to the map's `terrain` property**, as React's unmount lifecycle will trigger a Mapbox error if the source is removed before terrain is set to null.
 - **UI Component Refs**: All custom UI components (Button, Toggle, DrawerOverlay, etc.) MUST be wrapped in `React.forwardRef`. Libraries like `vaul` need direct access to DOM nodes to calculate snap-point heights and attach touch-gesture observers.
 - **Mobile Interaction Deadzones**: On mobile, the `TimelinePanel` is automatically hidden when the `InspectorPanel` is open. This is a critical architectural decision to prevent the timeline's z-index from interfering with the bottom-sheet's "swipe down to exit" gestures.
 - **Toast Migration**: The application has fully migrated from `radix-toast` to `sonner`. Ensure all notifications use the `toast` export from `sonner`.
