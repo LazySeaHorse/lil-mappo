@@ -14,12 +14,13 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { Button } from '@/components/ui/button';
 import { Eye, Play, Pause } from 'lucide-react';
 import { useResponsive } from '@/hooks/useResponsive';
+import { Toaster as Sonner } from "@/components/ui/sonner";
 
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   usePlayback(mapRef);
 
   const mapStyle = useProjectStore(s => s.mapStyle);
@@ -27,6 +28,8 @@ export default function MapStudioEditor() {
   const setHideUI = useProjectStore(s => s.setHideUI);
   const isPlaying = useProjectStore(s => s.isPlaying);
   const setIsPlaying = useProjectStore(s => s.setIsPlaying);
+  const timelineHeight = useProjectStore(s => s.timelineHeight);
+  const isInspectorOpen = useProjectStore(s => s.isInspectorOpen);
 
   useEffect(() => {
     const isDark = mapStyle === 'dark' || mapStyle === 'satellite' || mapStyle === 'satelliteStreets';
@@ -40,6 +43,16 @@ export default function MapStudioEditor() {
   return (
     <MapRefContext.Provider value={mapRef}>
       <FontLoader />
+      <Sonner 
+        style={{
+          position: 'absolute',
+          bottom: hideUI ? '32px' : (isMobile && isInspectorOpen) ? '32px' : `${timelineHeight + 32}px`,
+          left: hideUI ? '50%' : (isMobile && isInspectorOpen) ? '50%' : `calc((100% - ${!isInspectorOpen || isMobile ? '16px' : isTablet ? '304px' : '350px'} + ${isMobile ? '8px' : '16px'}) / 2)`,
+          transform: 'translateX(-50%)',
+          zIndex: 100,
+          pointerEvents: 'none'
+        } as React.CSSProperties}
+      />
       <div className="h-screen w-screen relative overflow-hidden bg-background">
         {/* Map Background Layer */}
         <div className="absolute inset-0 z-0">

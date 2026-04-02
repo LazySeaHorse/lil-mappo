@@ -162,11 +162,11 @@ function DeleteButton({ onClick }: { onClick: () => void }) {
 function ProjectSettings() {
   const [activeTab, setActiveTab] = useState<'general' | 'map'>('general');
   const { 
-    name, duration, fps, resolution, terrainExaggeration, projection, lightPreset, mapLanguage,
+    name, duration, fps, resolution, terrainExaggeration, projection, lightPreset,
     showRoadLabels, showPlaceLabels, showPointOfInterestLabels, showTransitLabels,
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     setProjectName, setDuration, setFps, setResolution, setTerrainExaggeration,
-    setProjection, setLightPreset, setMapLanguage, setLabelVisibility, set3dDetails, setAtmosphere,
+    setProjection, setLightPreset, setLabelVisibility, set3dDetails, setAtmosphere,
     mapStyle
   } = useProjectStore();
 
@@ -281,23 +281,6 @@ function ProjectSettings() {
             <Toggle checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />
             <Toggle checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />
             <Toggle checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />
-          </InspectorSection>
-          
-          <InspectorSection value="loc" title="Localization">
-            <Field label="Map Language">
-              <Select value={mapLanguage} onValueChange={(v) => setMapLanguage(v)}>
-                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                  <SelectItem value="fr">French</SelectItem>
-                  <SelectItem value="de">German</SelectItem>
-                  <SelectItem value="ja">Japanese</SelectItem>
-                  <SelectItem value="ko">Korean</SelectItem>
-                  <SelectItem value="zh-Hans">Chinese (Simplified)</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
           </InspectorSection>
         </Accordion>
       )}

@@ -115,7 +115,6 @@ export interface Project {
   show3dLandmarks: boolean;
   show3dTrees: boolean;
   show3dFacades: boolean;
-  mapLanguage: string;
   starIntensity: number;
   fogColor: string | null;
   terrainEnabled: boolean;
@@ -130,4 +129,5 @@ export interface Project {
   isMoveModeActive: boolean;
   hideUI: boolean;
   isInspectorOpen: boolean;
+  timelineHeight: number;
 }

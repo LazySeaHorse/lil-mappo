@@ -10,13 +10,12 @@ const PIXELS_PER_SECOND_DEFAULT = 60;
 export default function TimelinePanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(PIXELS_PER_SECOND_DEFAULT);
-  const [panelHeight, setPanelHeight] = useState(256); // Dynamic height (default 256px)
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
 
   const {
     duration, playheadTime, setPlayheadTime, items, itemOrder,
     selectedItemId, selectItem, selectKeyframe, selectedKeyframeId,
-    isInspectorOpen,
+    isInspectorOpen, timelineHeight, setTimelineHeight,
   } = useProjectStore();
 
   const { isMobile, isTablet } = useResponsive();
@@ -33,14 +32,14 @@ export default function TimelinePanel() {
   const handleResizeDrag = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const startY = e.clientY;
-    const startHeight = panelHeight;
+    const startHeight = timelineHeight;
 
     const handleMove = (ev: MouseEvent) => {
       const deltaY = ev.clientY - startY; 
       // Negative delta means mouse moved UP (making panel taller)
       const upperLimit = Math.min(window.innerHeight - 150, maxContentHeight);
       const newHeight = Math.max(104, Math.min(upperLimit, startHeight - deltaY));
-      setPanelHeight(newHeight);
+      setTimelineHeight(newHeight);
     };
 
     const handleUp = () => {
@@ -52,7 +51,7 @@ export default function TimelinePanel() {
     document.body.style.cursor = 'row-resize';
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
-  }, [panelHeight, maxContentHeight]);
+  }, [timelineHeight, setTimelineHeight, maxContentHeight]);
 
   const handleRulerScrub = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -106,7 +105,7 @@ export default function TimelinePanel() {
   const playheadX = playheadTime * pixelsPerSecond;
   
   // Provide auto-clamping in case tracks are deleted after we had expanded the panel
-  const clampedHeight = Math.max(104, Math.min(panelHeight, maxContentHeight));
+  const clampedHeight = Math.max(104, Math.min(timelineHeight, maxContentHeight));
 
   const rightMargin = !isInspectorOpen || isMobile ? 'right-4' : isTablet ? 'right-[304px]' : 'right-[350px]';
   const leftMargin = isMobile ? 'left-2' : 'left-4';

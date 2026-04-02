@@ -42,13 +42,14 @@ Everything lives in a single Zustand store.
 - `playheadTime`: The current "now" of the animation. Changing this triggers updates across the entire app.
 - `isPlaying`: Controls the playback loop.
 - **Project Settings**: Global overrides for `duration`, `fps`, `resolution`, `mapStyle`, and advanced Mapbox attributes. Organized into **General** and **Map** tabs in the Inspector. 
-  - **Map Config**: Includes `projection` (Globe/Mercator), `lightPreset` (v3 Standard), `mapLanguage`, and granular toggles for labels (Roads, Places, POIs, Transit) and 3D details (Landmarks, Facades, Trees). 
+  - **Map Config**: Includes `projection` (Globe/Mercator), `lightPreset` (v3 Standard), and granular toggles for labels (Roads, Places, POIs, Transit) and 3D details (Landmarks, Facades, Trees). 
   - **Atmosphere**: User-adjustable `starIntensity` and `fogColor`. Supported in both **Globe** and **Mercator** projections.
 - **Loading State**: Transient `terrainLoading` and `buildingsLoading` indicators for map-heavy features.
 - **Move Mode**: `isMoveModeActive` toggle allows users to manually reposition callouts on the map via drag-and-drop.
 - **Zen Mode**: `hideUI` toggle hides the floating UI layers. When active, a minimal "Show UI" and "Play" shortcut pill appears in the top-left.
 - **Responsive State**: `isInspectorOpen` toggle controls the visibility of the primary property panel. On mobile, this state is synchronized with the `vaul`-powered bottom sheet.
 - **Theme Sync**: Automatically toggles between `light` and `dark` themes based on the current Mapbox style (e.g., Satellite/Dark styles trigger dark mode).
+- **Timeline Height**: `timelineHeight` is persisted in the store to allow floating UI elements (like toasts) to position themselves dynamically above the timeline.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
@@ -65,7 +66,7 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
   - `styleLoaded`: Set by `style.load` and cleared on `mapStyle` changes. Conditional rendering gates all `<Source>`/`<Layer>` children to prevent the `"Style is not done loading"` crash.
 - **Reactive Loading States**: `terrainLoading` is driven by `sourcedataloading` and `sourcedata` (checking `isSourceLoaded`) for the `mapbox-dem` source. This ensures accurate spinner behavior when panning to areas with missing elevation data. Loading checks are automatically **bypassed during `isPlaying`** to prevent UI flickering.
 - **Component Lifecycle**: Base layers (like `3d-buildings` for legacy styles) are mounted inside the `styleLoaded` gate. Visibility is then fine-tuned imperatively via the Sync Engine. Critical sources like `mapbox-dem` are managed **entirely imperatively** within the Sync Engine to prevent unmount crashes during style transitions. 
-- **Defensive Sync**: Controls like `setLanguage` are wrapped in redundant safety checks (checking `getLanguage()` first and using isolated `try/catch`) to prevent Mapbox-internal AJAX crashes during style transitions.
+- **Defensive Sync**: Operations are wrapped in redundant safety checks and isolated `try/catch` to prevent Mapbox-internal AJAX crashes during style transitions.
 - **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
 - **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`offset: [0,0]`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards to push the card into the sky.
 
@@ -126,11 +127,11 @@ When a callout is selected and "Move Mode" is enabled:
 4. This allows precise positioning relative to ground features without altitude parallax interference.
 
 ### 5.5 Timeline Direct Manipulation
-- **Resizing Panel**: Users can drag the top edge of the timeline panel to change its height. The panel height is mathematically capped to the current number of tracks.
+- **Resizing Panel**: Users can drag the top edge of the timeline panel to change its height. The panel height is mathematically capped to the current number of tracks and the value is synced to `timelineHeight` in the store.
 - **Scrolling**: Uses `ScrollArea` for both vertical (tracks) and horizontal (time) navigation, with sticky track labels on the left.
 - **Clip Dragging**: Items have handles for updating `startTime`/`endTime`. Dragging the center moves the entire clip.
 - **Keyframes**: Camera keyframes can be dragged horizontally with auto-sorting.
-- **Camera Keyframes**: Unlike other items, adding a camera keyframe does **not** automatically open the inspector. This is a deliberate design choice to prevent the viewport from being obstructed on desktop or mobile, ensuring the user can accurately center the map for subsequent keyframes.
+- **Camera Keyframes**: Adding a camera keyframe does **not** automatically open the inspector. This ensures the viewport remains unobstructed for subsequent camera positioning.
 - **Feedback**: Instant store updates ensure the Map viewport remains perfectly in sync during edits.
 
 ### 5.3 Video Export (`src/services/videoExport.ts`)
@@ -173,14 +174,14 @@ The export process is **non-realtime (offline)** for maximum quality:
 - **Map Style Changes**: When changing the map style, Mapbox removes all custom sources and layers. The `styleLoaded` gate in `MapViewport.tsx` automatically unmounts and remounts all `<Source>`/`<Layer>` children across style transitions. New layers must be placed inside this gate.
 - **Sync Engine Stability**: Event listeners (`style.load`, `sourcedata`, etc.) are registered **once** at mount using a ref-based pattern (`syncRef`). **Never** add store dependencies to the mount-once `useEffect` — this ensures listeners aren't lost during teardown gaps.
 - **State Updates during Render**: Any store updates triggered from Mapbox event listeners (like `terrainLoading`) MUST be wrapped in `requestAnimationFrame` to prevent React from throwing errors about updating parent state during a child component's render cycle.
-- **Defensive Map API**: Always check Mapbox instance availability and use `try/catch` for plugin-like calls (e.g., `setLanguage`) which can throw internal network errors during transitions.
+- **Defensive Map API**: Always check Mapbox instance availability and use `try/catch` for plugin-like calls which can throw internal network errors during transitions.
 - **Zustand Subscriptions**: We use a manual subscription in `usePlayback` to avoid React render cycles for the camera driver, keeping the playback smooth.
 - **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
 - **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.
 - **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors. **Crucially: Never use a React `<Source>` for a source that is currently bound to the map's `terrain` property**, as React's unmount lifecycle will trigger a Mapbox error if the source is removed before terrain is set to null. Additionally, always guard calls to `isSourceLoaded` or `setLayoutProperty` with existence checks (`getSource` / `getLayer`) to prevent crashes during asynchronous style transitions.
 - **UI Component Refs**: All custom UI components (Button, Toggle, DrawerOverlay, etc.) MUST be wrapped in `React.forwardRef`. Libraries like `vaul` need direct access to DOM nodes to calculate snap-point heights and attach touch-gesture observers.
 - **Mobile Interaction Deadzones**: On mobile, the `TimelinePanel` is automatically hidden when the `InspectorPanel` is open. This is a critical architectural decision to prevent the timeline's z-index from interfering with the bottom-sheet's "swipe down to exit" gestures.
-- **Toast Migration**: The application has fully migrated from `radix-toast` to `sonner`. Ensure all notifications use the `toast` export from `sonner`.
+- **Toast UI**: The application uses **Sonner** with a custom "Pill" design (rounded-full, no icons, backdrop-blur). Toasts are positioned dynamically in `MapStudioEditor` to always appear centered and exactly 32px above the timeline top edge (using `timelineHeight`).
 - **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It deduplicates and cleans up `<link>` tags based on the active project items to prevent CSS bloat.
 
 ---

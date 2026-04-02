@@ -20,7 +20,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   const {
     mapStyle, terrainEnabled, buildingsEnabled, terrainExaggeration,
     projection, lightPreset, showRoadLabels, showPlaceLabels, showPointOfInterestLabels, showTransitLabels,
-    show3dLandmarks, show3dTrees, show3dFacades, mapLanguage, starIntensity, fogColor,
+    show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     items, itemOrder, playheadTime, isPlaying,
     selectedItemId, updateItem, selectItem, isMoveModeActive,
   } = useProjectStore();
@@ -162,20 +162,8 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         if (map.getTerrain()) map.setTerrain(null);
       }
 
-      // 3. Atmosphere (supported in both globe and mercator)
+      // 4. Atmosphere (supported in both globe and mercator)
       map.setFog(fogConfig as any);
-
-      // 4. Map Language
-      if (s.mapLanguage && (map as any).setLanguage) {
-        try {
-          // Only call if language has changed to avoid redundant network requests
-          if (map.getLanguage?.() !== s.mapLanguage) {
-            (map as any).setLanguage(s.mapLanguage);
-          }
-        } catch (e) {
-          // Isolated catch: Mapbox may throw if network stack isn't quite ready
-        }
-      }
 
       // 5. 3D Buildings & Details
       const buildingsOn = s.buildingsEnabled;
@@ -288,7 +276,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     mapStyle, projection, terrainEnabled, terrainExaggeration, fogConfig,
     buildingsEnabled, lightPreset, showRoadLabels, showPlaceLabels, 
     showPointOfInterestLabels, showTransitLabels, show3dLandmarks, 
-    show3dTrees, show3dFacades, mapLanguage, styleLoaded
+    show3dTrees, show3dFacades, styleLoaded
   ]);
 
   const routes: RouteItem[] = [];

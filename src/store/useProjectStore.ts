@@ -29,7 +29,6 @@ interface ProjectStore extends Project {
   setMapStyle: (s: string) => void;
   setProjection: (v: 'globe' | 'mercator') => void;
   setLightPreset: (v: 'day' | 'night' | 'dusk' | 'dawn') => void;
-  setMapLanguage: (v: string) => void;
   setAtmosphere: (updates: { starIntensity?: number; fogColor?: string | null }) => void;
   setLabelVisibility: (key: 'road' | 'place' | 'poi' | 'transit', visible: boolean) => void;
   set3dDetails: (key: 'landmarks' | 'trees' | 'facades', visible: boolean) => void;
@@ -55,6 +54,10 @@ interface ProjectStore extends Project {
   // Inspector visibility
   isInspectorOpen: boolean;
   setIsInspectorOpen: (v: boolean) => void;
+
+  // Timeline visibility/height
+  timelineHeight: number;
+  setTimelineHeight: (v: number) => void;
 
   // Project loading
   loadFullProject: (project: Project) => void;
@@ -84,7 +87,6 @@ const defaultProject: Project = {
   show3dLandmarks: true,
   show3dTrees: true,
   show3dFacades: true,
-  mapLanguage: 'en',
   starIntensity: 0.6,
   fogColor: null,
   terrainEnabled: false,
@@ -99,6 +101,7 @@ const defaultProject: Project = {
   isMoveModeActive: false,
   hideUI: false,
   isInspectorOpen: true,
+  timelineHeight: 256,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -172,7 +175,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setMapStyle: (s) => set({ mapStyle: s as any, terrainEnabled: false, buildingsEnabled: false }),
   setProjection: (v) => set({ projection: v }),
   setLightPreset: (v) => set({ lightPreset: v }),
-  setMapLanguage: (v) => set({ mapLanguage: v }),
   setAtmosphere: (updates) => set((s) => ({ ...s, ...updates })),
   setLabelVisibility: (key, visible) => set((s) => {
     const map = { road: 'showRoadLabels', place: 'showPlaceLabels', poi: 'showPointOfInterestLabels', transit: 'showTransitLabels' };
@@ -194,6 +196,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setBuildingsLoading: (v) => set({ buildingsLoading: v }),
 
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
+
+  setTimelineHeight: (v) => set({ timelineHeight: v }),
 
   loadFullProject: (project) => set({ 
     ...defaultProject, 
