@@ -129,5 +129,6 @@ export interface Project {
   isMoveModeActive: boolean;
   hideUI: boolean;
   isInspectorOpen: boolean;
+  isScrubbing: boolean;
   timelineHeight: number;
 }

@@ -4,19 +4,28 @@ import type { TimelineItem, CameraItem, RouteItem, BoundaryItem, CalloutItem } f
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useResponsive } from '@/hooks/useResponsive';
 
-const RULER_HEIGHT = 32;
+const RULER_HEIGHT = 40;
 const PIXELS_PER_SECOND_DEFAULT = 60;
 
 export default function TimelinePanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(PIXELS_PER_SECOND_DEFAULT);
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   const {
     duration, playheadTime, setPlayheadTime, items, itemOrder,
     selectedItemId, selectItem, selectKeyframe, selectedKeyframeId,
     isInspectorOpen, timelineHeight, setTimelineHeight,
+    isPlaying, setIsPlaying, fps, removeItem, setIsScrubbing
   } = useProjectStore();
+  
+  const [displayHeight, setDisplayHeight] = useState(timelineHeight);
+
+  // Sync back from store if it changes elsewhere (like loading a project)
+  useEffect(() => {
+    if (!isResizing) setDisplayHeight(timelineHeight);
+  }, [timelineHeight, isResizing]);
 
   const { isMobile, isTablet } = useResponsive();
 
@@ -32,17 +41,25 @@ export default function TimelinePanel() {
   const handleResizeDrag = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const startY = e.clientY;
-    const startHeight = timelineHeight;
+    const startHeight = displayHeight;
+    setIsResizing(true);
+    
+    // Use a ref to store the latest height to avoid global render cycles
+    let latestHeight = startHeight;
 
     const handleMove = (ev: MouseEvent) => {
-      const deltaY = ev.clientY - startY; 
+      const deltaY = ev.clientX === 0 ? 0 : ev.clientY - startY; 
       // Negative delta means mouse moved UP (making panel taller)
       const upperLimit = Math.min(window.innerHeight - 150, maxContentHeight);
-      const newHeight = Math.max(104, Math.min(upperLimit, startHeight - deltaY));
-      setTimelineHeight(newHeight);
+      const newHeight = Math.floor(Math.max(104, Math.min(upperLimit, startHeight - deltaY)));
+      
+      latestHeight = newHeight;
+      setDisplayHeight(newHeight);
     };
 
     const handleUp = () => {
+      setIsResizing(false);
+      setTimelineHeight(latestHeight);
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
       document.body.style.cursor = '';
@@ -51,11 +68,13 @@ export default function TimelinePanel() {
     document.body.style.cursor = 'row-resize';
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
-  }, [timelineHeight, setTimelineHeight, maxContentHeight]);
+  }, [displayHeight, setTimelineHeight, maxContentHeight]);
 
   const handleRulerScrub = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDraggingPlayhead(true);
+    setIsPlaying(false);
+    setIsScrubbing(true);
     
     // The scrubber zone's left edge is the true time=0 coordinate
     const rulerZone = e.currentTarget;
@@ -75,6 +94,7 @@ export default function TimelinePanel() {
     
     const handleUp = () => {
       setDraggingPlayhead(false);
+      setIsScrubbing(false);
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
@@ -90,22 +110,53 @@ export default function TimelinePanel() {
     } 
   }, []);
 
-  // Keyboard shortcut
+  // Global Keyboard Shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
-        e.preventDefault();
-        useProjectStore.getState().setIsPlaying(!useProjectStore.getState().isPlaying);
+      // Guard: Don't trigger if user is typing in an input
+      const target = e.target as HTMLElement;
+      const isTyping = 
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.isContentEditable;
+      
+      if (isTyping) return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          setIsPlaying(!isPlaying);
+          break;
+        case 'Delete':
+        case 'Backspace':
+          if (selectedItemId && selectedItemId !== CAMERA_TRACK_ID) {
+            removeItem(selectedItemId);
+          }
+          break;
+        case 'BracketLeft':
+          setPlayheadTime(0);
+          break;
+        case 'BracketRight':
+          setPlayheadTime(duration);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          setPlayheadTime(playheadTime - (1 / fps));
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          setPlayheadTime(playheadTime + (1 / fps));
+          break;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [isPlaying, setIsPlaying, selectedItemId, removeItem, setPlayheadTime, duration, playheadTime, fps]);
 
   const playheadX = playheadTime * pixelsPerSecond;
   
   // Provide auto-clamping in case tracks are deleted after we had expanded the panel
-  const clampedHeight = Math.max(104, Math.min(timelineHeight, maxContentHeight));
+  const clampedHeight = Math.max(104, Math.min(displayHeight, maxContentHeight));
 
   const rightMargin = !isInspectorOpen || isMobile ? 'right-4' : isTablet ? 'right-[304px]' : 'right-[350px]';
   const leftMargin = isMobile ? 'left-2' : 'left-4';
@@ -120,7 +171,7 @@ export default function TimelinePanel() {
   return (
     <div
       ref={containerRef}
-      className={`absolute bottom-4 ${finalLeftMargin} ${finalRightMargin} bg-background/85 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
+      className={`absolute bottom-4 ${finalLeftMargin} ${finalRightMargin} bg-background/85 ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
       style={{ height: clampedHeight }}
     >
       {/* Top Resize Handle */}
@@ -141,7 +192,7 @@ export default function TimelinePanel() {
         <div className="flex flex-col relative min-w-max pb-4" style={{ width: totalWidth + 160 + 20 }} onWheel={handleWheel}>
           
           {/* RULER ROW */}
-          <div className="h-8 border-b border-border/50 relative shrink-0 bg-background/60 sticky top-0 z-30 backdrop-blur-md flex items-end">
+          <div className="h-10 border-b border-border/50 relative shrink-0 bg-background/60 sticky top-0 z-30 backdrop-blur-md flex items-end">
             
             {/* White/Dead area above labels */}
             <div className="w-[160px] h-full bg-background/90 border-r border-border/50 shrink-0 sticky left-0 z-30 pointer-events-none" />
@@ -158,9 +209,9 @@ export default function TimelinePanel() {
                   const isMajor = t % 1 === 0;
                   return (
                     <g key={i}>
-                      <line x1={x} y1={isMajor ? 12 : 20} x2={x} y2={RULER_HEIGHT} stroke="currentColor" strokeWidth={isMajor ? 1 : 0.5} className="text-muted-foreground opacity-40" />
+                      <line x1={x} y1={isMajor ? 18 : 28} x2={x} y2={RULER_HEIGHT} stroke="currentColor" strokeWidth={isMajor ? 1 : 0.5} className="text-muted-foreground opacity-40" />
                       {isMajor && (
-                        <text x={x + 3} y={10} fontSize={10} className="fill-muted-foreground opacity-80 font-mono-time">
+                        <text x={x + 3} y={14} fontSize={10} className="fill-muted-foreground opacity-80 font-mono-time">
                           {Math.floor(t / 60)}:{(t % 60).toString().padStart(2, '0')}
                         </text>
                       )}
@@ -175,7 +226,7 @@ export default function TimelinePanel() {
                 style={{ left: playheadX }}
               >
                 {/* SVG Playhead Polygon (Classic Arrow down) */}
-                <svg width="11" height="12" viewBox="0 0 11 12" className="text-primary fill-current">
+                <svg width="11" height="12" viewBox="0 0 11 12" className="text-primary fill-current transition-transform duration-100 hover:scale-110">
                   <path d="M0 0 H11 V6 L5.5 12 L0 6 Z" />
                 </svg>
               </div>
@@ -212,7 +263,7 @@ export default function TimelinePanel() {
   );
 }
 
-function TrackRow({
+const TrackRow = React.memo(({
   item,
   pixelsPerSecond,
   isSelected,
@@ -226,7 +277,7 @@ function TrackRow({
   selectedKeyframeId: string | null;
   onSelect: () => void;
   onSelectKeyframe: (id: string | null) => void;
-}) {
+}) => {
   const colorClass = item.kind === 'route' ? 'bg-item-route' : item.kind === 'boundary' ? 'bg-item-boundary' : item.kind === 'callout' ? 'bg-item-callout' : 'bg-item-camera';
   
   const label = item.kind === 'camera'
@@ -307,9 +358,9 @@ function TrackRow({
       </div>
     </div>
   );
-}
+});
 
-function TimelineItemBar({
+const TimelineItemBar = React.memo(({
   item,
   pixelsPerSecond,
   colorClass,
@@ -319,7 +370,7 @@ function TimelineItemBar({
   pixelsPerSecond: number;
   colorClass: string;
   onSelect: () => void;
-}) {
+}) => {
   const updateItem = useProjectStore((s) => s.updateItem);
   const duration = useProjectStore((s) => s.duration);
 
@@ -397,7 +448,7 @@ function TimelineItemBar({
       </div>
     </div>
   );
-}
+});
 
 function formatTime(s: number): string {
   const min = Math.floor(s / 60);

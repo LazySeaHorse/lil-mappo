@@ -10,6 +10,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Choreograph** camera movements using a keyframe-based timeline.
 - **Save & Manage** multiple projects locally via an IndexedDB-powered library.
 - **Export** projects as `.lilmap` files or high-quality MP4 videos.
+- **Duplicate**: Items (Routes, Boundaries, Callouts) can be duplicated in the Inspector for rapid variation creation.
 - **Zen Mode**: A "Focus" mode that hides all UI layers for an immersive, distraction-free map experience (also automatically triggered during video exports to save GPU resources).
 
 The UI is a premium, **responsive "floating island"** design.
@@ -41,6 +42,7 @@ Everything lives in a single Zustand store.
 - `itemOrder`: Defines the "layer" order in the timeline and on the map.
 - `playheadTime`: The current "now" of the animation. Changing this triggers updates across the entire app.
 - `isPlaying`: Controls the playback loop.
+- `isScrubbing`: Transient state active when the user is dragging the timeline ruler; used to suppress loading indicators and pause playback.
 - **Project Settings**: Global overrides for `duration`, `fps`, `resolution`, `mapStyle`, and advanced Mapbox attributes. Organized into **General** and **Map** tabs in the Inspector. 
   - **Map Config**: Includes `projection` (Globe/Mercator), `lightPreset` (v3 Standard), and granular toggles for labels (Roads, Places, POIs, Transit) and 3D details (Landmarks, Facades, Trees). 
   - **Atmosphere**: User-adjustable `starIntensity` and `fogColor`. Supported in both **Globe** and **Mercator** projections.
@@ -49,7 +51,7 @@ Everything lives in a single Zustand store.
 - **Zen Mode**: `hideUI` toggle hides the floating UI layers. When active, a minimal "Show UI" and "Play" shortcut pill appears in the top-left.
 - **Responsive State**: `isInspectorOpen` toggle controls the visibility of the primary property panel. On mobile, this state is synchronized with the `vaul`-powered bottom sheet.
 - **Theme Sync**: Automatically toggles between `light` and `dark` themes based on the current Mapbox style (e.g., Satellite/Dark styles trigger dark mode).
-- **Timeline Height**: `timelineHeight` is persisted in the store to allow floating UI elements (like toasts) to position themselves dynamically above the timeline.
+- **Timeline Height**: `timelineHeight` is persisted in the store to allow floating UI elements (like toasts) to position themselves dynamically above the timeline. To ensure smooth resizing, the `TimelinePanel` uses a local `displayHeight` state during drag operations to avoid global store broadcasts.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
@@ -64,7 +66,7 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - **Initialization Gates**: 
   - `mapReady`: Set by `onLoad`. Defers all imperative listeners until the Mapbox instance is fully available.
   - `styleLoaded`: Set by `style.load` and cleared on `mapStyle` changes. Conditional rendering gates all `<Source>`/`<Layer>` children to prevent the `"Style is not done loading"` crash.
-- **Reactive Loading States**: `terrainLoading` is driven by `sourcedataloading` and `sourcedata` (checking `isSourceLoaded`) for the `mapbox-dem` source. This ensures accurate spinner behavior when panning to areas with missing elevation data. Loading checks are automatically **bypassed during `isPlaying`** to prevent UI flickering.
+- **Reactive Loading States**: `terrainLoading` is driven by `sourcedataloading` and `sourcedata` (checking `isSourceLoaded`) for the `mapbox-dem` source. This ensures accurate spinner behavior when panning to areas with missing elevation data. Loading checks are automatically **bypassed during `isPlaying` or `isScrubbing`** to prevent UI flickering during camera movement.
 - **Component Lifecycle**: Base layers (like `3d-buildings` for legacy styles) are mounted inside the `styleLoaded` gate. Visibility is then fine-tuned imperatively via the Sync Engine. Critical sources like `mapbox-dem` are managed **entirely imperatively** within the Sync Engine to prevent unmount crashes during style transitions. 
 - **Defensive Sync**: Operations are wrapped in redundant safety checks and isolated `try/catch` to prevent Mapbox-internal AJAX crashes during style transitions.
 - **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
@@ -86,6 +88,8 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - **`src/components/ui/`**: A comprehensive library of modern, high-fidelity UI components based on **shadcn/ui**.
 - `src/components/Timeline/`: The interactive track-based editor (`TimelinePanel.tsx`). 
   - **Features**: Vertical resizability (click-drag top edge), vertical scroll isolation, and a unified top-ruler scrubber with a protruding playhead.
+  - **Performance**: Track components (`TrackRow`, `TimelineItemBar`) are memoized. During panel resize, `backdrop-blur` is temporarily suppressed in favor of a solid background to maintain 60fps.
+  - **Interaction**: Features a comprehensive shortcut suite: `Space` (Play/Pause), `Delete/Backspace` (Delete Item), `[`/`]` (Jump Start/End), and `Arrows` (1-frame stepping).
 - `src/components/Toolbar/`: Breakpoint-aware command pill. 
   - **Desktop/Tablet**: Unified horizontal toolbar with icon-only buttons.
   - **Mobile**: Consolidates secondary actions into `Add` and `Display` dropdown menus to maximize available map real estate. Replaces wide selectors (like Map Style) with compact icons.
@@ -161,7 +165,8 @@ The export process is **non-realtime (offline)** for maximum quality:
 2. Add CRUD logic to `src/store/useProjectStore.ts`.
 3. Create an inspector component in `src/components/Inspector/`.
 4. Create a rendering component in `src/components/MapViewport/` (e.g., `NewItemLayer.tsx`).
-5. Add it to the timeline in `src/components/Timeline/TimelinePanel.tsx`.
+5. Add the new item to the timeline and implement duplication support in `src/store/useProjectStore.ts`.
+6. Add it to the timeline in `src/components/Timeline/TimelinePanel.tsx`.
 
 ### Animation & Performance
 - Avoid placing too much logic in the `requestAnimationFrame` loop.

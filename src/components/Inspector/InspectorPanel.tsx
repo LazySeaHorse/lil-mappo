@@ -3,7 +3,7 @@ import type { TimelineItem, RouteItem, BoundaryItem, CalloutItem, CameraItem, Ea
 import { searchBoundary } from '@/services/nominatim';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
-import { Trash2, Search, Crosshair, Check } from 'lucide-react';
+import { Trash2, Search, Crosshair, Check, Copy } from 'lucide-react';
 import FontPicker from 'react-fontpicker-ts';
 import 'react-fontpicker-ts/dist/index.css';
 import { Input } from "@/components/ui/input";
@@ -158,6 +158,52 @@ function DeleteButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function ItemActions({ 
+  id, 
+  kind 
+}: { 
+  id: string; 
+  kind: 'route' | 'boundary' | 'callout' | 'camera-kf' 
+}) {
+  const { removeItem, selectItem, removeCameraKeyframe, selectKeyframe, duplicateItem } = useProjectStore();
+  
+  const isCameraKF = kind === 'camera-kf';
+  const canDuplicate = kind !== 'camera-kf';
+
+  const handleDelete = () => {
+    if (isCameraKF) {
+      removeCameraKeyframe(id);
+      selectKeyframe(null);
+    } else {
+      removeItem(id);
+      selectItem(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 w-full mt-4">
+      {canDuplicate && (
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          onClick={() => duplicateItem(id)}
+          className="w-full h-8 flex items-center justify-center gap-1.5 text-xs bg-secondary/50 hover:bg-secondary border border-border/50"
+        >
+          <Copy size={13} /> Duplicate
+        </Button>
+      )}
+      <Button 
+        variant="destructive" 
+        size="sm" 
+        onClick={handleDelete}
+        className="w-full h-8 flex items-center justify-center gap-1.5 text-xs"
+      >
+        <Trash2 size={13} /> Delete {isCameraKF ? 'Keyframe' : kind.charAt(0).toUpperCase() + kind.slice(1)}
+      </Button>
+    </div>
+  );
+}
+
 // Project settings
 function ProjectSettings() {
   const [activeTab, setActiveTab] = useState<'general' | 'map'>('general');
@@ -296,19 +342,7 @@ function RouteInspector({ item }: { item: RouteItem }) {
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch as any);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
 
-  const footer = (
-    <Button
-      variant="destructive"
-      className="w-full shadow-sm"
-      onClick={() => {
-        deleteItem(item.id);
-        selectItem(null);
-      }}
-    >
-      <Trash2 className="w-4 h-4 mr-2" />
-      Delete Route
-    </Button>
-  );
+  const footer = <ItemActions id={item.id} kind="route" />;
 
   return (
     <PanelWrapper title={`Route: ${item.name}`} footer={footer}>
@@ -380,19 +414,7 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
     toast.success('Boundary resolved');
   };
 
-  const footer = (
-    <Button
-      variant="destructive"
-      className="w-full shadow-sm"
-      onClick={() => {
-        removeItem(item.id);
-        selectItem(null);
-      }}
-    >
-      <Trash2 className="w-4 h-4 mr-2" />
-      Delete Boundary
-    </Button>
-  );
+  const footer = <ItemActions id={item.id} kind="boundary" />;
 
   return (
     <PanelWrapper title={`Boundary: ${item.placeName || 'New'}`} footer={footer}>
@@ -471,19 +493,7 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
   const us = (updates: Partial<CalloutItem['style']>) => u({ style: { ...item.style, ...updates } });
   const ua = (updates: Partial<CalloutItem['animation']>) => u({ animation: { ...item.animation, ...updates } });
 
-  const footer = (
-    <Button
-      variant="destructive"
-      className="w-full shadow-sm"
-      onClick={() => {
-        removeItem(item.id);
-        selectItem(null);
-      }}
-    >
-      <Trash2 className="w-4 h-4 mr-2" />
-      Delete Callout
-    </Button>
-  );
+  const footer = <ItemActions id={item.id} kind="callout" />;
 
   return (
     <PanelWrapper title={`Callout: ${item.title}`} footer={footer}>
@@ -573,19 +583,7 @@ function CameraKFInspector({ item }: { item: CameraItem }) {
 
   const kf = item.keyframes.find((k) => k.id === selectedKeyframeId);
   
-  const footer = kf ? (
-    <Button
-      variant="destructive"
-      className="w-full shadow-sm"
-      onClick={() => {
-        removeCameraKeyframe(kf.id);
-        selectKeyframe(null);
-      }}
-    >
-      <Trash2 className="w-4 h-4 mr-2" />
-      Delete Keyframe
-    </Button>
-  ) : null;
+  const footer = kf ? <ItemActions id={kf.id} kind="camera-kf" /> : null;
 
   if (!kf) {
     return (

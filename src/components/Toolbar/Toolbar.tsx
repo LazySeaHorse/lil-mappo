@@ -41,7 +41,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading, buildingsLoading,
     addItem, playheadTime, addCameraKeyframe, selectItem,
-    setHideUI, isInspectorOpen,
+    setHideUI, isInspectorOpen, isScrubbing,
   } = projectState;
 
   const { isMobile, isTablet } = useResponsive();
@@ -350,14 +350,14 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
                 label="Terrain" 
                 active={terrainEnabled} 
                 onClick={() => setTerrainEnabled(!terrainEnabled)} 
-                loading={terrainLoading}
+                loading={terrainLoading && !isPlaying && !isScrubbing}
               />
               <DropdownToggle 
                 icon={<Building2 size={14} />} 
                 label="3D Buildings" 
                 active={buildingsEnabled} 
                 onClick={() => setBuildingsEnabled(!buildingsEnabled)} 
-                loading={buildingsLoading}
+                loading={buildingsLoading && !isPlaying && !isScrubbing}
               />
             </div>
           </DropdownMenuContent>
@@ -384,7 +384,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
             hideLabel
             active={terrainEnabled}
             onClick={() => setTerrainEnabled(!terrainEnabled)}
-            loading={terrainLoading}
+            loading={terrainLoading && !isPlaying && !isScrubbing}
           />
           <ToolbarToggle
             icon={<Building2 size={16} />}
@@ -392,7 +392,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
             hideLabel
             active={buildingsEnabled}
             onClick={() => setBuildingsEnabled(!buildingsEnabled)}
-            loading={buildingsLoading}
+            loading={buildingsLoading && !isPlaying && !isScrubbing}
           />
         </div>
       )}

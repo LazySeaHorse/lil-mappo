@@ -21,6 +21,7 @@ interface ProjectStore extends Project {
   // Playback
   setPlayheadTime: (t: number) => void;
   setIsPlaying: (playing: boolean) => void;
+  setIsScrubbing: (v: boolean) => void;
 
   // Project settings
   setDuration: (d: number) => void;
@@ -61,6 +62,9 @@ interface ProjectStore extends Project {
 
   // Project loading
   loadFullProject: (project: Project) => void;
+
+  // Utilities
+  duplicateItem: (id: string) => void;
 }
 
 const CAMERA_ID = 'camera-track';
@@ -101,6 +105,7 @@ const defaultProject: Project = {
   isMoveModeActive: false,
   hideUI: false,
   isInspectorOpen: true,
+  isScrubbing: false,
   timelineHeight: 256,
 };
 
@@ -169,6 +174,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setPlayheadTime: (t) => set({ playheadTime: Math.max(0, Math.min(t, get().duration)) }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
+  setIsScrubbing: (v) => set({ isScrubbing: v }),
   setDuration: (d) => set({ duration: Math.max(1, d) }),
   setFps: (fps) => set({ fps }),
   setResolution: (r) => set({ resolution: r }),
@@ -207,7 +213,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     terrainLoading: false, 
     buildingsLoading: false, 
     hideUI: false, 
-    isInspectorOpen: true 
+    isInspectorOpen: true,
+    isScrubbing: false
+  }),
+
+  duplicateItem: (id) => set((s) => {
+    const original = s.items[id];
+    if (!original || original.kind === 'camera') return s;
+
+    const newId = nanoid();
+    const newItem = JSON.parse(JSON.stringify(original)) as TimelineItem;
+    newItem.id = newId;
+
+    if (newItem.kind === 'route') newItem.name = `${newItem.name} Copy`;
+    if (newItem.kind === 'boundary') newItem.placeName = `${newItem.placeName} Copy`;
+    if (newItem.kind === 'callout') newItem.title = `${newItem.title} Copy`;
+
+    return {
+      items: { ...s.items, [newId]: newItem },
+      itemOrder: [...s.itemOrder, newId],
+      selectedItemId: newId,
+      isInspectorOpen: true,
+    };
   }),
 }));
 
