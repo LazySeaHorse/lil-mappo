@@ -275,10 +275,14 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     map.on('sourcedata', handleSourceData);
     map.on('idle', handleIdle);
 
+    // Attach current sync logic to the map instance for the Export Engine to call
+    (map as any)._syncRef = syncRef;
+
     // Sync immediately — style is already loaded from onLoad
     syncRef.current();
 
     return () => {
+      delete (map as any)._syncRef;
       map.off('style.load', handleStyleLoad);
       map.off('styleimportdata', handleStyleImportData);
       map.off('sourcedataloading', handleSourceDataLoading);

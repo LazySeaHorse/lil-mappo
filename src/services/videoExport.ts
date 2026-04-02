@@ -131,8 +131,8 @@ export async function runExport(
     mapContainer.style.zIndex = '-100'; // Render behind the modal/UI
     map.resize();
 
-    // Small delay to allow Mapbox to re-allocate buffers
-    await new Promise(r => setTimeout(r, 200));
+    // Increased delay to allow Mapbox to re-allocate buffers and DEM source for high resolutions
+    await new Promise(r => setTimeout(r, 500));
 
     // Helper: Wait for map to be fully loaded (tiles, sources, etc.)
     const waitForMapIdle = () => new Promise<void>((resolve) => {
@@ -187,6 +187,11 @@ export async function runExport(
 
     // Wait for map to render and tiles to load
     map.triggerRepaint();
+    
+    // Explicit sync pass to ensure terrain/buildings aren't dropped during rapid updates
+    const syncEngine = (map as any)._syncRef?.current;
+    if (syncEngine) syncEngine();
+
     await waitForMapIdle();
     
     // Additional micro-delay for HTML2Canvas to find DOM markers reliably
