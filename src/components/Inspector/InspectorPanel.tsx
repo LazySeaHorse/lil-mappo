@@ -4,6 +4,8 @@ import { searchBoundary } from '@/services/nominatim';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 import { Trash2, Search, Crosshair, Check } from 'lucide-react';
+import FontPicker from 'react-fontpicker-ts';
+import 'react-fontpicker-ts/dist/index.css';
 
 export default function InspectorPanel() {
   const { selectedItemId, selectedKeyframeId, items } = useProjectStore();
@@ -315,6 +317,16 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
       <Field label="BG Color"><InputColor value={item.style.bgColor} onChange={(v) => us({ bgColor: v })} /></Field>
       <Field label="Text Color"><InputColor value={item.style.textColor} onChange={(v) => us({ textColor: v })} /></Field>
       <SliderField label="Max Width" value={item.style.maxWidth} onChange={(v) => us({ maxWidth: v })} min={150} max={400} step={10} />
+      <Field label="Font Family" key={item.id}>
+        <FontPicker
+          autoLoad={false}
+          defaultValue={item.style.fontFamily}
+          value={(font) => {
+            const fontName = typeof font === 'string' ? font : (font as any).family;
+            us({ fontFamily: fontName });
+          }}
+        />
+      </Field>
       <DeleteButton onClick={() => { removeItem(item.id); selectItem(null); }} />
     </PanelWrapper>
   );

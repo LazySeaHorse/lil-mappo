@@ -152,6 +152,9 @@ export async function runExport(
       return coords.length >= 2 ? coords : null;
     };
 
+    // Wait for all fonts to be ready before starting capture
+    await document.fonts.ready;
+
     // Frame-by-frame rendering
     for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
       const frame = startFrame + frameIndex;

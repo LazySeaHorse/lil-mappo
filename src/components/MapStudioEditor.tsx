@@ -8,6 +8,7 @@ import ExportModal from '@/components/ExportModal/ExportModal';
 import ProjectLibraryModal from '@/components/ProjectLibrary/ProjectLibraryModal';
 import { usePlayback } from '@/hooks/usePlayback';
 import { MapRefContext } from '@/hooks/useMapRef';
+import FontLoader from '@/components/FontLoader';
 
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
@@ -17,6 +18,7 @@ export default function MapStudioEditor() {
 
   return (
     <MapRefContext.Provider value={mapRef}>
+      <FontLoader />
       <div className="h-screen w-screen flex flex-col overflow-hidden">
         <Toolbar 
           onExport={() => setShowExport(true)} 

@@ -109,3 +109,35 @@
 @keyframes callout-scale-down { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.5); } }
 @keyframes callout-slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes callout-slide-down { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
+
+/* Font Picker Adjustments */
+.font-picker {
+  width: 100% !important;
+  background: hsl(var(--background)) !important;
+  border-color: hsl(var(--border)) !important;
+  border-radius: var(--radius) !important;
+  font-size: 0.875rem !important;
+}
+
+.font-picker > div:first-child {
+  height: 32px !important;
+  padding: 0 8px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.font-picker ul {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  z-index: 50 !important;
+}
+
+.font-picker li {
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+}
+
+.font-picker li:hover {
+  background: hsl(var(--secondary)) !important;
+}

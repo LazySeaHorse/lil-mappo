@@ -58,6 +58,7 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
           color: callout.style.textColor,
           borderRadius: callout.style.borderRadius,
           maxWidth: callout.style.maxWidth,
+          fontFamily: `'${callout.style.fontFamily}', sans-serif`,
           backdropFilter: 'blur(8px)',
           border: '1px solid rgba(255,255,255,0.2)',
         }}

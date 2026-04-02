@@ -169,6 +169,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         borderRadius: 8,
         shadow: true,
         maxWidth: 240,
+        fontFamily: 'Inter',
       },
       altitude: 50,
       poleVisible: true,

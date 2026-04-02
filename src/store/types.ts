@@ -70,6 +70,7 @@ export interface CalloutItem {
     borderRadius: number;
     shadow: boolean;
     maxWidth: number;
+    fontFamily: string;
   };
   altitude: number;
   poleVisible: boolean;
