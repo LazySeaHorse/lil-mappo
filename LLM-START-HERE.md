@@ -12,7 +12,9 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Export** projects as `.lilmap` files or high-quality MP4 videos.
 - **Zen Mode**: A "Focus" mode that hides all UI layers for an immersive, distraction-free map experience (also automatically triggered during video exports to save GPU resources).
 
-The UI is a premium, **glassmorphic "floating island"** design (inspired by modern MacOS/iPadOS) where all panels (Toolbar, Inspector, Timeline) float over the map with deep backdrop blurs.
+The UI is a premium, **responsive "floating island"** design.
+- **Desktop/Tablet**: High-fidelity glassmorphism with floating panels (Toolbar, Inspector, Timeline) and deep backdrop blurs.
+- **Mobile**: Optimizes for touch with a pinned top bar and a **70% snap bottom-sheet (Drawer)** for property inspection. Aesthetics shift to solid, high-contrast backgrounds for better readability and performance.
 
 ---
 
@@ -45,7 +47,8 @@ Everything lives in a single Zustand store.
 - **Loading State**: Transient `terrainLoading` and `buildingsLoading` indicators for map-heavy features.
 - **Move Mode**: `isMoveModeActive` toggle allows users to manually reposition callouts on the map via drag-and-drop.
 - **Zen Mode**: `hideUI` toggle hides the floating UI layers. When active, a minimal "Show UI" and "Play" shortcut pill appears in the top-left.
-- **Theme Sync**: Automatically toggles between `light` and `dark` glass themes based on the current Mapbox style (e.g., Satellite/Dark styles trigger dark mode).
+- **Responsive State**: `isInspectorOpen` toggle controls the visibility of the primary property panel. On mobile, this state is synchronized with the `vaul`-powered bottom sheet.
+- **Theme Sync**: Automatically toggles between `light` and `dark` themes based on the current Mapbox style (e.g., Satellite/Dark styles trigger dark mode).
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
@@ -65,15 +68,19 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - `src/store/`: State definitions and types. **Start here to understand the data model.**
 - `src/engine/`: Pure mathematical logic for interpolation (camera lerps, line slicing).
 - `src/components/MapViewport/`: Map rendering, layer management, and 3D effects.
-- `src/components/Inspector/`: Modernized property editors using a **glassmorphic "floating island"** design. 
-  - **Organization**: Uses shadcn's `Accordion` to group related properties (Position, Timing, Style), reducing visual clutter.
-  - **Custom Controls**: Features high-fidelity components like `SliderField`, `Toggle`, and a custom `InputColor` with a circular premium swatch.
-  - **Sticky Architecture**: Uses a `PanelWrapper` with a fixed header and a **sticky footer** for action buttons (like Delete), ensuring primary controls are always reachable regardless of scroll position.
-  - **Scroll Management**: Integrated with `ScrollArea` for sleek, custom scrollbars that support overscroll-isolation. 
+- `src/components/Inspector/`: Adaptive property editors. 
+  - **Shared Logic**: Uses a `PanelWrapper` to share form logic between the Desktop sidebar and the Mobile drawer.
+  - **Mobile Physics**: Implements a `vaul` drawer with **Snap Points `[0.7, 1]`**. It opens at 70% height, expands to full-screen on swipe-up, and dismisses on swipe-down.
+  - **Aesthetic Shift**: On mobile, backdrop blurs are removed in favor of a solid, "Pure White" background to ensure buttery-smooth animations and zero gesture lag.
+  - **Organization**: Uses shadcn's `Accordion` to group related properties (Position, Timing, Style).
+  - **Custom Controls**: Features high-fidelity components like `SliderField`, `Toggle`, and a custom `InputColor` swatch with circular swatches.
+  - **Sticky Footer**: Ensures "Delete" and "Save" actions are always reachable regardless of scroll depth.
 - **`src/components/ui/`**: A comprehensive library of modern, high-fidelity UI components based on **shadcn/ui**.
 - `src/components/Timeline/`: The interactive track-based editor (`TimelinePanel.tsx`). 
   - **Features**: Vertical resizability (click-drag top edge), vertical scroll isolation, and a unified top-ruler scrubber with a protruding playhead.
-- `src/components/Toolbar/`: The floating command pill. Features icon-only primary tools and Map Settings labels.
+- `src/components/Toolbar/`: Breakpoint-aware command pill. 
+  - **Desktop/Tablet**: Unified horizontal toolbar with icon-only buttons.
+  - **Mobile**: Consolidates secondary actions into `Add` and `Display` dropdown menus to maximize available map real estate. Replaces wide selectors (like Map Style) with compact icons.
 - `src/components/ProjectLibrary/`: Local project management interface.
 - `src/components/ExportModal/`: Interface for configuring and running MP4 exports.
 - `src/services/`: External integrations (Nominatim search, GPX/KML parsing, IndexedDB, Video Encoding).
@@ -160,7 +167,8 @@ The export process is **non-realtime (offline)** for maximum quality:
 - **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
 - **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.
 - **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors during rapid toggles.
-- **UI Component Refs**: Because we use React 18, all custom UI components (like `Button` or `Toggle`) MUST be wrapped in `React.forwardRef` to work correctly with Radix's `asChild` / `Slot` pattern (which is common in `DropdownMenuTrigger`).
+- **UI Component Refs**: All custom UI components (Button, Toggle, DrawerOverlay, etc.) MUST be wrapped in `React.forwardRef`. Libraries like `vaul` need direct access to DOM nodes to calculate snap-point heights and attach touch-gesture observers.
+- **Mobile Interaction Deadzones**: On mobile, the `TimelinePanel` is automatically hidden when the `InspectorPanel` is open. This is a critical architectural decision to prevent the timeline's z-index from interfering with the bottom-sheet's "swipe down to exit" gestures.
 - **Toast Migration**: The application has fully migrated from `radix-toast` to `sonner`. Ensure all notifications use the `toast` export from `sonner`.
 - **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It deduplicates and cleans up `<link>` tags based on the active project items to prevent CSS bloat.
 

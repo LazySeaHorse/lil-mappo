@@ -52,6 +52,10 @@ interface ProjectStore extends Project {
   hideUI: boolean;
   setHideUI: (v: boolean) => void;
 
+  // Inspector visibility
+  isInspectorOpen: boolean;
+  setIsInspectorOpen: (v: boolean) => void;
+
   // Project loading
   loadFullProject: (project: Project) => void;
 }
@@ -94,6 +98,7 @@ const defaultProject: Project = {
   selectedKeyframeId: null,
   isMoveModeActive: false,
   hideUI: false,
+  isInspectorOpen: true,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -125,8 +130,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   reorderItems: (newOrder) => set({ itemOrder: newOrder }),
 
-  selectItem: (id) => set({ selectedItemId: id, selectedKeyframeId: null }),
-  selectKeyframe: (id) => set({ selectedKeyframeId: id }),
+  selectItem: (id) => set({ selectedItemId: id, selectedKeyframeId: null, isInspectorOpen: true }),
+  selectKeyframe: (id) => set({ selectedKeyframeId: id, isInspectorOpen: true }),
 
   addCameraKeyframe: (kf) => set((s) => {
     const cam = s.items[CAMERA_ID] as CameraItem;
@@ -135,6 +140,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       items: { ...s.items, [CAMERA_ID]: { ...cam, keyframes } },
       selectedItemId: CAMERA_ID,
       selectedKeyframeId: kf.id,
+      isInspectorOpen: true,
     };
   }),
 
@@ -188,7 +194,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setTerrainLoading: (v) => set({ terrainLoading: v }),
   setBuildingsLoading: (v) => set({ buildingsLoading: v }),
 
-  loadFullProject: (project) => set({ ...defaultProject, ...project, terrainLoading: false, buildingsLoading: false, hideUI: false }),
+  setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
+
+  loadFullProject: (project) => set({ ...defaultProject, ...project, terrainLoading: false, buildingsLoading: false, hideUI: false, isInspectorOpen: true }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;

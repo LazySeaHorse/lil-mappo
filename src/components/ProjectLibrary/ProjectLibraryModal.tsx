@@ -61,7 +61,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-background border border-border rounded-xl shadow-2xl w-[500px] overflow-hidden max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">

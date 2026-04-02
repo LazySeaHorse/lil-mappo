@@ -13,11 +13,13 @@ import { useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { Button } from '@/components/ui/button';
 import { Eye, Play, Pause } from 'lucide-react';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const { isMobile } = useResponsive();
   usePlayback(mapRef);
 
   const mapStyle = useProjectStore(s => s.mapStyle);
@@ -55,11 +57,11 @@ export default function MapStudioEditor() {
         </div>
 
         {hideUI && (
-          <div className="absolute top-4 left-4 z-50 pointer-events-auto flex gap-2.5">
+          <div className={`absolute z-50 pointer-events-auto flex gap-2.5 transition-all duration-500 ${isMobile ? 'bottom-6 left-1/2 -translate-x-1/2' : 'top-4 left-4'}`}>
             <Button 
               variant="secondary" 
               size="icon" 
-              className="w-10 h-10 rounded-full shadow-2xl backdrop-blur-xl bg-white/90 text-slate-900 hover:bg-white border-none hover:scale-110 transition-transform active:scale-95"
+              className="w-10 h-10 rounded-full shadow-2xl backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white border-none hover:scale-110 transition-transform active:scale-95"
               onClick={() => setHideUI(false)}
               title="Show UI"
             >
@@ -68,7 +70,7 @@ export default function MapStudioEditor() {
             <Button 
               variant="secondary" 
               size="icon" 
-              className="w-10 h-10 rounded-full shadow-2xl backdrop-blur-xl bg-white/90 text-slate-900 hover:bg-white border-none hover:scale-110 transition-transform active:scale-95"
+              className="w-10 h-10 rounded-full shadow-2xl backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white border-none hover:scale-110 transition-transform active:scale-95"
               onClick={() => setIsPlaying(!isPlaying)}
               title={isPlaying ? "Pause" : "Play"}
             >

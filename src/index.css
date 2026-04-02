@@ -129,12 +129,8 @@
 }
 
 /* Mapbox overrides */
-.mapboxgl-canvas {
-  outline: none;
-}
-.mapboxgl-ctrl-attrib {
-  font-size: 10px !important;
-  opacity: 0.6;
+.mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib {
+  display: none !important;
 }
 
 /* Callout animations */

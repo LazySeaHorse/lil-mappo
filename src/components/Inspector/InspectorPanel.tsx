@@ -13,9 +13,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useResponsive } from "@/hooks/useResponsive";
+import { X } from "lucide-react";
+import { 
+  Drawer, 
+  DrawerContent, 
+  DrawerHeader, 
+  DrawerTitle, 
+  DrawerDescription,
+  DrawerPortal,
+  DrawerOverlay
+} from "@/components/ui/drawer";
 
 export default function InspectorPanel() {
-  const { selectedItemId, selectedKeyframeId, items } = useProjectStore();
+  const { selectedItemId, items, isInspectorOpen } = useProjectStore();
+
+  if (!isInspectorOpen) return null;
 
   if (!selectedItemId) return <ProjectSettings />;
 
@@ -637,10 +650,55 @@ function CameraKFInspector({ item }: { item: CameraItem }) {
 }
 
 function PanelWrapper({ title, children, footer }: { title: string; children: React.ReactNode; footer?: React.ReactNode }) {
+  const { isMobile, isTablet } = useResponsive();
+  const { selectedItemId, selectItem, isInspectorOpen, setIsInspectorOpen } = useProjectStore();
+  const [snap, setSnap] = React.useState<number | string | null>(0.7);
+
+  if (isMobile) {
+
+    return (
+      <Drawer 
+        open={isInspectorOpen} 
+        onOpenChange={(open) => setIsInspectorOpen(open)}
+        snapPoints={[0.7, 1]}
+        activeSnapPoint={snap}
+        setActiveSnapPoint={setSnap}
+      >
+        <DrawerContent className="h-[96vh] max-h-none p-0 outline-none border-0 bg-white dark:bg-slate-950 rounded-t-[32px] shadow-2xl pointer-events-auto">
+          <DrawerHeader className="px-6 pb-2 pt-6 border-b border-border/10 shrink-0">
+            <DrawerTitle className="text-lg font-bold tracking-tight">{title}</DrawerTitle>
+            <DrawerDescription className="hidden">Adjust settings for {title}</DrawerDescription>
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto w-full relative mt-2 scroll-smooth px-2" vaul-drawer-scrollable="">
+            <div className="p-4 pb-48 flex flex-col gap-1">
+              {children}
+              {footer && (
+                <div className="mt-12 pt-8 border-t border-border/10 px-4">
+                  {footer}
+                </div>
+              )}
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  const widthClass = isTablet ? 'w-72' : 'w-80';
+  const positionClass = isTablet ? 'top-4 right-4 bottom-4' : 'top-4 right-4 bottom-4';
+
   return (
-    <div className="absolute top-4 right-4 bottom-4 w-80 bg-background/80 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden pointer-events-auto flex flex-col">
-      <div className="p-4 py-3 border-b border-white/10 dark:border-white/5 shrink-0 bg-background/50">
+    <div className={`${positionClass} ${widthClass} absolute bg-background/80 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden pointer-events-auto flex flex-col transition-all duration-300`}>
+      <div className="p-4 py-3 border-b border-white/10 dark:border-white/5 shrink-0 bg-background/50 flex items-center justify-between">
         <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          onClick={() => setIsInspectorOpen(false)}
+        >
+          <X size={14} />
+        </Button>
       </div>
       <ScrollArea className="flex-1 w-full relative group min-h-0">
         <div className="p-4 flex flex-col gap-1">

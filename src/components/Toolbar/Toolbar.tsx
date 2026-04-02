@@ -9,9 +9,10 @@ import {
   Upload, MapPin, MessageSquare, Video, Play, Pause, Square,
   Mountain, Building2, Crosshair, ChevronDown, FilePlus2,
   Save, Library, FileJson, Settings, Settings2, Loader2,
-  EyeOff, Eye
+  EyeOff, Eye, Plus, Layers2, Compass, Map as MapIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,8 +41,10 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading, buildingsLoading,
     addItem, playheadTime, addCameraKeyframe, selectItem,
-    setHideUI,
+    setHideUI, isInspectorOpen,
   } = projectState;
+
+  const { isMobile, isTablet } = useResponsive();
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -213,8 +216,14 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
   };
 
+  const rightMargin = !isInspectorOpen || isMobile ? 'right-4' : isTablet ? 'right-[304px]' : 'right-[350px]';
+  const finalRightMargin = isMobile ? 'right-0' : rightMargin;
+  const finalLeftMargin = isMobile ? 'left-0' : 'left-4';
+  const finalTopMargin = isMobile ? 'top-0' : 'top-4';
+  const finalRounded = isMobile ? 'rounded-none' : 'rounded-2xl';
+
   return (
-    <div className="absolute top-4 left-4 right-[350px] h-14 bg-background/85 backdrop-blur-xl border border-border/50 rounded-2xl flex items-center px-4 gap-1 shadow-xl pointer-events-auto z-50">
+    <div className={`${finalTopMargin} ${finalLeftMargin} ${finalRightMargin} h-14 ${finalRounded} absolute bg-background/85 backdrop-blur-xl border border-border/50 flex items-center px-4 gap-1 shadow-xl pointer-events-auto z-50 transition-all duration-300`}>
       <input
         ref={routeInputRef}
         type="file"
@@ -231,20 +240,20 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         onChange={handleImportProject}
       />
 
-      <div className="flex items-center gap-2 mr-3 pl-1">
-        <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-7 h-7 drop-shadow-sm" alt="li'l Mappo Logo" />
-        <span className="font-bold text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>
+      <div className="flex items-center gap-2 mr-2 pl-1 shrink-0">
+        {!isMobile && <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-7 h-7 drop-shadow-sm" alt="li'l Mappo Logo" />}
+        {!isMobile && !isTablet && <span className="font-bold text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>}
+        {isMobile && <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-6 h-6 mr-1" alt="Logo" />}
       </div>
-
-      <Divider />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 px-2.5 flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0">
-            Project <ChevronDown size={14} className="opacity-50" />
+          <Button variant="ghost" size="sm" className={`h-8 ${isMobile ? 'px-1' : 'px-2.5'} flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0`} title="Project Settings">
+            {!isMobile && <span>Project</span>}
+            <ChevronDown size={14} className="opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuContent align="start" className="w-56 overflow-hidden bg-background/95">
           <DropdownMenuItem onClick={handleNewProject} className="gap-2 cursor-pointer">
             <FilePlus2 size={14} /> New Project
           </DropdownMenuItem>
@@ -270,43 +279,122 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
 
       <Divider />
 
-      <ToolbarButton icon={<Upload size={16} />} label="Import Route" onClick={() => routeInputRef.current?.click()} />
+      {/* Add Item Group */}
+      {isMobile || isTablet ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 px-0 flex items-center justify-center text-primary" title="Add Item">
+              <Plus size={20} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48 bg-background/95">
+            <DropdownMenuItem onClick={() => routeInputRef.current?.click()} className="gap-2 cursor-pointer">
+              <Upload size={14} /> Import Route
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleAddBoundary} className="gap-2 cursor-pointer">
+              <MapPin size={14} /> Add Boundary
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleAddCallout} className="gap-2 cursor-pointer">
+              <MessageSquare size={14} /> Add Callout
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleAddCameraKF} className="gap-2 cursor-pointer">
+              <Crosshair size={14} /> Add Camera KF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton icon={<Upload size={16} />} label="Import Route" hideLabel onClick={() => routeInputRef.current?.click()} />
+          <ToolbarButton icon={<MapPin size={16} />} label="Boundary" hideLabel onClick={handleAddBoundary} />
+          <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" hideLabel onClick={handleAddCallout} />
+          <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
+        </div>
+      )}
+
       <Divider />
-      <ToolbarButton icon={<MapPin size={16} />} label="Boundary" hideLabel onClick={handleAddBoundary} />
-      <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" hideLabel onClick={handleAddCallout} />
-      <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
-      <Divider />
-      <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" onClick={() => selectItem(null)} />
-      <Divider />
-      <div className="flex items-center gap-1 px-1">
-        <Select value={mapStyle} onValueChange={setMapStyle}>
-          <SelectTrigger className="h-8 text-xs w-[130px] focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
-            <SelectValue placeholder="Map Style" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-              <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <ToolbarToggle
-        icon={<Mountain size={16} />}
-        label="3D Terrain"
-        hideLabel
-        active={terrainEnabled}
-        onClick={() => setTerrainEnabled(!terrainEnabled)}
-        loading={terrainLoading}
-      />
-      <ToolbarToggle
-        icon={<Building2 size={16} />}
-        label="Buildings"
-        hideLabel
-        active={buildingsEnabled}
-        onClick={() => setBuildingsEnabled(!buildingsEnabled)}
-        loading={buildingsLoading}
-      />
-      
+
+      {/* Map Display Group */}
+      {isMobile || isTablet ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 px-0 flex items-center justify-center" title="Map Display">
+              <Layers2 size={20} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 bg-background/95 p-2 space-y-3">
+            <div className="space-y-1.5 px-1 py-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Map Style</label>
+              <Select value={mapStyle} onValueChange={setMapStyle}>
+                <SelectTrigger className="h-8 text-xs w-full focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background/50">
+                  <SelectValue placeholder="Map Style" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MAP_STYLES).map(([key, { label }]) => (
+                    <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <DropdownMenuItem onClick={() => selectItem(null)} className="gap-2 cursor-pointer h-8 text-[11px] font-medium px-2 py-0">
+              <Settings2 size={14} /> Full Map Settings
+            </DropdownMenuItem>
+
+            <div className="h-px bg-border/50 mx-1 border-dotted border-b" />
+            
+            <div className="grid grid-cols-2 gap-2">
+              <DropdownToggle 
+                icon={<Mountain size={14} />} 
+                label="Terrain" 
+                active={terrainEnabled} 
+                onClick={() => setTerrainEnabled(!terrainEnabled)} 
+                loading={terrainLoading}
+              />
+              <DropdownToggle 
+                icon={<Building2 size={14} />} 
+                label="3D Buildings" 
+                active={buildingsEnabled} 
+                onClick={() => setBuildingsEnabled(!buildingsEnabled)} 
+                loading={buildingsLoading}
+              />
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 px-1">
+            <Select value={mapStyle} onValueChange={setMapStyle}>
+              <SelectTrigger className="h-8 text-xs w-[130px] focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
+                <SelectValue placeholder="Map Style" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(MAP_STYLES).map(([key, { label }]) => (
+                  <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={() => selectItem(null)} />
+          <Divider />
+          <ToolbarToggle
+            icon={<Mountain size={16} />}
+            label="3D Terrain"
+            hideLabel
+            active={terrainEnabled}
+            onClick={() => setTerrainEnabled(!terrainEnabled)}
+            loading={terrainLoading}
+          />
+          <ToolbarToggle
+            icon={<Building2 size={16} />}
+            label="Buildings"
+            hideLabel
+            active={buildingsEnabled}
+            onClick={() => setBuildingsEnabled(!buildingsEnabled)}
+            loading={buildingsLoading}
+          />
+        </div>
+      )}
+
       <div className="flex-1" />
       <Divider />
 
@@ -318,9 +406,25 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         accent
       />
       <ToolbarButton icon={<Video size={16} />} label="Export" hideLabel onClick={onExport} />
-      <Divider />
-      <ToolbarButton icon={<EyeOff size={16} />} label="Hide UI" hideLabel onClick={() => setHideUI(true)} />
+      <Divider className="hidden sm:block" />
+      <div className="hidden sm:block">
+        <ToolbarButton icon={<EyeOff size={16} />} label="Hide UI" hideLabel onClick={() => setHideUI(true)} />
+      </div>
     </div>
+  );
+}
+
+function DropdownToggle({ icon, label, active, onClick, loading }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; loading?: boolean }) {
+  return (
+    <Button
+      variant={active ? "secondary" : "ghost"}
+      size="sm"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
+      className={`h-8 flex flex-1 items-center justify-start gap-2 text-[11px] font-medium px-2 ${active ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'text-muted-foreground'}`}
+    >
+      {loading ? <Loader2 size={14} className="animate-spin" /> : icon}
+      <span>{label}</span>
+    </Button>
   );
 }
 
@@ -354,8 +458,8 @@ function ToolbarToggle({ icon, label, active, onClick, loading, hideLabel }: { i
   );
 }
 
-function Divider() {
-  return <div className="w-px h-6 bg-border mx-1" />;
+function Divider({ className }: { className?: string }) {
+  return <div className={`w-px h-6 bg-border mx-1 ${className || ''}`} />;
 }
 
 function formatTime(s: number): string {
