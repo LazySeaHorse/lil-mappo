@@ -3,17 +3,21 @@ import length from '@turf/length';
 import distance from '@turf/distance';
 import { lineString, point } from '@turf/helpers';
 
-export function getAnimatedLine(fullCoords: number[][], t: number): number[][] {
-  if (t <= 0) return [];
-  if (t >= 1) return fullCoords;
+export function getLineSegment(fullCoords: number[][], startT: number, endT: number): number[][] {
   if (fullCoords.length < 2) return fullCoords;
+  const t1 = Math.max(0, Math.min(1, startT));
+  const t2 = Math.max(0, Math.min(1, endT));
+  
+  if (t1 >= t2) return [];
 
   const line = lineString(fullCoords);
   const totalLength = length(line, { units: 'kilometers' });
-  const targetLength = t * totalLength;
+  const startDist = t1 * totalLength;
+  const endDist = t2 * totalLength;
 
   let accumulated = 0;
-  const result: number[][] = [fullCoords[0]];
+  const result: number[][] = [];
+  let started = false;
 
   for (let i = 1; i < fullCoords.length; i++) {
     const segLen = distance(
@@ -21,15 +25,43 @@ export function getAnimatedLine(fullCoords: number[][], t: number): number[][] {
       point(fullCoords[i]),
       { units: 'kilometers' }
     );
-    if (accumulated + segLen >= targetLength) {
-      const frac = segLen > 0 ? (targetLength - accumulated) / segLen : 0;
-      const lng = fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]);
-      const lat = fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]);
-      result.push([lng, lat]);
-      break;
+
+    const segStartDist = accumulated;
+    const segEndDist = accumulated + segLen;
+
+    // Segment intersects with [startDist, endDist]
+    if (segEndDist >= startDist && segStartDist <= endDist) {
+      let firstCoord = fullCoords[i - 1];
+      let lastCoord = fullCoords[i];
+
+      if (segStartDist < startDist) {
+        const frac = segLen > 0 ? (startDist - segStartDist) / segLen : 0;
+        firstCoord = [
+          fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]),
+          fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]),
+        ];
+      }
+
+      if (segEndDist > endDist) {
+        const frac = segLen > 0 ? (endDist - segStartDist) / segLen : 0;
+        lastCoord = [
+          fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]),
+          fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]),
+        ];
+      }
+
+      if (!started) {
+        result.push(firstCoord);
+        started = true;
+      }
+      result.push(lastCoord);
+      if (segEndDist >= endDist) break;
     }
-    result.push(fullCoords[i]);
     accumulated += segLen;
   }
   return result;
+}
+
+export function getAnimatedLine(fullCoords: number[][], t: number): number[][] {
+  return getLineSegment(fullCoords, 0, t);
 }

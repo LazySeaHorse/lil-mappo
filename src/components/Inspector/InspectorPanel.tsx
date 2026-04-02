@@ -231,6 +231,31 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
       <Field label="Fill Color"><InputColor value={item.style.fillColor} onChange={(v) => us({ fillColor: v })} /></Field>
       <SliderField label="Fill Opacity" value={item.style.fillOpacity} onChange={(v) => us({ fillOpacity: v })} min={0} max={0.5} step={0.01} />
       <Toggle checked={item.style.animateStroke} onChange={(v) => us({ animateStroke: v })} label="Animate Stroke" />
+      {item.style.animateStroke && (
+        <>
+          <Field label="Animation Style">
+            <select 
+              value={item.style.animationStyle || 'draw'} 
+              onChange={(e) => us({ animationStyle: e.target.value as any })} 
+              className="w-full h-8 px-2 text-sm border border-border rounded bg-background"
+            >
+              <option value="fade">Fade (Basic)</option>
+              <option value="draw">Draw (Perimeter)</option>
+              <option value="trace">Trace (Comet)</option>
+            </select>
+          </Field>
+          {item.style.animationStyle === 'trace' && (
+            <SliderField 
+              label="Trace Length" 
+              value={item.style.traceLength || 0.1} 
+              onChange={(v) => us({ traceLength: v })} 
+              min={0.01} 
+              max={0.5} 
+              step={0.01} 
+            />
+          )}
+        </>
+      )}
       <DeleteButton onClick={() => { removeItem(item.id); selectItem(null); }} />
     </PanelWrapper>
   );

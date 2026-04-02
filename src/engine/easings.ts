@@ -14,3 +14,10 @@ const easingFns: Record<EasingName, (t: number) => number> = {
 export function applyEasing(name: EasingName, t: number): number {
   return easingFns[name](Math.max(0, Math.min(1, t)));
 }
+
+export function getNormalizedProgress(playhead: number, start: number, end: number, easing: EasingName): number {
+  if (playhead < start) return 0;
+  if (playhead > end) return 1;
+  const t = (playhead - start) / (end - start);
+  return applyEasing(easing, t);
+}

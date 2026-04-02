@@ -42,6 +42,8 @@ export interface BoundaryItem {
     fillColor: string;
     fillOpacity: number;
     animateStroke: boolean;
+    animationStyle: 'fade' | 'draw' | 'trace';
+    traceLength: number;
   };
   easing: EasingName;
 }

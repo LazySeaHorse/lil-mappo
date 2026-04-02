@@ -137,6 +137,8 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         fillColor: '#8b5cf6',
         fillOpacity: 0.1,
         animateStroke: true,
+        animationStyle: 'draw',
+        traceLength: 0.1,
       },
       easing: 'easeInOutCubic',
     };

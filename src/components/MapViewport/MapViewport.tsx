@@ -4,9 +4,13 @@ import type { MapRef } from 'react-map-gl/mapbox';
 import { MAPBOX_TOKEN, MAP_STYLES } from '@/config/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
-import { getAnimatedLine } from '@/engine/lineAnimation';
-import { applyEasing } from '@/engine/easings';
+import { applyEasing, getNormalizedProgress } from '@/engine/easings';
 import CalloutCard from './CalloutCard';
+import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
+import { getLineSegment } from '@/engine/lineAnimation';
+
+
+
 
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
@@ -171,17 +175,13 @@ function RouteLayerGroup({ route, playheadTime }: { route: RouteItem; playheadTi
     return allCoords;
   }, [route.geojson]);
 
+  const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
   const animatedData = React.useMemo(() => {
     if (coords.length < 2) return null;
-    let t: number;
-    if (playheadTime < route.startTime) t = 0;
-    else if (playheadTime > route.endTime) t = 1;
-    else t = (playheadTime - route.startTime) / (route.endTime - route.startTime);
-    t = applyEasing(route.easing, t);
-    const animCoords = getAnimatedLine(coords, t);
+    const animCoords = getAnimatedLine(coords, progress);
     if (animCoords.length < 2) return null;
     return { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: animCoords } };
-  }, [coords, playheadTime, route.startTime, route.endTime, route.easing]);
+  }, [coords, progress]);
 
   if (!animatedData) return null;
   const geojsonData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [animatedData] };
@@ -202,22 +202,77 @@ function RouteLayerGroup({ route, playheadTime }: { route: RouteItem; playheadTi
 
 function BoundaryLayerGroup({ boundary, playheadTime }: { boundary: BoundaryItem; playheadTime: number }) {
   if (!boundary.geojson || boundary.resolveStatus !== 'resolved') return null;
-  let t: number;
-  if (playheadTime < boundary.startTime) t = 0;
-  else if (playheadTime > boundary.endTime) t = 1;
-  else t = (playheadTime - boundary.startTime) / (boundary.endTime - boundary.startTime);
-  t = applyEasing(boundary.easing, t);
-  const fillOpacity = boundary.style.fillOpacity * (t > 0.8 ? (t - 0.8) / 0.2 : 0) * (t > 0 ? 1 : 0);
-  const geojsonData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: boundary.geojson }] };
+  
+  const progress = getNormalizedProgress(playheadTime, boundary.startTime, boundary.endTime, boundary.easing);
+
+  const style = boundary.style;
+  const isAnimating = style.animateStroke;
+  const animStyle = style.animationStyle || 'fade';
+  const traceLen = style.traceLength || 0.1;
+
+  // 1. Prepare Fill Data (The full polygon)
+  const fillProgress = animStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
+  const fillOpacity = style.fillOpacity * fillProgress;
+  const fillGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: boundary.geojson }] };
+
+  // 2. Prepare Stroke Data
+  const strokeGeoJSON = React.useMemo(() => {
+    if (!isAnimating || animStyle === 'fade') {
+      return fillGeoJSON;
+    }
+
+    const rings = extractLineStringsFromGeometry(boundary.geojson!);
+    const animatedRings: number[][][] = [];
+
+    for (const ring of rings) {
+      let segment: number[][];
+      if (animStyle === 'draw') {
+        segment = getLineSegment(ring, 0, progress);
+      } else {
+        const start = progress * (1 + traceLen) - traceLen;
+        const end = progress * (1 + traceLen);
+        segment = getLineSegment(ring, start, end);
+      }
+      
+      if (segment.length >= 2) {
+        animatedRings.push(segment);
+      }
+    }
+
+    return {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'MultiLineString',
+          coordinates: animatedRings
+        }
+      }]
+    } as GeoJSON.FeatureCollection;
+  }, [boundary.geojson, isAnimating, animStyle, progress, traceLen]);
+
+  const strokeOpacity = animStyle === 'fade' 
+    ? Math.min(progress * 2, 1) 
+    : (progress > 0 ? 1 : 0);
 
   return (
     <>
-      <Source id={`boundary-fill-${boundary.id}`} type="geojson" data={geojsonData}>
-        <Layer id={`boundary-fill-layer-${boundary.id}`} type="fill" paint={{ 'fill-color': boundary.style.fillColor, 'fill-opacity': fillOpacity }} />
+      <Source id={`boundary-fill-${boundary.id}`} type="geojson" data={fillGeoJSON}>
+        <Layer id={`boundary-fill-layer-${boundary.id}`} type="fill" paint={{ 'fill-color': style.fillColor, 'fill-opacity': fillOpacity }} />
       </Source>
-      {t > 0 && (
-        <Source id={`boundary-stroke-${boundary.id}`} type="geojson" data={geojsonData}>
-          <Layer id={`boundary-stroke-layer-${boundary.id}`} type="line" paint={{ 'line-color': boundary.style.strokeColor, 'line-width': boundary.style.strokeWidth, 'line-opacity': Math.min(t * 2, 1) }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
+      {progress > 0 && (
+        <Source id={`boundary-stroke-${boundary.id}`} type="geojson" data={strokeGeoJSON}>
+          <Layer 
+            id={`boundary-stroke-layer-${boundary.id}`} 
+            type="line" 
+            paint={{ 
+              'line-color': style.strokeColor, 
+              'line-width': style.strokeWidth, 
+              'line-opacity': strokeOpacity 
+            }} 
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }} 
+          />
         </Source>
       )}
     </>

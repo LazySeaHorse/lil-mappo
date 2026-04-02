@@ -68,7 +68,16 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 
 ### 5.1 Animation Logic
 - **Camera**: Interpolates between keyframes. Supports `followRoute`, where the camera center tracks a route's geometry instead of a straight line.
-- **Lines (Routes/Boundaries)**: Mapbox layers are "animated" by updating the `data` property of a GeoJSON source every frame. We slice the original line using Turf.js based on normalized progress $(t)$.
+- **Lines (Routes/Boundaries)**: Mapbox layers are "animated" by updating the `data` property of a GeoJSON source every frame.
+  - **Routes**: Use `getAnimatedLine` to slice the geometry from $0$ to $t$.
+  - **Boundaries**: Support multiple `animationStyle` options (`fade`, `draw`, `trace`).
+    - **Draw**: Traces the perimeter from $0$ to $t$.
+    - **Trace**: A "comet" effect where a segment of `traceLength` travels along the perimeter.
+    - **Geometry Handling**: Components use `extractLineStringsFromGeometry` to handle complex MultiPolygons and interior holes.
+- **Utilities**:
+  - `src/engine/lineAnimation.ts`: Contains `getLineSegment` for arbitrary range slicing.
+  - `src/engine/easings.ts`: Contains `getNormalizedProgress` to centralize time-to-progress logic.
+  - `src/engine/geoUtils.ts`: Handles Polygon-to-LineString conversion for perimeter animation.
 - **Callouts**: Animated using CSS transitions (`fadeIn`, `scaleUp`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`.
 
 ### 5.2 3D Effects & Atmosphere
