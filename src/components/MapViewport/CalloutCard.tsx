@@ -40,7 +40,7 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
   const perspectiveTransform = `perspective(800px) rotateX(2deg)`;
   const fullTransform = [perspectiveTransform, transform].filter(Boolean).join(' ');
 
-  const poleHeight = callout.poleVisible ? Math.max(altitudeOffset, 20) : 0;
+  const poleHeight = callout.poleVisible ? Math.max(altitudeOffset, 0) : 0;
 
   return (
     <div
@@ -79,7 +79,7 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
       {callout.poleVisible && (
         <svg
           width="2"
-          height={poleHeight}
+          height={poleHeight + 4}
           style={{ opacity }}
           className="overflow-visible"
         >

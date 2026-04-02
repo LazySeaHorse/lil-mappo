@@ -47,7 +47,7 @@ When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
 ### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
 This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
-- **Callouts**: Rendered as standard Mapbox `Marker` components. Altitude is simulated by a pixel offset calculated from the current zoom level and the callout's `altitude`.
+- **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`offset: [0,0]`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards to push the card into the sky.
 
 ---
 
@@ -78,13 +78,13 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
   - `src/engine/lineAnimation.ts`: Contains `getLineSegment` for arbitrary range slicing.
   - `src/engine/easings.ts`: Contains `getNormalizedProgress` to centralize time-to-progress logic.
   - `src/engine/geoUtils.ts`: Handles Polygon-to-LineString conversion for perimeter animation.
-- **Callouts**: Animated using CSS transitions (`fadeIn`, `scaleUp`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`.
+- **Callouts**: Animated using CSS transitions (`fadeIn`, `scaleUp`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`. Supports custom **Google Fonts** via dynamic injection.
 
 ### 5.2 3D Effects & Atmosphere
 - **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar.
 - **Buildings**: 3D building extrusions can be toggled. For the Mapbox 'Standard' style, this is handled via `map.setConfigProperty`.
 - **Fog & Stars**: The viewport dynamically configures `fog` parameters (color, starry sky intensity, horizon blend) based on the selected `mapStyle`. Satellite view uses a "Warm Sunset" palette; Dark mode use a "Starry Space" palette.
-- **Altitude**: Callouts use a `Marker` with a dynamic `offset`. To keep the altitude visually consistent as the user zooms, we recalculate the pixel offset based on the current zoom level and latitude (see `CalloutMarker` in `MapViewport.tsx`).
+- **Altitude**: Callouts use a `Marker` with a ground-locked anchor. To keep the altitude visually consistent as the user zooms, we recalculate a pixel `altitudeOffset` which drives the internal height of the card's pole. This ensures the base dot stays geographically pinned while the card floats.
 
 ### 5.4 Move Mode (Manual Positioning)
 When a callout is selected and "Move Mode" is enabled:
@@ -105,6 +105,7 @@ The export process is **non-realtime (offline)** for maximum quality:
 2. It advances time step-by-step ($1/fps$).
 3. After each step, it waits for the map to reach an 'idle' state (`map.once('idle', ...)`) to ensure all tiles and 3D models are fully loaded.
 4. It captures the map canvas.
+- **Fonts**: The engine waits for `document.fonts.ready` before the first frame to ensure custom Google Fonts are rendered correctly.
 5. It uses `html2canvas` to capture the DOM-based callout markers and composites them onto the frame.
 6. It encodes the composite frame using `VideoEncoder` (WebCodecs).
 7. It uses `mp4-muxer` to wrap the stream into an MP4 file.
@@ -139,6 +140,7 @@ The export process is **non-realtime (offline)** for maximum quality:
 - **Zustand Subscriptions**: We use a manual subscription in `usePlayback` to avoid React render cycles for the camera driver, keeping the playback smooth.
 - **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
 - **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.
+- **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It deduplicates and cleans up `<link>` tags based on the active project items to prevent CSS bloat.
 
 ---
 

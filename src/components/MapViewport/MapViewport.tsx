@@ -7,7 +7,7 @@ import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/t
 import { applyEasing, getNormalizedProgress } from '@/engine/easings';
 import CalloutCard from './CalloutCard';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
-import { getLineSegment } from '@/engine/lineAnimation';
+import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
 
 
 
@@ -362,7 +362,7 @@ function CalloutMarker({
       longitude={callout.lngLat[0]}
       latitude={callout.lngLat[1]}
       anchor="bottom"
-      offset={[0, -altitudeOffset] as [number, number]}
+      offset={[0, 0] as [number, number]}
     >
       <CalloutCard callout={callout} phase={phase} progress={animProgress} altitudeOffset={altitudeOffset} />
     </Marker>
