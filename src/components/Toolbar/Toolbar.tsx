@@ -8,7 +8,8 @@ import { useMapRef } from '@/hooks/useMapRef';
 import {
   Upload, MapPin, MessageSquare, Video, Play, Pause, Square,
   Mountain, Building2, Crosshair, ChevronDown, FilePlus2,
-  Save, Library, FileJson, Settings, Settings2, Loader2
+  Save, Library, FileJson, Settings, Settings2, Loader2,
+  EyeOff, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -20,6 +21,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { saveProjectToLibrary } from '@/services/projectLibrary';
 import { saveAs } from 'file-saver';
+import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ToolbarProps {
   onExport: () => void;
@@ -36,6 +40,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading, buildingsLoading,
     addItem, playheadTime, addCameraKeyframe, selectItem,
+    setHideUI,
   } = projectState;
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,7 +214,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   };
 
   return (
-    <div className="h-12 bg-background border-b border-border flex items-center px-2 gap-0.5 shrink-0">
+    <div className="absolute top-4 left-4 right-[350px] h-14 bg-background/85 backdrop-blur-xl border border-border/50 rounded-2xl flex items-center px-4 gap-1 shadow-xl pointer-events-auto z-50">
       <input
         ref={routeInputRef}
         type="file"
@@ -228,9 +233,9 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="h-8 px-2.5 flex items-center gap-1.5 rounded text-xs font-medium transition-colors hover:bg-secondary text-foreground outline-none">
+          <Button variant="ghost" size="sm" className="h-8 px-2.5 flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0">
             Project <ChevronDown size={14} className="opacity-50" />
-          </button>
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuItem onClick={handleNewProject} className="gap-2 cursor-pointer">
@@ -260,26 +265,28 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
 
       <ToolbarButton icon={<Upload size={16} />} label="Import Route" onClick={() => routeInputRef.current?.click()} />
       <Divider />
-      <ToolbarButton icon={<MapPin size={16} />} label="Boundary" onClick={handleAddBoundary} />
-      <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" onClick={handleAddCallout} />
-      <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" onClick={handleAddCameraKF} />
+      <ToolbarButton icon={<MapPin size={16} />} label="Boundary" hideLabel onClick={handleAddBoundary} />
+      <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" hideLabel onClick={handleAddCallout} />
+      <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
       <Divider />
       <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" onClick={() => selectItem(null)} />
       <Divider />
       <div className="flex items-center gap-1 px-1">
-        <select
-          value={mapStyle}
-          onChange={(e) => setMapStyle(e.target.value)}
-          className="h-8 text-xs border border-border rounded bg-background px-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-            <option key={key} value={key}>{label}</option>
-          ))}
-        </select>
+        <Select value={mapStyle} onValueChange={setMapStyle}>
+          <SelectTrigger className="h-8 text-xs w-[130px] focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
+            <SelectValue placeholder="Map Style" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(MAP_STYLES).map(([key, { label }]) => (
+              <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <ToolbarToggle
         icon={<Mountain size={16} />}
         label="3D Terrain"
+        hideLabel
         active={terrainEnabled}
         onClick={() => setTerrainEnabled(!terrainEnabled)}
         loading={terrainLoading}
@@ -287,51 +294,56 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
       <ToolbarToggle
         icon={<Building2 size={16} />}
         label="Buildings"
+        hideLabel
         active={buildingsEnabled}
         onClick={() => setBuildingsEnabled(!buildingsEnabled)}
         loading={buildingsLoading}
       />
+      
+      <div className="flex-1" />
       <Divider />
+
       <ToolbarButton
         icon={isPlaying ? <Pause size={16} /> : <Play size={16} />}
         label={isPlaying ? 'Pause' : 'Play'}
+        hideLabel
         onClick={() => setIsPlaying(!isPlaying)}
         accent
       />
-      <ToolbarButton icon={<Video size={16} />} label="Export" onClick={onExport} />
-      <div className="flex-1" />
-      <span className="font-mono-time text-xs text-muted-foreground px-2">
-        {formatTime(useProjectStore.getState().playheadTime)} / {formatTime(useProjectStore.getState().duration)}
-      </span>
+      <ToolbarButton icon={<Video size={16} />} label="Export" hideLabel onClick={onExport} />
+      <Divider />
+      <ToolbarButton icon={<EyeOff size={16} />} label="Hide UI" hideLabel onClick={() => setHideUI(true)} />
     </div>
   );
 }
 
-function ToolbarButton({ icon, label, onClick, accent }: { icon: React.ReactNode; label: string; onClick: () => void; accent?: boolean }) {
+function ToolbarButton({ icon, label, onClick, accent, hideLabel }: { icon: React.ReactNode; label: string; onClick: () => void; accent?: boolean; hideLabel?: boolean }) {
   return (
-    <button
+    <Button
+      variant={accent ? "default" : "ghost"}
+      size="sm"
       onClick={onClick}
-      className={`h-8 px-2.5 flex items-center gap-1.5 rounded text-xs font-medium transition-colors
-        ${accent
-          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-          : 'hover:bg-secondary text-foreground'}`}
+      className={`h-8 ${hideLabel ? 'w-8 px-0' : 'px-2.5'} flex flex-row items-center gap-1.5 text-xs focus-visible:ring-0`}
+      title={label}
     >
       {icon}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
+      {!hideLabel && <span className="hidden sm:inline">{label}</span>}
+    </Button>
   );
 }
 
-function ToolbarToggle({ icon, label, active, onClick, loading }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; loading?: boolean }) {
+function ToolbarToggle({ icon, label, active, onClick, loading, hideLabel }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; loading?: boolean; hideLabel?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      className={`h-8 px-2.5 flex items-center gap-1.5 rounded text-xs font-medium transition-colors
-        ${active ? 'bg-selection-bg text-primary' : 'hover:bg-secondary text-muted-foreground'}`}
+    <Toggle
+      pressed={active}
+      onPressedChange={onClick}
+      size="sm"
+      className={`h-8 ${hideLabel ? 'w-8 px-0' : 'px-2.5'} flex items-center gap-1.5 text-xs focus-visible:ring-0 data-[state=on]:bg-item-route/20 data-[state=on]:text-primary`}
+      title={label}
     >
       {loading ? <Loader2 size={16} className="animate-spin" /> : icon}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
+      {!hideLabel && <span className="hidden sm:inline">{label}</span>}
+    </Toggle>
   );
 }
 

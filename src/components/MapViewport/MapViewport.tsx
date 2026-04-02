@@ -217,7 +217,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   }
 
   return (
-    <div className="flex-1 relative">
+    <div className="w-full h-full relative">
       <MapGL
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}

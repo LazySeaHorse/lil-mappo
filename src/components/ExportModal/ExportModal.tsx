@@ -4,6 +4,9 @@ import { useMapRef } from '@/hooks/useMapRef';
 import { runExport } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
 import { X, Download, Loader2, Film, AlertTriangle } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ExportModalProps {
   onClose: () => void;
@@ -30,6 +33,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
 
     // Pause playback if running
     useProjectStore.getState().setIsPlaying(false);
+    // Hide UI to prevent blur effects from straining the GPU during capture
+    useProjectStore.getState().setHideUI(true);
 
     try {
       await runExport(mapRef, {
@@ -44,16 +49,19 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           saveAs(blob, fileName);
           setIsExporting(false);
           setProgress(100);
+          useProjectStore.getState().setHideUI(false);
         },
         onError: (err) => {
           setError(err);
           setIsExporting(false);
+          useProjectStore.getState().setHideUI(false);
         },
         abortSignal: abortRef.current.signal,
       });
     } catch (e: any) {
       setError(e.message || 'Export failed');
       setIsExporting(false);
+      useProjectStore.getState().setHideUI(false);
     }
   }, [mapRef, exportRes, exportFps, name, startTime, endTime]);
 
@@ -61,6 +69,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     abortRef.current?.abort();
     setIsExporting(false);
     setProgress(0);
+    useProjectStore.getState().setHideUI(false);
   };
 
   const exportDuration = Math.max(0, endTime - startTime);
@@ -76,13 +85,15 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             <Film size={18} className="text-primary" />
             <h2 className="text-sm font-semibold">Export Video</h2>
           </div>
-          <button
+          <Button
             onClick={onClose}
-            className="h-7 w-7 flex items-center justify-center rounded hover:bg-secondary text-muted-foreground"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:bg-secondary"
             disabled={isExporting}
           >
             <X size={16} />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -90,42 +101,46 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           {/* Resolution */}
           <div>
             <label className="text-xs text-muted-foreground block mb-1.5">Resolution</label>
-            <select
+            <Select
               value={exportRes.join('x')}
-              onChange={(e) => {
-                const [w, h] = e.target.value.split('x').map(Number);
+              onValueChange={(v) => {
+                const [w, h] = v.split('x').map(Number);
                 setExportRes([w, h]);
               }}
               disabled={isExporting}
-              className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
             >
-              <option value="854x480">854 × 480 (480p)</option>
-              <option value="1280x720">1280 × 720 (720p)</option>
-              <option value="1920x1080">1920 × 1080 (1080p)</option>
-              <option value="2560x1440">2560 × 1440 (1440p)</option>
-              <option value="3840x2160">3840 × 2160 (4K)</option>
-            </select>
+              <SelectTrigger className="h-9 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="854x480">854 × 480 (480p)</SelectItem>
+                <SelectItem value="1280x720">1280 × 720 (720p)</SelectItem>
+                <SelectItem value="1920x1080">1920 × 1080 (1080p)</SelectItem>
+                <SelectItem value="2560x1440">2560 × 1440 (1440p)</SelectItem>
+                <SelectItem value="3840x2160">3840 × 2160 (4K)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* FPS */}
           <div>
             <label className="text-xs text-muted-foreground block mb-1.5">Frame Rate</label>
-            <select
-              value={exportFps}
-              onChange={(e) => setExportFps(Number(e.target.value))}
+            <Select
+              value={exportFps.toString()}
+              onValueChange={(v) => setExportFps(Number(v))}
               disabled={isExporting}
-              className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
             >
-              <option value={30}>30 FPS</option>
-              <option value={60}>60 FPS</option>
-            </select>
+              <SelectTrigger className="h-9 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 FPS</SelectItem>
+                <SelectItem value="60">60 FPS</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Time Range */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground block mb-1.5">Start Time (s)</label>
-              <input
+              <Input
                 type="number"
                 min={0}
                 max={endTime}
@@ -133,12 +148,12 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 value={startTime}
                 onChange={(e) => setStartTime(Number(e.target.value))}
                 disabled={isExporting}
-                className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+                className="h-9 text-sm"
               />
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1.5">End Time (s)</label>
-              <input
+              <Input
                 type="number"
                 min={startTime}
                 max={duration}
@@ -146,7 +161,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 value={endTime}
                 onChange={(e) => setEndTime(Number(e.target.value))}
                 disabled={isExporting}
-                className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+                className="h-9 text-sm"
               />
             </div>
           </div>
@@ -216,26 +231,19 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border bg-secondary/30">
           {isExporting ? (
-            <button
-              onClick={handleCancel}
-              className="h-9 px-4 text-sm font-medium border border-border rounded-lg hover:bg-secondary transition-colors"
-            >
+            <Button onClick={handleCancel} variant="outline" className="h-9 px-4 text-sm font-medium">
               Cancel
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                onClick={onClose}
-                className="h-9 px-4 text-sm font-medium border border-border rounded-lg hover:bg-secondary transition-colors"
-              >
+              <Button onClick={onClose} variant="outline" className="h-9 px-4 text-sm font-medium">
                 Close
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleExport}
-                className="h-9 px-5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+                className="h-9 px-5 text-sm font-medium flex items-center gap-2"
               >
                 {progress === 100 ? (
                   <>
@@ -248,7 +256,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                     Start Export
                   </>
                 )}
-              </button>
+              </Button>
             </>
           )}
         </div>

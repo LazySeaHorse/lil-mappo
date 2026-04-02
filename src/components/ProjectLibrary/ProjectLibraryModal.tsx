@@ -8,6 +8,7 @@ import {
 } from '@/services/projectLibrary';
 import { useProjectStore } from '@/store/useProjectStore';
 import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
 
 interface ProjectLibraryModalProps {
   onClose: () => void;
@@ -68,12 +69,14 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
             <Library size={18} className="text-primary" />
             <h2 className="text-sm font-semibold">My Projects Library</h2>
           </div>
-          <button
+          <Button
             onClick={onClose}
-            className="h-7 w-7 flex items-center justify-center rounded hover:bg-secondary text-muted-foreground"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:bg-secondary"
           >
             <X size={16} />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -106,19 +109,22 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
                   </div>
                   
                   <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button
+                    <Button
                       onClick={() => handleLoad(p.id, p.name)}
-                      className="h-8 px-3 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                      size="sm"
+                      className="h-8 px-3 text-xs font-medium"
                     >
                       Load
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleDelete(p.id, p.name)}
-                      className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       title="Delete Project"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -128,12 +134,13 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
 
         {/* Footer */}
         <div className="flex items-center justify-end px-5 py-3 border-t border-border bg-secondary/30 shrink-0">
-          <button
+          <Button
             onClick={onClose}
-            className="h-9 px-4 text-sm font-medium border border-border rounded-lg hover:bg-secondary transition-colors"
+            variant="outline"
+            className="h-9 px-4 text-sm font-medium"
           >
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -6,6 +6,11 @@ import React, { useState } from 'react';
 import { Trash2, Search, Crosshair, Check } from 'lucide-react';
 import FontPicker from 'react-fontpicker-ts';
 import 'react-fontpicker-ts/dist/index.css';
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 export default function InspectorPanel() {
   const { selectedItemId, selectedKeyframeId, items } = useProjectStore();
@@ -39,25 +44,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function InputText({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <input
+    <Input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full h-8 px-2 text-sm border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+      className="h-8 text-sm"
     />
   );
 }
 
 function InputNumber({ value, onChange, min, max, step = 1 }: { value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number }) {
   return (
-    <input
+    <Input
       type="number"
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
       min={min}
       max={max}
       step={step}
-      className="w-full h-8 px-2 text-sm border border-border rounded bg-background font-mono-time focus:outline-none focus:ring-1 focus:ring-ring"
+      className="h-8 text-sm font-mono-time"
     />
   );
 }
@@ -65,8 +70,8 @@ function InputNumber({ value, onChange, min, max, step = 1 }: { value: number; o
 function InputColor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-2">
-      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-8 h-8 rounded border border-border cursor-pointer" />
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 h-8 px-2 text-xs border border-border rounded bg-background font-mono-time" />
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-8 h-8 rounded border border-border cursor-pointer shrink-0" />
+      <Input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 h-8 font-mono-time text-xs" />
     </div>
   );
 }
@@ -74,7 +79,7 @@ function InputColor({ value, onChange }: { value: string; onChange: (v: string) 
 function SliderField({ value, onChange, min, max, step = 0.1, label }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; label: string }) {
   return (
     <Field label={`${label}: ${value}`}>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-primary" />
+      <Slider min={min} max={max} step={step} value={[value]} onValueChange={([v]) => onChange(v)} className="w-full" />
     </Field>
   );
 }
@@ -82,8 +87,8 @@ function SliderField({ value, onChange, min, max, step = 0.1, label }: { value: 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="flex items-center gap-2 mb-2 cursor-pointer">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-primary" />
-      <span className="text-xs">{label}</span>
+      <Switch checked={checked} onCheckedChange={onChange} />
+      <span className="text-xs font-medium">{label}</span>
     </label>
   );
 }
@@ -92,18 +97,21 @@ function EasingSelect({ value, onChange }: { value: EasingName; onChange: (v: Ea
   const options: EasingName[] = ['linear', 'easeInQuad', 'easeOutQuad', 'easeInOutQuad', 'easeInCubic', 'easeOutCubic', 'easeInOutCubic', 'easeInOutSine'];
   return (
     <Field label="Easing">
-      <select value={value} onChange={(e) => onChange(e.target.value as EasingName)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      <Select value={value} onValueChange={(v) => onChange(v as EasingName)}>
+        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+        </SelectContent>
+      </Select>
     </Field>
   );
 }
 
 function DeleteButton({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="mt-4 w-full h-8 flex items-center justify-center gap-1.5 text-xs text-destructive border border-destructive/30 rounded hover:bg-destructive/10 transition-colors">
+    <Button variant="destructive" size="sm" onClick={onClick} className="mt-4 w-full h-8 flex items-center justify-center gap-1.5 text-xs">
       <Trash2 size={14} /> Delete
-    </button>
+    </Button>
   );
 }
 
@@ -141,37 +149,49 @@ function ProjectSettings() {
           <Field label="Name"><InputText value={name} onChange={setProjectName} /></Field>
           <Field label="Duration (s)"><InputNumber value={duration} onChange={setDuration} min={1} max={600} /></Field>
           <Field label="FPS">
-            <select value={fps} onChange={(e) => setFps(Number(e.target.value) as 30 | 60)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-              <option value={30}>30</option>
-              <option value={60}>60</option>
-            </select>
+            <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30</SelectItem>
+                <SelectItem value="60">60</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="Resolution">
-            <select value={resolution.join('x')} onChange={(e) => { const [w, h] = e.target.value.split('x').map(Number); setResolution([w, h]); }} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-              <option value="1920x1080">1920 × 1080</option>
-              <option value="2560x1440">2560 × 1440</option>
-              <option value="3840x2160">3840 × 2160</option>
-            </select>
+            <Select value={resolution.join('x')} onValueChange={(v) => { const [w, h] = v.split('x').map(Number); setResolution([w, h]); }}>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1920x1080">1920 × 1080</SelectItem>
+                <SelectItem value="2560x1440">2560 × 1440</SelectItem>
+                <SelectItem value="3840x2160">3840 × 2160</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
         </>
       ) : (
         <>
           <SectionTitle>Environment</SectionTitle>
           <Field label="Projection">
-            <select value={projection} onChange={(e) => setProjection(e.target.value as any)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-              <option value="globe">Globe</option>
-              <option value="mercator">Mercator (Flat)</option>
-            </select>
+            <Select value={projection} onValueChange={(v) => setProjection(v as any)}>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="globe">Globe</SelectItem>
+                <SelectItem value="mercator">Mercator (Flat)</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           
           {mapStyle === 'standard' && (
             <Field label="Lighting Preset">
-              <select value={lightPreset} onChange={(e) => setLightPreset(e.target.value as any)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-                <option value="day">Day</option>
-                <option value="night">Night</option>
-                <option value="dusk">Dusk</option>
-                <option value="dawn">Dawn</option>
-              </select>
+              <Select value={lightPreset} onValueChange={(v) => setLightPreset(v as any)}>
+                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Day</SelectItem>
+                  <SelectItem value="night">Night</SelectItem>
+                  <SelectItem value="dusk">Dusk</SelectItem>
+                  <SelectItem value="dawn">Dawn</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
           )}
 
@@ -189,13 +209,15 @@ function ProjectSettings() {
                 )} 
                 onChange={(v) => setAtmosphere({ fogColor: v })} 
               />
-              <button 
+              <Button 
                 onClick={() => setAtmosphere({ fogColor: null })}
-                className="text-[10px] px-2 py-1 bg-secondary rounded hover:bg-secondary/80"
+                variant="secondary"
+                size="sm"
+                className="text-[10px] px-2 h-7"
                 title="Reset to Style Default"
               >
                 Reset
-              </button>
+              </Button>
             </div>
           </Field>
 
@@ -214,15 +236,18 @@ function ProjectSettings() {
           
           <SectionTitle>Localization</SectionTitle>
           <Field label="Map Language">
-            <select value={mapLanguage} onChange={(e) => setMapLanguage(e.target.value)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="ja">Japanese</option>
-              <option value="ko">Korean</option>
-              <option value="zh-Hans">Chinese (Simplified)</option>
-            </select>
+            <Select value={mapLanguage} onValueChange={(v) => setMapLanguage(v)}>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="es">Spanish</SelectItem>
+                <SelectItem value="fr">French</SelectItem>
+                <SelectItem value="de">German</SelectItem>
+                <SelectItem value="ja">Japanese</SelectItem>
+                <SelectItem value="ko">Korean</SelectItem>
+                <SelectItem value="zh-Hans">Chinese (Simplified)</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
         </>
       )}
@@ -252,11 +277,14 @@ function RouteInspector({ item }: { item: RouteItem }) {
       <Toggle checked={item.style.trailFade} onChange={(v) => us({ trailFade: v })} label="Trail Fade" />
       {item.style.trailFade && <SliderField label="Fade Length" value={item.style.trailFadeLength} onChange={(v) => us({ trailFadeLength: v })} min={0.05} max={1} />}
       <Field label="Dash Pattern">
-        <select value={item.style.dashPattern ? 'dashed' : 'solid'} onChange={(e) => us({ dashPattern: e.target.value === 'dashed' ? [8, 4] : e.target.value === 'dotted' ? [2, 4] : null })} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-          <option value="solid">Solid</option>
-          <option value="dashed">Dashed</option>
-          <option value="dotted">Dotted</option>
-        </select>
+        <Select value={item.style.dashPattern ? 'dashed' : 'solid'} onValueChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}>
+          <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="solid">Solid</SelectItem>
+            <SelectItem value="dashed">Dashed</SelectItem>
+            <SelectItem value="dotted">Dotted</SelectItem>
+          </SelectContent>
+        </Select>
       </Field>
       <DeleteButton onClick={() => { removeItem(item.id); selectItem(null); }} />
     </PanelWrapper>
@@ -301,10 +329,10 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
     <PanelWrapper title={`Boundary: ${item.placeName || 'New'}`}>
       <Field label="Place Name">
         <div className="flex gap-1">
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="flex-1 h-8 px-2 text-sm border border-border rounded bg-background" placeholder="e.g. Central Park" />
-          <button onClick={handleSearch} disabled={searching} className="h-8 w-8 flex items-center justify-center border border-border rounded hover:bg-secondary">
+          <Input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="flex-1 h-8 text-sm" placeholder="e.g. Central Park" />
+          <Button onClick={handleSearch} disabled={searching} variant="outline" size="sm" className="h-8 w-8 p-0">
             <Search size={14} />
-          </button>
+          </Button>
         </div>
       </Field>
       {results.length > 0 && (
@@ -334,15 +362,17 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
       {item.style.animateStroke && (
         <>
           <Field label="Animation Style">
-            <select 
+            <Select 
               value={item.style.animationStyle || 'draw'} 
-              onChange={(e) => us({ animationStyle: e.target.value as any })} 
-              className="w-full h-8 px-2 text-sm border border-border rounded bg-background"
+              onValueChange={(v) => us({ animationStyle: v as any })} 
             >
-              <option value="fade">Fade (Basic)</option>
-              <option value="draw">Draw (Perimeter)</option>
-              <option value="trace">Trace (Comet)</option>
-            </select>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fade">Fade (Basic)</SelectItem>
+                <SelectItem value="draw">Draw (Perimeter)</SelectItem>
+                <SelectItem value="trace">Trace (Comet)</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           {item.style.animationStyle === 'trace' && (
             <SliderField 
@@ -374,17 +404,15 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
       <Field label="Image URL"><InputText value={item.imageUrl || ''} onChange={(v) => u({ imageUrl: v || null })} /></Field>
       <div className="flex items-center justify-between mb-2">
         <label className="text-xs text-muted-foreground block">Position</label>
-        <button
+        <Button
           onClick={() => setMoveModeActive(!isMoveModeActive)}
-          className={`h-7 px-3 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-tight rounded-full transition-all ${
-            isMoveModeActive 
-            ? 'bg-primary text-primary-foreground shadow-lg scale-105' 
-            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-          }`}
+          size="sm"
+          variant={isMoveModeActive ? "default" : "secondary"}
+          className={`h-7 px-3 text-[10px] uppercase font-bold tracking-tight rounded-full transition-all ${isMoveModeActive ? "shadow-lg scale-105" : ""}`}
         >
           {isMoveModeActive ? <Check size={12} /> : <Crosshair size={12} />}
           {isMoveModeActive ? 'Done' : 'Move'}
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-2 gap-2 opacity-80 pointer-events-none">
         <Field label="Longitude"><InputNumber value={item.lngLat[0]} onChange={(v) => u({ lngLat: [v, item.lngLat[1]] })} step={0.001} /></Field>
@@ -400,14 +428,24 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
       </div>
       <SectionTitle>Animation</SectionTitle>
       <Field label="Enter">
-        <select value={item.animation.enter} onChange={(e) => ua({ enter: e.target.value as any })} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-          <option value="fadeIn">Fade In</option><option value="scaleUp">Scale Up</option><option value="slideUp">Slide Up</option>
-        </select>
+        <Select value={item.animation.enter} onValueChange={(v) => ua({ enter: v as any })}>
+          <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fadeIn">Fade In</SelectItem>
+            <SelectItem value="scaleUp">Scale Up</SelectItem>
+            <SelectItem value="slideUp">Slide Up</SelectItem>
+          </SelectContent>
+        </Select>
       </Field>
       <Field label="Exit">
-        <select value={item.animation.exit} onChange={(e) => ua({ exit: e.target.value as any })} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-          <option value="fadeOut">Fade Out</option><option value="scaleDown">Scale Down</option><option value="slideDown">Slide Down</option>
-        </select>
+        <Select value={item.animation.exit} onValueChange={(v) => ua({ exit: v as any })}>
+          <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fadeOut">Fade Out</SelectItem>
+            <SelectItem value="scaleDown">Scale Down</SelectItem>
+            <SelectItem value="slideDown">Slide Down</SelectItem>
+          </SelectContent>
+        </Select>
       </Field>
       <SliderField label="Enter Duration" value={item.animation.enterDuration} onChange={(v) => ua({ enterDuration: v })} min={0.1} max={2} step={0.1} />
       <SliderField label="Exit Duration" value={item.animation.exitDuration} onChange={(v) => ua({ exitDuration: v })} min={0.1} max={2} step={0.1} />
@@ -462,10 +500,13 @@ function CameraKFInspector({ item }: { item: CameraItem }) {
       <EasingSelect value={kf.easing} onChange={(v) => u({ easing: v })} />
       {routes.length > 0 && (
         <Field label="Follow Route">
-          <select value={kf.followRoute || ''} onChange={(e) => u({ followRoute: e.target.value || null })} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-            <option value="">None</option>
-            {routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
+          <Select value={kf.followRoute || 'none'} onValueChange={(v) => u({ followRoute: v === 'none' ? null : v })}>
+            <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {routes.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </Field>
       )}
       <DeleteButton onClick={() => { removeCameraKeyframe(kf.id); selectKeyframe(null); }} />
@@ -475,8 +516,8 @@ function CameraKFInspector({ item }: { item: CameraItem }) {
 
 function PanelWrapper({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="w-80 bg-panel-bg border-l border-border h-full overflow-y-auto">
-      <div className="p-3 border-b border-border">
+    <div className="absolute top-4 right-4 bottom-4 w-80 bg-background/85 backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl overflow-y-auto pointer-events-auto flex flex-col">
+      <div className="p-4 border-b border-border/50 shrink-0">
         <h2 className="text-sm font-semibold">{title}</h2>
       </div>
       <div className="p-3">

@@ -10,8 +10,9 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Choreograph** camera movements using a keyframe-based timeline.
 - **Save & Manage** multiple projects locally via an IndexedDB-powered library.
 - **Export** projects as `.lilmap` files or high-quality MP4 videos.
+- **Zen Mode**: A "Focus" mode that hides all UI layers for an immersive, distraction-free map experience (also automatically triggered during video exports to save GPU resources).
 
-The UI is inspired by video editors like After Effects or Keynote, but tailored for geospatial storytelling.
+The UI is a premium, **glassmorphic "floating island"** design (inspired by modern MacOS/iPadOS) where all panels (Toolbar, Inspector, Timeline) float over the map with deep backdrop blurs.
 
 ---
 
@@ -23,7 +24,9 @@ The UI is inspired by video editors like After Effects or Keynote, but tailored 
 - **Animations**: Custom `requestAnimationFrame` loop + easing functions
 - **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`
 - **Video Export**: `mp4-muxer` + WebCodecs API + `html2canvas` (for markers)
-- **UI Components**: Tailwind CSS 3 + Radix UI (shadcn/ui style)
+- **UI Components**: Modernized **shadcn/ui v0.9+** (Tailwind CSS 3 + Radix UI).
+- **Notifications**: **Sonner** (replaces legacy Radix Toast).
+- **Theming**: `next-themes` (supports custom light/dark modes and system sync).
 
 ---
 
@@ -41,6 +44,8 @@ Everything lives in a single Zustand store.
   - **Atmosphere**: User-adjustable `starIntensity` and `fogColor`. Supported in both **Globe** and **Mercator** projections.
 - **Loading State**: Transient `terrainLoading` and `buildingsLoading` indicators for map-heavy features.
 - **Move Mode**: `isMoveModeActive` toggle allows users to manually reposition callouts on the map via drag-and-drop.
+- **Zen Mode**: `hideUI` toggle hides the floating UI layers. When active, a minimal "Show UI" and "Play" shortcut pill appears in the top-left.
+- **Theme Sync**: Automatically toggles between `light` and `dark` glass themes based on the current Mapbox style (e.g., Satellite/Dark styles trigger dark mode).
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
@@ -60,8 +65,11 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - `src/store/`: State definitions and types. **Start here to understand the data model.**
 - `src/engine/`: Pure mathematical logic for interpolation (camera lerps, line slicing).
 - `src/components/MapViewport/`: Map rendering, layer management, and 3D effects.
-- `src/components/Timeline/`: The interactive track-based editor (primarily `TimelinePanel.tsx`).
-- `src/components/Inspector/`: Property editors for the selected item.
+- `src/components/Inspector/`: Modernized property editors using high-fidelity UI components (`Input`, `Slider`, `Select`, `Switch`, `Button`).
+- **`src/components/ui/`**: A comprehensive library of modern, high-fidelity UI components based on **shadcn/ui**.
+- `src/components/Timeline/`: The interactive track-based editor (`TimelinePanel.tsx`). 
+  - **Features**: Vertical resizability (click-drag top edge), vertical scroll isolation, and a unified top-ruler scrubber with a protruding playhead.
+- `src/components/Toolbar/`: The floating command pill. Features icon-only primary tools and Map Settings labels.
 - `src/components/ProjectLibrary/`: Local project management interface.
 - `src/components/ExportModal/`: Interface for configuring and running MP4 exports.
 - `src/services/`: External integrations (Nominatim search, GPX/KML parsing, IndexedDB, Video Encoding).
@@ -100,9 +108,10 @@ When a callout is selected and "Move Mode" is enabled:
 4. This allows precise positioning relative to ground features without altitude parallax interference.
 
 ### 5.5 Timeline Direct Manipulation
-- **Resizing**: Items have "hidden" handles on the edges. Dragging updates `startTime` and `endTime`.
-- **Moving**: Dragging the center of an item block moves the entire clip while preserving duration.
-- **Keyframes**: Camera keyframes can be dragged horizontally. The store handles re-sorting as they cross.
+- **Resizing Panel**: Users can drag the top edge of the timeline panel to change its height. The panel height is mathematically capped to the current number of tracks.
+- **Scrolling**: Uses `ScrollArea` for both vertical (tracks) and horizontal (time) navigation, with sticky track labels on the left.
+- **Clip Dragging**: Items have handles for updating `startTime`/`endTime`. Dragging the center moves the entire clip.
+- **Keyframes**: Camera keyframes can be dragged horizontally with auto-sorting.
 - **Feedback**: Instant store updates ensure the Map viewport remains perfectly in sync during edits.
 
 ### 5.3 Video Export (`src/services/videoExport.ts`)
@@ -147,6 +156,8 @@ The export process is **non-realtime (offline)** for maximum quality:
 - **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
 - **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.
 - **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors during rapid toggles.
+- **UI Component Refs**: Because we use React 18, all custom UI components (like `Button` or `Toggle`) MUST be wrapped in `React.forwardRef` to work correctly with Radix's `asChild` / `Slot` pattern (which is common in `DropdownMenuTrigger`).
+- **Toast Migration**: The application has fully migrated from `radix-toast` to `sonner`. Ensure all notifications use the `toast` export from `sonner`.
 - **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It deduplicates and cleans up `<link>` tags based on the active project items to prevent CSS bloat.
 
 ---

@@ -48,6 +48,10 @@ interface ProjectStore extends Project {
   setTerrainLoading: (v: boolean) => void;
   setBuildingsLoading: (v: boolean) => void;
 
+  // Zen Mode
+  hideUI: boolean;
+  setHideUI: (v: boolean) => void;
+
   // Project loading
   loadFullProject: (project: Project) => void;
 }
@@ -89,6 +93,7 @@ const defaultProject: Project = {
   selectedItemId: null,
   selectedKeyframeId: null,
   isMoveModeActive: false,
+  hideUI: false,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -178,11 +183,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setProjectName: (n) => set({ name: n }),
 
   setMoveModeActive: (v) => set({ isMoveModeActive: v }),
+  setHideUI: (v) => set({ hideUI: v }),
 
   setTerrainLoading: (v) => set({ terrainLoading: v }),
   setBuildingsLoading: (v) => set({ buildingsLoading: v }),
 
-  loadFullProject: (project) => set({ ...defaultProject, ...project, terrainLoading: false, buildingsLoading: false }),
+  loadFullProject: (project) => set({ ...defaultProject, ...project, terrainLoading: false, buildingsLoading: false, hideUI: false }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;
