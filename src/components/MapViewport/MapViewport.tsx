@@ -578,6 +578,8 @@ function CalloutMarker({
       latitude={callout.lngLat[1]}
       anchor="bottom"
       offset={[0, 0] as [number, number]}
+      pitchAlignment="viewport"
+      rotationAlignment="viewport"
     >
       <CalloutCard callout={callout} phase={phase} progress={animProgress} altitudeOffset={altitudeOffset} />
     </Marker>

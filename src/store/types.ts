@@ -67,10 +67,13 @@ export interface CalloutItem {
   style: {
     bgColor: string;
     textColor: string;
+    accentColor: string;
     borderRadius: number;
     shadow: boolean;
     maxWidth: number;
     fontFamily: string;
+    variant: 'default' | 'modern' | 'news' | 'topo';
+    showMetadata: boolean;
   };
   altitude: number;
   poleVisible: boolean;

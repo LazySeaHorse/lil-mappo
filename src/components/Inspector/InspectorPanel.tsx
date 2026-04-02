@@ -3,9 +3,7 @@ import type { TimelineItem, RouteItem, BoundaryItem, CalloutItem, CameraItem, Ea
 import { searchBoundary } from '@/services/nominatim';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
-import { Trash2, Search, Crosshair, Check, Copy } from 'lucide-react';
-import FontPicker from 'react-fontpicker-ts';
-import 'react-fontpicker-ts/dist/index.css';
+import { Trash2, Search, Crosshair, Check, Copy, X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useResponsive } from "@/hooks/useResponsive";
-import { X } from "lucide-react";
 import { 
   INSPECTOR_WIDTH_DESKTOP,
   INSPECTOR_WIDTH_TABLET,
@@ -29,6 +26,22 @@ import {
   DrawerPortal,
   DrawerOverlay
 } from "@/components/ui/drawer";
+
+export const MAP_FONTS = [
+  'Inter',
+  'Roboto',
+  'Montserrat',
+  'Outfit',
+  'Open Sans',
+  'Playfair Display',
+  'Abril Fatface',
+  'Special Elite',
+  'Space Mono',
+  'JetBrains Mono',
+  'Barlow',
+  'Crimson Text',
+  'Lexend'
+];
 
 export default function InspectorPanel() {
   const { selectedItemId, items, isInspectorOpen } = useProjectStore();
@@ -503,17 +516,33 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
   return (
     <PanelWrapper title={`Callout: ${item.title}`} footer={footer}>
       <Field label="Title"><InputText value={item.title} onChange={(v) => u({ title: v })} /></Field>
-      <Field label="Subtitle"><InputText value={item.subtitle} onChange={(v) => u({ subtitle: v })} /></Field>
-      <Field label="Image URL"><InputText value={item.imageUrl || ''} onChange={(v) => u({ imageUrl: v || null })} /></Field>
-      <Field label="Font Family" key={item.id}>
-        <FontPicker
-          autoLoad={false}
-          defaultValue={item.style.fontFamily}
-          value={(font) => {
-            const fontName = typeof font === 'string' ? font : (font as any).family;
-            us({ fontFamily: fontName });
-          }}
-        />
+      <Field label="Font Family">
+        <Select value={item.style.fontFamily} onValueChange={(v) => us({ fontFamily: v })}>
+          <SelectTrigger className="h-8 text-sm w-full">
+            <span style={{ fontFamily: item.style.fontFamily }}>
+              <SelectValue />
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            {MAP_FONTS.map(f => (
+              <SelectItem key={f} value={f}>
+                <span style={{ fontFamily: f }}>{f}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <Field label="Style Variant">
+        <Select value={item.style.variant || 'default'} onValueChange={(v) => us({ variant: v as any })}>
+          <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Standard Box</SelectItem>
+            <SelectItem value="modern">Modern Pill</SelectItem>
+            <SelectItem value="news">News Highlight</SelectItem>
+            <SelectItem value="topo">Topo Data</SelectItem>
+          </SelectContent>
+        </Select>
       </Field>
 
       <Accordion type="multiple" defaultValue={['pos', 'timing', 'anim', 'style']} className="w-full">
@@ -574,9 +603,25 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
         </InspectorSection>
 
         <InspectorSection value="style" title="Style">
-          <Field label="BG Color"><InputColor value={item.style.bgColor} onChange={(v) => us({ bgColor: v })} /></Field>
+          {item.style.variant !== 'topo' && (
+            <>
+              <Field label="BG Color"><InputColor value={item.style.bgColor} onChange={(v) => us({ bgColor: v })} /></Field>
+              <SliderField label="Max Width" value={item.style.maxWidth} onChange={(v) => us({ maxWidth: v })} min={150} max={400} step={10} />
+            </>
+          )}
           <Field label="Text Color"><InputColor value={item.style.textColor} onChange={(v) => us({ textColor: v })} /></Field>
-          <SliderField label="Max Width" value={item.style.maxWidth} onChange={(v) => us({ maxWidth: v })} min={150} max={400} step={10} />
+          
+          {(item.style.variant === 'modern' || item.style.variant === 'news' || item.style.variant === 'topo') && (
+            <Field label="Accent Color"><InputColor value={item.style.accentColor} onChange={(v) => us({ accentColor: v })} /></Field>
+          )}
+
+          {item.style.variant === 'topo' && (
+            <Toggle checked={item.style.showMetadata} onChange={(v) => us({ showMetadata: v })} label="Show GPS Metadata" />
+          )}
+
+          {item.style.variant === 'default' && (
+            <SliderField label="Border Radius" value={item.style.borderRadius} onChange={(v) => us({ borderRadius: v })} min={0} max={24} step={1} />
+          )}
         </InspectorSection>
       </Accordion>
     </PanelWrapper>

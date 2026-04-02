@@ -1,4 +1,5 @@
 @import 'mapbox-gl/dist/mapbox-gl.css';
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -141,80 +142,4 @@
 @keyframes callout-slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes callout-slide-down { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
 
-/* Font Picker Adjustments */
-.fontpicker {
-  width: 100% !important;
-  background: hsl(var(--background)) !important;
-  border: 1px solid hsl(var(--input)) !important;
-  border-radius: var(--radius) !important; /* Match adjacent inputs precisely */
-  font-size: 0.875rem !important;
-  outline: none !important;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-  height: 32px !important;
-}
-
-.fontpicker:focus-within {
-  outline: none !important;
-  box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
-  border-color: hsl(var(--ring)) !important;
-}
-
-/* Eliminate native styles */
-.fontpicker * {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-.fontpicker > div:first-child {
-  height: 100% !important;
-  padding: 0 12px !important;
-  display: flex !important;
-  align-items: center !important;
-  width: 100% !important;
-  background: transparent !important;
-  border: none !important;
-}
-
-.fontpicker__search, .fontpicker__search:focus {
-  background: transparent !important;
-  color: hsl(var(--foreground)) !important;
-  border: none !important;
-}
-
-.fontpicker__popout {
-  background: hsl(var(--popover)) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: calc(var(--radius) - 8px) !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-  z-index: 50 !important;
-  margin-top: 4px !important;
-  max-height: 250px !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  overscroll-behavior: contain !important;
-  /* Stylish thin scrollbar */
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) transparent;
-}
-.fontpicker__popout::-webkit-scrollbar { width: 6px; }
-.fontpicker__popout::-webkit-scrollbar-track { background: transparent; }
-.fontpicker__popout::-webkit-scrollbar-thumb { background-color: hsl(var(--border)); border-radius: 10px; }
-
-.fontpicker__listbox {
-  background: transparent !important;
-}
-
-.fontpicker__option {
-  padding: 8px 12px !important;
-  font-size: 13px !important;
-  color: hsl(var(--foreground)) !important;
-  border: none !important;
-  background-color: transparent !important; /* Clear ugly native dark greys */
-}
-
-.fontpicker__option:hover,
-.fontpicker__option.selected,
-.fontpicker__option.current {
-  background-color: hsl(var(--secondary)) !important;
-}
 

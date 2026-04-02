@@ -70,7 +70,7 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - **Component Lifecycle**: Base layers (like `3d-buildings` for legacy styles) are mounted inside the `styleLoaded` gate. Visibility is then fine-tuned imperatively via the Sync Engine. Critical sources like `mapbox-dem` are managed **entirely imperatively** within the Sync Engine to prevent unmount crashes during style transitions. 
 - **Defensive Sync**: Operations are wrapped in redundant safety checks and isolated `try/catch` to prevent Mapbox-internal AJAX crashes during style transitions.
 - **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
-- **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`offset: [0,0]`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards to push the card into the sky.
+- **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`anchor: 'bottom'`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards. Supports three primary premium variants: **Modern Pill**, **News Highlight**, and **Topo Data** (the default). The "Hollywood" 3D style was removed to ensure geographic stability across all map pitches.
 
 ---
 
@@ -115,14 +115,14 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
   - `src/engine/lineAnimation.ts`: Contains `getLineSegment` for arbitrary range slicing.
   - `src/engine/easings.ts`: Contains `getNormalizedProgress` to centralize time-to-progress logic.
   - `src/engine/geoUtils.ts`: Handles Polygon-to-LineString conversion for perimeter animation.
-- **Callouts**: Animated using CSS transitions (`fadeIn`, `scaleUp`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`. Supports custom **Google Fonts** via dynamic injection.
+- **Callouts**: Animated using CSS transitions (`slideUp`, `slideDown`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`. Font selection is handled via a curated `Select` dropdown of map-friendly fonts (exported as `MAP_FONTS` from `InspectorPanel.tsx`). These fonts are preloaded by `src/components/FontLoader.tsx` to ensure high-fidelity previews in the Inspector. Styling is focused on high-end typography; legacy features like **Subtitles** and **Image URLs** have been pruned to maintain a professional map-aesthetic.
 
 ### 5.2 3D Effects & Atmosphere
 - **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar or Map settings. To ensure stability, the `mapbox-dem` source is **added imperatively** by the Sync Engine only when terrain is enabled. This avoids the "Source cannot be removed while terrain is using it" crash that occurs if a React-managed source unmounts before the terrain property is cleared. The engine uses source-specific handlers to drive a reactive loading spinner. These handlers use **defensive existence checks** (`getSource`) before querying loading status to prevent crashes during style transitions. For stability, **terrain and 3D buildings are automatically reset to `false`** when switching map styles or importing files.
 - **Buildings (3D Details)**: Supports a hierarchical "Master Toggle" logic. In 'Standard' style, this uses `map.setConfigProperty`. For other styles, it relies on a dedicated `3d-buildings` fill-extrusion layer managed by the engine. 
 - **Fog & Stars**: Configures atmospheric haze and starry skies. Works seamlessly in **both Globe and Mercator**. Uses style-aware defaults (e.g., `#5d7883` for Satellite) when no override is present. Config is re-applied after every style switch and **on map `idle` events** to prevent property loss caused by Mapbox's internal style-import resets.
 - **Projections**: Seamlessly switch between **Globe** and **Mercator**. Transition matrix overflows and missing atmospheric effects (like disappearing stars) are prevented by a strictly enforced imperative **order-of-operations: Projection → Config/Presets → Terrain → Fog**. This ensures custom atmosphere is the "final word" after Mapbox's internal baseline resets.
-- **Altitude**: Callouts use a `Marker` with a ground-locked anchor. To keep the altitude visually consistent as the user zooms, we recalculate a pixel `altitudeOffset` which drives the internal height of the card's pole. This ensures the base dot stays geographically pinned while the card floats.
+- **Altitude**: Callouts use a `Marker` with a ground-locked `bottom` anchor. To keep the altitude visually consistent as the user zooms, we recalculate a pixel `altitudeOffset` which drives the internal height of the card's pole. New callouts default to **100m** altitude.
 
 ### 5.4 Move Mode (Manual Positioning)
 When a callout is selected and "Move Mode" is enabled:
@@ -188,7 +188,7 @@ The export process is **non-realtime (offline)** for maximum quality:
 - **UI Component Refs**: All custom UI components (Button, Toggle, DrawerOverlay, etc.) MUST be wrapped in `React.forwardRef`. Libraries like `vaul` need direct access to DOM nodes to calculate snap-point heights and attach touch-gesture observers.
 - **Mobile Interaction Deadzones**: On mobile, the `TimelinePanel` is automatically hidden when the `InspectorPanel` is open. This is a critical architectural decision to prevent the timeline's z-index from interfering with the bottom-sheet's "swipe down to exit" gestures.
 - **Toast UI**: The application uses **Sonner** with a custom "Pill" design (rounded-full, no icons, backdrop-blur). Toasts are positioned dynamically in `MapStudioEditor` using the centralized `PANEL_MARGIN` constant to always appear centered and exactly `margin * 2` above the timeline top edge (using `timelineHeight`).
-- **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It deduplicates and cleans up `<link>` tags based on the active project items to prevent CSS bloat.
+- **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It preloads the curated map font list (`MAP_FONTS`) for dropdown previews and dynamically injects any other custom fonts based on active project items. It deduplicates and cleans up `<link>` tags to prevent CSS bloat.
 
 ---
 

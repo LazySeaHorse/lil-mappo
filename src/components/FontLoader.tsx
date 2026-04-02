@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { MAP_FONTS } from '@/components/Inspector/InspectorPanel';
 
 /**
  * Monitors all callout items in the project and ensures their 
  * respective Google Fonts are loaded into the document head.
+ * Now also preloads MAP_FONTS so the dropdown previews are instant.
  */
 export default function FontLoader() {
   const items = useProjectStore((s) => s.items);
 
   useEffect(() => {
-    // 1. Gather all unique custom fonts
-    const fonts = new Set<string>();
+    // 1. Start with the predefined map fonts for dropdown previews
+    const fonts = new Set<string>(MAP_FONTS);
+    
     Object.values(items).forEach((item) => {
       if (item.kind === 'callout' && item.style.fontFamily) {
         // Skip default/standard fonts that are likely in index.css
