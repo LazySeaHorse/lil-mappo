@@ -16,6 +16,11 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useResponsive } from "@/hooks/useResponsive";
 import { X } from "lucide-react";
 import { 
+  INSPECTOR_WIDTH_DESKTOP,
+  INSPECTOR_WIDTH_TABLET,
+  PANEL_MARGIN
+} from '@/constants/layout';
+import { 
   Drawer, 
   DrawerContent, 
   DrawerHeader, 
@@ -665,11 +670,20 @@ function PanelWrapper({ title, children, footer }: { title: string; children: Re
     );
   }
 
-  const widthClass = isTablet ? 'w-72' : 'w-80';
-  const positionClass = isTablet ? 'top-4 right-4 bottom-4' : 'top-4 right-4 bottom-4';
+  const widthStyles: React.CSSProperties = {
+    width: isTablet ? `${INSPECTOR_WIDTH_TABLET}px` : `${INSPECTOR_WIDTH_DESKTOP}px`
+  };
+  const positionStyles: React.CSSProperties = {
+    top: `${PANEL_MARGIN}px`,
+    right: `${PANEL_MARGIN}px`,
+    bottom: `${PANEL_MARGIN}px`
+  };
 
   return (
-    <div className={`${positionClass} ${widthClass} absolute bg-background/80 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden pointer-events-auto flex flex-col transition-all duration-300`}>
+    <div 
+      className={`absolute bg-background/80 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden pointer-events-auto flex flex-col transition-all duration-300`}
+      style={{ ...widthStyles, ...positionStyles }}
+    >
       <div className="p-4 py-3 border-b border-white/10 dark:border-white/5 shrink-0 bg-background/50 flex items-center justify-between">
         <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
         <Button 

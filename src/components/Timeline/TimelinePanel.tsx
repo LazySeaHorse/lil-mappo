@@ -3,6 +3,11 @@ import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { TimelineItem, CameraItem, RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useResponsive } from '@/hooks/useResponsive';
+import { 
+  RIGHT_RESERVED_DESKTOP,
+  RIGHT_RESERVED_TABLET,
+  PANEL_MARGIN
+} from '@/constants/layout';
 
 const RULER_HEIGHT = 40;
 const PIXELS_PER_SECOND_DEFAULT = 60;
@@ -158,21 +163,25 @@ export default function TimelinePanel() {
   // Provide auto-clamping in case tracks are deleted after we had expanded the panel
   const clampedHeight = Math.max(104, Math.min(displayHeight, maxContentHeight));
 
-  const rightMargin = !isInspectorOpen || isMobile ? 'right-4' : isTablet ? 'right-[304px]' : 'right-[350px]';
-  const leftMargin = isMobile ? 'left-2' : 'left-4';
+  const rightMarginVal = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
+  const leftMarginVal = isMobile ? 8 : PANEL_MARGIN; // Standard mobile side padding
 
   // Hiding timeline on mobile when inspector is open to clear the gesture path
   if (isMobile && isInspectorOpen) return null;
 
-  // Overriding mobile right margin to be more compact if we have the drawer handles
-  const finalRightMargin = isMobile ? 'right-2' : rightMargin;
-  const finalLeftMargin = isMobile ? 'left-2' : leftMargin;
+  const finalRightMargin = isMobile ? '8px' : `${rightMarginVal}px`;
+  const finalLeftMargin = isMobile ? '8px' : `${leftMarginVal}px`;
 
   return (
     <div
       ref={containerRef}
-      className={`absolute bottom-4 ${finalLeftMargin} ${finalRightMargin} bg-background/85 ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
-      style={{ height: clampedHeight }}
+      className={`absolute ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} bg-background/85 border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
+      style={{ 
+        height: clampedHeight,
+        bottom: `${PANEL_MARGIN}px`,
+        left: finalLeftMargin,
+        right: finalRightMargin
+      }}
     >
       {/* Top Resize Handle */}
       <div 

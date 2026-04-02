@@ -15,6 +15,11 @@ import { Button } from '@/components/ui/button';
 import { Eye, Play, Pause } from 'lucide-react';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { 
+  RIGHT_RESERVED_DESKTOP,
+  RIGHT_RESERVED_TABLET,
+  PANEL_MARGIN
+} from '@/constants/layout';
 
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
@@ -46,8 +51,8 @@ export default function MapStudioEditor() {
       <Sonner 
         style={{
           position: 'absolute',
-          bottom: hideUI ? '32px' : (isMobile && isInspectorOpen) ? '32px' : `${timelineHeight + 32}px`,
-          left: hideUI ? '50%' : (isMobile && isInspectorOpen) ? '50%' : `calc((100% - ${!isInspectorOpen || isMobile ? '16px' : isTablet ? '304px' : '350px'} + ${isMobile ? '8px' : '16px'}) / 2)`,
+          bottom: hideUI ? `${PANEL_MARGIN * 2}px` : (isMobile && isInspectorOpen) ? `${PANEL_MARGIN * 2}px` : `${timelineHeight + PANEL_MARGIN * 2}px`,
+          left: hideUI ? '50%' : (isMobile && isInspectorOpen) ? '50%' : `calc((100% - ${!isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP}px + ${isMobile ? 8 : PANEL_MARGIN}px) / 2)`,
           transform: 'translateX(-50%)',
           zIndex: 100,
           pointerEvents: 'none'

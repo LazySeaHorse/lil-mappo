@@ -14,7 +14,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Zen Mode**: A "Focus" mode that hides all UI layers for an immersive, distraction-free map experience (also automatically triggered during video exports to save GPU resources).
 
 The UI is a premium, **responsive "floating island"** design.
-- **Desktop/Tablet**: High-fidelity glassmorphism with floating panels (Toolbar, Inspector, Timeline) and deep backdrop blurs.
+- **Desktop/Tablet**: High-fidelity glassmorphism with floating panels (Toolbar, Inspector, Timeline). Uses a **strictly enforced "air-gap" design** driven by constants in `src/constants/layout.ts` to ensure panels never touch or overlap.
 - **Mobile**: Optimizes for touch with a pinned top bar and a **70% snap bottom-sheet (Drawer)** for property inspection. Aesthetics shift to solid, high-contrast backgrounds for better readability and performance.
 
 ---
@@ -77,6 +77,7 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 ## 4. Key Directories
 - `src/store/`: State definitions and types. **Start here to understand the data model.**
 - `src/engine/`: Pure mathematical logic for interpolation (camera lerps, line slicing).
+- `src/constants/`: Centralized app-shell layout tokens (panel widths, margins, and gaps). **Refer here for all responsive spacing logic.**
 - `src/components/MapViewport/`: Map rendering, layer management, and 3D effects.
 - `src/components/Inspector/`: Adaptive property editors. 
   - **Shared Logic**: Uses a `PanelWrapper` to share form logic between the Desktop sidebar and the Mobile drawer.
@@ -186,7 +187,7 @@ The export process is **non-realtime (offline)** for maximum quality:
 - **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors. **Crucially: Never use a React `<Source>` for a source that is currently bound to the map's `terrain` property**, as React's unmount lifecycle will trigger a Mapbox error if the source is removed before terrain is set to null. Additionally, always guard calls to `isSourceLoaded` or `setLayoutProperty` with existence checks (`getSource` / `getLayer`) to prevent crashes during asynchronous style transitions. Finally, **Atmosphere settings must be the last operation in the sync loop** to prevent them from being overwritten by Standard Style light presets.
 - **UI Component Refs**: All custom UI components (Button, Toggle, DrawerOverlay, etc.) MUST be wrapped in `React.forwardRef`. Libraries like `vaul` need direct access to DOM nodes to calculate snap-point heights and attach touch-gesture observers.
 - **Mobile Interaction Deadzones**: On mobile, the `TimelinePanel` is automatically hidden when the `InspectorPanel` is open. This is a critical architectural decision to prevent the timeline's z-index from interfering with the bottom-sheet's "swipe down to exit" gestures.
-- **Toast UI**: The application uses **Sonner** with a custom "Pill" design (rounded-full, no icons, backdrop-blur). Toasts are positioned dynamically in `MapStudioEditor` to always appear centered and exactly 32px above the timeline top edge (using `timelineHeight`).
+- **Toast UI**: The application uses **Sonner** with a custom "Pill" design (rounded-full, no icons, backdrop-blur). Toasts are positioned dynamically in `MapStudioEditor` using the centralized `PANEL_MARGIN` constant to always appear centered and exactly `margin * 2` above the timeline top edge (using `timelineHeight`).
 - **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It deduplicates and cleans up `<link>` tags based on the active project items to prevent CSS bloat.
 
 ---

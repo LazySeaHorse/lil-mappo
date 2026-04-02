@@ -25,6 +25,12 @@ import { saveAs } from 'file-saver';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  RIGHT_RESERVED_DESKTOP,
+  RIGHT_RESERVED_TABLET,
+  PANEL_MARGIN,
+  PANEL_GAP
+} from '@/constants/layout';
 
 interface ToolbarProps {
   onExport: () => void;
@@ -218,14 +224,21 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
   };
 
-  const rightMargin = !isInspectorOpen || isMobile ? 'right-4' : isTablet ? 'right-[304px]' : 'right-[350px]';
-  const finalRightMargin = isMobile ? 'right-0' : rightMargin;
-  const finalLeftMargin = isMobile ? 'left-0' : 'left-4';
-  const finalTopMargin = isMobile ? 'top-0' : 'top-4';
+  const rightMarginVal = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
+  const finalRightMargin = isMobile ? '0px' : `${rightMarginVal}px`;
+  const finalLeftMargin = isMobile ? '0px' : `${PANEL_MARGIN}px`;
+  const finalTopMargin = isMobile ? '0px' : `${PANEL_MARGIN}px`;
   const finalRounded = isMobile ? 'rounded-none' : 'rounded-2xl';
 
   return (
-    <div className={`${finalTopMargin} ${finalLeftMargin} ${finalRightMargin} h-14 ${finalRounded} absolute bg-background/85 backdrop-blur-xl border border-border/50 flex items-center px-4 gap-1 shadow-xl pointer-events-auto z-50 transition-all duration-300`}>
+    <div 
+      className={`h-14 ${finalRounded} absolute bg-background/85 backdrop-blur-xl border border-border/50 flex items-center px-4 gap-1 shadow-xl pointer-events-auto z-50 transition-all duration-300`}
+      style={{
+        top: finalTopMargin,
+        left: finalLeftMargin,
+        right: finalRightMargin
+      }}
+    >
       <input
         ref={routeInputRef}
         type="file"
