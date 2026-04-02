@@ -138,12 +138,39 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     const s = useProjectStore.getState();
 
     try {
-      // 1. Projection
+      // 1. PROJECTION (Top priority - establishes coordinate space)
       if (map.getProjection().name !== s.projection) {
         map.setProjection({ name: s.projection });
       }
 
-      // 2. 3D Terrain — now handles its own source addition for transition stability
+      // 2. 3D BUILDINGS & STANDARD CONFIG
+      // Standard style light presets reset atmosphere, so we must sync this BEFORE setFog
+      const buildingsOn = s.buildingsEnabled;
+      
+      if (s.mapStyle === 'standard') {
+        // Only set light preset if it actually changed to avoid atmosphere flickering
+        if (map.getConfigProperty('basemap', 'lightPreset') !== s.lightPreset) {
+          map.setConfigProperty('basemap', 'lightPreset', s.lightPreset);
+        }
+        
+        map.setConfigProperty('basemap', 'show3dObjects', buildingsOn);
+        map.setConfigProperty('basemap', 'show3dLandmarks', buildingsOn && s.show3dLandmarks);
+        map.setConfigProperty('basemap', 'show3dTrees', buildingsOn && s.show3dTrees);
+        map.setConfigProperty('basemap', 'show3dFacades', buildingsOn && s.show3dFacades);
+      } else if (map.getLayer('3d-buildings')) {
+        const vis = buildingsOn ? 'visible' : 'none';
+        if (map.getLayoutProperty('3d-buildings', 'visibility') !== vis) {
+          map.setLayoutProperty('3d-buildings', 'visibility', vis);
+        }
+      }
+
+      // 3. LABELS (Polymorphic toggler handles both Standard and Legacy styles)
+      toggleFeature(map, 'basemap', 'showRoadLabels', ['road-label', 'road-number', 'road-shield'], s.showRoadLabels);
+      toggleFeature(map, 'basemap', 'showPlaceLabels', ['settlement-label', 'place-city', 'place-town', 'place-village', 'place-label', 'country-label', 'state-label'], s.showPlaceLabels);
+      toggleFeature(map, 'basemap', 'showPointOfInterestLabels', ['poi-label'], s.showPointOfInterestLabels);
+      toggleFeature(map, 'basemap', 'showTransitLabels', ['transit-label', 'airport-label', 'ferry'], s.showTransitLabels);
+
+      // 4. TERRAIN (Imperative DEM management)
       if (s.terrainEnabled) {
         if (!map.getSource('mapbox-dem')) {
           map.addSource('mapbox-dem', {
@@ -158,34 +185,26 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         if (!currentTerrain || currentTerrain.source !== 'mapbox-dem' || currentTerrain.exaggeration !== s.terrainExaggeration) {
           map.setTerrain({ source: 'mapbox-dem', exaggeration: s.terrainExaggeration });
         }
-      } else {
-        if (map.getTerrain()) map.setTerrain(null);
+      } else if (map.getTerrain()) {
+        map.setTerrain(null);
       }
 
-      // 4. Atmosphere (supported in both globe and mercator)
-      map.setFog(fogConfig as any);
-
-      // 5. 3D Buildings & Details
-      const buildingsOn = s.buildingsEnabled;
+      // 5. ATMOSPHERE / FOG (FINAL PASS - Overwrites any style/preset defaults)
+      // This is where stars and groundfog are applied. We compare target vs current to avoid loop flicker.
+      const targetFog = fogConfig as any;
+      const currentFog = map.getFog();
       
-      if (s.mapStyle === 'standard') {
-        map.setConfigProperty('basemap', 'show3dObjects', buildingsOn);
-        map.setConfigProperty('basemap', 'show3dLandmarks', buildingsOn && s.show3dLandmarks);
-        map.setConfigProperty('basemap', 'show3dTrees', buildingsOn && s.show3dTrees);
-        map.setConfigProperty('basemap', 'show3dFacades', buildingsOn && s.show3dFacades);
-        map.setConfigProperty('basemap', 'lightPreset', s.lightPreset);
-      } else if (map.getLayer('3d-buildings')) {
-        map.setLayoutProperty('3d-buildings', 'visibility', buildingsOn ? 'visible' : 'none');
-      }
+      const needsFogSync = !currentFog || 
+        currentFog.color !== targetFog.color || 
+        currentFog['star-intensity'] !== targetFog['star-intensity'] ||
+        currentFog['space-color'] !== targetFog['space-color'];
 
-      // 6. Labels (multiple patterns for broader style coverage)
-      toggleFeature(map, 'basemap', 'showRoadLabels', ['road-label', 'road-number', 'road-shield'], s.showRoadLabels);
-      toggleFeature(map, 'basemap', 'showPlaceLabels', ['settlement-label', 'place-city', 'place-town', 'place-village', 'place-label', 'country-label', 'state-label'], s.showPlaceLabels);
-      toggleFeature(map, 'basemap', 'showPointOfInterestLabels', ['poi-label'], s.showPointOfInterestLabels);
-      toggleFeature(map, 'basemap', 'showTransitLabels', ['transit-label', 'airport-label', 'ferry'], s.showTransitLabels);
+      if (needsFogSync) {
+        map.setFog(targetFog);
+      }
 
     } catch (err) {
-      console.warn('Sync loop minor failure (normal during re-load):', err);
+      console.warn('Sync engine failure (async transition):', err);
     }
   };
 
@@ -236,6 +255,9 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
       }
     };
     const handleIdle = () => {
+      // Final "Validation Pass" - ensures projection/fog stick after transitions finish
+      syncRef.current();
+
       const s = useProjectStore.getState();
       if (s.isPlaying) return;
 
