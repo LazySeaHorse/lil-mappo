@@ -36,7 +36,10 @@ Everything lives in a single Zustand store.
 - `itemOrder`: Defines the "layer" order in the timeline and on the map.
 - `playheadTime`: The current "now" of the animation. Changing this triggers updates across the entire app.
 - `isPlaying`: Controls the playback loop.
-- **Project Settings**: Global overrides for `duration`, `fps`, `resolution`, `mapStyle`, and 3D toggles (`terrainEnabled`, `buildingsEnabled`).
+- **Project Settings**: Global overrides for `duration`, `fps`, `resolution`, `mapStyle`, and advanced Mapbox attributes. Organized into **General** and **Map** tabs in the Inspector. 
+  - **Map Config**: Includes `projection` (Globe/Mercator), `lightPreset` (v3 Standard), `mapLanguage`, and granular toggles for labels (Roads, Places, POIs, Transit) and 3D details (Landmarks, Facades, Trees). 
+  - **Atmosphere**: User-adjustable `starIntensity` and `fogColor`. Supported in both **Globe** and **Mercator** projections.
+- **Loading State**: Transient `terrainLoading` and `buildingsLoading` indicators for map-heavy features.
 - **Move Mode**: `isMoveModeActive` toggle allows users to manually reposition callouts on the map via drag-and-drop.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
@@ -46,6 +49,8 @@ When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
 
 ### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
 This component listens to `playheadTime` and re-renders Mapbox sources/layers.
+- **Universal Sync Engine**: Handles all imperative Mapbox state (Projection, Terrain, Fog, Config, and Labels) across all styles. It uses a robust, event-driven architecture listening to `style.load`, `styleimportdata` (for Standard featuresets), `sourcedata` (for terrain sources), and `idle` (for clearing loading indicators).
+- **Component Lifecycle**: Critical sources (like `mapbox-dem`) and base layers (like `3d-buildings` for legacy styles) are **always mounted** in the React tree. Visibility and enablement are controlled imperatively via the Sync Engine to prevent race conditions during toggle operations.
 - **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
 - **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`offset: [0,0]`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards to push the card into the sky.
 
@@ -81,9 +86,10 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - **Callouts**: Animated using CSS transitions (`fadeIn`, `scaleUp`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`. Supports custom **Google Fonts** via dynamic injection.
 
 ### 5.2 3D Effects & Atmosphere
-- **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar.
-- **Buildings**: 3D building extrusions can be toggled. For the Mapbox 'Standard' style, this is handled via `map.setConfigProperty`.
-- **Fog & Stars**: The viewport dynamically configures `fog` parameters (color, starry sky intensity, horizon blend) based on the selected `mapStyle`. Satellite view uses a "Warm Sunset" palette; Dark mode use a "Starry Space" palette.
+- **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar or Map settings. The source remains mounted; the engine retries terrain activation on every `sourcedata` event to ensure reliability.
+- **Buildings (3D Details)**: Supports a hierarchical "Master Toggle" logic. In 'Standard' style, this uses `map.setConfigProperty`. For other styles, it relies on a dedicated `3d-buildings` fill-extrusion layer managed by the engine.
+- **Fog & Stars**: Configures atmospheric haze and starry skies. Works seamlessly in **both Globe and Mercator**. Uses style-aware defaults (e.g., `#5d7883` for Satellite) when no override is present.
+- **Projections**: Seamlessly switch between **Globe** and **Mercator**. Transition matrix overflows are prevented by imperative order-of-operations (Projection → Terrain → Fog).
 - **Altitude**: Callouts use a `Marker` with a ground-locked anchor. To keep the altitude visually consistent as the user zooms, we recalculate a pixel `altitudeOffset` which drives the internal height of the card's pole. This ensures the base dot stays geographically pinned while the card floats.
 
 ### 5.4 Move Mode (Manual Positioning)
@@ -140,6 +146,7 @@ The export process is **non-realtime (offline)** for maximum quality:
 - **Zustand Subscriptions**: We use a manual subscription in `usePlayback` to avoid React render cycles for the camera driver, keeping the playback smooth.
 - **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
 - **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.
+- **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors during rapid toggles.
 - **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It deduplicates and cleans up `<link>` tags based on the active project items to prevent CSS bloat.
 
 ---

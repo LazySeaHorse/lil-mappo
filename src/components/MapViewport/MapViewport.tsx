@@ -19,6 +19,8 @@ interface MapViewportProps {
 export default function MapViewport({ mapRef }: MapViewportProps) {
   const {
     mapStyle, terrainEnabled, buildingsEnabled, terrainExaggeration,
+    projection, lightPreset, showRoadLabels, showPlaceLabels, showPointOfInterestLabels, showTransitLabels,
+    show3dLandmarks, show3dTrees, show3dFacades, mapLanguage, starIntensity, fogColor,
     items, itemOrder, playheadTime, isPlaying,
     selectedItemId, updateItem, selectItem, isMoveModeActive,
   } = useProjectStore();
@@ -37,16 +39,17 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   }, [updateItem]);
 
   const fogConfig = useMemo(() => {
+    let baseFog;
     if (mapStyle === 'satellite' || mapStyle === 'satelliteStreets') {
-      return {
-        'color': 'rgb(220, 159, 113)',
+      baseFog = {
+        'color': '#5d7883',
         'high-color': 'rgb(36, 92, 223)',
         'horizon-blend': 0.4,
         'space-color': 'rgb(11, 11, 25)',
         'star-intensity': 0.6,
       };
     } else if (mapStyle === 'dark') {
-      return {
+      baseFog = {
         'color': 'rgb(23, 23, 23)',       
         'high-color': 'rgb(10, 10, 40)',  
         'horizon-blend': 0.3,
@@ -54,7 +57,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         'star-intensity': 0.8,
       };
     } else {
-      return {
+      baseFog = {
         'color': 'rgb(186, 210, 235)',
         'high-color': 'rgb(36, 92, 223)',
         'horizon-blend': 0.02,
@@ -62,30 +65,144 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         'star-intensity': 0.6,
       };
     }
-  }, [mapStyle]);
 
-  const terrainConfig = useMemo(() => {
-    return terrainEnabled ? { source: 'mapbox-dem', exaggeration: terrainExaggeration } : undefined;
-  }, [terrainEnabled, terrainExaggeration]);
-
-  // Handle standard style 3D objects imperatively as it lacks a custom layer
+    return {
+      ...baseFog,
+      'color': fogColor ?? baseFog['color'],
+      'star-intensity': starIntensity ?? baseFog['star-intensity']
+    };
+  }, [mapStyle, starIntensity, fogColor]);
+  /**
+   * Unified Mapbox Synchronization Engine
+   * Handles all imperative state (Projection, Terrain, Fog, Config, and Labels) 
+   * across all Mapbox styles (Standard, Satellite, Streets, etc.)
+   */
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map) return;
-    
-    const applyStandardConfig = () => {
-      if (useProjectStore.getState().mapStyle === 'standard' && map.isStyleLoaded()) {
-        try { map.setConfigProperty('basemap', 'show3dObjects', useProjectStore.getState().buildingsEnabled); } catch {}
+
+    /**
+     * Helper: Unified visibility toggler for both Standard Configs and Legacy Layers
+     * pkg/prop: Only for Standard styles
+     * layerIdPatterns: Substrings to match layer IDs in legacy styles
+     */
+    const toggleFeature = (pkg: string, prop: string, layerIdPatterns: string | string[], visible: boolean) => {
+      const s = useProjectStore.getState();
+      
+      // 1. Try Mapbox v3 Standard Config
+      if (s.mapStyle === 'standard') {
+        try {
+          if (map.getConfigProperty(pkg, prop) !== visible) {
+            map.setConfigProperty(pkg, prop, visible);
+          }
+        } catch (e) {}
+      } 
+      
+      // 2. Always check Legacy Layers (essential for Satellite-Streets, etc.)
+      const layers = map.getStyle()?.layers || [];
+      const patterns = Array.isArray(layerIdPatterns) ? layerIdPatterns : [layerIdPatterns];
+      const matches = layers.filter(l =>
+        patterns.some(p => l.id.toLowerCase().includes(p.toLowerCase()))
+      );
+      
+      for (const layer of matches) {
+        try {
+          const currentVis = map.getLayoutProperty(layer.id, 'visibility');
+          const targetVis = visible ? 'visible' : 'none';
+          if (currentVis !== targetVis) {
+            map.setLayoutProperty(layer.id, 'visibility', targetVis);
+          }
+        } catch (e) {}
       }
     };
 
-    map.on('style.load', applyStandardConfig);
-    applyStandardConfig();
+    /**
+     * The "Pure" Sync Function: Applies all store properties to the map instance.
+     */
+    const syncEverything = () => {
+      if (!map.isStyleLoaded()) return;
+      const s = useProjectStore.getState();
+
+      try {
+        // 1. Projection
+        if (map.getProjection().name !== s.projection) {
+          map.setProjection({ name: s.projection });
+        }
+
+        // 2. 3D Terrain — source is always mounted, sourcedata handler retries if not ready yet
+        if (s.terrainEnabled) {
+          if (map.getSource('mapbox-dem')) {
+            map.setTerrain({ source: 'mapbox-dem', exaggeration: s.terrainExaggeration });
+          }
+        } else {
+          if (map.getTerrain()) map.setTerrain(null);
+        }
+
+        // 3. Atmosphere (supported in both globe and mercator)
+        map.setFog(fogConfig as any);
+
+        // 4. Map Language
+        if (s.mapLanguage && (map as any).setLanguage) {
+          (map as any).setLanguage(s.mapLanguage);
+        }
+
+        // 5. 3D Buildings & Details
+        const buildingsOn = s.buildingsEnabled;
+        
+        if (s.mapStyle === 'standard') {
+          map.setConfigProperty('basemap', 'show3dObjects', buildingsOn);
+          map.setConfigProperty('basemap', 'show3dLandmarks', buildingsOn && s.show3dLandmarks);
+          map.setConfigProperty('basemap', 'show3dTrees', buildingsOn && s.show3dTrees);
+          map.setConfigProperty('basemap', 'show3dFacades', buildingsOn && s.show3dFacades);
+          map.setConfigProperty('basemap', 'lightPreset', s.lightPreset);
+        } else if (map.getLayer('3d-buildings')) {
+          map.setLayoutProperty('3d-buildings', 'visibility', buildingsOn ? 'visible' : 'none');
+        }
+
+        // 6. Labels (multiple patterns for broader style coverage)
+        toggleFeature('basemap', 'showRoadLabels', ['road-label', 'road-number', 'road-shield'], s.showRoadLabels);
+        toggleFeature('basemap', 'showPlaceLabels', ['settlement-label', 'place-city', 'place-town', 'place-village', 'place-label', 'country-label', 'state-label'], s.showPlaceLabels);
+        toggleFeature('basemap', 'showPointOfInterestLabels', ['poi-label'], s.showPointOfInterestLabels);
+        toggleFeature('basemap', 'showTransitLabels', ['transit-label', 'airport-label', 'ferry'], s.showTransitLabels);
+
+      } catch (err) {
+        console.warn('Sync loop minor failure (normal during re-load):', err);
+      }
+    };
+
+    const handleSync = () => syncEverything();
+    const handleSourceData = (e: any) => {
+      // Re-sync on any DEM source event (not just isSourceLoaded) to catch terrain readiness
+      if (e.sourceId === 'mapbox-dem') syncEverything();
+    };
+    const handleIdle = () => {
+      const s = useProjectStore.getState();
+      // Only clear terrain loading once terrain is actually active on the map
+      if (s.terrainLoading) {
+        if (!s.terrainEnabled || map.getTerrain()) s.setTerrainLoading(false);
+      }
+      if (s.buildingsLoading) s.setBuildingsLoading(false);
+    };
+
+    map.on('style.load', handleSync);
+    map.on('styleimportdata', handleSync);
+    map.on('sourcedata', handleSourceData);
+    map.on('idle', handleIdle);
+
+    syncEverything();
 
     return () => {
-      map.off('style.load', applyStandardConfig);
+      map.off('style.load', handleSync);
+      map.off('styleimportdata', handleSync);
+      map.off('sourcedata', handleSourceData);
+      map.off('idle', handleIdle);
     };
-  }, [buildingsEnabled, mapStyle]);
+  }, [
+    mapStyle, projection, terrainEnabled, terrainExaggeration, fogConfig,
+    buildingsEnabled, lightPreset, showRoadLabels, showPlaceLabels, 
+    showPointOfInterestLabels, showTransitLabels, show3dLandmarks, 
+    show3dTrees, show3dFacades, mapLanguage
+  ]);
 
   const routes: RouteItem[] = [];
   const boundaries: BoundaryItem[] = [];
@@ -110,16 +227,12 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         onClick={handleMapClick}
         interactive={!isPlaying}
         preserveDrawingBuffer
-        projection="globe"
-        fog={fogConfig}
-        terrain={terrainConfig}
       >
-        {/* Declarative Data Sources and Environment */}
-        {terrainEnabled && (
-          <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
-        )}
+        {/* DEM source always mounted — terrain controlled by sync engine */}
+        <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
 
-        {buildingsEnabled && mapStyle !== 'standard' && (
+        {/* Buildings layer for non-Standard styles — visibility controlled by sync engine */}
+        {mapStyle !== 'standard' && mapStyle !== 'satellite' && (
           <Layer
             id="3d-buildings"
             source="composite"
@@ -132,6 +245,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
               'fill-extrusion-base': ['get', 'min_height'],
               'fill-extrusion-opacity': 0.8,
             }}
+            layout={{ 'visibility': 'none' }}
           />
         )}
 

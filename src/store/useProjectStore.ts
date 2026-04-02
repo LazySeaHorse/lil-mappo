@@ -27,6 +27,12 @@ interface ProjectStore extends Project {
   setFps: (fps: 30 | 60) => void;
   setResolution: (r: [number, number]) => void;
   setMapStyle: (s: string) => void;
+  setProjection: (v: 'globe' | 'mercator') => void;
+  setLightPreset: (v: 'day' | 'night' | 'dusk' | 'dawn') => void;
+  setMapLanguage: (v: string) => void;
+  setAtmosphere: (updates: { starIntensity?: number; fogColor?: string | null }) => void;
+  setLabelVisibility: (key: 'road' | 'place' | 'poi' | 'transit', visible: boolean) => void;
+  set3dDetails: (key: 'landmarks' | 'trees' | 'facades', visible: boolean) => void;
   setTerrainEnabled: (v: boolean) => void;
   setBuildingsEnabled: (v: boolean) => void;
   setTerrainExaggeration: (v: number) => void;
@@ -35,6 +41,12 @@ interface ProjectStore extends Project {
   // Move Mode (Manual Positioning)
   isMoveModeActive: boolean;
   setMoveModeActive: (v: boolean) => void;
+
+  // Loading indicators (transient UI state)
+  terrainLoading: boolean;
+  buildingsLoading: boolean;
+  setTerrainLoading: (v: boolean) => void;
+  setBuildingsLoading: (v: boolean) => void;
 
   // Project loading
   loadFullProject: (project: Project) => void;
@@ -55,6 +67,18 @@ const defaultProject: Project = {
   fps: 30,
   resolution: [1920, 1080],
   mapStyle: 'streets',
+  projection: 'globe',
+  lightPreset: 'day',
+  showRoadLabels: true,
+  showPlaceLabels: true,
+  showPointOfInterestLabels: true,
+  showTransitLabels: true,
+  show3dLandmarks: true,
+  show3dTrees: true,
+  show3dFacades: true,
+  mapLanguage: 'en',
+  starIntensity: 0.6,
+  fogColor: null,
   terrainEnabled: false,
   buildingsEnabled: false,
   terrainExaggeration: 1.5,
@@ -69,6 +93,8 @@ const defaultProject: Project = {
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   ...defaultProject,
+  terrainLoading: false,
+  buildingsLoading: false,
 
   addItem: (item) => set((s) => ({
     items: { ...s.items, [item.id]: item },
@@ -133,15 +159,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setDuration: (d) => set({ duration: Math.max(1, d) }),
   setFps: (fps) => set({ fps }),
   setResolution: (r) => set({ resolution: r }),
-  setMapStyle: (s) => set({ mapStyle: s }),
-  setTerrainEnabled: (v) => set({ terrainEnabled: v }),
-  setBuildingsEnabled: (v) => set({ buildingsEnabled: v }),
+  setMapStyle: (s) => set({ mapStyle: s as any }),
+  setProjection: (v) => set({ projection: v }),
+  setLightPreset: (v) => set({ lightPreset: v }),
+  setMapLanguage: (v) => set({ mapLanguage: v }),
+  setAtmosphere: (updates) => set((s) => ({ ...s, ...updates })),
+  setLabelVisibility: (key, visible) => set((s) => {
+    const map = { road: 'showRoadLabels', place: 'showPlaceLabels', poi: 'showPointOfInterestLabels', transit: 'showTransitLabels' };
+    return { [map[key]]: visible } as any;
+  }),
+  set3dDetails: (key, visible) => set((s) => {
+    const map = { landmarks: 'show3dLandmarks', trees: 'show3dTrees', facades: 'show3dFacades' };
+    return { [map[key]]: visible } as any;
+  }),
+  setTerrainEnabled: (v) => set({ terrainEnabled: v, terrainLoading: v }),
+  setBuildingsEnabled: (v) => set({ buildingsEnabled: v, buildingsLoading: v }),
   setTerrainExaggeration: (v) => set({ terrainExaggeration: v }),
   setProjectName: (n) => set({ name: n }),
 
   setMoveModeActive: (v) => set({ isMoveModeActive: v }),
 
-  loadFullProject: (project) => set({ ...project }),
+  setTerrainLoading: (v) => set({ terrainLoading: v }),
+  setBuildingsLoading: (v) => set({ buildingsLoading: v }),
+
+  loadFullProject: (project) => set({ ...defaultProject, ...project, terrainLoading: false, buildingsLoading: false }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;

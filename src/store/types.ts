@@ -106,6 +106,18 @@ export interface Project {
   fps: 30 | 60;
   resolution: [number, number];
   mapStyle: MapStyleKey;
+  projection: 'globe' | 'mercator';
+  lightPreset: 'day' | 'night' | 'dusk' | 'dawn';
+  showRoadLabels: boolean;
+  showPlaceLabels: boolean;
+  showPointOfInterestLabels: boolean;
+  showTransitLabels: boolean;
+  show3dLandmarks: boolean;
+  show3dTrees: boolean;
+  show3dFacades: boolean;
+  mapLanguage: string;
+  starIntensity: number;
+  fogColor: string | null;
   terrainEnabled: boolean;
   buildingsEnabled: boolean;
   terrainExaggeration: number;
@@ -115,4 +127,5 @@ export interface Project {
   isPlaying: boolean;
   selectedItemId: string | null;
   selectedKeyframeId: string | null;
+  isMoveModeActive: boolean;
 }

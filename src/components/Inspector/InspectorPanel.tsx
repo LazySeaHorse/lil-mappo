@@ -109,25 +109,123 @@ function DeleteButton({ onClick }: { onClick: () => void }) {
 
 // Project settings
 function ProjectSettings() {
-  const { name, duration, fps, resolution, terrainExaggeration, setProjectName, setDuration, setFps, setResolution, setTerrainExaggeration } = useProjectStore();
+  const [activeTab, setActiveTab] = useState<'general' | 'map'>('general');
+  const { 
+    name, duration, fps, resolution, terrainExaggeration, projection, lightPreset, mapLanguage,
+    showRoadLabels, showPlaceLabels, showPointOfInterestLabels, showTransitLabels,
+    show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
+    setProjectName, setDuration, setFps, setResolution, setTerrainExaggeration,
+    setProjection, setLightPreset, setMapLanguage, setLabelVisibility, set3dDetails, setAtmosphere,
+    mapStyle
+  } = useProjectStore();
+
   return (
-    <PanelWrapper title="Project">
-      <Field label="Name"><InputText value={name} onChange={setProjectName} /></Field>
-      <Field label="Duration (s)"><InputNumber value={duration} onChange={setDuration} min={1} max={600} /></Field>
-      <Field label="FPS">
-        <select value={fps} onChange={(e) => setFps(Number(e.target.value) as 30 | 60)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-          <option value={30}>30</option>
-          <option value={60}>60</option>
-        </select>
-      </Field>
-      <Field label="Resolution">
-        <select value={resolution.join('x')} onChange={(e) => { const [w, h] = e.target.value.split('x').map(Number); setResolution([w, h]); }} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
-          <option value="1920x1080">1920 × 1080</option>
-          <option value="2560x1440">2560 × 1440</option>
-          <option value="3840x2160">3840 × 2160</option>
-        </select>
-      </Field>
-      <SliderField label="Terrain Exaggeration" value={terrainExaggeration} onChange={setTerrainExaggeration} min={1} max={3} step={0.1} />
+    <PanelWrapper title="Project Settings">
+      <div className="flex border-b border-border mb-4">
+        <button 
+          onClick={() => setActiveTab('general')}
+          className={`flex-1 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === 'general' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          General
+        </button>
+        <button 
+          onClick={() => setActiveTab('map')}
+          className={`flex-1 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === 'map' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          Map
+        </button>
+      </div>
+
+      {activeTab === 'general' ? (
+        <>
+          <Field label="Name"><InputText value={name} onChange={setProjectName} /></Field>
+          <Field label="Duration (s)"><InputNumber value={duration} onChange={setDuration} min={1} max={600} /></Field>
+          <Field label="FPS">
+            <select value={fps} onChange={(e) => setFps(Number(e.target.value) as 30 | 60)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
+              <option value={30}>30</option>
+              <option value={60}>60</option>
+            </select>
+          </Field>
+          <Field label="Resolution">
+            <select value={resolution.join('x')} onChange={(e) => { const [w, h] = e.target.value.split('x').map(Number); setResolution([w, h]); }} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
+              <option value="1920x1080">1920 × 1080</option>
+              <option value="2560x1440">2560 × 1440</option>
+              <option value="3840x2160">3840 × 2160</option>
+            </select>
+          </Field>
+        </>
+      ) : (
+        <>
+          <SectionTitle>Environment</SectionTitle>
+          <Field label="Projection">
+            <select value={projection} onChange={(e) => setProjection(e.target.value as any)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
+              <option value="globe">Globe</option>
+              <option value="mercator">Mercator (Flat)</option>
+            </select>
+          </Field>
+          
+          {mapStyle === 'standard' && (
+            <Field label="Lighting Preset">
+              <select value={lightPreset} onChange={(e) => setLightPreset(e.target.value as any)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
+                <option value="day">Day</option>
+                <option value="night">Night</option>
+                <option value="dusk">Dusk</option>
+                <option value="dawn">Dawn</option>
+              </select>
+            </Field>
+          )}
+
+          <SliderField label="Terrain Exaggeration" value={terrainExaggeration} onChange={setTerrainExaggeration} min={1} max={3} step={0.1} />
+
+          <SectionTitle>Atmosphere</SectionTitle>
+          <SliderField label="Star Intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
+          <Field label="Fog Color">
+            <div className="flex gap-2 items-center">
+              <InputColor 
+                value={fogColor || (
+                  mapStyle === 'satellite' || mapStyle === 'satelliteStreets' ? '#DC9F71' : 
+                  mapStyle === 'dark' ? '#171717' : 
+                  '#BAD2EB'
+                )} 
+                onChange={(v) => setAtmosphere({ fogColor: v })} 
+              />
+              <button 
+                onClick={() => setAtmosphere({ fogColor: null })}
+                className="text-[10px] px-2 py-1 bg-secondary rounded hover:bg-secondary/80"
+                title="Reset to Style Default"
+              >
+                Reset
+              </button>
+            </div>
+          </Field>
+
+          <SectionTitle>Labels</SectionTitle>
+          <div className="grid grid-cols-2 gap-x-4">
+            <Toggle checked={showRoadLabels} onChange={(v) => setLabelVisibility('road', v)} label="Roads" />
+            <Toggle checked={showPlaceLabels} onChange={(v) => setLabelVisibility('place', v)} label="Places" />
+            <Toggle checked={showPointOfInterestLabels} onChange={(v) => setLabelVisibility('poi', v)} label="POIs" />
+            <Toggle checked={showTransitLabels} onChange={(v) => setLabelVisibility('transit', v)} label="Transit" />
+          </div>
+
+          <SectionTitle>3D Details</SectionTitle>
+          <Toggle checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />
+          <Toggle checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />
+          <Toggle checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />
+          
+          <SectionTitle>Localization</SectionTitle>
+          <Field label="Map Language">
+            <select value={mapLanguage} onChange={(e) => setMapLanguage(e.target.value)} className="w-full h-8 px-2 text-sm border border-border rounded bg-background">
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="zh-Hans">Chinese (Simplified)</option>
+            </select>
+          </Field>
+        </>
+      )}
     </PanelWrapper>
   );
 }

@@ -8,7 +8,7 @@ import { useMapRef } from '@/hooks/useMapRef';
 import {
   Upload, MapPin, MessageSquare, Video, Play, Pause, Square,
   Mountain, Building2, Crosshair, ChevronDown, FilePlus2,
-  Save, Library, FileJson, Settings
+  Save, Library, FileJson, Settings, Settings2, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -34,6 +34,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   const {
     isPlaying, setIsPlaying, mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
+    terrainLoading, buildingsLoading,
     addItem, playheadTime, addCameraKeyframe, selectItem,
   } = projectState;
 
@@ -263,6 +264,8 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
       <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" onClick={handleAddCallout} />
       <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" onClick={handleAddCameraKF} />
       <Divider />
+      <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" onClick={() => selectItem(null)} />
+      <Divider />
       <div className="flex items-center gap-1 px-1">
         <select
           value={mapStyle}
@@ -279,12 +282,14 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         label="3D Terrain"
         active={terrainEnabled}
         onClick={() => setTerrainEnabled(!terrainEnabled)}
+        loading={terrainLoading}
       />
       <ToolbarToggle
         icon={<Building2 size={16} />}
         label="Buildings"
         active={buildingsEnabled}
         onClick={() => setBuildingsEnabled(!buildingsEnabled)}
+        loading={buildingsLoading}
       />
       <Divider />
       <ToolbarButton
@@ -317,14 +322,14 @@ function ToolbarButton({ icon, label, onClick, accent }: { icon: React.ReactNode
   );
 }
 
-function ToolbarToggle({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+function ToolbarToggle({ icon, label, active, onClick, loading }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; loading?: boolean }) {
   return (
     <button
       onClick={onClick}
       className={`h-8 px-2.5 flex items-center gap-1.5 rounded text-xs font-medium transition-colors
         ${active ? 'bg-selection-bg text-primary' : 'hover:bg-secondary text-muted-foreground'}`}
     >
-      {icon}
+      {loading ? <Loader2 size={16} className="animate-spin" /> : icon}
       <span className="hidden sm:inline">{label}</span>
     </button>
   );
