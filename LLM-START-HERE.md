@@ -65,7 +65,11 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - `src/store/`: State definitions and types. **Start here to understand the data model.**
 - `src/engine/`: Pure mathematical logic for interpolation (camera lerps, line slicing).
 - `src/components/MapViewport/`: Map rendering, layer management, and 3D effects.
-- `src/components/Inspector/`: Modernized property editors using high-fidelity UI components (`Input`, `Slider`, `Select`, `Switch`, `Button`).
+- `src/components/Inspector/`: Modernized property editors using a **glassmorphic "floating island"** design. 
+  - **Organization**: Uses shadcn's `Accordion` to group related properties (Position, Timing, Style), reducing visual clutter.
+  - **Custom Controls**: Features high-fidelity components like `SliderField`, `Toggle`, and a custom `InputColor` with a circular premium swatch.
+  - **Sticky Architecture**: Uses a `PanelWrapper` with a fixed header and a **sticky footer** for action buttons (like Delete), ensuring primary controls are always reachable regardless of scroll position.
+  - **Scroll Management**: Integrated with `ScrollArea` for sleek, custom scrollbars that support overscroll-isolation. 
 - **`src/components/ui/`**: A comprehensive library of modern, high-fidelity UI components based on **shadcn/ui**.
 - `src/components/Timeline/`: The interactive track-based editor (`TimelinePanel.tsx`). 
   - **Features**: Vertical resizability (click-drag top edge), vertical scroll isolation, and a unified top-ruler scrubber with a protruding playhead.
