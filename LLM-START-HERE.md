@@ -57,8 +57,11 @@ When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
 
 ### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
 This component listens to `playheadTime` and re-renders Mapbox sources/layers.
-- **Universal Sync Engine**: Handles all imperative Mapbox state (Projection, Terrain, Fog, Config, and Labels) across all styles. It uses a robust, event-driven architecture listening to `style.load`, `styleimportdata` (for Standard featuresets), `sourcedata` (for terrain sources), and `idle` (for clearing loading indicators).
-- **Component Lifecycle**: Critical sources (like `mapbox-dem`) and base layers (like `3d-buildings` for legacy styles) are **always mounted** in the React tree. Visibility and enablement are controlled imperatively via the Sync Engine to prevent race conditions during toggle operations.
+- **Universal Sync Engine**: Handles all imperative Mapbox state (Projection, Terrain, Fog, Config, and Labels) across all styles. Uses a **two-effect architecture**:
+  1. **Mount-once Effect**: Registers `style.load`, `styleimportdata`, `sourcedata`, and `idle` listeners exactly once. These call through a `syncRef` (a ref that always points to the latest sync closure) so they never go stale and never need teardown/re-registration.
+  2. **Reactive Effect**: Fires `syncRef.current()` whenever any relevant store value changes. This handles direct state changes (user toggles terrain ON) while the mount-once listeners handle async events (style finishes loading, DEM source emits data).
+- **Style-Loaded Gate**: All `<Source>`/`<Layer>` children are conditionally rendered behind a `styleLoaded` React state flag. This flag is cleared immediately when `mapStyle` changes and set to `true` only when the `style.load` event fires. This prevents `"Style is not done loading"` crashes caused by `react-map-gl` trying to call `map.addSource()` during a style transition.
+- **Component Lifecycle**: Critical sources (like `mapbox-dem`) and base layers (like `3d-buildings` for legacy styles) are mounted in the React tree **once the style is loaded**. Visibility and enablement are controlled imperatively via the Sync Engine.
 - **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
 - **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`offset: [0,0]`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards to push the card into the sky.
 
@@ -162,7 +165,8 @@ The export process is **non-realtime (offline)** for maximum quality:
 ---
 
 ## 8. Common Gotchas
-- **Map Style Changes**: When changing the map style, Mapbox removes all custom sources and layers. `MapViewport.tsx` handles this via the `onLoad` (style load) event, but new layers must be aware of this lifecycle.
+- **Map Style Changes**: When changing the map style, Mapbox removes all custom sources and layers. The `styleLoaded` gate in `MapViewport.tsx` automatically unmounts and remounts all `<Source>`/`<Layer>` children across style transitions. New layers must be placed inside this gate.
+- **Sync Engine Stability**: Event listeners (`style.load`, `sourcedata`, etc.) are registered **once** at mount using a ref-based pattern (`syncRef`). **Never** add store dependencies to the mount-once `useEffect` — this was the root cause of a critical race condition where listeners were lost during teardown/re-registration gaps.
 - **Zustand Subscriptions**: We use a manual subscription in `usePlayback` to avoid React render cycles for the camera driver, keeping the playback smooth.
 - **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
 - **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.

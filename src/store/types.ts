@@ -129,4 +129,5 @@ export interface Project {
   selectedKeyframeId: string | null;
   isMoveModeActive: boolean;
   hideUI: boolean;
+  isInspectorOpen: boolean;
 }

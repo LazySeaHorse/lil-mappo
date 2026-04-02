@@ -72,6 +72,8 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
           easing: 'easeInOutCubic',
         };
         addItem(item);
+        setTerrainEnabled(false);
+        setBuildingsEnabled(false);
         selectItem(item.id);
         const pointCount = geojson.features.reduce((sum, f) => {
           if (f.geometry.type === 'LineString') return sum + (f.geometry as any).coordinates.length;

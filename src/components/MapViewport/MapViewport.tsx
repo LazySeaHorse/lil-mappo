@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import MapGL, { Source, Layer, Marker } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MAPBOX_TOKEN, MAP_STYLES } from '@/config/mapbox';
@@ -26,6 +26,25 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   } = useProjectStore();
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
+
+  // --- Style-loaded gate: prevents Source/Layer from mounting during style transitions ---
+  const [styleLoaded, setStyleLoaded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const prevStyleRef = useRef(styleUrl);
+
+  // Clear the gate whenever the style URL changes (user switched map style)
+  useEffect(() => {
+    if (prevStyleRef.current !== styleUrl) {
+      prevStyleRef.current = styleUrl;
+      setStyleLoaded(false);
+    }
+  }, [styleUrl]);
+
+  // Called by <MapGL onLoad> — the map instance is now available
+  const handleMapLoad = useCallback(() => {
+    setMapReady(true);
+    setStyleLoaded(true);
+  }, []);
 
   const handleMapClick = useCallback((e: any) => {
     const selected = useProjectStore.getState().selectedItemId;
@@ -72,136 +91,192 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
       'star-intensity': starIntensity ?? baseFog['star-intensity']
     };
   }, [mapStyle, starIntensity, fogColor]);
+
+  // --- Stable ref for the sync function so event listeners always call the latest version ---
+  const syncRef = useRef<() => void>(() => {});
+
   /**
-   * Unified Mapbox Synchronization Engine
-   * Handles all imperative state (Projection, Terrain, Fog, Config, and Labels) 
-   * across all Mapbox styles (Standard, Satellite, Streets, etc.)
+   * Helper: Unified visibility toggler for both Standard Configs and Legacy Layers
+   */
+  const toggleFeature = useCallback((map: any, pkg: string, prop: string, layerIdPatterns: string | string[], visible: boolean) => {
+    const s = useProjectStore.getState();
+    
+    // 1. Try Mapbox v3 Standard Config
+    if (s.mapStyle === 'standard') {
+      try {
+        if (map.getConfigProperty(pkg, prop) !== visible) {
+          map.setConfigProperty(pkg, prop, visible);
+        }
+      } catch (e) {}
+    } 
+    
+    // 2. Always check Legacy Layers (essential for Satellite-Streets, etc.)
+    const layers = map.getStyle()?.layers || [];
+    const patterns = Array.isArray(layerIdPatterns) ? layerIdPatterns : [layerIdPatterns];
+    const matches = layers.filter((l: any) =>
+      patterns.some(p => l.id.toLowerCase().includes(p.toLowerCase()))
+    );
+    
+    for (const layer of matches) {
+      try {
+        const currentVis = map.getLayoutProperty(layer.id, 'visibility');
+        const targetVis = visible ? 'visible' : 'none';
+        if (currentVis !== targetVis) {
+          map.setLayoutProperty(layer.id, 'visibility', targetVis);
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  /**
+   * Keep the sync ref always pointing to the latest sync logic.
+   * This runs on every render but is cheap — it just assigns a closure.
+   */
+  syncRef.current = () => {
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded()) return;
+    const s = useProjectStore.getState();
+
+    try {
+      // 1. Projection
+      if (map.getProjection().name !== s.projection) {
+        map.setProjection({ name: s.projection });
+      }
+
+      // 2. 3D Terrain — source is always mounted, sourcedata handler retries if not ready yet
+      if (s.terrainEnabled) {
+        if (map.getSource('mapbox-dem')) {
+          map.setTerrain({ source: 'mapbox-dem', exaggeration: s.terrainExaggeration });
+        }
+      } else {
+        if (map.getTerrain()) map.setTerrain(null);
+      }
+
+      // 3. Atmosphere (supported in both globe and mercator)
+      map.setFog(fogConfig as any);
+
+      // 4. Map Language
+      if (s.mapLanguage && (map as any).setLanguage) {
+        try {
+          // Only call if language has changed to avoid redundant network requests
+          if (map.getLanguage?.() !== s.mapLanguage) {
+            (map as any).setLanguage(s.mapLanguage);
+          }
+        } catch (e) {
+          // Isolated catch: Mapbox may throw if network stack isn't quite ready
+        }
+      }
+
+      // 5. 3D Buildings & Details
+      const buildingsOn = s.buildingsEnabled;
+      
+      if (s.mapStyle === 'standard') {
+        map.setConfigProperty('basemap', 'show3dObjects', buildingsOn);
+        map.setConfigProperty('basemap', 'show3dLandmarks', buildingsOn && s.show3dLandmarks);
+        map.setConfigProperty('basemap', 'show3dTrees', buildingsOn && s.show3dTrees);
+        map.setConfigProperty('basemap', 'show3dFacades', buildingsOn && s.show3dFacades);
+        map.setConfigProperty('basemap', 'lightPreset', s.lightPreset);
+      } else if (map.getLayer('3d-buildings')) {
+        map.setLayoutProperty('3d-buildings', 'visibility', buildingsOn ? 'visible' : 'none');
+      }
+
+      // 6. Labels (multiple patterns for broader style coverage)
+      toggleFeature(map, 'basemap', 'showRoadLabels', ['road-label', 'road-number', 'road-shield'], s.showRoadLabels);
+      toggleFeature(map, 'basemap', 'showPlaceLabels', ['settlement-label', 'place-city', 'place-town', 'place-village', 'place-label', 'country-label', 'state-label'], s.showPlaceLabels);
+      toggleFeature(map, 'basemap', 'showPointOfInterestLabels', ['poi-label'], s.showPointOfInterestLabels);
+      toggleFeature(map, 'basemap', 'showTransitLabels', ['transit-label', 'airport-label', 'ferry'], s.showTransitLabels);
+
+    } catch (err) {
+      console.warn('Sync loop minor failure (normal during re-load):', err);
+    }
+  };
+
+  /**
+   * Mount-once Effect: Registers Mapbox event listeners once the map is ready.
+   * Uses syncRef so the callback always invokes the latest sync logic
+   * without needing to tear down and re-register listeners.
    */
   useEffect(() => {
+    if (!mapReady) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
 
-    /**
-     * Helper: Unified visibility toggler for both Standard Configs and Legacy Layers
-     * pkg/prop: Only for Standard styles
-     * layerIdPatterns: Substrings to match layer IDs in legacy styles
-     */
-    const toggleFeature = (pkg: string, prop: string, layerIdPatterns: string | string[], visible: boolean) => {
-      const s = useProjectStore.getState();
-      
-      // 1. Try Mapbox v3 Standard Config
-      if (s.mapStyle === 'standard') {
-        try {
-          if (map.getConfigProperty(pkg, prop) !== visible) {
-            map.setConfigProperty(pkg, prop, visible);
-          }
-        } catch (e) {}
-      } 
-      
-      // 2. Always check Legacy Layers (essential for Satellite-Streets, etc.)
-      const layers = map.getStyle()?.layers || [];
-      const patterns = Array.isArray(layerIdPatterns) ? layerIdPatterns : [layerIdPatterns];
-      const matches = layers.filter(l =>
-        patterns.some(p => l.id.toLowerCase().includes(p.toLowerCase()))
-      );
-      
-      for (const layer of matches) {
-        try {
-          const currentVis = map.getLayoutProperty(layer.id, 'visibility');
-          const targetVis = visible ? 'visible' : 'none';
-          if (currentVis !== targetVis) {
-            map.setLayoutProperty(layer.id, 'visibility', targetVis);
-          }
-        } catch (e) {}
-      }
+    const handleStyleLoad = () => {
+      setStyleLoaded(true);
+      syncRef.current();
     };
-
-    /**
-     * The "Pure" Sync Function: Applies all store properties to the map instance.
-     */
-    const syncEverything = () => {
-      if (!map.isStyleLoaded()) return;
-      const s = useProjectStore.getState();
-
-      try {
-        // 1. Projection
-        if (map.getProjection().name !== s.projection) {
-          map.setProjection({ name: s.projection });
-        }
-
-        // 2. 3D Terrain — source is always mounted, sourcedata handler retries if not ready yet
-        if (s.terrainEnabled) {
-          if (map.getSource('mapbox-dem')) {
-            map.setTerrain({ source: 'mapbox-dem', exaggeration: s.terrainExaggeration });
-          }
-        } else {
-          if (map.getTerrain()) map.setTerrain(null);
-        }
-
-        // 3. Atmosphere (supported in both globe and mercator)
-        map.setFog(fogConfig as any);
-
-        // 4. Map Language
-        if (s.mapLanguage && (map as any).setLanguage) {
-          (map as any).setLanguage(s.mapLanguage);
-        }
-
-        // 5. 3D Buildings & Details
-        const buildingsOn = s.buildingsEnabled;
-        
-        if (s.mapStyle === 'standard') {
-          map.setConfigProperty('basemap', 'show3dObjects', buildingsOn);
-          map.setConfigProperty('basemap', 'show3dLandmarks', buildingsOn && s.show3dLandmarks);
-          map.setConfigProperty('basemap', 'show3dTrees', buildingsOn && s.show3dTrees);
-          map.setConfigProperty('basemap', 'show3dFacades', buildingsOn && s.show3dFacades);
-          map.setConfigProperty('basemap', 'lightPreset', s.lightPreset);
-        } else if (map.getLayer('3d-buildings')) {
-          map.setLayoutProperty('3d-buildings', 'visibility', buildingsOn ? 'visible' : 'none');
-        }
-
-        // 6. Labels (multiple patterns for broader style coverage)
-        toggleFeature('basemap', 'showRoadLabels', ['road-label', 'road-number', 'road-shield'], s.showRoadLabels);
-        toggleFeature('basemap', 'showPlaceLabels', ['settlement-label', 'place-city', 'place-town', 'place-village', 'place-label', 'country-label', 'state-label'], s.showPlaceLabels);
-        toggleFeature('basemap', 'showPointOfInterestLabels', ['poi-label'], s.showPointOfInterestLabels);
-        toggleFeature('basemap', 'showTransitLabels', ['transit-label', 'airport-label', 'ferry'], s.showTransitLabels);
-
-      } catch (err) {
-        console.warn('Sync loop minor failure (normal during re-load):', err);
-      }
-    };
-
-    const handleSync = () => syncEverything();
+    const handleStyleImportData = () => syncRef.current();
     const handleSourceData = (e: any) => {
-      // Re-sync on any DEM source event (not just isSourceLoaded) to catch terrain readiness
-      if (e.sourceId === 'mapbox-dem') syncEverything();
+      // Re-sync on any DEM source event to catch terrain readiness
+      if (e.sourceId === 'mapbox-dem') {
+        syncRef.current();
+        
+        // Skip loading spinner updates during playback to prevent flicker and save cycles
+        const s = useProjectStore.getState();
+        if (s.isPlaying || !s.terrainEnabled) return;
+
+        // Defer the state update to the next frame to avoid React lifecycle clashes
+        // (Mapbox events often fire synchronously during a child component's mount)
+        requestAnimationFrame(() => {
+          if (useProjectStore.getState().terrainEnabled) {
+            useProjectStore.getState().setTerrainLoading(!map.isSourceLoaded('mapbox-dem'));
+          }
+        });
+      }
+    };
+    const handleSourceDataLoading = (e: any) => {
+      if (e.sourceId === 'mapbox-dem') {
+        const s = useProjectStore.getState();
+        if (s.isPlaying || !s.terrainEnabled) return;
+
+        requestAnimationFrame(() => {
+          if (useProjectStore.getState().terrainEnabled) {
+            useProjectStore.getState().setTerrainLoading(true);
+          }
+        });
+      }
     };
     const handleIdle = () => {
       const s = useProjectStore.getState();
-      // Only clear terrain loading once terrain is actually active on the map
-      if (s.terrainLoading) {
-        if (!s.terrainEnabled || map.getTerrain()) s.setTerrainLoading(false);
+      if (s.isPlaying) return;
+
+      if (s.terrainLoading && (!s.terrainEnabled || map.isSourceLoaded('mapbox-dem'))) {
+        requestAnimationFrame(() => {
+          useProjectStore.getState().setTerrainLoading(false);
+        });
       }
-      if (s.buildingsLoading) s.setBuildingsLoading(false);
     };
 
-    map.on('style.load', handleSync);
-    map.on('styleimportdata', handleSync);
+    map.on('style.load', handleStyleLoad);
+    map.on('styleimportdata', handleStyleImportData);
+    map.on('sourcedataloading', handleSourceDataLoading);
     map.on('sourcedata', handleSourceData);
     map.on('idle', handleIdle);
 
-    syncEverything();
+    // Sync immediately — style is already loaded from onLoad
+    syncRef.current();
 
     return () => {
-      map.off('style.load', handleSync);
-      map.off('styleimportdata', handleSync);
+      map.off('style.load', handleStyleLoad);
+      map.off('styleimportdata', handleStyleImportData);
+      map.off('sourcedataloading', handleSourceDataLoading);
       map.off('sourcedata', handleSourceData);
       map.off('idle', handleIdle);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady]);
+
+  /**
+   * Reactive Sync Effect: Fires syncEverything whenever any store value changes.
+   * The mount-once effect handles event-driven retries; this handles direct state changes.
+   */
+  useEffect(() => {
+    syncRef.current();
   }, [
     mapStyle, projection, terrainEnabled, terrainExaggeration, fogConfig,
     buildingsEnabled, lightPreset, showRoadLabels, showPlaceLabels, 
     showPointOfInterestLabels, showTransitLabels, show3dLandmarks, 
-    show3dTrees, show3dFacades, mapLanguage
+    show3dTrees, show3dFacades, mapLanguage, styleLoaded
   ]);
 
   const routes: RouteItem[] = [];
@@ -225,40 +300,47 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
         onClick={handleMapClick}
+        onLoad={handleMapLoad}
         interactive={!isPlaying}
         preserveDrawingBuffer
       >
-        {/* DEM source always mounted — terrain controlled by sync engine */}
-        <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
+        {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}
+        {styleLoaded && (
+          <>
+            {/* DEM source always mounted — terrain controlled by sync engine */}
+            <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
 
-        {/* Buildings layer for non-Standard styles — visibility controlled by sync engine */}
-        {mapStyle !== 'standard' && mapStyle !== 'satellite' && (
-          <Layer
-            id="3d-buildings"
-            source="composite"
-            source-layer="building"
-            type="fill-extrusion"
-            minzoom={14}
-            paint={{
-              'fill-extrusion-color': '#ddd',
-              'fill-extrusion-height': ['get', 'height'],
-              'fill-extrusion-base': ['get', 'min_height'],
-              'fill-extrusion-opacity': 0.8,
-            }}
-            layout={{ 'visibility': 'none' }}
-          />
+            {/* Buildings layer for non-Standard styles — visibility controlled by sync engine */}
+            {mapStyle !== 'standard' && mapStyle !== 'satellite' && (
+              <Layer
+                id="3d-buildings"
+                source="composite"
+                source-layer="building"
+                type="fill-extrusion"
+                minzoom={14}
+                paint={{
+                  'fill-extrusion-color': '#ddd',
+                  'fill-extrusion-height': ['get', 'height'],
+                  'fill-extrusion-base': ['get', 'min_height'],
+                  'fill-extrusion-opacity': 0.8,
+                }}
+                layout={{ 'visibility': 'none' }}
+              />
+            )}
+
+            {/* Project Items */}
+            {routes.map((route) => (
+              <RouteLayerGroup key={route.id} route={route} playheadTime={playheadTime} />
+            ))}
+            {boundaries.map((boundary) => (
+              <BoundaryLayerGroup key={boundary.id} boundary={boundary} playheadTime={playheadTime} />
+            ))}
+          </>
         )}
 
-        {/* Project Items */}
-        {routes.map((route) => (
-          <RouteLayerGroup key={route.id} route={route} playheadTime={playheadTime} />
-        ))}
-        {boundaries.map((boundary) => (
-          <BoundaryLayerGroup key={boundary.id} boundary={boundary} playheadTime={playheadTime} />
-        ))}
+        {/* Callouts use Markers (DOM elements), not sources/layers — safe outside the gate */}
         {callouts
           .filter((c) => {
-            // Visible if within time range OR if it's the selected item in move mode
             const isManualMoving = isMoveModeActive && selectedItemId === c.id;
             const isVisibleTime = playheadTime >= c.startTime && playheadTime <= c.endTime;
             return isManualMoving || isVisibleTime;

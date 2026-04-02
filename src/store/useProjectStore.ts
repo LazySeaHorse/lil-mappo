@@ -170,7 +170,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setDuration: (d) => set({ duration: Math.max(1, d) }),
   setFps: (fps) => set({ fps }),
   setResolution: (r) => set({ resolution: r }),
-  setMapStyle: (s) => set({ mapStyle: s as any }),
+  setMapStyle: (s) => set({ mapStyle: s as any, terrainEnabled: false, buildingsEnabled: false }),
   setProjection: (v) => set({ projection: v }),
   setLightPreset: (v) => set({ lightPreset: v }),
   setMapLanguage: (v) => set({ mapLanguage: v }),
@@ -184,7 +184,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     return { [map[key]]: visible } as any;
   }),
   setTerrainEnabled: (v) => set({ terrainEnabled: v, terrainLoading: v }),
-  setBuildingsEnabled: (v) => set({ buildingsEnabled: v, buildingsLoading: v }),
+  setBuildingsEnabled: (v) => set({ buildingsEnabled: v }),
   setTerrainExaggeration: (v) => set({ terrainExaggeration: v }),
   setProjectName: (n) => set({ name: n }),
 
@@ -196,7 +196,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
 
-  loadFullProject: (project) => set({ ...defaultProject, ...project, terrainLoading: false, buildingsLoading: false, hideUI: false, isInspectorOpen: true }),
+  loadFullProject: (project) => set({ 
+    ...defaultProject, 
+    ...project, 
+    terrainEnabled: false,
+    buildingsEnabled: false,
+    terrainLoading: false, 
+    buildingsLoading: false, 
+    hideUI: false, 
+    isInspectorOpen: true 
+  }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;
