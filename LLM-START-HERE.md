@@ -22,8 +22,8 @@ The UI is inspired by video editors like After Effects or Keynote, but tailored 
 - **Persistence**: IndexedDB (for the project library)
 - **Animations**: Custom `requestAnimationFrame` loop + easing functions
 - **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`
-- **Video Export**: `mp4-muxer` + WebCodecs API + `html2canvas` (for overlays)
-- **UI Components**: Tailwind CSS 4 + Radix UI (shadcn/ui style)
+- **Video Export**: `mp4-muxer` + WebCodecs API + `html2canvas` (for markers)
+- **UI Components**: Tailwind CSS 3 + Radix UI (shadcn/ui style)
 
 ---
 
@@ -37,6 +37,7 @@ Everything lives in a single Zustand store.
 - `playheadTime`: The current "now" of the animation. Changing this triggers updates across the entire app.
 - `isPlaying`: Controls the playback loop.
 - **Project Settings**: Global overrides for `duration`, `fps`, `resolution`, `mapStyle`, and 3D toggles (`terrainEnabled`, `buildingsEnabled`).
+- **Move Mode**: `isMoveModeActive` toggle allows users to manually reposition callouts on the map via drag-and-drop.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
@@ -54,7 +55,7 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 - `src/store/`: State definitions and types. **Start here to understand the data model.**
 - `src/engine/`: Pure mathematical logic for interpolation (camera lerps, line slicing).
 - `src/components/MapViewport/`: Map rendering, layer management, and 3D effects.
-- `src/components/Timeline/`: The interactive track-based editor at the bottom.
+- `src/components/Timeline/`: The interactive track-based editor (primarily `TimelinePanel.tsx`).
 - `src/components/Inspector/`: Property editors for the selected item.
 - `src/components/ProjectLibrary/`: Local project management interface.
 - `src/components/ExportModal/`: Interface for configuring and running MP4 exports.
@@ -73,18 +74,32 @@ This component listens to `playheadTime` and re-renders Mapbox sources/layers.
 ### 5.2 3D Effects & Atmosphere
 - **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar.
 - **Buildings**: 3D building extrusions can be toggled. For the Mapbox 'Standard' style, this is handled via `map.setConfigProperty`.
-- **Fog & Stars**: The viewport dynamically configures `fog` parameters (color, starry sky intensity, horizon blend) based on the selected `mapStyle` (e.g., "Warm Sunset" for satellite vs. "Space" for dark mode).
-- **Altitude**: Callouts use a `Marker` with an `offset`. To keep the altitude visually consistent in 3D space, we recalculate the pixel offset whenever the zoom changes (see `CalloutMarker` in `MapViewport.tsx`).
+- **Fog & Stars**: The viewport dynamically configures `fog` parameters (color, starry sky intensity, horizon blend) based on the selected `mapStyle`. Satellite view uses a "Warm Sunset" palette; Dark mode use a "Starry Space" palette.
+- **Altitude**: Callouts use a `Marker` with a dynamic `offset`. To keep the altitude visually consistent as the user zooms, we recalculate the pixel offset based on the current zoom level and latitude (see `CalloutMarker` in `MapViewport.tsx`).
+
+### 5.4 Move Mode (Manual Positioning)
+When a callout is selected and "Move Mode" is enabled:
+1. The callout's 3D altitude offset is temporarily ignored.
+2. A **crosshair marker** appears at the base (altitude 0) coordinate.
+3. The crosshair is `draggable`. On `dragend`, the new `lngLat` is persisted to the store.
+4. This allows precise positioning relative to ground features without altitude parallax interference.
+
+### 5.5 Timeline Direct Manipulation
+- **Resizing**: Items have "hidden" handles on the edges. Dragging updates `startTime` and `endTime`.
+- **Moving**: Dragging the center of an item block moves the entire clip while preserving duration.
+- **Keyframes**: Camera keyframes can be dragged horizontally. The store handles re-sorting as they cross.
+- **Feedback**: Instant store updates ensure the Map viewport remains perfectly in sync during edits.
 
 ### 5.3 Video Export (`src/services/videoExport.ts`)
 The export process is **non-realtime (offline)** for maximum quality:
 1. The app hides UI and resizes the map canvas to the target resolution.
 2. It advances time step-by-step ($1/fps$).
-3. After each step, it waits for the map to render (`map.once('render', ...)`).
+3. After each step, it waits for the map to reach an 'idle' state (`map.once('idle', ...)`) to ensure all tiles and 3D models are fully loaded.
 4. It captures the map canvas.
 5. It uses `html2canvas` to capture the DOM-based callout markers and composites them onto the frame.
 6. It encodes the composite frame using `VideoEncoder` (WebCodecs).
 7. It uses `mp4-muxer` to wrap the stream into an MP4 file.
+8. High-quality export supports **partial range** (Start/End time) via the Export Modal.
 
 ---
 
@@ -101,7 +116,7 @@ The export process is **non-realtime (offline)** for maximum quality:
 2. Add CRUD logic to `src/store/useProjectStore.ts`.
 3. Create an inspector component in `src/components/Inspector/`.
 4. Create a rendering component in `src/components/MapViewport/` (e.g., `NewItemLayer.tsx`).
-5. Add it to the timeline in `src/components/Timeline/TrackList.tsx`.
+5. Add it to the timeline in `src/components/Timeline/TimelinePanel.tsx`.
 
 ### Animation & Performance
 - Avoid placing too much logic in the `requestAnimationFrame` loop.

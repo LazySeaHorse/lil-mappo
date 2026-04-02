@@ -187,6 +187,34 @@ function TrackRow({
         ? (item as BoundaryItem).placeName || 'Boundary'
         : (item as CalloutItem).title;
 
+  const handleKeyframeMouseDown = (e: React.MouseEvent, kfId: string, initialTime: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect();
+    onSelectKeyframe(kfId);
+
+    const startX = e.clientX;
+    const updateKeyframe = useProjectStore.getState().updateCameraKeyframe;
+    const duration = useProjectStore.getState().duration;
+
+    const handleMove = (ev: MouseEvent) => {
+      const deltaX = ev.clientX - startX;
+      const deltaTime = deltaX / pixelsPerSecond;
+      const newTime = Math.max(0, Math.min(duration, initialTime + deltaTime));
+      updateKeyframe(kfId, { time: newTime });
+    };
+
+    const handleUp = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      document.body.style.cursor = '';
+    };
+
+    document.body.style.cursor = 'ew-resize';
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  };
+
   return (
     <div
       className={`flex h-8 border-b border-border/50 cursor-pointer ${isSelected ? 'bg-selection-bg' : 'hover:bg-secondary/50'}`}
@@ -209,6 +237,7 @@ function TrackRow({
                 key={kf.id}
                 className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer ${selectedKeyframeId === kf.id ? 'z-10' : ''}`}
                 style={{ left: x }}
+                onMouseDown={(e) => handleKeyframeMouseDown(e, kf.id, kf.time)}
                 onClick={(e) => { e.stopPropagation(); onSelect(); onSelectKeyframe(kf.id); }}
               >
                 <div
@@ -218,20 +247,100 @@ function TrackRow({
             );
           })
         ) : (
-          // Bar for routes, boundaries, callouts
-          (() => {
-            const startX = (item as any).startTime * pixelsPerSecond - scrollLeft;
-            const endX = (item as any).endTime * pixelsPerSecond - scrollLeft;
-            const width = endX - startX;
-            return (
-              <div
-                className={`absolute top-1 bottom-1 rounded ${colorClass} opacity-60`}
-                style={{ left: startX, width: Math.max(width, 4) }}
-              />
-            );
-          })()
+          // Interactive Bar for routes, boundaries, callouts
+          <TimelineItemBar
+            item={item as any}
+            pixelsPerSecond={pixelsPerSecond}
+            scrollLeft={scrollLeft}
+            colorClass={colorClass}
+            onSelect={onSelect}
+          />
         )}
       </div>
+    </div>
+  );
+}
+
+function TimelineItemBar({
+  item,
+  pixelsPerSecond,
+  scrollLeft,
+  colorClass,
+  onSelect,
+}: {
+  item: RouteItem | BoundaryItem | CalloutItem;
+  pixelsPerSecond: number;
+  scrollLeft: number;
+  colorClass: string;
+  onSelect: () => void;
+}) {
+  const updateItem = useProjectStore((s) => s.updateItem);
+  const duration = useProjectStore((s) => s.duration);
+
+  const handleMouseDown = (e: React.MouseEvent, type: 'start' | 'end' | 'move') => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect();
+
+    const startX = e.clientX;
+    const initialStart = item.startTime;
+    const initialEnd = item.endTime;
+    const itemDuration = initialEnd - initialStart;
+
+    const handleMove = (ev: MouseEvent) => {
+      const deltaX = ev.clientX - startX;
+      const deltaTime = deltaX / pixelsPerSecond;
+
+      if (type === 'start') {
+        const newStart = Math.max(0, Math.min(initialEnd - 0.2, initialStart + deltaTime));
+        updateItem(item.id, { startTime: newStart });
+      } else if (type === 'end') {
+        const newEnd = Math.max(initialStart + 0.2, Math.min(duration, initialEnd + deltaTime));
+        updateItem(item.id, { endTime: newEnd });
+      } else if (type === 'move') {
+        const newStart = Math.max(0, Math.min(duration - itemDuration, initialStart + deltaTime));
+        updateItem(item.id, {
+          startTime: newStart,
+          endTime: newStart + itemDuration,
+        });
+      }
+    };
+
+    const handleUp = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      document.body.style.cursor = '';
+    };
+
+    document.body.style.cursor = 'ew-resize';
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  };
+
+  const startX = item.startTime * pixelsPerSecond - scrollLeft;
+  const endX = item.endTime * pixelsPerSecond - scrollLeft;
+  const width = endX - startX;
+
+  return (
+    <div
+      className={`absolute top-1 bottom-1 rounded ${colorClass} opacity-60 group flex items-stretch`}
+      style={{ left: startX, width: Math.max(width, 4) }}
+      onMouseDown={(e) => handleMouseDown(e, 'move')}
+    >
+      {/* Left Handle */}
+      <div
+        className="w-1.5 cursor-ew-resize hover:bg-white/30 transition-colors rounded-l"
+        onMouseDown={(e) => handleMouseDown(e, 'start')}
+      />
+      
+      {/* Center Spacer */}
+      <div className="flex-1" />
+
+      {/* Right Handle */}
+      <div
+        className="w-1.5 cursor-ew-resize hover:bg-white/30 transition-colors rounded-r"
+        onMouseDown={(e) => handleMouseDown(e, 'end')}
+      />
     </div>
   );
 }
