@@ -229,7 +229,8 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         // (Mapbox events often fire synchronously during a child component's mount)
         requestAnimationFrame(() => {
           if (useProjectStore.getState().terrainEnabled) {
-            useProjectStore.getState().setTerrainLoading(!map.isSourceLoaded('mapbox-dem'));
+            const isLoaded = map.getSource('mapbox-dem') && map.isSourceLoaded('mapbox-dem');
+            useProjectStore.getState().setTerrainLoading(!isLoaded);
           }
         });
       }
@@ -250,7 +251,8 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
       const s = useProjectStore.getState();
       if (s.isPlaying) return;
 
-      if (s.terrainLoading && (!s.terrainEnabled || map.isSourceLoaded('mapbox-dem'))) {
+      const sourceExists = map.getSource('mapbox-dem');
+      if (s.terrainLoading && (!s.terrainEnabled || (sourceExists && map.isSourceLoaded('mapbox-dem')))) {
         requestAnimationFrame(() => {
           useProjectStore.getState().setTerrainLoading(false);
         });
