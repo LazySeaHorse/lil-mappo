@@ -232,7 +232,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
       />
 
       <div className="flex items-center gap-2 mr-3 pl-1">
-        <img src="/logo.svg" className="w-7 h-7 drop-shadow-sm" alt="li'l Mappo Logo" />
+        <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-7 h-7 drop-shadow-sm" alt="li'l Mappo Logo" />
         <span className="font-bold text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>
       </div>
 

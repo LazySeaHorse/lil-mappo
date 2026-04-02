@@ -87,7 +87,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
             </div>
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground gap-4 border border-dashed border-border rounded-lg bg-secondary/10">
-              <img src="/logo.svg" className="w-16 h-16 opacity-20 grayscale brightness-125" alt="li'l Mappo Logo" />
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-16 h-16 opacity-20 grayscale brightness-125" alt="li'l Mappo Logo" />
               <div>
                 <p className="text-sm font-medium text-foreground">Your library is empty</p>
                 <p className="text-xs mt-1">Save a project from the toolbar to see it here.</p>
