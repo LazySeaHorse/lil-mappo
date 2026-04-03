@@ -84,6 +84,10 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   );
 }
 
+export function PremiumLabel({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70 mb-2.5 px-1">{children}</h3>;
+}
+
 export function EasingSelect({ value, onChange }: { value: EasingName; onChange: (v: EasingName) => void }) {
   const options: EasingName[] = ['linear', 'easeInQuad', 'easeOutQuad', 'easeInOutQuad', 'easeInCubic', 'easeOutCubic', 'easeInOutCubic', 'easeInOutSine'];
   return (

@@ -16,10 +16,16 @@ import { BoundarySearch } from '../Inspector/BoundarySearch';
 import { useMapRef } from '@/hooks/useMapRef';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Field, InputColor } from '../Inspector/InspectorShared';
+import { Field, InputColor, PremiumLabel } from '../Inspector/InspectorShared';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export const BoundaryAddDropdown = () => {
+export const BoundaryAddDropdown = ({ 
+  isOpen, 
+  onOpenChange 
+}: { 
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) => {
   const { 
     addItem, selectItem, playheadTime, 
     previewBoundary, setPreviewBoundary,
@@ -28,7 +34,6 @@ export const BoundaryAddDropdown = () => {
   } = useProjectStore();
   
   const mapRef = useMapRef();
-  const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -83,12 +88,12 @@ export const BoundaryAddDropdown = () => {
     addItem(item);
     selectItem(id);
     clearPreviewBoundary();
-    setIsOpen(false);
+    onOpenChange(false);
     toast.success('Boundary added to timeline');
   };
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen} modal={false}>
+    <DropdownMenu open={isOpen} onOpenChange={onOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button 
           variant="ghost" 
@@ -124,57 +129,52 @@ export const BoundaryAddDropdown = () => {
         </div>
 
         <ScrollArea className="flex-1 overflow-hidden min-h-0">
-          <div className="p-4 pt-2">
+          <div className="p-4">
             {!previewBoundary ? (
               <div className="py-12 flex flex-col items-center justify-center text-center opacity-40">
                 <Search size={32} className="mb-2 stroke-[1.5px]" />
-                <p className="text-xs font-medium">Search for a location to<br />preview its boundary</p>
+                <p className="text-[11px] font-medium leading-relaxed uppercase tracking-wider">Search for a location to<br />preview its boundary</p>
               </div>
             ) : (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex items-center justify-between p-2 rounded-xl bg-primary/5 border border-primary/20">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <Check size={14} className="text-primary shrink-0" />
-                    <span className="text-xs font-bold truncate">{draftBoundaryName}</span>
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div>
+                   <PremiumLabel>Selected Place</PremiumLabel>
+                   <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <Check size={14} className="text-primary shrink-0" />
+                      <span className="text-xs font-bold truncate">{draftBoundaryName}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-[10px] font-bold text-muted-foreground hover:text-foreground">Change</Button>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-[10px] font-bold text-muted-foreground">Change</Button>
                 </div>
 
-                <Accordion type="single" collapsible defaultValue="style" className="w-full">
-                  <AccordionItem value="style" className="border-none">
-                    <AccordionTrigger className="py-2 hover:no-underline px-1">
-                      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                        <Palette size={14} /> Color & Style
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-2">
-                       <div className="space-y-4">
-                        <Field label="Choose Color">
-                          <InputColor 
-                            value={previewBoundaryStyle!.strokeColor} 
-                            onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v, glowColor: v })} 
-                          />
-                        </Field>
-                        
-                        <Field label="Animation Style">
-                          <Select 
-                            value={previewBoundaryStyle!.animationStyle || 'draw'} 
-                            onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: v as any })} 
-                          >
-                            <SelectTrigger className="h-8 text-sm w-full bg-background/50">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fade">Fade In</SelectItem>
-                              <SelectItem value="draw">Drawing</SelectItem>
-                              <SelectItem value="trace">Trace Line</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </Field>
-                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                <div className="space-y-4">
+                  <PremiumLabel>Visual Appearance</PremiumLabel>
+                   <div className="space-y-4 px-1">
+                    <Field label="Atmospheric Color">
+                      <InputColor 
+                        value={previewBoundaryStyle!.strokeColor} 
+                        onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v, glowColor: v })} 
+                      />
+                    </Field>
+                    
+                    <Field label="Entrance Animation">
+                      <Select 
+                        value={previewBoundaryStyle!.animationStyle || 'draw'} 
+                        onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: v as any })} 
+                      >
+                        <SelectTrigger className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/50 shadow-2xl">
+                          <SelectItem value="fade">Subtle Fade In</SelectItem>
+                          <SelectItem value="draw">Precise Drawing</SelectItem>
+                          <SelectItem value="trace">Trace Contour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                   </div>
+                </div>
               </div>
             )}
           </div>
@@ -186,7 +186,7 @@ export const BoundaryAddDropdown = () => {
             size="sm" 
             onClick={handleAdd}
             disabled={!previewBoundary}
-            className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-medium"
+            className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold rounded-xl shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <Plus size={13} /> Insert Boundary
           </Button>
@@ -195,3 +195,4 @@ export const BoundaryAddDropdown = () => {
     </DropdownMenu>
   );
 };
+
