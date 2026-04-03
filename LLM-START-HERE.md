@@ -16,8 +16,10 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Zen Mode**: Focus mode for immersive map experience.
 
 The UI is a premium, **responsive "floating island"** design.
+- **Transformative Mobile Toolbar**: On mobile devices, the toolbar switches between **'Default', 'Add', and 'Layers' modes**. This "mode-switching" layout slides in specialized toolsets, replacing standard dropdowns to maximize screen space while ensuring a focused experience.
+- **Mutually Exclusive Tools**: The 3 "Add" tools (Route, Callout, Boundary) are **controlled components**. Opening one automatically closes any other open "Add" tool, preventing overlapping panels and UI clutter.
 - **Non-Modal Interaction**: The Toolbar routing, callout, and boundary tools are **non-modal and persistent**. They use `onPointerDownOutside` overrides to stay open during map interaction, allowing for a "floating workspace" feel.
-- **Professional Aesthetics**: Features synchronized design tokens across all panels. Routing, Callout, and Boundary buttons use a sleek, high-contrast `text-foreground` style.
+- **Professional Aesthetics**: Features synchronized design tokens and glassmorphism across all panels. Headers use `PremiumLabel` (shared), and dropdowns feature `rounded-2xl` corners with heavy `shadow-2xl` support.
 
 ---
 
@@ -50,6 +52,9 @@ Everything lives in a single Zustand store.
 - **Drafting & Preview State**: 
   - `previewRoute` and `previewBoundary`: Store temporary GeoJSON for routes/polygons currently being planned in the Toolbar before insertion.
   - `previewBoundaryStyle`: Captures colors and animation styles selected during the boundary drafting phase.
+- **UI Management State**: 
+  - `mobileMode` ('default' | 'add' | 'layers') handles the transformative mobile layout.
+  - `activeDropdown` ('route' | 'callout' | 'boundary' | null) centrally manages the open state of the three creation tools to enforce mutual exclusivity.
 - **Zen Mode**: `hideUI` toggle hides the floating UI layers.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
@@ -82,7 +87,7 @@ The export process advances time step-by-step, Advance time -> Sync Map -> Wait 
 
 ## 8. Common Gotchas
 - **Map Dot Stability**: Search results (dots) are decoupled from the high-frequency camera movement. They only re-search when the query string changes or the map center stabilizes (100ms debounce). This prevents flickering during rapid panning.
-- **Popover Clipping**: The Toolbar popover uses `!overflow-visible` and specific width constraints (`w-fit`) to ensure search suggestions can stretch to the full width of the text without being cut off by parent container boundaries.
+- **No-Clip Search Results**: `SearchField` uses a **Portal-based Popover** for its results. This allows the search list to break out of the parent container's `overflow-hidden` constraints, enabling wide location names to display fully over the map without being clipped by the 320px dropdown boundary.
 - **Sticky Crosshairs**: During "Pick on Map" mode, the input fields pulse and display "Click on map..." while disabling standard text input to guide the user.
 - **Sync Engine Exposure**: The Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine to force-synchronize styles during frame capture.
 - **Scrollbar Aesthetics**: System-native scrollbars are hidden in search suggestions and routing menus via CSS (`scrollbar-width: none`) to maintain a clean, app-like aesthetic without breaking scroll functionality.

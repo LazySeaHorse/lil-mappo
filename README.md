@@ -6,14 +6,14 @@ A browser-based cinematic map animation and export tool. Built as a lightweight 
 
 ## Features
 
-- **Route Animation**: Import and animate GPX/KML route data with customizable drawing styles.
-- **Boundary Lookup**: Search and highlight place boundaries using Nominatim (OSM) data.
-- **3D Callouts**: Add 3D-anchored annotation cards with support for custom Google Fonts.
-- **Choreographed Camera**: Keyframe-based timeline for controlling Mapbox camera movements (center, pitch, bearing, zoom).
-- **Interpolation Engine**: Smooth camera transitions using custom easing functions and route-following logic.
-- **High-Quality Export**: Off-line MP4 video export at custom resolutions and framerates using WebCodecs and mp4-muxer.
-- **Project Library**: Local project management and persistence via IndexedDB.
-- **Zen Mode**: UI-free environment for distraction-free editing and optimized video rendering.
+- **Unified Planning Workflow**: Plan routes, boundaries, and 3D callouts using a standardized, search-first interface within a responsive "floating" toolbar.
+- **3D Flight Arcs**: Automatically generate great-circle flight paths with parabolic altitude curves and synchronized vehicle animations.
+- **Transformative Mobile UI**: State-driven mobile interface that switches between specialized 'Default', 'Add', and 'Layers' modes for optimal workspace on small screens.
+- **Intelligent Search (Zustand-sync)**: Real-time geocoding with map-bias and interactive hover previews for high-precision placement.
+- **Mutually Exclusive Tools**: Clean workspace logic ensuring only one creation tool is active at a time.
+- **Offline MP4 Video Export**: Frame-perfect video rendering with high-quality encoding via WebCodecs and mp4-muxer.
+- **Project Library**: Local project management and persistence using IndexedDB.
+- **Zen Mode**: Immersive, UI-free environment for focusing on the map and final renders.
 
 ## Technical Stack
 
