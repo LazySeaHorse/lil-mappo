@@ -67,7 +67,6 @@ export default function MapStudioEditor() {
         
         {/* Floating UI Layer */}
         <div className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${hideUI ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
-          <SearchBar />
           <Toolbar 
             onExport={() => setShowExport(true)} 
             onLibrary={() => setShowLibrary(true)} 

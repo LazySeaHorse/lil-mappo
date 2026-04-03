@@ -731,7 +731,7 @@ function PanelWrapper({ title, children, footer }: { title: string; children: Re
 
   return (
     <div 
-      className={`absolute bg-background/80 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden pointer-events-auto flex flex-col transition-all duration-300`}
+      className={`absolute bg-background/80 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl !overflow-visible pointer-events-auto flex flex-col transition-all duration-300`}
       style={{ ...widthStyles, ...positionStyles }}
     >
       <div className="p-4 py-3 border-b border-white/10 dark:border-white/5 shrink-0 bg-background/50 flex items-center justify-between">

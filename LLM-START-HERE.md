@@ -5,17 +5,18 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 ## 1. Project Identity & Purpose
 **li'l Mappo** is a browser-based "motion graphics" tool specifically for maps. Users can:
 - **Import** route data (GPX/KML).
-- **Lookup** and highlight place boundaries (via Nominatim).
+- **Plan Routes**: Automatically generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math. Features a **unified Route Planning interface** shared between the floating Toolbar (for new drafts) and the Inspector (for existing items).
+- **Interactive Search**: A unified geocoding system with **viewport-proximity bias**. Includes animated map-based preview dots that are **fully interactive**—users can click a dot directly on the map to instantly set it as a start or end point.
+- **Manual Picking**: High-precision "Pick on Map" (Crosshair) mode for setting coordinates directly on the terrain.
 - **Annotate** with 3D callout cards.
 - **Choreograph** camera movements using a keyframe-based timeline.
 - **Save & Manage** multiple projects locally via an IndexedDB-powered library.
-- **Export** projects as `.lilmap` files or high-quality MP4 videos.
-- **Duplicate**: Items (Routes, Boundaries, Callouts) can be duplicated in the Inspector for rapid variation creation.
-- **Zen Mode**: A "Focus" mode that hides all UI layers for an immersive, distraction-free map experience (also automatically triggered during video exports to save GPU resources).
+- **Export**: Projects as `.lilmap` files or high-quality MP4 videos.
+- **Zen Mode**: Focus mode for immersive map experience.
 
 The UI is a premium, **responsive "floating island"** design.
-- **Desktop/Tablet**: High-fidelity glassmorphism with floating panels (Toolbar, Inspector, Timeline). Uses a **strictly enforced "air-gap" design** driven by constants in `src/constants/layout.ts` to ensure panels never touch or overlap.
-- **Mobile**: Optimizes for touch with a pinned top bar and a **70% snap bottom-sheet (Drawer)** for property inspection. Aesthetics shift to solid, high-contrast backgrounds for better readability and performance.
+- **Non-Modal Interaction**: The Toolbar routing tools are **non-modal and persistent**. Users can pan/zoom/rotate the map freely while the planning popover remains open, allowing for a "floating workspace" feel.
+- **Professional Aesthetics**: Features synchronized design tokens across all panels. Routing buttons use a clean, high-contrast `text-foreground` style to match the Boundary and Callout tools.
 
 ---
 
@@ -25,11 +26,10 @@ The UI is a premium, **responsive "floating island"** design.
 - **Map Engine**: Mapbox GL JS v3 (via `react-map-gl/mapbox`)
 - **Persistence**: IndexedDB (for the project library)
 - **Animations**: Custom `requestAnimationFrame` loop + easing functions
-- **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`
+- **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`
 - **Video Export**: `mp4-muxer` + WebCodecs API + `html2canvas` (for markers)
-- **UI Components**: Modernized **shadcn/ui v0.9+** (Tailwind CSS 3 + Radix UI).
-- **Notifications**: **Sonner** (replaces legacy Radix Toast).
-- **Theming**: `next-themes` (supports custom light/dark modes and system sync).
+- **External APIs**: Mapbox Directions (v5) and Mapbox Geocoding (v5).
+- **UI Components**: Modernized **shadcn/ui v0.9+**.
 
 ---
 
@@ -39,157 +39,47 @@ The application is built around a **state-driven animation engine**.
 ### 3.1 The Brain: `src/store/useProjectStore.ts`
 Everything lives in a single Zustand store.
 - `items`: A record of all timeline elements (Routes, Boundaries, Callouts, Camera).
-- `itemOrder`: Defines the "layer" order in the timeline and on the map.
-- `playheadTime`: The current "now" of the animation. Changing this triggers updates across the entire app.
-- `isPlaying`: Controls the playback loop.
-- `isScrubbing`: Transient state active when the user is dragging the timeline ruler; used to suppress loading indicators and pause playback.
-- **Project Settings**: Global overrides for `duration`, `fps`, `resolution`, `mapStyle`, and advanced Mapbox attributes. Organized into **General** and **Map** tabs in the Inspector. 
-  - **Map Config**: Includes `projection` (Globe/Mercator), `lightPreset` (v3 Standard), and granular toggles for labels (Roads, Places, POIs, Transit) and 3D details (Landmarks, Facades, Trees). 
-  - **Atmosphere**: User-adjustable `starIntensity` and `fogColor`. Supported in both **Globe** and **Mercator** projections.
-- **Loading State**: Transient `terrainLoading` and `buildingsLoading` indicators for map-heavy features.
-- **Move Mode**: `isMoveModeActive` toggle allows users to manually reposition callouts on the map via drag-and-drop.
-- **Zen Mode**: `hideUI` toggle hides the floating UI layers. When active, a minimal "Show UI" and "Play" shortcut pill appears in the top-left.
-- **Responsive State**: `isInspectorOpen` toggle controls the visibility of the primary property panel. On mobile, this state is synchronized with the `vaul`-powered bottom sheet.
-- **Theme Sync**: Automatically toggles between `light` and `dark` themes based on the current Mapbox style (e.g., Satellite/Dark styles trigger dark mode).
-- **Timeline Height**: `timelineHeight` is persisted in the store to allow floating UI elements (like toasts) to position themselves dynamically above the timeline. To ensure smooth resizing, the `TimelinePanel` uses a local `displayHeight` state during drag operations to avoid global store broadcasts.
+- `playheadTime`: The current "now" of the animation.
+- **Map Center & Proximity**: `mapCenter` is synced from the viewport and used to bias search results toward the current viewing area. To ensure smooth performance, **`mapCenter` updates are debounced by 100ms** during continuous panning.
+- **Drafting State**: `draftStart` and `draftEnd` hold temporary coordinates and names for the Toolbar routing workflow before they are "inserted" into the timeline.
+- **Search & Routing State**: 
+  - `searchResults` and `hoveredSearchResultId` drive the map-based feedback dots.
+  - `editingRoutePoint` ('start' | 'end') activates the **global pick mode**. When active, clicking on the map or a search dot updates the draft or selected route coordinates.
+- **Zen Mode**: `hideUI` toggle hides the floating UI layers.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
-When `isPlaying` is true, this hook runs a `requestAnimationFrame` loop that:
-1. Increments `playheadTime` in the store.
-2. Directly drives the Mapbox camera via `map.jumpTo()` using interpolated values from `src/engine/cameraInterpolation.ts`.
+Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
 
 ### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
-This component listens to `playheadTime` and re-renders Mapbox sources/layers.
-- **Universal Sync Engine**: Handles all imperative Mapbox state (Projection, Terrain, Atmosphere, Config, and Labels) across all styles. Uses a **two-effect architecture**:
-  1. **Mount-once Effect**: Registered once `mapReady` is true (from `<MapGL onLoad>`). It hooks `style.load`, `styleimportdata`, `sourcedata`, and `idle` listeners. Both **`idle` and `styleimportdata` are critical** for re-verifying overrides after Mapbox internal resets.
-  2. **Reactive Effect**: Calls `syncRef.current()` on every store change to ensure the map matches the UI state.
-- **Initialization Gates**: 
-  - `mapReady`: Set by `onLoad`. Defers all imperative listeners until the Mapbox instance is fully available.
-  - `styleLoaded`: Set by `style.load` and cleared on `mapStyle` changes. Conditional rendering gates all `<Source>`/`<Layer>` children to prevent the `"Style is not done loading"` crash.
-- **Reactive Loading States**: `terrainLoading` is driven by `sourcedataloading` and `sourcedata` (checking `isSourceLoaded`) for the `mapbox-dem` source. This ensures accurate spinner behavior when panning to areas with missing elevation data. Loading checks are automatically **bypassed during `isPlaying` or `isScrubbing`** to prevent UI flickering during camera movement.
-- **Component Lifecycle**: Base layers (like `3d-buildings` for legacy styles) are mounted inside the `styleLoaded` gate. Visibility is then fine-tuned imperatively via the Sync Engine. Critical sources like `mapbox-dem` are managed **entirely imperatively** within the Sync Engine to prevent unmount crashes during style transitions. 
-- **Defensive Sync**: Operations are wrapped in redundant safety checks and isolated `try/catch` to prevent Mapbox-internal AJAX crashes during style transitions.
-- **Routes/Boundaries**: Use `useMemo` to compute the "partially drawn" GeoJSON based on `playheadTime` and the item's `startTime/endTime`.
-- **Callouts**: Rendered as standard Mapbox `Marker` components. The marker itself is anchored to the ground (`anchor: 'bottom'`); the 3D altitude is simulated by the internal `CalloutCard` layout which grows a "pole" upwards. Supports three primary premium variants: **Modern Pill**, **News Highlight**, and **Topo Data** (the default). The "Hollywood" 3D style was removed to ensure geographic stability across all map pitches.
-
----
-
-## 4. Key Directories
-- `src/store/`: State definitions and types. **Start here to understand the data model.**
-- `src/engine/`: Pure mathematical logic for interpolation (camera lerps, line slicing).
-- `src/constants/`: Centralized app-shell layout tokens (panel widths, margins, and gaps). **Refer here for all responsive spacing logic.**
-- `src/components/MapViewport/`: Map rendering, layer management, and 3D effects.
-- `src/components/Inspector/`: Adaptive property editors. 
-  - **Shared Logic**: Uses a `PanelWrapper` to share form logic between the Desktop sidebar and the Mobile drawer.
-  - **Mobile Physics**: Implements a `vaul` drawer with **Snap Points `[0.7, 1]`**. It opens at 70% height, expands to full-screen on swipe-up, and dismisses on swipe-down.
-  - **Aesthetic Shift**: On mobile, backdrop blurs are removed in favor of a solid, "Pure White" background to ensure buttery-smooth animations and zero gesture lag.
-  - **Organization**: Uses shadcn's `Accordion` to group related properties (Position, Timing, Style).
-  - **Custom Controls**: Features high-fidelity components like `SliderField`, `Toggle`, and a custom `InputColor` swatch with circular swatches.
-  - **Sticky Footer**: Ensures "Delete" and "Save" actions are always reachable regardless of scroll depth.
-- **`src/components/ui/`**: A comprehensive library of modern, high-fidelity UI components based on **shadcn/ui**.
-- `src/components/Timeline/`: The interactive track-based editor (`TimelinePanel.tsx`). 
-  - **Features**: Vertical resizability (click-drag top edge), vertical scroll isolation, and a unified top-ruler scrubber with a protruding playhead.
-  - **Performance**: Track components (`TrackRow`, `TimelineItemBar`) are memoized. During panel resize, `backdrop-blur` is temporarily suppressed in favor of a solid background to maintain 60fps.
-  - **Interaction**: Features a comprehensive shortcut suite: `Space` (Play/Pause), `Delete/Backspace` (Delete Item), `[`/`]` (Jump Start/End), and `Arrows` (1-frame stepping).
-- `src/components/Toolbar/`: Breakpoint-aware command pill. 
-  - **Desktop/Tablet**: Unified horizontal toolbar with icon-only buttons.
-  - **Mobile**: Consolidates secondary actions into `Add` and `Display` dropdown menus to maximize available map real estate. Replaces wide selectors (like Map Style) with compact icons.
-- `src/components/ProjectLibrary/`: Local project management interface.
-- `src/components/ExportModal/`: Interface for configuring and running MP4 exports.
-- `src/services/`: External integrations (Nominatim search, GPX/KML parsing, IndexedDB, Video Encoding).
-- `src/hooks/`: Integration glue (playback loop, map reference management).
+Handles all imperative Mapbox state and reactive layer rendering.
+- **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config.
+- **SearchResultsLayer**: Renders animated geocoding previews. Features an **expansion pulse effect** on hover. Circles are interactive via `interactiveLayerIds` to support click-to-select logic.
+- **PreviewRouteLayer**: Renders a "Draft" path line for routes currently being planned in the Toolbar or Inspector.
 
 ---
 
 ## 5. Critical Implementation Details
 
-### 5.1 Animation Logic
-- **Camera**: Interpolates between keyframes. Supports `followRoute`, where the camera center tracks a route's geometry instead of a straight line.
-- **Lines (Routes/Boundaries)**: Mapbox layers are "animated" by updating the `data` property of a GeoJSON source every frame.
-  - **Routes**: Use `getAnimatedLine` to slice the geometry from $0$ to $t$.
-  - **Boundaries**: Support multiple `animationStyle` options (`fade`, `draw`, `trace`).
-    - **Draw**: Traces the perimeter from $0$ to $t$.
-    - **Trace**: A "comet" effect where a segment of `traceLength` travels along the perimeter.
-    - **Geometry Handling**: Components use `extractLineStringsFromGeometry` to handle complex MultiPolygons and interior holes.
-- **Utilities**:
-  - `src/engine/lineAnimation.ts`: Contains `getLineSegment` for arbitrary range slicing.
-  - `src/engine/easings.ts`: Contains `getNormalizedProgress` to centralize time-to-progress logic.
-  - `src/engine/geoUtils.ts`: Handles Polygon-to-LineString conversion for perimeter animation.
-- **Callouts**: Animated using CSS transitions (`slideUp`, `slideDown`, etc.) triggered by a `phase` prop ('enter', 'visible', 'exit') derived from `playheadTime`. Font selection is handled via a curated `Select` dropdown of map-friendly fonts (exported as `MAP_FONTS` from `InspectorPanel.tsx`). These fonts are preloaded by `src/components/FontLoader.tsx` to ensure high-fidelity previews in the Inspector. Styling is focused on high-end typography; legacy features like **Subtitles** and **Image URLs** have been pruned to maintain a professional map-aesthetic.
-
-### 5.2 3D Effects & Atmosphere
-- **Terrain**: Powered by `mapbox-dem`. Toggled via toolbar or Map settings. To ensure stability, the `mapbox-dem` source is **added imperatively** by the Sync Engine only when terrain is enabled. This avoids the "Source cannot be removed while terrain is using it" crash that occurs if a React-managed source unmounts before the terrain property is cleared. The engine uses source-specific handlers to drive a reactive loading spinner. These handlers use **defensive existence checks** (`getSource`) before querying loading status to prevent crashes during style transitions. For stability and a "clean slate" start, **terrain and 3D buildings are automatically reset to `false`** when switching map styles, importing track files, or loading a full project via the library. However, these states are preserved and enforced during the video render process.
-- **Buildings (3D Details)**: Supports a hierarchical "Master Toggle" logic. In 'Standard' style, this uses `map.setConfigProperty`. For other styles, it relies on a dedicated `3d-buildings` fill-extrusion layer managed by the engine. 
-- **Fog & Stars**: Configures atmospheric haze and starry skies. Works seamlessly in **both Globe and Mercator**. Uses style-aware defaults (e.g., `#5d7883` for Satellite) when no override is present. Config is re-applied after every style switch and **on map `idle` events** to prevent property loss caused by Mapbox's internal style-import resets.
-- **Projections**: Seamlessly switch between **Globe** and **Mercator**. Transition matrix overflows and missing atmospheric effects (like disappearing stars) are prevented by a strictly enforced imperative **order-of-operations: Projection → Config/Presets → Terrain → Fog**. This ensures custom atmosphere is the "final word" after Mapbox's internal baseline resets.
-- **Altitude**: Callouts use a `Marker` with a ground-locked `bottom` anchor. To keep the altitude visually consistent as the user zooms, we recalculate a pixel `altitudeOffset` which drives the internal height of the card's pole. New callouts default to **100m** altitude.
-
-### 5.4 Move Mode (Manual Positioning)
-When a callout is selected and "Move Mode" is enabled:
-1. The callout's 3D altitude offset is temporarily ignored.
-2. A **crosshair marker** appears at the base (altitude 0) coordinate.
-3. The crosshair is `draggable`. On `dragend`, the new `lngLat` is persisted to the store.
-4. This allows precise positioning relative to ground features without altitude parallax interference.
-
-### 5.5 Timeline Direct Manipulation
-- **Resizing Panel**: Users can drag the top edge of the timeline panel to change its height. The panel height is mathematically capped to the current number of tracks and the value is synced to `timelineHeight` in the store.
-- **Scrolling**: Uses `ScrollArea` for both vertical (tracks) and horizontal (time) navigation, with sticky track labels on the left.
-- **Clip Dragging**: Items have handles for updating `startTime`/`endTime`. Dragging the center moves the entire clip.
-- **Keyframes**: Camera keyframes can be dragged horizontally with auto-sorting.
-- **Camera Keyframes**: Adding a camera keyframe does **not** automatically open the inspector. This ensures the viewport remains unobstructed for subsequent camera positioning.
-- **Feedback**: Instant store updates ensure the Map viewport remains perfectly in sync during edits.
+### 5.1 Animation & Routing Logic
+- **Unified Route Planner**: Logic is shared between `src/components/Toolbar/RouteAddDropdown.tsx` and `src/components/Inspector/RoutePlanner.tsx`. Both support:
+  - **Auto-complete**: Geocoding with 400ms debounce.
+  - **Coordinate Detection**: Intelligent parsing of "lat, lng" strings.
+  - **Pick on Map**: Activates a crosshair cursor and triggers a `draft` or `item` update on map click.
+- **3D Vehicles**: Currently **gated as a PRO feature** in the Inspector. The toggle and scale controls are visible but disabled with a high-contrast "PRO" badge to denotate advanced tiered functionality.
+- **Flight Arcs**: Generated via `src/services/flightPath.ts` using `@turf/great-circle` with a parabolic altitude curve.
+- **Directions**: Land-based routes use Mapbox Directions.
 
 ### 5.3 Video Export (`src/services/videoExport.ts`)
-The export process is **non-realtime (offline)** for maximum quality:
-1. The app hides UI and resizes the map canvas to the target resolution.
-2. **Settle Delay**: It waits for **500ms** after resize to allow Mapbox to initialize buffers and DEM sources for high-resolution targets (e.g., 4K).
-3. It advances time step-by-step ($1/fps$).
-4. After each step, it triggers an **explicit Sync Engine pass** via `map._syncRef` and then waits for the map to reach an 'idle' state (`map.once('idle', ...)`). This ensures 3D terrain and buildings remain active and correctly rendered even during rapid frame transitions.
-4. It captures the map canvas.
-- **Fonts**: The engine waits for `document.fonts.ready` before the first frame to ensure custom Google Fonts are rendered correctly.
-5. It uses `html2canvas` to capture the DOM-based callout markers and composites them onto the frame.
-6. It encodes the composite frame using `VideoEncoder` (WebCodecs).
-7. It uses `mp4-muxer` to wrap the stream into an MP4 file.
-8. High-quality export supports **partial range** (Start/End time) via the Export Modal.
-
----
-
-## 6. External APIs & Keys
-- **Mapbox Token**: Hardcoded in `src/config/mapbox.ts`.
-- **Nominatim (OSM)**: Used for boundary lookups. Respect the rate limit (1 req/s).
-
----
-
-## 7. Development Guidelines
-
-### Adding a New Item Type
-1. Update `src/store/types.ts` with the new item interface.
-2. Add CRUD logic to `src/store/useProjectStore.ts`.
-3. Create an inspector component in `src/components/Inspector/`.
-4. Create a rendering component in `src/components/MapViewport/` (e.g., `NewItemLayer.tsx`).
-5. Add the new item to the timeline and implement duplication support in `src/store/useProjectStore.ts`.
-6. Add it to the timeline in `src/components/Timeline/TimelinePanel.tsx`.
-
-### Animation & Performance
-- Avoid placing too much logic in the `requestAnimationFrame` loop.
-- Use `useMemo` in `MapViewport` components to ensure Mapbox source updates (`setData`) only happen when `playheadTime` has actually changed AND the item is within its active time range.
-- **Never** use `map.flyTo()` during playback; always use `map.jumpTo()` to maintain master control over the camera.
+The export process advances time step-by-step, Advance time -> Sync Map -> Wait for Idle -> Capture Frame.
 
 ---
 
 ## 8. Common Gotchas
-- **Map Style Changes**: When changing the map style, Mapbox removes all custom sources and layers. The `styleLoaded` gate in `MapViewport.tsx` automatically unmounts and remounts all `<Source>`/`<Layer>` children across style transitions. New layers must be placed inside this gate.
-- **Sync Engine Stability**: Event listeners (`style.load`, `sourcedata`, etc.) are registered **once** at mount using a ref-based pattern (`syncRef`). **Never** add store dependencies to the mount-once `useEffect` — this ensures listeners aren't lost during teardown gaps.
-- **State Updates during Render**: Any store updates triggered from Mapbox event listeners (like `terrainLoading`) MUST be wrapped in `requestAnimationFrame` to prevent React from throwing errors about updating parent state during a child component's render cycle.
-- **Defensive Map API**: Always check Mapbox instance availability and use `try/catch` for plugin-like calls which can throw internal network errors during transitions.
-- **Zustand Subscriptions**: We use a manual subscription in `usePlayback` to avoid React render cycles for the camera driver, keeping the playback smooth.
-- **IndexedDB Serialization**: Before saving to IndexedDB, ensure the state is stripped of functions (use `JSON.parse(JSON.stringify(state))`).
-- **Coordinate Systems**: Mapbox/GeoJSON uses `[lng, lat]`. Ensure consistency when passing coordinates around.
-- **Imperative Mapbox State**: Always prefer controlling Mapbox features (Terrain, Fog, Base Labels) via the imperative Sync Engine rather than conditional React rendering to avoid "source not found" or "layer already exists" errors. **Crucially: Never use a React `<Source>` for a source that is currently bound to the map's `terrain` property**, as React's unmount lifecycle will trigger a Mapbox error if the source is removed before terrain is set to null. Additionally, always guard calls to `isSourceLoaded` or `setLayoutProperty` with existence checks (`getSource` / `getLayer`) to prevent crashes during asynchronous style transitions. To support the Export Engine, the **Sync Engine is exposed on the map instance as `_syncRef`** during the mount lifecycle of `MapViewport.tsx`. Finally, **Atmosphere settings must be the last operation in the sync loop** to prevent them from being overwritten by Standard Style light presets.
-- **UI Component Refs**: All custom UI components (Button, Toggle, DrawerOverlay, etc.) MUST be wrapped in `React.forwardRef`. Libraries like `vaul` need direct access to DOM nodes to calculate snap-point heights and attach touch-gesture observers.
-- **Mobile Interaction Deadzones**: On mobile, the `TimelinePanel` is automatically hidden when the `InspectorPanel` is open. This is a critical architectural decision to prevent the timeline's z-index from interfering with the bottom-sheet's "swipe down to exit" gestures.
-- **Toast UI**: The application uses **Sonner** with a custom "Pill" design (rounded-full, no icons, backdrop-blur). Toasts are positioned dynamically in `MapStudioEditor` using the centralized `PANEL_MARGIN` constant to always appear centered and exactly `margin * 2` above the timeline top edge (using `timelineHeight`).
-- **Dynamic Fonts**: `src/components/FontLoader.tsx` manages Google Font injection. It preloads the curated map font list (`MAP_FONTS`) for dropdown previews and dynamically injects any other custom fonts based on active project items. It deduplicates and cleans up `<link>` tags to prevent CSS bloat.
+- **Map Dot Stability**: Search results (dots) are decoupled from the high-frequency camera movement. They only re-search when the query string changes or the map center stabilizes (100ms debounce). This prevents flickering during rapid panning.
+- **Popover Clipping**: The Toolbar popover uses `!overflow-visible` and specific width constraints (`w-fit`) to ensure search suggestions can stretch to the full width of the text without being cut off by parent container boundaries.
+- **Sticky Crosshairs**: During "Pick on Map" mode, the input fields pulse and display "Click on map..." while disabling standard text input to guide the user.
+- **Sync Engine Exposure**: The Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine to force-synchronize styles during frame capture.
+- **Scrollbar Aesthetics**: System-native scrollbars are hidden in search suggestions and routing menus via CSS (`scrollbar-width: none`) to maintain a clean, app-like aesthetic without breaking scroll functionality.
 
 ---
 

@@ -25,6 +25,7 @@ import { saveAs } from 'file-saver';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RouteAddDropdown } from './RouteAddDropdown';
 import { 
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
@@ -298,36 +299,36 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
       <Divider />
 
       {/* Add Item Group */}
-      {isMobile || isTablet ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 px-0 flex items-center justify-center text-primary" title="Add Item">
-              <Plus size={20} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48 bg-background/95">
-            <DropdownMenuItem onClick={() => routeInputRef.current?.click()} className="gap-2 cursor-pointer">
-              <Upload size={14} /> Import Route
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleAddBoundary} className="gap-2 cursor-pointer">
-              <MapPin size={14} /> Add Boundary
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleAddCallout} className="gap-2 cursor-pointer">
-              <MessageSquare size={14} /> Add Callout
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleAddCameraKF} className="gap-2 cursor-pointer">
-              <Crosshair size={14} /> Add Camera KF
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : (
-        <div className="flex items-center gap-0.5">
-          <ToolbarButton icon={<Upload size={16} />} label="Import Route" hideLabel onClick={() => routeInputRef.current?.click()} />
-          <ToolbarButton icon={<MapPin size={16} />} label="Boundary" hideLabel onClick={handleAddBoundary} />
-          <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" hideLabel onClick={handleAddCallout} />
-          <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
-        </div>
-      )}
+      {/* Add Item Group */}
+      <div className="flex items-center gap-0.5">
+        <RouteAddDropdown onImportClick={() => routeInputRef.current?.click()} />
+        {isMobile || isTablet ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 px-0 flex items-center justify-center text-primary" title="Add More Items">
+                <Plus size={20} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48 bg-background/95">
+              <DropdownMenuItem onClick={handleAddBoundary} className="gap-2 cursor-pointer">
+                <MapPin size={14} /> Add Boundary
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAddCallout} className="gap-2 cursor-pointer">
+                <MessageSquare size={14} /> Add Callout
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAddCameraKF} className="gap-2 cursor-pointer">
+                <Crosshair size={14} /> Add Camera KF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <>
+            <ToolbarButton icon={<MapPin size={16} />} label="Boundary" hideLabel onClick={handleAddBoundary} />
+            <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" hideLabel onClick={handleAddCallout} />
+            <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
+          </>
+        )}
+      </div>
 
       <Divider />
 

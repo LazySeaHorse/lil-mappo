@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, X, Plus } from 'lucide-react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { searchPlaces } from '@/services/geocoding';
+import { searchBoundary } from '@/services/nominatim';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,6 +19,11 @@ export const SearchBar = () => {
     searchResults,
     addItem,
     selectItem,
+    playheadTime,
+    selectedItemId,
+    items,
+    updateItem,
+    setEditingRoutePoint,
   } = useProjectStore();
 
   useEffect(() => {
@@ -47,8 +53,8 @@ export const SearchBar = () => {
       imageUrl: null,
       lngLat: result.lngLat,
       anchor: 'bottom',
-      startTime: 0,
-      endTime: 5,
+      startTime: playheadTime,
+      endTime: playheadTime + 5,
       animation: {
         enter: 'slideUp',
         exit: 'fadeOut',
@@ -73,6 +79,65 @@ export const SearchBar = () => {
     selectItem(id);
     handleClear();
   };
+
+  const handleAddAsBoundary = async (result: any) => {
+    const id = nanoid();
+    // Optimistic item creation
+    addItem({
+      kind: 'boundary',
+      id,
+      placeName: result.name,
+      geojson: null,
+      resolveStatus: 'loading',
+      startTime: playheadTime,
+      endTime: playheadTime + 5,
+      style: {
+        strokeColor: '#3b82f6',
+        strokeWidth: 2,
+        glow: true,
+        glowColor: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.2,
+        animateStroke: true,
+        animationStyle: 'draw',
+        traceLength: 0.1,
+      },
+      easing: 'easeInOutQuad',
+    });
+    selectItem(id);
+    handleClear();
+
+    try {
+      const boundaries = await searchBoundary(result.name);
+      if (boundaries.length > 0) {
+        updateItem(id, {
+          geojson: boundaries[0].geojson,
+          resolveStatus: 'resolved',
+        } as any);
+      } else {
+        updateItem(id, { resolveStatus: 'error' } as any);
+      }
+    } catch (e) {
+      updateItem(id, { resolveStatus: 'error' } as any);
+    }
+  };
+
+  const handleRouteTo = (result: any, type: 'start' | 'end') => {
+    if (!selectedItemId) return;
+    const item = items[selectedItemId];
+    if (item?.kind !== 'route') return;
+
+    const calc = item.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
+    const newCalc = { ...calc };
+    if (type === 'start') newCalc.startPoint = result.lngLat;
+    else newCalc.endPoint = result.lngLat;
+
+    updateItem(selectedItemId, { calculation: newCalc } as any);
+    setEditingRoutePoint(null);
+    handleClear();
+  };
+
+  const selectedIsRoute = selectedItemId && items[selectedItemId]?.kind === 'route';
 
   return (
     <div 
@@ -121,6 +186,37 @@ export const SearchBar = () => {
                     <div className="text-xs text-muted-foreground capitalize">{result.category}</div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity pr-1">
+                    {selectedIsRoute && (
+                      <>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="w-8 h-8 rounded-full text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                          title="Set as Route Start"
+                          onClick={() => handleRouteTo(result, 'start')}
+                        >
+                          <div className="w-2 h-2 rounded-full bg-current" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="w-8 h-8 rounded-full text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                          title="Set as Route End"
+                          onClick={() => handleRouteTo(result, 'end')}
+                        >
+                          <div className="w-2 h-2 rounded-full bg-current" />
+                        </Button>
+                      </>
+                    )}
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="w-8 h-8 rounded-full"
+                      title="Add as Boundary"
+                      onClick={() => handleAddAsBoundary(result)}
+                    >
+                      <Plus className="w-4 h-4 text-blue-500" />
+                    </Button>
                     <Button 
                       size="icon" 
                       variant="ghost" 

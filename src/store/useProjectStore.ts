@@ -59,6 +59,12 @@ interface ProjectStore extends Project {
   // Route Planning
   editingRoutePoint: 'start' | 'end' | null;
   setEditingRoutePoint: (p: 'start' | 'end' | null) => void;
+  draftStart: { lngLat: [number, number]; name: string } | null;
+  setDraftStart: (v: { lngLat: [number, number]; name: string } | null) => void;
+  draftEnd: { lngLat: [number, number]; name: string } | null;
+  setDraftEnd: (v: { lngLat: [number, number]; name: string } | null) => void;
+  previewRoute: GeoJSON.FeatureCollection | null;
+  setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
 
   // Timeline visibility/height
   timelineHeight: number;
@@ -66,6 +72,10 @@ interface ProjectStore extends Project {
 
   // Project loading
   loadFullProject: (project: Project) => void;
+
+  // View state for search proximity
+  mapCenter: [number, number];
+  setMapCenter: (v: [number, number]) => void;
 
   // Search actions
   setSearchResults: (results: any[]) => void;
@@ -117,6 +127,9 @@ const defaultProject: Project = {
   searchResults: [],
   hoveredSearchResultId: null,
   editingRoutePoint: null,
+  draftStart: null,
+  draftEnd: null,
+  mapCenter: [0, 0],
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -246,9 +259,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       isInspectorOpen: true,
     };
   }),
+  setSearchResults: (results) => set({ searchResults: results }),
   setHoveredSearchResultId: (id) => set({ hoveredSearchResultId: id }),
+  setMapCenter: (v) => set({ mapCenter: v }),
   editingRoutePoint: null,
   setEditingRoutePoint: (p) => set({ editingRoutePoint: p }),
+  draftStart: null,
+  setDraftStart: (v) => set({ draftStart: v }),
+  draftEnd: null,
+  setDraftEnd: (v) => set({ draftEnd: v }),
+  previewRoute: null,
+  setPreviewRoute: (v) => set({ previewRoute: v }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;

@@ -26,6 +26,25 @@ export const SearchResultsLayer = () => {
 
   return (
     <Source id="search-results" type="geojson" data={geojson}>
+      {/* Pulse Glow for Hovered Result */}
+      <Layer
+        id="search-results-glow"
+        type="circle"
+        paint={{
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            10,
+            ['case', ['==', ['get', 'id'], hoveredId || ''], 20, 0],
+            18,
+            ['case', ['==', ['get', 'id'], hoveredId || ''], 40, 0]
+          ],
+          'circle-color': '#3b82f6',
+          'circle-opacity': 0.3,
+          'circle-blur': 0.5
+        }}
+      />
       <Layer
         id="search-results-circles"
         type="circle"
@@ -35,14 +54,24 @@ export const SearchResultsLayer = () => {
             ['linear'],
             ['zoom'],
             10,
-            ['case', ['==', ['id'], hoveredId || ''], 12, 6],
+            ['case', ['==', ['get', 'id'], hoveredId || ''], 10, 6],
             18,
-            ['case', ['==', ['id'], hoveredId || ''], 24, 12]
+            ['case', ['==', ['get', 'id'], hoveredId || ''], 20, 12]
           ],
-          'circle-color': '#3b82f6',
-          'circle-stroke-width': 2,
+          'circle-color': [
+            'case',
+            ['==', ['get', 'id'], hoveredId || ''],
+            '#2563eb', // Deeper blue on hover
+            '#3b82f6'
+          ],
+          'circle-stroke-width': [
+            'case',
+            ['==', ['get', 'id'], hoveredId || ''],
+            4,
+            2
+          ],
           'circle-stroke-color': '#ffffff',
-          'circle-opacity': 0.8
+          'circle-opacity': 0.9
         }}
       />
       <Layer

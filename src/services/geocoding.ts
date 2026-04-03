@@ -1,10 +1,14 @@
 import { MAPBOX_TOKEN } from '@/config/mapbox';
 import type { SearchResult } from '@/store/types';
 
-export async function searchPlaces(query: string): Promise<SearchResult[]> {
+export async function searchPlaces(query: string, proximity?: [number, number]): Promise<SearchResult[]> {
   if (!query || query.trim().length < 2) return [];
   
-  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=10&types=place,address,poi,neighborhood,locality,country,region`;
+  let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=10&types=place,address,poi,neighborhood,locality,country,region`;
+  
+  if (proximity && (proximity[0] !== 0 || proximity[1] !== 0)) {
+    url += `&proximity=${proximity[0]},${proximity[1]}`;
+  }
   
   try {
     const res = await fetch(url);

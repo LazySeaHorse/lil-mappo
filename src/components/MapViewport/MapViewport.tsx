@@ -9,6 +9,7 @@ import CalloutCard from './CalloutCard';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
 import { SearchResultsLayer } from './SearchResultsLayer';
+import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { VehicleModelLayer } from './VehicleModelLayer';
 
@@ -26,6 +27,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     items, itemOrder, playheadTime, isPlaying,
     selectedItemId, updateItem, selectItem, isMoveModeActive,
+    setMapCenter,
   } = useProjectStore();
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
@@ -51,32 +53,52 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
 
   const handleMapClick = useCallback((e: any) => {
     const s = useProjectStore.getState();
-    const selected = s.selectedItemId;
+    const selectedId = s.selectedItemId;
     const editingPoint = s.editingRoutePoint;
-
-    if (editingPoint && selected) {
-      const item = s.items[selected];
-      if (item?.kind === 'route') {
-        const routeItem = item as RouteItem;
-        const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
-        const newCalc = { ...calc };
-        if (editingPoint === 'start') newCalc.startPoint = [e.lngLat.lng, e.lngLat.lat];
-        else newCalc.endPoint = [e.lngLat.lng, e.lngLat.lat];
-        
-        updateItem(selected, { calculation: newCalc } as any);
-        s.setEditingRoutePoint(null);
-        toast.success(`${editingPoint === 'start' ? 'Start' : 'End'} point set`);
-        return;
+    
+    if (!editingPoint) {
+      if (selectedId) {
+        const item = s.items[selectedId];
+        if (item?.kind === 'callout' && (item as CalloutItem).lngLat[0] === 0 && (item as CalloutItem).lngLat[1] === 0) {
+          updateItem(selectedId, { lngLat: [e.lngLat.lng, e.lngLat.lat] } as any);
+        }
       }
+      return;
     }
 
-    if (selected) {
-      const item = s.items[selected];
-      if (item?.kind === 'callout' && (item as CalloutItem).lngLat[0] === 0 && (item as CalloutItem).lngLat[1] === 0) {
-        updateItem(selected, { lngLat: [e.lngLat.lng, e.lngLat.lat] } as any);
-        return;
-      }
+    // --- Picking Logic (Start or End Point) ---
+    
+    // 1. Check if we clicked on a search result dot
+    const searchFeature = e.features?.find((f: any) => f.layer.id === 'search-results-circles');
+    let targetLngLat: [number, number];
+    let targetName: string;
+
+    if (searchFeature) {
+      targetLngLat = searchFeature.geometry.coordinates as [number, number];
+      targetName = searchFeature.properties.name?.split(',')[0] || (editingPoint === 'start' ? 'Start' : 'End');
+    } else {
+      targetLngLat = [e.lngLat.lng, e.lngLat.lat];
+      targetName = `${targetLngLat[0].toFixed(4)}, ${targetLngLat[1].toFixed(4)}`;
     }
+
+    // 2. Decide where to save: Selected Item OR Toolbar Draft
+    const selectedItem = selectedId ? s.items[selectedId] : null;
+
+    if (selectedItem?.kind === 'route') {
+      // Update existing item
+      const routeItem = selectedItem as RouteItem;
+      const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
+      const newCalc = { ...calc, [editingPoint === 'start' ? 'startPoint' : 'endPoint']: targetLngLat };
+      updateItem(selectedId!, { calculation: newCalc } as any);
+    } else {
+      // Update Toolbar draft
+      if (editingPoint === 'start') s.setDraftStart({ lngLat: targetLngLat, name: targetName });
+      else s.setDraftEnd({ lngLat: targetLngLat, name: targetName });
+    }
+
+    s.setEditingRoutePoint(null);
+    s.setSearchResults([]); // Hide dots after pick
+    toast.success(`${editingPoint === 'start' ? 'Start' : 'End'} point set`);
   }, [updateItem]);
 
   const fogConfig = useMemo(() => {
@@ -339,6 +361,17 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     else if (item.kind === 'callout') callouts.push(item);
   }
 
+  // Debounced map center update to prevent store churn during continuous panning
+  const debouncedSetMapCenter = useMemo(() => {
+    let timer: NodeJS.Timeout;
+    return (lng: number, lat: number) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        setMapCenter([lng, lat]);
+      }, 100);
+    };
+  }, [setMapCenter]);
+
   return (
     <div className="w-full h-full relative">
       <MapGL
@@ -349,7 +382,9 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         mapStyle={styleUrl}
         onClick={handleMapClick}
         onLoad={handleMapLoad}
+        onMove={(evt) => debouncedSetMapCenter(evt.viewState.longitude, evt.viewState.latitude)}
         interactive={!isPlaying}
+        interactiveLayerIds={["search-results-circles"]}
         preserveDrawingBuffer
       >
         {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}
@@ -373,8 +408,9 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
               />
             )}
 
-            {/* Search Results */}
+            {/* Search + Previews */}
             <SearchResultsLayer />
+            <PreviewRouteLayer />
 
             {/* Project Items */}
             {routes.map((route) => (
