@@ -4,7 +4,8 @@ import { searchBoundary } from '@/services/nominatim';
 import { RoutePlanner } from './RoutePlanner';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
-import { Trash2, Search, Crosshair, Check, Copy, X } from 'lucide-react';
+import { Trash2, Search, Crosshair, Check, Copy, X, Link2, Link2Off } from 'lucide-react';
+import { SearchField } from '../Search/SearchField';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -511,7 +512,10 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
 }
 
 function CalloutInspector({ item }: { item: CalloutItem }) {
-  const { updateItem, removeItem, selectItem, isMoveModeActive, setMoveModeActive } = useProjectStore();
+  const { 
+    updateItem, removeItem, selectItem, isMoveModeActive, setMoveModeActive,
+    editingRoutePoint, setEditingRoutePoint, setEditingItemId
+  } = useProjectStore();
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates as any);
   const us = (updates: Partial<CalloutItem['style']>) => u({ style: { ...item.style, ...updates } });
   const ua = (updates: Partial<CalloutItem['animation']>) => u({ animation: { ...item.animation, ...updates } });
@@ -520,7 +524,25 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
 
   return (
     <PanelWrapper title={`Callout: ${item.title}`} footer={footer}>
-      <Field label="Title"><InputText value={item.title} onChange={(v) => u({ title: v })} /></Field>
+      <div className="flex items-center justify-between px-1 mb-2">
+        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Title</label>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
+            {item.linkTitleToLocation ? 'Linked' : 'Manual'}
+          </span>
+          <Switch 
+            checked={item.linkTitleToLocation} 
+            onCheckedChange={(v) => u({ linkTitleToLocation: v })}
+            className="scale-75"
+          />
+        </div>
+      </div>
+      <Field label="">
+        <InputText 
+          value={item.title} 
+          onChange={(v) => u({ title: v, linkTitleToLocation: false })} 
+        />
+      </Field>
       <Field label="Font Family">
         <Select value={item.style.fontFamily} onValueChange={(v) => us({ fontFamily: v })}>
           <SelectTrigger className="h-8 text-sm w-full">
@@ -552,8 +574,29 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
 
       <Accordion type="multiple" defaultValue={['pos', 'timing', 'anim', 'style']} className="w-full">
         <InspectorSection value="pos" title="Position">
-          <div className="flex items-center justify-between px-1 mb-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">Coords</label>
+          <Field label="Location Search">
+            <SearchField
+              label="Search places..."
+              value={item.lngLat}
+              name={""} // name is only for initial load in search field, we use current lngLat for center bias
+              onSelect={(coords, name) => {
+                const patch: Partial<CalloutItem> = { lngLat: coords };
+                if (item.linkTitleToLocation) patch.title = name;
+                u(patch);
+              }}
+              isPicking={editingRoutePoint === 'callout'}
+              onStartPick={() => {
+                const active = editingRoutePoint === 'callout';
+                setEditingRoutePoint(active ? null : 'callout');
+                setEditingItemId(active ? null : item.id);
+              }}
+              className="px-0"
+              color={item.linkTitleToLocation ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/50 text-muted-foreground border-border/50"}
+            />
+          </Field>
+          
+          <div className="flex items-center justify-between px-1 mt-2 mb-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">Manual Position</label>
             <Button
               onClick={() => setMoveModeActive(!isMoveModeActive)}
               size="sm"
@@ -564,9 +607,9 @@ function CalloutInspector({ item }: { item: CalloutItem }) {
               <span className="ml-1.5">{isMoveModeActive ? 'Done' : 'Move'}</span>
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-3 opacity-80 pointer-events-none mb-2">
-            <Field label="Longitude"><InputNumber value={item.lngLat[0]} onChange={(v) => u({ lngLat: [v, item.lngLat[1]] })} step={0.001} /></Field>
-            <Field label="Latitude"><InputNumber value={item.lngLat[1]} onChange={(v) => u({ lngLat: [item.lngLat[0], v] })} step={0.001} /></Field>
+          <div className={`grid grid-cols-2 gap-3 transition-opacity ${isMoveModeActive ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+            <Field label="Longitude"><InputNumber value={item.lngLat[0]} onChange={(v) => u({ lngLat: [v, item.lngLat[1]], linkTitleToLocation: false })} step={0.001} /></Field>
+            <Field label="Latitude"><InputNumber value={item.lngLat[1]} onChange={(v) => u({ lngLat: [item.lngLat[0], v], linkTitleToLocation: false })} step={0.001} /></Field>
           </div>
           <SliderField label="Altitude (m)" value={item.altitude} onChange={(v) => u({ altitude: v })} min={0} max={500} step={5} />
           <Toggle checked={item.poleVisible} onChange={(v) => u({ poleVisible: v })} label="Show Pole" />

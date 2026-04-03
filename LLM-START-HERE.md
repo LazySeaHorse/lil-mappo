@@ -6,7 +6,8 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 **li'l Mappo** is a browser-based "motion graphics" tool specifically for maps. Users can:
 - **Import** route data (GPX/KML).
 - **Plan Routes**: Automatically generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math. Features a **unified Route Planning interface** shared between the floating Toolbar (for new drafts) and the Inspector (for existing items).
-- **Interactive Search**: A unified geocoding system with **viewport-proximity bias**. Includes animated map-based preview dots that are **fully interactive**—users can click a dot directly on the map to instantly set it as a start or end point.
+- **Interactive Callouts**: A premium, search-based callout placement workflow. Users can search for locations, select from animated map-based dots, or "Pick on Map." Callouts default to a professional **Topo Data** style and can **link titles to locations** (automatically syncing the card title with the geographic name).
+- **Interactive Search**: A unified geocoding system (`SearchField.tsx`) with **viewport-proximity bias**. Includes animated map-based preview dots that are **fully interactive**—users can click a dot directly on the map to instantly set it as a coordinate for routes or callouts.
 - **Manual Picking**: High-precision "Pick on Map" (Crosshair) mode for setting coordinates directly on the terrain.
 - **Annotate** with 3D callout cards.
 - **Choreograph** camera movements using a keyframe-based timeline.
@@ -15,8 +16,8 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Zen Mode**: Focus mode for immersive map experience.
 
 The UI is a premium, **responsive "floating island"** design.
-- **Non-Modal Interaction**: The Toolbar routing tools are **non-modal and persistent**. Users can pan/zoom/rotate the map freely while the planning popover remains open, allowing for a "floating workspace" feel.
-- **Professional Aesthetics**: Features synchronized design tokens across all panels. Routing buttons use a clean, high-contrast `text-foreground` style to match the Boundary and Callout tools.
+- **Non-Modal Interaction**: The Toolbar routing and callout tools are **non-modal and persistent**. They use `onPointerDownOutside` overrides to stay open during map interaction, allowing for a "floating workspace" feel.
+- **Professional Aesthetics**: Features synchronized design tokens across all panels. Routing and Callout buttons use a clean, high-contrast `text-foreground` style to match the Boundary tools.
 
 ---
 
@@ -41,10 +42,11 @@ Everything lives in a single Zustand store.
 - `items`: A record of all timeline elements (Routes, Boundaries, Callouts, Camera).
 - `playheadTime`: The current "now" of the animation.
 - **Map Center & Proximity**: `mapCenter` is synced from the viewport and used to bias search results toward the current viewing area. To ensure smooth performance, **`mapCenter` updates are debounced by 100ms** during continuous panning.
-- **Drafting State**: `draftStart` and `draftEnd` hold temporary coordinates and names for the Toolbar routing workflow before they are "inserted" into the timeline.
-- **Search & Routing State**: 
+- **Drafting State**: `draftStart`, `draftEnd`, and `draftCallout` hold temporary coordinates and names for the Toolbar workflows before they are "inserted" into the timeline.
+- **Search & Picking State**: 
   - `searchResults` and `hoveredSearchResultId` drive the map-based feedback dots.
-  - `editingRoutePoint` ('start' | 'end') activates the **global pick mode**. When active, clicking on the map or a search dot updates the draft or selected route coordinates.
+  - `editingRoutePoint` ('start' | 'end' | 'callout') activates the **global pick mode**. 
+  - `editingItemId`: A generic state that tracks the ID of the specific item currently being geocoded or picked. If null, the map-click updates the Toolbar `draft` states; if set, it updates the specific timeline item.
 - **Zen Mode**: `hideUI` toggle hides the floating UI layers.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
@@ -61,10 +63,13 @@ Handles all imperative Mapbox state and reactive layer rendering.
 ## 5. Critical Implementation Details
 
 ### 5.1 Animation & Routing Logic
-- **Unified Route Planner**: Logic is shared between `src/components/Toolbar/RouteAddDropdown.tsx` and `src/components/Inspector/RoutePlanner.tsx`. Both support:
+- **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx`. Used across the Route Planner, Callout Adder, and item Inspectors. Features:
   - **Auto-complete**: Geocoding with 400ms debounce.
   - **Coordinate Detection**: Intelligent parsing of "lat, lng" strings.
-  - **Pick on Map**: Activates a crosshair cursor and triggers a `draft` or `item` update on map click.
+  - **Context-Aware Picking**: Dynamically updates either UI draft state or live item data based on `editingItemId`.
+- **Callout Logic**:
+  - **Topo Styling**: The default variant for new callouts, emphasizing high-contrast geographic data.
+  - **Title Linking**: Callouts store a `linkTitleToLocation` boolean. If true, any change to the location (via search or map-pick) automatically refreshes the `title` field with the location name.
 - **3D Vehicles**: Currently **gated as a PRO feature** in the Inspector. The toggle and scale controls are visible but disabled with a high-contrast "PRO" badge to denotate advanced tiered functionality.
 - **Flight Arcs**: Generated via `src/services/flightPath.ts` using `@turf/great-circle` with a parabolic altitude curve.
 - **Directions**: Land-based routes use Mapbox Directions.

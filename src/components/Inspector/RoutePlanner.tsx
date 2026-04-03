@@ -145,7 +145,7 @@ interface RoutePlannerProps {
 }
 
 export const RoutePlanner = ({ item }: RoutePlannerProps) => {
-  const { updateItem, editingRoutePoint, setEditingRoutePoint, setPreviewRoute } = useProjectStore();
+  const { updateItem, editingRoutePoint, setEditingRoutePoint, setEditingItemId, setPreviewRoute } = useProjectStore();
   const [loading, setLoading] = useState(false);
 
   const calc = item.calculation || {
@@ -252,7 +252,11 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                 variant={editingRoutePoint === 'start' ? 'default' : 'ghost'}
                 size="icon"
                 className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                onClick={() => setEditingRoutePoint(editingRoutePoint === 'start' ? null : 'start')}
+                onClick={() => {
+                  const active = editingRoutePoint === 'start';
+                  setEditingRoutePoint(active ? null : 'start');
+                  setEditingItemId(active ? null : item.id);
+                }}
               >
                 <Crosshair size={14} className={editingRoutePoint === 'start' ? 'animate-pulse text-white' : ''} />
               </Button>
@@ -270,7 +274,11 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                 variant={editingRoutePoint === 'end' ? 'default' : 'ghost'}
                 size="icon"
                 className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                onClick={() => setEditingRoutePoint(editingRoutePoint === 'end' ? null : 'end')}
+                onClick={() => {
+                  const active = editingRoutePoint === 'end';
+                  setEditingRoutePoint(active ? null : 'end');
+                  setEditingItemId(active ? null : item.id);
+                }}
               >
                 <Crosshair size={14} className={editingRoutePoint === 'end' ? 'animate-pulse text-white' : ''} />
               </Button>

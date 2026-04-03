@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RouteAddDropdown } from './RouteAddDropdown';
+import { CalloutAddDropdown } from './CalloutAddDropdown';
 import { 
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
@@ -164,43 +165,6 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     selectItem(item.id);
   };
 
-  const handleAddCallout = () => {
-    const item: CalloutItem = {
-      kind: 'callout',
-      id: nanoid(),
-      title: 'New Callout',
-      subtitle: '',
-      imageUrl: null,
-      lngLat: [0, 0],
-      anchor: 'bottom',
-      startTime: playheadTime,
-      endTime: playheadTime + 5,
-      animation: {
-        enter: 'slideUp',
-        exit: 'slideDown',
-        enterDuration: 0.6,
-        exitDuration: 0.4,
-      },
-      style: {
-        bgColor: '#ffffff',
-        textColor: '#ffffff',
-        accentColor: '#3b82f6',
-        borderRadius: 8,
-        shadow: true,
-        maxWidth: 240,
-        fontFamily: 'Inter',
-        variant: 'topo',
-        showMetadata: true,
-      },
-      altitude: 100,
-      poleVisible: true,
-      poleColor: '#94a3b8',
-    };
-    addItem(item);
-    selectItem(item.id);
-    toast.info('Click on the map to place the callout');
-  };
-
   const handleAddCameraKF = () => {
     // Capture the ACTUAL current viewport state from the map
     const map = mapRef.current?.getMap?.();
@@ -313,9 +277,9 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
               <DropdownMenuItem onClick={handleAddBoundary} className="gap-2 cursor-pointer">
                 <MapPin size={14} /> Add Boundary
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleAddCallout} className="gap-2 cursor-pointer">
-                <MessageSquare size={14} /> Add Callout
-              </DropdownMenuItem>
+              <div className="px-1 py-1">
+                <CalloutAddDropdown />
+              </div>
               <DropdownMenuItem onClick={handleAddCameraKF} className="gap-2 cursor-pointer">
                 <Crosshair size={14} /> Add Camera KF
               </DropdownMenuItem>
@@ -324,7 +288,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         ) : (
           <>
             <ToolbarButton icon={<MapPin size={16} />} label="Boundary" hideLabel onClick={handleAddBoundary} />
-            <ToolbarButton icon={<MessageSquare size={16} />} label="Callout" hideLabel onClick={handleAddCallout} />
+            <CalloutAddDropdown />
             <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
           </>
         )}

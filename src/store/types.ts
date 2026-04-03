@@ -93,6 +93,7 @@ export interface CalloutItem {
     variant: 'default' | 'modern' | 'news' | 'topo';
     showMetadata: boolean;
   };
+  linkTitleToLocation: boolean;
   altitude: number;
   poleVisible: boolean;
   poleColor: string;
@@ -155,4 +156,11 @@ export interface Project {
   // Search
   searchResults: SearchResult[];
   hoveredSearchResultId: string | null;
+  // Drafting / Picking
+  editingRoutePoint: 'start' | 'end' | 'callout' | null;
+  editingItemId: string | null;
+  draftStart: { lngLat: [number, number]; name: string } | null;
+  draftEnd: { lngLat: [number, number]; name: string } | null;
+  draftCallout: { lngLat: [number, number]; name: string } | null;
+  mapCenter: [number, number];
 }

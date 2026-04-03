@@ -3,7 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useMapRef } from '@/hooks/useMapRef';
 import { runExport } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
-import { X, Download, Loader2, Film, AlertTriangle } from 'lucide-react';
+import { X, Download, Loader2, Film, AlertTriangle, Cloud } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -231,33 +231,42 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border bg-secondary/30">
+        <div className="flex items-center gap-3 px-5 py-5 border-t border-border bg-secondary/10">
+          <Button
+            variant="outline"
+            className="flex-1 h-11 px-0 text-sm font-semibold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed border-dashed grayscale group"
+            disabled={true}
+          >
+            <Cloud size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
+            <span className="shrink-0">Cloud Render</span>
+            <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-black tracking-wider uppercase shrink-0">PRO</span>
+          </Button>
+
           {isExporting ? (
-            <Button onClick={handleCancel} variant="outline" className="h-9 px-4 text-sm font-medium">
-              Cancel
+            <Button 
+              onClick={handleCancel} 
+              variant="outline" 
+              className="flex-1 h-11 text-sm font-semibold border-destructive/30 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/50 transition-all"
+            >
+              Cancel Rendering
             </Button>
           ) : (
-            <>
-              <Button onClick={onClose} variant="outline" className="h-9 px-4 text-sm font-medium">
-                Close
-              </Button>
-              <Button
-                onClick={handleExport}
-                className="h-9 px-5 text-sm font-medium flex items-center gap-2"
-              >
-                {progress === 100 ? (
-                  <>
-                    <Download size={14} />
-                    Export Again
-                  </>
-                ) : (
-                  <>
-                    <Film size={14} />
-                    Start Export
-                  </>
-                )}
-              </Button>
-            </>
+            <Button
+              onClick={handleExport}
+              className="flex-1 h-11 text-sm font-bold flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all active:scale-[0.99]"
+            >
+              {progress === 100 ? (
+                <>
+                  <Download size={16} />
+                  Export Again
+                </>
+              ) : (
+                <>
+                  <Film size={16} />
+                  Start Export
+                </>
+              )}
+            </Button>
           )}
         </div>
       </div>

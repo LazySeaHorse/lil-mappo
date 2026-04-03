@@ -57,12 +57,16 @@ interface ProjectStore extends Project {
   setIsInspectorOpen: (v: boolean) => void;
 
   // Route Planning
-  editingRoutePoint: 'start' | 'end' | null;
-  setEditingRoutePoint: (p: 'start' | 'end' | null) => void;
+  editingRoutePoint: 'start' | 'end' | 'callout' | null;
+  setEditingRoutePoint: (p: 'start' | 'end' | 'callout' | null) => void;
   draftStart: { lngLat: [number, number]; name: string } | null;
   setDraftStart: (v: { lngLat: [number, number]; name: string } | null) => void;
   draftEnd: { lngLat: [number, number]; name: string } | null;
   setDraftEnd: (v: { lngLat: [number, number]; name: string } | null) => void;
+  draftCallout: { lngLat: [number, number]; name: string } | null;
+  setDraftCallout: (v: { lngLat: [number, number]; name: string } | null) => void;
+  editingItemId: string | null;
+  setEditingItemId: (id: string | null) => void;
   previewRoute: GeoJSON.FeatureCollection | null;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
 
@@ -127,9 +131,12 @@ const defaultProject: Project = {
   searchResults: [],
   hoveredSearchResultId: null,
   editingRoutePoint: null,
+  editingItemId: null,
   draftStart: null,
   draftEnd: null,
+  draftCallout: null,
   mapCenter: [0, 0],
+  isScrubbing: false,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -268,6 +275,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setDraftStart: (v) => set({ draftStart: v }),
   draftEnd: null,
   setDraftEnd: (v) => set({ draftEnd: v }),
+  draftCallout: null,
+  setDraftCallout: (v) => set({ draftCallout: v }),
+  editingItemId: null,
+  setEditingItemId: (id) => set({ editingItemId: id }),
   previewRoute: null,
   setPreviewRoute: (v) => set({ previewRoute: v }),
 }));

@@ -84,21 +84,38 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     // 2. Decide where to save: Selected Item OR Toolbar Draft
     const selectedItem = selectedId ? s.items[selectedId] : null;
 
-    if (selectedItem?.kind === 'route') {
-      // Update existing item
-      const routeItem = selectedItem as RouteItem;
-      const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
-      const newCalc = { ...calc, [editingPoint === 'start' ? 'startPoint' : 'endPoint']: targetLngLat };
-      updateItem(selectedId!, { calculation: newCalc } as any);
+    if (editingPoint === 'callout') {
+      const editingId = s.editingItemId;
+      if (editingId) {
+        const item = s.items[editingId] as CalloutItem;
+        if (item) {
+          const updates: Partial<CalloutItem> = { lngLat: targetLngLat };
+          if (item.linkTitleToLocation) updates.title = targetName;
+          updateItem(editingId, updates as any);
+        }
+      } else {
+        s.setDraftCallout({ lngLat: targetLngLat, name: targetName });
+      }
+    } else if (editingPoint && s.editingItemId) {
+      // Update existing route item
+      const editingId = s.editingItemId;
+      const routeItem = s.items[editingId] as RouteItem;
+      if (routeItem) {
+        const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
+        const newCalc = { ...calc, [editingPoint === 'start' ? 'startPoint' : 'endPoint']: targetLngLat };
+        updateItem(editingId, { calculation: newCalc } as any);
+      }
     } else {
-      // Update Toolbar draft
+      // Update Toolbar route draft
       if (editingPoint === 'start') s.setDraftStart({ lngLat: targetLngLat, name: targetName });
       else s.setDraftEnd({ lngLat: targetLngLat, name: targetName });
     }
 
     s.setEditingRoutePoint(null);
+    s.setEditingItemId(null);
     s.setSearchResults([]); // Hide dots after pick
-    toast.success(`${editingPoint === 'start' ? 'Start' : 'End'} point set`);
+    const label = editingPoint === 'callout' ? 'Callout' : (editingPoint === 'start' ? 'Start' : 'End');
+    toast.success(`${label} point set`);
   }, [updateItem]);
 
   const fogConfig = useMemo(() => {
