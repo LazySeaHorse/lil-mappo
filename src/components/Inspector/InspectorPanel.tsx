@@ -64,19 +64,6 @@ export default function InspectorPanel() {
   }
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-4 mb-2 px-1">{children}</h3>;
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-3 px-1">
-      <label className="text-xs font-medium text-muted-foreground block mb-1.5">{label}</label>
-      {children}
-    </div>
-  );
-}
-
 function InspectorSection({ value, title, children }: { value: string; title: string; children: React.ReactNode }) {
   return (
     <AccordionItem value={value} className="border-b-0 bg-secondary/30 rounded-lg px-3 mb-3">
@@ -90,86 +77,6 @@ function InspectorSection({ value, title, children }: { value: string; title: st
   );
 }
 
-function InputText({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <Input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-8 text-sm"
-    />
-  );
-}
-
-function InputNumber({ value, onChange, min, max, step = 1 }: { value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number }) {
-  return (
-    <Input
-      type="number"
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      min={min}
-      max={max}
-      step={step}
-      className="h-8 text-sm font-mono-time"
-    />
-  );
-}
-
-function InputColor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex items-center gap-2.5 w-full">
-      <div 
-        className="relative shrink-0 w-8 h-8 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] border border-white/10 dark:border-white/5 overflow-hidden cursor-pointer ring-1 ring-border/50"
-        style={{ backgroundColor: value }}
-      >
-        <input 
-          type="color" 
-          value={value} 
-          onChange={(e) => onChange(e.target.value)} 
-          className="opacity-0 absolute -inset-2 w-12 h-12 cursor-pointer" 
-        />
-      </div>
-      <Input 
-        type="text" 
-        value={value} 
-        onChange={(e) => onChange(e.target.value)} 
-        className="flex-1 h-8 font-mono-time text-[11px] uppercase tracking-wider bg-background/50 focus-visible:ring-1 focus-visible:ring-offset-0" 
-      />
-    </div>
-  );
-}
-
-function SliderField({ value, onChange, min, max, step = 0.1, label }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; label: string }) {
-  return (
-    <Field label={`${label}: ${value}`}>
-      <Slider min={min} max={max} step={step} value={[value]} onValueChange={([v]) => onChange(v)} className="w-full py-1" />
-    </Field>
-  );
-}
-
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <label className="flex items-center gap-3 cursor-pointer group rounded p-1.5 hover:bg-secondary/50 transition-colors">
-      <Switch checked={checked} onCheckedChange={onChange} />
-      <span className="text-xs font-medium text-foreground group-hover:text-foreground/80">{label}</span>
-    </label>
-  );
-}
-
-function EasingSelect({ value, onChange }: { value: EasingName; onChange: (v: EasingName) => void }) {
-  const options: EasingName[] = ['linear', 'easeInQuad', 'easeOutQuad', 'easeInOutQuad', 'easeInCubic', 'easeOutCubic', 'easeInOutCubic', 'easeInOutSine'];
-  return (
-    <Field label="Easing">
-      <Select value={value} onValueChange={(v) => onChange(v as EasingName)}>
-        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
-}
-
 function DeleteButton({ onClick }: { onClick: () => void }) {
   return (
     <Button variant="destructive" size="sm" onClick={onClick} className="mt-4 w-full h-8 flex items-center justify-center gap-1.5 text-xs">
@@ -177,6 +84,11 @@ function DeleteButton({ onClick }: { onClick: () => void }) {
     </Button>
   );
 }
+
+import { SectionTitle, Field, InputText, InputNumber, InputColor, SliderField, Toggle, EasingSelect } from './InspectorShared';
+import { BoundaryStyleControls } from './BoundaryStyleControls';
+import { BoundarySearch } from './BoundarySearch';
+import { NominatimResult } from '@/services/nominatim';
 
 function ItemActions({ 
   id, 
@@ -405,36 +317,17 @@ function RouteInspector({ item }: { item: RouteItem }) {
 }
 
 function BoundaryInspector({ item }: { item: BoundaryItem }) {
-  const { updateItem, removeItem, selectItem } = useProjectStore();
-  const [searchQuery, setSearchQuery] = useState(item.placeName);
-  const [results, setResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
+  const { updateItem } = useProjectStore();
 
   const u = (updates: Partial<BoundaryItem>) => updateItem(item.id, updates as any);
   const us = (updates: Partial<BoundaryItem['style']>) => u({ style: { ...item.style, ...updates } });
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setSearching(true);
-    u({ placeName: searchQuery, resolveStatus: 'loading' } as any);
-    try {
-      const res = await searchBoundary(searchQuery);
-      if (res.length === 0) {
-        toast.error('No boundary polygon available for this place.');
-        u({ resolveStatus: 'error' } as any);
-      } else {
-        setResults(res);
-      }
-    } catch {
-      toast.error('Boundary lookup failed.');
-      u({ resolveStatus: 'error' } as any);
-    }
-    setSearching(false);
-  };
-
-  const pickResult = (r: any) => {
-    u({ geojson: r.geojson, resolveStatus: 'resolved', placeName: r.display_name.split(',')[0] } as any);
-    setResults([]);
+  const handleSelect = (r: NominatimResult) => {
+    u({ 
+      geojson: r.geojson, 
+      resolveStatus: 'resolved', 
+      placeName: r.display_name.split(',')[0] 
+    } as any);
     toast.success('Boundary resolved');
   };
 
@@ -443,24 +336,14 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
   return (
     <PanelWrapper title={`Boundary: ${item.placeName || 'New'}`} footer={footer}>
       <Field label="Place Name">
-        <div className="flex gap-1">
-          <Input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="flex-1 h-8 text-sm" placeholder="e.g. Central Park" />
-          <Button onClick={handleSearch} disabled={searching} variant="outline" size="sm" className="h-8 w-8 p-0">
-            <Search size={14} />
-          </Button>
-        </div>
+        <BoundarySearch 
+          initialValue={item.placeName} 
+          onSelect={handleSelect} 
+          onSearchingChange={(loading) => u({ resolveStatus: loading ? 'loading' : 'idle' } as any)} 
+        />
       </Field>
-      {results.length > 0 && (
-        <div className="border border-border rounded overflow-hidden mb-2">
-          {results.map((r, i) => (
-            <button key={i} onClick={() => pickResult(r)} className="w-full text-left px-2 py-1.5 text-xs hover:bg-secondary border-b border-border last:border-0 truncate">
-              {r.display_name}
-            </button>
-          ))}
-        </div>
-      )}
-      {item.resolveStatus === 'loading' && <p className="text-xs text-muted-foreground">Searching...</p>}
-      {item.resolveStatus === 'resolved' && <p className="text-xs text-primary px-1 mb-2">✓ Boundary resolved</p>}
+      
+      {item.resolveStatus === 'resolved' && <p className="text-[10px] text-primary font-bold uppercase tracking-wider px-1 mb-3">✓ Boundary resolved</p>}
 
       <Accordion type="multiple" defaultValue={['timing', 'style']} className="w-full">
         <InspectorSection value="timing" title="Timing">
@@ -472,39 +355,7 @@ function BoundaryInspector({ item }: { item: BoundaryItem }) {
         </InspectorSection>
 
         <InspectorSection value="style" title="Style">
-          <Field label="Stroke Color"><InputColor value={item.style.strokeColor} onChange={(v) => us({ strokeColor: v })} /></Field>
-          <SliderField label="Stroke Width" value={item.style.strokeWidth} onChange={(v) => us({ strokeWidth: v })} min={1} max={15} step={1} />
-          <Toggle checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
-          <Field label="Fill Color"><InputColor value={item.style.fillColor} onChange={(v) => us({ fillColor: v })} /></Field>
-          <SliderField label="Fill Opacity" value={item.style.fillOpacity} onChange={(v) => us({ fillOpacity: v })} min={0} max={0.5} step={0.01} />
-          <Toggle checked={item.style.animateStroke} onChange={(v) => us({ animateStroke: v })} label="Animate Stroke" />
-          {item.style.animateStroke && (
-            <>
-              <Field label="Animation Style">
-                <Select 
-                  value={item.style.animationStyle || 'draw'} 
-                  onValueChange={(v) => us({ animationStyle: v as any })} 
-                >
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fade">Fade (Basic)</SelectItem>
-                    <SelectItem value="draw">Draw (Perimeter)</SelectItem>
-                    <SelectItem value="trace">Trace (Comet)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              {item.style.animationStyle === 'trace' && (
-                <SliderField 
-                  label="Trace Length" 
-                  value={item.style.traceLength || 0.1} 
-                  onChange={(v) => us({ traceLength: v })} 
-                  min={0.01} 
-                  max={0.5} 
-                  step={0.01} 
-                />
-              )}
-            </>
-          )}
+          <BoundaryStyleControls style={item.style} onChange={us} />
         </InspectorSection>
       </Accordion>
     </PanelWrapper>

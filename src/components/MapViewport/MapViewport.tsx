@@ -12,6 +12,7 @@ import { SearchResultsLayer } from './SearchResultsLayer';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { VehicleModelLayer } from './VehicleModelLayer';
+import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 
 
@@ -428,6 +429,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
             {/* Search + Previews */}
             <SearchResultsLayer />
             <PreviewRouteLayer />
+            <PreviewBoundaryLayer />
 
             {/* Project Items */}
             {routes.map((route) => (

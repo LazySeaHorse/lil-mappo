@@ -27,6 +27,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { CalloutAddDropdown } from './CalloutAddDropdown';
+import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { 
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
@@ -139,31 +140,6 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     }
   };
 
-  const handleAddBoundary = () => {
-    const item: BoundaryItem = {
-      kind: 'boundary',
-      id: nanoid(),
-      placeName: '',
-      geojson: null,
-      resolveStatus: 'idle',
-      startTime: playheadTime,
-      endTime: playheadTime + 5,
-      style: {
-        strokeColor: '#8b5cf6',
-        strokeWidth: 5,
-        glow: true,
-        glowColor: '#8b5cf6',
-        fillColor: '#8b5cf6',
-        fillOpacity: 0.1,
-        animateStroke: true,
-        animationStyle: 'draw',
-        traceLength: 0.1,
-      },
-      easing: 'easeInOutCubic',
-    };
-    addItem(item);
-    selectItem(item.id);
-  };
 
   const handleAddCameraKF = () => {
     // Capture the ACTUAL current viewport state from the map
@@ -274,9 +250,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48 bg-background/95">
-              <DropdownMenuItem onClick={handleAddBoundary} className="gap-2 cursor-pointer">
-                <MapPin size={14} /> Add Boundary
-              </DropdownMenuItem>
+              <BoundaryAddDropdown />
               <div className="px-1 py-1">
                 <CalloutAddDropdown />
               </div>
@@ -287,7 +261,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
           </DropdownMenu>
         ) : (
           <>
-            <ToolbarButton icon={<MapPin size={16} />} label="Boundary" hideLabel onClick={handleAddBoundary} />
+            <BoundaryAddDropdown />
             <CalloutAddDropdown />
             <ToolbarButton icon={<Crosshair size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
           </>

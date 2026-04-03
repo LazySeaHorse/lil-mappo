@@ -163,4 +163,8 @@ export interface Project {
   draftEnd: { lngLat: [number, number]; name: string } | null;
   draftCallout: { lngLat: [number, number]; name: string } | null;
   mapCenter: [number, number];
+  // Preview / Drafting
+  previewBoundary: GeoJSON.Geometry | null;
+  previewBoundaryStyle: BoundaryItem['style'] | null;
+  draftBoundaryName: string;
 }

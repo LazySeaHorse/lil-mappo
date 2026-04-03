@@ -70,6 +70,13 @@ interface ProjectStore extends Project {
   previewRoute: GeoJSON.FeatureCollection | null;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
 
+  previewBoundary: GeoJSON.Geometry | null;
+  previewBoundaryStyle: BoundaryItem['style'] | null;
+  draftBoundaryName: string;
+  setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string) => void;
+  setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
+  clearPreviewBoundary: () => void;
+
   // Timeline visibility/height
   timelineHeight: number;
   setTimelineHeight: (v: number) => void;
@@ -137,6 +144,9 @@ const defaultProject: Project = {
   draftCallout: null,
   mapCenter: [0, 0],
   isScrubbing: false,
+  previewBoundary: null,
+  previewBoundaryStyle: null,
+  draftBoundaryName: '',
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -281,6 +291,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setEditingItemId: (id) => set({ editingItemId: id }),
   previewRoute: null,
   setPreviewRoute: (v) => set({ previewRoute: v }),
+
+  setPreviewBoundary: (geojson, name) => set({ 
+    previewBoundary: geojson, 
+    draftBoundaryName: name,
+    previewBoundaryStyle: get().previewBoundaryStyle || {
+      strokeColor: '#a855f7',
+      strokeWidth: 5,
+      glow: true,
+      glowColor: '#a855f7',
+      fillColor: '#a855f7',
+      fillOpacity: 0.1,
+      animateStroke: true,
+      animationStyle: 'draw',
+      traceLength: 0.1,
+    }
+  }),
+  setPreviewBoundaryStyle: (updates) => set((s) => ({
+    previewBoundaryStyle: s.previewBoundaryStyle 
+      ? { ...s.previewBoundaryStyle, ...updates } 
+      : null
+  })),
+  clearPreviewBoundary: () => set({ 
+    previewBoundary: null, 
+    previewBoundaryStyle: null, 
+    draftBoundaryName: '' 
+  }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;
