@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { MAP_FONTS } from '@/components/Inspector/InspectorPanel';
+import { MAP_FONTS } from '@/constants/fonts';
 
 /**
  * Monitors all callout items in the project and ensures their 

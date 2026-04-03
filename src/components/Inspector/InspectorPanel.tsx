@@ -28,22 +28,8 @@ import {
   DrawerPortal,
   DrawerOverlay
 } from "@/components/ui/drawer";
+import { MAP_FONTS } from '@/constants/fonts';
 
-export const MAP_FONTS = [
-  'Inter',
-  'Roboto',
-  'Montserrat',
-  'Outfit',
-  'Open Sans',
-  'Playfair Display',
-  'Abril Fatface',
-  'Special Elite',
-  'Space Mono',
-  'JetBrains Mono',
-  'Barlow',
-  'Crimson Text',
-  'Lexend'
-];
 
 export default function InspectorPanel() {
   const { selectedItemId, items, isInspectorOpen } = useProjectStore();
