@@ -4,6 +4,7 @@ import Toolbar from '@/components/Toolbar/Toolbar';
 import MapViewport from '@/components/MapViewport/MapViewport';
 import InspectorPanel from '@/components/Inspector/InspectorPanel';
 import TimelinePanel from '@/components/Timeline/TimelinePanel';
+import { SearchBar } from '@/components/Search/SearchBar';
 import ExportModal from '@/components/ExportModal/ExportModal';
 import ProjectLibraryModal from '@/components/ProjectLibrary/ProjectLibraryModal';
 import { usePlayback } from '@/hooks/usePlayback';
@@ -66,6 +67,7 @@ export default function MapStudioEditor() {
         
         {/* Floating UI Layer */}
         <div className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${hideUI ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
+          <SearchBar />
           <Toolbar 
             onExport={() => setShowExport(true)} 
             onLibrary={() => setShowLibrary(true)} 

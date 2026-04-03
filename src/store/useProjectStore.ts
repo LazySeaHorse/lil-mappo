@@ -56,12 +56,20 @@ interface ProjectStore extends Project {
   isInspectorOpen: boolean;
   setIsInspectorOpen: (v: boolean) => void;
 
+  // Route Planning
+  editingRoutePoint: 'start' | 'end' | null;
+  setEditingRoutePoint: (p: 'start' | 'end' | null) => void;
+
   // Timeline visibility/height
   timelineHeight: number;
   setTimelineHeight: (v: number) => void;
 
   // Project loading
   loadFullProject: (project: Project) => void;
+
+  // Search actions
+  setSearchResults: (results: any[]) => void;
+  setHoveredSearchResultId: (id: string | null) => void;
 
   // Utilities
   duplicateItem: (id: string) => void;
@@ -105,8 +113,10 @@ const defaultProject: Project = {
   isMoveModeActive: false,
   hideUI: false,
   isInspectorOpen: true,
-  isScrubbing: false,
   timelineHeight: 256,
+  searchResults: [],
+  hoveredSearchResultId: null,
+  editingRoutePoint: null,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -236,6 +246,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       isInspectorOpen: true,
     };
   }),
+  setHoveredSearchResultId: (id) => set({ hoveredSearchResultId: id }),
+  editingRoutePoint: null,
+  setEditingRoutePoint: (p) => set({ editingRoutePoint: p }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;

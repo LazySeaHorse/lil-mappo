@@ -1,6 +1,7 @@
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { TimelineItem, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName } from '@/store/types';
 import { searchBoundary } from '@/services/nominatim';
+import { RoutePlanner } from './RoutePlanner';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 import { Trash2, Search, Crosshair, Check, Copy, X } from 'lucide-react';
@@ -366,6 +367,10 @@ function RouteInspector({ item }: { item: RouteItem }) {
     <PanelWrapper title={`Route: ${item.name}`} footer={footer}>
       <Field label="Name"><InputText value={item.name} onChange={(v) => u({ name: v })} /></Field>
       
+      <div className="mb-6 px-1">
+        <RoutePlanner item={item} />
+      </div>
+
       <Accordion type="multiple" defaultValue={['timing', 'style']} className="w-full">
         <InspectorSection value="timing" title="Timing">
           <div className="grid grid-cols-2 gap-3">

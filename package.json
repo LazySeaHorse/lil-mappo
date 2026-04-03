@@ -48,6 +48,7 @@
     "@tmcw/togeojson": "^7.1.2",
     "@turf/along": "^7.3.4",
     "@turf/distance": "^7.3.4",
+    "@turf/great-circle": "^7.3.4",
     "@turf/helpers": "^7.3.4",
     "@turf/length": "^7.3.4",
     "@turf/simplify": "^7.3.4",

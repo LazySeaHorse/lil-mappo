@@ -1,5 +1,12 @@
 import type { MapStyleKey } from '@/config/mapbox';
 
+export interface SearchResult {
+  id: string;
+  name: string;
+  lngLat: [number, number];
+  category: string;
+}
+
 export type EasingName =
   | 'linear'
   | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad'
@@ -24,6 +31,17 @@ export interface RouteItem {
     dashPattern: number[] | null;
   };
   easing: EasingName;
+  calculation?: {
+    startPoint: [number, number];
+    endPoint: [number, number];
+    mode: 'car' | 'walk' | 'flight' | 'manual';
+    vehicle?: {
+      enabled: boolean;
+      type: 'car' | 'plane';
+      modelId: string;
+      scale: number;
+    };
+  };
 }
 
 export interface BoundaryItem {
@@ -134,4 +152,7 @@ export interface Project {
   isInspectorOpen: boolean;
   isScrubbing: boolean;
   timelineHeight: number;
+  // Search
+  searchResults: SearchResult[];
+  hoveredSearchResultId: string | null;
 }

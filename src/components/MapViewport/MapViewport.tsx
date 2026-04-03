@@ -8,6 +8,9 @@ import { applyEasing, getNormalizedProgress } from '@/engine/easings';
 import CalloutCard from './CalloutCard';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
+import { SearchResultsLayer } from './SearchResultsLayer';
+import { toast } from 'sonner';
+import { VehicleModelLayer } from './VehicleModelLayer';
 
 
 
@@ -47,9 +50,28 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   }, []);
 
   const handleMapClick = useCallback((e: any) => {
-    const selected = useProjectStore.getState().selectedItemId;
+    const s = useProjectStore.getState();
+    const selected = s.selectedItemId;
+    const editingPoint = s.editingRoutePoint;
+
+    if (editingPoint && selected) {
+      const item = s.items[selected];
+      if (item?.kind === 'route') {
+        const routeItem = item as RouteItem;
+        const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
+        const newCalc = { ...calc };
+        if (editingPoint === 'start') newCalc.startPoint = [e.lngLat.lng, e.lngLat.lat];
+        else newCalc.endPoint = [e.lngLat.lng, e.lngLat.lat];
+        
+        updateItem(selected, { calculation: newCalc } as any);
+        s.setEditingRoutePoint(null);
+        toast.success(`${editingPoint === 'start' ? 'Start' : 'End'} point set`);
+        return;
+      }
+    }
+
     if (selected) {
-      const item = useProjectStore.getState().items[selected];
+      const item = s.items[selected];
       if (item?.kind === 'callout' && (item as CalloutItem).lngLat[0] === 0 && (item as CalloutItem).lngLat[1] === 0) {
         updateItem(selected, { lngLat: [e.lngLat.lng, e.lngLat.lat] } as any);
         return;
@@ -351,6 +373,9 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
               />
             )}
 
+            {/* Search Results */}
+            <SearchResultsLayer />
+
             {/* Project Items */}
             {routes.map((route) => (
               <RouteLayerGroup key={route.id} route={route} playheadTime={playheadTime} />
@@ -399,22 +424,39 @@ function RouteLayerGroup({ route, playheadTime }: { route: RouteItem; playheadTi
     if (coords.length < 2) return null;
     const animCoords = getAnimatedLine(coords, progress);
     if (animCoords.length < 2) return null;
-    return { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: animCoords } };
+    return { 
+      type: 'Feature' as const, 
+      properties: {}, 
+      geometry: { 
+        type: 'LineString' as const, 
+        coordinates: animCoords 
+      } 
+    };
   }, [coords, progress]);
 
   if (!animatedData) return null;
+  const isFlight = route.calculation?.mode === 'flight';
+  
   const geojsonData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [animatedData] };
 
   return (
     <>
       {route.style.glow && (
         <Source id={`route-glow-${route.id}`} type="geojson" data={geojsonData}>
-          <Layer id={`route-glow-layer-${route.id}`} type="line" paint={{ 'line-color': route.style.glowColor, 'line-width': route.style.width * 3, 'line-opacity': 0.35, 'line-blur': route.style.width * 2 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
+          <Layer id={`route-glow-layer-${route.id}`} type="line" paint={{ 'line-color': isFlight ? '#fbbf24' : route.style.glowColor, 'line-width': route.style.width * 3, 'line-opacity': 0.35, 'line-blur': route.style.width * 2 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
         </Source>
       )}
       <Source id={`route-${route.id}`} type="geojson" data={geojsonData}>
-        <Layer id={`route-layer-${route.id}`} type="line" paint={{ 'line-color': route.style.color, 'line-width': route.style.width, 'line-opacity': 1 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
+        <Layer id={`route-layer-${route.id}`} type="line" paint={{ 'line-color': isFlight ? '#f59e0b' : route.style.color, 'line-width': route.style.width, 'line-opacity': 1 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
       </Source>
+
+      {route.calculation?.vehicle?.enabled && (
+        <VehicleModelLayer 
+          routeId={route.id} 
+          coords={animatedData.geometry.coordinates} 
+          vehicle={route.calculation.vehicle!} 
+        />
+      )}
     </>
   );
 }

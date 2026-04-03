@@ -36,18 +36,22 @@ export function getLineSegment(fullCoords: number[][], startT: number, endT: num
 
       if (segStartDist < startDist) {
         const frac = segLen > 0 ? (startDist - segStartDist) / segLen : 0;
-        firstCoord = [
-          fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]),
-          fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]),
-        ];
+        const x = fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]);
+        const y = fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]);
+        const z = (fullCoords[i - 1][2] !== undefined && fullCoords[i][2] !== undefined)
+          ? fullCoords[i - 1][2] + frac * (fullCoords[i][2] - fullCoords[i - 1][2])
+          : undefined;
+        firstCoord = z !== undefined ? [x, y, z] : [x, y];
       }
 
       if (segEndDist > endDist) {
         const frac = segLen > 0 ? (endDist - segStartDist) / segLen : 0;
-        lastCoord = [
-          fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]),
-          fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]),
-        ];
+        const x = fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]);
+        const y = fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]);
+        const z = (fullCoords[i - 1][2] !== undefined && fullCoords[i][2] !== undefined)
+          ? fullCoords[i - 1][2] + frac * (fullCoords[i][2] - fullCoords[i - 1][2])
+          : undefined;
+        lastCoord = z !== undefined ? [x, y, z] : [x, y];
       }
 
       if (!started) {
