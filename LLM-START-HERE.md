@@ -52,10 +52,9 @@ Everything lives in a single Zustand store.
 - **Drafting & Preview State**: 
   - `previewRoute` and `previewBoundary`: Store temporary GeoJSON for routes/polygons currently being planned in the Toolbar before insertion.
   - `previewBoundaryStyle`: Captures colors and animation styles selected during the boundary drafting phase.
-- **UI Management State**: 
-  - `mobileMode` ('default' | 'add' | 'layers') handles the transformative mobile layout.
-  - `activeDropdown` ('route' | 'callout' | 'boundary' | null) centrally manages the open state of the three creation tools to enforce mutual exclusivity.
 - **Zen Mode**: `hideUI` toggle hides the floating UI layers.
+
+*(Note: Transient UI state, such as `mobileMode` and `activeDropdown` for mutually exclusive menus, is intentionally kept out of the global store and is managed as local `useState` within `Toolbar.tsx` to prevent unnecessary global re-renders and maintain component isolation.)*
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
@@ -65,6 +64,11 @@ Handles all imperative Mapbox state and reactive layer rendering.
 - **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config.
 - **SearchResultsLayer**: Renders animated geocoding previews for points. Features an **expansion pulse effect** on hover.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries for items currently being planned in the Toolbar.
+
+### 3.4 The Inspector: `src/components/Inspector/`
+The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.
+- `InspectorPanel.tsx`: Acts as a slim routing shell. It reads `item.kind` and delegates rendering to isolated components (`RouteInspector.tsx`, `CalloutInspector.tsx`, `BoundaryInspector.tsx`, etc.).
+- `InspectorLayout.tsx`: Provides shared architectural wrappers (`PanelWrapper`, `InspectorSection`, `ItemActions`) to ensure consistent styling, padding, and mobile drawer behavior across all inspector variants without code duplication.
 
 ---
 
