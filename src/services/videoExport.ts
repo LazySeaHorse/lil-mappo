@@ -1,8 +1,7 @@
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import type { CameraItem, RouteItem, CalloutItem, BoundaryItem } from '@/store/types';
+import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { getAnimatedLine } from '@/engine/lineAnimation';
-import { applyEasing } from '@/engine/easings';
 import { useMapRef } from '@/hooks/useMapRef';
 
 /**
@@ -23,6 +22,155 @@ interface ExportOptions {
   abortSignal: AbortSignal;
 }
 
+interface EncoderState {
+  compCanvas: HTMLCanvasElement;
+  compCtx: CanvasRenderingContext2D;
+  muxer: any;
+  videoEncoder: VideoEncoder | null;
+  mediaRecorder: MediaRecorder | null;
+  recordedChunks: Blob[];
+}
+
+async function initEncoder(width: number, height: number, fps: number, onError: (err: string) => void): Promise<EncoderState> {
+  const compCanvas = document.createElement('canvas');
+  compCanvas.width = width;
+  compCanvas.height = height;
+  const compCtx = compCanvas.getContext('2d')!;
+
+  let muxer: any = null;
+  let videoEncoder: VideoEncoder | null = null;
+  let mediaRecorder: MediaRecorder | null = null;
+  const recordedChunks: Blob[] = [];
+
+  if (typeof VideoEncoder !== 'undefined') {
+    try {
+      const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
+      const target = new ArrayBufferTarget();
+      muxer = new Muxer({
+        target,
+        video: { codec: 'avc', width, height },
+        fastStart: 'in-memory',
+      });
+      videoEncoder = new VideoEncoder({
+        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        error: (e) => onError(`VideoEncoder error: ${e.message}`),
+      });
+      videoEncoder.configure({
+        codec: 'avc1.640028',
+        width,
+        height,
+        bitrate: 8_000_000,
+        framerate: fps,
+      });
+    } catch {
+      videoEncoder = null;
+      muxer = null;
+    }
+  }
+
+  if (!videoEncoder) {
+    const stream = compCanvas.captureStream(0);
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? 'video/webm;codecs=vp9'
+      : 'video/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.start();
+  }
+
+  return { compCanvas, compCtx, muxer, videoEncoder, mediaRecorder, recordedChunks };
+}
+
+async function captureFrame(
+  map: any,
+  compCanvas: HTMLCanvasElement,
+  compCtx: CanvasRenderingContext2D,
+  encoder: Pick<EncoderState, 'videoEncoder' | 'mediaRecorder'>,
+  frameIndex: number,
+  fps: number,
+  clampedTime: number,
+  getRouteCoords: (id: string) => number[][] | null,
+) {
+  const { videoEncoder, mediaRecorder } = encoder;
+  const [width, height] = [compCanvas.width, compCanvas.height];
+
+  // Set playhead
+  useProjectStore.getState().setPlayheadTime(clampedTime);
+
+  // Drive camera
+  const freshStore = useProjectStore.getState();
+  const camItem = freshStore.items[CAMERA_TRACK_ID] as CameraItem | undefined;
+  if (camItem && camItem.keyframes.length > 0) {
+    const cam = getCameraAtTime(camItem.keyframes, clampedTime, getRouteCoords);
+    if (cam) {
+      map.jumpTo({ center: cam.center, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+    }
+  }
+
+  // Wait for render
+  map.triggerRepaint();
+  const syncEngine = (map as any)._syncRef?.current;
+  if (syncEngine) syncEngine();
+
+  await new Promise<void>((resolve) => {
+    if (map.loaded()) resolve();
+    else map.once('idle', () => resolve());
+  });
+  await new Promise(r => setTimeout(r, 16));
+
+  // Composite: map + callout overlay
+  const mapCanvas = map.getCanvas() as HTMLCanvasElement;
+  compCtx.clearRect(0, 0, width, height);
+  compCtx.drawImage(mapCanvas, 0, 0, width, height);
+
+  try {
+    const calloutContainer = document.querySelector('.mapboxgl-map .mapboxgl-marker');
+    if (calloutContainer) {
+      const markersContainer = document.querySelector('.mapboxgl-canvas-container');
+      if (markersContainer?.parentElement) {
+        const html2canvas = (await import('html2canvas')).default;
+        const overlayCanvas = await html2canvas(markersContainer.parentElement as HTMLElement, {
+          backgroundColor: null, width: mapCanvas.width, height: mapCanvas.height, scale: 1, logging: false, useCORS: true,
+        });
+        compCtx.drawImage(overlayCanvas, 0, 0, width, height);
+      }
+    }
+  } catch {
+    // Callout overlay failed — export map canvas only
+  }
+
+  // Encode
+  if (videoEncoder) {
+    const videoFrame = new VideoFrame(compCanvas, {
+      timestamp: frameIndex * (1_000_000 / fps),
+      duration: 1_000_000 / fps,
+    });
+    videoEncoder.encode(videoFrame, { keyFrame: frameIndex % (fps * 2) === 0 });
+    videoFrame.close();
+  } else if (mediaRecorder) {
+    const stream = compCanvas.captureStream(0) as MediaStream;
+    const track = stream.getVideoTracks()[0] as any;
+    if (track?.requestFrame) track.requestFrame();
+  }
+}
+
+async function finalizeExport(
+  state: Pick<EncoderState, 'videoEncoder' | 'muxer' | 'mediaRecorder' | 'recordedChunks'>,
+  onComplete: (blob: Blob) => void,
+) {
+  const { videoEncoder, muxer, mediaRecorder, recordedChunks } = state;
+  if (videoEncoder) {
+    await videoEncoder.flush();
+    videoEncoder.close();
+    muxer.finalize();
+    onComplete(new Blob([muxer.target.buffer], { type: 'video/mp4' }));
+  } else if (mediaRecorder) {
+    mediaRecorder.stop();
+    await new Promise<void>((resolve) => { mediaRecorder!.onstop = () => resolve(); });
+    onComplete(new Blob(recordedChunks, { type: 'video/webm' }));
+  }
+}
+
 export async function runExport(
   mapRef: React.MutableRefObject<any>,
   options: ExportOptions,
@@ -31,247 +179,72 @@ export async function runExport(
   const [width, height] = resolution;
   const store = useProjectStore.getState();
   const { duration } = store;
-  
+
   const endTime = requestedEndTime !== undefined ? Math.min(requestedEndTime, duration) : duration;
   const effectiveDuration = endTime - startTime;
   const startFrame = Math.floor(startTime * fps);
   const totalFrames = Math.ceil(effectiveDuration * fps);
 
-  // We'll use MediaRecorder on a canvas captureStream — reliable cross-browser
-  const compCanvas = document.createElement('canvas');
-  compCanvas.width = width;
-  compCanvas.height = height;
-  const compCtx = compCanvas.getContext('2d')!;
-
-  // Try WebCodecs + mp4-muxer first for true MP4 output
-  const useWebCodecs = typeof VideoEncoder !== 'undefined';
-
-  let muxer: any = null;
-  let videoEncoder: VideoEncoder | null = null;
-  let mediaRecorder: MediaRecorder | null = null;
-  let recordedChunks: Blob[] = [];
-
-  if (useWebCodecs) {
-    try {
-      const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
-      const target = new ArrayBufferTarget();
-      muxer = new Muxer({
-        target,
-        video: {
-          codec: 'avc',
-          width,
-          height,
-        },
-        fastStart: 'in-memory',
-      });
-
-      videoEncoder = new VideoEncoder({
-        output: (chunk, meta) => {
-          muxer.addVideoChunk(chunk, meta);
-        },
-        error: (e) => {
-          onError(`VideoEncoder error: ${e.message}`);
-        },
-      });
-
-      videoEncoder.configure({
-        codec: 'avc1.640028',
-        width,
-        height,
-        bitrate: 8_000_000,
-        framerate: fps,
-      });
-    } catch (e) {
-      // Fallback to MediaRecorder
-      videoEncoder = null;
-      muxer = null;
-    }
-  }
-
-  if (!videoEncoder) {
-    // MediaRecorder fallback
-    const stream = compCanvas.captureStream(0);
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm';
-
-    mediaRecorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 8_000_000,
-    });
-    recordedChunks = [];
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordedChunks.push(e.data);
-    };
-    mediaRecorder.start();
-  }
+  const encoderState = await initEncoder(width, height, fps, onError);
+  const { compCanvas, compCtx } = encoderState;
 
   const map = mapRef.current?.getMap?.();
-  if (!map) {
-    onError('Map not available');
-    return;
-  }
+  if (!map) { onError('Map not available'); return; }
 
-  // Preserve original styles to restore after export
   const mapContainer = map.getContainer();
-  const originalWidth = mapContainer.style.width;
-  const originalHeight = mapContainer.style.height;
-  const originalPosition = mapContainer.style.position;
-  const originalLeft = mapContainer.style.left;
-  const originalTop = mapContainer.style.top;
-  const originalZIndex = mapContainer.style.zIndex;
+  const orig = {
+    width: mapContainer.style.width, height: mapContainer.style.height,
+    position: mapContainer.style.position, left: mapContainer.style.left,
+    top: mapContainer.style.top, zIndex: mapContainer.style.zIndex,
+  };
+
+  const getRouteCoords = (routeId: string): number[][] | null => {
+    const route = store.items[routeId] as RouteItem | undefined;
+    if (!route) return null;
+    const coords: number[][] = [];
+    for (const f of route.geojson.features) {
+      if (f.geometry.type === 'LineString') coords.push(...(f.geometry as any).coordinates);
+      else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as any).coordinates) coords.push(...l);
+    }
+    return coords.length >= 2 ? coords : null;
+  };
 
   try {
-    // Resize map container to target resolution for accurate rendering
     mapContainer.style.position = 'fixed';
     mapContainer.style.width = `${width}px`;
     mapContainer.style.height = `${height}px`;
     mapContainer.style.left = '0';
     mapContainer.style.top = '0';
-    mapContainer.style.zIndex = '-100'; // Render behind the modal/UI
+    mapContainer.style.zIndex = '-100';
     map.resize();
 
-    // Increased delay to allow Mapbox to re-allocate buffers and DEM source for high resolutions
     await new Promise(r => setTimeout(r, 500));
-
-    // Helper: Wait for map to be fully loaded (tiles, sources, etc.)
-    const waitForMapIdle = () => new Promise<void>((resolve) => {
-      if (map.loaded()) resolve();
-      else map.once('idle', () => resolve());
-    });
-
-    // Helper: get route coords for camera follow-route
-    const getRouteCoords = (routeId: string) => {
-      const route = store.items[routeId] as RouteItem | undefined;
-      if (!route) return null;
-      const coords: number[][] = [];
-      for (const f of route.geojson.features) {
-        if (f.geometry.type === 'LineString') coords.push(...(f.geometry as any).coordinates);
-        else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as any).coordinates) coords.push(...l);
-      }
-      return coords.length >= 2 ? coords : null;
-    };
-
-    // Wait for all fonts to be ready before starting capture
     await document.fonts.ready;
 
-    // Frame-by-frame rendering
     for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
-      const frame = startFrame + frameIndex;
       if (abortSignal.aborted) {
-      videoEncoder?.close();
-      mediaRecorder?.stop();
-      return;
-    }
-
-    const currentTime = (frame / fps);
-    const clampedTime = Math.min(currentTime, duration);
-
-    // Set playhead (this triggers state updates in the store for route/boundary rendering)
-    useProjectStore.getState().setPlayheadTime(clampedTime);
-
-    // Drive camera
-    const freshStore = useProjectStore.getState();
-    const camItem = freshStore.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-    if (camItem && camItem.keyframes.length > 0) {
-      const cam = getCameraAtTime(camItem.keyframes, clampedTime, getRouteCoords);
-      if (cam) {
-        map.jumpTo({
-          center: cam.center,
-          zoom: cam.zoom,
-          pitch: cam.pitch,
-          bearing: cam.bearing,
-        });
+        encoderState.videoEncoder?.close();
+        encoderState.mediaRecorder?.stop();
+        return;
       }
+
+      const currentTime = (startFrame + frameIndex) / fps;
+      const clampedTime = Math.min(currentTime, duration);
+
+      await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords);
+      onProgress(Math.round((frameIndex / totalFrames) * 100));
     }
 
-    // Wait for map to render and tiles to load
-    map.triggerRepaint();
-    
-    // Explicit sync pass to ensure terrain/buildings aren't dropped during rapid updates
-    const syncEngine = (map as any)._syncRef?.current;
-    if (syncEngine) syncEngine();
-
-    await waitForMapIdle();
-    
-    // Additional micro-delay for HTML2Canvas to find DOM markers reliably
-    await new Promise(r => setTimeout(r, 16));
-
-    // Draw map canvas onto comp canvas
-    const mapCanvas = map.getCanvas() as HTMLCanvasElement;
-    compCtx.clearRect(0, 0, width, height);
-    compCtx.drawImage(mapCanvas, 0, 0, width, height);
-
-    // Try to capture callout DOM overlay via html2canvas
-    try {
-      const calloutContainer = document.querySelector('.mapboxgl-map .mapboxgl-marker');
-      if (calloutContainer) {
-        // We'll use html2canvas to render all markers
-        const markersContainer = document.querySelector('.mapboxgl-canvas-container');
-        if (markersContainer?.parentElement) {
-          const html2canvas = (await import('html2canvas')).default;
-          const overlayCanvas = await html2canvas(markersContainer.parentElement as HTMLElement, {
-            backgroundColor: null,
-            width: mapCanvas.width,
-            height: mapCanvas.height,
-            scale: 1,
-            logging: false,
-            useCORS: true,
-          });
-          compCtx.drawImage(overlayCanvas, 0, 0, width, height);
-        }
-      }
-    } catch {
-      // Callout overlay failed, just export map canvas
-    }
-
-    // Encode frame
-    if (videoEncoder) {
-      const videoFrame = new VideoFrame(compCanvas, {
-        timestamp: frameIndex * (1_000_000 / fps), // microseconds (relative to export start)
-        duration: 1_000_000 / fps,
-      });
-      videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
-      videoFrame.close();
-    } else if (mediaRecorder) {
-      // For MediaRecorder, we need to manually request a frame from captureStream
-      const stream = compCanvas.captureStream(0) as MediaStream;
-      const track = stream.getVideoTracks()[0] as any;
-      if (track?.requestFrame) {
-        track.requestFrame();
-      }
-    }
-
-    onProgress(Math.round((frameIndex / totalFrames) * 100));
+    await finalizeExport(encoderState, onComplete);
+  } catch (e: any) {
+    onError(e.message || 'Export failed');
+  } finally {
+    mapContainer.style.width = orig.width;
+    mapContainer.style.height = orig.height;
+    mapContainer.style.position = orig.position;
+    mapContainer.style.left = orig.left;
+    mapContainer.style.top = orig.top;
+    mapContainer.style.zIndex = orig.zIndex;
+    map.resize();
   }
-
-  // Finalize
-  if (videoEncoder) {
-    await videoEncoder.flush();
-    videoEncoder.close();
-    muxer.finalize();
-    const buffer = muxer.target.buffer;
-    const blob = new Blob([buffer], { type: 'video/mp4' });
-    onComplete(blob);
-  } else if (mediaRecorder) {
-    mediaRecorder.stop();
-    await new Promise<void>((resolve) => {
-      mediaRecorder!.onstop = () => resolve();
-    });
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    onComplete(blob);
-  }
-} catch (e: any) {
-  onError(e.message || 'Export failed');
-} finally {
-  // Restore original map container state
-  mapContainer.style.width = originalWidth;
-  mapContainer.style.height = originalHeight;
-  mapContainer.style.position = originalPosition;
-  mapContainer.style.left = originalLeft;
-  mapContainer.style.top = originalTop;
-  mapContainer.style.zIndex = originalZIndex;
-  
-  map.resize();
-}
 }

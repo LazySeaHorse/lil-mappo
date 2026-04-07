@@ -21,6 +21,50 @@ interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
 }
 
+function resolveClickTarget(e: any, editingPoint: string): { lngLat: [number, number]; name: string } {
+  const searchFeature = e.features?.find((f: any) => f.layer.id === 'search-results-circles');
+  if (searchFeature) {
+    return {
+      lngLat: searchFeature.geometry.coordinates as [number, number],
+      name: searchFeature.properties.name?.split(',')[0] || (editingPoint === 'start' ? 'Start' : 'End'),
+    };
+  }
+  const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+  return { lngLat, name: `${lngLat[0].toFixed(4)}, ${lngLat[1].toFixed(4)}` };
+}
+
+function applyPickResult(
+  s: ReturnType<typeof useProjectStore.getState>,
+  editingPoint: string,
+  target: { lngLat: [number, number]; name: string },
+  updateItem: (id: string, patch: any) => void,
+) {
+  const { lngLat, name } = target;
+
+  if (editingPoint === 'callout') {
+    const editingId = s.editingItemId;
+    if (editingId) {
+      const item = s.items[editingId] as CalloutItem;
+      if (item) {
+        const updates: Partial<CalloutItem> = { lngLat };
+        if (item.linkTitleToLocation) updates.title = name;
+        updateItem(editingId, updates as any);
+      }
+    } else {
+      s.setDraftCallout({ lngLat, name });
+    }
+  } else if (s.editingItemId) {
+    const routeItem = s.items[s.editingItemId] as RouteItem;
+    if (routeItem) {
+      const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
+      updateItem(s.editingItemId, { calculation: { ...calc, [editingPoint === 'start' ? 'startPoint' : 'endPoint']: lngLat } } as any);
+    }
+  } else {
+    if (editingPoint === 'start') s.setDraftStart({ lngLat, name });
+    else s.setDraftEnd({ lngLat, name });
+  }
+}
+
 export default function MapViewport({ mapRef }: MapViewportProps) {
   const {
     mapStyle, terrainEnabled, buildingsEnabled, terrainExaggeration,
@@ -56,7 +100,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     const s = useProjectStore.getState();
     const selectedId = s.selectedItemId;
     const editingPoint = s.editingRoutePoint;
-    
+
     if (!editingPoint) {
       if (selectedId) {
         const item = s.items[selectedId];
@@ -67,54 +111,12 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
       return;
     }
 
-    // --- Picking Logic (Start or End Point) ---
-    
-    // 1. Check if we clicked on a search result dot
-    const searchFeature = e.features?.find((f: any) => f.layer.id === 'search-results-circles');
-    let targetLngLat: [number, number];
-    let targetName: string;
-
-    if (searchFeature) {
-      targetLngLat = searchFeature.geometry.coordinates as [number, number];
-      targetName = searchFeature.properties.name?.split(',')[0] || (editingPoint === 'start' ? 'Start' : 'End');
-    } else {
-      targetLngLat = [e.lngLat.lng, e.lngLat.lat];
-      targetName = `${targetLngLat[0].toFixed(4)}, ${targetLngLat[1].toFixed(4)}`;
-    }
-
-    // 2. Decide where to save: Selected Item OR Toolbar Draft
-    const selectedItem = selectedId ? s.items[selectedId] : null;
-
-    if (editingPoint === 'callout') {
-      const editingId = s.editingItemId;
-      if (editingId) {
-        const item = s.items[editingId] as CalloutItem;
-        if (item) {
-          const updates: Partial<CalloutItem> = { lngLat: targetLngLat };
-          if (item.linkTitleToLocation) updates.title = targetName;
-          updateItem(editingId, updates as any);
-        }
-      } else {
-        s.setDraftCallout({ lngLat: targetLngLat, name: targetName });
-      }
-    } else if (editingPoint && s.editingItemId) {
-      // Update existing route item
-      const editingId = s.editingItemId;
-      const routeItem = s.items[editingId] as RouteItem;
-      if (routeItem) {
-        const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
-        const newCalc = { ...calc, [editingPoint === 'start' ? 'startPoint' : 'endPoint']: targetLngLat };
-        updateItem(editingId, { calculation: newCalc } as any);
-      }
-    } else {
-      // Update Toolbar route draft
-      if (editingPoint === 'start') s.setDraftStart({ lngLat: targetLngLat, name: targetName });
-      else s.setDraftEnd({ lngLat: targetLngLat, name: targetName });
-    }
+    const target = resolveClickTarget(e, editingPoint);
+    applyPickResult(s, editingPoint, target, updateItem);
 
     s.setEditingRoutePoint(null);
     s.setEditingItemId(null);
-    s.setSearchResults([]); // Hide dots after pick
+    s.setSearchResults([]);
     const label = editingPoint === 'callout' ? 'Callout' : (editingPoint === 'start' ? 'Start' : 'End');
     toast.success(`${label} point set`);
   }, [updateItem]);

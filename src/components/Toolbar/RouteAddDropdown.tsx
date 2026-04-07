@@ -12,9 +12,9 @@ import {
   DropdownMenuContent, 
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Car, Footprints, Plane, Search, Loader2, Crosshair, 
-  Route as RouteIcon, Upload, Plus,
+import {
+  Car, Footprints, Plane, Search, Loader2, Crosshair,
+  Navigation, Upload, Plus,
   MapPin, X, Check
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -145,13 +145,13 @@ export const RouteAddDropdown = ({
   return (
     <DropdownMenu open={isOpen} onOpenChange={onOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className={`h-8 w-8 px-0 transition-all duration-300 ${isOpen ? 'text-primary bg-primary/10 scale-110 shadow-lg' : 'text-foreground hover:text-primary hover:bg-primary/5'}`}
           title="Plan Route"
         >
-          <RouteIcon size={18} className={isOpen ? 'animate-pulse' : ''} />
+          <Navigation size={18} className={isOpen ? 'animate-pulse' : ''} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
@@ -164,7 +164,7 @@ export const RouteAddDropdown = ({
         <div className="p-4 border-b border-border/50 bg-secondary/10 shrink-0">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <RouteIcon size={16} />
+              <Navigation size={16} />
             </div>
             <div>
               <h3 className="text-sm font-bold tracking-tight">Plan Route</h3>

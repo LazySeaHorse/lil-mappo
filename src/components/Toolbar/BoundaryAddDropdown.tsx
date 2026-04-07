@@ -6,8 +6,8 @@ import {
   DropdownMenuContent, 
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  MapPin, Plus, Check, Search, Palette, Calendar
+import {
+  Hexagon, Plus, Check, Search, Palette, Calendar
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
@@ -95,13 +95,13 @@ export const BoundaryAddDropdown = ({
   return (
     <DropdownMenu open={isOpen} onOpenChange={onOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className={`h-8 w-8 px-0 transition-all duration-300 ${isOpen ? 'text-primary bg-primary/10 scale-110 shadow-lg' : 'text-foreground hover:text-primary hover:bg-primary/5'}`}
           title="Add Boundary"
         >
-          <MapPin size={18} className={isOpen ? 'animate-pulse' : ''} />
+          <Hexagon size={18} className={isOpen ? 'animate-pulse' : ''} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
@@ -114,7 +114,7 @@ export const BoundaryAddDropdown = ({
         <div className="p-4 border-b border-border/50 bg-secondary/10 shrink-0">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <MapPin size={16} />
+              <Hexagon size={16} />
             </div>
             <div>
               <h3 className="text-sm font-bold tracking-tight">Add Boundary</h3>

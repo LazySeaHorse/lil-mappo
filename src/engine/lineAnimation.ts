@@ -1,13 +1,21 @@
-import along from '@turf/along';
 import length from '@turf/length';
 import distance from '@turf/distance';
 import { lineString, point } from '@turf/helpers';
+
+function interpolateCoord(a: number[], b: number[], frac: number): number[] {
+  const x = a[0] + frac * (b[0] - a[0]);
+  const y = a[1] + frac * (b[1] - a[1]);
+  if (a[2] !== undefined && b[2] !== undefined) {
+    return [x, y, a[2] + frac * (b[2] - a[2])];
+  }
+  return [x, y];
+}
 
 export function getLineSegment(fullCoords: number[][], startT: number, endT: number): number[][] {
   if (fullCoords.length < 2) return fullCoords;
   const t1 = Math.max(0, Math.min(1, startT));
   const t2 = Math.max(0, Math.min(1, endT));
-  
+
   if (t1 >= t2) return [];
 
   const line = lineString(fullCoords);
@@ -31,28 +39,16 @@ export function getLineSegment(fullCoords: number[][], startT: number, endT: num
 
     // Segment intersects with [startDist, endDist]
     if (segEndDist >= startDist && segStartDist <= endDist) {
-      let firstCoord = fullCoords[i - 1];
-      let lastCoord = fullCoords[i];
+      const frac0 = segLen > 0 ? (startDist - segStartDist) / segLen : 0;
+      const frac1 = segLen > 0 ? (endDist - segStartDist) / segLen : 0;
 
-      if (segStartDist < startDist) {
-        const frac = segLen > 0 ? (startDist - segStartDist) / segLen : 0;
-        const x = fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]);
-        const y = fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]);
-        const z = (fullCoords[i - 1][2] !== undefined && fullCoords[i][2] !== undefined)
-          ? fullCoords[i - 1][2] + frac * (fullCoords[i][2] - fullCoords[i - 1][2])
-          : undefined;
-        firstCoord = z !== undefined ? [x, y, z] : [x, y];
-      }
+      const firstCoord = segStartDist < startDist
+        ? interpolateCoord(fullCoords[i - 1], fullCoords[i], frac0)
+        : fullCoords[i - 1];
 
-      if (segEndDist > endDist) {
-        const frac = segLen > 0 ? (endDist - segStartDist) / segLen : 0;
-        const x = fullCoords[i - 1][0] + frac * (fullCoords[i][0] - fullCoords[i - 1][0]);
-        const y = fullCoords[i - 1][1] + frac * (fullCoords[i][1] - fullCoords[i - 1][1]);
-        const z = (fullCoords[i - 1][2] !== undefined && fullCoords[i][2] !== undefined)
-          ? fullCoords[i - 1][2] + frac * (fullCoords[i][2] - fullCoords[i - 1][2])
-          : undefined;
-        lastCoord = z !== undefined ? [x, y, z] : [x, y];
-      }
+      const lastCoord = segEndDist > endDist
+        ? interpolateCoord(fullCoords[i - 1], fullCoords[i], frac1)
+        : fullCoords[i];
 
       if (!started) {
         result.push(firstCoord);

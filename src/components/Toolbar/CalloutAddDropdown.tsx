@@ -7,8 +7,8 @@ import {
   DropdownMenuContent, 
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  MessageSquare, Plus, Check, Settings2, Link as LinkIcon, Link2Off
+import {
+  Flag, Plus, Check, Settings2, Link as LinkIcon, Link2Off
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
@@ -116,13 +116,13 @@ export const CalloutAddDropdown = ({
   return (
     <DropdownMenu open={isOpen} onOpenChange={onOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className={`h-8 w-8 px-0 transition-all duration-300 ${isOpen ? 'text-primary bg-primary/10 scale-110 shadow-lg' : 'text-foreground hover:text-primary hover:bg-primary/5'}`}
           title="Add Callout"
         >
-          <MessageSquare size={18} className={isOpen ? 'animate-pulse' : ''} />
+          <Flag size={18} className={isOpen ? 'animate-pulse' : ''} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
@@ -135,7 +135,7 @@ export const CalloutAddDropdown = ({
         <div className="p-4 border-b border-border/50 bg-secondary/10 shrink-0">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <MessageSquare size={16} />
+              <Flag size={16} />
             </div>
             <div>
               <h3 className="text-sm font-bold tracking-tight">Add Callout</h3>

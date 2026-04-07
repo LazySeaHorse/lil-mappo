@@ -72,6 +72,44 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
 
 ---
 
+## 5. Code Organization & Architecture
+
+### 5.0 Recent Refactoring (High-Complexity Function Reduction)
+Several high-complexity functions have been decomposed into smaller, focused helpers:
+
+**lineAnimation.ts**
+- Extracted `interpolateCoord(a, b, frac)` helper to eliminate duplicate 3D coordinate interpolation logic
+- Reduced cognitive complexity by ~30%
+
+**videoExport.ts**
+- Split `runExport()` into three phases: `initEncoder()`, `captureFrame()`, `finalizeExport()`
+- Main function now acts as an orchestrator rather than a monolith
+- Makes encoder setup/teardown logic reusable
+
+**MapViewport.tsx**
+- Extracted `resolveClickTarget(e, editingPoint)` — resolves click to either search result or raw coordinates
+- Extracted `applyPickResult(state, editingPoint, target, updateItem)` — applies the pick to draft or existing item
+- `handleMapClick()` reduced from 66 to ~12 lines
+
+**MapStudioEditor.tsx**
+- Extracted `useSonnerPosition()` hook — calculates toast positioning based on UI state
+- Extracted `<ZenModeControls />` component — floating play/show UI buttons for zen mode
+
+**Toolbar.tsx** (Major refactor)
+- Extracted `useToolbarActions()` hook (`src/components/Toolbar/useToolbarActions.ts`) — all route/project/export handlers
+- Split layout into two components:
+  - `<MobileToolbarLayout />` — mode-switching (default/add/layers) with slide animations
+  - `<DesktopToolbarLayout />` — inline controls for desktop
+- Created `<ToolbarPrimitives />` — shared button atoms (`ToolbarButton`, `ToolbarToggle`, `Divider`)
+- Tablet now uses `MobileToolbarLayout` for consistency; retains rounded borders and margins
+- Main `Toolbar` component reduced to ~120 lines (was 445)
+
+**Icon Updates** (Improved Visual Clarity)
+- Route: `Route` → `Navigation` (more intuitive for travel)
+- Callout: `MessageSquare` → `Flag` (distinct annotation marker)
+- Boundary: `MapPin` → `Hexagon` (clear polygon indicator)
+- Camera Keyframe: `Crosshair` → `Video` (represents video frames)
+
 ## 5. Critical Implementation Details
 
 ### 5.1 Animation & Routing Logic
@@ -84,10 +122,32 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
 - **Flight Arcs**: Generated via `src/services/flightPath.ts` using `@turf/great-circle` with a parabolic altitude curve.
 - **Directions**: Land-based routes use Mapbox Directions.
 
-### 5.3 Video Export (`src/services/videoExport.ts`)
-The export process advances time step-by-step, Advance time -> Sync Map -> Wait for Idle -> Capture Frame.
+### 5.2 Video Export (`src/services/videoExport.ts`)
+The export process advances time step-by-step via frame capture loop. Main function orchestrates three phases:
+- **initEncoder()**: Initializes WebCodecs or MediaRecorder fallback
+- **captureFrame()**: Single frame: update playhead, drive camera, composite map + callouts, encode
+- **finalizeExport()**: Flush encoder and produce final blob
 
 ---
+
+## 8. Toolbar & Layout Architecture
+
+### Mobile & Tablet Layout (`src/components/Toolbar/MobileToolbarLayout.tsx`)
+Uses **mode-switching** with slide animations (not dropdowns):
+- **Default**: Logo, Project menu, Add (+), Layers buttons, Play, Export, Hide UI
+- **Add mode**: Route, Boundary, Callout dropdowns + Camera KF + close button
+- **Layers mode**: Map style select, Terrain, Buildings toggles + close button
+Tablet retains rounded borders and floating positioning despite sharing this layout.
+
+### Desktop Layout (`src/components/Toolbar/DesktopToolbarLayout.tsx`)
+Uses inline controls and dropdowns:
+- Route, Boundary, Callout always visible (Boundary/Callout in dropdown on tablet)
+- Map style + Terrain/Buildings inline (or in dropdown on tablet)
+- All controls visible at once; no mode-switching
+
+### Toolbar Helpers
+- `useToolbarActions()` — Encapsulates all handlers (import, export, new project, camera KF)
+- `ToolbarPrimitives.tsx` — Shared `ToolbarButton`, `ToolbarToggle`, `Divider` atoms
 
 ## 8. Common Gotchas
 - **Map Dot Stability**: Search results (dots) are decoupled from the high-frequency camera movement. They only re-search when the query string changes or the map center stabilizes (100ms debounce). This prevents flickering during rapid panning.
@@ -95,6 +155,7 @@ The export process advances time step-by-step, Advance time -> Sync Map -> Wait 
 - **Sticky Crosshairs**: During "Pick on Map" mode, the input fields pulse and display "Click on map..." while disabling standard text input to guide the user.
 - **Sync Engine Exposure**: The Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine to force-synchronize styles during frame capture.
 - **Scrollbar Aesthetics**: System-native scrollbars are hidden in search suggestions and routing menus via CSS (`scrollbar-width: none`) to maintain a clean, app-like aesthetic without breaking scroll functionality.
+- **Picking Logic Clarity**: `resolveClickTarget()` and `applyPickResult()` in MapViewport separate coordinate resolution from state updates, making the picking flow easier to trace and test.
 
 ---
 
