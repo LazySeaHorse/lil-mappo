@@ -35,14 +35,27 @@ function useSonnerPosition({
   timelineHeight: number;
 }): React.CSSProperties {
   const zenOrMobileInspector = hideUI || (isMobile && isInspectorOpen);
+  
+  // Center horizontally in the remaining map area
+  const rightMargin = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
+  const leftMargin = PANEL_MARGIN;
+  
   const bottom = zenOrMobileInspector
-    ? `${PANEL_MARGIN * 2}px`
-    : `${timelineHeight + PANEL_MARGIN * 2}px`;
+    ? PANEL_MARGIN * 2
+    : timelineHeight + PANEL_MARGIN * 2;
+
   const left = zenOrMobileInspector
     ? "50%"
-    : `calc((100% - ${!isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP}px + ${isMobile ? 8 : PANEL_MARGIN}px) / 2)`;
+    : `calc(50% + (${leftMargin}px - ${rightMargin}px) / 2)`;
 
-  return { position: "absolute", bottom, left, transform: "translateX(-50%)", zIndex: 100, pointerEvents: "none" };
+  return { 
+    position: "absolute", 
+    bottom: `${bottom}px`, 
+    left, 
+    transform: "translateX(-50%)", 
+    zIndex: 100, 
+    pointerEvents: "none" 
+  };
 }
 
 function ZenModeControls({

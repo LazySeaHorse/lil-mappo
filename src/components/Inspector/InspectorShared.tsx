@@ -3,13 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { EasingName } from '@/store/types';
-import { Field } from "@/components/ui/field";
+import { Field, SectionLabel, SwitchField } from "@/components/ui/field";
 
 // Canonical re-exports from ui/ — prefer importing from ui/ directly in new code
-export { Field, SectionLabel, SwitchField } from "@/components/ui/field";
-export { SectionLabel as PremiumLabel } from "@/components/ui/field";
-export { SwitchField as Toggle } from "@/components/ui/field";
-export { ColorPicker as InputColor } from "@/components/ui/color-picker";
+export { Field, SectionLabel, SwitchField };
 
 // Previous SectionTitle, Field, InputColor, Toggle, PremiumLabel bodies removed 
 // as they are now canonical re-exports from ui/ primitives.

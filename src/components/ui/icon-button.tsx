@@ -2,7 +2,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
-import { cn } from "./utils";
+import { cn } from "@/lib/utils";
 
 const iconButtonVariants = cva(
   "inline-flex items-center justify-center shrink-0 rounded-lg transition-all outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 focus-visible:ring-ring/50 focus-visible:ring-[3px]",

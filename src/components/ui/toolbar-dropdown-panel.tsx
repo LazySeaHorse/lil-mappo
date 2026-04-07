@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
 } from "./dropdown-menu";
 import { ScrollArea } from "./scroll-area";
-import { cn } from "./utils";
+import { cn } from "@/lib/utils";
 
 interface ToolbarDropdownPanelProps {
   /** Controlled open state */

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Input } from "./input";
-import { cn } from "./utils";
+import { cn } from "@/lib/utils";
 
 /**
  * Color swatch + hex text input. Replaces `InputColor` from InspectorShared.

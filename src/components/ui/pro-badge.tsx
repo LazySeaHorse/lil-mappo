@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "./utils";
+import { cn } from "@/lib/utils";
 
 /** The PRO feature badge used across the app. */
 function ProBadge({ className }: { className?: string }) {

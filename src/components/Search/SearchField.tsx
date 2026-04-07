@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverAnchor,
 } from "@/components/ui/popover";
+import { IconButton } from '@/components/ui/icon-button';
 
 interface SearchFieldProps {
   label: string;
@@ -134,15 +135,15 @@ export const SearchField = ({
               )}
               {loading && <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin opacity-40 text-primary" />}
             </div>
-            <Button 
+            <IconButton 
               variant="ghost"
-              size="icon"
+              size="sm"
               className={`h-8 w-8 shrink-0 rounded-md transition-all ${isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={onStartPick}
               title="Pick on Map"
             >
               <Crosshair size={14} className={isPicking ? 'animate-spin-slow' : ''} />
-            </Button>
+            </IconButton>
           </div>
         </PopoverAnchor>
         

@@ -4,7 +4,9 @@ import type { RouteItem } from '@/store/types';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Field, InputText, InputNumber, InputColor, SliderField, Toggle, EasingSelect } from './InspectorShared';
+import { Field, SwitchField } from '@/components/ui/field';
+import { ColorPicker } from '@/components/ui/color-picker';
+import { InputText, InputNumber, SliderField, EasingSelect } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 
 export function RouteInspector({ item }: { item: RouteItem }) {
@@ -35,11 +37,11 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         </InspectorSection>
 
         <InspectorSection value="style" title="Style">
-          <Field label="Color"><InputColor value={item.style.color} onChange={(v) => us({ color: v })} /></Field>
+          <Field label="Color"><ColorPicker value={item.style.color} onChange={(v) => us({ color: v })} /></Field>
           <SliderField label="Width" value={item.style.width} onChange={(v) => us({ width: v })} min={1} max={12} step={1} />
-          <Toggle checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
-          {item.style.glow && <Field label="Glow Color"><InputColor value={item.style.glowColor} onChange={(v) => us({ glowColor: v })} /></Field>}
-          <Toggle checked={item.style.trailFade} onChange={(v) => us({ trailFade: v })} label="Trail Fade" />
+          <SwitchField checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
+          {item.style.glow && <Field label="Glow Color"><ColorPicker value={item.style.glowColor} onChange={(v) => us({ glowColor: v })} /></Field>}
+          <SwitchField checked={item.style.trailFade} onChange={(v) => us({ trailFade: v })} label="Trail Fade" />
           {item.style.trailFade && <SliderField label="Fade Length" value={item.style.trailFadeLength} onChange={(v) => us({ trailFadeLength: v })} min={0.05} max={1} />}
           <Field label="Dash Pattern">
             <Select value={item.style.dashPattern ? 'dashed' : 'solid'} onValueChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}>

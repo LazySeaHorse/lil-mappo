@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "./utils";
+import { cn } from "@/lib/utils";
 
 /**
  * Icon badge + title + subtitle row used at the top of dropdown panels.

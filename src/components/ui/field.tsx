@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Switch } from "./switch";
-import { cn } from "./utils";
+import { cn } from "@/lib/utils";
 
 /** Wraps a form control with a label. This is the ONE canonical way to label a control. */
 function Field({

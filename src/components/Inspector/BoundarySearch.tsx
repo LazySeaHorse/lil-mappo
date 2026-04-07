@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchBoundary, NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface BoundarySearchProps {
   initialValue: string;
@@ -50,15 +51,16 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
           className="h-9 text-sm bg-secondary/30 border-transparent focus:border-border pr-10" 
           placeholder="e.g. Central Park, Germany..." 
         />
-        <Button 
+        <IconButton 
           onClick={handleSearch} 
           disabled={loading} 
           variant="ghost" 
           size="sm" 
-          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-primary"
+          loading={loading}
         >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-        </Button>
+          <Search size={14} />
+        </IconButton>
       </div>
 
       {results.length > 0 && (
