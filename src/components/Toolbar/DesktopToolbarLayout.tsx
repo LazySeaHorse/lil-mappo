@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Play, Pause, Video, EyeOff, Mountain, Building2,
+  Video, EyeOff, Mountain, Building2,
   Layers2, Plus, Settings2, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ interface DesktopToolbarLayoutProps {
   activeDropdown: 'route' | 'callout' | 'boundary' | null;
   setActiveDropdown: (d: 'route' | 'callout' | 'boundary' | null) => void;
   isPlaying: boolean;
-  onTogglePlay: () => void;
   onExport: () => void;
   onImportClick: () => void;
   onHideUI: () => void;
@@ -128,7 +127,7 @@ function DropdownToggle({ icon, label, active, onClick, loading }: { icon: React
 
 export function DesktopToolbarLayout({
   isTablet, activeDropdown, setActiveDropdown,
-  isPlaying, onTogglePlay, onExport,
+  isPlaying, onExport,
   onImportClick, onHideUI, onProjectSettings,
   renderProjectMenu, handleAddCameraKF,
   mapStyle, setMapStyle,
@@ -191,7 +190,6 @@ export function DesktopToolbarLayout({
       <div className="flex-1" />
       <Divider />
 
-      <ToolbarButton icon={isPlaying ? <Pause size={16} /> : <Play size={16} />} label={isPlaying ? 'Pause' : 'Play'} hideLabel onClick={onTogglePlay} accent />
       <ToolbarButton icon={<Video size={16} />} label="Export" hideLabel onClick={onExport} />
       <Divider className="hidden sm:block" />
       <div className="hidden sm:block">

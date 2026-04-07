@@ -31,7 +31,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   const [activeDropdown, setActiveDropdown] = useState<'route' | 'callout' | 'boundary' | null>(null);
 
   const {
-    isPlaying, setIsPlaying, mapStyle, setMapStyle,
+    isPlaying, mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading, buildingsLoading,
     selectItem, setHideUI, isInspectorOpen, isScrubbing,
@@ -89,8 +89,6 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
           setMobileMode={setMobileMode}
           activeDropdown={activeDropdown}
           setActiveDropdown={setActiveDropdown}
-          isPlaying={isPlaying}
-          onTogglePlay={() => setIsPlaying(!isPlaying)}
           onExport={onExport}
           onImportClick={() => routeInputRef.current?.click()}
           onHideUI={() => setHideUI(true)}
@@ -105,7 +103,6 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
           activeDropdown={activeDropdown}
           setActiveDropdown={setActiveDropdown}
           isPlaying={isPlaying}
-          onTogglePlay={() => setIsPlaying(!isPlaying)}
           onExport={onExport}
           onImportClick={() => routeInputRef.current?.click()}
           onHideUI={() => setHideUI(true)}

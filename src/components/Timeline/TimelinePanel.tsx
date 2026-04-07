@@ -2,15 +2,29 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { TimelineItem, CameraItem, RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { IconButton } from '@/components/ui/icon-button';
 import { useResponsive } from '@/hooks/useResponsive';
-import { 
+import {
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
   PANEL_MARGIN
 } from '@/constants/layout';
+import {
+  SkipBack, SkipForward, ChevronLeft, ChevronRight,
+  Play, Pause, Minus, Plus, Maximize2,
+} from 'lucide-react';
 
 const RULER_HEIGHT = 40;
+const HEADER_HEIGHT = 48;
+const MIN_PANEL_HEIGHT = 120; // header + ruler + some visible content
 const PIXELS_PER_SECOND_DEFAULT = 60;
+
+function formatTime(s: number): string {
+  const min = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  const ms = Math.floor((s % 1) * 100);
+  return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+}
 
 export default function TimelinePanel() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -24,10 +38,10 @@ export default function TimelinePanel() {
     isInspectorOpen, timelineHeight, setTimelineHeight,
     isPlaying, setIsPlaying, fps, removeItem, setIsScrubbing
   } = useProjectStore();
-  
+
   const [displayHeight, setDisplayHeight] = useState(timelineHeight);
 
-  // Sync back from store if it changes elsewhere (like loading a project)
+  // Sync back from store if it changes elsewhere (e.g. loading a project)
   useEffect(() => {
     if (!isResizing) setDisplayHeight(timelineHeight);
   }, [timelineHeight, isResizing]);
@@ -36,74 +50,72 @@ export default function TimelinePanel() {
 
   const totalWidth = duration * pixelsPerSecond;
 
+  const orderedItems = itemOrder.map((id) => items[id]).filter(Boolean);
+  const maxContentHeight = HEADER_HEIGHT + RULER_HEIGHT + (orderedItems.length * 40) + 16;
+
   const timeFromX = useCallback((x: number) => {
     return Math.max(0, Math.min(duration, x / pixelsPerSecond));
   }, [pixelsPerSecond, duration]);
 
-  const orderedItems = itemOrder.map((id) => items[id]).filter(Boolean);
-  const maxContentHeight = 32 + 32 + (orderedItems.length * 40) + 16; // Header + Ruler + Tracks + Padding
-
-  const handleResizeDrag = useCallback((e: React.MouseEvent) => {
+  // Use pointer capture so the ScrollArea can't steal the drag mid-way
+  const handleResizeDrag = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+
     const startY = e.clientY;
-    const startHeight = displayHeight;
+    const startHeight = containerRef.current?.offsetHeight ?? displayHeight;
     setIsResizing(true);
-    
-    // Use a ref to store the latest height to avoid global render cycles
+
     let latestHeight = startHeight;
 
-    const handleMove = (ev: MouseEvent) => {
-      const deltaY = ev.clientX === 0 ? 0 : ev.clientY - startY; 
-      // Negative delta means mouse moved UP (making panel taller)
+    const onMove = (ev: PointerEvent) => {
+      const deltaY = ev.clientY - startY;
       const upperLimit = Math.min(window.innerHeight - 150, maxContentHeight);
-      const newHeight = Math.floor(Math.max(104, Math.min(upperLimit, startHeight - deltaY)));
-      
+      const newHeight = Math.floor(Math.max(MIN_PANEL_HEIGHT, Math.min(upperLimit, startHeight - deltaY)));
       latestHeight = newHeight;
       setDisplayHeight(newHeight);
     };
 
-    const handleUp = () => {
+    const onUp = () => {
+      el.releasePointerCapture(e.pointerId);
       setIsResizing(false);
       setTimelineHeight(latestHeight);
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
       document.body.style.cursor = '';
     };
 
     document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  }, [displayHeight, setTimelineHeight, maxContentHeight]);
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+  }, [setTimelineHeight, maxContentHeight, displayHeight]);
 
   const handleRulerScrub = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDraggingPlayhead(true);
     setIsPlaying(false);
     setIsScrubbing(true);
-    
-    // The scrubber zone's left edge is the true time=0 coordinate
+
     const rulerZone = e.currentTarget;
-    
+
     const updateTimeFromMouse = (clientX: number) => {
       const rect = rulerZone.getBoundingClientRect();
-      // rect.left dynamically accounts for scrolling perfectly
       const x = clientX - rect.left;
       setPlayheadTime(timeFromX(Math.max(0, x)));
     };
 
     updateTimeFromMouse(e.clientX);
 
-    const handleMove = (ev: MouseEvent) => {
-      updateTimeFromMouse(ev.clientX);
-    };
-    
+    const handleMove = (ev: MouseEvent) => updateTimeFromMouse(ev.clientX);
+
     const handleUp = () => {
       setDraggingPlayhead(false);
       setIsScrubbing(false);
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-    
+
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
   }, [timeFromX, setPlayheadTime]);
@@ -112,19 +124,25 @@ export default function TimelinePanel() {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       setPixelsPerSecond((prev) => Math.max(10, Math.min(300, prev - e.deltaY * 0.5)));
-    } 
+    }
   }, []);
+
+  const handleFitToTimeline = useCallback(() => {
+    if (!containerRef.current || duration <= 0) return;
+    // Available width = panel width minus label column minus scrollbar padding
+    const availableWidth = containerRef.current.offsetWidth - 160 - 24;
+    setPixelsPerSecond(Math.max(10, Math.min(300, availableWidth / duration)));
+  }, [duration]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Guard: Don't trigger if user is typing in an input
       const target = e.target as HTMLElement;
-      const isTyping = 
-        target.tagName === 'INPUT' || 
-        target.tagName === 'TEXTAREA' || 
+      const isTyping =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
         target.isContentEditable;
-      
+
       if (isTyping) return;
 
       switch (e.code) {
@@ -159,14 +177,12 @@ export default function TimelinePanel() {
   }, [isPlaying, setIsPlaying, selectedItemId, removeItem, setPlayheadTime, duration, playheadTime, fps]);
 
   const playheadX = playheadTime * pixelsPerSecond;
-  
-  // Provide auto-clamping in case tracks are deleted after we had expanded the panel
-  const clampedHeight = Math.max(104, Math.min(displayHeight, maxContentHeight));
+
+  const clampedHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(displayHeight, maxContentHeight));
 
   const rightMarginVal = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
-  const leftMarginVal = isMobile ? 8 : PANEL_MARGIN; // Standard mobile side padding
+  const leftMarginVal = isMobile ? 8 : PANEL_MARGIN;
 
-  // Hiding timeline on mobile when inspector is open to clear the gesture path
   if (isMobile && isInspectorOpen) return null;
 
   const finalRightMargin = isMobile ? '8px' : `${rightMarginVal}px`;
@@ -176,7 +192,7 @@ export default function TimelinePanel() {
     <div
       ref={containerRef}
       className={`absolute ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} bg-background/85 border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
-      style={{ 
+      style={{
         height: clampedHeight,
         bottom: `${PANEL_MARGIN}px`,
         left: finalLeftMargin,
@@ -184,31 +200,113 @@ export default function TimelinePanel() {
       }}
     >
       {/* Top Resize Handle */}
-      <div 
+      <div
         className="absolute top-0 left-0 right-0 h-2 cursor-row-resize z-50 hover:bg-primary/20 transition-colors"
-        onMouseDown={handleResizeDrag}
+        onPointerDown={handleResizeDrag}
       />
 
-      {/* Header Info */}
-      <div className="h-8 border-b border-border/50 flex items-center justify-between px-4 shrink-0 bg-background/40 rounded-t-2xl">
-        <span className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <span>Timeline</span>
-          <span className="text-[9px] opacity-60 font-normal normal-case leading-none">(Drag gap to scale)</span>
-        </span>
+      {/* Header: Timeline label (left) · Transport controls (center) · Zoom controls (right) */}
+      <div
+        className="border-b border-border/50 flex items-center px-3 shrink-0 bg-background/40 rounded-t-2xl relative"
+        style={{ height: HEADER_HEIGHT }}
+      >
+        {/* Left: label + time */}
+        <div className="flex flex-col gap-0.5 shrink-0">
+          <span className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground leading-none">
+            Timeline
+          </span>
+          <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
+            {formatTime(playheadTime)}<span className="opacity-50"> / {formatTime(duration)}</span>
+          </span>
+        </div>
+
+        {/* Center: transport controls — absolutely centered so it's always in the middle */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-0.5 pointer-events-auto">
+            <IconButton
+              variant="ghost" size="xs"
+              onClick={() => setPlayheadTime(0)}
+              title="Jump to Start ([)"
+            >
+              <SkipBack />
+            </IconButton>
+            <IconButton
+              variant="ghost" size="xs"
+              onClick={() => setPlayheadTime(Math.max(0, playheadTime - 1 / fps))}
+              title="Step Back (←)"
+            >
+              <ChevronLeft />
+            </IconButton>
+            <IconButton
+              variant="ghost" size="xs"
+              onClick={() => setIsPlaying(!isPlaying)}
+              title="Play / Pause (Space)"
+              className={isPlaying ? 'text-primary' : ''}
+            >
+              {isPlaying ? <Pause /> : <Play />}
+            </IconButton>
+            <IconButton
+              variant="ghost" size="xs"
+              onClick={() => setPlayheadTime(Math.min(duration, playheadTime + 1 / fps))}
+              title="Step Forward (→)"
+            >
+              <ChevronRight />
+            </IconButton>
+            <IconButton
+              variant="ghost" size="xs"
+              onClick={() => setPlayheadTime(duration)}
+              title="Jump to End (])"
+            >
+              <SkipForward />
+            </IconButton>
+          </div>
+        </div>
+
+        {/* Right: zoom controls */}
+        <div className="ml-auto flex items-center gap-1 shrink-0">
+          <IconButton
+            variant="ghost" size="xs"
+            onClick={() => setPixelsPerSecond(p => Math.max(10, p - 15))}
+            title="Zoom Out"
+          >
+            <Minus />
+          </IconButton>
+          <input
+            type="range"
+            min={10}
+            max={300}
+            value={pixelsPerSecond}
+            onChange={e => setPixelsPerSecond(Number(e.target.value))}
+            className="w-20 h-1 accent-primary cursor-pointer"
+            title={`Zoom: ${Math.round(pixelsPerSecond)}px/s`}
+          />
+          <IconButton
+            variant="ghost" size="xs"
+            onClick={() => setPixelsPerSecond(p => Math.min(300, p + 15))}
+            title="Zoom In"
+          >
+            <Plus />
+          </IconButton>
+          <IconButton
+            variant="ghost" size="xs"
+            onClick={handleFitToTimeline}
+            title="Fit to Timeline"
+          >
+            <Maximize2 />
+          </IconButton>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 w-full relative group min-h-0">
         <div className="flex flex-col relative min-w-max pb-4" style={{ width: totalWidth + 160 + 20 }} onWheel={handleWheel}>
-          
+
           {/* RULER ROW */}
           <div className="h-10 border-b border-border/50 relative shrink-0 bg-background/60 sticky top-0 z-30 backdrop-blur-md flex items-end">
-            
-            {/* White/Dead area above labels */}
+
             <div className="w-[160px] h-full bg-background/90 border-r border-border/50 shrink-0 sticky left-0 z-30 pointer-events-none" />
-            
-            {/* Scrubber active zone (starts tightly at time zero) */}
-            <div 
-              className="flex-1 relative h-full cursor-text" 
+
+            <div
+              className="flex-1 relative h-full cursor-text"
               onMouseDown={handleRulerScrub}
             >
               <svg width="100%" height={RULER_HEIGHT} className="absolute left-0 top-0 pointer-events-none">
@@ -229,12 +327,10 @@ export default function TimelinePanel() {
                 })}
               </svg>
 
-              {/* The "Protruding Head" of the Playhead sitting right on the ruler */}
-              <div 
+              <div
                 className="absolute bottom-0 -translate-x-[5px] pointer-events-none transition-none z-10 drop-shadow-md"
                 style={{ left: playheadX }}
               >
-                {/* SVG Playhead Polygon (Classic Arrow down) */}
                 <svg width="11" height="12" viewBox="0 0 11 12" className="text-primary fill-current transition-transform duration-100 hover:scale-110">
                   <path d="M0 0 H11 V6 L5.5 12 L0 6 Z" />
                 </svg>
@@ -242,11 +338,10 @@ export default function TimelinePanel() {
             </div>
           </div>
 
-          {/* TRACKS CONTENT (Vertical scrolling tracks, playhead line cuts through) */}
+          {/* TRACKS */}
           <div className="flex flex-col relative grow min-h-[100px] isolate">
-            
-            {/* Playhead Full Vertical Cut-Line */}
-            <div 
+
+            <div
               className="absolute top-0 bottom-0 w-px bg-primary z-20 pointer-events-none transition-none"
               style={{ left: playheadX + 160 }}
             />
@@ -288,7 +383,7 @@ const TrackRow = React.memo(({
   onSelectKeyframe: (id: string | null) => void;
 }) => {
   const colorClass = item.kind === 'route' ? 'bg-item-route' : item.kind === 'boundary' ? 'bg-item-boundary' : item.kind === 'callout' ? 'bg-item-callout' : 'bg-item-camera';
-  
+
   const label = item.kind === 'camera'
     ? 'Camera'
     : item.kind === 'route'
@@ -330,16 +425,13 @@ const TrackRow = React.memo(({
       className={`flex h-10 border-b border-border/30 cursor-pointer group transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'}`}
       onClick={onSelect}
     >
-      {/* Sticky Label Pane */}
       <div className={`w-[160px] shrink-0 sticky left-0 z-10 flex items-center px-4 gap-2.5 border-r border-border/50 bg-background/90 backdrop-blur-sm transition-colors ${isSelected ? 'border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'}`}>
         <div className={`w-2 h-2 rounded-full ${colorClass} shadow-sm`} />
         <span className={`text-xs truncate font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>{label}</span>
       </div>
 
-      {/* Track Content Area */}
       <div className="flex-1 relative">
         {item.kind === 'camera' ? (
-          // Camera keyframes
           (item as CameraItem).keyframes.map((kf) => {
             const x = kf.time * pixelsPerSecond;
             return (
@@ -407,7 +499,7 @@ const TimelineItemBar = React.memo(({
         let newStart = initialStart + deltaTime;
         if (newStart < 0) newStart = 0;
         if (newStart + itemDuration > duration) newStart = duration - itemDuration;
-        
+
         updateItem(item.id, {
           startTime: newStart,
           endTime: newStart + itemDuration,
@@ -437,18 +529,16 @@ const TimelineItemBar = React.memo(({
       onMouseDown={(e) => handleMouseDown(e, 'move')}
     >
       <div className={`absolute inset-0 ${colorClass} opacity-20 rounded-md pointer-events-none mix-blend-overlay`} />
-      
-      {/* Left Handle */}
+
       <div
         className="w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
         onMouseDown={(e) => handleMouseDown(e, 'start')}
       >
         <div className="w-1 h-3.5 rounded-full bg-white/80 shadow-sm" />
       </div>
-      
+
       <div className="flex-1 cursor-grab active:cursor-grabbing z-10" />
 
-      {/* Right Handle */}
       <div
         className="w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
         onMouseDown={(e) => handleMouseDown(e, 'end')}
@@ -458,10 +548,3 @@ const TimelineItemBar = React.memo(({
     </div>
   );
 });
-
-function formatTime(s: number): string {
-  const min = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  const ms = Math.floor((s % 1) * 100);
-  return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-}

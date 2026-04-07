@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Video, Plus, Layers2, X, Mountain, Building2, EyeOff } from 'lucide-react';
+import { Video, Plus, Layers2, X, Mountain, Building2, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { CalloutAddDropdown } from './CalloutAddDropdown';
@@ -14,8 +14,6 @@ interface MobileToolbarLayoutProps {
   setMobileMode: (mode: 'default' | 'add' | 'layers') => void;
   activeDropdown: 'route' | 'callout' | 'boundary' | null;
   setActiveDropdown: (d: 'route' | 'callout' | 'boundary' | null) => void;
-  isPlaying: boolean;
-  onTogglePlay: () => void;
   onExport: () => void;
   onImportClick: () => void;
   onHideUI: () => void;
@@ -37,7 +35,7 @@ interface MobileToolbarLayoutProps {
 export function MobileToolbarLayout({
   mobileMode, setMobileMode,
   activeDropdown, setActiveDropdown,
-  isPlaying, onTogglePlay, onExport,
+  onExport,
   onImportClick, onHideUI, renderProjectMenu,
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
@@ -61,8 +59,6 @@ export function MobileToolbarLayout({
             <Layers2 size={20} />
           </IconButton>
           <div className="flex-1" />
-          <ToolbarButton icon={isPlaying ? <Pause size={18} /> : <Play size={18} />} label={isPlaying ? 'Pause' : 'Play'} hideLabel onClick={onTogglePlay} accent />
-          <div className="w-1" />
           <ToolbarButton icon={<Video size={18} />} label="Export" hideLabel onClick={onExport} />
           <div className="w-1" />
           <ToolbarButton icon={<EyeOff size={18} />} label="Hide UI" hideLabel onClick={onHideUI} />
