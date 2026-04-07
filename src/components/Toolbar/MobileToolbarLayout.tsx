@@ -7,6 +7,7 @@ import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
 import { MAP_STYLES } from '@/config/mapbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface MobileToolbarLayoutProps {
   mobileMode: 'default' | 'add' | 'layers';
@@ -52,13 +53,13 @@ export function MobileToolbarLayout({
           <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-6 h-6 mr-1" alt="Logo" />
           {renderProjectMenu()}
           <Divider />
-          <Button variant="ghost" size="sm" className="h-8 w-8 px-0 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setMobileMode('add')} title="Add New Track">
+          <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('add')} title="Add New Track">
             <Plus size={20} />
-          </Button>
+          </IconButton>
           <Divider />
-          <Button variant="ghost" size="sm" className="h-8 w-8 px-0 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setMobileMode('layers')}>
+          <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('layers')}>
             <Layers2 size={20} />
-          </Button>
+          </IconButton>
           <div className="flex-1" />
           <ToolbarButton icon={isPlaying ? <Pause size={18} /> : <Play size={18} />} label={isPlaying ? 'Pause' : 'Play'} hideLabel onClick={onTogglePlay} accent />
           <div className="w-1" />
@@ -75,9 +76,9 @@ export function MobileToolbarLayout({
             <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
             <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
             <ToolbarButton icon={<Video size={18} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
-            <Button variant="ghost" size="icon" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }} className="h-8 w-8 rounded-full bg-secondary/50 hover:bg-secondary transition-all">
+            <IconButton variant="toolbar" size="sm" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />
-            </Button>
+            </IconButton>
           </div>
         </div>
       )}
@@ -101,9 +102,9 @@ export function MobileToolbarLayout({
               <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying2 && !isScrubbing} />
               <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying2 && !isScrubbing} />
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setMobileMode('default')} className="h-8 w-8 rounded-full bg-secondary/50 hover:bg-secondary transition-all">
+            <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('default')} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />
-            </Button>
+            </IconButton>
           </div>
         </div>
       )}

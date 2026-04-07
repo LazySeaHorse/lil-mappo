@@ -8,8 +8,11 @@ import { Accordion } from "@/components/ui/accordion";
 import { Check, Crosshair } from 'lucide-react';
 import { MAP_FONTS } from '@/constants/fonts';
 import { SearchField } from '../Search/SearchField';
-import { Field, InputText, InputNumber, InputColor, SliderField, Toggle } from './InspectorShared';
+import { Field, InputText, InputNumber, SliderField } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { StatusPill } from '@/components/ui/pro-badge';
+import { ColorPicker } from '@/components/ui/color-picker';
+import { SwitchField } from '@/components/ui/field';
 
 export function CalloutInspector({ item }: { item: CalloutItem }) {
   const {
@@ -27,10 +30,8 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
       <div className="flex items-center justify-between px-1 mb-2">
         <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Title</label>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
-            {item.linkTitleToLocation ? 'Linked' : 'Manual'}
-          </span>
-          <Switch
+          <StatusPill>{item.linkTitleToLocation ? 'Linked' : 'Manual'}</StatusPill>
+          < Switch
             checked={item.linkTitleToLocation}
             onCheckedChange={(v) => u({ linkTitleToLocation: v })}
             className="scale-75"
@@ -112,8 +113,8 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
             <Field label="Latitude"><InputNumber value={item.lngLat[1]} onChange={(v) => u({ lngLat: [item.lngLat[0], v], linkTitleToLocation: false })} step={0.001} /></Field>
           </div>
           <SliderField label="Altitude (m)" value={item.altitude} onChange={(v) => u({ altitude: v })} min={0} max={500} step={5} />
-          <Toggle checked={item.poleVisible} onChange={(v) => u({ poleVisible: v })} label="Show Pole" />
-          {item.poleVisible && <Field label="Pole Color"><InputColor value={item.poleColor} onChange={(v) => u({ poleColor: v })} /></Field>}
+          <SwitchField checked={item.poleVisible} onChange={(v) => u({ poleVisible: v })} label="Show Pole" />
+          {item.poleVisible && <Field label="Pole Color"><ColorPicker value={item.poleColor} onChange={(v) => u({ poleColor: v })} /></Field>}
         </InspectorSection>
 
         <InspectorSection value="timing" title="Timing">
@@ -153,18 +154,18 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
         <InspectorSection value="style" title="Style">
           {item.style.variant !== 'topo' && (
             <>
-              <Field label="BG Color"><InputColor value={item.style.bgColor} onChange={(v) => us({ bgColor: v })} /></Field>
+              <Field label="BG Color"><ColorPicker value={item.style.bgColor} onChange={(v) => us({ bgColor: v })} /></Field>
               <SliderField label="Max Width" value={item.style.maxWidth} onChange={(v) => us({ maxWidth: v })} min={150} max={400} step={10} />
             </>
           )}
-          <Field label="Text Color"><InputColor value={item.style.textColor} onChange={(v) => us({ textColor: v })} /></Field>
+          <Field label="Text Color"><ColorPicker value={item.style.textColor} onChange={(v) => us({ textColor: v })} /></Field>
 
           {(item.style.variant === 'modern' || item.style.variant === 'news' || item.style.variant === 'topo') && (
-            <Field label="Accent Color"><InputColor value={item.style.accentColor} onChange={(v) => us({ accentColor: v })} /></Field>
+            <Field label="Accent Color"><ColorPicker value={item.style.accentColor} onChange={(v) => us({ accentColor: v })} /></Field>
           )}
 
           {item.style.variant === 'topo' && (
-            <Toggle checked={item.style.showMetadata} onChange={(v) => us({ showMetadata: v })} label="Show GPS Metadata" />
+            <SwitchField checked={item.style.showMetadata} onChange={(v) => us({ showMetadata: v })} label="Show GPS Metadata" />
           )}
 
           {item.style.variant === 'default' && (

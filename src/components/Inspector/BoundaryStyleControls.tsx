@@ -1,6 +1,8 @@
 import React from 'react';
 import type { BoundaryItem } from '@/store/types';
-import { Field, InputColor, SliderField, Toggle } from './InspectorShared';
+import { Field, SwitchField } from '@/components/ui/field';
+import { ColorPicker } from '@/components/ui/color-picker';
+import { SliderField } from './InspectorShared';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface BoundaryStyleControlsProps {
@@ -12,7 +14,7 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
   return (
     <div className="space-y-4">
       <Field label="Stroke Color">
-        <InputColor 
+        <ColorPicker 
           value={style.strokeColor} 
           onChange={(v) => onChange({ strokeColor: v })} 
         />
@@ -27,14 +29,14 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
         step={1} 
       />
       
-      <Toggle 
+      <SwitchField 
         checked={style.glow} 
         onChange={(v) => onChange({ glow: v })} 
         label="Glow" 
       />
       
       <Field label="Fill Color">
-        <InputColor 
+        <ColorPicker 
           value={style.fillColor} 
           onChange={(v) => onChange({ fillColor: v })} 
         />
@@ -49,7 +51,7 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
         step={0.01} 
       />
       
-      <Toggle 
+      <SwitchField 
         checked={style.animateStroke} 
         onChange={(v) => onChange({ animateStroke: v })} 
         label="Animate Stroke" 

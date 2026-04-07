@@ -3,10 +3,13 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useMapRef } from '@/hooks/useMapRef';
 import { runExport } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
-import { X, Download, Loader2, Film, AlertTriangle, Cloud } from 'lucide-react';
+import { X, Download, Film, AlertTriangle, Cloud } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Field } from '@/components/ui/field';
+import { IconButton } from '@/components/ui/icon-button';
+import { ProBadge } from '@/components/ui/pro-badge';
 
 interface ExportModalProps {
   onClose: () => void;
@@ -85,22 +88,19 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             <Film size={18} className="text-primary" />
             <h2 className="text-sm font-semibold">Export Video</h2>
           </div>
-          <Button
+          <IconButton
             onClick={onClose}
             variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:bg-secondary"
+            size="sm"
             disabled={isExporting}
           >
             <X size={16} />
-          </Button>
+          </IconButton>
         </div>
 
         {/* Content */}
         <div className="px-5 py-4 space-y-4">
-          {/* Resolution */}
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">Resolution</label>
+          <Field label="Resolution">
             <Select
               value={exportRes.join('x')}
               onValueChange={(v) => {
@@ -118,11 +118,9 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 <SelectItem value="3840x2160">3840 × 2160 (4K)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          {/* FPS */}
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">Frame Rate</label>
+          <Field label="Frame Rate">
             <Select
               value={exportFps.toString()}
               onValueChange={(v) => setExportFps(Number(v))}
@@ -134,12 +132,10 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 <SelectItem value="60">60 FPS</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          {/* Time Range */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Start Time (s)</label>
+            <Field label="Start Time (s)">
               <Input
                 type="number"
                 min={0}
@@ -150,9 +146,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 disabled={isExporting}
                 className="h-9 text-sm"
               />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">End Time (s)</label>
+            </Field>
+            <Field label="End Time (s)">
               <Input
                 type="number"
                 min={startTime}
@@ -163,7 +158,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 disabled={isExporting}
                 className="h-9 text-sm"
               />
-            </div>
+            </Field>
           </div>
 
           {/* Info row */}
@@ -234,12 +229,12 @@ export default function ExportModal({ onClose }: ExportModalProps) {
         <div className="flex items-center gap-3 px-5 py-5 border-t border-border bg-secondary/10">
           <Button
             variant="outline"
-            className="flex-1 h-11 px-0 text-sm font-semibold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed border-dashed grayscale group"
+            className="flex-1 h-11 px-0 text-sm font-semibold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed border-dashed grayscale group transition-all"
             disabled={true}
           >
             <Cloud size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
             <span className="shrink-0">Cloud Render</span>
-            <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-black tracking-wider uppercase shrink-0">PRO</span>
+            <ProBadge />
           </Button>
 
           {isExporting ? (
@@ -253,7 +248,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           ) : (
             <Button
               onClick={handleExport}
-              className="flex-1 h-11 text-sm font-bold flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all active:scale-[0.99]"
+              className="flex-1 h-11 text-sm font-bold flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all active:scale-[0.99] shadow-lg shadow-primary/10"
             >
               {progress === 100 ? (
                 <>

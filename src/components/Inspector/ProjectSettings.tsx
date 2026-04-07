@@ -3,8 +3,11 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Accordion } from "@/components/ui/accordion";
-import { Field, InputText, InputNumber, InputColor, SliderField, Toggle } from './InspectorShared';
+import { Field, InputText, InputNumber, SliderField } from './InspectorShared';
 import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { ColorPicker } from '@/components/ui/color-picker';
+import { SwitchField } from '@/components/ui/field';
 
 export function ProjectSettings() {
   const [activeTab, setActiveTab] = useState<'general' | 'map'>('general');
@@ -19,20 +22,15 @@ export function ProjectSettings() {
 
   return (
     <PanelWrapper title="Project Settings">
-      <div className="flex bg-secondary/50 p-1 rounded-lg mb-4 text-xs font-medium">
-        <button
-          onClick={() => setActiveTab('general')}
-          className={`flex-1 py-1.5 rounded-md transition-all ${activeTab === 'general' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          General
-        </button>
-        <button
-          onClick={() => setActiveTab('map')}
-          className={`flex-1 py-1.5 rounded-md transition-all ${activeTab === 'map' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          Map
-        </button>
-      </div>
+      <SegmentedControl
+        options={[
+          { value: 'general', label: 'General' },
+          { value: 'map', label: 'Map' },
+        ]}
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="mb-4"
+      />
 
       {activeTab === 'general' ? (
         <>
@@ -94,7 +92,7 @@ export function ProjectSettings() {
             <SliderField label="Star Intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
             <Field label="Fog Color">
               <div className="flex gap-2 items-center">
-                <InputColor
+                <ColorPicker
                   value={fogColor || (
                     mapStyle === 'satellite' || mapStyle === 'satelliteStreets' ? '#DC9F71' :
                     mapStyle === 'dark' ? '#171717' :
@@ -106,7 +104,7 @@ export function ProjectSettings() {
                   onClick={() => setAtmosphere({ fogColor: null })}
                   variant="outline"
                   size="sm"
-                  className="px-3 h-8 text-xs font-semibold"
+                  className="px-3 h-8 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
                   title="Reset to Style Default"
                 >
                   Reset
@@ -117,17 +115,17 @@ export function ProjectSettings() {
 
           <InspectorSection value="labels" title="Labels">
             <div className="grid grid-cols-2 gap-2">
-              <Toggle checked={showRoadLabels} onChange={(v) => setLabelVisibility('road', v)} label="Roads" />
-              <Toggle checked={showPlaceLabels} onChange={(v) => setLabelVisibility('place', v)} label="Places" />
-              <Toggle checked={showPointOfInterestLabels} onChange={(v) => setLabelVisibility('poi', v)} label="POIs" />
-              <Toggle checked={showTransitLabels} onChange={(v) => setLabelVisibility('transit', v)} label="Transit" />
+              <SwitchField checked={showRoadLabels} onChange={(v) => setLabelVisibility('road', v)} label="Roads" />
+              <SwitchField checked={showPlaceLabels} onChange={(v) => setLabelVisibility('place', v)} label="Places" />
+              <SwitchField checked={showPointOfInterestLabels} onChange={(v) => setLabelVisibility('poi', v)} label="POIs" />
+              <SwitchField checked={showTransitLabels} onChange={(v) => setLabelVisibility('transit', v)} label="Transit" />
             </div>
           </InspectorSection>
 
           <InspectorSection value="3d" title="3D Details">
-            <Toggle checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />
-            <Toggle checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />
-            <Toggle checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />
+            <SwitchField checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />
+            <SwitchField checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />
+            <SwitchField checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />
           </InspectorSection>
         </Accordion>
       )}

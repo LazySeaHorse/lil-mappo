@@ -11,7 +11,6 @@ import { MapRefContext } from "@/hooks/useMapRef";
 import FontLoader from "@/components/FontLoader";
 import { useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
-import { Button } from "@/components/ui/button";
 import { Eye, Play, Pause } from "lucide-react";
 import { useResponsive } from "@/hooks/useResponsive";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -20,6 +19,7 @@ import {
   RIGHT_RESERVED_TABLET,
   PANEL_MARGIN,
 } from "@/constants/layout";
+import { IconButton } from '@/components/ui/icon-button';
 
 function useSonnerPosition({
   hideUI,
@@ -60,24 +60,22 @@ function ZenModeControls({
     <div
       className={`absolute z-50 pointer-events-auto flex gap-2.5 transition-all duration-500 ${isMobile ? "bottom-6 left-1/2 -translate-x-1/2" : "top-4 left-4"}`}
     >
-      <Button
-        variant="secondary"
-        size="icon"
-        className="w-10 h-10 rounded-full shadow-2xl backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white border-none hover:scale-110 transition-transform active:scale-95"
+      <IconButton
+        variant="zen"
+        size="lg"
         onClick={onShowUI}
         title="Show UI"
       >
         <Eye size={20} />
-      </Button>
-      <Button
-        variant="secondary"
-        size="icon"
-        className="w-10 h-10 rounded-full shadow-2xl backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white border-none hover:scale-110 transition-transform active:scale-95"
+      </IconButton>
+      <IconButton
+        variant="zen"
+        size="lg"
         onClick={onTogglePlay}
         title={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-      </Button>
+      </IconButton>
     </div>
   );
 }

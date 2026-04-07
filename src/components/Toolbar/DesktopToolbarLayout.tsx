@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Play, Pause, Video, EyeOff, Mountain, Building2,
-  ChevronDown, Layers2, Plus, Settings2, Loader2
+  Layers2, Plus, Settings2, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +13,7 @@ import { CalloutAddDropdown } from './CalloutAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
 import { MAP_STYLES } from '@/config/mapbox';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface DesktopToolbarLayoutProps {
   isTablet: boolean;
@@ -49,9 +50,9 @@ function TabletLayerDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 w-8 px-0 flex items-center justify-center" title="Map Display">
+        <IconButton variant="toolbar" size="sm" title="Map Display">
           <Layers2 size={20} />
-        </Button>
+        </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 bg-background/95 p-3 space-y-4 rounded-2xl shadow-2xl border-border/50">
         <div className="space-y-2">
@@ -157,9 +158,9 @@ export function DesktopToolbarLayout({
         {isTablet ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 px-0 flex items-center justify-center text-primary" title="Add More Items">
+              <IconButton variant="toolbar" size="sm" title="Add More Items" className="text-primary">
                 <Plus size={20} />
-              </Button>
+              </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48 bg-background/95 rounded-2xl shadow-2xl p-1">
               <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />

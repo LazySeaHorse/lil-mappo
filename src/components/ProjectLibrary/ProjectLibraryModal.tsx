@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Library, Trash2, Clock, UploadCloud } from 'lucide-react';
+import { X, Library, Trash2, Clock } from 'lucide-react';
 import { 
   SavedProjectInfo, 
   listSavedProjects, 
@@ -9,6 +9,7 @@ import {
 import { useProjectStore } from '@/store/useProjectStore';
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
+import { IconButton } from '@/components/ui/icon-button';
 
 interface ProjectLibraryModalProps {
   onClose: () => void;
@@ -69,14 +70,9 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
             <Library size={18} className="text-primary" />
             <h2 className="text-sm font-semibold">My Projects Library</h2>
           </div>
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:bg-secondary"
-          >
+          <IconButton variant="ghost" size="sm" onClick={onClose}>
             <X size={16} />
-          </Button>
+          </IconButton>
         </div>
 
         {/* Content */}
@@ -112,19 +108,13 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
                     <Button
                       onClick={() => handleLoad(p.id, p.name)}
                       size="sm"
-                      className="h-8 px-3 text-xs font-medium"
+                      className="h-8 px-3 text-xs font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
                       Load
                     </Button>
-                    <Button
-                      onClick={() => handleDelete(p.id, p.name)}
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      title="Delete Project"
-                    >
+                    <IconButton variant="destructive" size="sm" onClick={() => handleDelete(p.id, p.name)} title="Delete Project">
                       <Trash2 size={14} />
-                    </Button>
+                    </IconButton>
                   </div>
                 </div>
               ))}
@@ -137,7 +127,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
           <Button
             onClick={onClose}
             variant="outline"
-            className="h-9 px-4 text-sm font-medium"
+            className="h-9 px-4 text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             Close
           </Button>

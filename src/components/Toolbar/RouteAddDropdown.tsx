@@ -2,27 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
-import { searchPlaces } from '@/services/geocoding';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Car, Footprints, Plane, Search, Loader2, Crosshair,
-  Navigation, Upload, Plus,
-  MapPin, X, Check
+  Car, Footprints, Plane, Search, Loader2,
+  Navigation, Upload, Plus, Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
-import { RouteItem, SearchResult } from '@/store/types';
+import { RouteItem } from '@/store/types';
 import { SearchField } from '../Search/SearchField';
 
-import { PremiumLabel } from '../Inspector/InspectorShared';
+import { IconButton } from '@/components/ui/icon-button';
+import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
+import { PanelHeader } from '@/components/ui/panel-header';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { SectionLabel } from '@/components/ui/field';
 
 export const RouteAddDropdown = ({ 
   onImportClick, 
@@ -45,14 +39,6 @@ export const RouteAddDropdown = ({
   const [end, setEnd] = useState<[number, number]>([0, 0]);
   const [endName, setEndName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Sync internal state from store drafts (map picks)
   useEffect(() => {
@@ -142,125 +128,111 @@ export const RouteAddDropdown = ({
     onOpenChange(false);
   };
 
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={onOpenChange} modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-8 w-8 px-0 transition-all duration-300 ${isOpen ? 'text-primary bg-primary/10 scale-110 shadow-lg' : 'text-foreground hover:text-primary hover:bg-primary/5'}`}
-          title="Plan Route"
+  const trigger = (
+    <IconButton
+      variant={isOpen ? "toolbar-active" : "toolbar"}
+      size="sm"
+      title="Plan Route"
+    >
+      <Navigation size={18} className={isOpen ? 'animate-pulse' : ''} />
+    </IconButton>
+  );
+
+  const header = (
+    <PanelHeader 
+      icon={<Navigation size={16} />} 
+      title="Plan Route" 
+      subtitle="Choose travel mode & points"
+    >
+      <SegmentedControl
+        options={[
+          { value: 'car', label: 'Car', icon: <Car size={12} /> },
+          { value: 'walk', label: 'Walk', icon: <Footprints size={12} /> },
+          { value: 'flight', label: 'Flight', icon: <Plane size={12} /> },
+        ]}
+        value={mode}
+        onValueChange={setMode}
+      />
+    </PanelHeader>
+  );
+
+  const footer = (
+    <div className="space-y-2">
+      {!previewRoute ? (
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          onClick={calculate}
+          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold bg-secondary/50 hover:bg-secondary border border-border/50 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
         >
-          <Navigation size={18} className={isOpen ? 'animate-pulse' : ''} />
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview Path
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        align={isMobile ? "center" : "start"}
-        collisionPadding={16}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-        className="w-[calc(100vw-32px)] md:w-[320px] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]"
+      ) : (
+        <Button 
+          variant="default"
+          size="sm" 
+          onClick={handleAdd}
+          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold rounded-xl shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <Plus size={16} /> Insert Route
+        </Button>
+      )}
+
+      <Button 
+        variant="ghost"
+        size="sm"
+        onClick={onImportClick}
+        className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
       >
-        <div className="p-4 border-b border-border/50 bg-secondary/10 shrink-0">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <Navigation size={16} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold tracking-tight">Plan Route</h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Choose travel mode & points</p>
-            </div>
-          </div>
+        <Upload size={13} /> Import KML / GPX data
+      </Button>
+    </div>
+  );
 
-          <div className="flex bg-secondary/50 p-1 rounded-lg text-xs font-medium">
-            {(['car', 'walk', 'flight'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`flex-1 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 ${mode === m ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                {m === 'car' && <Car size={12} />}
-                {m === 'walk' && <Footprints size={12} />}
-                {m === 'flight' && <Plane size={12} />}
-                <span className="capitalize">{m}</span>
-              </button>
-            ))}
+  return (
+    <ToolbarDropdownPanel
+      open={isOpen}
+      onOpenChange={onOpenChange}
+      trigger={trigger}
+      header={header}
+      footer={footer}
+    >
+      <div className="space-y-4">
+        <SectionLabel>Route Points</SectionLabel>
+        <SearchField 
+          label="Start Location..."
+          value={start}
+          name={startName}
+          onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
+          color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+          isPicking={editingRoutePoint === 'start'}
+          onStartPick={() => setEditingRoutePoint(editingRoutePoint === 'start' ? null : 'start')}
+        />
+        
+        <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
+
+        <SearchField 
+          label="End Location..."
+          value={end}
+          name={endName}
+          onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
+          color="bg-rose-500/10 text-rose-500 border-rose-500/20"
+          isPicking={editingRoutePoint === 'end'}
+          onStartPick={() => setEditingRoutePoint(editingRoutePoint === 'end' ? null : 'end')}
+        />
+      </div>
+
+      {previewRoute && (
+        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 animate-in fade-in slide-in-from-bottom-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Check size={14} className="text-primary" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Path Validated</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setPreviewRoute(null)} className="h-6 text-[10px]">Clear</Button>
           </div>
         </div>
-
-        <ScrollArea className="flex-1 overflow-hidden min-h-0">
-          <div className="p-4 space-y-6">
-            <div className="space-y-4">
-              <PremiumLabel>Route Points</PremiumLabel>
-              <SearchField 
-                label="Start Location..."
-                value={start}
-                name={startName}
-                onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
-                color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                isPicking={editingRoutePoint === 'start'}
-                onStartPick={() => setEditingRoutePoint(editingRoutePoint === 'start' ? null : 'start')}
-              />
-              
-              <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
-
-              <SearchField 
-                label="End Location..."
-                value={end}
-                name={endName}
-                onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
-                color="bg-rose-500/10 text-rose-500 border-rose-500/20"
-                isPicking={editingRoutePoint === 'end'}
-                onStartPick={() => setEditingRoutePoint(editingRoutePoint === 'end' ? null : 'end')}
-              />
-            </div>
-
-            {previewRoute && (
-              <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 animate-in fade-in slide-in-from-bottom-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Check size={14} className="text-primary" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Path Validated</span>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setPreviewRoute(null)} className="h-6 text-[10px]">Clear</Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-
-        <div className="p-4 border-t border-border/50 bg-secondary/5 shrink-0 space-y-2">
-          {!previewRoute ? (
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              onClick={calculate}
-              className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold bg-secondary/50 hover:bg-secondary border border-border/50 rounded-xl"
-            >
-              {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview Path
-            </Button>
-          ) : (
-            <Button 
-              variant="default"
-              size="sm" 
-              onClick={handleAdd}
-              className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold rounded-xl"
-            >
-              <Plus size={16} /> Insert Route
-            </Button>
-          )}
-
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={onImportClick}
-            className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
-          >
-            <Upload size={13} /> Import KML / GPX data
-          </Button>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+    </ToolbarDropdownPanel>
   );
 };
-

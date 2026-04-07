@@ -19,7 +19,7 @@ The UI is a premium, **responsive "floating island"** design.
 - **Transformative Mobile Toolbar**: On mobile devices, the toolbar switches between **'Default', 'Add', and 'Layers' modes**. This "mode-switching" layout slides in specialized toolsets, replacing standard dropdowns to maximize screen space while ensuring a focused experience.
 - **Mutually Exclusive Tools**: The 3 "Add" tools (Route, Callout, Boundary) are **controlled components**. Opening one automatically closes any other open "Add" tool, preventing overlapping panels and UI clutter.
 - **Non-Modal Interaction**: The Toolbar routing, callout, and boundary tools are **non-modal and persistent**. They use `onPointerDownOutside` overrides to stay open during map interaction, allowing for a "floating workspace" feel.
-- **Professional Aesthetics**: Features synchronized design tokens and glassmorphism across all panels. Headers use `PremiumLabel` (shared), and dropdowns feature `rounded-2xl` corners with heavy `shadow-2xl` support.
+- **Professional Aesthetics**: Features synchronized design tokens and glassmorphism across all panels. Headers use `SectionLabel` (shared), and components like `ToolbarDropdownPanel` feature `rounded-2xl` corners with heavy `shadow-2xl` support.
 
 ---
 
@@ -32,7 +32,7 @@ The UI is a premium, **responsive "floating island"** design.
 - **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`
 - **Video Export**: `mp4-muxer` + WebCodecs API + `html2canvas` (for markers)
 - **External APIs**: Mapbox Directions (v5) and Mapbox Geocoding (v5).
-- **UI Components**: Modernized **shadcn/ui v0.9+**.
+- **UI Components**: Standardized **Tier 1 & Tier 2 Component Library** in `src/components/ui/` (IconButton, SegmentedControl, Field, PanelHeader, etc.), built on top of **shadcn/ui v0.9+**.
 
 ---
 
@@ -68,7 +68,8 @@ Handles all imperative Mapbox state and reactive layer rendering.
 ### 3.4 The Inspector: `src/components/Inspector/`
 The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.
 - `InspectorPanel.tsx`: Acts as a slim routing shell. It reads `item.kind` and delegates rendering to isolated components (`RouteInspector.tsx`, `CalloutInspector.tsx`, `BoundaryInspector.tsx`, etc.).
-- `InspectorLayout.tsx`: Provides shared architectural wrappers (`PanelWrapper`, `InspectorSection`, `ItemActions`) to ensure consistent styling, padding, and mobile drawer behavior across all inspector variants without code duplication.
+- `InspectorLayout.tsx`: Provides shared architectural wrappers (`PanelWrapper`, `InspectorSection`, `ItemActions`) to ensure consistent styling, padding, and mobile drawer behavior across all inspector variants. `InspectorSection` uses standardized typography tokens matching `SectionLabel`.
+- `InspectorShared.tsx`: A thin barrel file that re-exports universal primitives (Field, ColorPicker, SwitchField) from `ui/` while keeping Inspector-specific helpers (`InputNumber`, `SliderField`, `EasingSelect`).
 
 ---
 
@@ -103,6 +104,15 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - Created `<ToolbarPrimitives />` — shared button atoms (`ToolbarButton`, `ToolbarToggle`, `Divider`)
 - Tablet now uses `MobileToolbarLayout` for consistency; retains rounded borders and margins
 - Main `Toolbar` component reduced to ~120 lines (was 445)
+
+**UI Component Library Refactor** (Standardization Phase)
+- Created **7 new core primitives** in `src/components/ui/` to eliminate "~12 different button recipes" and inconsistent hover states.
+- **IconButton.tsx**: Unified square icon buttons with `toolbar`, `toolbar-active`, `zen`, and `destructive` variants.
+- **SegmentedControl.tsx**: Animated tab-like toggle groups used for travel modes and UI tabs.
+- **Field.tsx**: Canonical form primitives including `Field` (vertical label/control), `SectionLabel` (all-caps headers), and `SwitchField`.
+- **PanelHeader.tsx** & **ToolbarDropdownPanel.tsx**: Standardized the "floating island" dropdown shell used by all Add tools, including glassmorphism and mobile alignment.
+- **ProBadge.tsx**: Unified "PRO" and "Status" pills.
+- Transformed **InspectorShared.tsx** into a re-export barrel to ensure all panels use these new universal design tokens.
 
 **Icon Updates** (Improved Visual Clarity)
 - Route: `Route` → `Navigation` (more intuitive for travel)
@@ -147,7 +157,7 @@ Uses inline controls and dropdowns:
 
 ### Toolbar Helpers
 - `useToolbarActions()` — Encapsulates all handlers (import, export, new project, camera KF)
-- `ToolbarPrimitives.tsx` — Shared `ToolbarButton`, `ToolbarToggle`, `Divider` atoms
+- `ToolbarPrimitives.tsx` — Shared `ToolbarButton`, `ToolbarToggle`, `Divider` atoms; now backed by `IconButton` for icon-only modes.
 
 ## 8. Common Gotchas
 - **Map Dot Stability**: Search results (dots) are decoupled from the high-frequency camera movement. They only re-search when the query string changes or the map center stabilizes (100ms debounce). This prevents flickering during rapid panning.

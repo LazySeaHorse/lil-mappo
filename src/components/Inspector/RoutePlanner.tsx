@@ -13,6 +13,10 @@ import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X } from 'l
 import { toast } from 'sonner';
 import type { RouteItem, SearchResult } from '@/store/types';
 
+import { IconButton } from '@/components/ui/icon-button';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { ProBadge } from '@/components/ui/pro-badge';
+
 interface InspectorSearchFieldProps {
   label: string;
   value: [number, number];
@@ -211,31 +215,17 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
 
   return (
     <div className="space-y-6 pt-2">
-      {/* Segmented Mode Selector */}
-      <div className="flex bg-secondary/50 p-1 rounded-full relative h-10">
-        {(['manual', 'car', 'walk', 'flight'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => handleModeChange(m)}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-full text-[10px] font-bold transition-all z-10 ${
-              calc.mode === m ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/70'
-            }`}
-          >
-            {m === 'manual' && <MapPin size={13} />}
-            {m === 'car' && <Car size={13} />}
-            {m === 'walk' && <Footprints size={13} />}
-            {m === 'flight' && <Plane size={13} />}
-            <span className="capitalize">{m}</span>
-          </button>
-        ))}
-        <div 
-          className="absolute top-1 bottom-1 bg-background rounded-full shadow-sm transition-all duration-200 ease-out z-0"
-          style={{
-            width: 'calc(25% - 4px)',
-            left: calc.mode === 'manual' ? '2px' : calc.mode === 'car' ? 'calc(25% + 1px)' : calc.mode === 'walk' ? 'calc(50% + 1px)' : 'calc(75% + 1px)',
-          }}
-        />
-      </div>
+      <SegmentedControl
+        shape="pill"
+        options={[
+          { value: 'manual', label: 'Manual', icon: <MapPin size={13} /> },
+          { value: 'car', label: 'Car', icon: <Car size={13} /> },
+          { value: 'walk', label: 'Walk', icon: <Footprints size={13} /> },
+          { value: 'flight', label: 'Flight', icon: <Plane size={13} /> },
+        ]}
+        value={calc.mode || 'manual'}
+        onValueChange={handleModeChange}
+      />
 
       {calc.mode !== 'manual' && (
         <div className="space-y-4">
@@ -248,10 +238,10 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                 onSelect={setStart}
                 color="bg-green-500/10 text-green-500 border-green-500/20"
               />
-              <Button 
+              <IconButton 
                 variant={editingRoutePoint === 'start' ? 'default' : 'ghost'}
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                size="sm"
+                className="rounded-full"
                 onClick={() => {
                   const active = editingRoutePoint === 'start';
                   setEditingRoutePoint(active ? null : 'start');
@@ -259,7 +249,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                 }}
               >
                 <Crosshair size={14} className={editingRoutePoint === 'start' ? 'animate-pulse text-white' : ''} />
-              </Button>
+              </IconButton>
             </div>
 
             {/* End Point */}
@@ -270,10 +260,10 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                 onSelect={setEnd}
                 color="bg-red-500/10 text-red-500 border-red-500/20"
               />
-              <Button 
+              <IconButton 
                 variant={editingRoutePoint === 'end' ? 'default' : 'ghost'}
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                size="sm"
+                className="rounded-full"
                 onClick={() => {
                   const active = editingRoutePoint === 'end';
                   setEditingRoutePoint(active ? null : 'end');
@@ -281,7 +271,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                 }}
               >
                 <Crosshair size={14} className={editingRoutePoint === 'end' ? 'animate-pulse text-white' : ''} />
-              </Button>
+              </IconButton>
             </div>
           </div>
 
@@ -291,7 +281,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
               size="sm" 
               onClick={() => calculateRoute(false)}
               disabled={loading}
-              className="h-8 rounded-full text-xs font-medium border-border/50 hover:bg-secondary/50 group"
+              className="h-8 rounded-full text-xs font-medium border-border/50 hover:bg-secondary/50 group transition-all active:scale-95"
             >
               {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} className="text-muted-foreground group-hover:text-foreground transition-colors" />}
               Preview Path
@@ -310,7 +300,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
             <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">3D Vehicle</span>
-                <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-bold">PRO</span>
+                <ProBadge />
               </div>
               <Switch disabled checked={false} />
             </div>

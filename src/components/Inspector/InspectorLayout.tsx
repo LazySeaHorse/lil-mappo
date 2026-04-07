@@ -17,11 +17,12 @@ import {
   INSPECTOR_WIDTH_TABLET,
   PANEL_MARGIN
 } from '@/constants/layout';
+import { IconButton } from '@/components/ui/icon-button';
 
 export function InspectorSection({ value, title, children }: { value: string; title: string; children: React.ReactNode }) {
   return (
-    <AccordionItem value={value} className="border-b-0 bg-secondary/30 rounded-lg px-3 mb-3">
-      <AccordionTrigger className="hover:no-underline py-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground">
+    <AccordionItem value={value} className="border-b-0 bg-secondary/55 rounded-lg px-3 mb-3">
+      <AccordionTrigger className="hover:no-underline py-3 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70 hover:text-foreground">
         {title}
       </AccordionTrigger>
       <AccordionContent className="pb-3 flex flex-col">
@@ -31,13 +32,6 @@ export function InspectorSection({ value, title, children }: { value: string; ti
   );
 }
 
-export function DeleteButton({ onClick }: { onClick: () => void }) {
-  return (
-    <Button variant="destructive" size="sm" onClick={onClick} className="mt-4 w-full h-8 flex items-center justify-center gap-1.5 text-xs">
-      <Trash2 size={14} /> Delete
-    </Button>
-  );
-}
 
 export function ItemActions({
   id,
@@ -68,7 +62,7 @@ export function ItemActions({
           variant="secondary"
           size="sm"
           onClick={() => duplicateItem(id)}
-          className="w-full h-8 flex items-center justify-center gap-1.5 text-xs bg-secondary/50 hover:bg-secondary border border-border/50"
+          className="w-full h-8 flex items-center justify-center gap-1.5 text-xs bg-secondary/50 hover:bg-secondary border border-border/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
         >
           <Copy size={13} /> Duplicate
         </Button>
@@ -77,7 +71,7 @@ export function ItemActions({
         variant="destructive"
         size="sm"
         onClick={handleDelete}
-        className="w-full h-8 flex items-center justify-center gap-1.5 text-xs"
+        className="w-full h-8 flex items-center justify-center gap-1.5 text-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
       >
         <Trash2 size={13} /> Delete {isCameraKF ? 'Keyframe' : kind.charAt(0).toUpperCase() + kind.slice(1)}
       </Button>
@@ -130,19 +124,18 @@ export function PanelWrapper({ title, children, footer }: { title: string; child
 
   return (
     <div
-      className={`absolute bg-background/80 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl !overflow-visible pointer-events-auto flex flex-col transition-all duration-300`}
+      className={`absolute bg-background/75 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl !overflow-visible pointer-events-auto flex flex-col transition-all duration-300`}
       style={{ ...widthStyles, ...positionStyles }}
     >
       <div className="p-4 py-3 border-b border-white/10 dark:border-white/5 shrink-0 bg-background/50 flex items-center justify-between">
         <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-        <Button
+        <IconButton
           variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          size="xs"
           onClick={() => setIsInspectorOpen(false)}
         >
           <X size={14} />
-        </Button>
+        </IconButton>
       </div>
       <ScrollArea className="flex-1 w-full relative group min-h-0">
         <div className="p-4 flex flex-col gap-1">
