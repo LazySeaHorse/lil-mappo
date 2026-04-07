@@ -71,10 +71,10 @@ export const CalloutAddDropdown = ({
       startTime: playheadTime,
       endTime: playheadTime + 5,
       animation: {
-        enter: 'slideUp',
-        exit: 'slideDown',
-        enterDuration: 0.6,
-        exitDuration: 0.4,
+        enter: 'fadeIn',
+        exit: 'fadeOut',
+        enterDuration: 0.4,
+        exitDuration: 0.3,
       },
       style: {
         bgColor: '#ffffff',

@@ -1,8 +1,9 @@
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import type { CameraItem, RouteItem } from '@/store/types';
+import type { CameraItem, CalloutItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { getAnimatedLine } from '@/engine/lineAnimation';
 import { useMapRef } from '@/hooks/useMapRef';
+import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout';
 
 /**
  * Non-realtime offline export engine.
@@ -118,25 +119,30 @@ async function captureFrame(
   });
   await new Promise(r => setTimeout(r, 16));
 
-  // Composite: map + callout overlay
+  // Composite: map canvas
   const mapCanvas = map.getCanvas() as HTMLCanvasElement;
   compCtx.clearRect(0, 0, width, height);
   compCtx.drawImage(mapCanvas, 0, 0, width, height);
 
-  try {
-    const calloutContainer = document.querySelector('.mapboxgl-map .mapboxgl-marker');
-    if (calloutContainer) {
-      const markersContainer = document.querySelector('.mapboxgl-canvas-container');
-      if (markersContainer?.parentElement) {
-        const html2canvas = (await import('html2canvas')).default;
-        const overlayCanvas = await html2canvas(markersContainer.parentElement as HTMLElement, {
-          backgroundColor: null, width: mapCanvas.width, height: mapCanvas.height, scale: 1, logging: false, useCORS: true,
-        });
-        compCtx.drawImage(overlayCanvas, 0, 0, width, height);
-      }
+  // Draw callouts via canvas (DOM-free, replaces html2canvas)
+  const zoom = map.getZoom();
+  for (const id of freshStore.itemOrder) {
+    const item = freshStore.items[id];
+    if (item?.kind !== 'callout') continue;
+    const callout = item as CalloutItem;
+    if (callout.lngLat[0] === 0 && callout.lngLat[1] === 0) continue;
+
+    const anim = computeCalloutAnimation(callout, clampedTime);
+    if (!anim || anim.opacity <= 0) continue;
+
+    const projected = map.project(callout.lngLat);
+    let altitudeOffset = 0;
+    if (callout.altitude > 0) {
+      const metersPerPixel = 156543.03392 * Math.cos(callout.lngLat[1] * Math.PI / 180) / Math.pow(2, zoom);
+      altitudeOffset = Math.min(callout.altitude / metersPerPixel, 300);
     }
-  } catch {
-    // Callout overlay failed — export map canvas only
+
+    renderCalloutToCanvas(compCtx, callout, anim, { x: projected.x, y: projected.y }, altitudeOffset);
   }
 
   // Encode

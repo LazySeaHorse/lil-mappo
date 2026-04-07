@@ -31,7 +31,7 @@ The UI is a premium, **responsive "floating island"** design.
 - **Icons**: Lucide React
 - **Animations**: Custom `requestAnimationFrame` loop + easing functions
 - **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`
-- **Video Export**: `mp4-muxer` + WebCodecs API + `html2canvas` (for markers)
+- **Video Export**: `mp4-muxer` + WebCodecs API + pure Canvas 2D (for callout rendering)
 - **Testing**: Vitest (Unit/Integration) and Playwright (E2E)
 - **External APIs**: Mapbox Directions (v5) and Mapbox Geocoding (v5).
 - **UI Components**: Standardized **Tier 1 & Tier 2 Component Library** in `src/components/ui/` (IconButton, SegmentedControl, Field, PanelHeader, etc.), built on top of **shadcn/ui v0.9+**.
@@ -124,9 +124,18 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 **lineAnimation.ts**
 - Extracted `interpolateCoord(a, b, frac)` helper to eliminate duplicate 3D coordinate interpolation logic.
 
-**videoExport.ts**
+**videoExport.ts** (Canvas Callout Rendering)
+- Replaced `html2canvas` DOM parsing with pure Canvas 2D callout rendering via `renderCallout.ts`.
+- Each frame, callouts are projected to screen space, animation state computed, and drawn directly to compositing canvas.
+- **Performance**: <1ms per callout vs. 100–300ms per frame for html2canvas DOM re-parsing.
 - Split `runExport()` into three phases: `initEncoder()`, `captureFrame()`, `finalizeExport()`.
-- Main function now acts as an orchestrator rather than a monolith.
+- Main function acts as orchestrator rather than monolith.
+
+**renderCallout.ts** (New)
+- Pure Canvas 2D rendering for all 4 callout style variants (default, modern, news, topo).
+- `computeCalloutAnimation()`: Computes opacity for fade in/out based on playhead time.
+- `renderCalloutToCanvas()`: Main entry point; dispatches to variant-specific renderers.
+- Supports pole line (dashed, with dot), shadow, text rendering, accent colors, and altitude offsets.
 
 **MapViewport.tsx**
 - Extracted `resolveClickTarget(e, editingPoint)` — resolves click to either search result or raw coordinates.
@@ -159,8 +168,9 @@ Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
 - **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx` and `BoundarySearch.tsx`. Result dots are interactive and support viewport-proximity biasing.
 - **Boundary Logic**: Uses Nominatim (OSM) to fetch high-quality polygons. Features a **unified drafting interface** that syncs stroke and fill colors during the search phase.
 - **Callout Logic**:
-  - **Topo Styling**: The default high-contrast variant for geographic annotations.
+  - **Topo Styling**: High-contrast variant for geographic annotations with optional coordinate/elevation metadata.
   - **Title Linking**: If `linkTitleToLocation` is enabled, the callout `title` field automatically syncs with the geocoded location name during search or map-picks.
+  - **Animations**: All callouts use simple fade in/out animations (both live preview and export). No scale or slide variants are exposed in the UI.
 - **3D Vehicles**: Currently **gated as a PRO feature** in the Inspector. The toggle and scale controls are visible but disabled with a high-contrast "PRO" badge to denotate advanced tiered functionality.
 - **Flight Arcs**: Generated via `src/services/flightPath.ts` using `@turf/great-circle` with a parabolic altitude curve.
 - **Directions**: Land-based routes use Mapbox Directions.
@@ -172,8 +182,14 @@ Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
 ### 7.3 Video Export (`src/services/videoExport.ts`)
 The export process advances time step-by-step via frame capture loop. Main function orchestrates three phases:
 - **initEncoder()**: Initializes WebCodecs or MediaRecorder fallback.
-- **captureFrame()**: Single frame: update playhead, drive camera, composite map + callouts, encode.
+- **captureFrame()**: Single frame: update playhead, drive camera, composite map canvas, render callouts via Canvas 2D, encode.
 - **finalizeExport()**: Flush encoder and produce final blob.
+
+Callouts are rendered using pure Canvas 2D (`src/services/renderCallout.ts`), eliminating the DOM-parsing overhead of `html2canvas`. Each frame, visible callouts are projected to screen coordinates and drawn directly to the compositing canvas with their animation state (opacity fade in/out). Four style variants are supported:
+- **default**: Rounded rect + text
+- **modern**: Pill shape + accent glow dot + 87% opacity background
+- **news**: Rectangle + 5px left accent bar + uppercase bold text
+- **topo**: Left border + metadata (coordinates/elevation) + accent square dot
 
 ---
 

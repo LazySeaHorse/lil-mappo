@@ -43,9 +43,9 @@ A technical, browser-based tool for creating cinematic map animations and export
 - **State Management**: Zustand (single-store architecture)
 - **Map Engine**: Mapbox GL JS v3 (via `react-map-gl/mapbox`)
 - **Geospatial Processing**: Turf.js (`@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`)
-- **Animations**: Custom `requestAnimationFrame` loop with interpolated state.
-- **Video Export**: WebCodecs API, `mp4-muxer`, `html2canvas`.
-- **UI Components**: shadcn/ui v0.9+ (Radix UI), Tailwind CSS.
+- **Animations**: Custom `requestAnimationFrame` loop with interpolated state and easing functions.
+- **Video Export**: WebCodecs API, `mp4-muxer`, pure Canvas 2D (for callout rendering).
+- **UI Components**: Tier 1 & 2 standardized component library built on shadcn/ui v0.9+ (Radix UI) and Tailwind CSS.
 - **Icons**: Lucide React.
 - **Persistence**: IndexedDB (local project library).
 - **Testing**: Vitest (Unit/Integration) and Playwright (E2E).
@@ -55,10 +55,30 @@ A technical, browser-based tool for creating cinematic map animations and export
 
 The application operates as a **state-driven animation engine**. A central Zustand store manages all timeline elements (Routes, Boundaries, Callouts, Camera Keyframes) and the global `playheadTime`.
 
-1. **The Brain**: `useProjectStore.ts` handles the heavy lifting of state synchronization, drafting states, and geocoding results.
-2. **The Heart**: `usePlayback.ts` runs the main animation loop, driving time-based interpolation of all items.
-3. **The Body**: `MapViewport.tsx` handles imperative Mapbox state, terrain sync, and reactive layer rendering.
-4. **The Inspector**: Contextual properties panel using a delegation strategy to manage individual item types (Route, Boundary, Callout).
+### Core Components
+
+1. **The Brain** (`src/store/useProjectStore.ts`): Manages all timeline items, drafting state, search results, and picking mode. Includes debounced `mapCenter` updates (100ms) for performance and viewport-proximity biased search.
+
+2. **The Heart** (`src/hooks/usePlayback.ts`): Runs the main `requestAnimationFrame` loop, driving time-based interpolation and camera movement.
+
+3. **The Body** (`src/components/MapViewport/MapViewport.tsx`): Handles imperative Mapbox state, unified sync engine (Projection, Terrain, Atmosphere), and reactive layer rendering (SearchResults, PreviewRoute, PreviewBoundary).
+
+4. **The Inspector** (`src/components/Inspector/`): Contextual properties panel using a delegation strategy. `InspectorPanel.tsx` routes to specialized inspectors (RouteInspector, BoundaryInspector, CalloutInspector), while `InspectorLayout.tsx` provides shared architectural wrappers for consistent styling.
+
+### UI Design System
+
+- **Layout Constants** (`src/constants/layout.ts`): Centralized margins (`PANEL_MARGIN: 16px`), gaps (`PANEL_GAP: 16px`), and reserved space (`RIGHT_RESERVED_DESKTOP: 352px`).
+- **Tier 1 Primitives** (`src/components/ui/`): Standardized components like `IconButton`, `SegmentedControl`, `Field`, with consistent glassmorphism and `shadow-2xl` styling.
+- **Tier 2 Composites**: Higher-level components combining primitives (e.g., `PanelHeader`, `ToolbarDropdownPanel`).
+- **Responsive Layouts**: Mobile/Tablet/Desktop detection via `useResponsive.ts` enables mode-switching toolbar on mobile (Default/Add/Layers modes) and inline controls on desktop.
+
+### Recent Architectural Improvements
+
+- **Canvas-Based Callout Rendering** (`src/services/renderCallout.ts`): Replaced `html2canvas` DOM parsing with pure Canvas 2D, reducing per-frame overhead from 100–300ms to <1ms. Supports 4 style variants (default, modern, news, topo).
+- **Decomposed Video Export** (`src/services/videoExport.ts`): Split into three phases (initEncoder, captureFrame, finalizeExport) for clarity and maintainability.
+- **Picking Logic Clarity** (`MapViewport.tsx`): Extracted `resolveClickTarget()` and `applyPickResult()` helpers to separate coordinate resolution from state updates.
+- **Toolbar Refactoring**: Split into `MobileToolbarLayout` and `DesktopToolbarLayout`, with shared `ToolbarPrimitives` and centralized `useToolbarActions()` hook.
+- **Icon Updates**: Route → Navigation, Callout → Flag, Boundary → Hexagon, Camera Keyframe → Video for improved visual clarity.
 
 ## Development
 
@@ -74,3 +94,19 @@ npm run dev
 # Build for production
 npm run build
 ```
+
+### Key Implementation Details
+
+- **Unified Geocoding**: Centralized in `SearchField.tsx` and `BoundarySearch.tsx` with viewport-proximity biasing and interactive animated dots.
+- **Boundary Drafting**: Unified interface for searching, styling (stroke/fill colors), and previewing polygons before timeline insertion.
+- **Callout Animations**: Simple fade in/out (both live preview and export). Topo variant supports coordinate/elevation metadata with optional title-location linking.
+- **3D Vehicles**: Gated as a PRO feature with disabled toggle and high-contrast badge.
+- **Flight Arcs**: Generated via `flightPath.ts` using `@turf/great-circle` with parabolic altitude curve.
+- **Performance**: Debounced mapCenter (100ms), portal-based popovers for search results, and optimized Canvas 2D rendering for exports.
+
+### Common Gotchas
+
+- **Map Dot Stability**: Search result dots only re-search when query changes or map center stabilizes (100ms debounce).
+- **Sync Engine Exposure**: Mapbox Sync Engine exposed as `_syncRef` on map instance for export frame capture.
+- **Move Mode Persistence**: Input fields pulse and display "Click on map..." while in pick/move mode.
+- **Scrollbar Aesthetics**: System scrollbars hidden in search/routing menus via CSS for clean appearance.

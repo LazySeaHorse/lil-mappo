@@ -21,7 +21,6 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
   } = useProjectStore();
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates as any);
   const us = (updates: Partial<CalloutItem['style']>) => u({ style: { ...item.style, ...updates } });
-  const ua = (updates: Partial<CalloutItem['animation']>) => u({ animation: { ...item.animation, ...updates } });
 
   const footer = <ItemActions id={item.id} kind="callout" />;
 
@@ -73,7 +72,7 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
         </Select>
       </Field>
 
-      <Accordion type="multiple" defaultValue={['pos', 'timing', 'anim', 'style']} className="w-full">
+      <Accordion type="multiple" defaultValue={['pos', 'timing', 'style']} className="w-full">
         <InspectorSection value="pos" title="Position">
           <Field label="Location Search">
             <SearchField
@@ -124,34 +123,7 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
           </div>
         </InspectorSection>
 
-        <InspectorSection value="anim" title="Animation">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Enter">
-              <Select value={item.animation.enter} onValueChange={(v) => ua({ enter: v as any })}>
-                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fadeIn">Fade In</SelectItem>
-                  <SelectItem value="scaleUp">Scale Up</SelectItem>
-                  <SelectItem value="slideUp">Slide Up</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Exit">
-              <Select value={item.animation.exit} onValueChange={(v) => ua({ exit: v as any })}>
-                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fadeOut">Fade Out</SelectItem>
-                  <SelectItem value="scaleDown">Scale Down</SelectItem>
-                  <SelectItem value="slideDown">Slide Down</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <SliderField label="Enter Duration" value={item.animation.enterDuration} onChange={(v) => ua({ enterDuration: v })} min={0.1} max={2} step={0.1} />
-          <SliderField label="Exit Duration" value={item.animation.exitDuration} onChange={(v) => ua({ exitDuration: v })} min={0.1} max={2} step={0.1} />
-        </InspectorSection>
-
-        <InspectorSection value="style" title="Style">
+<InspectorSection value="style" title="Style">
           {item.style.variant !== 'topo' && (
             <>
               <Field label="BG Color"><ColorPicker value={item.style.bgColor} onChange={(v) => us({ bgColor: v })} /></Field>
