@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Accordion } from "@/components/ui/accordion";
@@ -13,12 +14,13 @@ export function ProjectSettings() {
   const [activeTab, setActiveTab] = useState<'general' | 'map'>('general');
   const {
     name, duration, fps, resolution, terrainExaggeration, projection, lightPreset,
-    showRoadLabels, showPlaceLabels, showPointOfInterestLabels, showTransitLabels,
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
+    labelVisibility, setLabelGroupVisibility, setAllLabelsVisibility,
     setProjectName, setDuration, setFps, setResolution, setTerrainExaggeration,
-    setProjection, setLightPreset, setLabelVisibility, set3dDetails, setAtmosphere,
+    setProjection, setLightPreset, set3dDetails, setAtmosphere,
     mapStyle
   } = useProjectStore();
+  const capabilities = useMapStyleCapabilities();
 
   return (
     <PanelWrapper title="Project Settings">
@@ -71,7 +73,7 @@ export function ProjectSettings() {
               </Select>
             </Field>
 
-            {mapStyle === 'standard' && (
+            {capabilities.timeOfDayPreset && (
               <Field label="Lighting Preset">
                 <Select value={lightPreset} onValueChange={(v) => setLightPreset(v as any)}>
                   <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
@@ -113,20 +115,46 @@ export function ProjectSettings() {
             </Field>
           </InspectorSection>
 
-          <InspectorSection value="labels" title="Labels">
-            <div className="grid grid-cols-2 gap-2">
-              <SwitchField checked={showRoadLabels} onChange={(v) => setLabelVisibility('road', v)} label="Roads" />
-              <SwitchField checked={showPlaceLabels} onChange={(v) => setLabelVisibility('place', v)} label="Places" />
-              <SwitchField checked={showPointOfInterestLabels} onChange={(v) => setLabelVisibility('poi', v)} label="POIs" />
-              <SwitchField checked={showTransitLabels} onChange={(v) => setLabelVisibility('transit', v)} label="Transit" />
-            </div>
-          </InspectorSection>
+          {capabilities.labelGroups.length > 0 && (
+            <InspectorSection value="labels" title="Labels">
+              <div className="flex gap-2 mb-3">
+                <Button
+                  onClick={() => setAllLabelsVisibility(true)}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs h-8"
+                >
+                  All On
+                </Button>
+                <Button
+                  onClick={() => setAllLabelsVisibility(false)}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs h-8"
+                >
+                  All Off
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {capabilities.labelGroups.map((group) => (
+                  <SwitchField
+                    key={group.id}
+                    checked={labelVisibility[group.id] ?? true}
+                    onChange={(v) => setLabelGroupVisibility(group.id, v)}
+                    label={group.label}
+                  />
+                ))}
+              </div>
+            </InspectorSection>
+          )}
 
-          <InspectorSection value="3d" title="3D Details">
-            <SwitchField checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />
-            <SwitchField checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />
-            <SwitchField checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />
-          </InspectorSection>
+          {(capabilities.landmarks3d || capabilities.trees3d || capabilities.facades3d) && (
+            <InspectorSection value="3d" title="3D Details">
+              {capabilities.landmarks3d && <SwitchField checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />}
+              {capabilities.trees3d && <SwitchField checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />}
+              {capabilities.facades3d && <SwitchField checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />}
+            </InspectorSection>
+          )}
         </Accordion>
       )}
     </PanelWrapper>

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName } from './types';
+import type { MapStyleCapabilities } from '@/config/mapbox';
+import { MAP_STYLES } from '@/config/mapbox';
 
 interface ProjectStore extends Project {
   // Item CRUD
@@ -31,7 +33,8 @@ interface ProjectStore extends Project {
   setProjection: (v: 'globe' | 'mercator') => void;
   setLightPreset: (v: 'day' | 'night' | 'dusk' | 'dawn') => void;
   setAtmosphere: (updates: { starIntensity?: number; fogColor?: string | null }) => void;
-  setLabelVisibility: (key: 'road' | 'place' | 'poi' | 'transit', visible: boolean) => void;
+  setLabelGroupVisibility: (groupId: string, visible: boolean) => void;
+  setAllLabelsVisibility: (visible: boolean) => void;
   set3dDetails: (key: 'landmarks' | 'trees' | 'facades', visible: boolean) => void;
   setTerrainEnabled: (v: boolean) => void;
   setBuildingsEnabled: (v: boolean) => void;
@@ -94,6 +97,10 @@ interface ProjectStore extends Project {
 
   // Utilities
   duplicateItem: (id: string) => void;
+
+  // Runtime capabilities detection (transient UI state for custom styles)
+  detectedCapabilities: MapStyleCapabilities | null;
+  setDetectedCapabilities: (caps: MapStyleCapabilities | null) => void;
 }
 
 const CAMERA_ID = 'camera-track';
@@ -104,19 +111,15 @@ const initialCamera: CameraItem = {
   keyframes: [],
 };
 
+
 const defaultProject: Project = {
   id: nanoid(),
   name: 'Untitled Project',
   duration: 30,
   fps: 30,
   resolution: [1920, 1080],
-  mapStyle: 'streets',
   projection: 'globe',
   lightPreset: 'day',
-  showRoadLabels: true,
-  showPlaceLabels: true,
-  showPointOfInterestLabels: true,
-  showTransitLabels: true,
   show3dLandmarks: true,
   show3dTrees: true,
   show3dFacades: true,
@@ -127,14 +130,10 @@ const defaultProject: Project = {
   terrainExaggeration: 1.5,
   items: { [CAMERA_ID]: initialCamera },
   itemOrder: [CAMERA_ID],
-  playheadTime: 0,
-  isPlaying: false,
   selectedItemId: null,
   selectedKeyframeId: null,
   isMoveModeActive: false,
   hideUI: false,
-  isInspectorOpen: true,
-  timelineHeight: 256,
   searchResults: [],
   hoveredSearchResultId: null,
   editingRoutePoint: null,
@@ -143,16 +142,43 @@ const defaultProject: Project = {
   draftEnd: null,
   draftCallout: null,
   mapCenter: [0, 0],
-  isScrubbing: false,
   previewBoundary: null,
   previewBoundaryStyle: null,
   draftBoundaryName: '',
 };
 
+// Eagerly initialize standard style capabilities
+const STANDARD_STYLE_CAPABILITIES: MapStyleCapabilities = {
+  labelGroups: [
+    { id: 'road', label: 'Road Labels', layerPatterns: ['road'] },
+    { id: 'place', label: 'Place Names', layerPatterns: ['place'] },
+    { id: 'poi', label: 'Points of Interest', layerPatterns: ['poi'] },
+    { id: 'transit', label: 'Transit', layerPatterns: ['transit'] },
+    { id: 'water', label: 'Water Names', layerPatterns: ['water'] },
+    { id: 'natural', label: 'Natural Features', layerPatterns: ['natural'] },
+    { id: 'building', label: 'Building Names', layerPatterns: ['building'] },
+    { id: 'area', label: 'Area Labels', layerPatterns: ['area'] },
+  ],
+  landmarks3d: true,
+  trees3d: true,
+  facades3d: true,
+  timeOfDayPreset: true,
+  colorCustomization: false,
+};
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   ...defaultProject,
+  // Transient UI state (not persisted)
+  mapStyle: 'standard',
+  labelVisibility: {},
+  playheadTime: 0,
+  isPlaying: false,
+  isScrubbing: false,
+  isInspectorOpen: true,
+  timelineHeight: 256,
   terrainLoading: false,
   buildingsLoading: false,
+  detectedCapabilities: STANDARD_STYLE_CAPABILITIES,
 
   addItem: (item) => set((s) => ({
     items: { ...s.items, [item.id]: item },
@@ -218,13 +244,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setDuration: (d) => set({ duration: Math.max(1, d) }),
   setFps: (fps) => set({ fps }),
   setResolution: (r) => set({ resolution: r }),
-  setMapStyle: (s) => set({ mapStyle: s as any, terrainEnabled: false, buildingsEnabled: false }),
+  setMapStyle: (s) => set({ mapStyle: s as any, terrainEnabled: false, buildingsEnabled: false, terrainLoading: false, buildingsLoading: false, detectedCapabilities: null }),
   setProjection: (v) => set({ projection: v }),
   setLightPreset: (v) => set({ lightPreset: v }),
   setAtmosphere: (updates) => set((s) => ({ ...s, ...updates })),
-  setLabelVisibility: (key, visible) => set((s) => {
-    const map = { road: 'showRoadLabels', place: 'showPlaceLabels', poi: 'showPointOfInterestLabels', transit: 'showTransitLabels' };
-    return { [map[key]]: visible } as any;
+  setLabelGroupVisibility: (groupId, visible) => set((s) => ({
+    labelVisibility: { ...s.labelVisibility, [groupId]: visible },
+  })),
+  setAllLabelsVisibility: (visible) => set((s) => {
+    const newVisibility: Record<string, boolean> = {};
+    if (s.detectedCapabilities) {
+      s.detectedCapabilities.labelGroups.forEach((group) => {
+        newVisibility[group.id] = visible;
+      });
+    }
+    return { labelVisibility: newVisibility };
   }),
   set3dDetails: (key, visible) => set((s) => {
     const map = { landmarks: 'show3dLandmarks', trees: 'show3dTrees', facades: 'show3dFacades' };
@@ -240,21 +274,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setTerrainLoading: (v) => set({ terrainLoading: v }),
   setBuildingsLoading: (v) => set({ buildingsLoading: v }),
+  setDetectedCapabilities: (caps) => set({ detectedCapabilities: caps }),
 
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
 
   setTimelineHeight: (v) => set({ timelineHeight: v }),
 
-  loadFullProject: (project) => set({ 
-    ...defaultProject, 
-    ...project, 
+  loadFullProject: (project) => set({
+    ...defaultProject,
+    ...project,
+    // Reset transient UI state to defaults
+    mapStyle: 'standard',
+    labelVisibility: {},
+    playheadTime: 0,
+    isPlaying: false,
+    isScrubbing: false,
+    isInspectorOpen: true,
+    timelineHeight: 256,
     terrainEnabled: false,
     buildingsEnabled: false,
-    terrainLoading: false, 
-    buildingsLoading: false, 
-    hideUI: false, 
-    isInspectorOpen: true,
-    isScrubbing: false
+    terrainLoading: false,
+    buildingsLoading: false,
+    detectedCapabilities: null,
+    hideUI: false,
   }),
 
   duplicateItem: (id) => set((s) => {

@@ -127,13 +127,8 @@ export interface Project {
   duration: number;
   fps: 30 | 60;
   resolution: [number, number];
-  mapStyle: MapStyleKey;
   projection: 'globe' | 'mercator';
   lightPreset: 'day' | 'night' | 'dusk' | 'dawn';
-  showRoadLabels: boolean;
-  showPlaceLabels: boolean;
-  showPointOfInterestLabels: boolean;
-  showTransitLabels: boolean;
   show3dLandmarks: boolean;
   show3dTrees: boolean;
   show3dFacades: boolean;
@@ -144,15 +139,10 @@ export interface Project {
   terrainExaggeration: number;
   items: Record<string, TimelineItem>;
   itemOrder: string[];
-  playheadTime: number;
-  isPlaying: boolean;
   selectedItemId: string | null;
   selectedKeyframeId: string | null;
   isMoveModeActive: boolean;
   hideUI: boolean;
-  isInspectorOpen: boolean;
-  isScrubbing: boolean;
-  timelineHeight: number;
   // Search
   searchResults: SearchResult[];
   hoveredSearchResultId: string | null;
@@ -167,4 +157,7 @@ export interface Project {
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
   draftBoundaryName: string;
+  // Custom map styles (future feature accommodation)
+  customMapStyleUrl?: string;
+  customMapStyleLabel?: string;
 }

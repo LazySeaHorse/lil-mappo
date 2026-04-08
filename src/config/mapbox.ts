@@ -1,13 +1,62 @@
-export const MAPBOX_TOKEN = 'pk.eyJ1Ijoieml0c2NoZXIiLCJhIjoibVQ3WUhmWSJ9.ZQRt1dTOnlSSxrjxtAMVgQ';
+/**
+ * Mapbox API token loaded from environment variable.
+ * Requires VITE_MAPBOX_TOKEN to be set in .env, GitHub Actions secrets, or Vercel environment.
+ */
+export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
-export const MAP_STYLES: Record<string, { label: string; url: string }> = {
-  standard:          { label: 'Standard',           url: 'mapbox://styles/mapbox/standard' },
-  streets:           { label: 'Streets',            url: 'mapbox://styles/mapbox/streets-v12' },
-  outdoors:          { label: 'Outdoors',           url: 'mapbox://styles/mapbox/outdoors-v12' },
-  light:             { label: 'Light',              url: 'mapbox://styles/mapbox/light-v11' },
-  dark:              { label: 'Dark',               url: 'mapbox://styles/mapbox/dark-v11' },
-  satellite:         { label: 'Satellite',          url: 'mapbox://styles/mapbox/satellite-v9' },
-  satelliteStreets:  { label: 'Satellite Streets',  url: 'mapbox://styles/mapbox/satellite-streets-v12' },
-};
+/**
+ * Represents a group of related label layers that can be toggled together.
+ * Examples: "road" labels, "water" labels, "poi" labels, etc.
+ */
+export interface LabelLayerGroup {
+  id: string; // e.g., "road", "place", "poi", "water"
+  label: string; // Human-readable name: "Road Labels", "Water Names"
+  layerPatterns: string[]; // Layer ID patterns to match (case-insensitive substring match)
+}
+
+export interface MapStyleCapabilities {
+  labelGroups: LabelLayerGroup[];
+  landmarks3d: boolean;
+  trees3d: boolean;
+  facades3d: boolean;
+  timeOfDayPreset: boolean;
+  colorCustomization: boolean;
+}
+
+export interface MapStyleDef {
+  label: string;
+  url: string;
+}
+
+export const MAP_STYLES = {
+  standard: {
+    label: 'Standard',
+    url: 'mapbox://styles/mapbox/standard',
+  },
+  streets: {
+    label: 'Streets',
+    url: 'mapbox://styles/mapbox/streets-v12',
+  },
+  outdoors: {
+    label: 'Outdoors',
+    url: 'mapbox://styles/mapbox/outdoors-v12',
+  },
+  light: {
+    label: 'Light',
+    url: 'mapbox://styles/mapbox/light-v11',
+  },
+  dark: {
+    label: 'Dark',
+    url: 'mapbox://styles/mapbox/dark-v11',
+  },
+  satellite: {
+    label: 'Satellite',
+    url: 'mapbox://styles/mapbox/satellite-v9',
+  },
+  satelliteStreets: {
+    label: 'Satellite Streets',
+    url: 'mapbox://styles/mapbox/satellite-streets-v12',
+  },
+} satisfies Record<string, MapStyleDef>;
 
 export type MapStyleKey = keyof typeof MAP_STYLES;

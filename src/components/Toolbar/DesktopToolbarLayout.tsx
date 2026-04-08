@@ -69,7 +69,7 @@ function TabletLayerDropdown({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <DropdownToggle icon={<Mountain size={14} />} label="Terrain" active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying && !isScrubbing} />
-          <DropdownToggle icon={<Building2 size={14} />} label="Buildings" active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying && !isScrubbing} />
+          <DropdownToggle icon={<Building2 size={14} />} label="Buildings" active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying && !isScrubbing} disabled={mapStyle === 'satellite'} />
         </div>
         <div className="h-px bg-border/50 mx-1 border-dotted border-b" />
         <DropdownMenuItem onClick={onProjectSettings} className="gap-2 cursor-pointer h-9 text-xs rounded-xl">
@@ -105,19 +105,20 @@ function InlineLayerGroup({
       <Divider />
       <div className="flex items-center gap-1">
         <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying && !isScrubbing} />
-        <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying && !isScrubbing} />
+        <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying && !isScrubbing} disabled={mapStyle === 'satellite'} />
       </div>
     </div>
   );
 }
 
-function DropdownToggle({ icon, label, active, onClick, loading }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; loading?: boolean }) {
+function DropdownToggle({ icon, label, active, onClick, loading, disabled }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; loading?: boolean; disabled?: boolean }) {
   return (
     <Button
       variant={active ? "secondary" : "ghost"}
       size="sm"
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
-      className={`h-9 flex flex-1 items-center justify-start gap-2 text-[11px] font-medium px-2 rounded-xl transition-all ${active ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'text-muted-foreground'}`}
+      onClick={(e) => { if (!disabled) { e.preventDefault(); e.stopPropagation(); onClick(); } }}
+      disabled={disabled}
+      className={`h-9 flex flex-1 items-center justify-start gap-2 text-[11px] font-medium px-2 rounded-xl transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/20' : disabled ? '' : 'text-muted-foreground'}`}
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : icon}
       <span>{label}</span>

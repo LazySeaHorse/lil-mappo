@@ -42,10 +42,26 @@ The UI is a premium, **responsive "floating island"** design.
 The application is built around a **state-driven animation engine**.
 
 ### 3.1 The Brain: `src/store/useProjectStore.ts`
-Everything lives in a single Zustand store.
+Everything lives in a single Zustand store. The `Project` type (persisted to disk) contains only essential animation data. Transient UI state is stored alongside but never saved.
+
+**Persisted (Project):**
 - `items`: A record of all timeline elements (Routes, Boundaries, Callouts, Camera).
-- `playheadTime`: The current "now" of the animation.
-- **Map Center & Proximity**: `mapCenter` is synced from the viewport and used to bias search results toward the current viewing area. To ensure smooth performance, **`mapCenter` updates are debounced by 100ms** during continuous panning.
+- `itemOrder`, `selectedItemId`, `selectedKeyframeId`: Selection & ordering state.
+- `duration`, `fps`, `resolution`: Export settings.
+- `projection`, `lightPreset`: Environment settings.
+- `show3dLandmarks`, `show3dTrees`, `show3dFacades`: 3D feature toggles.
+- `starIntensity`, `fogColor`: Atmosphere customization.
+- `terrainEnabled`, `buildingsEnabled`, `terrainExaggeration`: Terrain/building config.
+- `isMoveModeActive`, `hideUI`: User preference toggles.
+- `items`, `itemOrder`, drafting & preview state: Animation and editing context.
+
+**Transient (UI State — NOT persisted):**
+- `mapStyle`: Always defaults to `'standard'` on app load; resets when loading a project.
+- `labelVisibility`: Label group toggle state; resets to empty object on project load.
+- `playheadTime`, `isPlaying`, `isScrubbing`: Playback position and state.
+- `isInspectorOpen`, `timelineHeight`: Inspector & timeline UI state.
+- `detectedCapabilities`: Runtime-detected label groups for the current style.
+- **Map Center & Proximity**: `mapCenter` is synced from the viewport and used to bias search results toward the current viewing area. **`mapCenter` updates are debounced by 100ms** during continuous panning.
 - **Drafting State**: `draftStart`, `draftEnd`, and `draftCallout` hold temporary coordinates and names for the Toolbar workflows before they are "inserted" into the timeline.
 - **Search & Picking State**: 
   - `searchResults` and `hoveredSearchResultId` drive the map-based feedback dots.
@@ -55,9 +71,8 @@ Everything lives in a single Zustand store.
 - **Drafting & Preview State**: 
   - `previewRoute` and `previewBoundary`: Store temporary GeoJSON for routes/polygons currently being planned in the Toolbar before insertion.
   - `previewBoundaryStyle`: Captures colors and animation styles selected during the boundary drafting phase.
-- **Zen Mode**: `hideUI` toggle hides the floating UI layers.
 
-*(Note: Transient UI state, such as `mobileMode` and `activeDropdown` for mutually exclusive menus, is intentionally kept out of the global store and is managed as local `useState` within `Toolbar.tsx` to prevent unnecessary global re-renders and maintain component isolation.)*
+*(Note: Component-local state (e.g., `activeDropdown`, `mobileMode` in `Toolbar.tsx`) is managed as local `useState` to prevent unnecessary global re-renders.)*
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
@@ -73,6 +88,29 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
 - `InspectorPanel.tsx`: Acts as a slim routing shell. It reads `item.kind` and delegates rendering to isolated components (`RouteInspector.tsx`, `CalloutInspector.tsx`, `BoundaryInspector.tsx`, etc.).
 - `InspectorLayout.tsx`: Provides shared architectural wrappers (`PanelWrapper`, `InspectorSection`, `ItemActions`) to ensure consistent styling, padding, and mobile drawer behavior across all inspector variants. `InspectorSection` uses standardized typography tokens matching `SectionLabel`.
 - `InspectorShared.tsx`: A **modern thin barrel file** that re-exports universal primitives (Field, SectionLabel, SwitchField) directly from `src/components/ui/`. Legacy backward-compatibility aliases have been removed; developers should import directly from `ui/` or use the new standardized names.
+
+### 3.5 Dynamic Label Capabilities System
+**Goal**: Allow granular, per-style label toggling without hardcoding layer patterns. Users see exactly which labels are available for each map style.
+
+**How it works:**
+1. **Runtime Detection** (`MapViewport.tsx:detectRuntimeCapabilities()`): When a style loads, the system scans the style's actual label layers and dynamically creates label groups with formatted names.
+   - Example: `settlement-subdivision-label` → group ID `settlement-subdivision`, label "Settlement Subdivision"
+   - **Standard Style Special Case**: Uses hardcoded label groups (since Standard uses Config API, not layers).
+   
+2. **Capabilities Store** (`useProjectStore.ts`): `detectedCapabilities` holds the label groups for the current style.
+   - Eagerly initialized with Standard's groups on app load.
+   - Updated whenever a style finishes loading.
+   
+3. **Label Syncing** (`MapViewport.tsx:toggleFeature()`):
+   - **Standard Style**: Maps label group IDs to Config API property names (e.g., `'road'` → `'showRoads'`).
+   - **Other Styles**: Uses layer ID pattern matching (e.g., `group.layerPatterns = ['road-label', 'road-number', ...]`).
+   
+4. **UI Integration** (`ProjectSettings.tsx`):
+   - Shows "All On" / "All Off" buttons for quick bulk toggling.
+   - Renders a switch for each label group detected in the current style.
+   - Toggles update `labelVisibility` in the store, which triggers reactive sync.
+
+**Key Design**: Label toggles are **transient UI state** (not persisted). When a project loads, all labels reset to their defaults for that style.
 
 ---
 
@@ -117,6 +155,26 @@ Uses inline controls and dropdowns:
 ---
 
 ## 6. Recent Architectural Refactoring
+
+### 6.0 Label System Overhaul (Dynamic Capabilities)
+**Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles.
+
+**Solution**: Runtime detection of available labels.
+- **`detectRuntimeCapabilities()`** scans the loaded style's actual label layers and builds label groups on-the-fly.
+- **Standard Style** uses hardcoded groups (it doesn't have traditional layers; it uses the Config API).
+- **`toggleFeature()`** intelligently routes to either Config API (Standard) or layer visibility (all others) based on style.
+- **ProjectSettings** renders toggles dynamically based on detected capabilities.
+- **UI Enhancement**: Added "All On" / "All Off" buttons for quick bulk label toggling.
+- **Transient State**: Label visibility is never persisted; resets on project load.
+
+**Transient UI State Cleanup**
+Removed from `Project` type (non-persisted); now transient-only in store:
+- `mapStyle` — always defaults to 'standard'
+- `labelVisibility` — resets to empty object
+- `playheadTime`, `isPlaying`, `isScrubbing` — playback state
+- `isInspectorOpen`, `timelineHeight` — UI layout state
+
+Benefit: Save files now contain only essential animation data. UI state is always fresh on load.
 
 ### 6.1 Complexity Reduction
 Several high-complexity functions have been decomposed into smaller, focused helpers:

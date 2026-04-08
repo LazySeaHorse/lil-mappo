@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import MapGL, { Source, Layer, Marker } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
-import { MAPBOX_TOKEN, MAP_STYLES } from '@/config/mapbox';
+import { MAPBOX_TOKEN, MAP_STYLES, type MapStyleCapabilities } from '@/config/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
 import { applyEasing, getNormalizedProgress } from '@/engine/easings';
@@ -19,6 +19,67 @@ import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
+}
+
+/**
+ * Detects capabilities for any Mapbox style by scanning the loaded style's label layer IDs.
+ * Dynamically creates label groups from actual layers, formatting names for display.
+ * For Standard style (which uses Config API instead of layers), returns predefined groups.
+ * Works for built-in and custom styles.
+ */
+function detectRuntimeCapabilities(map: any): MapStyleCapabilities {
+  const s = useProjectStore.getState();
+
+  // Standard style uses Config API, not traditional label layers
+  if (s.mapStyle === 'standard') {
+    return {
+      labelGroups: [
+        { id: 'road', label: 'Road Labels', layerPatterns: ['road'] },
+        { id: 'place', label: 'Place Names', layerPatterns: ['place'] },
+        { id: 'poi', label: 'Points of Interest', layerPatterns: ['poi'] },
+        { id: 'transit', label: 'Transit', layerPatterns: ['transit'] },
+        { id: 'water', label: 'Water Names', layerPatterns: ['water'] },
+        { id: 'natural', label: 'Natural Features', layerPatterns: ['natural'] },
+        { id: 'building', label: 'Building Names', layerPatterns: ['building'] },
+        { id: 'area', label: 'Area Labels', layerPatterns: ['area'] },
+      ],
+      landmarks3d: true,
+      trees3d: true,
+      facades3d: true,
+      timeOfDayPreset: true,
+      colorCustomization: false,
+    };
+  }
+
+  // For other styles, detect from actual label layers
+  const layers = map.getStyle()?.layers ?? [];
+  const labelLayers = layers.filter((l: any) => l.id.toLowerCase().includes('label'));
+
+  // Format layer ID to human-readable label
+  // e.g., "settlement-subdivision-label" → "Settlement Subdivision"
+  const formatLayerName = (layerId: string): string => {
+    return layerId
+      .toLowerCase()
+      .replace(/-label$/, '') // Remove trailing "-label"
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const detectedLabelGroups = labelLayers.map((layer: any) => ({
+    id: layer.id.toLowerCase().replace(/-label$/, ''), // Use formatted ID without "-label"
+    label: formatLayerName(layer.id),
+    layerPatterns: [layer.id], // Each group targets exactly its layer
+  }));
+
+  return {
+    labelGroups: detectedLabelGroups,
+    landmarks3d: false,
+    trees3d: false,
+    facades3d: false,
+    timeOfDayPreset: false,
+    colorCustomization: true,
+  };
 }
 
 function resolveClickTarget(e: any, editingPoint: string): { lngLat: [number, number]; name: string } {
@@ -68,11 +129,11 @@ function applyPickResult(
 export default function MapViewport({ mapRef }: MapViewportProps) {
   const {
     mapStyle, terrainEnabled, buildingsEnabled, terrainExaggeration,
-    projection, lightPreset, showRoadLabels, showPlaceLabels, showPointOfInterestLabels, showTransitLabels,
+    projection, lightPreset, labelVisibility,
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     items, itemOrder, playheadTime, isPlaying,
     selectedItemId, updateItem, selectItem, isMoveModeActive,
-    setMapCenter,
+    setMapCenter, terrainLoading, buildingsLoading,
   } = useProjectStore();
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
@@ -164,23 +225,34 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
    */
   const toggleFeature = useCallback((map: any, pkg: string, prop: string, layerIdPatterns: string | string[], visible: boolean) => {
     const s = useProjectStore.getState();
-    
-    // 1. Try Mapbox v3 Standard Config
+
+    // 1. Try Mapbox v3 Standard Config (maps label group IDs to config property names)
     if (s.mapStyle === 'standard') {
       try {
-        if (map.getConfigProperty(pkg, prop) !== visible) {
-          map.setConfigProperty(pkg, prop, visible);
+        // Map label group IDs to standard style config property names
+        const configPropMap: Record<string, string> = {
+          'road': 'showRoads',
+          'place': 'showPlaces',
+          'water': 'showWaterNames',
+          'poi': 'showPointOfInterestLabels',
+          'transit': 'showTransitLabels',
+          'natural': 'showNaturalLabels',
+          'building': 'showBuildingLabels',
+        };
+        const configProp = configPropMap[prop];
+        if (configProp && map.getConfigProperty(pkg, configProp) !== visible) {
+          map.setConfigProperty(pkg, configProp, visible);
         }
       } catch (e) {}
-    } 
-    
-    // 2. Always check Legacy Layers (essential for Satellite-Streets, etc.)
+    }
+
+    // 2. Always check Legacy Layers (essential for non-Standard styles)
     const layers = map.getStyle()?.layers || [];
     const patterns = Array.isArray(layerIdPatterns) ? layerIdPatterns : [layerIdPatterns];
     const matches = layers.filter((l: any) =>
       patterns.some(p => l.id.toLowerCase().includes(p.toLowerCase()))
     );
-    
+
     for (const layer of matches) {
       try {
         const currentVis = map.getLayoutProperty(layer.id, 'visibility');
@@ -228,11 +300,13 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         }
       }
 
-      // 3. LABELS (Polymorphic toggler handles both Standard and Legacy styles)
-      toggleFeature(map, 'basemap', 'showRoadLabels', ['road-label', 'road-number', 'road-shield'], s.showRoadLabels);
-      toggleFeature(map, 'basemap', 'showPlaceLabels', ['settlement-label', 'place-city', 'place-town', 'place-village', 'place-label', 'country-label', 'state-label'], s.showPlaceLabels);
-      toggleFeature(map, 'basemap', 'showPointOfInterestLabels', ['poi-label'], s.showPointOfInterestLabels);
-      toggleFeature(map, 'basemap', 'showTransitLabels', ['transit-label', 'airport-label', 'ferry'], s.showTransitLabels);
+      // 3. LABELS (Dynamic label groups detected from the loaded style)
+      if (s.detectedCapabilities) {
+        s.detectedCapabilities.labelGroups.forEach((group) => {
+          const isVisible = s.labelVisibility[group.id] ?? true;
+          toggleFeature(map, 'basemap', group.id, group.layerPatterns, isVisible);
+        });
+      }
 
       // 4. TERRAIN (Imperative DEM management)
       if (s.terrainEnabled) {
@@ -284,6 +358,16 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
 
     const handleStyleLoad = () => {
       setStyleLoaded(true);
+      const s = useProjectStore.getState();
+
+      // Detect capabilities for all styles (built-in and custom)
+      const detected = detectRuntimeCapabilities(map);
+      s.setDetectedCapabilities(detected);
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🏷️ Detected capabilities for ${s.mapStyle}:`, detected);
+      }
+
       syncRef.current();
     };
     const handleStyleImportData = () => syncRef.current();
@@ -359,14 +443,18 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   /**
    * Reactive Sync Effect: Fires syncEverything whenever any store value changes.
    * The mount-once effect handles event-driven retries; this handles direct state changes.
+   * Includes terrainLoading/buildingsLoading so that once async operations finish,
+   * a final sync runs to catch any toggle changes that occurred during loading.
    */
+  const detectedCapabilities = useProjectStore((s) => s.detectedCapabilities);
+
   useEffect(() => {
     syncRef.current();
   }, [
     mapStyle, projection, terrainEnabled, terrainExaggeration, fogConfig,
-    buildingsEnabled, lightPreset, showRoadLabels, showPlaceLabels, 
-    showPointOfInterestLabels, showTransitLabels, show3dLandmarks, 
-    show3dTrees, show3dFacades, styleLoaded
+    buildingsEnabled, lightPreset, labelVisibility, show3dLandmarks,
+    show3dTrees, show3dFacades, styleLoaded, terrainLoading, buildingsLoading,
+    detectedCapabilities
   ]);
 
   const routes: RouteItem[] = [];

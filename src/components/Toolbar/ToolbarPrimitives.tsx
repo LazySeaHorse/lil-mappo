@@ -43,7 +43,7 @@ export function ToolbarButton({
 }
 
 export function ToolbarToggle({
-  icon, label, active, onClick, loading, hideLabel,
+  icon, label, active, onClick, loading, hideLabel, disabled,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -51,6 +51,7 @@ export function ToolbarToggle({
   onClick: () => void;
   loading?: boolean;
   hideLabel?: boolean;
+  disabled?: boolean;
 }) {
   if (hideLabel) {
     return (
@@ -59,6 +60,7 @@ export function ToolbarToggle({
         size="sm"
         onClick={onClick}
         loading={loading}
+        disabled={disabled}
         title={label}
       >
         {icon}
@@ -69,9 +71,10 @@ export function ToolbarToggle({
   return (
     <Toggle
       pressed={active}
-      onPressedChange={onClick}
+      onPressedChange={() => !disabled && onClick()}
       size="sm"
-      className="h-8 px-2.5 flex items-center gap-1.5 text-xs focus-visible:ring-0 rounded-lg data-[state=on]:bg-primary/10 data-[state=on]:text-primary transition-all"
+      disabled={disabled}
+      className={`h-8 px-2.5 flex items-center gap-1.5 text-xs focus-visible:ring-0 rounded-lg data-[state=on]:bg-primary/10 data-[state=on]:text-primary transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={label}
     >
       {loading ? <Loader2 size={16} className="animate-spin" /> : icon}

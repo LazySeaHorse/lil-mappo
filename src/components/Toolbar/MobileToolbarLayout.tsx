@@ -96,7 +96,7 @@ export function MobileToolbarLayout({
             </div>
             <div className="flex items-center gap-1">
               <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying2 && !isScrubbing} />
-              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying2 && !isScrubbing} />
+              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying2 && !isScrubbing} disabled={mapStyle === 'satellite'} />
             </div>
             <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('default')} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />
