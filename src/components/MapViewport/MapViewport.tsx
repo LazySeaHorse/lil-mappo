@@ -34,14 +34,14 @@ function detectRuntimeCapabilities(map: any): MapStyleCapabilities {
   if (s.mapStyle === 'standard') {
     return {
       labelGroups: [
-        { id: 'road', label: 'Road Labels', layerPatterns: ['road'] },
-        { id: 'place', label: 'Place Names', layerPatterns: ['place'] },
-        { id: 'poi', label: 'Points of Interest', layerPatterns: ['poi'] },
-        { id: 'transit', label: 'Transit', layerPatterns: ['transit'] },
-        { id: 'water', label: 'Water Names', layerPatterns: ['water'] },
-        { id: 'natural', label: 'Natural Features', layerPatterns: ['natural'] },
-        { id: 'building', label: 'Building Names', layerPatterns: ['building'] },
-        { id: 'area', label: 'Area Labels', layerPatterns: ['area'] },
+        { id: 'place', label: 'Place Names', layerPatterns: ['country-label', 'state-label', 'settlement-major-label', 'settlement-minor-label', 'settlement-subdivision-label', 'continent-label'] },
+        { id: 'admin', label: 'Country & State Borders', layerPatterns: ['admin'] },
+        { id: 'road', label: 'Road Labels', layerPatterns: ['road-label', 'road-number-shield'] },
+        { id: 'transit', label: 'Transit', layerPatterns: ['transit-label'] },
+        { id: 'poi', label: 'Points of Interest', layerPatterns: ['poi-label'] },
+        { id: 'water', label: 'Water Names', layerPatterns: ['water-point-label', 'water-line-label'] },
+        { id: 'natural', label: 'Natural Features', layerPatterns: ['natural-point-label', 'natural-line-label'] },
+        { id: 'building', label: 'Building Names', layerPatterns: ['building-number-label'] },
       ],
       landmarks3d: true,
       trees3d: true,
@@ -234,13 +234,12 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
       try {
         // Map label group IDs to standard style config property names
         const configPropMap: Record<string, string> = {
-          'road': 'showRoads',
-          'place': 'showPlaces',
-          'water': 'showWaterNames',
+          'place': 'showPlaceLabels',
+          'admin': 'showAdminBoundaries',
+          'road': 'showRoadLabels',
           'poi': 'showPointOfInterestLabels',
           'transit': 'showTransitLabels',
-          'natural': 'showNaturalLabels',
-          'building': 'showBuildingLabels',
+          // water/natural/building have no Config API toggle — handled by layer fallback below
         };
         const configProp = configPropMap[prop];
         if (configProp && map.getConfigProperty(pkg, configProp) !== visible) {
@@ -367,9 +366,6 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
       const detected = detectRuntimeCapabilities(map);
       s.setDetectedCapabilities(detected);
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🏷️ Detected capabilities for ${s.mapStyle}:`, detected);
-      }
 
       syncRef.current();
     };
