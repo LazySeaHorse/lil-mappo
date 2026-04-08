@@ -53,7 +53,10 @@ function detectRuntimeCapabilities(map: any): MapStyleCapabilities {
 
   // For other styles, detect from actual label layers
   const layers = map.getStyle()?.layers ?? [];
-  const labelLayers = layers.filter((l: any) => l.id.toLowerCase().includes('label'));
+  const labelLayers = layers.filter((l: any) => {
+    const id = l.id.toLowerCase();
+    return id.includes('label') || id.includes('shield');
+  });
 
   // Format layer ID to human-readable label
   // e.g., "settlement-subdivision-label" → "Settlement Subdivision"
