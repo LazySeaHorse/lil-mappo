@@ -121,6 +121,27 @@ export interface CameraItem {
 
 export type TimelineItem = RouteItem | BoundaryItem | CalloutItem | CameraItem;
 
+export interface VideoOverlay {
+  id: string;
+  kind: 'watermark' | 'text' | 'image';
+  enabled: boolean;
+  /** Normalized 0–1 coordinates relative to export canvas. Resolution-independent. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+  // text + watermark label
+  text?: string;
+  fontFamily?: string;
+  /** Logical px at 1080p height — scaled proportionally at export time. */
+  fontSize?: number;
+  color?: string;
+  fontWeight?: 'normal' | 'bold';
+  // image overlays only — base64 data URL, max 500KB at import time
+  imageDataUrl?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -135,6 +156,8 @@ export interface Project {
   items: Record<string, TimelineItem>;
   itemOrder: string[];
   mapCenter: [number, number];
+  /** index 0 = topmost z-order (rendered last = on top). Watermark is always index 0. */
+  overlays: VideoOverlay[];
   // Custom map styles (future feature accommodation)
   customMapStyleUrl?: string;
   customMapStyleLabel?: string;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName, SearchResult } from './types';
+import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName, SearchResult, VideoOverlay } from './types';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import { MAP_STYLES } from '@/config/mapbox';
 
@@ -125,6 +125,12 @@ interface ProjectStore extends Project {
 
   // Runtime capabilities detection (transient UI state for custom styles)
   setDetectedCapabilities: (caps: MapStyleCapabilities | null) => void;
+
+  // Overlays
+  addOverlay: (overlay: VideoOverlay) => void;
+  updateOverlay: (id: string, updates: Partial<VideoOverlay>) => void;
+  removeOverlay: (id: string) => void;
+  reorderOverlays: (newOrder: VideoOverlay[]) => void;
 }
 
 const CAMERA_ID = 'camera-track';
@@ -135,6 +141,21 @@ const initialCamera: CameraItem = {
   keyframes: [],
 };
 
+export const DEFAULT_WATERMARK: VideoOverlay = {
+  id: 'watermark',
+  kind: 'watermark',
+  enabled: true,
+  x: 0.82,
+  y: 0.03,
+  width: 0.15,
+  height: 0.08,
+  opacity: 1,
+  text: "li'l Mappo",
+  fontFamily: 'Outfit',
+  fontSize: 16,
+  color: '#ffffff',
+  fontWeight: 'bold',
+};
 
 const defaultProject: Project = {
   id: nanoid(),
@@ -150,6 +171,7 @@ const defaultProject: Project = {
   items: { [CAMERA_ID]: initialCamera },
   itemOrder: [CAMERA_ID],
   mapCenter: [0, 0],
+  overlays: [DEFAULT_WATERMARK],
 };
 
 // Eagerly initialize standard style capabilities
@@ -315,6 +337,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadFullProject: (project) => set({
     ...defaultProject,
     ...project,
+    // Migrate legacy save files that predate overlays
+    overlays: project.overlays?.length ? project.overlays : [DEFAULT_WATERMARK],
     // Reset transient UI state to defaults
     mapStyle: 'standard',
     labelVisibility: {},
@@ -382,8 +406,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setEditingItemId: (id) => set({ editingItemId: id }),
   setPreviewRoute: (v) => set({ previewRoute: v }),
 
-  setPreviewBoundary: (geojson, name) => set({ 
-    previewBoundary: geojson, 
+  setPreviewBoundary: (geojson, name) => set({
+    previewBoundary: geojson,
     draftBoundaryName: name,
     previewBoundaryStyle: get().previewBoundaryStyle || {
       strokeColor: '#a855f7',
@@ -398,15 +422,33 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   }),
   setPreviewBoundaryStyle: (updates) => set((s) => ({
-    previewBoundaryStyle: s.previewBoundaryStyle 
-      ? { ...s.previewBoundaryStyle, ...updates } 
+    previewBoundaryStyle: s.previewBoundaryStyle
+      ? { ...s.previewBoundaryStyle, ...updates }
       : null
   })),
-  clearPreviewBoundary: () => set({ 
-    previewBoundary: null, 
-    previewBoundaryStyle: null, 
-    draftBoundaryName: '' 
+  clearPreviewBoundary: () => set({
+    previewBoundary: null,
+    previewBoundaryStyle: null,
+    draftBoundaryName: ''
   }),
+
+  addOverlay: (overlay) => set((s) => ({
+    // Non-watermark overlays go after the watermark (index 0)
+    overlays: overlay.kind === 'watermark'
+      ? [overlay, ...s.overlays]
+      : [s.overlays[0], overlay, ...s.overlays.slice(1)],
+  })),
+
+  updateOverlay: (id, updates) => set((s) => ({
+    overlays: s.overlays.map((o) => o.id === id ? { ...o, ...updates } : o),
+  })),
+
+  removeOverlay: (id) => set((s) => ({
+    // Watermark (kind === 'watermark') cannot be removed, only disabled
+    overlays: s.overlays.filter((o) => o.id !== id || o.kind === 'watermark'),
+  })),
+
+  reorderOverlays: (newOrder) => set({ overlays: newOrder }),
 }));
 
 export const CAMERA_TRACK_ID = CAMERA_ID;

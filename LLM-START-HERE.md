@@ -257,6 +257,41 @@ Callouts are rendered using pure Canvas 2D (`src/services/renderCallout.ts`), el
 - **news**: Rectangle + 5px left accent bar + uppercase bold text
 - **topo**: Left border + metadata (coordinates/elevation) + accent square dot
 
+### 7.4 Video Overlays (`src/components/Overlays/`, `src/services/renderOverlay.ts`)
+A watermark + custom overlay system allows users to add static text, images, or the li'l Mappo logo to the top of exported videos.
+
+**Data Model** (`src/store/types.ts`):
+- `VideoOverlay` interface: `kind` (watermark|text|image), normalized position (x, y, width, height ∈ [0,1]), opacity, and kind-specific properties (text, font, color for text; imageDataUrl for images).
+- `Project.overlays: VideoOverlay[]` — persisted; index 0 = topmost z-order (rendered last).
+
+**Default Watermark** (`DEFAULT_WATERMARK`):
+- Always first overlay in the array (highest z, locked at top-right).
+- **Static badge in preview**: Rendered as a fixed icon + "li'l Mappo" text badge in the top-right corner of the preview — NOT draggable or resizable (unlike text/image overlays which use `react-rnd`).
+- **No editable properties**: The properties panel for watermark only shows an enable/disable toggle with a PRO badge. No font, color, size, or position controls.
+- Shows li'l Mappo logo + wordmark text rendered via Canvas 2D at export time.
+- Disabled option is PRO-gated (currently works for all users during preview).
+
+**Performance** (`src/services/renderOverlay.ts`):
+- **Watermark baking**: `bakeWatermark()` renders logo SVG + text to an offscreen canvas **once** in `initEncoder()`. Each frame, a single `drawImage()` blits it. No per-frame text measuring or image loading.
+- **Image preloading**: `preloadOverlayImages()` loads all image overlays (base64 data URLs) into `HTMLImageElement` instances once, stored in a `Map` keyed by overlay ID for O(1) frame lookup.
+- **Per-frame rendering**: `renderOverlaysToCanvas()` composites all overlays in order (index 0 last = visually on top) after callouts. Text renders at font size scaled `(fontSize / 1080) * canvasHeight`.
+
+**UI Modal** (`src/components/Overlays/OverlayModal.tsx`):
+- **Desktop**: 3-panel layout (left: DnD sortable list via `@dnd-kit/sortable`; center: live preview with `react-rnd` drag+resize; right: properties). Desktop modal is `1330×780px`.
+- **Mobile**: Stacked (preview top 45%, list/properties bottom with back-chevron slide transition).
+- **Preview background**: Live map snapshot via `map.getCanvas().toDataURL()` on modal mount (requires `preserveDrawingBuffer: true` on map).
+- **Preview interaction** (`OverlayPreview.tsx`):
+  - Uses **controlled `react-rnd`** (`position` + `size` props) with local state during drag/resize for smooth feedback. Store is updated on stop.
+  - **Text overlays**: Draggable only — no resize handles. Properties panel controls font, size, color, weight, and opacity.
+  - **Image overlays**: Draggable + resizable with **aspect ratio lock** (`lockAspectRatio`). Default size is 10% of canvas. Properties panel controls image upload and opacity.
+  - **Watermark**: Static badge — not rendered as an `OverlayHandle`. Shown as a fixed element in the top-right corner of the preview.
+  - No XYWH position readout is shown in the properties panel.
+
+**Constraints & Validation**:
+- Image overlays limited to **500 KB** at upload time; toast error if exceeded.
+- Watermark cannot be deleted, only disabled (Pro feature).
+- Non-watermark overlays can be freely added, removed, and reordered.
+
 ---
 
 ## 8. Common Gotchas

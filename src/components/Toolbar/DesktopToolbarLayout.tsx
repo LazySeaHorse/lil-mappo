@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Clapperboard, Video, EyeOff, Mountain, Building2,
-  Layers2, Plus, Settings2, Loader2
+  Layers2, Plus, Settings2, Loader2, SquareDashedMousePointer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +21,7 @@ interface DesktopToolbarLayoutProps {
   setActiveDropdown: (d: 'route' | 'callout' | 'boundary' | null) => void;
   isPlaying: boolean;
   onExport: () => void;
+  onOverlays: () => void;
   onImportClick: () => void;
   onHideUI: () => void;
   onProjectSettings: () => void;
@@ -128,7 +129,7 @@ function DropdownToggle({ icon, label, active, onClick, loading, disabled }: { i
 
 export function DesktopToolbarLayout({
   isTablet, activeDropdown, setActiveDropdown,
-  isPlaying, onExport,
+  isPlaying, onExport, onOverlays,
   onImportClick, onHideUI, onProjectSettings,
   renderProjectMenu, handleAddCameraKF,
   mapStyle, setMapStyle,
@@ -191,6 +192,7 @@ export function DesktopToolbarLayout({
       <div className="flex-1" />
       <Divider />
 
+      <ToolbarButton icon={<SquareDashedMousePointer size={16} />} label="Overlays" hideLabel onClick={onOverlays} />
       <ToolbarButton icon={<Clapperboard size={16} />} label="Export" hideLabel onClick={onExport} />
       <Divider className="hidden sm:block" />
       <div className="hidden sm:block">

@@ -4,11 +4,18 @@ import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { getAnimatedLine } from '@/engine/lineAnimation';
 import { useMapRef } from '@/hooks/useMapRef';
 import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout';
+import {
+  bakeWatermark,
+  preloadOverlayImages,
+  renderOverlaysToCanvas,
+  type BakedWatermark,
+} from './renderOverlay';
 
 /**
  * Non-realtime offline export engine.
- * Steps through each frame at 1/fps, renders the map, composites callout DOM
- * via html2canvas, then encodes with WebCodecs + mp4-muxer (or MediaRecorder fallback).
+ * Steps through each frame at 1/fps, renders the map, composites callouts and
+ * overlays via Canvas 2D, then encodes with WebCodecs + mp4-muxer (or
+ * MediaRecorder fallback).
  */
 
 interface ExportOptions {
@@ -30,9 +37,16 @@ interface EncoderState {
   videoEncoder: VideoEncoder | null;
   mediaRecorder: MediaRecorder | null;
   recordedChunks: Blob[];
+  bakedWatermark: BakedWatermark | null;
+  preloadedImages: Map<string, HTMLImageElement>;
 }
 
-async function initEncoder(width: number, height: number, fps: number, onError: (err: string) => void): Promise<EncoderState> {
+async function initEncoder(
+  width: number,
+  height: number,
+  fps: number,
+  onError: (err: string) => void,
+): Promise<EncoderState> {
   const compCanvas = document.createElement('canvas');
   compCanvas.width = width;
   compCanvas.height = height;
@@ -79,14 +93,41 @@ async function initEncoder(width: number, height: number, fps: number, onError: 
     mediaRecorder.start();
   }
 
-  return { compCanvas, compCtx, muxer, videoEncoder, mediaRecorder, recordedChunks };
+  // Pre-bake watermark and preload image overlays (done once, blitted each frame)
+  const store = useProjectStore.getState();
+  const overlays = store.overlays ?? [];
+  const watermarkOverlay = overlays.find((o) => o.kind === 'watermark');
+
+  let bakedWatermark: BakedWatermark | null = null;
+  if (watermarkOverlay?.enabled) {
+    try {
+      const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
+      bakedWatermark = await bakeWatermark(
+        logoUrl,
+        watermarkOverlay.text ?? "li'l Mappo",
+        watermarkOverlay.fontFamily ?? 'Outfit',
+        watermarkOverlay.fontSize ?? 16,
+        watermarkOverlay.color ?? '#ffffff',
+        watermarkOverlay.fontWeight ?? 'bold',
+      );
+    } catch {
+      // Non-fatal — export continues without watermark
+    }
+  }
+
+  const preloadedImages = await preloadOverlayImages(overlays);
+
+  return {
+    compCanvas, compCtx, muxer, videoEncoder, mediaRecorder, recordedChunks,
+    bakedWatermark, preloadedImages,
+  };
 }
 
 async function captureFrame(
   map: any,
   compCanvas: HTMLCanvasElement,
   compCtx: CanvasRenderingContext2D,
-  encoder: Pick<EncoderState, 'videoEncoder' | 'mediaRecorder'>,
+  encoder: Pick<EncoderState, 'videoEncoder' | 'mediaRecorder' | 'bakedWatermark' | 'preloadedImages'>,
   frameIndex: number,
   fps: number,
   clampedTime: number,
@@ -124,7 +165,7 @@ async function captureFrame(
   compCtx.clearRect(0, 0, width, height);
   compCtx.drawImage(mapCanvas, 0, 0, width, height);
 
-  // Draw callouts via canvas (DOM-free, replaces html2canvas)
+  // Draw callouts via canvas (DOM-free)
   const zoom = map.getZoom();
   for (const id of freshStore.itemOrder) {
     const item = freshStore.items[id];
@@ -144,6 +185,13 @@ async function captureFrame(
 
     renderCalloutToCanvas(compCtx, callout, anim, { x: projected.x, y: projected.y }, altitudeOffset);
   }
+
+  // Draw overlays (watermark last = on top; index 0 is topmost z in array)
+  const overlays = freshStore.overlays ?? [];
+  renderOverlaysToCanvas(
+    compCtx, overlays, width, height,
+    encoder.bakedWatermark, encoder.preloadedImages,
+  );
 
   // Encode
   if (videoEncoder) {

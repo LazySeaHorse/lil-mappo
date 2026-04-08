@@ -18,6 +18,7 @@ import {
 import { useToolbarActions } from './useToolbarActions';
 import { MobileToolbarLayout } from './MobileToolbarLayout';
 import { DesktopToolbarLayout } from './DesktopToolbarLayout';
+import { OverlayModal } from '@/components/Overlays/OverlayModal';
 
 interface ToolbarProps {
   onExport: () => void;
@@ -29,6 +30,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [mobileMode, setMobileMode] = useState<'default' | 'add' | 'layers'>('default');
   const [activeDropdown, setActiveDropdown] = useState<'route' | 'callout' | 'boundary' | null>(null);
+  const [overlayModalOpen, setOverlayModalOpen] = useState(false);
 
   const {
     isPlaying, mapStyle, setMapStyle,
@@ -77,42 +79,48 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   };
 
   return (
-    <div
-      className={`h-14 ${finalRounded} absolute bg-background/85 backdrop-blur-xl border border-border/50 flex items-center px-4 shadow-2xl shadow-black/10 pointer-events-auto z-50 transition-all duration-300`}
-      style={{ top: finalTopMargin, left: finalLeftMargin, right: finalRightMargin }}
-    >
-      <input ref={routeInputRef} type="file" accept=".kml,.gpx" multiple className="hidden" onChange={actions.handleImport} />
-      <input ref={projectInputRef} type="file" accept=".lilmap,.json" className="hidden" onChange={actions.handleImportProject} />
+    <>
+      <div
+        className={`h-14 ${finalRounded} absolute bg-background/85 backdrop-blur-xl border border-border/50 flex items-center px-4 shadow-2xl shadow-black/10 pointer-events-auto z-50 transition-all duration-300`}
+        style={{ top: finalTopMargin, left: finalLeftMargin, right: finalRightMargin }}
+      >
+        <input ref={routeInputRef} type="file" accept=".kml,.gpx" multiple className="hidden" onChange={actions.handleImport} />
+        <input ref={projectInputRef} type="file" accept=".lilmap,.json" className="hidden" onChange={actions.handleImportProject} />
 
-      {isMobile || isTablet ? (
-        <MobileToolbarLayout
-          mobileMode={mobileMode}
-          setMobileMode={setMobileMode}
-          activeDropdown={activeDropdown}
-          setActiveDropdown={setActiveDropdown}
-          onExport={onExport}
-          onImportClick={() => routeInputRef.current?.click()}
-          onHideUI={() => setHideUI(true)}
-          renderProjectMenu={renderProjectMenu}
-          handleAddCameraKF={actions.handleAddCameraKF}
-          isPlaying2={isPlaying}
-          {...layerProps}
-        />
-      ) : (
-        <DesktopToolbarLayout
-          isTablet={false}
-          activeDropdown={activeDropdown}
-          setActiveDropdown={setActiveDropdown}
-          isPlaying={isPlaying}
-          onExport={onExport}
-          onImportClick={() => routeInputRef.current?.click()}
-          onHideUI={() => setHideUI(true)}
-          onProjectSettings={() => { setProjectSettingsTab('map'); selectItem(null); }}
-          renderProjectMenu={renderProjectMenu}
-          handleAddCameraKF={actions.handleAddCameraKF}
-          {...layerProps}
-        />
-      )}
-    </div>
+        {isMobile || isTablet ? (
+          <MobileToolbarLayout
+            mobileMode={mobileMode}
+            setMobileMode={setMobileMode}
+            activeDropdown={activeDropdown}
+            setActiveDropdown={setActiveDropdown}
+            onExport={onExport}
+            onOverlays={() => setOverlayModalOpen(true)}
+            onImportClick={() => routeInputRef.current?.click()}
+            onHideUI={() => setHideUI(true)}
+            renderProjectMenu={renderProjectMenu}
+            handleAddCameraKF={actions.handleAddCameraKF}
+            isPlaying2={isPlaying}
+            {...layerProps}
+          />
+        ) : (
+          <DesktopToolbarLayout
+            isTablet={false}
+            activeDropdown={activeDropdown}
+            setActiveDropdown={setActiveDropdown}
+            isPlaying={isPlaying}
+            onExport={onExport}
+            onOverlays={() => setOverlayModalOpen(true)}
+            onImportClick={() => routeInputRef.current?.click()}
+            onHideUI={() => setHideUI(true)}
+            onProjectSettings={() => { setProjectSettingsTab('map'); selectItem(null); }}
+            renderProjectMenu={renderProjectMenu}
+            handleAddCameraKF={actions.handleAddCameraKF}
+            {...layerProps}
+          />
+        )}
+      </div>
+
+      <OverlayModal open={overlayModalOpen} onClose={() => setOverlayModalOpen(false)} />
+    </>
   );
 }

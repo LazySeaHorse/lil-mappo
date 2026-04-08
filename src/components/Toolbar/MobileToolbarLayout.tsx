@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff } from 'lucide-react';
+import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff, SquareDashedMousePointer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { CalloutAddDropdown } from './CalloutAddDropdown';
@@ -15,6 +15,7 @@ interface MobileToolbarLayoutProps {
   activeDropdown: 'route' | 'callout' | 'boundary' | null;
   setActiveDropdown: (d: 'route' | 'callout' | 'boundary' | null) => void;
   onExport: () => void;
+  onOverlays: () => void;
   onImportClick: () => void;
   onHideUI: () => void;
   renderProjectMenu: () => React.ReactNode;
@@ -35,7 +36,7 @@ interface MobileToolbarLayoutProps {
 export function MobileToolbarLayout({
   mobileMode, setMobileMode,
   activeDropdown, setActiveDropdown,
-  onExport,
+  onExport, onOverlays,
   onImportClick, onHideUI, renderProjectMenu,
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
@@ -59,6 +60,8 @@ export function MobileToolbarLayout({
             <Layers2 size={20} />
           </IconButton>
           <div className="flex-1" />
+          <ToolbarButton icon={<SquareDashedMousePointer size={18} />} label="Overlays" hideLabel onClick={onOverlays} />
+          <div className="w-1" />
           <ToolbarButton icon={<Clapperboard size={18} />} label="Export" hideLabel onClick={onExport} />
           <div className="w-1" />
           <ToolbarButton icon={<EyeOff size={18} />} label="Hide UI" hideLabel onClick={onHideUI} />
