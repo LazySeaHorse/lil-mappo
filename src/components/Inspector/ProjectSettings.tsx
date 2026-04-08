@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,14 +11,15 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
 
 export function ProjectSettings() {
-  const [activeTab, setActiveTab] = useState<'general' | 'map'>('general');
   const {
     name, duration, fps, resolution, terrainExaggeration, projection, lightPreset,
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     labelVisibility, setLabelGroupVisibility, setAllLabelsVisibility,
     setProjectName, setDuration, setFps, setResolution, setTerrainExaggeration,
     setProjection, setLightPreset, set3dDetails, setAtmosphere,
-    mapStyle
+    mapStyle,
+    projectSettingsTab,
+    setProjectSettingsTab,
   } = useProjectStore();
   const capabilities = useMapStyleCapabilities();
 
@@ -29,12 +30,12 @@ export function ProjectSettings() {
           { value: 'general', label: 'General' },
           { value: 'map', label: 'Map' },
         ]}
-        value={activeTab}
-        onValueChange={setActiveTab}
+        value={projectSettingsTab}
+        onValueChange={setProjectSettingsTab}
         className="mb-4"
       />
 
-      {activeTab === 'general' ? (
+      {projectSettingsTab === 'general' ? (
         <>
           <Field label="Name"><InputText value={name} onChange={setProjectName} /></Field>
           <div className="grid grid-cols-2 gap-3">

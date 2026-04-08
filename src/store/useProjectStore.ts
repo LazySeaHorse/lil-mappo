@@ -28,6 +28,7 @@ interface ProjectStore extends Project {
   // Transient UI modes (not persisted)
   isMoveModeActive: boolean;
   hideUI: boolean;
+  projectSettingsTab: 'general' | 'map';
   // Transient search state (not persisted)
   searchResults: SearchResult[];
   hoveredSearchResultId: string | null;
@@ -87,6 +88,9 @@ interface ProjectStore extends Project {
 
   // Zen Mode
   setHideUI: (v: boolean) => void;
+
+  // Project Settings Tab
+  setProjectSettingsTab: (tab: 'general' | 'map') => void;
 
   // Inspector visibility
   setIsInspectorOpen: (v: boolean) => void;
@@ -192,6 +196,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Transient UI modes (not persisted)
   isMoveModeActive: false,
   hideUI: false,
+  projectSettingsTab: 'general' as 'general' | 'map',
   // Transient search state (not persisted)
   searchResults: [],
   hoveredSearchResultId: null,
@@ -297,6 +302,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setMoveModeActive: (v) => set({ isMoveModeActive: v }),
   setHideUI: (v) => set({ hideUI: v }),
+  setProjectSettingsTab: (tab) => set({ projectSettingsTab: tab }),
 
   setTerrainLoading: (v) => set({ terrainLoading: v }),
   setBuildingsLoading: (v) => set({ buildingsLoading: v }),
@@ -332,6 +338,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Reset transient UI modes
     isMoveModeActive: false,
     hideUI: false,
+    projectSettingsTab: 'general',
     // Reset transient search state
     searchResults: [],
     hoveredSearchResultId: null,

@@ -35,6 +35,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading, buildingsLoading,
     selectItem, setHideUI, isInspectorOpen, isScrubbing,
+    setProjectSettingsTab,
   } = useProjectStore();
 
   const { isMobile, isTablet } = useResponsive();
@@ -62,7 +63,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         <DropdownMenuItem onClick={actions.handleExportProject} className="gap-2 cursor-pointer py-2.5"><FileJson size={14} /> Export Project File</DropdownMenuItem>
         <DropdownMenuItem onClick={() => projectInputRef.current?.click()} className="gap-2 cursor-pointer py-2.5"><Upload size={14} /> Import Project File</DropdownMenuItem>
         <DropdownMenuSeparator className="bg-border/50" />
-        <DropdownMenuItem onClick={() => selectItem(null)} className="gap-2 cursor-pointer py-2.5"><Settings size={14} /> Project Settings</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { setProjectSettingsTab('general'); selectItem(null); }} className="gap-2 cursor-pointer py-2.5"><Settings size={14} /> Project Settings</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -106,7 +107,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
           onExport={onExport}
           onImportClick={() => routeInputRef.current?.click()}
           onHideUI={() => setHideUI(true)}
-          onProjectSettings={() => selectItem(null)}
+          onProjectSettings={() => { setProjectSettingsTab('map'); selectItem(null); }}
           renderProjectMenu={renderProjectMenu}
           handleAddCameraKF={actions.handleAddCameraKF}
           {...layerProps}
