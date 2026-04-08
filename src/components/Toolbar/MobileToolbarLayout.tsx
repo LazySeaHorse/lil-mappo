@@ -1,5 +1,5 @@
 import React from 'react';
-import { Video, Plus, Layers2, X, Mountain, Building2, EyeOff } from 'lucide-react';
+import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { CalloutAddDropdown } from './CalloutAddDropdown';
@@ -59,7 +59,7 @@ export function MobileToolbarLayout({
             <Layers2 size={20} />
           </IconButton>
           <div className="flex-1" />
-          <ToolbarButton icon={<Video size={18} />} label="Export" hideLabel onClick={onExport} />
+          <ToolbarButton icon={<Clapperboard size={18} />} label="Export" hideLabel onClick={onExport} />
           <div className="w-1" />
           <ToolbarButton icon={<EyeOff size={18} />} label="Hide UI" hideLabel onClick={onHideUI} />
         </div>

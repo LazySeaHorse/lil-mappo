@@ -3,7 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useMapRef } from '@/hooks/useMapRef';
 import { runExport } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
-import { X, Download, Film, AlertTriangle, Cloud } from 'lucide-react';
+import { X, Download, Clapperboard, AlertTriangle, Cloud } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,7 +85,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <Film size={18} className="text-primary" />
+            <Clapperboard size={18} className="text-primary" />
             <h2 className="text-sm font-semibold">Export Video</h2>
           </div>
           <IconButton
@@ -257,7 +257,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 </>
               ) : (
                 <>
-                  <Film size={16} />
+                  <Clapperboard size={16} />
                   Start Export
                 </>
               )}

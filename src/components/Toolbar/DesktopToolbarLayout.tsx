@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Video, EyeOff, Mountain, Building2,
+  Clapperboard, Video, EyeOff, Mountain, Building2,
   Layers2, Plus, Settings2, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -190,7 +190,7 @@ export function DesktopToolbarLayout({
       <div className="flex-1" />
       <Divider />
 
-      <ToolbarButton icon={<Video size={16} />} label="Export" hideLabel onClick={onExport} />
+      <ToolbarButton icon={<Clapperboard size={16} />} label="Export" hideLabel onClick={onExport} />
       <Divider className="hidden sm:block" />
       <div className="hidden sm:block">
         <ToolbarButton icon={<EyeOff size={16} />} label="Hide UI" hideLabel onClick={onHideUI} />

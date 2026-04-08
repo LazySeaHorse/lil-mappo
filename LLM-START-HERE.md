@@ -156,6 +156,7 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - Callout: `MessageSquare` → `Flag` (distinct annotation marker)
 - Boundary: `MapPin` → `Hexagon` (clear polygon indicator)
 - Camera Keyframe: `Crosshair` → `Video` (represents video frames)
+- Export: `Video` → `Clapperboard` (more distinct for cinematic final output)
 
 ### 6.2 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
 Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
