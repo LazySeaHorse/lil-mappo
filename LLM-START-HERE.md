@@ -46,14 +46,13 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 
 **Persisted (Project):**
 - `items`: A record of all timeline elements (Routes, Boundaries, Callouts, Camera).
-- `itemOrder`, `selectedItemId`, `selectedKeyframeId`: Selection & ordering state.
+- `itemOrder`: Display order of timeline items.
 - `duration`, `fps`, `resolution`: Export settings.
 - `projection`, `lightPreset`: Environment settings.
-- `show3dLandmarks`, `show3dTrees`, `show3dFacades`: 3D feature toggles.
 - `starIntensity`, `fogColor`: Atmosphere customization.
-- `terrainEnabled`, `buildingsEnabled`, `terrainExaggeration`: Terrain/building config.
-- `isMoveModeActive`, `hideUI`: User preference toggles.
-- `items`, `itemOrder`, drafting & preview state: Animation and editing context.
+- `terrainExaggeration`: Terrain elevation multiplier.
+- `mapCenter`: Current viewport center (for search proximity bias).
+- `customMapStyleUrl`, `customMapStyleLabel`: Custom map style support (future feature).
 
 **Transient (UI State — NOT persisted):**
 - `mapStyle`: Always defaults to `'standard'` on app load; resets when loading a project.
@@ -61,16 +60,16 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 - `playheadTime`, `isPlaying`, `isScrubbing`: Playback position and state.
 - `isInspectorOpen`, `timelineHeight`: Inspector & timeline UI state.
 - `detectedCapabilities`: Runtime-detected label groups for the current style.
-- **Map Center & Proximity**: `mapCenter` is synced from the viewport and used to bias search results toward the current viewing area. **`mapCenter` updates are debounced by 100ms** during continuous panning.
-- **Drafting State**: `draftStart`, `draftEnd`, and `draftCallout` hold temporary coordinates and names for the Toolbar workflows before they are "inserted" into the timeline.
-- **Search & Picking State**: 
-  - `searchResults` and `hoveredSearchResultId` drive the map-based feedback dots.
+- **Feature Toggles**: `terrainEnabled`, `buildingsEnabled`, `show3dLandmarks`, `show3dTrees`, `show3dFacades` — Reset to defaults on project load.
+- **Selection State**: `selectedItemId`, `selectedKeyframeId` — Reset to null on project load.
+- **UI Modes**: `isMoveModeActive`, `hideUI` — Reset to defaults on project load.
+- **Search State**: `searchResults`, `hoveredSearchResultId` — Drive map-based feedback dots; reset on project load.
+- **Drafting & Picking State**: 
   - `editingRoutePoint` ('start' | 'end' | 'callout') activates the **global pick mode**. 
-  - `editingItemId`: A generic state that tracks the ID of the specific item currently being geocoded or picked. If null, the map-click updates the Toolbar `draft` states; if set, it updates the specific timeline item.
-- **Move Mode**: `isMoveModeActive` allows users to reposition existing items by clicking on the map.
-- **Drafting & Preview State**: 
-  - `previewRoute` and `previewBoundary`: Store temporary GeoJSON for routes/polygons currently being planned in the Toolbar before insertion.
-  - `previewBoundaryStyle`: Captures colors and animation styles selected during the boundary drafting phase.
+  - `editingItemId`: Tracks the ID of the specific item currently being geocoded or picked.
+  - `draftStart`, `draftEnd`, `draftCallout`: Temporary coordinates and names for Toolbar workflows.
+  - `previewRoute`, `previewBoundary`, `previewBoundaryStyle`, `draftBoundaryName`: Temporary GeoJSON and styles for routes/polygons being planned before insertion.
+  - All reset to null/empty on project load.
 
 *(Note: Component-local state (e.g., `activeDropdown`, `mobileMode` in `Toolbar.tsx`) is managed as local `useState` to prevent unnecessary global re-renders.)*
 

@@ -129,34 +129,12 @@ export interface Project {
   resolution: [number, number];
   projection: 'globe' | 'mercator';
   lightPreset: 'day' | 'night' | 'dusk' | 'dawn';
-  show3dLandmarks: boolean;
-  show3dTrees: boolean;
-  show3dFacades: boolean;
   starIntensity: number;
   fogColor: string | null;
-  terrainEnabled: boolean;
-  buildingsEnabled: boolean;
   terrainExaggeration: number;
   items: Record<string, TimelineItem>;
   itemOrder: string[];
-  selectedItemId: string | null;
-  selectedKeyframeId: string | null;
-  isMoveModeActive: boolean;
-  hideUI: boolean;
-  // Search
-  searchResults: SearchResult[];
-  hoveredSearchResultId: string | null;
-  // Drafting / Picking
-  editingRoutePoint: 'start' | 'end' | 'callout' | null;
-  editingItemId: string | null;
-  draftStart: { lngLat: [number, number]; name: string } | null;
-  draftEnd: { lngLat: [number, number]; name: string } | null;
-  draftCallout: { lngLat: [number, number]; name: string } | null;
   mapCenter: [number, number];
-  // Preview / Drafting
-  previewBoundary: GeoJSON.Geometry | null;
-  previewBoundaryStyle: BoundaryItem['style'] | null;
-  draftBoundaryName: string;
   // Custom map styles (future feature accommodation)
   customMapStyleUrl?: string;
   customMapStyleLabel?: string;

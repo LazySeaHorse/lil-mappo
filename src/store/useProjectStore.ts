@@ -1,10 +1,47 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName } from './types';
+import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName, SearchResult } from './types';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import { MAP_STYLES } from '@/config/mapbox';
 
 interface ProjectStore extends Project {
+  // Transient UI state (not persisted)
+  mapStyle: string;
+  labelVisibility: Record<string, boolean>;
+  playheadTime: number;
+  isPlaying: boolean;
+  isScrubbing: boolean;
+  isInspectorOpen: boolean;
+  timelineHeight: number;
+  terrainLoading: boolean;
+  buildingsLoading: boolean;
+  detectedCapabilities: MapStyleCapabilities | null;
+  // Transient feature toggles (not persisted)
+  terrainEnabled: boolean;
+  buildingsEnabled: boolean;
+  show3dLandmarks: boolean;
+  show3dTrees: boolean;
+  show3dFacades: boolean;
+  // Transient selection state (not persisted)
+  selectedItemId: string | null;
+  selectedKeyframeId: string | null;
+  // Transient UI modes (not persisted)
+  isMoveModeActive: boolean;
+  hideUI: boolean;
+  // Transient search state (not persisted)
+  searchResults: SearchResult[];
+  hoveredSearchResultId: string | null;
+  // Transient drafting/picking state (not persisted)
+  editingRoutePoint: 'start' | 'end' | 'callout' | null;
+  editingItemId: string | null;
+  draftStart: { lngLat: [number, number]; name: string } | null;
+  draftEnd: { lngLat: [number, number]; name: string } | null;
+  draftCallout: { lngLat: [number, number]; name: string } | null;
+  previewRoute: GeoJSON.FeatureCollection | null;
+  previewBoundary: GeoJSON.Geometry | null;
+  previewBoundaryStyle: BoundaryItem['style'] | null;
+  draftBoundaryName: string;
+
   // Item CRUD
   addItem: (item: TimelineItem) => void;
   removeItem: (id: string) => void;
@@ -42,64 +79,47 @@ interface ProjectStore extends Project {
   setProjectName: (n: string) => void;
 
   // Move Mode (Manual Positioning)
-  isMoveModeActive: boolean;
   setMoveModeActive: (v: boolean) => void;
 
   // Loading indicators (transient UI state)
-  terrainLoading: boolean;
-  buildingsLoading: boolean;
   setTerrainLoading: (v: boolean) => void;
   setBuildingsLoading: (v: boolean) => void;
 
   // Zen Mode
-  hideUI: boolean;
   setHideUI: (v: boolean) => void;
 
   // Inspector visibility
-  isInspectorOpen: boolean;
   setIsInspectorOpen: (v: boolean) => void;
 
   // Route Planning
-  editingRoutePoint: 'start' | 'end' | 'callout' | null;
   setEditingRoutePoint: (p: 'start' | 'end' | 'callout' | null) => void;
-  draftStart: { lngLat: [number, number]; name: string } | null;
   setDraftStart: (v: { lngLat: [number, number]; name: string } | null) => void;
-  draftEnd: { lngLat: [number, number]; name: string } | null;
   setDraftEnd: (v: { lngLat: [number, number]; name: string } | null) => void;
-  draftCallout: { lngLat: [number, number]; name: string } | null;
   setDraftCallout: (v: { lngLat: [number, number]; name: string } | null) => void;
-  editingItemId: string | null;
   setEditingItemId: (id: string | null) => void;
-  previewRoute: GeoJSON.FeatureCollection | null;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
 
-  previewBoundary: GeoJSON.Geometry | null;
-  previewBoundaryStyle: BoundaryItem['style'] | null;
-  draftBoundaryName: string;
   setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;
 
   // Timeline visibility/height
-  timelineHeight: number;
   setTimelineHeight: (v: number) => void;
 
   // Project loading
   loadFullProject: (project: Project) => void;
 
   // View state for search proximity
-  mapCenter: [number, number];
   setMapCenter: (v: [number, number]) => void;
 
   // Search actions
-  setSearchResults: (results: any[]) => void;
+  setSearchResults: (results: SearchResult[]) => void;
   setHoveredSearchResultId: (id: string | null) => void;
 
   // Utilities
   duplicateItem: (id: string) => void;
 
   // Runtime capabilities detection (transient UI state for custom styles)
-  detectedCapabilities: MapStyleCapabilities | null;
   setDetectedCapabilities: (caps: MapStyleCapabilities | null) => void;
 }
 
@@ -120,31 +140,12 @@ const defaultProject: Project = {
   resolution: [1920, 1080],
   projection: 'globe',
   lightPreset: 'day',
-  show3dLandmarks: true,
-  show3dTrees: true,
-  show3dFacades: true,
   starIntensity: 0.6,
   fogColor: null,
-  terrainEnabled: false,
-  buildingsEnabled: false,
   terrainExaggeration: 1.5,
   items: { [CAMERA_ID]: initialCamera },
   itemOrder: [CAMERA_ID],
-  selectedItemId: null,
-  selectedKeyframeId: null,
-  isMoveModeActive: false,
-  hideUI: false,
-  searchResults: [],
-  hoveredSearchResultId: null,
-  editingRoutePoint: null,
-  editingItemId: null,
-  draftStart: null,
-  draftEnd: null,
-  draftCallout: null,
   mapCenter: [0, 0],
-  previewBoundary: null,
-  previewBoundaryStyle: null,
-  draftBoundaryName: '',
 };
 
 // Eagerly initialize standard style capabilities
@@ -179,6 +180,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   terrainLoading: false,
   buildingsLoading: false,
   detectedCapabilities: STANDARD_STYLE_CAPABILITIES,
+  // Transient feature toggles (not persisted)
+  terrainEnabled: false,
+  buildingsEnabled: false,
+  show3dLandmarks: true,
+  show3dTrees: true,
+  show3dFacades: true,
+  // Transient selection state (not persisted)
+  selectedItemId: null,
+  selectedKeyframeId: null,
+  // Transient UI modes (not persisted)
+  isMoveModeActive: false,
+  hideUI: false,
+  // Transient search state (not persisted)
+  searchResults: [],
+  hoveredSearchResultId: null,
+  // Transient drafting/picking state (not persisted)
+  editingRoutePoint: null,
+  editingItemId: null,
+  draftStart: null,
+  draftEnd: null,
+  draftCallout: null,
+  previewRoute: null,
+  previewBoundary: null,
+  previewBoundaryStyle: null,
+  draftBoundaryName: '',
 
   addItem: (item) => set((s) => ({
     items: { ...s.items, [item.id]: item },
@@ -291,12 +317,33 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     isScrubbing: false,
     isInspectorOpen: true,
     timelineHeight: 256,
-    terrainEnabled: false,
-    buildingsEnabled: false,
     terrainLoading: false,
     buildingsLoading: false,
     detectedCapabilities: null,
+    // Reset transient feature toggles
+    terrainEnabled: false,
+    buildingsEnabled: false,
+    show3dLandmarks: true,
+    show3dTrees: true,
+    show3dFacades: true,
+    // Reset transient selection state
+    selectedItemId: null,
+    selectedKeyframeId: null,
+    // Reset transient UI modes
+    isMoveModeActive: false,
     hideUI: false,
+    // Reset transient search state
+    searchResults: [],
+    hoveredSearchResultId: null,
+    // Reset transient drafting/picking state
+    editingRoutePoint: null,
+    editingItemId: null,
+    draftStart: null,
+    draftEnd: null,
+    draftCallout: null,
+    previewBoundary: null,
+    previewBoundaryStyle: null,
+    draftBoundaryName: '',
   }),
 
   duplicateItem: (id) => set((s) => {
@@ -321,17 +368,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setSearchResults: (results) => set({ searchResults: results }),
   setHoveredSearchResultId: (id) => set({ hoveredSearchResultId: id }),
   setMapCenter: (v) => set({ mapCenter: v }),
-  editingRoutePoint: null,
   setEditingRoutePoint: (p) => set({ editingRoutePoint: p }),
-  draftStart: null,
   setDraftStart: (v) => set({ draftStart: v }),
-  draftEnd: null,
   setDraftEnd: (v) => set({ draftEnd: v }),
-  draftCallout: null,
   setDraftCallout: (v) => set({ draftCallout: v }),
-  editingItemId: null,
   setEditingItemId: (id) => set({ editingItemId: id }),
-  previewRoute: null,
   setPreviewRoute: (v) => set({ previewRoute: v }),
 
   setPreviewBoundary: (geojson, name) => set({ 
