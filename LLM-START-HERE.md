@@ -93,23 +93,29 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
 
 **How it works:**
 1. **Runtime Detection** (`MapViewport.tsx:detectRuntimeCapabilities()`): When a style loads, the system scans the style's actual label layers and dynamically creates label groups with formatted names.
-   - Example: `settlement-subdivision-label` → group ID `settlement-subdivision`, label "Settlement Subdivision"
-   - **Standard Style Special Case**: Uses hardcoded label groups (since Standard uses Config API, not layers).
+   - Example: `country-label` → group ID `place`, label "Place Names"
+   - **Standard Style Special Case**: Uses hardcoded label groups mapped to Mapbox Config API properties (since Standard uses Config API for label control).
    
 2. **Capabilities Store** (`useProjectStore.ts`): `detectedCapabilities` holds the label groups for the current style.
    - Eagerly initialized with Standard's groups on app load.
    - Updated whenever a style finishes loading.
    
 3. **Label Syncing** (`MapViewport.tsx:toggleFeature()`):
-   - **Standard Style**: Maps label group IDs to Config API property names (e.g., `'road'` → `'showRoads'`).
-   - **Other Styles**: Uses layer ID pattern matching (e.g., `group.layerPatterns = ['road-label', 'road-number', ...]`).
+   - **Standard Style**: Maps label group IDs to Config API property names:
+     - `'place'` → `'showPlaceLabels'` (countries, states, cities, neighborhoods)
+     - `'admin'` → `'showAdminBoundaries'` (country/state borders and boundary labels)
+     - `'road'` → `'showRoadLabels'` (road text and shields)
+     - `'transit'` → `'showTransitLabels'`
+     - `'poi'` → `'showPointOfInterestLabels'`
+     - `'water'`, `'natural'`, `'building'` fall through to layer pattern matching (no Config API toggle exists)
+   - **Other Styles**: Scans `getStyle().layers` and uses layer ID pattern matching.
    
 4. **UI Integration** (`ProjectSettings.tsx`):
    - Shows "All On" / "All Off" buttons for quick bulk toggling.
    - Renders a switch for each label group detected in the current style.
    - Toggles update `labelVisibility` in the store, which triggers reactive sync.
 
-**Key Design**: Label toggles are **transient UI state** (not persisted). When a project loads, all labels reset to their defaults for that style.
+**Key Design**: Label toggles are **transient UI state** (not persisted). When a project loads, all labels reset to their defaults for that style. Standard style groups are manually defined to match the Mapbox Config API surface (determined via `mapbox:configGroups` in the style schema).
 
 ---
 
@@ -156,11 +162,13 @@ Uses inline controls and dropdowns:
 ## 6. Recent Architectural Refactoring
 
 ### 6.0 Label System Overhaul (Dynamic Capabilities)
-**Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles.
+**Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles. Standard style also had incorrect Config API property names (`showRoads` → should be `showRoadLabels`, `showPlaces` → should be `showPlaceLabels`) and was missing the `showAdminBoundaries` control, causing country names and borders to remain visible when all toggles were off.
 
-**Solution**: Runtime detection of available labels.
-- **`detectRuntimeCapabilities()`** scans the loaded style's actual label layers and builds label groups on-the-fly.
-- **Standard Style** uses hardcoded groups (it doesn't have traditional layers; it uses the Config API).
+**Solution**: Runtime detection of available labels with accurate Config API mappings.
+- **`detectRuntimeCapabilities()`** scans the loaded style's actual label layers and builds label groups on-the-fly (non-Standard styles).
+- **Standard Style** uses hardcoded groups mapped to verified Mapbox Config API properties (discovered via `mapbox:configGroups` in the style schema):
+  - `'place'` → `'showPlaceLabels'`, `'admin'` → `'showAdminBoundaries'`, `'road'` → `'showRoadLabels'`, `'poi'` → `'showPointOfInterestLabels'`, `'transit'` → `'showTransitLabels'`
+  - `'water'`, `'natural'`, `'building'` fall through to layer pattern matching (no Config API toggle exists for these)
 - **`toggleFeature()`** intelligently routes to either Config API (Standard) or layer visibility (all others) based on style.
 - **ProjectSettings** renders toggles dynamically based on detected capabilities.
 - **UI Enhancement**: Added "All On" / "All Off" buttons for quick bulk label toggling.

@@ -113,6 +113,10 @@ export default function MapStudioEditor() {
     document.documentElement.classList.toggle("dark", isDark);
   }, [mapStyle]);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("hide-ui-active", hideUI);
+  }, [hideUI]);
+
   const sonnerStyle = useSonnerPosition({ hideUI, isMobile, isInspectorOpen, isTablet, timelineHeight });
 
   return (

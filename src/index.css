@@ -130,8 +130,16 @@
 }
 
 /* Mapbox overrides */
-.mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib {
+.mapboxgl-ctrl-logo {
   display: none !important;
+}
+
+.mapboxgl-ctrl-attrib {
+  display: none !important;
+}
+
+html.hide-ui-active .mapboxgl-ctrl-attrib {
+  display: block !important;
 }
 
 /* Callout animations */
