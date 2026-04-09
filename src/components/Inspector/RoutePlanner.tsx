@@ -109,7 +109,6 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
     return () => {
       cancelled = true;
       setLoading(false);
-      sessionRef.current?.abort();
     };
   }, [query]);
 
@@ -157,7 +156,7 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
               <X size={10} />
             </button>
           )}
-          {loading && <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin opacity-40 text-primary" />}
+          {loading && <div className="absolute right-8 top-1/2 -translate-y-1/2"><Loader2 className="w-3.5 h-3.5 animate-spin opacity-40 text-primary" /></div>}
         </div>
       </div>
 

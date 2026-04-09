@@ -100,7 +100,6 @@ export const SearchField = ({
     return () => {
       cancelled = true;
       setLoading(false);
-      sessionRef.current?.abort();
     };
   }, [query, name]);
 
@@ -171,7 +170,7 @@ export const SearchField = ({
                   <X size={10} />
                 </button>
               )}
-              {loading && <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin opacity-40 text-primary" />}
+              {loading && <div className="absolute right-8 top-1/2 -translate-y-1/2"><Loader2 className="w-3.5 h-3.5 animate-spin opacity-40 text-primary" /></div>}
             </div>
             <IconButton
               variant="ghost"
