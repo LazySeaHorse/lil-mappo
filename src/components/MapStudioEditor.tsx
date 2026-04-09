@@ -25,7 +25,6 @@ import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal"
 import { CreditsModal } from "@/components/Account/CreditsModal";
 import { RendersModal } from "@/components/Account/RendersModal";
 import { MockCheckout } from "@/components/Account/MockCheckout";
-import { useAuthStore } from "@/store/useAuthStore";
 
 function useSonnerPosition({
   hideUI,
@@ -105,13 +104,6 @@ export default function MapStudioEditor() {
   const [showLibrary, setShowLibrary] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   usePlayback(mapRef);
-
-  const initAuth = useAuthStore((s) => s.initAuth);
-  useEffect(() => {
-    const cleanup = initAuth();
-    return cleanup;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const hideUI = useProjectStore((s) => s.hideUI);

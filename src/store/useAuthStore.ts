@@ -40,9 +40,6 @@ interface AuthStore {
   showCheckoutModal: boolean;
   checkoutPlan: PlanSlug | null;
 
-  // Internal
-  _initialized: boolean;
-
   // Actions
   setUser: (user: AuthUser | null) => void;
   setSession: (session: Session | null) => void;
@@ -63,7 +60,7 @@ interface AuthStore {
 
   signOut: () => Promise<void>;
 
-  /** Call once on app mount to hydrate session and subscribe to auth changes. */
+  /** Called by AuthProvider on mount. Returns a cleanup function. */
   initAuth: () => () => void;
 }
 
@@ -78,8 +75,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   showRendersModal: false,
   showCheckoutModal: false,
   checkoutPlan: null,
-
-  _initialized: false,
 
   setUser: (user) => set({ user }),
   setSession: (session) => set({ session }),
@@ -103,9 +98,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   initAuth: () => {
-    if (get()._initialized) return () => {};
-    set({ _initialized: true });
-
     // Hydrate from existing session (handles magic link redirects / page refresh)
     supabase.auth.getSession().then(({ data: { session } }) => {
       set({
@@ -131,14 +123,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           if (fulfilledPlan) {
             // Invalidate subscription + credits caches so modals show live data
             queryClient.invalidateQueries({ queryKey: ['subscription'] });
-            queryClient.invalidateQueries({ queryKey: ['credits'] });
+            queryClient.invalidateQueries({ queryKey: ['credit_balance'] });
             toast.success(`Welcome to ${fulfilledPlan === 'cartographer' ? 'Cartographer' : 'Pioneer'}! Your account is active.`);
           }
         });
       }
     });
 
-    // Return cleanup function
     return () => subscription.unsubscribe();
   },
 }));

@@ -2,7 +2,8 @@ import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react'
 import MapGL, { Source, Layer, Marker } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { GeoJSONSource } from 'mapbox-gl';
-import { MAPBOX_TOKEN, MAP_STYLES, type MapStyleCapabilities } from '@/config/mapbox';
+import { getEffectiveMapboxToken, MAP_STYLES, type MapStyleCapabilities } from '@/config/mapbox';
+
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
 import { getNormalizedProgress } from '@/engine/easings';
@@ -503,7 +504,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     <div className="w-full h-full relative">
       <MapGL
         ref={mapRef}
-        mapboxAccessToken={MAPBOX_TOKEN}
+        mapboxAccessToken={getEffectiveMapboxToken()}
         initialViewState={{ longitude: -73.97, latitude: 40.77, zoom: 12, pitch: 0, bearing: 0 }}
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}

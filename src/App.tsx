@@ -5,11 +5,13 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/components/Account/AuthProvider";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <AuthProvider>
     <TooltipProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
@@ -21,6 +23,7 @@ const App = () => (
       <SpeedInsights />
       <Analytics />
     </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

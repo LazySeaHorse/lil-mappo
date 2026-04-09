@@ -20,7 +20,16 @@ export function useRenderJobs() {
       if (error) throw error;
       return data ?? [];
     },
-    staleTime: 0, // Always refetch on manual refresh
+    staleTime: 10_000,
     gcTime: 60_000,
+    refetchOnWindowFocus: false,
+    // Poll every 5 seconds while any jobs are still in progress
+    refetchInterval: (query) => {
+      const jobs = query.state.data;
+      const hasActiveJobs = jobs?.some(
+        (j) => j.status === 'queued' || j.status === 'rendering'
+      );
+      return hasActiveJobs ? 5_000 : false;
+    },
   });
 }

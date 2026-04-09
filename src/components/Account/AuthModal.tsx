@@ -5,7 +5,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/useAuthStore';
-import { supabase } from '@/lib/supabase';
+import { sendMagicLink } from '@/services/mockCheckout';
 import { Mail, Github, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,13 +20,7 @@ export function AuthModal() {
     if (!email.trim()) return;
     setIsSending(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
+      await sendMagicLink(email.trim());
       setSent(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send magic link';

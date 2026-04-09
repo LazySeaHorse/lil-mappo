@@ -4,6 +4,18 @@
  */
 export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
+/** localStorage key where the user's BYOK Mapbox token is stored. */
+export const BYOK_STORAGE_KEY = 'lil-mappo-mapbox-token';
+
+/**
+ * Returns the active Mapbox access token: the user's BYOK token if set,
+ * otherwise the built-in environment token. Call this anywhere Mapbox API
+ * access is needed so BYOK takes effect without extra configuration.
+ */
+export function getEffectiveMapboxToken(): string {
+  return localStorage.getItem(BYOK_STORAGE_KEY)?.trim() || MAPBOX_TOKEN;
+}
+
 /**
  * Represents a group of related label layers that can be toggled together.
  * Examples: "road" labels, "water" labels, "poi" labels, etc.

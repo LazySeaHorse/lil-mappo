@@ -1,4 +1,4 @@
-import { MAPBOX_TOKEN } from '@/config/mapbox';
+import { getEffectiveMapboxToken } from '@/config/mapbox';
 
 export interface DirectionsResult {
   geometry: GeoJSON.LineString;
@@ -13,7 +13,7 @@ export async function getDirections(
 ): Promise<DirectionsResult> {
   const profile = mode === 'car' ? 'driving-traffic' : 'walking';
   const coords = `${start[0]},${start[1]};${end[0]},${end[1]}`;
-  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`;
+  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?access_token=${getEffectiveMapboxToken()}&geometries=geojson&overview=full`;
 
   try {
     const res = await fetch(url);

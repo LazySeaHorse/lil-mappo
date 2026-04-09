@@ -68,6 +68,18 @@ export function clearPendingCheckout() {
 }
 
 /**
+ * Sends a Supabase magic-link OTP to the given email address.
+ * Shared by AuthModal (sign-in) and initiateMockCheckout (checkout flow).
+ */
+export async function sendMagicLink(email: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin },
+  });
+  if (error) throw error;
+}
+
+/**
  * MOCK: Sends a magic-link OTP and stores the pending checkout in localStorage.
  *
  * TODO: Replace the body of this function with:
@@ -75,11 +87,7 @@ export function clearPendingCheckout() {
  * and delete the storePendingCheckout() call (Dodo webhook handles fulfillment).
  */
 export async function initiateMockCheckout(plan: PlanSlug, email: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.origin },
-  });
-  if (error) throw error;
+  await sendMagicLink(email);
   storePendingCheckout({ plan, email });
 }
 
