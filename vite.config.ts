@@ -4,9 +4,18 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Validate that VITE_MAPBOX_TOKEN exists in production builds
-  if (mode === 'production' && !process.env.VITE_MAPBOX_TOKEN) {
-    throw new Error('VITE_MAPBOX_TOKEN environment variable is required for production builds');
+  // Validate required environment variables in production builds
+  const requiredEnvVars = [
+    'VITE_MAPBOX_TOKEN',
+    'VITE_SUPABASE_URL',
+    'VITE_SUPABASE_ANON_KEY'
+  ];
+
+  if (mode === 'production') {
+    const missing = requiredEnvVars.filter(name => !process.env[name]);
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables for production build: ${missing.join(', ')}. Ensure they are set in your deployment environment (e.g., Vercel) with the VITE_ prefix.`);
+    }
   }
 
   return {
