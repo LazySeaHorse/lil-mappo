@@ -24,7 +24,7 @@ interface DesktopToolbarLayoutProps {
   onImportClick: () => void;
   onHideUI: () => void;
   onProjectSettings: () => void;
-  renderProjectMenu: () => React.ReactNode;
+  renderAvatarMenu: () => React.ReactNode;
   handleAddCameraKF: () => void;
   // Layer group props
   mapStyle: string;
@@ -130,7 +130,7 @@ export function DesktopToolbarLayout({
   isTablet, activeDropdown, setActiveDropdown,
   isPlaying, onExport,
   onImportClick, onHideUI, onProjectSettings,
-  renderProjectMenu, handleAddCameraKF,
+  renderAvatarMenu, handleAddCameraKF,
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
@@ -149,7 +149,7 @@ export function DesktopToolbarLayout({
         {!isTablet && <span className="font-bold text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>}
       </div>
 
-      {renderProjectMenu()}
+      {renderAvatarMenu()}
       <Divider />
 
       {/* Add Group */}

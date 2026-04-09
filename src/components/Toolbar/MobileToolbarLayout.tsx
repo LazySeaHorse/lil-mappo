@@ -17,7 +17,7 @@ interface MobileToolbarLayoutProps {
   onExport: () => void;
   onImportClick: () => void;
   onHideUI: () => void;
-  renderProjectMenu: () => React.ReactNode;
+  renderAvatarMenu: () => React.ReactNode;
   // Layer group props
   mapStyle: string;
   setMapStyle: (s: string) => void;
@@ -36,7 +36,7 @@ export function MobileToolbarLayout({
   mobileMode, setMobileMode,
   activeDropdown, setActiveDropdown,
   onExport,
-  onImportClick, onHideUI, renderProjectMenu,
+  onImportClick, onHideUI, renderAvatarMenu,
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
@@ -49,7 +49,7 @@ export function MobileToolbarLayout({
       {mobileMode === 'default' && (
         <div className="flex items-center w-full animate-in slide-in-from-left-4 duration-300 fill-mode-both">
           <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-6 h-6 mr-1" alt="Logo" />
-          {renderProjectMenu()}
+          {renderAvatarMenu()}
           <Divider />
           <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('add')} title="Add New Track">
             <Plus size={20} />

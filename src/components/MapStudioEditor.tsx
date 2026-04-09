@@ -20,6 +20,10 @@ import {
   PANEL_MARGIN,
 } from "@/constants/layout";
 import { IconButton } from '@/components/ui/icon-button';
+import { AuthModal } from "@/components/Account/AuthModal";
+import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal";
+import { CreditsModal } from "@/components/Account/CreditsModal";
+import { RendersModal } from "@/components/Account/RendersModal";
 
 function useSonnerPosition({
   hideUI,
@@ -152,6 +156,12 @@ export default function MapStudioEditor() {
 
         {showExport && <ExportModal onClose={() => setShowExport(false)} />}
         {showLibrary && <ProjectLibraryModal onClose={() => setShowLibrary(false)} />}
+
+        {/* Account Modals */}
+        <AuthModal />
+        <AccountSettingsModal />
+        <CreditsModal />
+        <RendersModal />
       </div>
     </MapRefContext.Provider>
   );

@@ -1,23 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { MAP_STYLES } from '@/config/mapbox';
 import { useResponsive } from '@/hooks/useResponsive';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import {
-  FilePlus2, Save, Library, FileJson, Upload, Settings, ChevronDown,
-} from 'lucide-react';
 import {
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
   PANEL_MARGIN,
-  PANEL_GAP
 } from '@/constants/layout';
 import { useToolbarActions } from './useToolbarActions';
 import { MobileToolbarLayout } from './MobileToolbarLayout';
 import { DesktopToolbarLayout } from './DesktopToolbarLayout';
+import { AvatarMenu } from '@/components/Account/AvatarMenu';
 
 interface ToolbarProps {
   onExport: () => void;
@@ -47,25 +39,11 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   const finalTopMargin = isMobile ? '0px' : `${PANEL_MARGIN}px`;
   const finalRounded = isMobile ? 'rounded-none' : 'rounded-2xl';
 
-  const renderProjectMenu = () => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className={`h-8 ${isMobile || isTablet ? 'px-1' : 'px-2.5'} flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0`} title="Project Settings">
-          {!isMobile && !isTablet && <span>Project</span>}
-          <ChevronDown size={14} className="opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56 overflow-hidden bg-background/95 border-border/50 shadow-2xl rounded-2xl">
-        <DropdownMenuItem onClick={actions.handleNewProject} className="gap-2 cursor-pointer py-2.5"><FilePlus2 size={14} /> New Project</DropdownMenuItem>
-        <DropdownMenuItem onClick={actions.handleSaveToLibrary} className="gap-2 cursor-pointer py-2.5"><Save size={14} /> Save to Library</DropdownMenuItem>
-        <DropdownMenuItem onClick={onLibrary} className="gap-2 cursor-pointer py-2.5"><Library size={14} /> My Projects...</DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-border/50" />
-        <DropdownMenuItem onClick={actions.handleExportProject} className="gap-2 cursor-pointer py-2.5"><FileJson size={14} /> Export Project File</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => projectInputRef.current?.click()} className="gap-2 cursor-pointer py-2.5"><Upload size={14} /> Import Project File</DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-border/50" />
-        <DropdownMenuItem onClick={() => { setProjectSettingsTab('general'); selectItem(null); }} className="gap-2 cursor-pointer py-2.5"><Settings size={14} /> Project Settings</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+  const renderAvatarMenu = () => (
+    <AvatarMenu
+      onLibrary={onLibrary}
+      onImportProjectClick={() => projectInputRef.current?.click()}
+    />
   );
 
   const layerProps = {
@@ -93,7 +71,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
           onExport={onExport}
           onImportClick={() => routeInputRef.current?.click()}
           onHideUI={() => setHideUI(true)}
-          renderProjectMenu={renderProjectMenu}
+          renderAvatarMenu={renderAvatarMenu}
           handleAddCameraKF={actions.handleAddCameraKF}
           isPlaying2={isPlaying}
           {...layerProps}
@@ -108,7 +86,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
           onImportClick={() => routeInputRef.current?.click()}
           onHideUI={() => setHideUI(true)}
           onProjectSettings={() => { setProjectSettingsTab('map'); selectItem(null); }}
-          renderProjectMenu={renderProjectMenu}
+          renderAvatarMenu={renderAvatarMenu}
           handleAddCameraKF={actions.handleAddCameraKF}
           {...layerProps}
         />
