@@ -29,3 +29,6 @@ plan.md
 .fallow/
 ui-sticky-plan.md
 TO-THE-MOON.md
+.agents/
+accounts.md
+skills-lock.json
