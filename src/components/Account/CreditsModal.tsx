@@ -4,15 +4,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Coins, Zap, Clock, LogIn } from 'lucide-react';
+import { useCredits } from '@/hooks/useCredits';
+import { Coins, Zap, Clock, LogIn, Loader2, RefreshCcw } from 'lucide-react';
 
-/**
- * Credits modal — shows balance and purchase options.
- * Phase 1: UI shell with placeholder data.
- * Phase 3: Wire to Supabase credit_balance table + Stripe checkout.
- */
 export function CreditsModal() {
   const { user, showCreditsModal, closeCreditsModal, openAuthModal } = useAuthStore();
+  const { data: credits, isLoading, error, refetch } = useCredits();
 
   return (
     <Dialog open={showCreditsModal} onOpenChange={(open) => !open && closeCreditsModal()}>
@@ -20,21 +17,18 @@ export function CreditsModal() {
         <DialogHeader>
           <DialogTitle className="text-lg font-bold tracking-tight">Credits</DialogTitle>
           <DialogDescription className="text-muted-foreground text-sm">
-            View your render credit balance.
+            Your render credit balance.
           </DialogDescription>
         </DialogHeader>
 
         {!user ? (
-          /* ─── Not Signed In ─── */
           <div className="flex flex-col items-center gap-4 py-8">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
               <LogIn size={24} className="text-primary" />
             </div>
             <div className="text-center">
               <p className="font-semibold text-sm">Sign in to view credits</p>
-              <p className="text-muted-foreground text-xs mt-1">
-                Credits are used for cloud renders.
-              </p>
+              <p className="text-muted-foreground text-xs mt-1">Credits are used for cloud renders.</p>
             </div>
             <Button
               size="sm"
@@ -44,25 +38,47 @@ export function CreditsModal() {
               Sign In
             </Button>
           </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={20} className="animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <p className="text-sm text-muted-foreground">Failed to load credits.</p>
+            <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => refetch()}>
+              <RefreshCcw size={13} className="mr-1.5" /> Retry
+            </Button>
+          </div>
         ) : (
-          /* ─── Signed In ─── */
           <div className="flex flex-col gap-5 pt-2">
             {/* Balance Cards */}
             <div className="grid grid-cols-2 gap-3">
               <BalanceCard
                 icon={<Clock size={16} />}
                 label="Monthly"
-                value={0}
-                sublabel="Resets on renewal"
+                value={credits?.monthly_credits ?? 0}
+                sublabel={
+                  credits?.monthly_reset_date
+                    ? `Resets ${new Date(credits.monthly_reset_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                    : 'Resets on renewal'
+                }
                 variant="monthly"
               />
               <BalanceCard
                 icon={<Zap size={16} />}
                 label="Purchased"
-                value={0}
+                value={credits?.purchased_credits ?? 0}
                 sublabel="Never expire"
                 variant="purchased"
               />
+            </div>
+
+            {/* Total line */}
+            <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+              <span>Total available</span>
+              <span className="font-semibold text-foreground tabular-nums">
+                {(credits?.monthly_credits ?? 0) + (credits?.purchased_credits ?? 0)} credits
+              </span>
             </div>
 
             {/* Purchase CTA */}
@@ -76,14 +92,12 @@ export function CreditsModal() {
                   <p className="text-[11px] text-muted-foreground">Purchase credit packs starting at $10.</p>
                 </div>
               </div>
-              <Button
-                className="w-full h-9 rounded-xl text-xs font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]"
-              >
+              <Button className="w-full h-9 rounded-xl text-xs font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]">
                 Purchase Credits
               </Button>
             </div>
 
-            {/* Usage History placeholder */}
+            {/* Usage History */}
             <div className="px-0.5">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">
                 Recent Usage
@@ -100,11 +114,7 @@ export function CreditsModal() {
 }
 
 function BalanceCard({
-  icon,
-  label,
-  value,
-  sublabel,
-  variant,
+  icon, label, value, sublabel, variant,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -115,14 +125,10 @@ function BalanceCard({
   return (
     <div className="bg-secondary/30 rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <span className={variant === 'monthly' ? 'text-blue-400' : 'text-amber-400'}>
-          {icon}
-        </span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className={variant === 'monthly' ? 'text-blue-400' : 'text-amber-400'}>{icon}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
       </div>
-      <p className="text-2xl font-bold tabular-nums">{value}</p>
+      <p className="text-2xl font-bold tabular-nums">{value.toLocaleString()}</p>
       <p className="text-[10px] text-muted-foreground/60">{sublabel}</p>
     </div>
   );

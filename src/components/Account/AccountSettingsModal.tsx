@@ -5,19 +5,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Key, Crown, User, Check, AlertCircle } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { TIER_LABELS } from '@/lib/database.types';
+import { Key, Crown, User, Check, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 
 const BYOK_STORAGE_KEY = 'lil-mappo-mapbox-token';
 
-/**
- * Account Settings modal — always accessible (even signed out).
- * Sections:
- *   - Account Info (signed-in only)
- *   - Subscription (shows tier or upsell)
- *   - BYOK (Mapbox token) — always visible
- */
 export function AccountSettingsModal() {
   const { user, showSettingsModal, closeSettingsModal, openAuthModal } = useAuthStore();
+  const { data: subscription, isLoading: subLoading } = useSubscription();
   const [mapboxToken, setMapboxToken] = useState('');
   const [tokenSaved, setTokenSaved] = useState(false);
 
@@ -43,7 +39,13 @@ export function AccountSettingsModal() {
     setTokenSaved(false);
   };
 
-  const hasToken = !!mapboxToken.trim();
+  // Derived tier info — null subscription = Wanderer (free)
+  const tierSlug = subscription?.tier ?? 'wanderer';
+  const tierLabel = TIER_LABELS[tierSlug] ?? 'Wanderer';
+  const isFree = tierSlug === 'wanderer' || !subscription;
+  const renewalDate = subscription?.renewal_date
+    ? new Date(subscription.renewal_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
 
   return (
     <Dialog open={showSettingsModal} onOpenChange={(open) => !open && closeSettingsModal()}>
@@ -56,27 +58,17 @@ export function AccountSettingsModal() {
         </DialogHeader>
 
         <div className="flex flex-col gap-6 pt-2 max-h-[70vh] overflow-y-auto">
+
           {/* ─── Account Info ─── */}
-          {user ? (
-            <section>
-              <SectionHeading icon={<User size={14} />} label="Account" />
+          <section>
+            <SectionHeading icon={<User size={14} />} label="Account" />
+            {user ? (
               <div className="bg-secondary/30 rounded-xl p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Email</span>
-                  <span className="text-xs font-medium">{user.email}</span>
-                </div>
-                {user.displayName && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Name</span>
-                    <span className="text-xs font-medium">{user.displayName}</span>
-                  </div>
-                )}
+                <InfoRow label="Email" value={user.email} />
+                {user.displayName && <InfoRow label="Name" value={user.displayName} />}
               </div>
-            </section>
-          ) : (
-            <section>
-              <SectionHeading icon={<User size={14} />} label="Account" />
-              <div className="bg-secondary/30 rounded-xl p-4 flex items-center justify-between">
+            ) : (
+              <div className="bg-secondary/30 rounded-xl p-4 flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">Sign in to unlock cloud features.</p>
                 <Button
                   size="sm"
@@ -87,53 +79,73 @@ export function AccountSettingsModal() {
                   Sign In
                 </Button>
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
           {/* ─── Subscription ─── */}
           <section>
             <SectionHeading icon={<Crown size={14} />} label="Subscription" />
             {user ? (
-              <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">Wanderer</p>
-                    <p className="text-[11px] text-muted-foreground">Free tier</p>
+              subLoading ? (
+                <div className="bg-secondary/30 rounded-xl p-4 flex items-center justify-center h-16">
+                  <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">{tierLabel}</p>
+                      {renewalDate
+                        ? <p className="text-[11px] text-muted-foreground">Renews {renewalDate}</p>
+                        : <p className="text-[11px] text-muted-foreground">Free tier</p>
+                      }
+                    </div>
+                    <Button size="sm" className="text-xs h-8 rounded-lg px-4">
+                      {isFree ? 'Upgrade' : 'Manage'}
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    className="text-xs h-8 rounded-lg px-4"
-                  >
-                    Upgrade
-                  </Button>
+                  {isFree && (
+                    <>
+                      <div className="h-px bg-border/30" />
+                      <div className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                        <AlertCircle size={12} className="mt-0.5 shrink-0" />
+                        <span>Upgrade to remove watermarks, unlock cloud renders &amp; saves, and more.</span>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="h-px bg-border/30" />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <AlertCircle size={12} />
-                  <span>Upgrade to remove watermarks, unlock cloud renders, and more.</span>
-                </div>
-              </div>
+              )
             ) : (
-              <div className="bg-secondary/30 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Crown size={18} className="text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Unlock More</p>
-                    <p className="text-[11px] text-muted-foreground">Cloud renders, cloud saves, remove watermarks, and personal branding.</p>
-                  </div>
+              <div className="bg-secondary/30 rounded-xl p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Crown size={18} className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Unlock More</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Cloud renders, cloud saves, watermark removal, and personal branding.
+                  </p>
                 </div>
               </div>
             )}
           </section>
 
-          {/* ─── BYOK (Mapbox Token) ─── */}
+          {/* ─── BYOK ─── */}
           <section>
             <SectionHeading icon={<Key size={14} />} label="Mapbox API Key (BYOK)" />
             <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Paste your own Mapbox access token to lift the 30s export limit on local renders. Your token is stored locally and never sent to our servers.
+                Paste your own Mapbox access token to lift the 30s export limit on local renders.
+                Your token is stored locally and{' '}
+                <span className="font-medium text-foreground">never sent to our servers</span>.{' '}
+                <a
+                  href="https://account.mapbox.com/access-tokens/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                >
+                  Get a token <ExternalLink size={10} />
+                </a>
               </p>
               <div className="flex gap-2">
                 <Input
@@ -150,14 +162,10 @@ export function AccountSettingsModal() {
                   onClick={handleSaveToken}
                   disabled={tokenSaved}
                 >
-                  {tokenSaved ? (
-                    <><Check size={14} className="mr-1" /> Saved</>
-                  ) : (
-                    'Save'
-                  )}
+                  {tokenSaved ? <><Check size={14} className="mr-1" />Saved</> : 'Save'}
                 </Button>
               </div>
-              {hasToken && !tokenSaved && (
+              {!!mapboxToken.trim() && !tokenSaved && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -169,6 +177,7 @@ export function AccountSettingsModal() {
               )}
             </div>
           </section>
+
         </div>
       </DialogContent>
     </Dialog>
@@ -179,9 +188,16 @@ function SectionHeading({ icon, label }: { icon: React.ReactNode; label: string 
   return (
     <div className="flex items-center gap-2 mb-2.5 px-0.5">
       <span className="text-muted-foreground/60">{icon}</span>
-      <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">
-        {label}
-      </h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">{label}</h3>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium truncate max-w-[200px]">{value}</span>
     </div>
   );
 }
