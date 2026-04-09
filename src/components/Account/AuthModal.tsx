@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/lib/supabase';
-import { Mail, Github, Loader2 } from 'lucide-react';
+import { Mail, Github, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function AuthModal() {
-  const { showAuthModal, closeAuthModal } = useAuthStore();
+  const { showAuthModal, closeAuthModal, openCreditsModal } = useAuthStore();
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -23,7 +23,6 @@ export function AuthModal() {
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          // Redirect back to the app after clicking the magic link
           emailRedirectTo: window.location.origin,
         },
       });
@@ -60,10 +59,15 @@ export function AuthModal() {
     }
   };
 
+  const handleGetAPlan = () => {
+    closeAuthModal();
+    openCreditsModal();
+  };
+
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
-        
+
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
             <div className="flex items-center justify-center gap-3 mb-2">
@@ -75,97 +79,109 @@ export function AuthModal() {
                 />
               </div>
             </div>
-            <DialogTitle className="text-2xl font-black tracking-tight text-center">Welcome Back</DialogTitle>
+            <DialogTitle className="text-2xl font-black tracking-tight text-center">
+              Sign In
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
-              Sign in to unlock cloud renders, saves, and more.
+              Welcome back. Sign in to access your account.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="px-6 pb-6">
-
-        {sent ? (
-          <div className="flex flex-col items-center gap-4 py-6">
-            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <Mail size={24} className="text-primary" />
-            </div>
-            <div className="text-center">
-              <p className="font-semibold text-sm">Check your email</p>
-              <p className="text-muted-foreground text-xs mt-1">
-                We sent a magic link to <span className="font-medium text-foreground">{email}</span>
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-              onClick={() => { setSent(false); setEmail(''); }}
-            >
-              Use a different email
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 pt-2">
-            {/* OAuth Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                className="h-10 text-sm font-medium gap-2 rounded-xl border-border/50 hover:bg-accent/50 transition-all"
-                onClick={handleOAuthGoogle}
-              >
-                <GoogleIcon />
-                Google
-              </Button>
-              <Button
-                variant="outline"
-                className="h-10 text-sm font-medium gap-2 rounded-xl border-border/50 hover:bg-accent/50 transition-all"
-                onClick={handleOAuthGithub}
-              >
-                <Github size={16} />
-                GitHub
-              </Button>
-            </div>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/50" />
+          {sent ? (
+            <div className="flex flex-col items-center gap-4 py-6">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <Mail size={24} className="text-primary" />
               </div>
-              <div className="relative flex justify-center text-[10px] uppercase">
-                <span className="bg-background px-3 text-muted-foreground font-medium tracking-wider">
-                  or continue with email
-                </span>
+              <div className="text-center">
+                <p className="font-semibold text-sm">Check your email</p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  We sent a magic link to <span className="font-medium text-foreground">{email}</span>
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => { setSent(false); setEmail(''); }}
+              >
+                Use a different email
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 pt-2">
+              {/* OAuth Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  className="h-10 text-sm font-medium gap-2 rounded-xl border-border/50 hover:bg-accent/50 transition-all"
+                  onClick={handleOAuthGoogle}
+                >
+                  <GoogleIcon />
+                  Google
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-10 text-sm font-medium gap-2 rounded-xl border-border/50 hover:bg-accent/50 transition-all"
+                  onClick={handleOAuthGithub}
+                >
+                  <Github size={16} />
+                  GitHub
+                </Button>
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border/50" />
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase">
+                  <span className="bg-background px-3 text-muted-foreground font-medium tracking-wider">
+                    or continue with email
+                  </span>
+                </div>
+              </div>
+
+              {/* Magic Link */}
+              <form onSubmit={handleMagicLink} className="flex flex-col gap-3">
+                <Input
+                  type="email"
+                  placeholder="you@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-10 rounded-xl bg-secondary/30 border-border/50 text-sm placeholder:text-muted-foreground/50"
+                  autoFocus
+                />
+                <Button
+                  type="submit"
+                  disabled={isSending || !email.trim()}
+                  className="h-10 rounded-xl text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  {isSending ? (
+                    <><Loader2 size={16} className="animate-spin mr-2" />Sending...</>
+                  ) : (
+                    <><Mail size={16} className="mr-2" />Send Magic Link</>
+                  )}
+                </Button>
+              </form>
+
+              {/* No account CTA */}
+              <div className="mt-1 pt-3 border-t border-border/30 flex items-center justify-between">
+                <p className="text-[11px] text-muted-foreground/70">
+                  Don't have an account?
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-[11px] px-2 gap-1 text-primary hover:text-primary"
+                  onClick={handleGetAPlan}
+                >
+                  View plans <ArrowRight size={11} />
+                </Button>
               </div>
             </div>
-
-            {/* Magic Link */}
-            <form onSubmit={handleMagicLink} className="flex flex-col gap-3">
-              <Input
-                type="email"
-                placeholder="you@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-10 rounded-xl bg-secondary/30 border-border/50 text-sm placeholder:text-muted-foreground/50"
-                autoFocus
-              />
-              <Button
-                type="submit"
-                disabled={isSending || !email.trim()}
-                className="h-10 rounded-xl text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]"
-              >
-                {isSending ? (
-                  <><Loader2 size={16} className="animate-spin mr-2" />Sending...</>
-                ) : (
-                  <><Mail size={16} className="mr-2" />Send Magic Link</>
-                )}
-              </Button>
-            </form>
-
-            <p className="text-[11px] text-muted-foreground/60 text-center leading-relaxed mt-2">
-              By signing in, you agree to our Terms of Service and Privacy Policy.
-            </p>
-          </div>
-        )}
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -18,8 +18,8 @@ export function RendersModal() {
 
   return (
     <Dialog open={showRendersModal} onOpenChange={(open) => !open && closeRendersModal()}>
-      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
-        
+      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
+
         {/* Header */}
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
@@ -94,7 +94,7 @@ export function RendersModal() {
               </div>
 
               {/* Renders List */}
-              <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto pr-1 pb-2 scrollbar-thin scrollbar-thumb-secondary scrollbar-track-transparent">
+              <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto pr-1 pb-2">
                 {jobs.map((job) => (
                   <RenderJobRow key={job.id} job={job} />
                 ))}
@@ -128,7 +128,7 @@ function RenderJobRow({ job }: { job: RenderJob }) {
           </span>
           <StatusBadge status={job.status} />
         </div>
-        
+
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground font-medium flex-wrap">
           <span className="bg-background/40 px-2 py-0.5 rounded-md border border-border/30">
             {new Date(job.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -139,7 +139,7 @@ function RenderJobRow({ job }: { job: RenderJob }) {
             </span>
           )}
           <span className="text-foreground/80 font-semibold">{job.credits_cost} credit{job.credits_cost !== 1 ? 's' : ''}</span>
-          
+
           {expiresIn && (
             <span className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md font-semibold">
               <Hourglass size={10} /> {expiresIn} left
@@ -149,7 +149,7 @@ function RenderJobRow({ job }: { job: RenderJob }) {
             <span className="text-muted-foreground/60 line-through decoration-muted-foreground/30">Expired</span>
           )}
         </div>
-        
+
         {job.error_message && (
           <p className="text-[11px] font-medium text-destructive mt-2 truncate bg-destructive/10 px-2 py-1 rounded border border-destructive/20">
             {job.error_message}
@@ -187,19 +187,19 @@ function RenderJobRow({ job }: { job: RenderJob }) {
 
 function StatusIcon({ status }: { status: RenderStatus }) {
   switch (status) {
-    case 'done':     return <CheckCircle2 size={18} className="text-green-500" />;
-    case 'failed':   return <AlertCircle size={18} className="text-destructive" />;
-    case 'rendering':return <Loader2 size={18} className="animate-spin text-blue-500" />;
-    case 'queued':   return <Hourglass size={18} className="text-muted-foreground" />;
+    case 'done': return <CheckCircle2 size={18} className="text-green-500" />;
+    case 'failed': return <AlertCircle size={18} className="text-destructive" />;
+    case 'rendering': return <Loader2 size={18} className="animate-spin text-blue-500" />;
+    case 'queued': return <Hourglass size={18} className="text-muted-foreground" />;
   }
 }
 
 function StatusBadge({ status }: { status: RenderStatus }) {
   const colors: Record<RenderStatus, string> = {
-    done:      'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20',
-    failed:    'bg-destructive/15 text-destructive border-destructive/20',
+    done: 'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20',
+    failed: 'bg-destructive/15 text-destructive border-destructive/20',
     rendering: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    queued:    'bg-secondary text-muted-foreground border-border/50',
+    queued: 'bg-secondary text-muted-foreground border-border/50',
   };
   return (
     <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border shadow-sm ${colors[status]}`}>

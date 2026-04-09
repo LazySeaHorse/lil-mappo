@@ -8,6 +8,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { TIER_LABELS } from '@/lib/database.types';
 import { Key, Crown, User, Check, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { SubscriptionTiers } from './CreditsModal';
+
 
 const BYOK_STORAGE_KEY = 'lil-mappo-mapbox-token';
 
@@ -49,8 +51,8 @@ export function AccountSettingsModal() {
 
   return (
     <Dialog open={showSettingsModal} onOpenChange={(open) => !open && closeSettingsModal()}>
-      <DialogContent className="sm:max-w-lg rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
-        
+      <DialogContent className="sm:max-w-[720px] rounded-3xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
+
         <div className="p-6 pb-2 bg-gradient-to-b from-secondary/30 to-transparent">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -62,7 +64,7 @@ export function AccountSettingsModal() {
           </DialogHeader>
         </div>
 
-        <div className="flex flex-col gap-8 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-secondary scrollbar-track-transparent">
+        <div className="flex flex-col gap-8 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto">
 
           {/* ─── Account Info ─── */}
           <section>
@@ -121,15 +123,27 @@ export function AccountSettingsModal() {
                 </div>
               )
             ) : (
-              <div className="bg-secondary/30 rounded-xl p-4 flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Crown size={18} className="text-primary" />
+              <div className="space-y-4">
+                <div className="bg-secondary/30 rounded-xl p-4 flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 shadow-sm">
+                    <Crown size={24} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-base font-bold tracking-tight">Expand your horizons</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                      Get cloud renders, parallel exports, and unlimited cloud saves with a premium plan.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">Unlock More</p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Cloud renders, cloud saves, watermark removal, and personal branding.
-                  </p>
+                <SubscriptionTiers />
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="link"
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    onClick={() => { closeSettingsModal(); openAuthModal(); }}
+                  >
+                    Sign in to manage your plan
+                  </Button>
                 </div>
               </div>
             )}

@@ -24,6 +24,7 @@ import { AuthModal } from "@/components/Account/AuthModal";
 import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal";
 import { CreditsModal } from "@/components/Account/CreditsModal";
 import { RendersModal } from "@/components/Account/RendersModal";
+import { MockCheckout } from "@/components/Account/MockCheckout";
 import { useAuthStore } from "@/store/useAuthStore";
 
 function useSonnerPosition({
@@ -170,6 +171,7 @@ export default function MapStudioEditor() {
         <AccountSettingsModal />
         <CreditsModal />
         <RendersModal />
+        <MockCheckout />
       </div>
     </MapRefContext.Provider>
   );

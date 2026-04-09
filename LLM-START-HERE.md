@@ -29,7 +29,8 @@ The UI is a premium, **responsive "floating island"** design.
 - **State Management**: Zustand
 - **Map Engine**: Mapbox GL JS v3 (via `react-map-gl/mapbox`)
 - **Persistence**: IndexedDB (for the project library) + Supabase PostgreSQL (for user data)
-- **Authentication**: Supabase Auth (email/password, OAuth)
+- **Authentication**: Supabase Auth (magic link, Google OAuth, GitHub OAuth)
+- **Data Fetching**: React Query v5 (for efficient caching of user data)
 - **Icons**: Lucide React
 - **Animations**: Custom `requestAnimationFrame` loop + easing functions
 - **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`
@@ -76,7 +77,7 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 *(Note: Component-local state (e.g., `activeDropdown`, `mobileMode` in `Toolbar.tsx`) is managed as local `useState` to prevent unnecessary global re-renders.)*
 
 ### 3.1b Authentication & User Data: `src/store/useAuthStore.ts`
-Manages user authentication state and account UI visibility via Supabase.
+Manages user authentication state, account UI visibility, and checkout flow via Supabase.
 
 **Auth State:**
 - `user`: Current authenticated user object (converted from Supabase `User` to `AuthUser` with `id`, `email`, `displayName`, `avatarUrl`).
@@ -85,13 +86,16 @@ Manages user authentication state and account UI visibility via Supabase.
 
 **Modal Visibility State:**
 - `showAuthModal`, `showSettingsModal`, `showCreditsModal`, `showRendersModal`: Boolean flags controlling which account modal is open.
+- `showCheckoutModal`: Checkout modal visibility.
+- `checkoutPlan`: The plan slug (`'cartographer'` | `'pioneer'`) being checked out.
 
 **Methods:**
-- `initAuth()`: Called once on app mount. Hydrates session from Supabase, subscribes to auth state changes, and auto-closes auth modal on successful sign-in.
+- `initAuth()`: Called once on app mount. Hydrates session from Supabase, subscribes to auth state changes, and auto-closes auth modal on successful sign-in. After sign-in, calls `fulfillPendingCheckout()` to provision subscription if a checkout was pending.
 - `signOut()`: Calls Supabase auth signout; state is cleared by the `onAuthStateChange` listener.
 - `openAuthModal()`, `closeAuthModal()`, etc.: Toggle modal visibility.
+- `openCheckoutModal(plan)`, `closeCheckoutModal()`: Manage checkout modal state.
 
-**Key Design**: Auth state is orthogonal to project state. Modal visibility is managed here to keep the store focused. User data (credits, subscription, render jobs) is fetched separately via React Query hooks (`useCredits()`, `useSubscription()`, `useRenderJobs()`) to enable efficient caching and refetching.
+**Key Design**: Auth state is orthogonal to project state. Modal visibility is managed here to keep the store focused. User data (credits, subscription, render jobs) is fetched separately via React Query hooks (`useCredits()`, `useSubscription()`, `useRenderJobs()`) to enable efficient caching and refetching. After checkout fulfillment, React Query caches are invalidated to show live data.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
@@ -181,16 +185,22 @@ Uses inline controls and dropdowns:
 The Toolbar's top-left now features an **Avatar Menu** (`src/components/Account/AvatarMenu.tsx`) that replaces the legacy Project menu:
 - **Logged Out**: Shows "Sign In" button.
 - **Logged In**: Displays user avatar with dropdown menu:
-  - Account Settings (email, password, profile)
+  - Account Settings (email, password, profile, BYOK Mapbox token)
   - Credits & Subscription status
   - Render Jobs history
   - Sign Out
 
 **Account Modals** (`src/components/Account/`):
-- `AuthModal.tsx`: Sign up / sign in form with Supabase integration.
-- `AccountSettingsModal.tsx`: Edit email, password, profile picture.
-- `CreditsModal.tsx`: Display remaining credits and subscription tier.
+- `AuthModal.tsx`: Sign in form with magic link, Google OAuth, GitHub OAuth. Includes "View plans" CTA for new users.
+- `AccountSettingsModal.tsx`: Edit email, password, profile picture. BYOK Mapbox token storage in localStorage.
+- `CreditsModal.tsx`: Tabbed interface with Subscriptions and Top Up Credit tabs. Shows current balance, tier info, and plan comparison cards.
 - `RendersModal.tsx`: List past and in-progress render jobs with status and download links.
+- `MockCheckout.tsx`: Test-mode checkout form (TODO: replace with Dodo Payments integration). Accepts email and card details, sends magic link OTP, stores pending checkout in localStorage.
+
+**Subscription Tiers** (via `SubscriptionTiers` component):
+- **Wanderer** (Free): 0 credits/mo, sequential rendering, local saves only.
+- **Cartographer** ($15/mo): 500 credits/mo, 2 parallel renders, unlimited cloud saves.
+- **Pioneer** ($35/mo): 2,000 credits/mo, 5 parallel renders, unlimited cloud saves.
 
 All modals are non-modal, floating panels that integrate seamlessly with the Toolbar's floating island aesthetic.
 
@@ -198,19 +208,19 @@ All modals are non-modal, floating panels that integrate seamlessly with the Too
 
 ## 6. Recent Architectural Refactoring
 
-### 6.0 User Accounts & Supabase Integration (Phase 1–3)
-**Problem**: li'l Mappo needed user authentication, account management, and cloud persistence for projects and render jobs.
+### 6.0 User Accounts & Supabase Integration (Phase 1–3) + Checkout Flow (Phase 4)
+**Problem**: li'l Mappo needed user authentication, account management, cloud persistence, and a monetization system for subscription tiers.
 
-**Solution**: Three-phase rollout of Supabase-powered user accounts:
+**Solution**: Four-phase rollout of Supabase-powered user accounts and mock checkout:
 
 **Phase 1 — Avatar Menu & Account Modals** (`2cdf4c2`)
 - Replaced legacy Project menu with **Avatar Menu** (`AvatarMenu.tsx`).
 - Created account modal suite:
-  - `AuthModal.tsx`: Sign up / sign in with email/password.
-  - `AccountSettingsModal.tsx`: Edit profile, email, password.
+  - `AuthModal.tsx`: Sign in with magic link, Google OAuth, GitHub OAuth.
+  - `AccountSettingsModal.tsx`: Edit profile, email, password, BYOK Mapbox token.
   - `CreditsModal.tsx`: Display credits and subscription tier.
   - `RendersModal.tsx`: View render job history.
-- Created `useAuthStore.ts` to manage auth state (user, session, loading, error).
+- Created `useAuthStore.ts` to manage auth state (user, session, loading, modal visibility).
 - Integrated Supabase client (`src/lib/supabase.ts`).
 
 **Phase 2 — Supabase Auth Wiring** (`c00c7bd`)
@@ -237,7 +247,32 @@ All modals are non-modal, floating panels that integrate seamlessly with the Too
   - `useRenderJobs()`: 0s stale time (always refetch on manual refresh).
 - All modals gracefully handle loading, error, and unauthenticated states with appropriate UI feedback.
 
-**Key Design**: Auth state is orthogonal to project state. Users can manage accounts independently of active projects. All user data is fetched on login and cached in `useAuthStore` for fast access.
+**Phase 4 — Checkout & Subscription Tiers**
+- Created `MockCheckout.tsx` component: Test-mode checkout form with email, card number, expiry, CVV fields. Sends magic link OTP and stores pending checkout in localStorage.
+- Created `mockCheckout.ts` service:
+  - `PLAN_CONFIG`: Defines Cartographer ($15/mo, 500 credits, 2 parallel) and Pioneer ($35/mo, 2000 credits, 5 parallel) tiers.
+  - `initiateMockCheckout()`: Sends magic link OTP and stores pending checkout.
+  - `fulfillPendingCheckout()`: Called after sign-in; provisions subscription and credit_balance rows for the user.
+  - TODO: Replace with Dodo Payments integration (redirect to hosted checkout, webhook fulfillment).
+- Revamped `CreditsModal.tsx`:
+  - Tabbed interface: "Subscriptions" tab shows tier comparison cards (Wanderer free, Cartographer, Pioneer).
+  - "Top Up Credits" tab allows subscribers to purchase additional credits via slider ($10–$200, 100 credits per dollar).
+  - Tier cards show features (monthly credits, parallel renders, cloud saves) and "Subscribe" / "Current Plan" buttons.
+  - Non-subscribers see "View Plans" CTA in AuthModal.
+- Enhanced `useAuthStore`:
+  - Added `showCheckoutModal` and `checkoutPlan` state.
+  - `initAuth()` now calls `fulfillPendingCheckout()` after sign-in, invalidates React Query caches, and shows success toast.
+- Created `queryClient.ts`: Singleton React Query client for cache invalidation after checkout fulfillment.
+- Updated `App.tsx`: Wrapped with `QueryClientProvider` to enable React Query.
+- Updated `MapStudioEditor.tsx`: Renders `<MockCheckout />` modal alongside other account modals.
+
+**Key Design**: Auth state is orthogonal to project state. Checkout is a two-step flow: (1) user submits email/card in MockCheckout, (2) magic link OTP is sent, (3) user clicks link to sign in, (4) `fulfillPendingCheckout()` provisions subscription server-side. React Query caches are invalidated after fulfillment so modals show live data immediately.
+
+**TODO for Production**:
+- Replace `MockCheckout` with Dodo Payments hosted checkout redirect.
+- Move `fulfillPendingCheckout()` logic to Supabase Edge Function (dodo-webhook) to handle Dodo's `payment.succeeded` webhook.
+- Use `supabase.auth.admin.inviteUserByEmail()` server-side to create accounts.
+- Remove localStorage pending checkout logic (Dodo webhook handles fulfillment).
 
 ### 6.1 Label System Overhaul (Dynamic Capabilities)
 **Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles. Standard style also had incorrect Config API property names (`showRoads` → should be `showRoadLabels`, `showPlaces` → should be `showPlaceLabels`) and was missing the `showAdminBoundaries` control, causing country names and borders to remain visible when all toggles were off.

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { fulfillPendingCheckout, type PlanSlug } from '@/services/mockCheckout';
+import { queryClient } from '@/lib/queryClient';
+import { toast } from 'sonner';
 
 export interface AuthUser {
   id: string;
@@ -34,6 +37,8 @@ interface AuthStore {
   showSettingsModal: boolean;
   showCreditsModal: boolean;
   showRendersModal: boolean;
+  showCheckoutModal: boolean;
+  checkoutPlan: PlanSlug | null;
 
   // Internal
   _initialized: boolean;
@@ -52,6 +57,10 @@ interface AuthStore {
   openRendersModal: () => void;
   closeRendersModal: () => void;
 
+  /** Open the checkout modal for a specific plan. */
+  openCheckoutModal: (plan: PlanSlug) => void;
+  closeCheckoutModal: () => void;
+
   signOut: () => Promise<void>;
 
   /** Call once on app mount to hydrate session and subscribe to auth changes. */
@@ -67,6 +76,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   showSettingsModal: false,
   showCreditsModal: false,
   showRendersModal: false,
+  showCheckoutModal: false,
+  checkoutPlan: null,
 
   _initialized: false,
 
@@ -82,6 +93,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   closeCreditsModal: () => set({ showCreditsModal: false }),
   openRendersModal: () => set({ showRendersModal: true }),
   closeRendersModal: () => set({ showRendersModal: false }),
+
+  openCheckoutModal: (plan) => set({ showCheckoutModal: true, checkoutPlan: plan }),
+  closeCheckoutModal: () => set({ showCheckoutModal: false, checkoutPlan: null }),
 
   signOut: async () => {
     await supabase.auth.signOut();
@@ -102,7 +116,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
 
     // Subscribe to future auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       set({
         session,
         user: session?.user ? toAuthUser(session.user) : null,
@@ -110,6 +124,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         // Auto-close auth modal when sign-in succeeds
         showAuthModal: session ? false : get().showAuthModal,
       });
+
+      // After a fresh sign-in, check if there's a pending checkout to fulfill
+      if (event === 'SIGNED_IN' && session?.user) {
+        fulfillPendingCheckout(session.user.id).then((fulfilledPlan) => {
+          if (fulfilledPlan) {
+            // Invalidate subscription + credits caches so modals show live data
+            queryClient.invalidateQueries({ queryKey: ['subscription'] });
+            queryClient.invalidateQueries({ queryKey: ['credits'] });
+            toast.success(`Welcome to ${fulfilledPlan === 'cartographer' ? 'Cartographer' : 'Pioneer'}! Your account is active.`);
+          }
+        });
+      }
     });
 
     // Return cleanup function
