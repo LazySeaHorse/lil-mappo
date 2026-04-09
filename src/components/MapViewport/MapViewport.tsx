@@ -1,10 +1,11 @@
 import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import MapGL, { Source, Layer, Marker } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
+import type { GeoJSONSource } from 'mapbox-gl';
 import { MAPBOX_TOKEN, MAP_STYLES, type MapStyleCapabilities } from '@/config/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
-import { applyEasing, getNormalizedProgress } from '@/engine/easings';
+import { getNormalizedProgress } from '@/engine/easings';
 import CalloutCard from './CalloutCard';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
@@ -129,11 +130,14 @@ function applyPickResult(
 }
 
 export default function MapViewport({ mapRef }: MapViewportProps) {
+  // playheadTime and isPlaying are intentionally removed from this destructure.
+  // RouteLayerGroup/BoundaryLayerGroup subscribe imperatively.
+  // CalloutMarker self-subscribes to playheadTime.
   const {
     mapStyle, terrainEnabled, buildingsEnabled, terrainExaggeration,
     projection, lightPreset, labelVisibility,
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
-    items, itemOrder, playheadTime, isPlaying,
+    items, itemOrder,
     selectedItemId, updateItem, selectItem, isMoveModeActive,
     setMapCenter, terrainLoading, buildingsLoading, isExporting,
   } = useProjectStore();
@@ -179,7 +183,6 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
 
     s.setEditingRoutePoint(null);
     s.setEditingItemId(null);
-    s.setSearchResults([]);
     const label = editingPoint === 'callout' ? 'Callout' : (editingPoint === 'start' ? 'Start' : 'End');
     toast.success(`${label} point set`);
   }, [updateItem]);
@@ -427,7 +430,25 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     // Sync immediately — style is already loaded from onLoad
     syncRef.current();
 
+    // Imperatively toggle map interaction handlers when playback starts/stops.
+    // This avoids passing isPlaying as a reactive React prop to <MapGL>, which would
+    // cause a MapViewport re-render at exactly the moment the RAF loop fires jumpTo(),
+    // creating a race condition inside Mapbox's matrix calculations.
+    const allHandlers = [
+      map.dragPan, map.dragRotate, map.scrollZoom,
+      map.touchZoomRotate, map.doubleClickZoom, map.keyboard,
+    ];
+    const unsubInteractive = useProjectStore.subscribe((state, prev) => {
+      if (state.isPlaying === prev.isPlaying) return;
+      if (state.isPlaying) {
+        allHandlers.forEach(h => h?.disable());
+      } else {
+        allHandlers.forEach(h => h?.enable());
+      }
+    });
+
     return () => {
+      unsubInteractive();
       delete (map as any)._syncRef;
       map.off('style.load', handleStyleLoad);
       map.off('styleimportdata', handleStyleImportData);
@@ -489,7 +510,6 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         onClick={handleMapClick}
         onLoad={handleMapLoad}
         onMove={(evt) => debouncedSetMapCenter(evt.viewState.longitude, evt.viewState.latitude)}
-        interactive={!isPlaying}
         interactiveLayerIds={["search-results-circles"]}
         preserveDrawingBuffer={isExporting}
       >
@@ -518,39 +538,49 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
             <PreviewRouteLayer />
             <PreviewBoundaryLayer />
 
-            {/* Project Items */}
+            {/* Project Items — imperative managers, render null themselves */}
             {routes.map((route) => (
-              <RouteLayerGroup key={route.id} route={route} playheadTime={playheadTime} />
+              <RouteLayerGroup key={route.id} route={route} mapRef={mapRef} styleLoaded={styleLoaded} />
             ))}
             {boundaries.map((boundary) => (
-              <BoundaryLayerGroup key={boundary.id} boundary={boundary} playheadTime={playheadTime} />
+              <BoundaryLayerGroup key={boundary.id} boundary={boundary} mapRef={mapRef} styleLoaded={styleLoaded} />
             ))}
           </>
         )}
 
-        {/* Callouts use Markers (DOM elements), not sources/layers — safe outside the gate */}
-        {callouts
-          .filter((c) => {
-            const isManualMoving = isMoveModeActive && selectedItemId === c.id;
-            const isVisibleTime = playheadTime >= c.startTime && playheadTime <= c.endTime;
-            return isManualMoving || isVisibleTime;
-          })
-          .map((callout) => (
-            <CalloutMarker 
-              key={callout.id} 
-              callout={callout} 
-              playheadTime={playheadTime} 
-              mapRef={mapRef} 
-              isSelected={selectedItemId === callout.id}
-              isMoveModeActive={isMoveModeActive}
-            />
-          ))}
+        {/* Callouts use Markers (DOM elements) — safe outside the styleLoaded gate.
+            All callouts are always rendered; each CalloutMarker self-subscribes to
+            playheadTime and returns null when outside its time range. */}
+        {callouts.map((callout) => (
+          <CalloutMarker
+            key={callout.id}
+            callout={callout}
+            mapRef={mapRef}
+            isSelected={selectedItemId === callout.id}
+          />
+        ))}
       </MapGL>
     </div>
   );
 }
 
-function RouteLayerGroup({ route, playheadTime }: { route: RouteItem; playheadTime: number }) {
+// ---------------------------------------------------------------------------
+// RouteLayerGroup — imperative manager, renders null
+// Adds sources/layers on mount, calls setData() on every playhead change.
+// ---------------------------------------------------------------------------
+
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
+
+function RouteLayerGroup({
+  route,
+  mapRef,
+  styleLoaded,
+}: {
+  route: RouteItem;
+  mapRef: React.MutableRefObject<MapRef | null>;
+  styleLoaded: boolean;
+}) {
+  // Pre-compute the flat coords array — only recalculated when route.geojson changes
   const coords = React.useMemo(() => {
     const allCoords: number[][] = [];
     for (const feature of route.geojson.features) {
@@ -561,137 +591,361 @@ function RouteLayerGroup({ route, playheadTime }: { route: RouteItem; playheadTi
     return allCoords;
   }, [route.geojson]);
 
-  const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
-  const animatedData = React.useMemo(() => {
-    if (coords.length < 2) return null;
-    const animCoords = getAnimatedLine(coords, progress);
-    if (animCoords.length < 2) return null;
-    return { 
-      type: 'Feature' as const, 
-      properties: {}, 
-      geometry: { 
-        type: 'LineString' as const, 
-        coordinates: animCoords 
-      } 
-    };
-  }, [coords, progress]);
+  const coordsRef = useRef(coords);
+  coordsRef.current = coords;
 
-  if (!animatedData) return null;
-  const isFlight = route.calculation?.mode === 'flight';
-  
-  const geojsonData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [animatedData] };
+  const routeRef = useRef(route);
+  routeRef.current = route;
 
-  return (
-    <>
-      {route.style.glow && (
-        <Source id={`route-glow-${route.id}`} type="geojson" data={geojsonData}>
-          <Layer id={`route-glow-layer-${route.id}`} type="line" paint={{ 'line-color': isFlight ? '#fbbf24' : route.style.glowColor, 'line-width': route.style.width * 3, 'line-opacity': 0.35, 'line-blur': route.style.width * 2 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
-        </Source>
-      )}
-      <Source id={`route-${route.id}`} type="geojson" data={geojsonData}>
-        <Layer id={`route-layer-${route.id}`} type="line" paint={{ 'line-color': isFlight ? '#f59e0b' : route.style.color, 'line-width': route.style.width, 'line-opacity': 1 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
-      </Source>
+  const mapRefRef = useRef(mapRef);
+  mapRefRef.current = mapRef;
 
-      {route.calculation?.vehicle?.enabled && (
-        <VehicleModelLayer 
-          routeId={route.id} 
-          coords={animatedData.geometry.coordinates} 
-          vehicle={route.calculation.vehicle!} 
-        />
-      )}
-    </>
-  );
-}
+  // Mount effect: add sources + layers imperatively, subscribe to playhead, clean up on unmount
+  useEffect(() => {
+    if (!styleLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
 
-function BoundaryLayerGroup({ boundary, playheadTime }: { boundary: BoundaryItem; playheadTime: number }) {
-  if (!boundary.geojson || boundary.resolveStatus !== 'resolved') return null;
-  
-  const progress = getNormalizedProgress(playheadTime, boundary.startTime, boundary.endTime, boundary.easing);
+    const mainId = `route-${route.id}`;
+    const mainLayerId = `route-layer-${route.id}`;
+    const glowId = `route-glow-${route.id}`;
+    const glowLayerId = `route-glow-layer-${route.id}`;
 
-  const style = boundary.style;
-  const isAnimating = style.animateStroke;
-  const animStyle = style.animationStyle || 'fade';
-  const traceLen = style.traceLength || 0.1;
-
-  // 1. Prepare Fill Data (The full polygon)
-  const fillProgress = animStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
-  const fillOpacity = style.fillOpacity * fillProgress;
-  const fillGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: boundary.geojson }] };
-
-  // 2. Prepare Stroke Data
-  const strokeGeoJSON = React.useMemo(() => {
-    if (!isAnimating || animStyle === 'fade') {
-      return fillGeoJSON;
+    // Add main source
+    if (!map.getSource(mainId)) {
+      map.addSource(mainId, { type: 'geojson', data: EMPTY_FC });
+    }
+    // Add glow source (always add; layer rendered conditionally)
+    if (!map.getSource(glowId)) {
+      map.addSource(glowId, { type: 'geojson', data: EMPTY_FC });
     }
 
-    const rings = extractLineStringsFromGeometry(boundary.geojson!);
-    const animatedRings: number[][][] = [];
-
-    for (const ring of rings) {
-      let segment: number[][];
-      if (animStyle === 'draw') {
-        segment = getLineSegment(ring, 0, progress);
-      } else {
-        const start = progress * (1 + traceLen) - traceLen;
-        const end = progress * (1 + traceLen);
-        segment = getLineSegment(ring, start, end);
-      }
-      
-      if (segment.length >= 2) {
-        animatedRings.push(segment);
-      }
+    // Add main line layer
+    if (!map.getLayer(mainLayerId)) {
+      map.addLayer({
+        id: mainLayerId,
+        type: 'line',
+        source: mainId,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': routeRef.current.calculation?.mode === 'flight' ? '#f59e0b' : routeRef.current.style.color,
+          'line-width': routeRef.current.style.width,
+          'line-opacity': 1,
+        },
+      });
     }
 
-    return {
-      type: 'FeatureCollection',
-      features: [{
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'MultiLineString',
-          coordinates: animatedRings
+    // `destroyed` flag prevents callbacks running after cleanup (in-flight race protection).
+    let destroyed = false;
+
+    // Named update function — extracted so it can be called immediately as an initial pump.
+    // useProjectStore.subscribe() only fires on *future* changes; without the initial call
+    // the sources stay empty (EMPTY_FC) until the next state mutation.
+    const updateRoute = (state: ReturnType<typeof useProjectStore.getState>) => {
+      if (destroyed) return;
+      const r = routeRef.current;
+      const c = coordsRef.current;
+      const m = mapRefRef.current.current?.getMap();
+      if (!m) return;
+
+      // Guard on our specific source rather than isStyleLoaded().
+      // isStyleLoaded() returns false during Standard style's async import loading,
+      // which would silently block every callback until the user interacts.
+      const mainSource = m.getSource(mainId) as GeoJSONSource | undefined;
+      if (!mainSource) return;
+
+      if (c.length < 2) {
+        // No valid geometry — keep source empty
+        mainSource.setData(EMPTY_FC);
+        return;
+      }
+
+      const isFlight = r.calculation?.mode === 'flight';
+      const progress = getNormalizedProgress(state.playheadTime, r.startTime, r.endTime, r.easing);
+      const animCoords = getAnimatedLine(c, progress);
+
+      // Build the feature collection — EMPTY_FC when progress=0 (route not yet started).
+      // Always call setData so the source is kept in sync; opacity/data together control visibility.
+      const fc: GeoJSON.FeatureCollection = animCoords.length >= 2
+        ? {
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'LineString', coordinates: animCoords },
+            }],
+          }
+        : EMPTY_FC;
+
+      // Update paint properties in case Inspector values changed
+      try {
+        m.setPaintProperty(mainLayerId, 'line-color', isFlight ? '#f59e0b' : r.style.color);
+        m.setPaintProperty(mainLayerId, 'line-width', r.style.width);
+      } catch (_) {}
+
+      mainSource.setData(fc);
+
+      // Glow layer — same pattern
+      const glowSource = m.getSource(glowId) as GeoJSONSource | undefined;
+      if (r.style.glow && glowSource) {
+        if (!m.getLayer(glowLayerId)) {
+          try {
+            m.addLayer(
+              {
+                id: glowLayerId,
+                type: 'line',
+                source: glowId,
+                layout: { 'line-cap': 'round', 'line-join': 'round' },
+                paint: {
+                  'line-color': isFlight ? '#fbbf24' : r.style.glowColor,
+                  'line-width': r.style.width * 3,
+                  'line-opacity': 0.35,
+                  'line-blur': r.style.width * 2,
+                },
+              },
+              mainLayerId,
+            );
+          } catch (_) {}
+        } else {
+          try {
+            m.setPaintProperty(glowLayerId, 'line-color', isFlight ? '#fbbf24' : r.style.glowColor);
+            m.setPaintProperty(glowLayerId, 'line-width', r.style.width * 3);
+            m.setPaintProperty(glowLayerId, 'line-blur', r.style.width * 2);
+          } catch (_) {}
         }
-      }]
-    } as GeoJSON.FeatureCollection;
-  }, [boundary.geojson, isAnimating, animStyle, progress, traceLen]);
+        glowSource.setData(fc);
+      } else if (m.getLayer(glowLayerId)) {
+        try { m.removeLayer(glowLayerId); } catch (_) {}
+      }
+    };
 
-  const strokeOpacity = animStyle === 'fade' 
-    ? Math.min(progress * 2, 1) 
-    : (progress > 0 ? 1 : 0);
+    const unsub = useProjectStore.subscribe(updateRoute);
+    // Initial pump: populate layers immediately with the current state
+    updateRoute(useProjectStore.getState());
 
+    return () => {
+      destroyed = true;
+      unsub();
+      const m = mapRefRef.current.current?.getMap();
+      if (!m) return;
+      // Clean up layers then sources
+      if (m.getLayer(glowLayerId)) try { m.removeLayer(glowLayerId); } catch (_) {}
+      if (m.getLayer(mainLayerId)) try { m.removeLayer(mainLayerId); } catch (_) {}
+      if (m.getSource(glowId)) try { m.removeSource(glowId); } catch (_) {}
+      if (m.getSource(mainId)) try { m.removeSource(mainId); } catch (_) {}
+    };
+  // Re-run only when style reloads or the route ID changes (not on every route prop change)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [styleLoaded, route.id]);
+
+  // Render VehicleModelLayer as a React child (it needs its own lifecycle)
+  if (route.calculation?.vehicle?.enabled) {
+    // VehicleModelLayer needs current animated coords — subscribe locally
+    return <VehicleAnimatedLayer route={route} coords={coords} />;
+  }
+
+  return null;
+}
+
+/**
+ * Thin wrapper that self-subscribes to playheadTime to feed VehicleModelLayer.
+ * Only re-renders when route or coords change (not every frame).
+ */
+function VehicleAnimatedLayer({ route, coords }: { route: RouteItem; coords: number[][] }) {
+  const playheadTime = useProjectStore((s) => s.playheadTime);
+  const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
+  const animCoords = coords.length >= 2 ? getAnimatedLine(coords, progress) : [];
+
+  if (animCoords.length < 2 || !route.calculation?.vehicle?.enabled) return null;
   return (
-    <>
-      <Source id={`boundary-fill-${boundary.id}`} type="geojson" data={fillGeoJSON}>
-        <Layer id={`boundary-fill-layer-${boundary.id}`} type="fill" paint={{ 'fill-color': style.fillColor, 'fill-opacity': fillOpacity }} />
-      </Source>
-      {progress > 0 && (
-        <Source id={`boundary-stroke-${boundary.id}`} type="geojson" data={strokeGeoJSON}>
-          <Layer 
-            id={`boundary-stroke-layer-${boundary.id}`} 
-            type="line" 
-            paint={{ 
-              'line-color': style.strokeColor, 
-              'line-width': style.strokeWidth, 
-              'line-opacity': strokeOpacity 
-            }} 
-            layout={{ 'line-cap': 'round', 'line-join': 'round' }} 
-          />
-        </Source>
-      )}
-    </>
+    <VehicleModelLayer
+      routeId={route.id}
+      coords={animCoords}
+      vehicle={route.calculation.vehicle!}
+    />
   );
 }
 
-function CalloutMarker({ 
-  callout, playheadTime, mapRef, isSelected, isMoveModeActive 
-}: { 
-  callout: CalloutItem; 
-  playheadTime: number; 
+// ---------------------------------------------------------------------------
+// BoundaryLayerGroup — imperative manager, renders null
+// ---------------------------------------------------------------------------
+
+function BoundaryLayerGroup({
+  boundary,
+  mapRef,
+  styleLoaded,
+}: {
+  boundary: BoundaryItem;
+  mapRef: React.MutableRefObject<MapRef | null>;
+  styleLoaded: boolean;
+}) {
+  const boundaryRef = useRef(boundary);
+  boundaryRef.current = boundary;
+
+  const mapRefRef = useRef(mapRef);
+  mapRefRef.current = mapRef;
+
+  useEffect(() => {
+    if (!styleLoaded) return;
+    if (!boundary.geojson || boundary.resolveStatus !== 'resolved') return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const fillSourceId = `boundary-fill-${boundary.id}`;
+    const fillLayerId = `boundary-fill-layer-${boundary.id}`;
+    const strokeSourceId = `boundary-stroke-${boundary.id}`;
+    const strokeLayerId = `boundary-stroke-layer-${boundary.id}`;
+
+    // Add fill source + layer
+    if (!map.getSource(fillSourceId)) {
+      map.addSource(fillSourceId, { type: 'geojson', data: EMPTY_FC });
+    }
+    if (!map.getLayer(fillLayerId)) {
+      const b = boundaryRef.current;
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: fillSourceId,
+        paint: {
+          'fill-color': b.style.fillColor,
+          'fill-opacity': 0,
+        },
+      });
+    }
+
+    // Add stroke source + layer
+    if (!map.getSource(strokeSourceId)) {
+      map.addSource(strokeSourceId, { type: 'geojson', data: EMPTY_FC });
+    }
+    if (!map.getLayer(strokeLayerId)) {
+      const b = boundaryRef.current;
+      map.addLayer({
+        id: strokeLayerId,
+        type: 'line',
+        source: strokeSourceId,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': b.style.strokeColor,
+          'line-width': b.style.strokeWidth,
+          'line-opacity': 0,
+        },
+      });
+    }
+
+    // `destroyed` flag prevents callbacks running after cleanup (in-flight race protection).
+    let destroyed = false;
+
+    // Named update function — extracted so it can be called immediately as an initial pump.
+    const updateBoundary = (state: ReturnType<typeof useProjectStore.getState>) => {
+      if (destroyed) return;
+      const b = boundaryRef.current;
+      const m = mapRefRef.current.current?.getMap();
+      if (!m || !b.geojson || b.resolveStatus !== 'resolved') return;
+
+      // Guard on our specific sources rather than isStyleLoaded()
+      const fillSource = m.getSource(fillSourceId) as GeoJSONSource | undefined;
+      const strokeSource = m.getSource(strokeSourceId) as GeoJSONSource | undefined;
+      if (!fillSource || !strokeSource) return;
+
+      const style = b.style;
+      const isAnimating = style.animateStroke;
+      const animStyle = style.animationStyle || 'fade';
+      const traceLen = style.traceLength || 0.1;
+
+      const progress = getNormalizedProgress(state.playheadTime, b.startTime, b.endTime, b.easing);
+
+      // --- Fill ---
+      const fillProgress = animStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
+      const fillOpacity = style.fillOpacity * fillProgress;
+      const fillFC: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', properties: {}, geometry: b.geojson }],
+      };
+
+      try {
+        m.setPaintProperty(fillLayerId, 'fill-color', style.fillColor);
+        m.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity);
+      } catch (_) {}
+      fillSource.setData(fillFC);
+
+      // --- Stroke ---
+      let strokeFC: GeoJSON.FeatureCollection;
+      if (!isAnimating || animStyle === 'fade') {
+        strokeFC = fillFC;
+      } else {
+        const rings = extractLineStringsFromGeometry(b.geojson!);
+        const animatedRings: number[][][] = [];
+        for (const ring of rings) {
+          let segment: number[][];
+          if (animStyle === 'draw') {
+            segment = getLineSegment(ring, 0, progress);
+          } else {
+            const start = progress * (1 + traceLen) - traceLen;
+            const end = progress * (1 + traceLen);
+            segment = getLineSegment(ring, start, end);
+          }
+          if (segment.length >= 2) animatedRings.push(segment);
+        }
+        strokeFC = {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'MultiLineString', coordinates: animatedRings },
+          }],
+        };
+      }
+
+      const strokeOpacity = animStyle === 'fade'
+        ? Math.min(progress * 2, 1)
+        : (progress > 0 ? 1 : 0);
+
+      try {
+        m.setPaintProperty(strokeLayerId, 'line-color', style.strokeColor);
+        m.setPaintProperty(strokeLayerId, 'line-width', style.strokeWidth);
+        m.setPaintProperty(strokeLayerId, 'line-opacity', strokeOpacity);
+      } catch (_) {}
+      strokeSource.setData(strokeFC);
+    };
+
+    const unsub = useProjectStore.subscribe(updateBoundary);
+    // Initial pump: populate layers immediately with the current state
+    updateBoundary(useProjectStore.getState());
+
+    return () => {
+      destroyed = true;
+      unsub();
+      const m = mapRefRef.current.current?.getMap();
+      if (!m) return;
+      if (m.getLayer(strokeLayerId)) try { m.removeLayer(strokeLayerId); } catch (_) {}
+      if (m.getLayer(fillLayerId)) try { m.removeLayer(fillLayerId); } catch (_) {}
+      if (m.getSource(strokeSourceId)) try { m.removeSource(strokeSourceId); } catch (_) {}
+      if (m.getSource(fillSourceId)) try { m.removeSource(fillSourceId); } catch (_) {}
+    };
+  // Re-run only when styleLoaded or boundary.id changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [styleLoaded, boundary.id, boundary.resolveStatus]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// CalloutMarker — self-subscribes to playheadTime; parent never re-renders it for time
+// ---------------------------------------------------------------------------
+
+function CalloutMarker({
+  callout,
+  mapRef,
+  isSelected,
+}: {
+  callout: CalloutItem;
   mapRef: React.MutableRefObject<MapRef | null>;
   isSelected: boolean;
-  isMoveModeActive: boolean;
 }) {
-  const updateItem = useProjectStore(s => s.updateItem);
+  const updateItem = useProjectStore((s) => s.updateItem);
+  // Self-subscribe to only what this marker needs
+  const playheadTime = useProjectStore((s) => s.playheadTime);
+  const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
   const debounceRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const isActuallyInMoveMode = isSelected && isMoveModeActive;
@@ -714,6 +968,10 @@ function CalloutMarker({
   }, []);
 
   if (callout.lngLat[0] === 0 && callout.lngLat[1] === 0) return null;
+
+  // Visibility check — return null when outside time range (unless in move mode)
+  const isVisibleTime = playheadTime >= callout.startTime && playheadTime <= callout.endTime;
+  if (!isActuallyInMoveMode && !isVisibleTime) return null;
 
   const enterEnd = callout.startTime + callout.animation.enterDuration;
   const exitStart = callout.endTime - callout.animation.exitDuration;

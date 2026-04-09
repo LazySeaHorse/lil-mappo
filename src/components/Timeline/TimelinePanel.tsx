@@ -32,8 +32,18 @@ export default function TimelinePanel() {
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
+  // --- Imperative playhead refs (no re-renders during playback) ---
+  const rulerDiamondRef = useRef<HTMLDivElement>(null);
+  const trackLineRef = useRef<HTMLDivElement>(null);
+  const timeDisplayRef = useRef<HTMLSpanElement>(null);
+
+  // Pixels-per-second is needed inside the subscription; use a ref to avoid stale closure
+  const ppsRef = useRef(pixelsPerSecond);
+  useEffect(() => { ppsRef.current = pixelsPerSecond; }, [pixelsPerSecond]);
+
+  // Remove playheadTime from the destructure — subscribe imperatively below
   const {
-    duration, playheadTime, setPlayheadTime, items, itemOrder,
+    duration, setPlayheadTime, items, itemOrder,
     selectedItemId, selectItem, selectKeyframe, selectedKeyframeId,
     isInspectorOpen, timelineHeight, setTimelineHeight,
     isPlaying, setIsPlaying, fps, removeItem, setIsScrubbing
@@ -52,6 +62,34 @@ export default function TimelinePanel() {
 
   const orderedItems = itemOrder.map((id) => items[id]).filter(Boolean);
   const maxContentHeight = HEADER_HEIGHT + RULER_HEIGHT + (orderedItems.length * 40) + 16;
+
+  // --- Imperative playhead subscription: zero React re-renders during playback ---
+  useEffect(() => {
+    const unsub = useProjectStore.subscribe((state) => {
+      const x = state.playheadTime * ppsRef.current;
+
+      if (rulerDiamondRef.current) {
+        rulerDiamondRef.current.style.left = `${x}px`;
+      }
+      if (trackLineRef.current) {
+        // Track line left is x + 160 (the label column width)
+        trackLineRef.current.style.left = `${x + 160}px`;
+      }
+      if (timeDisplayRef.current) {
+        timeDisplayRef.current.textContent = `${formatTime(state.playheadTime)}`;
+      }
+    });
+    return unsub;
+  }, []); // mount-once
+
+  // When pps changes, re-sync positions immediately from current store state
+  useEffect(() => {
+    const { playheadTime } = useProjectStore.getState();
+    const x = playheadTime * pixelsPerSecond;
+    if (rulerDiamondRef.current) rulerDiamondRef.current.style.left = `${x}px`;
+    if (trackLineRef.current) trackLineRef.current.style.left = `${x + 160}px`;
+    if (timeDisplayRef.current) timeDisplayRef.current.textContent = `${formatTime(playheadTime)}`;
+  }, [pixelsPerSecond]);
 
   const timeFromX = useCallback((x: number) => {
     return Math.max(0, Math.min(duration, x / pixelsPerSecond));
@@ -134,7 +172,7 @@ export default function TimelinePanel() {
     setPixelsPerSecond(Math.max(10, Math.min(300, availableWidth / duration)));
   }, [duration]);
 
-  // Global Keyboard Shortcuts
+  // Global Keyboard Shortcuts — read playheadTime imperatively to avoid re-render cascade
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -164,19 +202,22 @@ export default function TimelinePanel() {
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          setPlayheadTime(playheadTime - (1 / fps));
+          // Read imperatively — avoids including playheadTime in deps (which causes re-render cascade)
+          setPlayheadTime(useProjectStore.getState().playheadTime - (1 / fps));
           break;
         case 'ArrowRight':
           e.preventDefault();
-          setPlayheadTime(playheadTime + (1 / fps));
+          setPlayheadTime(useProjectStore.getState().playheadTime + (1 / fps));
           break;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isPlaying, setIsPlaying, selectedItemId, removeItem, setPlayheadTime, duration, playheadTime, fps]);
+    // playheadTime intentionally omitted — read via getState() to avoid re-render storm
+  }, [isPlaying, setIsPlaying, selectedItemId, removeItem, setPlayheadTime, duration, fps]);
 
-  const playheadX = playheadTime * pixelsPerSecond;
+  // playheadX is only needed for initial render; live updates happen via imperative subscription
+  const initialPlayheadX = useProjectStore.getState().playheadTime * pixelsPerSecond;
 
   const clampedHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(displayHeight, maxContentHeight));
 
@@ -210,13 +251,14 @@ export default function TimelinePanel() {
         className="border-b border-border/50 flex items-center px-3 shrink-0 bg-background/40 rounded-t-2xl relative"
         style={{ height: HEADER_HEIGHT }}
       >
-        {/* Left: label + time */}
+        {/* Left: label + time — time display updated imperatively */}
         <div className="flex flex-col gap-0.5 shrink-0">
           <span className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground leading-none">
             Timeline
           </span>
           <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
-            {formatTime(playheadTime)}<span className="opacity-50"> / {formatTime(duration)}</span>
+            <span ref={timeDisplayRef}>{formatTime(useProjectStore.getState().playheadTime)}</span>
+            <span className="opacity-50"> / {formatTime(duration)}</span>
           </span>
         </div>
 
@@ -232,7 +274,7 @@ export default function TimelinePanel() {
             </IconButton>
             <IconButton
               variant="ghost" size="xs"
-              onClick={() => setPlayheadTime(Math.max(0, playheadTime - 1 / fps))}
+              onClick={() => setPlayheadTime(Math.max(0, useProjectStore.getState().playheadTime - 1 / fps))}
               title="Step Back (←)"
             >
               <ChevronLeft />
@@ -247,7 +289,7 @@ export default function TimelinePanel() {
             </IconButton>
             <IconButton
               variant="ghost" size="xs"
-              onClick={() => setPlayheadTime(Math.min(duration, playheadTime + 1 / fps))}
+              onClick={() => setPlayheadTime(Math.min(duration, useProjectStore.getState().playheadTime + 1 / fps))}
               title="Step Forward (→)"
             >
               <ChevronRight />
@@ -327,9 +369,11 @@ export default function TimelinePanel() {
                 })}
               </svg>
 
+              {/* Ruler playhead diamond — positioned imperatively via ref */}
               <div
+                ref={rulerDiamondRef}
                 className="absolute bottom-0 -translate-x-[5px] pointer-events-none transition-none z-10 drop-shadow-md"
-                style={{ left: playheadX }}
+                style={{ left: initialPlayheadX }}
               >
                 <svg width="11" height="12" viewBox="0 0 11 12" className="text-primary fill-current transition-transform duration-100 hover:scale-110">
                   <path d="M0 0 H11 V6 L5.5 12 L0 6 Z" />
@@ -341,9 +385,11 @@ export default function TimelinePanel() {
           {/* TRACKS */}
           <div className="flex flex-col relative grow min-h-[100px] isolate">
 
+            {/* Track vertical playhead line — positioned imperatively via ref */}
             <div
+              ref={trackLineRef}
               className="absolute top-0 bottom-0 w-px bg-primary z-20 pointer-events-none transition-none"
-              style={{ left: playheadX + 160 }}
+              style={{ left: initialPlayheadX + 160 }}
             />
 
             {orderedItems.map((item) => (

@@ -14,8 +14,8 @@ interface VehicleModelLayerProps {
 }
 
 const MODELS = {
-  car: 'https://docs.mapbox.com/mapbox-gl-js/assets/car.glb',
-  plane: 'https://docs.mapbox.com/mapbox-gl-js/assets/airplane.glb'
+  car: '/models/car.glb',
+  plane: '/models/airplane.glb'
 };
 
 /**

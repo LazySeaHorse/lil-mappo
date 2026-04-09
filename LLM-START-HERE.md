@@ -7,7 +7,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Import** route data (GPX/KML).
 - **Plan Routes**: Automatically generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math. Features a **unified Route Planning interface** shared between the floating Toolbar (for new drafts) and the Inspector (for existing items).
 - **Interactive Callouts & Boundaries**: A premium, search-based placement workflow. Users can search for locations, select from animated dots, or "Pick on Map." Features a **unified Boundary drafting tool** within the Toolbar for searching, styling, and previewing polygons before they are added to the timeline.
-- **Interactive Search**: A unified geocoding system (`SearchField.tsx` for points, `BoundarySearch.tsx` for polygons) with **viewport-proximity bias**. Includes animated geocoding dots that are **fully interactive**.
+- **Interactive Search**: A unified geocoding system (`SearchField.tsx` for points, `BoundarySearch.tsx` for polygons) with **viewport-proximity bias**. Uses the Mapbox Search Box API for improved POI coverage and session-based pricing.
 - **Manual Picking & Move Mode**: High-precision "Pick on Map" (Crosshair) mode for setting coordinates directly on the terrain. Existing items also support a **"Move Mode"** for manual repositioning via map clicks.
 - **Annotate** with 3D callout cards.
 - **Choreograph** camera movements using a keyframe-based timeline.
@@ -63,7 +63,6 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 - **Feature Toggles**: `terrainEnabled`, `buildingsEnabled`, `show3dLandmarks`, `show3dTrees`, `show3dFacades` — Reset to defaults on project load.
 - **Selection State**: `selectedItemId`, `selectedKeyframeId` — Reset to null on project load.
 - **UI Modes**: `isMoveModeActive`, `hideUI`, `isExporting` — Reset to defaults on project load.
-- **Search State**: `searchResults`, `hoveredSearchResultId` — Drive map-based feedback dots; reset on project load.
 - **Drafting & Picking State**: 
   - `editingRoutePoint` ('start' | 'end' | 'callout') activates the **global pick mode**. 
   - `editingItemId`: Tracks the ID of the specific item currently being geocoded or picked.
@@ -79,8 +78,8 @@ Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
 ### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
 Handles all imperative Mapbox state and reactive layer rendering.
 - **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config.
-- **SearchResultsLayer**: Renders animated geocoding previews for points. Features an **expansion pulse effect** on hover.
-- **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries for items currently being planned in the Toolbar.
+- **Imperative Layer Groups**: `RouteLayerGroup` and `BoundaryLayerGroup` manage Mapbox sources and layers directly. They self-subscribe to the store for playhead updates, allowing 60fps geometry animation without React re-renders.
+- **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
 
 ### 3.4 The Inspector: `src/components/Inspector/`
 The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.
@@ -227,13 +226,23 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 ### 6.2 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
 Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
 
+### 6.3 High-Performance Imperative Sync (Zero-Re-render Architecture)
+**Goal**: Achieve fluid 60fps animations for map layers and UI elements by bypassing React's reconciler during playback and scrubbing.
+
+**Core Implementation:**
+1. **Imperative Playhead (`TimelinePanel.tsx`)**: The timeline ruler diamond, track line, and time display are updated via DOM refs inside a store subscription. React is only used for the initial Layout and item CRUD.
+2. **Imperative Layers (`MapViewport.tsx`)**: `RouteLayerGroup` and `BoundaryLayerGroup` use `map.addSource()` and `map.addLayer()` directly. They subscribe to the store and call `setData()` and `setPaintProperty()` imperatively.
+3. **Optimized Layer Mounting**: Mount logic is gated by a parent `styleLoaded` prop but specifically avoids the `map.isStyleLoaded()` synchronous check inside sibling components to prevent sequential mount race conditions (where adding one layer dirties the style and blocks the next).
+4. **Self-Subscribing Components**: `CalloutMarker` and `VehicleAnimatedLayer` subscribe to only the specific state they need (like `playheadTime`), localizing re-renders to the smallest possible sub-trees.
+5. **Fast Keyboard Stepping**: Keyboard shortcuts read state imperatively via `useProjectStore.getState()` to avoid dependency-array re-render cascades.
+
 ---
 
 ## 7. Critical Implementation Details
 
 ### 7.1 Animation & Routing Logic
 - **Search Box API Integration**: The app uses `@mapbox/search-js-core` (SearchBoxCore + SearchSession) for geocoding instead of the legacy Geocoding v5 API. Each search component maintains its own `SearchSession` instance for proper session scoping and automatic 300ms debouncing. The SDK handles session token lifecycle and race condition prevention internally, eliminating the need for manual `setTimeout` debounce logic. Results include improved POI coverage with `place_formatted` secondary text.
-- **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx` and `RoutePlanner.tsx`. Result dots are interactive and support viewport-proximity biasing.
+- **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx` and `RoutePlanner.tsx`. Supports viewport-proximity biasing for better local results.
 - **Boundary Logic**: Uses Nominatim (OSM) to fetch high-quality polygons. Features a **unified drafting interface** that syncs stroke and fill colors during the search phase.
 - **Callout Logic**:
   - **Topo Styling**: High-contrast variant for geographic annotations with optional coordinate/elevation metadata.
@@ -263,10 +272,10 @@ Callouts are rendered using pure Canvas 2D (`src/services/renderCallout.ts`), el
 ---
 
 ## 8. Common Gotchas
-- **Map Dot Stability**: Search results (dots) are decoupled from the high-frequency camera movement. They only re-search when the query string changes or the map center stabilizes (100ms debounce).
-- **Sync Engine Exposure**: The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine factor to force-synchronize styles during frame capture.
+- **Sync Engine Exposure**: The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine to force-synchronize styles during frame capture.
 - **Move Mode Persistence**: During "Pick on Map" or "Move Mode", input fields pulse and display "Click on map..." while disabling standard text input.
 - **Scrollbar Aesthetics**: System-native scrollbars are hidden in search suggestions and routing menus via CSS (`scrollbar-width: none`) to maintain a clean aesthetic.
+- **Search Box API Session Pricing**: The Search Box API uses session-based pricing. Search result suggestions don't include coordinates, so animated preview dots on the map are not feasible. Users interact with suggestions directly in the dropdown.
 
 ---
 
