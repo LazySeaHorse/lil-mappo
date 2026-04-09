@@ -2,7 +2,7 @@
 
 A technical, browser-based tool for creating cinematic map animations and exporting them as high-quality video. li'l Mappo provides a timeline-driven environment for choreographing map movements, importing route data, and annotating geographical areas with 3D callouts and boundaries.
 
-[![erfgds.webp](https://i.postimg.cc/j5tDHKF6/erfgds.webp)](https://postimg.cc/rdZyc6cz)
+[![redsfxfgdfbvcx.webp](https://i.postimg.cc/nhvCjTzX/redsfxfgdfbvcx.webp)](https://postimg.cc/bZwz4x1P)
 
 ## Core Features
 
@@ -15,6 +15,7 @@ A technical, browser-based tool for creating cinematic map animations and export
 - **Boundary Lookup**: Search-based interface using Nominatim (OSM) to fetch and animate high-quality place polygons.
 - **3D Callout Cards**: Position interactive 3D cards with images and synced titles. Support for "Pick on Map" mode and viewport-proximity bias.
 - **Manual Picking & Move Mode**: High-precision crosshair mode for setting coordinates and repositioning items directly on the terrain.
+- **Unified Drafting**: Specialized tools for routes and boundaries that allow searching, styling, and previewing before adding to the timeline.
 
 ### 3. Cinematic Camera Choreography
 - **Keyframe-based Timeline**: Full control over camera center, zoom, pitch, bearing, and altitude.
@@ -24,13 +25,17 @@ A technical, browser-based tool for creating cinematic map animations and export
 
 ### 4. Advanced Map Views
 - **3D Terrain & Buildings**: Native support for Mapbox Terrain RGB and 3D buildings (fill-extrusion).
+- **Dynamic Label Control**: A runtime capability system that detects available label groups (Places, Roads, POIs, etc.) for any style and provides granular toggles.
+- **Mapbox Standard Support**: Full integration with the Mapbox Standard style, including Config API support for lighting presets and 3D feature toggles.
 - **Projections**: Seamless switching between Globe and Mercator projections.
-- **Zen Mode**: Focus-oriented, UI-free environment.
+- **Zen Mode**: Focus-oriented, UI-free environment with floating controls.
 
 ### 5. Responsive "Floating Island" UI
-- **Mode-Switching Mobile Toolbar**: Adaptive layout for mobile/tablet screens with specialized 'Default', 'Add', and 'Layers' modes.
-- **Mutually Exclusive Tools**: UI logic prevents overlapping panels by ensuring only one active drafting tool at a time.
-- **Tier 1 & 2 Component Library**: Consistent design tokens using standardized primitives (IconButton, SegmentedControl, etc.).
+- **Transformative Mobile Toolbar**: Adaptive layout for mobile/tablet screens with specialized 'Default', 'Add', and 'Layers' modes.
+- **Non-Modal Interaction**: Drafting tools use a "floating workspace" model, allowing map interaction without closing panels.
+- **Mutually Exclusive Tools**: Intelligent UI logic prevents panel overlap by ensuring only one drafting tool is active at a time.
+- **Tier 1 & 2 Component Library**: Consistent design tokens using standardized primitives (IconButton, SegmentedControl, etc.) built on shadcn/ui.
+- **Intelligent Toast Positioning**: Dynamic positioning for notifications (`Sonner`) to avoid overlapping with the Inspector or Timeline.
 
 ### 6. High-Quality Video Export
 - **Frame-Perfect Encoding**: Non-real-time export process using the WebCodecs API and `mp4-muxer`.
@@ -49,7 +54,7 @@ A technical, browser-based tool for creating cinematic map animations and export
 - **Icons**: Lucide React.
 - **Persistence**: IndexedDB (local project library).
 - **Testing**: Vitest (Unit/Integration) and Playwright (E2E).
-- **External APIs**: Mapbox Directions/Geocoding (v5), Nominatim (OSM).
+- **External APIs**: Mapbox Directions (v5), Mapbox Search Box API (v1), Nominatim (OSM).
 
 ## Architecture
 
@@ -61,9 +66,15 @@ The application operates as a **state-driven animation engine**. A central Zusta
 
 2. **The Heart** (`src/hooks/usePlayback.ts`): Runs the main `requestAnimationFrame` loop, driving time-based interpolation and camera movement.
 
-3. **The Body** (`src/components/MapViewport/MapViewport.tsx`): Handles imperative Mapbox state, unified sync engine (Projection, Terrain, Atmosphere), and reactive layer rendering (SearchResults, PreviewRoute, PreviewBoundary).
+3. **The Body** (`src/components/MapViewport/MapViewport.tsx`): Handles imperative Mapbox state, unified sync engine (Projection, Terrain, Atmosphere), and reactive layer rendering. Features a **Zero-Re-render Architecture** that bypasses React's reconciler during playback for fluid 60fps performance.
 
 4. **The Inspector** (`src/components/Inspector/`): Contextual properties panel using a delegation strategy. `InspectorPanel.tsx` routes to specialized inspectors (RouteInspector, BoundaryInspector, CalloutInspector), while `InspectorLayout.tsx` provides shared architectural wrappers for consistent styling.
+
+### Performance & Sync Architecture
+
+- **Imperative Playhead**: The timeline ruler and playback state are updated via direct DOM/Mapbox subscriptions to ensure smooth scrubbing and playback.
+- **Dynamic Label Capabilities**: Runtime detection of available labels for any style (Standard or Custom), mapping them to either Mapbox Config API properties or layer visibility.
+- **Optimized Layer Mounting**: Imperative layer groups (`RouteLayerGroup`, `BoundaryLayerGroup`) manage their own Mapbox lifecycles to prevent mounting race conditions.
 
 ### UI Design System
 
@@ -74,11 +85,9 @@ The application operates as a **state-driven animation engine**. A central Zusta
 
 ### Recent Architectural Improvements
 
-- **Canvas-Based Callout Rendering** (`src/services/renderCallout.ts`): Replaced `html2canvas` DOM parsing with pure Canvas 2D, reducing per-frame overhead from 100–300ms to <1ms. Supports 4 style variants (default, modern, news, topo).
-- **Decomposed Video Export** (`src/services/videoExport.ts`): Split into three phases (initEncoder, captureFrame, finalizeExport) for clarity and maintainability.
-- **Picking Logic Clarity** (`MapViewport.tsx`): Extracted `resolveClickTarget()` and `applyPickResult()` helpers to separate coordinate resolution from state updates.
-- **Toolbar Refactoring**: Split into `MobileToolbarLayout` and `DesktopToolbarLayout`, with shared `ToolbarPrimitives` and centralized `useToolbarActions()` hook.
-- **Icon Updates**: Route → Navigation, Callout → Flag, Boundary → Hexagon, Camera Keyframe → Video for improved visual clarity.
+- **Canvas-Based Callout Rendering**: Pure Canvas 2D rendering for all 4 callout variants (Default, Modern, News, Topo), reducing per-frame overhead from 100ms+ to <1ms.
+- **Decomposed Logic**: High-complexity systems like video export and the toolbar have been refactored into focused hooks (`useToolbarActions`, `usePlayback`) and standalone services.
+- **Icon Updates**: Modernized icon set (Navigation, Flag, Hexagon, Clapperboard) for better visual semantics.
 
 ## Development
 
@@ -97,12 +106,12 @@ npm run build
 
 ### Key Implementation Details
 
-- **Unified Geocoding**: Centralized in `SearchField.tsx` and `BoundarySearch.tsx` with viewport-proximity biasing and interactive animated dots.
+- **Unified Geocoding**: Powered by the **Mapbox Search Box API**, featuring viewport-proximity biasing and session-based pricing for high-quality POI coverage.
 - **Boundary Drafting**: Unified interface for searching, styling (stroke/fill colors), and previewing polygons before timeline insertion.
 - **Callout Animations**: Simple fade in/out (both live preview and export). Topo variant supports coordinate/elevation metadata with optional title-location linking.
-- **3D Vehicles**: Gated as a PRO feature with disabled toggle and high-contrast badge.
+- **3D Vehicles**: Gated as a **PRO feature** with dedicated UI badges and subscription checks.
 - **Flight Arcs**: Generated via `flightPath.ts` using `@turf/great-circle` with parabolic altitude curve.
-- **Performance**: Debounced mapCenter (100ms), portal-based popovers for search results, and optimized Canvas 2D rendering for exports.
+- **Performance**: Debounced mapCenter (100ms), `preserveDrawingBuffer` optimization during export, and zero-re-render imperative syncing.
 
 ### Common Gotchas
 
