@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { SearchBoxCore, SearchSession } from '@mapbox/search-js-core';
+import type {
+  SearchBoxSuggestion,
+  SearchBoxOptions,
+  SearchBoxSuggestionResponse,
+  SearchBoxRetrieveResponse,
+} from '@mapbox/search-js-core';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
-import { searchPlaces } from '@/services/geocoding';
+import { MAPBOX_TOKEN } from '@/config/mapbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -11,11 +18,18 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { RouteItem, SearchResult } from '@/store/types';
+import type { RouteItem } from '@/store/types';
 
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ProBadge } from '@/components/ui/pro-badge';
+
+type SearchBoxSession = SearchSession<
+  SearchBoxOptions,
+  SearchBoxSuggestion,
+  SearchBoxSuggestionResponse,
+  SearchBoxRetrieveResponse
+>;
 
 interface InspectorSearchFieldProps {
   label: string;
@@ -26,10 +40,23 @@ interface InspectorSearchFieldProps {
 
 const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearchFieldProps) => {
   const [query, setQuery] = useState(value[0] !== 0 ? `${value[0].toFixed(4)}, ${value[1].toFixed(4)}` : '');
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchBoxSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { setSearchResults, setHoveredSearchResultId, mapCenter } = useProjectStore();
+
+  const sessionRef = useRef<SearchBoxSession | null>(null);
+  const mapCenterRef = useRef(mapCenter);
+
+  useEffect(() => {
+    mapCenterRef.current = mapCenter;
+  }, [mapCenter]);
+
+  useEffect(() => {
+    const core = new SearchBoxCore({ accessToken: MAPBOX_TOKEN });
+    sessionRef.current = new SearchSession(core, 300);
+    return () => { sessionRef.current = null; };
+  }, []);
 
   // Sync internal query when value (coordinates) changes from map click
   useEffect(() => {
@@ -40,14 +67,9 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
     }
   }, [value]);
 
-  const mapCenterRef = React.useRef(mapCenter);
-  useEffect(() => {
-    mapCenterRef.current = mapCenter;
-  }, [mapCenter]);
-
   useEffect(() => {
     const trimmed = query.trim();
-    
+
     // Check if it's coordinates: "-74.006, 40.712"
     const coordMatch = trimmed.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
@@ -55,7 +77,7 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
       const lat = parseFloat(coordMatch[2]);
       if (!isNaN(lng) && !isNaN(lat) && lng !== value[0] && lat !== value[1]) {
         onSelect([lng, lat]);
-        setResults([]);
+        setSuggestions([]);
         setSearchResults([]);
         setIsOpen(false);
       }
@@ -63,25 +85,39 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
     }
 
     if (trimmed.length < 2) {
-      setResults([]);
+      setSuggestions([]);
       setSearchResults([]);
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      const res = await searchPlaces(trimmed, mapCenterRef.current);
-      setResults(res);
-      setSearchResults(res); // Update global store for map preview
+    let cancelled = false;
+    setLoading(true);
+
+    (async () => {
+      try {
+        const center = mapCenterRef.current;
+        const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
+        const response = await sessionRef.current!.suggest(trimmed, { proximity });
+        if (!cancelled) {
+          setSuggestions(response.suggestions || []);
+          setIsOpen((response.suggestions || []).length > 0);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
       setLoading(false);
-      setIsOpen(true);
-    }, 400);
-    return () => clearTimeout(timer);
+      sessionRef.current?.abort();
+    };
   }, [query]);
 
   const handleClose = () => {
     setIsOpen(false);
-    setResults([]);
+    setSuggestions([]);
     setSearchResults([]);
     setHoveredSearchResultId(null);
   };
@@ -89,7 +125,19 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
   const clear = () => {
     setQuery('');
     handleClose();
-    onSelect([0,0]);
+    onSelect([0, 0]);
+  };
+
+  const handleSelect = async (suggestion: SearchBoxSuggestion) => {
+    try {
+      const result = await sessionRef.current!.retrieve(suggestion);
+      const feature = result.features[0];
+      const [lng, lat] = feature.geometry.coordinates;
+      onSelect([lng, lat]);
+    } catch {
+      // retrieve failed; no action
+    }
+    handleClose();
   };
 
   return (
@@ -99,14 +147,14 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
           <div className="w-1.5 h-1.5 rounded-full bg-current" />
         </div>
         <div className="relative flex-1">
-          <Input 
+          <Input
             placeholder={label}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="h-8 text-[11px] font-mono pl-3 pr-8 bg-background/50 border-border/50 rounded-full focus-visible:ring-1 focus-visible:ring-primary/20"
           />
           {query && (
-            <button 
+            <button
               onClick={clear}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted/50"
             >
@@ -116,24 +164,24 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
           {loading && <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin opacity-40 text-primary" />}
         </div>
       </div>
-      
-      {isOpen && results.length > 0 && (
+
+      {isOpen && suggestions.length > 0 && (
         <Card className="absolute left-0 z-[110] mt-1 w-fit min-w-[200px] max-w-[400px] shadow-2xl bg-background border border-border shadow-primary/10 overflow-hidden rounded-lg animate-in fade-in zoom-in-95 duration-200">
           <ScrollArea className="max-h-60 w-full overflow-x-hidden">
             <div className="p-1">
-              {results.map((r) => (
+              {suggestions.map((s) => (
                 <button
-                  key={r.id}
+                  key={s.mapbox_id}
                   className="w-full text-left px-3 py-2 text-[10px] hover:bg-secondary rounded border-b border-border last:border-0 whitespace-nowrap group/res"
-                  onMouseEnter={() => setHoveredSearchResultId(r.id)}
+                  onMouseEnter={() => setHoveredSearchResultId(s.mapbox_id)}
                   onMouseLeave={() => setHoveredSearchResultId(null)}
-                  onClick={() => {
-                    onSelect(r.lngLat);
-                    handleClose();
-                  }}
+                  onClick={() => handleSelect(s)}
                 >
                   <MapPin size={10} className="text-muted-foreground group-hover/res:text-primary transition-colors inline mr-2 shrink-0" />
-                  <span>{r.name}</span>
+                  <span>{s.name}</span>
+                  {s.place_formatted && (
+                    <span className="text-muted-foreground ml-1">{s.place_formatted}</span>
+                  )}
                 </button>
               ))}
             </div>
