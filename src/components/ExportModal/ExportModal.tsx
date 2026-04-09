@@ -30,6 +30,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
+    useProjectStore.getState().setIsExporting(true);
     setProgress(0);
     setError(null);
     abortRef.current = new AbortController();
@@ -51,12 +52,14 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.${ext}`;
           saveAs(blob, fileName);
           setIsExporting(false);
+          useProjectStore.getState().setIsExporting(false);
           setProgress(100);
           useProjectStore.getState().setHideUI(false);
         },
         onError: (err) => {
           setError(err);
           setIsExporting(false);
+          useProjectStore.getState().setIsExporting(false);
           useProjectStore.getState().setHideUI(false);
         },
         abortSignal: abortRef.current.signal,
@@ -64,6 +67,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     } catch (e: any) {
       setError(e.message || 'Export failed');
       setIsExporting(false);
+      useProjectStore.getState().setIsExporting(false);
       useProjectStore.getState().setHideUI(false);
     }
   }, [mapRef, exportRes, exportFps, name, startTime, endTime]);
@@ -71,6 +75,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   const handleCancel = () => {
     abortRef.current?.abort();
     setIsExporting(false);
+    useProjectStore.getState().setIsExporting(false);
     setProgress(0);
     useProjectStore.getState().setHideUI(false);
   };

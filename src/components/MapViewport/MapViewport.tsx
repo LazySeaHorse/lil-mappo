@@ -136,7 +136,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     items, itemOrder, playheadTime, isPlaying,
     selectedItemId, updateItem, selectItem, isMoveModeActive,
-    setMapCenter, terrainLoading, buildingsLoading,
+    setMapCenter, terrainLoading, buildingsLoading, isExporting,
   } = useProjectStore();
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
@@ -492,7 +492,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         onMove={(evt) => debouncedSetMapCenter(evt.viewState.longitude, evt.viewState.latitude)}
         interactive={!isPlaying}
         interactiveLayerIds={["search-results-circles"]}
-        preserveDrawingBuffer
+        preserveDrawingBuffer={isExporting}
       >
         {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}
         {styleLoaded && (

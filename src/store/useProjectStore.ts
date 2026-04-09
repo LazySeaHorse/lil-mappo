@@ -28,6 +28,7 @@ interface ProjectStore extends Project {
   // Transient UI modes (not persisted)
   isMoveModeActive: boolean;
   hideUI: boolean;
+  isExporting: boolean;
   projectSettingsTab: 'general' | 'map';
   // Transient search state (not persisted)
   searchResults: SearchResult[];
@@ -88,6 +89,7 @@ interface ProjectStore extends Project {
 
   // Zen Mode
   setHideUI: (v: boolean) => void;
+  setIsExporting: (v: boolean) => void;
 
   // Project Settings Tab
   setProjectSettingsTab: (tab: 'general' | 'map') => void;
@@ -196,6 +198,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Transient UI modes (not persisted)
   isMoveModeActive: false,
   hideUI: false,
+  isExporting: false,
   projectSettingsTab: 'general' as 'general' | 'map',
   // Transient search state (not persisted)
   searchResults: [],
@@ -302,6 +305,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setMoveModeActive: (v) => set({ isMoveModeActive: v }),
   setHideUI: (v) => set({ hideUI: v }),
+  setIsExporting: (v) => set({ isExporting: v }),
   setProjectSettingsTab: (tab) => set({ projectSettingsTab: tab }),
 
   setTerrainLoading: (v) => set({ terrainLoading: v }),
