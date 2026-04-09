@@ -8,7 +8,6 @@ import { applyEasing, getNormalizedProgress } from '@/engine/easings';
 import CalloutCard from './CalloutCard';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
-import { SearchResultsLayer } from './SearchResultsLayer';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { VehicleModelLayer } from './VehicleModelLayer';
@@ -515,8 +514,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
               />
             )}
 
-            {/* Search + Previews */}
-            <SearchResultsLayer />
+            {/* Previews */}
             <PreviewRouteLayer />
             <PreviewBoundaryLayer />
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SearchBoxCore, SearchSession } from '@mapbox/search-js-core';
 import type {
   SearchBoxSuggestion,
@@ -43,7 +43,7 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
   const [suggestions, setSuggestions] = useState<SearchBoxSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { setSearchResults, setHoveredSearchResultId, mapCenter } = useProjectStore();
+  const { mapCenter } = useProjectStore();
 
   const sessionRef = useRef<SearchBoxSession | null>(null);
   const mapCenterRef = useRef(mapCenter);
@@ -78,7 +78,6 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
       if (!isNaN(lng) && !isNaN(lat) && lng !== value[0] && lat !== value[1]) {
         onSelect([lng, lat]);
         setSuggestions([]);
-        setSearchResults([]);
         setIsOpen(false);
       }
       return;
@@ -86,7 +85,6 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
 
     if (trimmed.length < 2) {
       setSuggestions([]);
-      setSearchResults([]);
       return;
     }
 
@@ -118,8 +116,6 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
   const handleClose = () => {
     setIsOpen(false);
     setSuggestions([]);
-    setSearchResults([]);
-    setHoveredSearchResultId(null);
   };
 
   const clear = () => {
@@ -173,8 +169,6 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
                 <button
                   key={s.mapbox_id}
                   className="w-full text-left px-3 py-2 text-[10px] hover:bg-secondary rounded border-b border-border last:border-0 whitespace-nowrap group/res"
-                  onMouseEnter={() => setHoveredSearchResultId(s.mapbox_id)}
-                  onMouseLeave={() => setHoveredSearchResultId(null)}
                   onClick={() => handleSelect(s)}
                 >
                   <MapPin size={10} className="text-muted-foreground group-hover/res:text-primary transition-colors inline mr-2 shrink-0" />

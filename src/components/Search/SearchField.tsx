@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SearchBoxCore, SearchSession } from '@mapbox/search-js-core';
 import type {
   SearchBoxSuggestion,
@@ -9,9 +9,7 @@ import type {
 import { useProjectStore } from '@/store/useProjectStore';
 import { MAPBOX_TOKEN } from '@/config/mapbox';
 import { Input } from '@/components/ui/input';
-import {
-  Loader2, Crosshair, MapPin, X
-} from 'lucide-react';
+import { Loader2, Crosshair, MapPin, X } from 'lucide-react';
 
 import {
   Popover,
@@ -41,7 +39,6 @@ interface SearchFieldProps {
 
 export const SearchField = ({
   label,
-  value,
   name,
   onSelect,
   color = "bg-primary/10 text-primary border-primary/20",
@@ -54,7 +51,7 @@ export const SearchField = ({
   const [suggestions, setSuggestions] = useState<SearchBoxSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { setSearchResults, setHoveredSearchResultId, mapCenter } = useProjectStore();
+  const { mapCenter } = useProjectStore();
 
   const sessionRef = useRef<SearchBoxSession | null>(null);
   const mapCenterRef = useRef(mapCenter);
@@ -78,7 +75,6 @@ export const SearchField = ({
     const trimmed = query.trim();
     if (trimmed.length < 2 || trimmed === name) {
       setSuggestions([]);
-      setSearchResults([]);
       setIsOpen(false);
       return;
     }
@@ -106,13 +102,11 @@ export const SearchField = ({
       setLoading(false);
       sessionRef.current?.abort();
     };
-  }, [query, name, setSearchResults]);
+  }, [query, name]);
 
   const handleClose = () => {
     setIsOpen(false);
     setSuggestions([]);
-    setSearchResults([]);
-    setHoveredSearchResultId(null);
   };
 
   const clear = () => {
@@ -139,8 +133,6 @@ export const SearchField = ({
         <button
           key={s.mapbox_id}
           className="w-full text-left px-3 py-2.5 text-xs hover:bg-primary/5 rounded-lg border-b border-border/10 last:border-0 whitespace-nowrap group/res flex items-center gap-2.5 transition-all"
-          onMouseEnter={() => setHoveredSearchResultId(s.mapbox_id)}
-          onMouseLeave={() => setHoveredSearchResultId(null)}
           onClick={() => handleSelect(s)}
         >
           <MapPin size={12} className="text-muted-foreground group-hover/res:text-primary transition-colors shrink-0" />

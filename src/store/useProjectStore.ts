@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName, SearchResult } from './types';
+import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName } from './types';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import { MAP_STYLES } from '@/config/mapbox';
 
@@ -30,9 +30,6 @@ interface ProjectStore extends Project {
   hideUI: boolean;
   isExporting: boolean;
   projectSettingsTab: 'general' | 'map';
-  // Transient search state (not persisted)
-  searchResults: SearchResult[];
-  hoveredSearchResultId: string | null;
   // Transient drafting/picking state (not persisted)
   editingRoutePoint: 'start' | 'end' | 'callout' | null;
   editingItemId: string | null;
@@ -118,10 +115,6 @@ interface ProjectStore extends Project {
   // View state for search proximity
   setMapCenter: (v: [number, number]) => void;
 
-  // Search actions
-  setSearchResults: (results: SearchResult[]) => void;
-  setHoveredSearchResultId: (id: string | null) => void;
-
   // Utilities
   duplicateItem: (id: string) => void;
 
@@ -200,9 +193,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   hideUI: false,
   isExporting: false,
   projectSettingsTab: 'general' as 'general' | 'map',
-  // Transient search state (not persisted)
-  searchResults: [],
-  hoveredSearchResultId: null,
   // Transient drafting/picking state (not persisted)
   editingRoutePoint: null,
   editingItemId: null,
@@ -343,9 +333,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     isMoveModeActive: false,
     hideUI: false,
     projectSettingsTab: 'general',
-    // Reset transient search state
-    searchResults: [],
-    hoveredSearchResultId: null,
     // Reset transient drafting/picking state
     editingRoutePoint: null,
     editingItemId: null,
@@ -376,8 +363,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       isInspectorOpen: true,
     };
   }),
-  setSearchResults: (results) => set({ searchResults: results }),
-  setHoveredSearchResultId: (id) => set({ hoveredSearchResultId: id }),
   setMapCenter: (v) => set({ mapCenter: v }),
   setEditingRoutePoint: (p) => set({ editingRoutePoint: p }),
   setDraftStart: (v) => set({ draftStart: v }),

@@ -33,7 +33,7 @@ The UI is a premium, **responsive "floating island"** design.
 - **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`
 - **Video Export**: `mp4-muxer` + WebCodecs API + pure Canvas 2D (for callout rendering)
 - **Testing**: Vitest (Unit/Integration) and Playwright (E2E)
-- **External APIs**: Mapbox Directions (v5) and Mapbox Geocoding (v5).
+- **External APIs**: Mapbox Directions (v5) and Mapbox Search Box API (via `@mapbox/search-js-core`).
 - **UI Components**: Standardized **Tier 1 & Tier 2 Component Library** in `src/components/ui/` (IconButton, SegmentedControl, Field, PanelHeader, etc.), built on top of **shadcn/ui v0.9+**.
 
 ---
@@ -62,7 +62,7 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 - `detectedCapabilities`: Runtime-detected label groups for the current style.
 - **Feature Toggles**: `terrainEnabled`, `buildingsEnabled`, `show3dLandmarks`, `show3dTrees`, `show3dFacades` — Reset to defaults on project load.
 - **Selection State**: `selectedItemId`, `selectedKeyframeId` — Reset to null on project load.
-- **UI Modes**: `isMoveModeActive`, `hideUI` — Reset to defaults on project load.
+- **UI Modes**: `isMoveModeActive`, `hideUI`, `isExporting` — Reset to defaults on project load.
 - **Search State**: `searchResults`, `hoveredSearchResultId` — Drive map-based feedback dots; reset on project load.
 - **Drafting & Picking State**: 
   - `editingRoutePoint` ('start' | 'end' | 'callout') activates the **global pick mode**. 
@@ -180,6 +180,7 @@ Removed from `Project` type (non-persisted); now transient-only in store:
 - `labelVisibility` — resets to empty object
 - `playheadTime`, `isPlaying`, `isScrubbing` — playback state
 - `isInspectorOpen`, `timelineHeight` — UI layout state
+- `isExporting` — tracks active video export; controls `preserveDrawingBuffer`
 
 Benefit: Save files now contain only essential animation data. UI state is always fresh on load.
 
@@ -231,7 +232,8 @@ Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
 ## 7. Critical Implementation Details
 
 ### 7.1 Animation & Routing Logic
-- **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx` and `BoundarySearch.tsx`. Result dots are interactive and support viewport-proximity biasing.
+- **Search Box API Integration**: The app uses `@mapbox/search-js-core` (SearchBoxCore + SearchSession) for geocoding instead of the legacy Geocoding v5 API. Each search component maintains its own `SearchSession` instance for proper session scoping and automatic 300ms debouncing. The SDK handles session token lifecycle and race condition prevention internally, eliminating the need for manual `setTimeout` debounce logic. Results include improved POI coverage with `place_formatted` secondary text.
+- **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx` and `RoutePlanner.tsx`. Result dots are interactive and support viewport-proximity biasing.
 - **Boundary Logic**: Uses Nominatim (OSM) to fetch high-quality polygons. Features a **unified drafting interface** that syncs stroke and fill colors during the search phase.
 - **Callout Logic**:
   - **Topo Styling**: High-contrast variant for geographic annotations with optional coordinate/elevation metadata.
@@ -242,6 +244,7 @@ Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
 - **Directions**: Land-based routes use Mapbox Directions.
 
 ### 7.2 Performance Optimizations
+- **preserveDrawingBuffer Optimization**: The Mapbox canvas's `preserveDrawingBuffer` is `false` during normal use for better performance, and only flips to `true` when a video export is actively running. This is controlled via the `isExporting` transient state in the store.
 - **Debounced mapCenter**: Viewport updates to the Zustand store are debounced by 100ms during panning to prevent excessive UI re-renders.
 - **Portal-based Popovers**: `SearchField` use Portals (via Radix Popover) to break out of `overflow-hidden` containers, enabling wide location names to display fully over the map without being clipped.
 

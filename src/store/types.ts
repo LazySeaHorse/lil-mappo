@@ -1,12 +1,5 @@
 import type { MapStyleKey } from '@/config/mapbox';
 
-export interface SearchResult {
-  id: string;
-  name: string;
-  lngLat: [number, number];
-  category: string;
-}
-
 export type EasingName =
   | 'linear'
   | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad'
