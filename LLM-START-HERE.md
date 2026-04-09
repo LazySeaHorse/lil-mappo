@@ -11,8 +11,9 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Manual Picking & Move Mode**: High-precision "Pick on Map" (Crosshair) mode for setting coordinates directly on the terrain. Existing items also support a **"Move Mode"** for manual repositioning via map clicks.
 - **Annotate** with 3D callout cards.
 - **Choreograph** camera movements using a keyframe-based timeline.
-- **Save & Manage** multiple projects locally via an IndexedDB-powered library.
-- **Export**: Projects as `.lilmap` files or high-quality MP4 videos.
+- **Save & Manage** multiple projects locally via an IndexedDB-powered library, or cloud-sync via Supabase (authenticated users).
+- **Export**: Projects as `.lilmap` files or high-quality MP4 videos. Render jobs tracked in user account.
+- **User Accounts**: Supabase-powered authentication with account settings, credits tracking, and render job history.
 - **Zen Mode**: Focus mode for immersive map experience.
 
 The UI is a premium, **responsive "floating island"** design.
@@ -27,13 +28,15 @@ The UI is a premium, **responsive "floating island"** design.
 - **Framework**: React 18+ (Vite)
 - **State Management**: Zustand
 - **Map Engine**: Mapbox GL JS v3 (via `react-map-gl/mapbox`)
-- **Persistence**: IndexedDB (for the project library)
+- **Persistence**: IndexedDB (for the project library) + Supabase PostgreSQL (for user data)
+- **Authentication**: Supabase Auth (email/password, OAuth)
 - **Icons**: Lucide React
 - **Animations**: Custom `requestAnimationFrame` loop + easing functions
 - **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`
 - **Video Export**: `mp4-muxer` + WebCodecs API + pure Canvas 2D (for callout rendering)
 - **Testing**: Vitest (Unit/Integration) and Playwright (E2E)
-- **External APIs**: Mapbox Directions (v5) and Mapbox Search Box API (via `@mapbox/search-js-core`).
+- **External APIs**: Mapbox Directions (v5), Mapbox Search Box API (via `@mapbox/search-js-core`), and Supabase (v2).
+
 - **UI Components**: Standardized **Tier 1 & Tier 2 Component Library** in `src/components/ui/` (IconButton, SegmentedControl, Field, PanelHeader, etc.), built on top of **shadcn/ui v0.9+**.
 
 ---
@@ -71,6 +74,24 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
   - All reset to null/empty on project load.
 
 *(Note: Component-local state (e.g., `activeDropdown`, `mobileMode` in `Toolbar.tsx`) is managed as local `useState` to prevent unnecessary global re-renders.)*
+
+### 3.1b Authentication & User Data: `src/store/useAuthStore.ts`
+Manages user authentication state and account UI visibility via Supabase.
+
+**Auth State:**
+- `user`: Current authenticated user object (converted from Supabase `User` to `AuthUser` with `id`, `email`, `displayName`, `avatarUrl`).
+- `session`: Active Supabase session token.
+- `isLoading`: Auth initialization state (true until `initAuth()` completes).
+
+**Modal Visibility State:**
+- `showAuthModal`, `showSettingsModal`, `showCreditsModal`, `showRendersModal`: Boolean flags controlling which account modal is open.
+
+**Methods:**
+- `initAuth()`: Called once on app mount. Hydrates session from Supabase, subscribes to auth state changes, and auto-closes auth modal on successful sign-in.
+- `signOut()`: Calls Supabase auth signout; state is cleared by the `onAuthStateChange` listener.
+- `openAuthModal()`, `closeAuthModal()`, etc.: Toggle modal visibility.
+
+**Key Design**: Auth state is orthogonal to project state. Modal visibility is managed here to keep the store focused. User data (credits, subscription, render jobs) is fetched separately via React Query hooks (`useCredits()`, `useSubscription()`, `useRenderJobs()`) to enable efficient caching and refetching.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
@@ -156,11 +177,69 @@ Uses inline controls and dropdowns:
 - `useToolbarActions()` — Encapsulates all handlers (import, export, new project, camera KF)
 - `ToolbarPrimitives.tsx` — Shared `ToolbarButton`, `ToolbarToggle`, `Divider` atoms; now backed by `IconButton` for icon-only modes.
 
+### 5.4 Avatar Menu & Account Integration
+The Toolbar's top-left now features an **Avatar Menu** (`src/components/Account/AvatarMenu.tsx`) that replaces the legacy Project menu:
+- **Logged Out**: Shows "Sign In" button.
+- **Logged In**: Displays user avatar with dropdown menu:
+  - Account Settings (email, password, profile)
+  - Credits & Subscription status
+  - Render Jobs history
+  - Sign Out
+
+**Account Modals** (`src/components/Account/`):
+- `AuthModal.tsx`: Sign up / sign in form with Supabase integration.
+- `AccountSettingsModal.tsx`: Edit email, password, profile picture.
+- `CreditsModal.tsx`: Display remaining credits and subscription tier.
+- `RendersModal.tsx`: List past and in-progress render jobs with status and download links.
+
+All modals are non-modal, floating panels that integrate seamlessly with the Toolbar's floating island aesthetic.
+
 ---
 
 ## 6. Recent Architectural Refactoring
 
-### 6.0 Label System Overhaul (Dynamic Capabilities)
+### 6.0 User Accounts & Supabase Integration (Phase 1–3)
+**Problem**: li'l Mappo needed user authentication, account management, and cloud persistence for projects and render jobs.
+
+**Solution**: Three-phase rollout of Supabase-powered user accounts:
+
+**Phase 1 — Avatar Menu & Account Modals** (`2cdf4c2`)
+- Replaced legacy Project menu with **Avatar Menu** (`AvatarMenu.tsx`).
+- Created account modal suite:
+  - `AuthModal.tsx`: Sign up / sign in with email/password.
+  - `AccountSettingsModal.tsx`: Edit profile, email, password.
+  - `CreditsModal.tsx`: Display credits and subscription tier.
+  - `RendersModal.tsx`: View render job history.
+- Created `useAuthStore.ts` to manage auth state (user, session, loading, error).
+- Integrated Supabase client (`src/lib/supabase.ts`).
+
+**Phase 2 — Supabase Auth Wiring** (`c00c7bd`)
+- Connected `AuthModal` to real Supabase Auth endpoints (magic link, Google OAuth, GitHub OAuth).
+- Implemented session persistence and auto-login on app load via `initAuth()`.
+- Created database schema migration (`supabase/migrations/001_initial_schema.sql`):
+  - `credit_balance`: Track monthly and purchased render credits per user (auto-created on first sign-in via trigger).
+  - `subscriptions`: Store subscription tier and status (one row per paying user; free users have no row).
+  - `render_jobs`: Log all export jobs with status, resolution, FPS, GPU flag, credits cost, and output URLs.
+  - `feature_votes`: Anonymous feature voting table.
+- Added Row Level Security (RLS) policies to ensure users can only access their own data.
+- Added custom hooks using React Query: `useCredits()`, `useSubscription()`, `useRenderJobs()` for efficient data fetching and caching.
+
+**Phase 3 — Real Data Wiring** (`b697eb2`)
+- Connected account modals to live Supabase data:
+  - `AccountSettingsModal`: Displays user email and display name from Supabase Auth; includes BYOK (Bring Your Own Key) Mapbox token storage in localStorage.
+  - `CreditsModal`: Fetches and displays live monthly and purchased credits from `credit_balance` table; shows renewal date and purchase CTA.
+  - `RendersModal`: Lists render jobs from `render_jobs` table with real-time status (queued, rendering, done, failed); includes download links for completed renders and expiration tracking.
+- Enhanced `useAuthStore` to call `initAuth()` on app mount, which hydrates session from Supabase and subscribes to auth state changes.
+- Added database type definitions (`src/lib/database.types.ts`) for type safety across all queries.
+- Implemented React Query caching strategy:
+  - `useCredits()`: 30s stale time (credits don't change often).
+  - `useSubscription()`: 60s stale time.
+  - `useRenderJobs()`: 0s stale time (always refetch on manual refresh).
+- All modals gracefully handle loading, error, and unauthenticated states with appropriate UI feedback.
+
+**Key Design**: Auth state is orthogonal to project state. Users can manage accounts independently of active projects. All user data is fetched on login and cached in `useAuthStore` for fast access.
+
+### 6.1 Label System Overhaul (Dynamic Capabilities)
 **Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles. Standard style also had incorrect Config API property names (`showRoads` → should be `showRoadLabels`, `showPlaces` → should be `showPlaceLabels`) and was missing the `showAdminBoundaries` control, causing country names and borders to remain visible when all toggles were off.
 
 **Solution**: Runtime detection of available labels with accurate Config API mappings.
@@ -183,7 +262,7 @@ Removed from `Project` type (non-persisted); now transient-only in store:
 
 Benefit: Save files now contain only essential animation data. UI state is always fresh on load.
 
-### 6.1 Complexity Reduction
+### 6.2 Complexity Reduction
 Several high-complexity functions have been decomposed into smaller, focused helpers:
 
 **lineAnimation.ts**
@@ -223,7 +302,7 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - Camera Keyframe: `Crosshair` → `Video` (represents video frames)
 - Export: `Video` → `Clapperboard` (more distinct for cinematic final output)
 
-### 6.2 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
+### 6.3 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
 Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
 
 ### 6.3 High-Performance Imperative Sync (Zero-Re-render Architecture)

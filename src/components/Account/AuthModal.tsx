@@ -62,20 +62,27 @@ export function AuthModal() {
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-2xl bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5 mb-1">
-            <img
-              src={`${import.meta.env.BASE_URL}logo.svg`}
-              className="w-7 h-7"
-              alt="li'l Mappo"
-            />
-            <DialogTitle className="text-lg font-bold tracking-tight">Sign in to li'l Mappo</DialogTitle>
-          </div>
-          <DialogDescription className="text-muted-foreground text-sm">
-            Cloud renders, cloud saves, and more — all with one account.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-md rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
+        
+        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
+          <DialogHeader>
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <div className="p-2 bg-primary/10 rounded-2xl shadow-inner border border-primary/20">
+                <img
+                  src={`${import.meta.env.BASE_URL}logo.svg`}
+                  className="w-8 h-8 drop-shadow-sm"
+                  alt="li'l Mappo"
+                />
+              </div>
+            </div>
+            <DialogTitle className="text-2xl font-black tracking-tight text-center">Welcome Back</DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
+              Sign in to unlock cloud renders, saves, and more.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <div className="px-6 pb-6">
 
         {sent ? (
           <div className="flex flex-col items-center gap-4 py-6">
@@ -154,11 +161,12 @@ export function AuthModal() {
               </Button>
             </form>
 
-            <p className="text-[10px] text-muted-foreground/60 text-center leading-relaxed">
+            <p className="text-[11px] text-muted-foreground/60 text-center leading-relaxed mt-2">
               By signing in, you agree to our Terms of Service and Privacy Policy.
             </p>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

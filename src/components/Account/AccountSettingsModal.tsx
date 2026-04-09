@@ -49,15 +49,20 @@ export function AccountSettingsModal() {
 
   return (
     <Dialog open={showSettingsModal} onOpenChange={(open) => !open && closeSettingsModal()}>
-      <DialogContent className="sm:max-w-lg rounded-2xl bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-bold tracking-tight">Settings</DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm">
-            Account settings and preferences.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-lg rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
+        
+        <div className="p-6 pb-2 bg-gradient-to-b from-secondary/30 to-transparent">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <User className="text-primary h-5 w-5" /> Settings
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm mt-1">
+              Account preferences and advanced integrations.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="flex flex-col gap-6 pt-2 max-h-[70vh] overflow-y-auto">
+        <div className="flex flex-col gap-8 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-secondary scrollbar-track-transparent">
 
           {/* ─── Account Info ─── */}
           <section>
@@ -186,9 +191,9 @@ export function AccountSettingsModal() {
 
 function SectionHeading({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-2 mb-2.5 px-0.5">
-      <span className="text-muted-foreground/60">{icon}</span>
-      <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">{label}</h3>
+    <div className="flex items-center gap-2 mb-3 px-1">
+      <span className="text-muted-foreground/60 p-1.5 bg-secondary/50 rounded-md border border-border/30 shadow-sm">{icon}</span>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80">{label}</h3>
     </div>
   );
 }
