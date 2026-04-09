@@ -23,6 +23,7 @@ import type { RouteItem } from '@/store/types';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ProBadge } from '@/components/ui/pro-badge';
+import { useSubscription } from '@/hooks/useSubscription';
 
 type SearchBoxSession = SearchSession<
   SearchBoxOptions,
@@ -193,6 +194,9 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const { updateItem, editingRoutePoint, setEditingRoutePoint, setEditingItemId, setPreviewRoute } = useProjectStore();
   const [loading, setLoading] = useState(false);
 
+  const { data: sub } = useSubscription();
+  const isPro = sub && (sub.tier === 'cartographer' || sub.tier === 'pioneer');
+
   const calc = item.calculation || {
     mode: 'manual',
     startPoint: [0, 0],
@@ -205,6 +209,21 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
       vehicle = { ...vehicle, type: mode === 'flight' ? 'plane' : 'car' };
     }
     updateItem(item.id, { calculation: { ...calc, mode, vehicle } } as any);
+  };
+
+  const updateVehicle = (patch: Partial<NonNullable<RouteItem['calculation']>['vehicle']>) => {
+    const currentVehicle = calc.vehicle || {
+      enabled: false,
+      type: calc.mode === 'flight' ? 'plane' : 'car',
+      modelId: calc.mode === 'flight' ? 'plane-1' : 'car-1',
+      scale: 1.0,
+    };
+    updateItem(item.id, { 
+      calculation: { 
+        ...calc, 
+        vehicle: { ...currentVehicle, ...patch } 
+      } 
+    } as any);
   };
 
   const calculateRoute = async (saveToItem: boolean) => {
@@ -337,21 +356,32 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
             </Button>
           </div>
 
-          <div className="pt-4 border-t border-border/10 flex flex-col gap-4 opacity-50 cursor-not-allowed grayscale pointer-events-none">
+          <div className={`pt-4 border-t border-border/10 flex flex-col gap-4 ${!isPro ? 'opacity-50 cursor-not-allowed grayscale pointer-events-none' : ''}`}>
             <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">3D Vehicle</span>
-                <ProBadge />
+                {!isPro && <ProBadge />}
               </div>
-              <Switch disabled checked={false} />
+              <Switch 
+                disabled={!isPro} 
+                checked={calc.vehicle?.enabled || false} 
+                onCheckedChange={(v) => updateVehicle({ enabled: v })}
+              />
             </div>
 
-            <div className="space-y-2 opacity-50">
+            <div className={`space-y-2 ${!isPro || !calc.vehicle?.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
               <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
                 <span>Model Scale</span>
-                <span>1.0x</span>
+                <span>{calc.vehicle?.scale?.toFixed(1) || '1.0'}x</span>
               </div>
-              <Slider disabled value={[1]} min={0.1} max={5} step={0.1} />
+              <Slider 
+                disabled={!isPro || !calc.vehicle?.enabled} 
+                value={[calc.vehicle?.scale || 1]} 
+                onValueChange={([v]) => updateVehicle({ scale: v })}
+                min={0.1} 
+                max={5} 
+                step={0.1} 
+              />
             </div>
           </div>
         </div>
