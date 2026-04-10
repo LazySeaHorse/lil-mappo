@@ -1,19 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import type { Subscription } from '@/lib/database.types';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import type { Subscription } from "@/lib/database.types";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export function useSubscription() {
   const user = useAuthStore((s) => s.user);
 
   return useQuery<Subscription | null>({
-    queryKey: ['subscription', user?.id],
+    queryKey: ["subscription", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user!.id)
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("status", "active")
         .maybeSingle();
 
       if (error) throw error;

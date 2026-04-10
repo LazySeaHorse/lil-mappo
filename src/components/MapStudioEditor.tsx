@@ -19,12 +19,11 @@ import {
   RIGHT_RESERVED_TABLET,
   PANEL_MARGIN,
 } from "@/constants/layout";
-import { IconButton } from '@/components/ui/icon-button';
+import { IconButton } from "@/components/ui/icon-button";
 import { AuthModal } from "@/components/Account/AuthModal";
 import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal";
 import { CreditsModal } from "@/components/Account/CreditsModal";
 import { RendersModal } from "@/components/Account/RendersModal";
-import { MockCheckout } from "@/components/Account/MockCheckout";
 
 function useSonnerPosition({
   hideUI,
@@ -40,11 +39,16 @@ function useSonnerPosition({
   timelineHeight: number;
 }): React.CSSProperties {
   const zenOrMobileInspector = hideUI || (isMobile && isInspectorOpen);
-  
+
   // Center horizontally in the remaining map area
-  const rightMargin = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
+  const rightMargin =
+    !isInspectorOpen || isMobile
+      ? PANEL_MARGIN
+      : isTablet
+        ? RIGHT_RESERVED_TABLET
+        : RIGHT_RESERVED_DESKTOP;
   const leftMargin = PANEL_MARGIN;
-  
+
   const bottom = zenOrMobileInspector
     ? PANEL_MARGIN * 2
     : timelineHeight + PANEL_MARGIN * 2;
@@ -53,13 +57,13 @@ function useSonnerPosition({
     ? "50%"
     : `calc(50% + (${leftMargin}px - ${rightMargin}px) / 2)`;
 
-  return { 
-    position: "absolute", 
-    bottom: `${bottom}px`, 
-    left, 
-    transform: "translateX(-50%)", 
-    zIndex: 100, 
-    pointerEvents: "none" 
+  return {
+    position: "absolute",
+    bottom: `${bottom}px`,
+    left,
+    transform: "translateX(-50%)",
+    zIndex: 100,
+    pointerEvents: "none",
   };
 }
 
@@ -78,12 +82,7 @@ function ZenModeControls({
     <div
       className={`absolute z-50 pointer-events-auto flex gap-2.5 transition-all duration-500 ${isMobile ? "bottom-6 left-1/2 -translate-x-1/2" : "top-4 left-4"}`}
     >
-      <IconButton
-        variant="zen"
-        size="lg"
-        onClick={onShowUI}
-        title="Show UI"
-      >
+      <IconButton variant="zen" size="lg" onClick={onShowUI} title="Show UI">
         <Eye size={20} />
       </IconButton>
       <IconButton
@@ -114,7 +113,10 @@ export default function MapStudioEditor() {
   const isInspectorOpen = useProjectStore((s) => s.isInspectorOpen);
 
   useEffect(() => {
-    const isDark = mapStyle === "dark" || mapStyle === "satellite" || mapStyle === "satelliteStreets";
+    const isDark =
+      mapStyle === "dark" ||
+      mapStyle === "satellite" ||
+      mapStyle === "satelliteStreets";
     document.documentElement.classList.toggle("dark", isDark);
   }, [mapStyle]);
 
@@ -122,7 +124,13 @@ export default function MapStudioEditor() {
     document.documentElement.classList.toggle("hide-ui-active", hideUI);
   }, [hideUI]);
 
-  const sonnerStyle = useSonnerPosition({ hideUI, isMobile, isInspectorOpen, isTablet, timelineHeight });
+  const sonnerStyle = useSonnerPosition({
+    hideUI,
+    isMobile,
+    isInspectorOpen,
+    isTablet,
+    timelineHeight,
+  });
 
   return (
     <MapRefContext.Provider value={mapRef}>
@@ -156,14 +164,15 @@ export default function MapStudioEditor() {
         )}
 
         {showExport && <ExportModal onClose={() => setShowExport(false)} />}
-        {showLibrary && <ProjectLibraryModal onClose={() => setShowLibrary(false)} />}
+        {showLibrary && (
+          <ProjectLibraryModal onClose={() => setShowLibrary(false)} />
+        )}
 
         {/* Account Modals */}
         <AuthModal />
         <AccountSettingsModal />
         <CreditsModal />
         <RendersModal />
-        <MockCheckout />
       </div>
     </MapRefContext.Provider>
   );

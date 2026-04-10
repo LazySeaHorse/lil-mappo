@@ -3,8 +3,8 @@
  * Keep in sync with supabase/migrations/001_initial_schema.sql
  */
 
-export type SubscriptionTier = 'wanderer' | 'cartographer' | 'pioneer';
-export type RenderStatus = 'queued' | 'rendering' | 'done' | 'failed';
+export type SubscriptionTier = "wanderer" | "cartographer" | "pioneer";
+export type RenderStatus = "queued" | "rendering" | "done" | "failed";
 
 export interface Subscription {
   user_id: string;
@@ -12,6 +12,8 @@ export interface Subscription {
   monthly_credits: number;
   parallel_renders: number;
   renewal_date: string | null;
+  dodo_subscription_id: string | null;
+  status: "active" | "cancelled" | "expired" | "on_hold";
   created_at: string;
   updated_at: string;
 }
@@ -41,14 +43,14 @@ export interface RenderJob {
 }
 
 export const TIER_LABELS: Record<SubscriptionTier, string> = {
-  wanderer: 'Wanderer',
-  cartographer: 'Cartographer',
-  pioneer: 'Pioneer',
+  wanderer: "Wanderer",
+  cartographer: "Cartographer",
+  pioneer: "Pioneer",
 };
 
 export const STATUS_LABELS: Record<RenderStatus, string> = {
-  queued: 'Queued',
-  rendering: 'Rendering',
-  done: 'Done',
-  failed: 'Failed',
+  queued: "Queued",
+  rendering: "Rendering",
+  done: "Done",
+  failed: "Failed",
 };
