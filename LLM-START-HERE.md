@@ -77,25 +77,34 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 *(Note: Component-local state (e.g., `activeDropdown`, `mobileMode` in `Toolbar.tsx`) is managed as local `useState` to prevent unnecessary global re-renders.)*
 
 ### 3.1b Authentication & User Data: `src/store/useAuthStore.ts`
-Manages user authentication state, account UI visibility, and checkout flow via Supabase.
+Manages user authentication state, account UI visibility, and checkout flow via Supabase + Dodo Payments.
 
 **Auth State:**
 - `user`: Current authenticated user object (converted from Supabase `User` to `AuthUser` with `id`, `email`, `displayName`, `avatarUrl`).
 - `session`: Active Supabase session token.
 - `isLoading`: Auth initialization state (true until `initAuth()` completes).
 
-**Modal Visibility State:**
-- `showAuthModal`, `showSettingsModal`, `showCreditsModal`, `showRendersModal`: Boolean flags controlling which account modal is open.
-- `showCheckoutModal`: Checkout modal visibility.
-- `checkoutPlan`: The plan slug (`'cartographer'` | `'pioneer'`) being checked out.
+**Modal Visibility & Mode:**
+- `showAuthModal`: Whether the auth modal is open.
+- `authModalMode: 'signin' | 'signup'`: Distinguishes sign-in-only flow (regular user re-login) from signup flow (account creation during checkout).
+- `showSettingsModal`, `showCreditsModal`, `showRendersModal`: Boolean flags for other account modals.
 
 **Methods:**
-- `initAuth()`: Called once on app mount. Hydrates session from Supabase, subscribes to auth state changes, and auto-closes auth modal on successful sign-in. After sign-in, calls `fulfillPendingCheckout()` to provision subscription if a checkout was pending.
+- `initAuth()`: Called once on app mount. Hydrates session from Supabase, subscribes to auth state changes, auto-closes auth modal on successful sign-in, and resumes any pending checkout/topup from localStorage.
 - `signOut()`: Calls Supabase auth signout; state is cleared by the `onAuthStateChange` listener.
-- `openAuthModal()`, `closeAuthModal()`, etc.: Toggle modal visibility.
-- `openCheckoutModal(plan)`, `closeCheckoutModal()`: Manage checkout modal state.
+- `openAuthModal()`: Opens auth modal in `'signin'` mode (standard sign-in).
+- `openSignupModal()`: Opens auth modal in `'signup'` mode (account creation during checkout). Used by the checkout flow when user is unauthenticated.
+- `closeAuthModal()`, and similar for other modals: Toggle visibility.
+- `startCheckout(plan, quantity?)`: Initiates checkout for a subscription plan or topup. If unauthenticated, stores pending intent in localStorage and opens signup modal. If authenticated, redirects to Dodo immediately.
 
-**Key Design**: Auth state is orthogonal to project state. Modal visibility is managed here to keep the store focused. User data (credits, subscription, render jobs) is fetched separately via React Query hooks (`useCredits()`, `useSubscription()`, `useRenderJobs()`) to enable efficient caching and refetching. After checkout fulfillment, React Query caches are invalidated to show live data.
+**Pending Checkout Persistence:**
+When an unauthenticated user clicks "Subscribe" or "Top Up Credits", the intent is stored in localStorage:
+- Subscription plans: `storePendingPlan(plan)` → SIGNED_IN handler → `initiateDodoCheckout(plan)`
+- Topup credits: `storePendingTopup(amount)` → SIGNED_IN handler → `initiateDodoCheckout('topup', { quantity: amount })`
+
+This persists across the magic-link / password-confirm redirect cycle, ensuring the checkout resumes seamlessly after account creation.
+
+**Key Design**: Auth state is orthogonal to project state. Modal visibility and mode are managed here to keep the store focused. User data (credits, subscription, render jobs) is fetched separately via React Query hooks (`useCredits()`, `useSubscription()`, `useRenderJobs()`) to enable efficient caching and refetching. After checkout, React Query caches are invalidated to show live provisioned data.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
@@ -247,32 +256,53 @@ All modals are non-modal, floating panels that integrate seamlessly with the Too
   - `useRenderJobs()`: 0s stale time (always refetch on manual refresh).
 - All modals gracefully handle loading, error, and unauthenticated states with appropriate UI feedback.
 
-**Phase 4 — Checkout & Subscription Tiers**
-- Created `MockCheckout.tsx` component: Test-mode checkout form with email, card number, expiry, CVV fields. Sends magic link OTP and stores pending checkout in localStorage.
-- Created `mockCheckout.ts` service:
-  - `PLAN_CONFIG`: Defines Cartographer ($15/mo, 500 credits, 2 parallel) and Pioneer ($35/mo, 2000 credits, 5 parallel) tiers.
-  - `initiateMockCheckout()`: Sends magic link OTP and stores pending checkout.
-  - `fulfillPendingCheckout()`: Called after sign-in; provisions subscription and credit_balance rows for the user.
-  - TODO: Replace with Dodo Payments integration (redirect to hosted checkout, webhook fulfillment).
-- Revamped `CreditsModal.tsx`:
-  - Tabbed interface: "Subscriptions" tab shows tier comparison cards (Wanderer free, Cartographer, Pioneer).
-  - "Top Up Credits" tab allows subscribers to purchase additional credits via slider ($10–$200, 100 credits per dollar).
-  - Tier cards show features (monthly credits, parallel renders, cloud saves) and "Subscribe" / "Current Plan" buttons.
-  - Non-subscribers see "View Plans" CTA in AuthModal.
-- Enhanced `useAuthStore`:
-  - Added `showCheckoutModal` and `checkoutPlan` state.
-  - `initAuth()` now calls `fulfillPendingCheckout()` after sign-in, invalidates React Query caches, and shows success toast.
-- Created `queryClient.ts`: Singleton React Query client for cache invalidation after checkout fulfillment.
-- Updated `App.tsx`: Wrapped with `QueryClientProvider` to enable React Query.
-- Updated `MapStudioEditor.tsx`: Renders `<MockCheckout />` modal alongside other account modals.
+**Phase 4 — Checkout & Subscription Tiers (Mock → Real)**
 
-**Key Design**: Auth state is orthogonal to project state. Checkout is a two-step flow: (1) user submits email/card in MockCheckout, (2) magic link OTP is sent, (3) user clicks link to sign in, (4) `fulfillPendingCheckout()` provisions subscription server-side. React Query caches are invalidated after fulfillment so modals show live data immediately.
+*Mock Phase (obsolete):*
+- Initially created `MockCheckout.tsx` component: Test-mode checkout form with email, card number, expiry, CVV fields.
+- Created `mockCheckout.ts` service with `initiateMockCheckout()` and `fulfillPendingCheckout()` for localStorage-based flow.
 
-**TODO for Production**:
-- Replace `MockCheckout` with Dodo Payments hosted checkout redirect.
-- Move `fulfillPendingCheckout()` logic to Supabase Edge Function (dodo-webhook) to handle Dodo's `payment.succeeded` webhook.
-- Use `supabase.auth.admin.inviteUserByEmail()` server-side to create accounts.
-- Remove localStorage pending checkout logic (Dodo webhook handles fulfillment).
+*Production Phase — Dodo Payments Integration* (`4e91c5c`)
+- **Replaced mock checkout with live Dodo Payments integration:**
+  - Removed `MockCheckout.tsx` and `mockCheckout.ts`; created `checkout.ts` service with real payment flow.
+  - Added two Vercel API routes:
+    - `api/dodo-create-session.ts`: Authenticates via Supabase JWT, validates the plan/quantity, creates a Dodo checkout session, and returns the hosted checkout URL.
+    - `api/dodo-webhook.ts`: Receives Dodo's `payment.succeeded` webhook; creates subscription records and provisions credits to `credit_balance` table.
+  - Added database migration (`supabase/migrations/002_add_dodo_fields.sql`): Added `dodo_subscription_id` (unique) and `status` fields to `subscriptions` table for webhook lookups.
+- **Checkout Flow (Dodo Hosted)**:
+  1. User clicks "Subscribe" or "Top Up Credits" in `CreditsModal`.
+  2. If signed in: `startCheckout(plan, quantity?)` calls `initiateDodoCheckout()` with access token.
+  3. If not signed in: `startCheckout()` stores plan in localStorage via `storePendingPlan()` and opens `AuthModal`.
+  4. `initiateDodoCheckout()` sends POST to `/api/dodo-create-session` with plan, quantity, and Bearer token.
+  5. Vercel route validates JWT, creates Dodo session with metadata (supabase_uid, plan, credits for topup), and returns `checkout_url`.
+  6. Browser redirects to Dodo's hosted checkout page (Dodo domain, PCI compliance, secure).
+  7. After payment, Dodo sends webhook to `/api/dodo-webhook` with `payment.succeeded` event.
+  8. Webhook handler:
+     - Validates Dodo signature.
+     - Extracts `supabase_uid`, `plan`, and `credits` from metadata.
+     - For subscriptions (cartographer/pioneer): Creates row in `subscriptions` table with `dodo_subscription_id`.
+     - For topups: Increments purchased credits in `credit_balance` table.
+     - Supabase RLS policies ensure webhook has admin access.
+  9. After payment, Dodo redirects user back to `/?checkout=success` (or error URL if cancelled).
+  10. `MapStudioEditor.tsx` detects `?checkout=success` query param and shows success toast.
+- **Pending Plan Persistence**: `getPendingPlan()` and `clearPendingPlan()` helpers manage localStorage across the OAuth/magic-link redirect cycle.
+- **Enhanced `useAuthStore.startCheckout()`**:
+  - Signed-in users: Immediately redirect to Dodo.
+  - Unauthenticated users: Store plan, open AuthModal, and after `SIGNED_IN` event fires (via `onAuthStateChange` listener), automatically resume checkout via `initiateDodoCheckout()`.
+- **PLAN_CONFIG** in `checkout.ts`:
+  - Cartographer: $15/mo, 500 credits/mo, 2 parallel renders.
+  - Pioneer: $35/mo, 2000 credits/mo, 5 parallel renders.
+  - Topup: $1–$200 (slider on credits modal), 100 credits per dollar.
+  - Product IDs map to Dodo dashboard product entries.
+- **Dodo Environment**: Currently running in `test_mode` for development; switch to live mode via env var for production.
+
+**Key Design**: Checkout is now fully server-driven. Magic-link / OAuth sessions are persisted in localStorage, allowing checkout to resume after auth redirects. Dodo handles all payment processing and security; webhooks ensure server-side subscription provisioning. No payment card data ever touches li'l Mappo servers.
+
+**Benefits**:
+- PCI compliance via Dodo's hosted checkout.
+- Automatic webhook fulfillment (no polling or manual verification).
+- One-time topups decoupled from recurring subscriptions.
+- Flexible metadata allows future plan variants without code changes.
 
 ### 6.1 Label System Overhaul (Dynamic Capabilities)
 **Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles. Standard style also had incorrect Config API property names (`showRoads` → should be `showRoadLabels`, `showPlaces` → should be `showPlaceLabels`) and was missing the `showAdminBoundaries` control, causing country names and borders to remain visible when all toggles were off.
@@ -349,6 +379,53 @@ Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
 3. **Optimized Layer Mounting**: Mount logic is gated by a parent `styleLoaded` prop but specifically avoids the `map.isStyleLoaded()` synchronous check inside sibling components to prevent sequential mount race conditions (where adding one layer dirties the style and blocks the next).
 4. **Self-Subscribing Components**: `CalloutMarker` and `VehicleAnimatedLayer` subscribe to only the specific state they need (like `playheadTime`), localizing re-renders to the smallest possible sub-trees.
 5. **Fast Keyboard Stepping**: Keyboard shortcuts read state imperatively via `useProjectStore.getState()` to avoid dependency-array re-render cascades.
+
+### 6.4 Account UX & Payment Tier Restructuring
+**Problem**: The original auth and payment system had gatekeeping issues (free tier blocking credit purchases, no subscription management UI), limited auth options, and a weak tier structure. New design opens payments to all users and adds granular account controls.
+
+**Tier Restructuring:**
+- **Wanderer** ($10/mo): New **paid entry tier**. 100 credits/mo, 1 cloud render at a time, unlimited cloud saves.
+- **Cartographer** ($15/mo): 500 credits/mo, 2 parallel renders, unlimited cloud saves.
+- **Pioneer** ($35/mo): 2,000 credits/mo, 5 parallel renders, unlimited cloud saves.
+- **Nomad** (credit-pack only): New **automatic tier** granted when users buy credit packs. 0 monthly credits, 1 parallel render, cloud saves while balance > 0. Credits purchased this way never expire.
+
+No free tier exists. Account creation is now tied to payment flow — unauthenticated users can see the credits modal, buy a pack, and sign up during checkout. Abandoned accounts (created but never paid) are cleaned up via daily Vercel cron after 24h.
+
+**Auth Modal Redesign (`AuthModal.tsx`)**:
+- **Sign-in mode**: Email + password (primary). "Use magic link instead" toggle. Google & Apple OAuth buttons disabled (greyed out for future support).
+- **Sign-up mode**: Same form, opened during checkout. Shows "Create Account & Subscribe" CTA and "Already have an account?" link for existing users.
+- Password is stored via Supabase Auth; magic link OTP is also supported for both modes.
+
+**Unauthenticated Checkout Flow**:
+1. User opens Credits modal → clicks "Top Up Credits" or clicks "Subscribe" on a plan card.
+2. `startCheckout()` stores intent in localStorage (`storePendingPlan()` or `storePendingTopup()`).
+3. Opens signup modal (not sign-in modal).
+4. After account creation, `SIGNED_IN` event fires → `initAuth()` checks localStorage → resumes `initiateDodoCheckout()`.
+5. User redirected to Dodo hosted checkout.
+
+**Subscription Management (`AccountSettingsModal.tsx`)**:
+- New **Manage sub-view** with:
+  - Current tier + active/cancelled status.
+  - Renewal or access-until date.
+  - Credit balance breakdown (monthly + purchased).
+  - **For recurring subs**: Two-step cancel button with warning ("You'll lose cloud save access on [date]. Existing saves remain.")
+  - Cancel-at-period-end via Dodo API; user retains access until renewal_date.
+  - Upgrade path to higher tier.
+
+**Credits Modal for Everyone**:
+- Top Up tab now shows the slider to **all users** (removed the gate).
+- Benefit callout explains: "30s timeline unlock, cloud saves while balance > 0, credits never expire."
+- Unauthenticated users clicking Checkout triggers the signup flow.
+
+**Webhook Safeguards (`api/dodo-webhook.ts`)**:
+- Product IDs and environment mode read from env vars (support test_mode and live_mode without code changes).
+- Error checking on all credit balance writes and subscription upserts — failures return 500 so Dodo retries.
+- Nomad upsert only happens if user has no active subscription (preserves higher tiers).
+
+**Daily Account Cleanup (`api/cleanup-free-accounts.ts`)**:
+- Vercel cron job runs daily at midnight UTC.
+- Deletes `auth.users` with no subscription row and `created_at > 24h ago`.
+- Grace period is configurable (single const at top of file).
 
 ---
 

@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
 import type { PlanSlug } from "@/services/checkout";
-import { Coins, Layers, CloudUpload } from "lucide-react";
+import { Coins, Layers, CloudUpload, Package } from "lucide-react";
+
+// ─── Tier card ────────────────────────────────────────────────────────────────
 
 function TierCard({
   name,
@@ -21,28 +23,21 @@ function TierCard({
   credits: string;
   parallel: string;
   saves: string;
-  planSlug?: PlanSlug;
+  planSlug: PlanSlug;
   highlight?: boolean;
   isCurrent?: boolean;
   onCheckout?: (plan: PlanSlug) => void;
 }) {
-  const { user } = useAuthStore();
-  const isFree = !planSlug;
-
   const { startCheckout } = useAuthStore();
 
   const handleClick = () => {
-    if (isFree) return;
-    if (planSlug) {
-      if (onCheckout) {
-        onCheckout(planSlug);
-      } else {
-        startCheckout(planSlug);
-      }
+    if (isCurrent) return;
+    if (onCheckout) {
+      onCheckout(planSlug);
+    } else {
+      startCheckout(planSlug);
     }
   };
-
-  const buttonLabel = isCurrent ? "Current Plan" : isFree ? null : "Subscribe";
 
   return (
     <div
@@ -84,43 +79,41 @@ function TierCard({
           </span>
         </div>
         <div className="flex items-start gap-2">
-          <CloudUpload
-            size={14}
-            className="mt-0.5 shrink-0 text-muted-foreground"
-          />
+          <CloudUpload size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground leading-tight">
             {saves}
           </span>
         </div>
       </div>
 
-      {(isCurrent || !isFree || user) && buttonLabel !== null ? (
-        <Button
-          variant={highlight ? "default" : "secondary"}
-          className={`w-full h-8 text-xs rounded-lg font-semibold ${highlight ? "shadow-md" : ""}`}
-          disabled={isCurrent}
-          onClick={handleClick}
-        >
-          {buttonLabel ?? (isFree ? "Free Plan" : "Subscribe")}
-        </Button>
-      ) : !isFree ? (
-        <Button
-          variant={highlight ? "default" : "secondary"}
-          className={`w-full h-8 text-xs rounded-lg font-semibold ${highlight ? "shadow-md" : ""}`}
-          onClick={handleClick}
-        >
-          Subscribe
-        </Button>
-      ) : (
-        <div className="h-8 flex items-center justify-center">
-          <span className="text-xs text-muted-foreground/60 font-medium">
-            No account needed
-          </span>
-        </div>
-      )}
+      <Button
+        variant={highlight ? "default" : "secondary"}
+        className={`w-full h-8 text-xs rounded-lg font-semibold ${highlight ? "shadow-md" : ""}`}
+        disabled={isCurrent}
+        onClick={handleClick}
+      >
+        {isCurrent ? "Current Plan" : "Subscribe"}
+      </Button>
     </div>
   );
 }
+
+// ─── Nomad info badge ─────────────────────────────────────────────────────────
+
+function NomadBadge() {
+  return (
+    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5 mb-2">
+      <Package size={14} className="text-amber-500 shrink-0 mt-0.5" />
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        You're on the <span className="font-semibold text-foreground">Nomad</span>{" "}
+        tier — granted automatically when you purchase a credit pack. Subscribe
+        below to unlock monthly credits and parallel renders.
+      </p>
+    </div>
+  );
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
 
 export function SubscriptionTiers({
   highlightCurrent = false,
@@ -129,9 +122,9 @@ export function SubscriptionTiers({
   highlightCurrent?: boolean;
   onCheckout?: (plan: PlanSlug) => void;
 }) {
-  const { user, startCheckout } = useAuthStore();
+  const { startCheckout } = useAuthStore();
   const { data: subscription } = useSubscription();
-  const tierSlug = subscription?.tier ?? "wanderer";
+  const tierSlug = subscription?.tier ?? null;
 
   const handleCheckout = (plan: PlanSlug) => {
     if (onCheckout) {
@@ -142,36 +135,41 @@ export function SubscriptionTiers({
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <TierCard
-        name="Wanderer"
-        price="Free"
-        credits="0 credits/mo"
-        parallel="Sequential rendering"
-        saves="Local saves only"
-        isCurrent={highlightCurrent && (tierSlug === "wanderer" || !user)}
-      />
-      <TierCard
-        name="Cartographer"
-        price="$15/mo"
-        credits="500 credits/mo"
-        parallel="2 parallel renders"
-        saves="Unlimited cloud saves"
-        planSlug="cartographer"
-        highlight
-        isCurrent={highlightCurrent && tierSlug === "cartographer"}
-        onCheckout={handleCheckout}
-      />
-      <TierCard
-        name="Pioneer"
-        price="$35/mo"
-        credits="2,000 credits/mo"
-        parallel="5 parallel renders"
-        saves="Unlimited cloud saves"
-        planSlug="pioneer"
-        isCurrent={highlightCurrent && tierSlug === "pioneer"}
-        onCheckout={handleCheckout}
-      />
+    <div className="space-y-3">
+      {tierSlug === "nomad" && <NomadBadge />}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <TierCard
+          name="Wanderer"
+          price="$10/mo"
+          credits="100 credits/mo"
+          parallel="1 cloud render at a time"
+          saves="Unlimited cloud saves"
+          planSlug="wanderer"
+          isCurrent={highlightCurrent && tierSlug === "wanderer"}
+          onCheckout={handleCheckout}
+        />
+        <TierCard
+          name="Cartographer"
+          price="$15/mo"
+          credits="500 credits/mo"
+          parallel="2 parallel renders"
+          saves="Unlimited cloud saves"
+          planSlug="cartographer"
+          highlight
+          isCurrent={highlightCurrent && tierSlug === "cartographer"}
+          onCheckout={handleCheckout}
+        />
+        <TierCard
+          name="Pioneer"
+          price="$35/mo"
+          credits="2,000 credits/mo"
+          parallel="5 parallel renders"
+          saves="Unlimited cloud saves"
+          planSlug="pioneer"
+          isCurrent={highlightCurrent && tierSlug === "pioneer"}
+          onCheckout={handleCheckout}
+        />
+      </div>
     </div>
   );
 }

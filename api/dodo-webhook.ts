@@ -6,25 +6,24 @@ import { createClient } from "@supabase/supabase-js";
 // Dodo's HMAC signature before we trust anything in the payload.
 export const config = { api: { bodyParser: false } };
 
-// ─── Product catalogue (mirrors Dodo dashboard) ──────────────────────────────
+// ─── Product catalogue ────────────────────────────────────────────────────────
+// Product IDs differ between test_mode and live_mode — read from env vars.
+// The topup product ID is only used to identify topup payments in this webhook.
 
-const TOPUP_PRODUCT_ID = "pdt_0NcOrfpOyxwhvUTpyd014";
+type PlanConfig = { tier: string; monthlyCredits: number; parallelRenders: number };
 
-const PLAN_FROM_PRODUCT: Record<
-  string,
-  { tier: string; monthlyCredits: number; parallelRenders: number }
-> = {
-  pdt_0NcOrHT55emkVniKFTlGo: {
-    tier: "cartographer",
-    monthlyCredits: 500,
-    parallelRenders: 2,
-  },
-  pdt_0NcOrTPSI7LUw1lIEqSa2: {
-    tier: "pioneer",
-    monthlyCredits: 2000,
-    parallelRenders: 5,
-  },
-};
+function buildPlanFromProduct(): Record<string, PlanConfig> {
+  const entries: Array<[string | undefined, PlanConfig]> = [
+    [process.env.DODO_PRODUCT_WANDERER,     { tier: "wanderer",     monthlyCredits: 100,  parallelRenders: 1 }],
+    [process.env.DODO_PRODUCT_CARTOGRAPHER, { tier: "cartographer", monthlyCredits: 500,  parallelRenders: 2 }],
+    [process.env.DODO_PRODUCT_PIONEER,      { tier: "pioneer",      monthlyCredits: 2000, parallelRenders: 5 }],
+  ];
+  const map: Record<string, PlanConfig> = {};
+  for (const [id, config] of entries) {
+    if (id) map[id] = config;
+  }
+  return map;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -63,9 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── 2. Verify Dodo signature + parse event ────────────────────────────────
 
+  const PLAN_FROM_PRODUCT = buildPlanFromProduct();
+
   const dodo = new DodoPayments({
     bearerToken: process.env.DODO_PAYMENTS_API_KEY!,
-    environment: "test_mode",
+    environment: (process.env.DODO_ENVIRONMENT as "test_mode" | "live_mode") ?? "test_mode",
     webhookKey: process.env.DODO_WEBHOOK_SECRET,
   });
 
@@ -148,23 +149,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .eq("user_id", uid)
           .maybeSingle();
 
+        let creditError;
         if (existingBalance) {
-          await supabase
+          ({ error: creditError } = await supabase
             .from("credit_balance")
             .update({
               monthly_credits: plan.monthlyCredits,
               monthly_reset_date: renewalDate,
             })
-            .eq("user_id", uid);
+            .eq("user_id", uid));
         } else {
           // Row should always exist (created by DB trigger on sign-up),
           // but handle gracefully if it somehow doesn't
-          await supabase.from("credit_balance").insert({
-            user_id: uid,
-            monthly_credits: plan.monthlyCredits,
-            purchased_credits: 0,
-            monthly_reset_date: renewalDate,
-          });
+          ({ error: creditError } = await supabase
+            .from("credit_balance")
+            .insert({
+              user_id: uid,
+              monthly_credits: plan.monthlyCredits,
+              purchased_credits: 0,
+              monthly_reset_date: renewalDate,
+            }));
+        }
+
+        if (creditError) {
+          console.error("[dodo-webhook] Failed to update credit_balance:", creditError);
+          return res.status(500).json({ error: "DB error writing credits" });
         }
 
         console.log(
@@ -208,27 +217,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .eq("user_id", uid)
           .maybeSingle();
 
+        let topupCreditError;
         if (existing) {
-          await supabase
+          ({ error: topupCreditError } = await supabase
             .from("credit_balance")
             .update({
               purchased_credits: existing.purchased_credits + credits,
             })
-            .eq("user_id", uid);
+            .eq("user_id", uid));
         } else {
-          await supabase.from("credit_balance").insert({
-            user_id: uid,
-            monthly_credits: 0,
-            purchased_credits: credits,
-            monthly_reset_date: null,
-          });
+          ({ error: topupCreditError } = await supabase
+            .from("credit_balance")
+            .insert({
+              user_id: uid,
+              monthly_credits: 0,
+              purchased_credits: credits,
+              monthly_reset_date: null,
+            }));
+        }
+
+        if (topupCreditError) {
+          console.error("[dodo-webhook] Failed to credit topup balance:", topupCreditError);
+          return res.status(500).json({ error: "DB error writing credits" });
+        }
+
+        // Grant Nomad tier if the user has no active subscription.
+        // Users on wanderer/cartographer/pioneer keep their existing tier.
+        const { data: existingSub } = await supabase
+          .from("subscriptions")
+          .select("tier, status")
+          .eq("user_id", uid)
+          .maybeSingle();
+
+        const hasActiveSub =
+          existingSub &&
+          (existingSub.status === "active" || existingSub.status === "on_hold");
+
+        if (!hasActiveSub) {
+          const { error: nomadError } = await supabase
+            .from("subscriptions")
+            .upsert(
+              {
+                user_id: uid,
+                tier: "nomad",
+                monthly_credits: 0,
+                parallel_renders: 1,
+                renewal_date: null,
+                dodo_subscription_id: null,
+                status: "active",
+              },
+              { onConflict: "user_id" }
+            );
+          if (nomadError) {
+            console.error("[dodo-webhook] Failed to grant nomad tier:", nomadError);
+            return res.status(500).json({ error: "DB error writing subscription" });
+          }
         }
 
         console.log(
           "[dodo-webhook] Added",
           credits,
           "purchased credits to user",
-          uid
+          uid,
+          hasActiveSub ? "(kept existing tier)" : "(granted nomad tier)"
         );
         break;
       }

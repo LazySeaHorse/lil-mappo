@@ -2,15 +2,27 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import DodoPayments from "dodopayments";
 import { createClient } from "@supabase/supabase-js";
 
-// ─── Product catalogue (mirrors Dodo dashboard) ──────────────────────────────
+// ─── Product catalogue ────────────────────────────────────────────────────────
+// Product IDs differ between test_mode and live_mode, so they are read from
+// environment variables. Set DODO_PRODUCT_* in Vercel for each environment.
 
-const PRODUCT_IDS = {
-  cartographer: "pdt_0NcOrHT55emkVniKFTlGo",
-  pioneer: "pdt_0NcOrTPSI7LUw1lIEqSa2",
-  topup: "pdt_0NcOrfpOyxwhvUTpyd014",
-} as const;
+type PlanSlug = "wanderer" | "cartographer" | "pioneer" | "topup";
 
-type PlanSlug = keyof typeof PRODUCT_IDS;
+function getProductIds(): Record<PlanSlug, string> {
+  const ids = {
+    wanderer:     process.env.DODO_PRODUCT_WANDERER,
+    cartographer: process.env.DODO_PRODUCT_CARTOGRAPHER,
+    pioneer:      process.env.DODO_PRODUCT_PIONEER,
+    topup:        process.env.DODO_PRODUCT_TOPUP,
+  };
+  const missing = Object.entries(ids)
+    .filter(([, v]) => !v)
+    .map(([k]) => `DODO_PRODUCT_${k.toUpperCase()}`);
+  if (missing.length > 0) {
+    throw new Error(`Missing env vars: ${missing.join(", ")}`);
+  }
+  return ids as Record<PlanSlug, string>;
+}
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
@@ -28,8 +40,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     cancelUrl?: string;
   };
 
-  if (!plan || !(plan in PRODUCT_IDS)) {
+  const validPlans: PlanSlug[] = ["wanderer", "cartographer", "pioneer", "topup"];
+  if (!plan || !validPlans.includes(plan as PlanSlug)) {
     return res.status(400).json({ error: "Invalid plan" });
+  }
+
+  let PRODUCT_IDS: Record<PlanSlug, string>;
+  try {
+    PRODUCT_IDS = getProductIds();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Server misconfiguration";
+    console.error("[dodo-create-session]", message);
+    return res.status(500).json({ error: "Checkout not available" });
   }
   if (!returnUrl || !cancelUrl) {
     return res
@@ -75,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const dodo = new DodoPayments({
       bearerToken: process.env.DODO_PAYMENTS_API_KEY!,
-      environment: "test_mode",
+      environment: (process.env.DODO_ENVIRONMENT as "test_mode" | "live_mode") ?? "test_mode",
     });
 
     const session = await dodo.checkoutSessions.create({

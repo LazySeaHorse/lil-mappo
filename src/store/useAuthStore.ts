@@ -8,6 +8,9 @@ import {
   storePendingPlan,
   getPendingPlan,
   clearPendingPlan,
+  storePendingTopup,
+  getPendingTopup,
+  clearPendingTopup,
 } from "@/services/checkout";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "sonner";
@@ -39,6 +42,8 @@ interface AuthStore {
 
   // Modal visibility
   showAuthModal: boolean;
+  /** 'signin' = sign-in only flow; 'signup' = account creation during checkout */
+  authModalMode: "signin" | "signup";
   showSettingsModal: boolean;
   showCreditsModal: boolean;
   showRendersModal: boolean;
@@ -49,6 +54,8 @@ interface AuthStore {
   setIsLoading: (v: boolean) => void;
 
   openAuthModal: () => void;
+  /** Opens the auth modal in signup mode (used by the checkout flow). */
+  openSignupModal: () => void;
   closeAuthModal: () => void;
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
@@ -81,6 +88,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isLoading: true,
 
   showAuthModal: false,
+  authModalMode: "signin",
   showSettingsModal: false,
   showCreditsModal: false,
   showRendersModal: false,
@@ -89,7 +97,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setSession: (session) => set({ session }),
   setIsLoading: (v) => set({ isLoading: v }),
 
-  openAuthModal: () => set({ showAuthModal: true }),
+  openAuthModal: () => set({ showAuthModal: true, authModalMode: "signin" }),
+  openSignupModal: () => set({ showAuthModal: true, authModalMode: "signup" }),
   closeAuthModal: () => set({ showAuthModal: false }),
   openSettingsModal: () => set({ showSettingsModal: true }),
   closeSettingsModal: () => set({ showSettingsModal: false }),
@@ -99,16 +108,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   closeRendersModal: () => set({ showRendersModal: false }),
 
   startCheckout: async (plan: PlanSlug, quantity?: number) => {
-    const { user, session, openAuthModal } = get();
+    const { user, session, openSignupModal } = get();
 
     if (!user || !session) {
-      // Not signed in — persist the chosen plan so the SIGNED_IN handler can
-      // resume checkout after authentication completes. Topup requires an
-      // active account so it should never reach this branch, but guard anyway.
-      if (plan !== "topup") {
+      // Not signed in — persist the intent so the SIGNED_IN handler can resume
+      // checkout after the user creates an account.
+      if (plan === "topup") {
+        storePendingTopup(quantity ?? 10);
+      } else {
         storePendingPlan(plan as SubscriptionPlan);
       }
-      openAuthModal();
+      openSignupModal();
       return;
     }
 
@@ -158,9 +168,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       if (event === "SIGNED_IN" && session) {
-        // If the user had clicked Subscribe before authenticating, resume
-        // checkout now that we have a valid session.
+        // Resume any pending checkout that was stored before authentication.
         const pendingPlan = getPendingPlan();
+        const pendingTopup = getPendingTopup();
+
         if (pendingPlan) {
           clearPendingPlan();
           const toastId = "checkout-loading";
@@ -175,8 +186,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
               toast.error(message);
             },
           );
-          // On success, window.location.href is set and the page navigates
-          // away — no need to dismiss the loading toast.
+          // On success, window.location.href is set — no need to dismiss toast.
+        } else if (pendingTopup !== null) {
+          clearPendingTopup();
+          const toastId = "checkout-loading";
+          toast.loading("Preparing checkout…", { id: toastId });
+          initiateDodoCheckout("topup", session.access_token, {
+            quantity: pendingTopup,
+          }).catch((err: unknown) => {
+            toast.dismiss(toastId);
+            const message =
+              err instanceof Error
+                ? err.message
+                : "Could not start checkout. Please try again.";
+            toast.error(message);
+          });
         }
 
         // Always refresh subscription + credit data after sign-in so modals

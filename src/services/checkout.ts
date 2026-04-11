@@ -4,10 +4,10 @@ import { supabase } from "@/lib/supabase";
 // Types & constants
 // =============================================================================
 
-export type PlanSlug = "cartographer" | "pioneer" | "topup";
+export type PlanSlug = "wanderer" | "cartographer" | "pioneer" | "topup";
 
 /** Plans that require a subscription (not one-time top-ups). */
-export type SubscriptionPlan = "cartographer" | "pioneer";
+export type SubscriptionPlan = "wanderer" | "cartographer" | "pioneer";
 
 export const PLAN_CONFIG: Record<
   SubscriptionPlan,
@@ -19,6 +19,13 @@ export const PLAN_CONFIG: Record<
     parallelRenders: number;
   }
 > = {
+  wanderer: {
+    name: "Wanderer",
+    price: "$10/mo",
+    priceMonthly: 10,
+    monthlyCredits: 100,
+    parallelRenders: 1,
+  },
   cartographer: {
     name: "Cartographer",
     price: "$15/mo",
@@ -51,11 +58,37 @@ export function storePendingPlan(plan: SubscriptionPlan): void {
 
 export function getPendingPlan(): SubscriptionPlan | null {
   const raw = localStorage.getItem(PENDING_PLAN_KEY);
-  return raw === "cartographer" || raw === "pioneer" ? raw : null;
+  return raw === "wanderer" || raw === "cartographer" || raw === "pioneer"
+    ? raw
+    : null;
 }
 
 export function clearPendingPlan(): void {
   localStorage.removeItem(PENDING_PLAN_KEY);
+}
+
+// =============================================================================
+// Pending topup — persists across the magic-link / password-confirm page reload
+//
+// When an unauthenticated user selects a credit pack, we store the dollar
+// amount here before opening the signup modal. After SIGNED_IN fires,
+// useAuthStore reads this value and triggers the topup checkout.
+// =============================================================================
+
+const PENDING_TOPUP_KEY = "mappo_pending_topup";
+
+export function storePendingTopup(amount: number): void {
+  localStorage.setItem(PENDING_TOPUP_KEY, String(amount));
+}
+
+export function getPendingTopup(): number | null {
+  const raw = localStorage.getItem(PENDING_TOPUP_KEY);
+  const n = Number(raw);
+  return raw !== null && !isNaN(n) && n > 0 ? n : null;
+}
+
+export function clearPendingTopup(): void {
+  localStorage.removeItem(PENDING_TOPUP_KEY);
 }
 
 // =============================================================================

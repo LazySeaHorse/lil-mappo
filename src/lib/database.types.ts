@@ -3,7 +3,7 @@
  * Keep in sync with supabase/migrations/001_initial_schema.sql
  */
 
-export type SubscriptionTier = "wanderer" | "cartographer" | "pioneer";
+export type SubscriptionTier = "wanderer" | "nomad" | "cartographer" | "pioneer";
 export type RenderStatus = "queued" | "rendering" | "done" | "failed";
 
 export interface Subscription {
@@ -44,6 +44,7 @@ export interface RenderJob {
 
 export const TIER_LABELS: Record<SubscriptionTier, string> = {
   wanderer: "Wanderer",
+  nomad: "Nomad",
   cartographer: "Cartographer",
   pioneer: "Pioneer",
 };
