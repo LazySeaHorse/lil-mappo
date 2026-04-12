@@ -334,26 +334,32 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
             type: 'raster-dem',
             url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
             tileSize: 512,
-            maxzoom: 14
+            maxzoom: 14,
           });
         }
-        
-        const currentTerrain = map.getTerrain();
-        if (!currentTerrain || currentTerrain.source !== 'mapbox-dem' || currentTerrain.exaggeration !== s.terrainExaggeration) {
+        const currentTerrain = (map as any).getTerrain();
+        // Use epsilon for exaggeration to handle Mapbox rounding (e.g. 1.5 vs 1.5000001)
+        const isSameTerrain = currentTerrain && 
+          currentTerrain.source === 'mapbox-dem' && 
+          Math.abs(currentTerrain.exaggeration - s.terrainExaggeration) < 0.001;
+
+        if (!isSameTerrain) {
           map.setTerrain({ source: 'mapbox-dem', exaggeration: s.terrainExaggeration });
         }
-      } else if (map.getTerrain()) {
-        map.setTerrain(null);
+      } else {
+        if ((map as any).getTerrain()) {
+          map.setTerrain(null);
+        }
       }
 
       // 5. ATMOSPHERE / FOG (FINAL PASS - Overwrites any style/preset defaults)
-      // This is where stars and groundfog are applied. We compare target vs current to avoid loop flicker.
       const targetFog = fogConfig as any;
       const currentFog = map.getFog();
       
+      // Robust fog comparison: only sync if values differ significantly
       const needsFogSync = !currentFog || 
         currentFog.color !== targetFog.color || 
-        currentFog['star-intensity'] !== targetFog['star-intensity'] ||
+        Math.abs((currentFog['star-intensity'] || 0) - (targetFog['star-intensity'] || 0)) > 0.005 ||
         currentFog['space-color'] !== targetFog['space-color'];
 
       if (needsFogSync) {
