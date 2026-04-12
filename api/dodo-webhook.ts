@@ -210,6 +210,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           break;
         }
 
+        // Idempotency guard — insert the payment_id; if it already exists this
+        // is a Dodo retry and we should not credit again.
+        const { error: idempotencyError } = await supabase
+          .from("processed_payments")
+          .insert({ payment_id: payment.payment_id });
+
+        if (idempotencyError) {
+          if (idempotencyError.code === "23505") {
+            // Unique violation — duplicate event, already processed
+            console.log(
+              "[dodo-webhook] payment.succeeded (topup): duplicate event, skipping",
+              payment.payment_id
+            );
+            break;
+          }
+          console.error("[dodo-webhook] Failed to record payment idempotency key:", idempotencyError);
+          return res.status(500).json({ error: "DB error recording payment" });
+        }
+
         // Read current balance then update — avoids overwriting other fields
         const { data: existing } = await supabase
           .from("credit_balance")

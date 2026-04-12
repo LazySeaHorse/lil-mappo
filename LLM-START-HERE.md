@@ -436,8 +436,8 @@ No free tier exists. Account creation is now tied to payment flow — unauthenti
 **Architecture**:
 
 1. **Supabase Table** (`cloud_projects`):
-   - `id` (UUID, same as local `project.id`)
-   - `user_id`, `name`, `data` (JSONB project), `updated_at`, `created_at`
+   - `id` (TEXT, nanoid-generated, same as local `project.id`)
+   - `user_id` (UUID, required), `name`, `data` (JSONB project), `updated_at`, `created_at`
    - RLS: users can only CRUD their own rows
 
 2. **Access Rules** (`src/lib/cloudAccess.ts`):
@@ -488,6 +488,8 @@ No free tier exists. Account creation is now tied to payment flow — unauthenti
 - Conflict resolution favors newer timestamp (simple, predictable, no data loss)
 - Offline errors are non-fatal (sync retried on next open/save/refresh)
 
+**Recent Bug Fix**: The `cloud_projects.id` column was originally UUID-typed, but the app generates nanoid-style IDs. Migration `004_cloud_projects_text_id.sql` changed the column to TEXT. Additionally, `saveProjectToCloud()` was missing the `user_id` field in the upsert payload, violating the RLS policy — now includes it via `useAuthStore.getState().user?.id`.
+
 ---
 
 ## 7. Critical Implementation Details
@@ -520,6 +522,41 @@ Callouts are rendered using pure Canvas 2D (`src/services/renderCallout.ts`), el
 - **modern**: Pill shape + accent glow dot + 87% opacity background
 - **news**: Rectangle + 5px left accent bar + uppercase bold text
 - **topo**: Left border + metadata (coordinates/elevation) + accent square dot
+
+### 7.4 Security Fixes & Vulnerability Mitigation
+
+**Issue 1: RLS Policy Loophole (Critical)**
+
+The initial schema used `FOR ALL` policies on `subscriptions`, `credit_balance`, and `render_jobs` with only a `USING` clause. In Postgres, this allows authenticated users to UPDATE their own rows directly from the browser — e.g., setting `purchased_credits = 999999` or upgrading their own `tier`.
+
+**Fix** (Migration 005):
+- Dropped over-permissive `FOR ALL` policies.
+- Replaced with `FOR SELECT` policies only — clients can read their own data but cannot write.
+- Service role key (used by webhook handlers) bypasses RLS entirely, so writes via `api/dodo-webhook.ts` are unaffected.
+- This closes the attack surface since the frontend never INSERTs/UPDATEs these tables — all provisioning is server-side.
+
+**Issue 2: Payment Replay Attack (Medium)**
+
+The webhook's `payment.succeeded` (topup) handler used a read-modify-write pattern without deduplication: `update({ purchased_credits: existing + credits })`. If Dodo retried a webhook (e.g., due to temporary network timeout), the user would receive double or triple credits.
+
+**Fix** (Migration 006 + webhook change):
+- Added `processed_payments` table (payment_id TEXT PRIMARY KEY) to track payments that have been processed.
+- Before crediting a topup, the webhook attempts to INSERT the payment's `payment_id` into this table.
+- A unique-constraint violation (code 23505) means the event is a duplicate — the handler returns 200 without crediting.
+- Any other DB error returns 500 so Dodo retries (correct behavior for infrastructure failures).
+- Other webhook events (`subscription.active`, `subscription.renewed`, `subscription.expired`) were already idempotent by design (upsert with fixed values, or keyed on `dodo_subscription_id`).
+
+**Webhook References**:
+- `subscription.active` case (lines 96–185): Upsert on `user_id` — idempotent.
+- `payment.succeeded` case (lines 191–285): Now idempotency-guarded before read-modify-write.
+- `subscription.renewed` case (lines 288–311): Sets fixed monthly_credits value — idempotent.
+- `subscription.expired` case (lines 335–413): After downgrade, `dodo_subscription_id` is set to null, so replays find no matching row — effectively idempotent.
+
+**Issue 3: Render Job Tampering (Low-Medium)**
+
+Same `FOR ALL` policy allowed users to UPDATE their own `render_jobs` rows, potentially changing `status` or `credits_cost`. Frontend never exercises this (only SELECTs), but the DB-level vulnerability exists.
+
+**Fix**: Covered by Migration 005 (changed to `FOR SELECT` only).
 
 ---
 
