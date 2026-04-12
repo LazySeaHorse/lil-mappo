@@ -74,10 +74,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   };
   if (!isAllowedHost(returnUrl) || !isAllowedHost(cancelUrl)) {
-    if (process.env.DODO_ENVIRONMENT === "live_mode" || appDomain) {
-      return res.status(400).json({ error: "Invalid redirect URL" });
-    }
-    console.warn("[dodo-create-session] APP_DOMAIN not set — redirect URLs are unvalidated");
+    return res.status(400).json({ error: "Invalid redirect URL" });
+  }
+  if (process.env.DODO_ENVIRONMENT === "live_mode" && !appDomain) {
+    console.warn("[dodo-create-session] APP_DOMAIN is not set in live_mode — redirect URLs are restricted to localhost");
   }
 
   // For topup: quantity = slider value in dollars (= number of $1 units).

@@ -70,10 +70,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     webhookKey: process.env.DODO_WEBHOOK_SECRET,
   });
 
+  // Normalize headers: Node delivers values as string | string[] | undefined.
+  // The Dodo SDK expects Record<string, string>, so coerce arrays to their first
+  // element (standard HTTP semantics for signature headers).
+  const normalizedHeaders: Record<string, string> = {};
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value !== undefined) {
+      normalizedHeaders[key] = Array.isArray(value) ? value[0] : value;
+    }
+  }
+
   let event: ReturnType<typeof dodo.webhooks.unwrap>;
   try {
     event = dodo.webhooks.unwrap(rawBody.toString(), {
-      headers: req.headers as Record<string, string>,
+      headers: normalizedHeaders,
     });
   } catch (err) {
     console.error("[dodo-webhook] Signature verification failed:", err);
@@ -251,7 +261,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const hasActiveSub =
           existingSub &&
-          (existingSub.status === "active" || existingSub.status === "on_hold");
+          (existingSub.status === "active" ||
+            existingSub.status === "on_hold" ||
+            existingSub.status === "cancelling");
 
         if (!hasActiveSub) {
           const { error: nomadError } = await supabase
@@ -356,6 +368,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           expiringSub.tier === "pioneer";
 
         if (isPaidTier) {
+          // Idempotency guard — prevent a Dodo replay from granting a second
+          // batch of grace credits.  Mirror the pattern used by payment.succeeded.
+          const eventKey = `subscription.expired:${sub.subscription_id}`;
+          const { error: idempotencyError } = await supabase
+            .from("processed_webhook_events")
+            .insert({ event_key: eventKey });
+
+          if (idempotencyError) {
+            if (idempotencyError.code === "23505") {
+              // Unique violation — duplicate event, already processed
+              console.log(
+                "[dodo-webhook] subscription.expired: duplicate event, skipping",
+                sub.subscription_id
+              );
+              break;
+            }
+            console.error("[dodo-webhook] Failed to record expiry idempotency key:", idempotencyError);
+            return res.status(500).json({ error: "DB error recording event" });
+          }
+
           // Downgrade to Nomad — set status active so useSubscription() still
           // returns a row and canCloudSave() can gate on purchased_credits > 0
           const { error: downgradeError } = await supabase
@@ -375,19 +407,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(500).json({ error: "DB error downgrading tier" });
           }
 
-          // Grant 10 non-expiring credits (add, not set — user may already have some)
-          const { data: existingBalance } = await supabase
-            .from("credit_balance")
-            .select("purchased_credits")
-            .eq("user_id", expiringSub.user_id)
-            .maybeSingle();
-
-          const currentPurchased = existingBalance?.purchased_credits ?? 0;
-
-          const { error: creditError } = await supabase
-            .from("credit_balance")
-            .update({ purchased_credits: currentPurchased + 10 })
-            .eq("user_id", expiringSub.user_id);
+          // Grant 10 non-expiring credits atomically — same RPC used by the topup
+          // flow, which also handles a missing row gracefully via an upsert fallback.
+          const { error: creditError } = await supabase.rpc(
+            "increment_purchased_credits",
+            { p_user_id: expiringSub.user_id, p_amount: 10 }
+          );
 
           if (creditError) {
             console.error("[dodo-webhook] Failed to grant grace credits:", creditError);

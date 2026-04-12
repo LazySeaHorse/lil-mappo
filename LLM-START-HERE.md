@@ -547,10 +547,10 @@ The webhook's `payment.succeeded` (topup) handler used a read-modify-write patte
 - Other webhook events (`subscription.active`, `subscription.renewed`, `subscription.expired`) were already idempotent by design (upsert with fixed values, or keyed on `dodo_subscription_id`).
 
 **Webhook References**:
-- `subscription.active` case (lines 96–185): Upsert on `user_id` — idempotent.
-- `payment.succeeded` case (lines 191–285): Now idempotency-guarded before read-modify-write.
+- `subscription.active` case (lines 96–185): Upsert on `user_id` — idempotent. Now also recognizes `"cancelling"` status to avoid premature downgrade when user buys credits during cancellation period.
+- `payment.succeeded` case (lines 191–285): Idempotency-guarded via `processed_payments` table. Uses atomic `increment_purchased_credits()` RPC to avoid race with concurrent topups.
 - `subscription.renewed` case (lines 288–311): Sets fixed monthly_credits value — idempotent.
-- `subscription.expired` case (lines 335–413): After downgrade, `dodo_subscription_id` is set to null, so replays find no matching row — effectively idempotent.
+- `subscription.expired` case (lines 335–413): Idempotency-guarded via `processed_webhook_events` table (new in Migration 008). Grace credits granted via atomic `increment_purchased_credits()` RPC (fixes issue 9). Recognizes `"cancelling"` status to preserve tier during subscription winding-down period.
 
 **Issue 3: Render Job Tampering (Low-Medium)**
 
@@ -611,6 +611,59 @@ When a user clicked "Cancel Subscription", the endpoint immediately set `status:
 **Webhook Behavior Unchanged**:
 - `subscription.cancelled` → transitions from `"cancelling"` to `"cancelled"` (as intended).
 - `subscription.expired` → downgrades paid tiers to nomad + grace credits (unchanged).
+
+**Issue 9: Grace Credits Race Condition in `subscription.expired` Handler (High)**
+
+When a paid-tier subscription expired, the handler read the user's `purchased_credits` balance, added 10 grace credits, and wrote it back: `update({ purchased_credits: existing + 10 })`. If a concurrent topup webhook arrived between the read and write, the topup increment would be overwritten and lost — the same race condition that issue 5 fixed for topups.
+
+**Fix** (Migration 007 + webhook update):
+- The existing `increment_purchased_credits()` RPC (created for issue 5) is now also used by the `subscription.expired` handler.
+- Call: `supabase.rpc('increment_purchased_credits', { p_user_id: expiringSub.user_id, p_amount: 10 })`.
+- The RPC atomically increments in a single UPDATE, eliminating the race window.
+
+**Issue 10: `subscription.expired` Event Replay Vulnerability (Medium)**
+
+The `subscription.expired` webhook event handler had no idempotency guard. Unlike the `payment.succeeded` topup handler (guarded by `processed_payments` table) and `subscription.cancelled`/`subscription.renewed` handlers (naturally idempotent by upsert pattern), the expired handler had a side-effect (granting 10 grace credits) that was not replay-safe. If Dodo retried the webhook, the user would receive another 10 credits.
+
+**Fix** (Migration 008 + webhook update):
+- Created new `processed_webhook_events` table (event_key TEXT PRIMARY KEY) to track mutating webhook events.
+- Before downgrading to nomad and granting grace credits, the handler inserts `subscription.expired:{dodo_subscription_id}` into the table.
+- A unique-constraint violation (code 23505) indicates a duplicate event — the handler returns 200 without re-processing.
+- Any other DB error returns 500 so Dodo retries (correct behavior for infrastructure failures).
+
+**Issue 11: Premature Tier Downgrade on Topup Purchase During Cancellation Period (Medium)**
+
+The topup handler checked for an "active" subscription before deciding whether to grant Nomad tier. The logic did not recognize the `"cancelling"` status (a user who has requested cancellation but is still in their billing period with full access). A Cartographer subscriber in `"cancelling"` status who bought a credit pack would be immediately downgraded to Nomad tier, losing their 2 parallel render slots for the remainder of their subscription period.
+
+**Fix** (api/dodo-webhook.ts, lines 252–254):
+- Updated `hasActiveSub` check to include `"cancelling"` status: `existingSub.status === "active" || existingSub.status === "on_hold" || existingSub.status === "cancelling"`.
+- A user in any "active-like" status now correctly preserves their tier when buying credits.
+
+**Issue 12: Webhook Header Type Casting Vulnerability (Low)**
+
+The signature verification code cast `req.headers` to `Record<string, string>`: `{ headers: req.headers as Record<string, string> }`. However, Node.js delivers header values as `string | string[] | undefined`. This TypeScript-only cast did not affect runtime behavior, but if the Dodo SDK internally encountered a multi-valued header (e.g., a duplicate signature header injected by a proxy or attacker), the SDK's behavior would be undefined — potentially treating the array as a string (`"value1,value2"`) or using only the first element.
+
+**Fix** (api/dodo-webhook.ts, lines 74–82):
+- Added explicit normalization before passing to `dodo.webhooks.unwrap()`:
+  ```typescript
+  const normalizedHeaders: Record<string, string> = {};
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value !== undefined) {
+      normalizedHeaders[key] = Array.isArray(value) ? value[0] : value;
+    }
+  }
+  ```
+- Coerces all multi-valued headers to their first element (standard HTTP semantics for signature verification).
+- Ensures the Dodo SDK receives the correct type, eliminating runtime ambiguity.
+
+**Issue 13: Unvalidated Redirect URLs in Test Environments (Low-Medium)**
+
+The `dodo-create-session.ts` endpoint validated redirect URLs but had a fallback that allowed misconfigured environments to proceed without validation. Specifically, if `APP_DOMAIN` was unset and `DODO_ENVIRONMENT !== "live_mode"`, the validation would only log a warning and allow any redirect URL to pass through. An attacker with a valid Supabase JWT in such an environment could craft a phishing redirect (e.g., `https://attacker.com/?token=...`) to steal user tokens post-payment.
+
+**Fix** (api/dodo-create-session.ts, lines 76–81):
+- Changed validation to unconditionally reject invalid redirect URLs regardless of environment or `APP_DOMAIN` setting.
+- Separated the misconfiguration warning: if `DODO_ENVIRONMENT === "live_mode"` without `APP_DOMAIN`, log a warning (only localhost redirects are allowed by default).
+- Local development remains unaffected — `isAllowedHost()` already allows localhost and any domain matching `APP_DOMAIN` if set.
 
 ---
 
