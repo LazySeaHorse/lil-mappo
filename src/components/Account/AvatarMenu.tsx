@@ -110,8 +110,8 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
           )}
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
           {user ? (
-            <DropdownMenuItem onClick={signOut} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg text-destructive focus:text-destructive">
-              <LogOut size={14} className="text-destructive" /> Sign Out
+            <DropdownMenuItem onClick={signOut} variant="destructive" className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+              <LogOut size={14} /> Sign Out
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onClick={openAuthModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
