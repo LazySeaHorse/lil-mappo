@@ -13,7 +13,7 @@ export interface Subscription {
   parallel_renders: number;
   renewal_date: string | null;
   dodo_subscription_id: string | null;
-  status: "active" | "cancelled" | "expired" | "on_hold";
+  status: "active" | "cancelling" | "cancelled" | "expired" | "on_hold";
   created_at: string;
   updated_at: string;
 }

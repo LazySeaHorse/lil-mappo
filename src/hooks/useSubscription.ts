@@ -14,7 +14,7 @@ export function useSubscription() {
         .from("subscriptions")
         .select("*")
         .eq("user_id", user!.id)
-        .eq("status", "active")
+        .in("status", ["active", "cancelling"])
         .maybeSingle();
 
       if (error) throw error;

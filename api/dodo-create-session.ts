@@ -59,6 +59,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .json({ error: "returnUrl and cancelUrl are required" });
   }
 
+  // Validate redirect URLs are on our own domain to prevent open-redirect attacks.
+  // APP_DOMAIN must be set in production (e.g. "lilmappo.tech"). localhost is
+  // always allowed for local development. In live_mode without APP_DOMAIN we warn.
+  const appDomain = process.env.APP_DOMAIN;
+  const isAllowedHost = (url: string): boolean => {
+    try {
+      const { hostname } = new URL(url);
+      if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+      if (appDomain && (hostname === appDomain || hostname.endsWith(`.${appDomain}`))) return true;
+      return false;
+    } catch {
+      return false;
+    }
+  };
+  if (!isAllowedHost(returnUrl) || !isAllowedHost(cancelUrl)) {
+    if (process.env.DODO_ENVIRONMENT === "live_mode" || appDomain) {
+      return res.status(400).json({ error: "Invalid redirect URL" });
+    }
+    console.warn("[dodo-create-session] APP_DOMAIN not set — redirect URLs are unvalidated");
+  }
+
   // For topup: quantity = slider value in dollars (= number of $1 units).
   // Clamp server-side to match UI bounds and prevent abuse.
   const safeQuantity =
@@ -131,6 +152,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error("[dodo-create-session] Dodo API error:", message);
     return res
       .status(502)
-      .json({ error: `Checkout session creation failed: ${message}` });
+      .json({ error: "Checkout unavailable. Please try again." });
   }
 }

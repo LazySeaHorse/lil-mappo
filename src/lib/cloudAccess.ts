@@ -15,7 +15,7 @@ export function canCloudSave(
   subscription: Subscription | null | undefined,
   credits: CreditBalance | null | undefined
 ): boolean {
-  if (!subscription || subscription.status !== 'active') return false;
+  if (!subscription || (subscription.status !== 'active' && subscription.status !== 'cancelling')) return false;
 
   if (subscription.tier === 'nomad') {
     return (credits?.purchased_credits ?? 0) > 0;

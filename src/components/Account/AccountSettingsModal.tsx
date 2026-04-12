@@ -175,9 +175,9 @@ function AccountSettingsModalBody() {
                     <p className="text-sm font-semibold">
                       {tierLabel ?? "No plan"}
                     </p>
-                    {subscription?.status === "cancelled" && renewalDate ? (
+                    {(subscription?.status === "cancelled" || subscription?.status === "cancelling") && renewalDate ? (
                       <p className="text-[11px] text-amber-500">
-                        Access until {renewalDate}
+                        {subscription.status === "cancelling" ? `Cancels ${renewalDate}` : `Access until ${renewalDate}`}
                       </p>
                     ) : renewalDate ? (
                       <p className="text-[11px] text-muted-foreground">
@@ -341,7 +341,7 @@ function ManageView({
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelled, setCancelled] = useState(
-    subscription?.status === "cancelled"
+    subscription?.status === "cancelled" || subscription?.status === "cancelling"
   );
 
   const totalCredits =
@@ -405,13 +405,15 @@ function ManageView({
             </p>
             <span
               className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                cancelled || subscription?.status === "cancelled"
+                cancelled || subscription?.status === "cancelled" || subscription?.status === "cancelling"
                   ? "bg-amber-500/10 text-amber-500"
                   : "bg-green-500/10 text-green-500"
               }`}
             >
-              {cancelled || subscription?.status === "cancelled"
+              {subscription?.status === "cancelled"
                 ? "Cancelled"
+                : cancelled || subscription?.status === "cancelling"
+                ? "Cancelling"
                 : "Active"}
             </span>
           </div>
@@ -420,8 +422,10 @@ function ManageView({
             <InfoRow label="Plan" value={tierLabel ?? subscription.tier} />
           )}
 
-          {(cancelled || subscription?.status === "cancelled") && renewalDate ? (
+          {subscription?.status === "cancelled" && renewalDate ? (
             <InfoRow label="Access until" value={renewalDate} />
+          ) : (cancelled || subscription?.status === "cancelling") && renewalDate ? (
+            <InfoRow label="Cancels on" value={renewalDate} />
           ) : renewalDate ? (
             <InfoRow label="Renews" value={renewalDate} />
           ) : null}

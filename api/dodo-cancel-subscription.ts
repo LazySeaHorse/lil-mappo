@@ -60,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const dodo = new DodoPayments({
       bearerToken: process.env.DODO_PAYMENTS_API_KEY!,
-      environment: "test_mode",
+      environment: (process.env.DODO_ENVIRONMENT as "test_mode" | "live_mode") ?? "test_mode",
     });
 
     await dodo.subscriptions.update(sub.dodo_subscription_id, {
@@ -70,16 +70,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[dodo-cancel] Dodo API error:", message);
-    return res.status(502).json({ error: `Dodo cancellation failed: ${message}` });
+    return res.status(502).json({ error: "Cancellation failed. Please try again." });
   }
 
-  // ── 4. Mark as cancelled in Supabase (access remains until renewal_date) ──
-  // The subscription.cancelled webhook will also fire at period end, which
-  // is idempotent. Marking cancelled here gives the UI immediate feedback.
+  // ── 4. Mark as cancelling in Supabase ────────────────────────────────────
+  // "cancelling" means: scheduled for cancellation at renewal_date, but still
+  // fully active until then. The subscription.cancelled webhook transitions
+  // this to "cancelled" at period end, then subscription.expired downgrades
+  // to nomad with grace credits. This gives the UI immediate feedback while
+  // preserving access.
 
   const { error: updateError } = await supabaseAdmin
     .from("subscriptions")
-    .update({ status: "cancelled" })
+    .update({ status: "cancelling" })
     .eq("user_id", user.id);
 
   if (updateError) {

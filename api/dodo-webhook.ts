@@ -229,31 +229,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(500).json({ error: "DB error recording payment" });
         }
 
-        // Read current balance then update — avoids overwriting other fields
-        const { data: existing } = await supabase
-          .from("credit_balance")
-          .select("purchased_credits")
-          .eq("user_id", uid)
-          .maybeSingle();
-
-        let topupCreditError;
-        if (existing) {
-          ({ error: topupCreditError } = await supabase
-            .from("credit_balance")
-            .update({
-              purchased_credits: existing.purchased_credits + credits,
-            })
-            .eq("user_id", uid));
-        } else {
-          ({ error: topupCreditError } = await supabase
-            .from("credit_balance")
-            .insert({
-              user_id: uid,
-              monthly_credits: 0,
-              purchased_credits: credits,
-              monthly_reset_date: null,
-            }));
-        }
+        // Atomic increment — avoids race condition where two concurrent topup
+        // webhooks for the same user read the same balance and one is lost.
+        const { error: topupCreditError } = await supabase.rpc(
+          "increment_purchased_credits",
+          { p_user_id: uid, p_amount: credits }
+        );
 
         if (topupCreditError) {
           console.error("[dodo-webhook] Failed to credit topup balance:", topupCreditError);

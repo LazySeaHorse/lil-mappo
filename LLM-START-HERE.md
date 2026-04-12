@@ -558,6 +558,60 @@ Same `FOR ALL` policy allowed users to UPDATE their own `render_jobs` rows, pote
 
 **Fix**: Covered by Migration 005 (changed to `FOR SELECT` only).
 
+**Issue 4: Open Redirect + Token Leakage via Unvalidated Checkout URLs (High)**
+
+The `api/dodo-create-session.ts` endpoint accepted `returnUrl` and `cancelUrl` directly from the client request body and forwarded them to Dodo's payment processor without validation. An authenticated attacker could craft a checkout with a malicious redirect URL (e.g., `https://attacker.com/?token=...`) to redirect users post-payment and potentially exfiltrate tokens in query parameters.
+
+**Fix** (api/dodo-create-session.ts):
+- Added hostname/origin validation using `new URL().hostname` parsing.
+- Allows any subdomain of `APP_DOMAIN` (e.g., `lilmappo.tech`, `app.lilmappo.tech`, `preview-*.lilmappo.tech`) plus localhost for development.
+- Set `APP_DOMAIN=lilmappo.tech` in `.env`; production must set this in Vercel env vars.
+- Rejects URLs with invalid origins at the server before sending to Dodo.
+
+**Issue 5: Race Condition on Concurrent Topup Credits (High)**
+
+The `api/dodo-webhook.ts` handler for `payment.succeeded` (topup event) used read-modify-write without atomicity: `read purchased_credits → insert processed_payments → update purchased_credits = old + new`. While the `processed_payments` table guards against the *same* payment_id being processed twice, it does NOT protect against two *different* payment events for the same user arriving concurrently — both would read the old balance and one increment would be silently lost.
+
+**Fix** (Migration 007 + webhook update):
+- Created new Postgres function `increment_purchased_credits(p_user_id, p_amount)` that atomically increments the credit balance in a single UPDATE statement.
+- Webhook now calls `supabase.rpc('increment_purchased_credits', { p_user_id: uid, p_amount: credits })` instead of the read-then-write pattern.
+- The function handles the fallback case (row doesn't exist) via ON CONFLICT upsert.
+
+**Issue 6: Hardcoded `test_mode` Environment in Cancel Endpoint (Medium)**
+
+The `api/dodo-cancel-subscription.ts` hardcoded `environment: "test_mode"` while `dodo-create-session.ts` and `dodo-webhook.ts` correctly read from `process.env.DODO_ENVIRONMENT`. In production, subscription cancellations would be sent to the test environment and silently fail, leaving users' subscriptions active while they believed they'd cancelled.
+
+**Fix** (api/dodo-cancel-subscription.ts:63):
+- Changed hardcoded `"test_mode"` to `(process.env.DODO_ENVIRONMENT as "test_mode" | "live_mode") ?? "test_mode"`.
+- Now correctly reads the same environment variable as the other endpoints.
+
+**Issue 7: Verbose Upstream Error Propagation to Client (Medium)**
+
+Both `api/dodo-create-session.ts` and `api/dodo-cancel-subscription.ts` returned raw provider error messages to the client: e.g., `error: "Checkout session creation failed: Network timeout from provider"`. These internal error details can aid attackers in reconnaissance and social engineering.
+
+**Fix**:
+- Changed error responses to generic client-safe messages: `"Checkout unavailable. Please try again."` and `"Cancellation failed. Please try again."`.
+- Full error messages remain in `console.error()` for server-side debugging.
+
+**Issue 8: Immediate Access Revocation on Subscription Cancel (Critical Logic Error)**
+
+When a user clicked "Cancel Subscription", the endpoint immediately set `status: "cancelled"` in the database. The subscription hook (`useSubscription.ts`) queries for `status === "active"`, and the cloud-save gate (`canCloudSave.ts`) checks the same condition. As a result, users lost access to cloud saves and parallel renders *instantly*, even though they had days or weeks remaining in their billing period — violating standard SaaS practice where paid access continues until period end.
+
+**Fix** (Multiple files):
+- Added new `"cancelling"` status to the subscription status union (`database.types.ts`).
+- Changed `dodo-cancel-subscription.ts` to set `status: "cancelling"` instead of `"cancelled"`. This status persists until the webhook's `subscription.cancelled` event fires at period end.
+- Updated `useSubscription.ts` to query for `.in("status", ["active", "cancelling"])` — both statuses are treated as "subscribed".
+- Updated `canCloudSave()` to allow both `"active"` and `"cancelling"` status for cloud-save access.
+- Updated UI (`AccountSettingsModal.tsx`) to:
+  - Show "Cancelling" badge (instead of just "Cancelled") for the in-between state.
+  - Display "Cancels on [date]" for subscriptions scheduled to cancel (helpful context for users).
+  - Show "Access until [date]" for subscriptions already cancelled (past state).
+- The existing webhook handlers complete the lifecycle: `subscription.cancelled` event (at period end) sets status to `"cancelled"` (briefly), then `subscription.expired` downgrades the user to the nomad tier with grace credits.
+
+**Webhook Behavior Unchanged**:
+- `subscription.cancelled` → transitions from `"cancelling"` to `"cancelled"` (as intended).
+- `subscription.expired` → downgrades paid tiers to nomad + grace credits (unchanged).
+
 ---
 
 ## 8. Common Gotchas
