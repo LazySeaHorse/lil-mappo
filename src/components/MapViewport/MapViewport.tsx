@@ -134,14 +134,28 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   // playheadTime and isPlaying are intentionally removed from this destructure.
   // RouteLayerGroup/BoundaryLayerGroup subscribe imperatively.
   // CalloutMarker self-subscribes to playheadTime.
-  const {
-    mapStyle, terrainEnabled, buildingsEnabled, terrainExaggeration,
-    projection, lightPreset, labelVisibility,
-    show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
-    items, itemOrder,
-    selectedItemId, updateItem, selectItem, isMoveModeActive,
-    setMapCenter, terrainLoading, buildingsLoading, isExporting,
-  } = useProjectStore();
+  const mapStyle = useProjectStore((s) => s.mapStyle);
+  const terrainEnabled = useProjectStore((s) => s.terrainEnabled);
+  const buildingsEnabled = useProjectStore((s) => s.buildingsEnabled);
+  const terrainExaggeration = useProjectStore((s) => s.terrainExaggeration);
+  const projection = useProjectStore((s) => s.projection);
+  const lightPreset = useProjectStore((s) => s.lightPreset);
+  const labelVisibility = useProjectStore((s) => s.labelVisibility);
+  const show3dLandmarks = useProjectStore((s) => s.show3dLandmarks);
+  const show3dTrees = useProjectStore((s) => s.show3dTrees);
+  const show3dFacades = useProjectStore((s) => s.show3dFacades);
+  const starIntensity = useProjectStore((s) => s.starIntensity);
+  const fogColor = useProjectStore((s) => s.fogColor);
+  const items = useProjectStore((s) => s.items);
+  const itemOrder = useProjectStore((s) => s.itemOrder);
+  const selectedItemId = useProjectStore((s) => s.selectedItemId);
+  const updateItem = useProjectStore((s) => s.updateItem);
+  const selectItem = useProjectStore((s) => s.selectItem);
+  const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
+  const setMapCenter = useProjectStore((s) => s.setMapCenter);
+  const terrainLoading = useProjectStore((s) => s.terrainLoading);
+  const buildingsLoading = useProjectStore((s) => s.buildingsLoading);
+  const isExporting = useProjectStore((s) => s.isExporting);
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
 
