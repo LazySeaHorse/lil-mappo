@@ -10,8 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
-import { sendMagicLink } from "@/services/checkout";
-import { Mail, Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── OAuth icon components ────────────────────────────────────────────────────
@@ -111,14 +110,10 @@ function AuthModalBody({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [useMagicLink, setUseMagicLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // 'idle' | 'magic_link_sent' | 'confirm_email'
-  const [sentState, setSentState] = useState<
-    "idle" | "magic_link_sent" | "confirm_email"
-  >("idle");
+  const [sentState, setSentState] = useState<"idle" | "confirm_email">("idle");
 
-  const canSubmit = email.trim() !== "" && (useMagicLink || password !== "");
+  const canSubmit = email.trim() !== "" && password !== "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,10 +121,7 @@ function AuthModalBody({
     setIsSubmitting(true);
 
     try {
-      if (useMagicLink) {
-        await sendMagicLink(email.trim());
-        setSentState("magic_link_sent");
-      } else if (isSignup) {
+      if (isSignup) {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -165,26 +157,6 @@ function AuthModalBody({
   };
 
   // ── Sent / confirm states ──────────────────────────────────────────────────
-
-  if (sentState === "magic_link_sent") {
-    return (
-      <div className="flex flex-col items-center gap-4 py-6">
-        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-          <Mail size={24} className="text-primary" />
-        </div>
-        <div className="text-center">
-          <p className="font-semibold text-sm">Check your email</p>
-          <p className="text-muted-foreground text-xs mt-1">
-            We sent a magic link to{" "}
-            <span className="font-medium text-foreground">{email}</span>
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" className="text-xs" onClick={handleReset}>
-          Use a different email
-        </Button>
-      </div>
-    );
-  }
 
   if (sentState === "confirm_email") {
     return (
@@ -256,25 +228,23 @@ function AuthModalBody({
           autoFocus
         />
 
-        {!useMagicLink && (
-          <div className="relative">
-            <Input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-10 rounded-xl bg-secondary/30 border-border/50 text-sm pr-10 placeholder:text-muted-foreground/50"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              tabIndex={-1}
-            >
-              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-          </div>
-        )}
+        <div className="relative">
+          <Input
+            type={showPassword ? "text" : "password"}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="h-10 rounded-xl bg-secondary/30 border-border/50 text-sm pr-10 placeholder:text-muted-foreground/50"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
 
         <Button
           type="submit"
@@ -284,12 +254,7 @@ function AuthModalBody({
           {isSubmitting ? (
             <>
               <Loader2 size={16} className="animate-spin mr-2" />
-              {useMagicLink ? "Sending…" : isSignup ? "Creating account…" : "Signing in…"}
-            </>
-          ) : useMagicLink ? (
-            <>
-              <Mail size={16} className="mr-2" />
-              Send Magic Link
+              {isSignup ? "Creating account…" : "Signing in…"}
             </>
           ) : isSignup ? (
             "Create Account"
@@ -298,20 +263,6 @@ function AuthModalBody({
           )}
         </Button>
       </form>
-
-      {/* Toggle magic link / password */}
-      <button
-        type="button"
-        onClick={() => {
-          setUseMagicLink((v) => !v);
-          setPassword("");
-        }}
-        className="text-[11px] text-primary/70 hover:text-primary transition-colors text-center"
-      >
-        {useMagicLink
-          ? "Use password instead"
-          : "Use magic link instead (passwordless)"}
-      </button>
 
       {/* Signup mode: offer sign-in for existing users */}
       {isSignup && (

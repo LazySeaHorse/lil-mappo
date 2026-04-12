@@ -29,7 +29,7 @@ The UI is a premium, **responsive "floating island"** design.
 - **State Management**: Zustand
 - **Map Engine**: Mapbox GL JS v3 (via `react-map-gl/mapbox`)
 - **Persistence**: IndexedDB (for the project library) + Supabase PostgreSQL (for user data)
-- **Authentication**: Supabase Auth (magic link, Google OAuth, GitHub OAuth)
+- **Authentication**: Supabase Auth (email + password, Google OAuth, GitHub OAuth)
 - **Data Fetching**: React Query v5 (for efficient caching of user data)
 - **Icons**: Lucide React
 - **Animations**: Custom `requestAnimationFrame` loop + easing functions
@@ -102,7 +102,7 @@ When an unauthenticated user clicks "Subscribe" or "Top Up Credits", the intent 
 - Subscription plans: `storePendingPlan(plan)` → SIGNED_IN handler → `initiateDodoCheckout(plan)`
 - Topup credits: `storePendingTopup(amount)` → SIGNED_IN handler → `initiateDodoCheckout('topup', { quantity: amount })`
 
-This persists across the magic-link / password-confirm redirect cycle, ensuring the checkout resumes seamlessly after account creation.
+This persists across the password-confirm redirect cycle, ensuring the checkout resumes seamlessly after account creation.
 
 **Key Design**: Auth state is orthogonal to project state. Modal visibility and mode are managed here to keep the store focused. User data (credits, subscription, render jobs) is fetched separately via React Query hooks (`useCredits()`, `useSubscription()`, `useRenderJobs()`) to enable efficient caching and refetching. After checkout, React Query caches are invalidated to show live provisioned data.
 
@@ -200,11 +200,11 @@ The Toolbar's top-left now features an **Avatar Menu** (`src/components/Account/
   - Sign Out
 
 **Account Modals** (`src/components/Account/`):
-- `AuthModal.tsx`: Sign in form with magic link, Google OAuth, GitHub OAuth. Includes "View plans" CTA for new users.
+- `AuthModal.tsx`: Sign in form with email + password, Google OAuth, GitHub OAuth. Includes "View plans" CTA for new users.
 - `AccountSettingsModal.tsx`: Edit email, password, profile picture. BYOK Mapbox token storage in localStorage.
 - `CreditsModal.tsx`: Tabbed interface with Subscriptions and Top Up Credit tabs. Shows current balance, tier info, and plan comparison cards.
 - `RendersModal.tsx`: List past and in-progress render jobs with status and download links.
-- `MockCheckout.tsx`: Test-mode checkout form (TODO: replace with Dodo Payments integration). Accepts email and card details, sends magic link OTP, stores pending checkout in localStorage.
+- `MockCheckout.tsx`: Test-mode checkout form (TODO: replace with Dodo Payments integration). Accepts email and card details, stores pending checkout in localStorage.
 
 **Subscription Tiers** (via `SubscriptionTiers` component):
 - **Wanderer** (Free): 0 credits/mo, sequential rendering, local saves only.
@@ -225,7 +225,7 @@ All modals are non-modal, floating panels that integrate seamlessly with the Too
 **Phase 1 — Avatar Menu & Account Modals** (`2cdf4c2`)
 - Replaced legacy Project menu with **Avatar Menu** (`AvatarMenu.tsx`).
 - Created account modal suite:
-  - `AuthModal.tsx`: Sign in with magic link, Google OAuth, GitHub OAuth.
+  - `AuthModal.tsx`: Sign in with email + password, Google OAuth, GitHub OAuth.
   - `AccountSettingsModal.tsx`: Edit profile, email, password, BYOK Mapbox token.
   - `CreditsModal.tsx`: Display credits and subscription tier.
   - `RendersModal.tsx`: View render job history.
@@ -233,7 +233,7 @@ All modals are non-modal, floating panels that integrate seamlessly with the Too
 - Integrated Supabase client (`src/lib/supabase.ts`).
 
 **Phase 2 — Supabase Auth Wiring** (`c00c7bd`)
-- Connected `AuthModal` to real Supabase Auth endpoints (magic link, Google OAuth, GitHub OAuth).
+- Connected `AuthModal` to real Supabase Auth endpoints (email + password, Google OAuth, GitHub OAuth).
 - Implemented session persistence and auto-login on app load via `initAuth()`.
 - Created database schema migration (`supabase/migrations/001_initial_schema.sql`):
   - `credit_balance`: Track monthly and purchased render credits per user (auto-created on first sign-in via trigger).
@@ -285,7 +285,7 @@ All modals are non-modal, floating panels that integrate seamlessly with the Too
      - Supabase RLS policies ensure webhook has admin access.
   9. After payment, Dodo redirects user back to `/?checkout=success` (or error URL if cancelled).
   10. `MapStudioEditor.tsx` detects `?checkout=success` query param and shows success toast.
-- **Pending Plan Persistence**: `getPendingPlan()` and `clearPendingPlan()` helpers manage localStorage across the OAuth/magic-link redirect cycle.
+- **Pending Plan Persistence**: `getPendingPlan()` and `clearPendingPlan()` helpers manage localStorage across the OAuth redirect cycle.
 - **Enhanced `useAuthStore.startCheckout()`**:
   - Signed-in users: Immediately redirect to Dodo.
   - Unauthenticated users: Store plan, open AuthModal, and after `SIGNED_IN` event fires (via `onAuthStateChange` listener), automatically resume checkout via `initiateDodoCheckout()`.
@@ -392,9 +392,9 @@ Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
 No free tier exists. Account creation is now tied to payment flow — unauthenticated users can see the credits modal, buy a pack, and sign up during checkout. Abandoned accounts (created but never paid) are cleaned up via daily Vercel cron after 24h.
 
 **Auth Modal Redesign (`AuthModal.tsx`)**:
-- **Sign-in mode**: Email + password (primary). "Use magic link instead" toggle. Google & Apple OAuth buttons disabled (greyed out for future support).
+- **Sign-in mode**: Email + password. Google & Apple OAuth buttons disabled (greyed out for future support).
 - **Sign-up mode**: Same form, opened during checkout. Shows "Create Account & Subscribe" CTA and "Already have an account?" link for existing users.
-- Password is stored via Supabase Auth; magic link OTP is also supported for both modes.
+- Password is stored via Supabase Auth.
 
 **Unauthenticated Checkout Flow**:
 1. User opens Credits modal → clicks "Top Up Credits" or clicks "Subscribe" on a plan card.
