@@ -593,11 +593,11 @@ function RouteLayerGroup({
     return allCoords;
   }, [route.geojson]);
 
-  const coordsRef = useRef(coords);
-  coordsRef.current = coords;
-
+  const lastTimeRef = useRef(-1);
   const routeRef = useRef(route);
   routeRef.current = route;
+  const coordsRef = useRef(coords);
+  coordsRef.current = coords;
 
   const mapRefRef = useRef(mapRef);
   mapRefRef.current = mapRef;
@@ -786,7 +786,11 @@ function RouteLayerGroup({
       }
     };
 
-    const unsub = useProjectStore.subscribe(updateRoute);
+    const unsub = useProjectStore.subscribe((state) => {
+      if (state.playheadTime === lastTimeRef.current) return;
+      lastTimeRef.current = state.playheadTime;
+      updateRoute(state);
+    });
     // Initial pump: populate layers immediately with the current state
     updateRoute(useProjectStore.getState());
 
@@ -848,6 +852,7 @@ function BoundaryLayerGroup({
   mapRef: React.MutableRefObject<MapRef | null>;
   styleLoaded: boolean;
 }) {
+  const lastTimeRef = useRef(-1);
   const boundaryRef = useRef(boundary);
   boundaryRef.current = boundary;
 
@@ -1020,7 +1025,11 @@ function BoundaryLayerGroup({
       strokeSource.setData(strokeFC);
     };
 
-    const unsub = useProjectStore.subscribe(updateBoundary);
+    const unsub = useProjectStore.subscribe((state) => {
+      if (state.playheadTime === lastTimeRef.current) return;
+      lastTimeRef.current = state.playheadTime;
+      updateBoundary(state);
+    });
     // Initial pump: populate layers immediately with the current state
     updateBoundary(useProjectStore.getState());
 
