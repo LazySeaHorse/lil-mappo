@@ -612,6 +612,8 @@ function RouteLayerGroup({
     const mainLayerId = `route-layer-${route.id}`;
     const glowId = `route-glow-${route.id}`;
     const glowLayerId = `route-glow-layer-${route.id}`;
+    const cometId = `route-comet-${route.id}`;
+    const cometLayerId = `route-comet-layer-${route.id}`;
 
     // Add main source
     if (!map.getSource(mainId)) {
@@ -620,6 +622,10 @@ function RouteLayerGroup({
     // Add glow source (always add; layer rendered conditionally)
     if (!map.getSource(glowId)) {
       map.addSource(glowId, { type: 'geojson', data: EMPTY_FC });
+    }
+    // Add comet source — lineMetrics:true is required for line-gradient paint
+    if (!map.getSource(cometId)) {
+      map.addSource(cometId, { type: 'geojson', data: EMPTY_FC, lineMetrics: true } as any);
     }
 
     // Add main line layer
@@ -633,6 +639,23 @@ function RouteLayerGroup({
           'line-color': routeRef.current.calculation?.mode === 'flight' ? '#f59e0b' : routeRef.current.style.color,
           'line-width': routeRef.current.style.width,
           'line-opacity': 1,
+        },
+      });
+    }
+    // Add comet trail layer (initially empty; line-gradient requires lineMetrics source)
+    if (!map.getLayer(cometLayerId)) {
+      map.addLayer({
+        id: cometLayerId,
+        type: 'line',
+        source: cometId,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-width': routeRef.current.style.width,
+          'line-gradient': [
+            'interpolate', ['linear'], ['line-progress'],
+            0, 'transparent',
+            1, routeRef.current.style.color,
+          ] as any,
         },
       });
     }
@@ -663,41 +686,75 @@ function RouteLayerGroup({
       }
 
       const isFlight = r.calculation?.mode === 'flight';
+      const routeColor = isFlight ? '#f59e0b' : r.style.color;
+      const glowColor = isFlight ? '#fbbf24' : r.style.glowColor;
       const progress = getNormalizedProgress(state.playheadTime, r.startTime, r.endTime, r.easing);
+      const animType = r.style.animationType || 'draw';
 
-      // Exit animation: retract line from tip back toward start
-      let drawProgress = progress;
-      if (r.exitAnimation && state.playheadTime > r.endTime) {
-        const exitT = Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1);
-        drawProgress = 1 - exitT;
+      // --- Compute geometry per animation type ---
+      let mainFC: GeoJSON.FeatureCollection = EMPTY_FC;
+      let cometFC: GeoJSON.FeatureCollection = EMPTY_FC;
+
+      if (animType === 'comet') {
+        // Moving gradient trail — no base route drawn
+        const trailLen = r.style.cometTrailLength ?? 0.2;
+        const tailT = Math.max(0, progress - trailLen);
+        const trailCoords = getLineSegment(c, tailT, progress);
+        if (trailCoords.length >= 2) {
+          cometFC = {
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: trailCoords } }],
+          };
+        }
+      } else if (animType === 'navigation') {
+        // Remaining route: from current position forward to end
+        const navCoords = getLineSegment(c, progress, 1);
+        if (navCoords.length >= 2) {
+          mainFC = {
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: navCoords } }],
+          };
+        }
+      } else {
+        // draw — animate from start with optional exit retraction
+        let drawP = progress;
+        if (r.exitAnimation && state.playheadTime > r.endTime) {
+          const exitT = Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1);
+          drawP = 1 - exitT;
+        }
+        const animCoords = getAnimatedLine(c, drawP);
+        if (animCoords.length >= 2) {
+          mainFC = {
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: animCoords } }],
+          };
+        }
       }
 
-      const animCoords = getAnimatedLine(c, drawProgress);
-
-      // Build the feature collection — EMPTY_FC when progress=0 (route not yet started).
-      // Always call setData so the source is kept in sync; opacity/data together control visibility.
-      const fc: GeoJSON.FeatureCollection = animCoords.length >= 2
-        ? {
-            type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              properties: {},
-              geometry: { type: 'LineString', coordinates: animCoords },
-            }],
-          }
-        : EMPTY_FC;
-
-      // Update paint properties in case Inspector values changed
+      // --- Main line ---
       try {
-        m.setPaintProperty(mainLayerId, 'line-color', isFlight ? '#f59e0b' : r.style.color);
+        m.setPaintProperty(mainLayerId, 'line-color', routeColor);
         m.setPaintProperty(mainLayerId, 'line-width', r.style.width);
       } catch (_) {}
+      mainSource.setData(mainFC);
 
-      mainSource.setData(fc);
+      // --- Comet trail (gradient) ---
+      const cometSource = m.getSource(cometId) as GeoJSONSource | undefined;
+      if (cometSource) {
+        try {
+          m.setPaintProperty(cometLayerId, 'line-width', r.style.width);
+          m.setPaintProperty(cometLayerId, 'line-gradient', [
+            'interpolate', ['linear'], ['line-progress'],
+            0, 'transparent',
+            1, routeColor,
+          ] as any);
+        } catch (_) {}
+        cometSource.setData(cometFC);
+      }
 
-      // Glow layer — same pattern
+      // --- Glow (draw + navigation modes only) ---
       const glowSource = m.getSource(glowId) as GeoJSONSource | undefined;
-      if (r.style.glow && glowSource) {
+      if (r.style.glow && glowSource && animType !== 'comet') {
         if (!m.getLayer(glowLayerId)) {
           try {
             m.addLayer(
@@ -707,7 +764,7 @@ function RouteLayerGroup({
                 source: glowId,
                 layout: { 'line-cap': 'round', 'line-join': 'round' },
                 paint: {
-                  'line-color': isFlight ? '#fbbf24' : r.style.glowColor,
+                  'line-color': glowColor,
                   'line-width': r.style.width * 3,
                   'line-opacity': 0.35,
                   'line-blur': r.style.width * 2,
@@ -718,12 +775,12 @@ function RouteLayerGroup({
           } catch (_) {}
         } else {
           try {
-            m.setPaintProperty(glowLayerId, 'line-color', isFlight ? '#fbbf24' : r.style.glowColor);
+            m.setPaintProperty(glowLayerId, 'line-color', glowColor);
             m.setPaintProperty(glowLayerId, 'line-width', r.style.width * 3);
             m.setPaintProperty(glowLayerId, 'line-blur', r.style.width * 2);
           } catch (_) {}
         }
-        glowSource.setData(fc);
+        glowSource.setData(mainFC);
       } else if (m.getLayer(glowLayerId)) {
         try { m.removeLayer(glowLayerId); } catch (_) {}
       }
@@ -740,8 +797,10 @@ function RouteLayerGroup({
       if (!m) return;
       // Clean up layers then sources
       if (m.getLayer(glowLayerId)) try { m.removeLayer(glowLayerId); } catch (_) {}
+      if (m.getLayer(cometLayerId)) try { m.removeLayer(cometLayerId); } catch (_) {}
       if (m.getLayer(mainLayerId)) try { m.removeLayer(mainLayerId); } catch (_) {}
       if (m.getSource(glowId)) try { m.removeSource(glowId); } catch (_) {}
+      if (m.getSource(cometId)) try { m.removeSource(cometId); } catch (_) {}
       if (m.getSource(mainId)) try { m.removeSource(mainId); } catch (_) {}
     };
   // Re-run only when style reloads or the route ID changes (not on every route prop change)

@@ -4,23 +4,27 @@ import { calculateBearing, calculatePitch } from '@/engine/geoUtils';
 
 interface VehicleModelLayerProps {
   routeId: string;
-  coords: number[][]; 
+  coords: number[][];
   vehicle: {
-    type: 'car' | 'plane';
+    type: 'car' | 'plane' | 'dot';
     modelId: string;
     scale: number;
     enabled: boolean;
   };
 }
 
-const MODELS = {
+const MODELS: Record<'car' | 'plane', string> = {
   car: '/models/car.glb',
-  plane: '/models/airplane.glb'
+  plane: '/models/airplane.glb',
 };
 
+// Base radius in pixels at scale=1. Matches roughly Google Maps dot size.
+const DOT_BASE_RADIUS = 9;
+
 /**
- * Renders a 3D model following a route.
- * Managed imperatively via the Mapbox instance for v3 model-layer support.
+ * Renders a vehicle marker following a route.
+ * - type='dot': Mapbox circle layer (blue GPS dot, free for all users)
+ * - type='car'|'plane': Mapbox v3 model layer (Pro only, gated in RoutePlanner)
  */
 export const VehicleModelLayer = ({ routeId, coords, vehicle }: VehicleModelLayerProps) => {
   const { current: mapRef } = useMap();
@@ -28,22 +32,21 @@ export const VehicleModelLayer = ({ routeId, coords, vehicle }: VehicleModelLaye
   const layerId = `vehicle-layer-${routeId}`;
   const sourceId = `vehicle-source-${routeId}`;
 
-  // 1. Model Loading
+  // Load 3D GLB model when using car/plane (no-op for dot)
   useEffect(() => {
-    if (!map || !vehicle.enabled) return;
+    if (!map || !vehicle.enabled || vehicle.type === 'dot') return;
     const url = MODELS[vehicle.type];
-    
-    // @ts-ignore - Mapbox v3 specific API
+    // @ts-ignore — Mapbox v3 specific API
     if (map.addModel && !map.hasModel(vehicle.type)) {
       // @ts-ignore
       map.addModel(vehicle.type, url);
     }
   }, [map, vehicle.type, vehicle.enabled]);
 
-  // 2. Layer & Position Management
+  // Layer & position management
   useEffect(() => {
     if (!map || !vehicle.enabled || coords.length < 2) {
-      if (map && map.getLayer(layerId)) {
+      if (map?.getLayer(layerId)) {
         map.removeLayer(layerId);
         if (map.getSource(sourceId)) map.removeSource(sourceId);
       }
@@ -52,63 +55,77 @@ export const VehicleModelLayer = ({ routeId, coords, vehicle }: VehicleModelLaye
 
     const currentPos = coords[coords.length - 1];
     const prevPos = coords[coords.length - 2];
-    
     const bearing = calculateBearing(prevPos, currentPos);
     const pitch = calculatePitch(prevPos, currentPos);
 
-    if (!map.getLayer(layerId)) {
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [currentPos[0], currentPos[1]]
-          },
-          properties: {}
-        }
-      });
+    const pointData = {
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [currentPos[0], currentPos[1]] },
+      properties: {},
+    };
 
-      map.addLayer({
-        id: layerId,
-        type: 'model',
-        source: sourceId,
-        layout: {
-          'model-id': vehicle.type
-        },
-        paint: {
-          'model-scale': [vehicle.scale, vehicle.scale, vehicle.scale],
-          'model-rotation': [0, -pitch, bearing],
-          'model-translation': [0, 0, currentPos[2] || 0]
-        }
-      });
-    } else {
-      const source = map.getSource(sourceId) as any;
-      if (source) {
-        source.setData({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [currentPos[0], currentPos[1]]
-          },
-          properties: {}
-        });
+    // If layer type changed (dot↔3D model), tear down and rebuild
+    if (map.getLayer(layerId)) {
+      const existingType = map.getLayer(layerId)?.type;
+      const expectedType = vehicle.type === 'dot' ? 'circle' : 'model';
+      if (existingType !== expectedType) {
+        map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
       }
-      map.setPaintProperty(layerId, 'model-rotation', [0, -pitch, bearing]);
-      map.setPaintProperty(layerId, 'model-translation', [0, 0, currentPos[2] || 0]);
-      map.setPaintProperty(layerId, 'model-scale', [vehicle.scale, vehicle.scale, vehicle.scale]);
     }
 
-    return () => {
-      // We don't remove immediately on every coordinate update to avoid flicker,
-      // but we do on unmount or if vehicle is disabled.
-    };
+    if (!map.getLayer(layerId)) {
+      if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, { type: 'geojson', data: pointData });
+      }
+
+      if (vehicle.type === 'dot') {
+        map.addLayer({
+          id: layerId,
+          type: 'circle',
+          source: sourceId,
+          paint: {
+            'circle-radius': DOT_BASE_RADIUS * vehicle.scale,
+            'circle-color': '#4285F4',
+            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-width': 2.5,
+            'circle-stroke-opacity': 1,
+          },
+        });
+      } else {
+        map.addLayer({
+          id: layerId,
+          type: 'model',
+          source: sourceId,
+          layout: { 'model-id': vehicle.type },
+          paint: {
+            'model-scale': [vehicle.scale, vehicle.scale, vehicle.scale],
+            'model-rotation': [0, -pitch, bearing],
+            'model-translation': [0, 0, currentPos[2] || 0],
+          },
+        });
+      }
+    } else {
+      // Update position/orientation on existing layer
+      const source = map.getSource(sourceId) as any;
+      if (source) source.setData(pointData);
+
+      if (vehicle.type === 'dot') {
+        try { map.setPaintProperty(layerId, 'circle-radius', DOT_BASE_RADIUS * vehicle.scale); } catch (_) {}
+      } else {
+        try {
+          map.setPaintProperty(layerId, 'model-rotation', [0, -pitch, bearing]);
+          map.setPaintProperty(layerId, 'model-translation', [0, 0, currentPos[2] || 0]);
+          map.setPaintProperty(layerId, 'model-scale', [vehicle.scale, vehicle.scale, vehicle.scale]);
+        } catch (_) {}
+      }
+    }
   }, [map, routeId, coords, vehicle.type, vehicle.scale, vehicle.enabled, layerId, sourceId]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (map && map.getLayer(layerId)) {
+      if (map?.getLayer(layerId)) {
         map.removeLayer(layerId);
         if (map.getSource(sourceId)) map.removeSource(sourceId);
       }

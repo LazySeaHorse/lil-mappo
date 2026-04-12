@@ -16,7 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X } from 'lucide-react';
+import { Car, Circle, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RouteItem } from '@/store/types';
 
@@ -195,7 +195,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const [loading, setLoading] = useState(false);
 
   const { data: sub } = useSubscription();
-  const isPro = sub && (sub.tier === 'cartographer' || sub.tier === 'pioneer');
+  const isPro = sub && (sub.tier === 'wanderer' || sub.tier === 'cartographer' || sub.tier === 'pioneer');
 
   const calc = item.calculation || {
     mode: 'manual',
@@ -205,7 +205,8 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
 
   const handleModeChange = (mode: 'car' | 'walk' | 'flight' | 'manual') => {
     let vehicle = calc.vehicle;
-    if (vehicle?.enabled) {
+    // Auto-switch model type for 3D vehicles (not dot) when travel mode changes
+    if (vehicle?.enabled && vehicle.type !== 'dot') {
       vehicle = { ...vehicle, type: mode === 'flight' ? 'plane' : 'car' };
     }
     updateItem(item.id, { calculation: { ...calc, mode, vehicle } } as any);
@@ -214,8 +215,8 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const updateVehicle = (patch: Partial<NonNullable<RouteItem['calculation']>['vehicle']>) => {
     const currentVehicle = calc.vehicle || {
       enabled: false,
-      type: calc.mode === 'flight' ? 'plane' : 'car',
-      modelId: calc.mode === 'flight' ? 'plane-1' : 'car-1',
+      type: 'dot' as const,
+      modelId: '',
       scale: 1.0,
     };
     updateItem(item.id, { 
@@ -356,33 +357,60 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
             </Button>
           </div>
 
-          <div className={`pt-4 border-t border-border/10 flex flex-col gap-4 ${!isPro ? 'opacity-50 cursor-not-allowed grayscale pointer-events-none' : ''}`}>
-            <div className="flex items-center justify-between group">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">3D Vehicle</span>
-                {!isPro && <ProBadge />}
-              </div>
-              <Switch 
-                disabled={!isPro} 
-                checked={calc.vehicle?.enabled || false} 
+          <div className="pt-4 border-t border-border/10 flex flex-col gap-4">
+            {/* Vehicle header + enable toggle — available to all users */}
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Vehicle</span>
+              <Switch
+                checked={calc.vehicle?.enabled || false}
                 onCheckedChange={(v) => updateVehicle({ enabled: v })}
               />
             </div>
 
-            <div className={`space-y-2 ${!isPro || !calc.vehicle?.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
-              <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-                <span>Model Scale</span>
-                <span>{calc.vehicle?.scale?.toFixed(1) || '1.0'}x</span>
+            {calc.vehicle?.enabled && (
+              <div className="space-y-3">
+                {/* Type selector: Dot (free) | Car (Pro) | Plane (Pro) */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { type: 'dot', label: 'Dot', icon: <Circle size={12} />, pro: false },
+                    { type: 'car', label: 'Car', icon: <Car size={12} />, pro: true },
+                    { type: 'plane', label: 'Plane', icon: <Plane size={12} />, pro: true },
+                  ] as const).map(({ type, label, icon, pro }) => {
+                    const locked = pro && !isPro;
+                    const active = (calc.vehicle?.type || 'dot') === type;
+                    return (
+                      <button
+                        key={type}
+                        disabled={locked}
+                        onClick={() => !locked && updateVehicle({ type })}
+                        className={`relative flex flex-col items-center justify-center gap-1 h-12 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all border
+                          ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary border-transparent'}
+                          ${locked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        {icon}
+                        {label}
+                        {locked && <ProBadge className="absolute -top-1.5 -right-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Scale slider — works for dot (radius) and 3D models alike */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                    <span>Scale</span>
+                    <span>{calc.vehicle?.scale?.toFixed(1) || '1.0'}x</span>
+                  </div>
+                  <Slider
+                    value={[calc.vehicle?.scale || 1]}
+                    onValueChange={([v]) => updateVehicle({ scale: v })}
+                    min={0.1}
+                    max={5}
+                    step={0.1}
+                  />
+                </div>
               </div>
-              <Slider 
-                disabled={!isPro || !calc.vehicle?.enabled} 
-                value={[calc.vehicle?.scale || 1]} 
-                onValueChange={([v]) => updateVehicle({ scale: v })}
-                min={0.1} 
-                max={5} 
-                step={0.1} 
-              />
-            </div>
+            )}
           </div>
         </div>
       )}

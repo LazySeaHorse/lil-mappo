@@ -45,6 +45,8 @@ export function useToolbarActions() {
             trailFade: false,
             trailFadeLength: 0.3,
             dashPattern: null,
+            animationType: 'draw' as const,
+            cometTrailLength: 0.2,
           },
           easing: 'easeInOutCubic',
         };

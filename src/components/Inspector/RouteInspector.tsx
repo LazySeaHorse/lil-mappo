@@ -17,6 +17,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch as any);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
 
+  const animType = item.style.animationType || 'draw';
   const footer = <ItemActions id={item.id} kind="route" />;
 
   return (
@@ -34,26 +35,63 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             <Field label="End (s)"><InputNumber value={item.endTime} onChange={(v) => u({ endTime: v })} min={0} step={0.1} /></Field>
           </div>
           <EasingSelect value={item.easing} onChange={(v) => u({ easing: v })} />
-          <SwitchField checked={item.exitAnimation ?? false} onChange={(v) => u({ exitAnimation: v })} label="Exit Animation" />
+          {animType === 'draw' && (
+            <SwitchField checked={item.exitAnimation ?? false} onChange={(v) => u({ exitAnimation: v })} label="Exit Animation" />
+          )}
         </InspectorSection>
 
         <InspectorSection value="style" title="Style">
-          <Field label="Color"><ColorPicker value={item.style.color} onChange={(v) => us({ color: v })} /></Field>
-          <SliderField label="Width" value={item.style.width} onChange={(v) => us({ width: v })} min={1} max={12} step={1} />
-          <SwitchField checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
-          {item.style.glow && <Field label="Glow Color"><ColorPicker value={item.style.glowColor} onChange={(v) => us({ glowColor: v })} /></Field>}
-          <SwitchField checked={item.style.trailFade} onChange={(v) => us({ trailFade: v })} label="Trail Fade" />
-          {item.style.trailFade && <SliderField label="Fade Length" value={item.style.trailFadeLength} onChange={(v) => us({ trailFadeLength: v })} min={0.05} max={1} />}
-          <Field label="Dash Pattern">
-            <Select value={item.style.dashPattern ? 'dashed' : 'solid'} onValueChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}>
+          <Field label="Animation">
+            <Select value={animType} onValueChange={(v) => us({ animationType: v as RouteItem['style']['animationType'] })}>
               <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="solid">Solid</SelectItem>
-                <SelectItem value="dashed">Dashed</SelectItem>
-                <SelectItem value="dotted">Dotted</SelectItem>
+                <SelectItem value="draw">Draw</SelectItem>
+                <SelectItem value="navigation">Navigation</SelectItem>
+                <SelectItem value="comet">Comet</SelectItem>
               </SelectContent>
             </Select>
           </Field>
+
+          <Field label="Color"><ColorPicker value={item.style.color} onChange={(v) => us({ color: v })} /></Field>
+          <SliderField label="Width" value={item.style.width} onChange={(v) => us({ width: v })} min={1} max={12} step={1} />
+
+          {animType !== 'comet' && (
+            <>
+              <SwitchField checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
+              {item.style.glow && <Field label="Glow Color"><ColorPicker value={item.style.glowColor} onChange={(v) => us({ glowColor: v })} /></Field>}
+            </>
+          )}
+
+          {animType === 'comet' && (
+            <SliderField
+              label="Trail Length"
+              value={item.style.cometTrailLength ?? 0.2}
+              onChange={(v) => us({ cometTrailLength: v })}
+              min={0.05}
+              max={0.8}
+              step={0.05}
+            />
+          )}
+
+          {animType === 'draw' && (
+            <>
+              <SwitchField checked={item.style.trailFade} onChange={(v) => us({ trailFade: v })} label="Trail Fade" />
+              {item.style.trailFade && <SliderField label="Fade Length" value={item.style.trailFadeLength} onChange={(v) => us({ trailFadeLength: v })} min={0.05} max={1} />}
+            </>
+          )}
+
+          {animType !== 'comet' && (
+            <Field label="Dash Pattern">
+              <Select value={item.style.dashPattern ? (item.style.dashPattern[0] === 2 ? 'dotted' : 'dashed') : 'solid'} onValueChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}>
+                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="solid">Solid</SelectItem>
+                  <SelectItem value="dashed">Dashed</SelectItem>
+                  <SelectItem value="dotted">Dotted</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
         </InspectorSection>
       </Accordion>
     </PanelWrapper>

@@ -22,6 +22,8 @@ export interface RouteItem {
     trailFade: boolean;
     trailFadeLength: number;
     dashPattern: number[] | null;
+    animationType?: 'draw' | 'navigation' | 'comet';
+    cometTrailLength?: number;
   };
   easing: EasingName;
   exitAnimation?: boolean;
@@ -31,7 +33,7 @@ export interface RouteItem {
     mode: 'car' | 'walk' | 'flight' | 'manual';
     vehicle?: {
       enabled: boolean;
-      type: 'car' | 'plane';
+      type: 'car' | 'plane' | 'dot';
       modelId: string;
       scale: number;
     };

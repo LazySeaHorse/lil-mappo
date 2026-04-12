@@ -114,12 +114,21 @@ Handles all imperative Mapbox state and reactive layer rendering.
 - **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config.
 - **Imperative Layer Groups**: `RouteLayerGroup` and `BoundaryLayerGroup` manage Mapbox sources and layers directly. They self-subscribe to the store for playhead updates, allowing 60fps geometry animation without React re-renders.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
-- **Exit Animations**: Optional reverse animations for routes and boundaries after their `endTime`. When `exitAnimation: true`:
+- **Route Animation Types** (`item.style.animationType`): Three mutually exclusive modes per route:
+  - **`draw`** (default): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available.
+  - **`navigation`**: Full route is visible from the start; the passed portion erases as the playhead advances (`getLineSegment(coords, progress, 1)`). Mirrors Google Maps navigation. Glow supported; no exit animation or dash.
+  - **`comet`**: Only a gradient trail segment is drawn — transparent at the tail, opaque at the head. Trail length is configurable (`item.style.cometTrailLength`, 0–0.8). Uses a dedicated Mapbox source with `lineMetrics: true` and `line-gradient` paint. No glow, no dash. Vehicle/dot shows at the head if enabled.
+  - Exit Animation toggle only visible for `draw` mode. Navigation and comet self-erase.
+- **Exit Animations**: Optional reverse animations for routes and boundaries after their `endTime`. When `exitAnimation: true` (draw mode only):
   - **Routes**: Line retracts from the tip back toward the start over 0.5s (exact reverse of the draw animation).
   - **Boundaries (fade style)**: Opacity fades out (reverses the fade-in entrance).
   - **Boundaries (draw style)**: Fill fades out first (mirroring the "fill appears last" entry logic), then stroke retracts from the perimeter end.
   - **Boundaries (trace style)**: Opacity fades out (the moving comet trace naturally ends at full perimeter).
   - Controlled by `item.exitAnimation` flag in the store; toggle added to Inspector Timing sections for routes and boundaries.
+- **Vehicle System**: Controlled via `route.calculation.vehicle`. Three types:
+  - **`dot`** (default, free for all users): Rendered as a Mapbox `circle` layer (blue fill `#4285F4`, white stroke). Size scales with `vehicle.scale`.
+  - **`car` / `plane`** (Pro only — `wanderer`, `cartographer`, `pioneer`, or cancelling tiers): Mapbox v3 `model` layer rendering GLB files from `/models/`. Pro gate enforced in `RoutePlanner.tsx`.
+  - Vehicle toggle and type selector live in the Route Planner section of the inspector (not the Style section).
 
 ### 3.4 The Inspector: `src/components/Inspector/`
 The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.

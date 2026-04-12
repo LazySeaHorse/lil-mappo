@@ -103,6 +103,8 @@ export const RouteAddDropdown = ({
         trailFade: false,
         trailFadeLength: 0.3,
         dashPattern: null,
+        animationType: 'draw' as const,
+        cometTrailLength: 0.2,
       },
       calculation: {
         mode,
@@ -110,7 +112,7 @@ export const RouteAddDropdown = ({
         endPoint: end,
         vehicle: {
           enabled: true,
-          type: mode === 'flight' ? 'plane' : 'car',
+          type: 'dot' as const,
           modelId: '',
           scale: 1,
         }
