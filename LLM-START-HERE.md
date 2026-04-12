@@ -704,6 +704,45 @@ Result: Any authenticated user could call `supabase.from('cloud_projects').upser
   - If `tier = 'nomad'`, also requires `credit_balance.purchased_credits > 0`.
   - All other combinations (no subscription, expired/cancelled, nomad with no credits) are denied.
 
+**Issue 17: Credit Inflation via Webhook Replay (High)**
+
+The `subscription.active` and `subscription.renewed` handlers in `api/dodo-webhook.ts` lacked idempotency guards on their credit balance updates. Specifically:
+
+- `subscription.active`: If Dodo replayed the webhook (due to transient 500 error), the `credit_balance.monthly_credits` UPDATE would run again, resetting the user's balance to the plan max even if they had already spent some credits.
+- `subscription.renewed`: No idempotency guard at all. A user could exhaust credits, trigger a server failure during renewal, and receive fresh credits on each Dodo retry, effectively infinite credit generation.
+
+**Fix** (api/dodo-webhook.ts, lines 128–146, 327–344):
+- Added idempotency guards using `processed_webhook_events` table (Migration 008).
+- `subscription.active`: Key format `subscription.active:{subscription_id}` prevents duplicate activation processing.
+- `subscription.renewed`: Key format `subscription.renewed:{subscription_id}:{renewalDate}` is critical — the billing-period suffix allows legitimate credit resets on the *next* cycle while blocking replays within the same period.
+- Both handlers now DELETE the idempotency key on error before returning 500, allowing Dodo to retry cleanly.
+
+**Issue 18: Credit Loss on Failed Transaction (High)**
+
+The `payment.succeeded` (topup) and `subscription.expired` handlers inserted the idempotency key, then executed the side effect (RPC or UPDATE). If the side effect failed and returned 500:
+
+1. Dodo retried the webhook.
+2. Idempotency key INSERT failed with 23505 (unique constraint).
+3. Handler detected 23505 and silently returned 200 without executing the side effect.
+4. User never received credits despite payment being collected.
+
+**Fix** (api/dodo-webhook.ts, lines 268–272, 351–355, 367–371):
+- Added compensating `DELETE` statements on operation failure.
+- If the RPC or UPDATE fails, the idempotency key is deleted before returning 500.
+- On Dodo's retry, the key re-inserts cleanly and the side effect executes.
+- This restores the invariant: "idempotency key exists iff the operation succeeded."
+
+**Issue 19: False Positive — Nomad Access Breakage via Race Condition (NOT EXPLOITABLE)**
+
+Earlier analysis suggested that `subscription.cancelled` arriving after `subscription.expired` could overwrite nomad status, causing users to lose cloud-save access. However, this scenario is not possible:
+
+- The `subscription.expired` handler sets `dodo_subscription_id: null` (line 453).
+- The `subscription.cancelled` handler does `.eq("dodo_subscription_id", sub.subscription_id)` to find the row.
+- If cancelled arrives after expired, it matches **zero rows** (the ID was already cleared).
+- Concurrent or out-of-order execution both resolve correctly; no user data is lost.
+
+No fix required. This was a defensive analysis of a race condition that the current implementation already guards against.
+
 ---
 
 ## 8. Common Gotchas

@@ -125,6 +125,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const renewalDate = toDateString(sub.next_billing_date);
 
+        // Idempotency guard — prevents a Dodo replay from refilling credits
+        // a second time if the user already spent some between the original
+        // event and the retry.
+        const activeEventKey = `subscription.active:${sub.subscription_id}`;
+        const { error: activeIdempotencyError } = await supabase
+          .from("processed_webhook_events")
+          .insert({ event_key: activeEventKey });
+
+        if (activeIdempotencyError) {
+          if (activeIdempotencyError.code === "23505") {
+            console.log(
+              "[dodo-webhook] subscription.active: duplicate event, skipping",
+              sub.subscription_id
+            );
+            break;
+          }
+          console.error("[dodo-webhook] Failed to record activation idempotency key:", activeIdempotencyError);
+          return res.status(500).json({ error: "DB error recording event" });
+        }
+
         // Upsert subscription row — idempotent if Dodo replays the event
         const { error: subError } = await supabase
           .from("subscriptions")
@@ -146,10 +166,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             "[dodo-webhook] Failed to upsert subscription:",
             subError
           );
-          // Return 500 so Dodo retries
-          return res
-            .status(500)
-            .json({ error: "DB error writing subscription" });
+          await supabase.from("processed_webhook_events").delete().eq("event_key", activeEventKey);
+          return res.status(500).json({ error: "DB error writing subscription" });
         }
 
         // Update credit_balance — preserve purchased_credits (never reset those)
@@ -183,6 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (creditError) {
           console.error("[dodo-webhook] Failed to update credit_balance:", creditError);
+          await supabase.from("processed_webhook_events").delete().eq("event_key", activeEventKey);
           return res.status(500).json({ error: "DB error writing credits" });
         }
 
@@ -248,6 +267,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (topupCreditError) {
           console.error("[dodo-webhook] Failed to credit topup balance:", topupCreditError);
+          // Roll back the idempotency key so Dodo can retry successfully.
+          await supabase.from("processed_payments").delete().eq("payment_id", payment.payment_id);
           return res.status(500).json({ error: "DB error writing credits" });
         }
 
@@ -303,20 +324,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const plan = PLAN_FROM_PRODUCT[sub.product_id];
         const renewalDate = toDateString(sub.next_billing_date);
 
-        await supabase
+        // Idempotency guard — key is scoped to the billing period so that the
+        // legitimate credit reset on the NEXT cycle is never blocked.
+        const renewedEventKey = `subscription.renewed:${sub.subscription_id}:${renewalDate}`;
+        const { error: renewedIdempotencyError } = await supabase
+          .from("processed_webhook_events")
+          .insert({ event_key: renewedEventKey });
+
+        if (renewedIdempotencyError) {
+          if (renewedIdempotencyError.code === "23505") {
+            console.log(
+              "[dodo-webhook] subscription.renewed: duplicate event, skipping",
+              sub.subscription_id
+            );
+            break;
+          }
+          console.error("[dodo-webhook] Failed to record renewal idempotency key:", renewedIdempotencyError);
+          return res.status(500).json({ error: "DB error recording event" });
+        }
+
+        const { error: renewalUpdateError } = await supabase
           .from("subscriptions")
           .update({ renewal_date: renewalDate, status: "active" })
           .eq("dodo_subscription_id", sub.subscription_id);
 
+        if (renewalUpdateError) {
+          console.error("[dodo-webhook] Failed to update subscription on renewal:", renewalUpdateError);
+          await supabase.from("processed_webhook_events").delete().eq("event_key", renewedEventKey);
+          return res.status(500).json({ error: "DB error updating subscription" });
+        }
+
         // Reset monthly credits for the new billing period
         if (uid && plan) {
-          await supabase
+          const { error: creditResetError } = await supabase
             .from("credit_balance")
             .update({
               monthly_credits: plan.monthlyCredits,
               monthly_reset_date: renewalDate,
             })
             .eq("user_id", uid);
+
+          if (creditResetError) {
+            console.error("[dodo-webhook] Failed to reset credits on renewal:", creditResetError);
+            await supabase.from("processed_webhook_events").delete().eq("event_key", renewedEventKey);
+            return res.status(500).json({ error: "DB error resetting credits" });
+          }
         }
 
         console.log("[dodo-webhook] Renewed subscription", sub.subscription_id);
@@ -404,6 +456,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           if (downgradeError) {
             console.error("[dodo-webhook] Failed to downgrade to nomad:", downgradeError);
+            await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
             return res.status(500).json({ error: "DB error downgrading tier" });
           }
 
@@ -416,6 +469,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           if (creditError) {
             console.error("[dodo-webhook] Failed to grant grace credits:", creditError);
+            await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
             return res.status(500).json({ error: "DB error granting credits" });
           }
 
