@@ -62,7 +62,7 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 - `mapStyle`: Always defaults to `'standard'` on app load; resets when loading a project.
 - `labelVisibility`: Label group toggle state; resets to empty object on project load.
 - `playheadTime`, `isPlaying`, `isScrubbing`: Playback position and state.
-- `isInspectorOpen`, `timelineHeight`: Inspector & timeline UI state.
+- `isInspectorOpen`, `timelineHeight`: Inspector & timeline UI state. Inspector starts **closed by default** on app load for a clean map-focused view; auto-opens when selecting items or loading projects.
 - `detectedCapabilities`: Runtime-detected label groups for the current style.
 - **Feature Toggles**: `terrainEnabled`, `buildingsEnabled`, `show3dLandmarks`, `show3dTrees`, `show3dFacades` — Reset to defaults on project load.
 - **Selection State**: `selectedItemId`, `selectedKeyframeId` — Reset to null on project load.

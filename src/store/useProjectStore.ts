@@ -174,7 +174,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   playheadTime: 0,
   isPlaying: false,
   isScrubbing: false,
-  isInspectorOpen: true,
+  isInspectorOpen: false,
   timelineHeight: 256,
   terrainLoading: false,
   buildingsLoading: false,
