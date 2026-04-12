@@ -81,23 +81,7 @@ async function handleSubscriptionActive(
   }
 
   const renewalDate = toDateString(sub.next_billing_date);
-
-  // Idempotency guard — prevents a Dodo replay from refilling credits
-  // a second time if the user already spent some between the original
-  // event and the retry.
   const eventKey = `subscription.active:${sub.subscription_id}`;
-  const { error: idempotencyError } = await supabase
-    .from("processed_webhook_events")
-    .insert({ event_key: eventKey });
-
-  if (idempotencyError) {
-    if (idempotencyError.code === "23505") {
-      console.log("[dodo-webhook] subscription.active: duplicate event, skipping", sub.subscription_id);
-      return;
-    }
-    console.error("[dodo-webhook] Failed to record activation idempotency key:", idempotencyError);
-    throw new Error("DB error recording event");
-  }
 
   // Upsert subscription row
   const { error: subError } = await supabase
@@ -117,7 +101,6 @@ async function handleSubscriptionActive(
 
   if (subError) {
     console.error("[dodo-webhook] Failed to upsert subscription:", subError);
-    await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
     throw new Error("DB error writing subscription");
   }
 
@@ -149,8 +132,22 @@ async function handleSubscriptionActive(
 
   if (creditError) {
     console.error("[dodo-webhook] Failed to update credit_balance:", creditError);
-    await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
     throw new Error("DB error writing credits");
+  }
+
+  // Idempotency key written LAST — after all work is complete. This ensures a crash
+  // or timeout between the key insert and credit provisioning cannot leave the user
+  // with an active subscription but no credits. All operations above are SET-based
+  // (idempotent), so a Dodo retry before the key is recorded safely re-runs them.
+  const { error: idempotencyError } = await supabase
+    .from("processed_webhook_events")
+    .insert({ event_key: eventKey });
+
+  if (idempotencyError && idempotencyError.code !== "23505") {
+    // Non-conflict error — throw so Dodo retries and the key gets recorded.
+    // The idempotent operations above are safe to re-run.
+    console.error("[dodo-webhook] Failed to record activation idempotency key:", idempotencyError);
+    throw new Error("DB error recording event");
   }
 
   console.log("[dodo-webhook] Provisioned subscription for user", uid, "→", plan.tier);
@@ -252,22 +249,9 @@ async function handleSubscriptionRenewed(
   plans: Plans
 ): Promise<void> {
   const renewalDate = toDateString(sub.next_billing_date);
-
-  // Idempotency key is scoped to the billing period so the legitimate credit
-  // reset on the NEXT cycle is never blocked.
+  // Key scoped to the billing period so the legitimate credit reset on the NEXT
+  // cycle is never blocked by a key from the previous period.
   const eventKey = `subscription.renewed:${sub.subscription_id}:${renewalDate}`;
-  const { error: idempotencyError } = await supabase
-    .from("processed_webhook_events")
-    .insert({ event_key: eventKey });
-
-  if (idempotencyError) {
-    if (idempotencyError.code === "23505") {
-      console.log("[dodo-webhook] subscription.renewed: duplicate event, skipping", sub.subscription_id);
-      return;
-    }
-    console.error("[dodo-webhook] Failed to record renewal idempotency key:", idempotencyError);
-    throw new Error("DB error recording event");
-  }
 
   const { error: renewalUpdateError } = await supabase
     .from("subscriptions")
@@ -276,7 +260,6 @@ async function handleSubscriptionRenewed(
 
   if (renewalUpdateError) {
     console.error("[dodo-webhook] Failed to update subscription on renewal:", renewalUpdateError);
-    await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
     throw new Error("DB error updating subscription");
   }
 
@@ -291,9 +274,18 @@ async function handleSubscriptionRenewed(
 
     if (creditResetError) {
       console.error("[dodo-webhook] Failed to reset credits on renewal:", creditResetError);
-      await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
       throw new Error("DB error resetting credits");
     }
+  }
+
+  // Idempotency key written LAST — same rationale as subscription.active.
+  const { error: idempotencyError } = await supabase
+    .from("processed_webhook_events")
+    .insert({ event_key: eventKey });
+
+  if (idempotencyError && idempotencyError.code !== "23505") {
+    console.error("[dodo-webhook] Failed to record renewal idempotency key:", idempotencyError);
+    throw new Error("DB error recording event");
   }
 
   console.log("[dodo-webhook] Renewed subscription", sub.subscription_id);
@@ -346,21 +338,8 @@ async function handleSubscriptionExpired(
   //   • Grant 10 non-expiring purchased credits as a grace allowance
   //     (Nomad can cloud-save as long as purchased_credits > 0)
   const eventKey = `subscription.expired:${sub.subscription_id}`;
-  const { error: idempotencyError } = await supabase
-    .from("processed_webhook_events")
-    .insert({ event_key: eventKey });
 
-  if (idempotencyError) {
-    if (idempotencyError.code === "23505") {
-      console.log("[dodo-webhook] subscription.expired: duplicate event, skipping", sub.subscription_id);
-      return;
-    }
-    console.error("[dodo-webhook] Failed to record expiry idempotency key:", idempotencyError);
-    throw new Error("DB error recording event");
-  }
-
-  // Downgrade to Nomad — set status active so useSubscription() still
-  // returns a row and canCloudSave() can gate on purchased_credits > 0
+  // Downgrade first — SET operation, idempotent, safe to retry without a key.
   const { error: downgradeError } = await supabase
     .from("subscriptions")
     .update({
@@ -375,8 +354,23 @@ async function handleSubscriptionExpired(
 
   if (downgradeError) {
     console.error("[dodo-webhook] Failed to downgrade to nomad:", downgradeError);
-    await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
     throw new Error("DB error downgrading tier");
+  }
+
+  // Idempotency key inserted AFTER the downgrade but BEFORE the credit grant.
+  // The downgrade above is idempotent so a crash before this point is safe to retry.
+  // The credit grant below is a non-idempotent INCREMENT, so it must be guarded.
+  const { error: idempotencyError } = await supabase
+    .from("processed_webhook_events")
+    .insert({ event_key: eventKey });
+
+  if (idempotencyError) {
+    if (idempotencyError.code === "23505") {
+      console.log("[dodo-webhook] subscription.expired: duplicate event, skipping", sub.subscription_id);
+      return;
+    }
+    console.error("[dodo-webhook] Failed to record expiry idempotency key:", idempotencyError);
+    throw new Error("DB error recording event");
   }
 
   // Grant 10 non-expiring credits atomically — same RPC used by the topup
@@ -388,7 +382,6 @@ async function handleSubscriptionExpired(
 
   if (creditError) {
     console.error("[dodo-webhook] Failed to grant grace credits:", creditError);
-    await supabase.from("processed_webhook_events").delete().eq("event_key", eventKey);
     throw new Error("DB error granting credits");
   }
 
