@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Project } from '@/store/types';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export interface CloudProjectInfo {
   id: string;
@@ -14,11 +15,15 @@ export interface CloudProjectInfo {
  * RLS ensures the user can only write their own rows.
  */
 export async function saveProjectToCloud(project: Project): Promise<void> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
   const { error } = await supabase
     .from('cloud_projects')
     .upsert(
       {
         id: project.id,
+        user_id: userId,
         name: project.name,
         data: project as unknown as Record<string, unknown>,
         updated_at: new Date().toISOString(),
