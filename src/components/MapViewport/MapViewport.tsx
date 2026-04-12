@@ -571,6 +571,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
 // ---------------------------------------------------------------------------
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
+const EXIT_DURATION = 0.5; // seconds for exit animation after endTime
 
 function RouteLayerGroup({
   route,
@@ -663,7 +664,15 @@ function RouteLayerGroup({
 
       const isFlight = r.calculation?.mode === 'flight';
       const progress = getNormalizedProgress(state.playheadTime, r.startTime, r.endTime, r.easing);
-      const animCoords = getAnimatedLine(c, progress);
+
+      // Exit animation: retract line from tip back toward start
+      let drawProgress = progress;
+      if (r.exitAnimation && state.playheadTime > r.endTime) {
+        const exitT = Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1);
+        drawProgress = 1 - exitT;
+      }
+
+      const animCoords = getAnimatedLine(c, drawProgress);
 
       // Build the feature collection — EMPTY_FC when progress=0 (route not yet started).
       // Always call setData so the source is kept in sync; opacity/data together control visibility.
@@ -855,8 +864,21 @@ function BoundaryLayerGroup({
 
       const progress = getNormalizedProgress(state.playheadTime, b.startTime, b.endTime, b.easing);
 
+      // Exit animation: reverse the entrance after endTime
+      const isExiting = b.exitAnimation === true && state.playheadTime > b.endTime;
+      const exitT = isExiting ? Math.min((state.playheadTime - b.endTime) / EXIT_DURATION, 1) : 0;
+      const reverseP = 1 - exitT; // mirrors progress: 1 at exit start, 0 when fully gone
+
       // --- Fill ---
-      const fillProgress = animStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
+      let fillProgress: number;
+      if (isExiting) {
+        // 'draw': fill disappears first (first 30% of exit), mirroring how it appears last
+        fillProgress = animStyle === 'draw'
+          ? Math.max(0, (reverseP - 0.7) / 0.3)
+          : reverseP;
+      } else {
+        fillProgress = animStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
+      }
       const fillOpacity = style.fillOpacity * fillProgress;
       const fillFC: GeoJSON.FeatureCollection = {
         type: 'FeatureCollection',
@@ -871,35 +893,65 @@ function BoundaryLayerGroup({
 
       // --- Stroke ---
       let strokeFC: GeoJSON.FeatureCollection;
-      if (!isAnimating || animStyle === 'fade') {
-        strokeFC = fillFC;
-      } else {
-        const rings = extractLineStringsFromGeometry(b.geojson!);
-        const animatedRings: number[][][] = [];
-        for (const ring of rings) {
-          let segment: number[][];
-          if (animStyle === 'draw') {
-            segment = getLineSegment(ring, 0, progress);
-          } else {
-            const start = progress * (1 + traceLen) - traceLen;
-            const end = progress * (1 + traceLen);
-            segment = getLineSegment(ring, start, end);
-          }
-          if (segment.length >= 2) animatedRings.push(segment);
-        }
-        strokeFC = {
-          type: 'FeatureCollection',
-          features: [{
-            type: 'Feature',
-            properties: {},
-            geometry: { type: 'MultiLineString', coordinates: animatedRings },
-          }],
-        };
-      }
+      let strokeOpacity: number;
 
-      const strokeOpacity = animStyle === 'fade'
-        ? Math.min(progress * 2, 1)
-        : (progress > 0 ? 1 : 0);
+      if (isExiting) {
+        if (!isAnimating || animStyle === 'fade') {
+          // No stroke animation or fade — just reverse the opacity fade
+          strokeFC = fillFC;
+          strokeOpacity = Math.min(reverseP * 2, 1);
+        } else if (animStyle === 'draw') {
+          // Retract stroke from end back toward start (exact reverse of draw entry)
+          const rings = extractLineStringsFromGeometry(b.geojson!);
+          const animatedRings: number[][][] = [];
+          for (const ring of rings) {
+            const segment = getLineSegment(ring, 0, reverseP);
+            if (segment.length >= 2) animatedRings.push(segment);
+          }
+          strokeFC = {
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'MultiLineString', coordinates: animatedRings },
+            }],
+          };
+          strokeOpacity = reverseP > 0 ? 1 : 0;
+        } else {
+          // trace — comet exit is ambiguous, just fade out
+          strokeFC = fillFC;
+          strokeOpacity = reverseP;
+        }
+      } else {
+        if (!isAnimating || animStyle === 'fade') {
+          strokeFC = fillFC;
+        } else {
+          const rings = extractLineStringsFromGeometry(b.geojson!);
+          const animatedRings: number[][][] = [];
+          for (const ring of rings) {
+            let segment: number[][];
+            if (animStyle === 'draw') {
+              segment = getLineSegment(ring, 0, progress);
+            } else {
+              const start = progress * (1 + traceLen) - traceLen;
+              const end = progress * (1 + traceLen);
+              segment = getLineSegment(ring, start, end);
+            }
+            if (segment.length >= 2) animatedRings.push(segment);
+          }
+          strokeFC = {
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'MultiLineString', coordinates: animatedRings },
+            }],
+          };
+        }
+        strokeOpacity = animStyle === 'fade'
+          ? Math.min(progress * 2, 1)
+          : (progress > 0 ? 1 : 0);
+      }
 
       try {
         m.setPaintProperty(strokeLayerId, 'line-color', style.strokeColor);

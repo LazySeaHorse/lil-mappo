@@ -114,6 +114,12 @@ Handles all imperative Mapbox state and reactive layer rendering.
 - **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config.
 - **Imperative Layer Groups**: `RouteLayerGroup` and `BoundaryLayerGroup` manage Mapbox sources and layers directly. They self-subscribe to the store for playhead updates, allowing 60fps geometry animation without React re-renders.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
+- **Exit Animations**: Optional reverse animations for routes and boundaries after their `endTime`. When `exitAnimation: true`:
+  - **Routes**: Line retracts from the tip back toward the start over 0.5s (exact reverse of the draw animation).
+  - **Boundaries (fade style)**: Opacity fades out (reverses the fade-in entrance).
+  - **Boundaries (draw style)**: Fill fades out first (mirroring the "fill appears last" entry logic), then stroke retracts from the perimeter end.
+  - **Boundaries (trace style)**: Opacity fades out (the moving comet trace naturally ends at full perimeter).
+  - Controlled by `item.exitAnimation` flag in the store; toggle added to Inspector Timing sections for routes and boundaries.
 
 ### 3.4 The Inspector: `src/components/Inspector/`
 The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.

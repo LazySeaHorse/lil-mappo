@@ -24,6 +24,7 @@ export interface RouteItem {
     dashPattern: number[] | null;
   };
   easing: EasingName;
+  exitAnimation?: boolean;
   calculation?: {
     startPoint: [number, number];
     endPoint: [number, number];
@@ -57,6 +58,7 @@ export interface BoundaryItem {
     traceLength: number;
   };
   easing: EasingName;
+  exitAnimation?: boolean;
 }
 
 export interface CalloutItem {

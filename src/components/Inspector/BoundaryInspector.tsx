@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Accordion } from "@/components/ui/accordion";
 import { BoundarySearch } from './BoundarySearch';
 import { BoundaryStyleControls } from './BoundaryStyleControls';
-import { Field, InputNumber, EasingSelect } from './InspectorShared';
+import { Field, SwitchField, InputNumber, EasingSelect } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 
 export function BoundaryInspector({ item }: { item: BoundaryItem }) {
@@ -45,6 +45,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             <Field label="End (s)"><InputNumber value={item.endTime} onChange={(v) => u({ endTime: v })} min={0} step={0.1} /></Field>
           </div>
           <EasingSelect value={item.easing} onChange={(v) => u({ easing: v })} />
+          <SwitchField checked={item.exitAnimation ?? false} onChange={(v) => u({ exitAnimation: v })} label="Exit Animation" />
         </InspectorSection>
 
         <InspectorSection value="style" title="Style">
