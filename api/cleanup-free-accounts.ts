@@ -58,17 +58,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     page++;
   }
 
-  // ── Fetch all user IDs that have ANY subscription row ─────────────────────
-  const { data: subs, error: subsError } = await supabase
-    .from("subscriptions")
-    .select("user_id");
+  // ── Fetch all user IDs that have ANY subscription row (paginated) ──────────
+  // PostgREST caps single responses at db-max-rows (default 1000). Without
+  // pagination, any subscriber beyond that cap would be misidentified as a
+  // free user and permanently deleted.
+  const subscribedIds = new Set<string>();
+  let subsFrom = 0;
+  const subsPageSize = 1000;
 
-  if (subsError) {
-    console.error("[cleanup] Failed to fetch subscriptions:", subsError);
-    return res.status(500).json({ error: "Failed to fetch subscriptions" });
+  while (true) {
+    const { data: subsPage, error: subsError } = await supabase
+      .from("subscriptions")
+      .select("user_id")
+      .range(subsFrom, subsFrom + subsPageSize - 1);
+
+    if (subsError) {
+      console.error("[cleanup] Failed to fetch subscriptions:", subsError);
+      return res.status(500).json({ error: "Failed to fetch subscriptions" });
+    }
+
+    for (const s of subsPage ?? []) {
+      subscribedIds.add((s as { user_id: string }).user_id);
+    }
+
+    if ((subsPage ?? []).length < subsPageSize) break;
+    subsFrom += subsPageSize;
   }
-
-  const subscribedIds = new Set((subs ?? []).map((s: { user_id: string }) => s.user_id));
 
   // ── Filter: no subscription AND created > grace period ago ────────────────
   const cutoff = new Date(Date.now() - GRACE_PERIOD_HOURS * 60 * 60 * 1000);

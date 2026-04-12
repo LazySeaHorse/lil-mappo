@@ -665,6 +665,45 @@ The `dodo-create-session.ts` endpoint validated redirect URLs but had a fallback
 - Separated the misconfiguration warning: if `DODO_ENVIRONMENT === "live_mode"` without `APP_DOMAIN`, log a warning (only localhost redirects are allowed by default).
 - Local development remains unaffected — `isAllowedHost()` already allows localhost and any domain matching `APP_DOMAIN` if set.
 
+**Issue 14: Unlimited Credits via Public RPC (Critical)**
+
+The `increment_purchased_credits()` function (Migration 007) was created with `SECURITY DEFINER` but never revoked the default `PUBLIC` execute grant. In PostgreSQL, functions in the public schema are executable by `PUBLIC` (all users, including `anon` and `authenticated` roles) by default. This meant any browser client could call `supabase.rpc('increment_purchased_credits', { p_user_id: 'xxx', p_amount: 999999 })` to arbitrarily inflate any user's credit balance.
+
+While Migration 005 made `credit_balance` read-only for direct table access, the RPC bypasses RLS entirely (functions with `SECURITY DEFINER` run as the owner, not the caller).
+
+**Fix** (Migration 009):
+- Added `REVOKE EXECUTE` statements for `PUBLIC`, `anon`, and `authenticated` roles.
+- Only `service_role` (and postgres) can now execute the function. Server-side webhook handlers use the service_role key and are unaffected.
+
+**Issue 15: Catastrophic Data Loss in Cleanup Script (High)**
+
+The daily account cleanup cron job (`api/cleanup-free-accounts.ts`) properly paginates the `auth.users` fetch but made a **single unpaginated query** to `subscriptions.select("user_id")`. PostgREST defaults to a 1000-row maximum. If the app has more than 1000 subscribers:
+- The `subscribedIds` set is incomplete.
+- Any subscriber not returned in the first 1000 rows is falsely identified as a "free user".
+- Their account is **permanently deleted** if created >24 hours ago.
+
+This is a latent bug: currently harmless for a new app, but catastrophic once subscriber count exceeds 1000.
+
+**Fix** (api/cleanup-free-accounts.ts, lines 61–82):
+- Converted the subscriptions fetch to a paginated loop using `.range()` and `subsFrom`/`subsPageSize`.
+- Accumulates all subscriber IDs before filtering.
+- Mirrors the existing users pagination pattern for consistency.
+
+**Issue 16: Cloud Save Gate Bypass (High)**
+
+The RLS policy `own_cloud_projects` (Migration 003) only checked `auth.uid() = user_id` for all operations. No subscription or credit-balance validation. The `canCloudSave()` frontend gate checks subscription status and nomad-tier credits, but the **backend enforces nothing**.
+
+Result: Any authenticated user could call `supabase.from('cloud_projects').upsert(...)` from the browser console to bypass the subscription requirement entirely.
+
+**Fix** (Migration 010):
+- Split the `own_cloud_projects` `FOR ALL` policy into four targeted policies:
+  - **SELECT** and **DELETE**: Ownership only (unchanged). Users must access their data even after subscription lapses.
+  - **INSERT** and **UPDATE**: Ownership + subscription gate with a `WITH CHECK` subquery.
+- The gating logic mirrors `canCloudSave()` exactly:
+  - User must have a row in `subscriptions` with `status IN ('active', 'cancelling')`.
+  - If `tier = 'nomad'`, also requires `credit_balance.purchased_credits > 0`.
+  - All other combinations (no subscription, expired/cancelled, nomad with no credits) are denied.
+
 ---
 
 ## 8. Common Gotchas
