@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { SubscriptionTiers } from "./SubscriptionTiers";
 import { BYOK_STORAGE_KEY } from "@/config/mapbox";
-import { toast } from "sonner";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -316,6 +315,7 @@ function AccountSettingsModalBody() {
 
 import type { Subscription, CreditBalance } from "@/lib/database.types";
 import type { PlanSlug } from "@/services/checkout";
+import { useCancelSubscription } from "@/hooks/useCancelSubscription";
 
 function ManageView({
   subscription,
@@ -338,38 +338,18 @@ function ManageView({
   onRefetch: () => void;
   onUpgrade: (plan: PlanSlug) => void;
 }) {
-  const [cancelling, setCancelling] = useState(false);
-  const [confirmCancel, setConfirmCancel] = useState(false);
-  const [cancelled, setCancelled] = useState(
-    subscription?.status === "cancelled" || subscription?.status === "cancelling"
-  );
+  const { cancelling, confirmCancel, setConfirmCancel, justCancelled, handleCancel } =
+    useCancelSubscription({ accessToken, renewalDate, onSuccess: onRefetch });
+
+  // Covers both "was already cancelled/cancelling when modal opened" and
+  // "user just cancelled during this session" (optimistic update).
+  const isCancelled =
+    justCancelled ||
+    subscription?.status === "cancelled" ||
+    subscription?.status === "cancelling";
 
   const totalCredits =
     (credits?.monthly_credits ?? 0) + (credits?.purchased_credits ?? 0);
-
-  const handleCancel = async () => {
-    if (!accessToken) return;
-    setCancelling(true);
-    try {
-      const res = await fetch("/api/dodo-cancel-subscription", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Cancellation failed");
-      }
-      setCancelled(true);
-      setConfirmCancel(false);
-      onRefetch();
-      toast.success("Subscription cancelled. Access continues until " + (renewalDate ?? "the end of your billing period") + ".");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Could not cancel";
-      toast.error(message);
-    } finally {
-      setCancelling(false);
-    }
-  };
 
   const canUpgrade =
     subscription?.tier !== "pioneer";
@@ -405,14 +385,14 @@ function ManageView({
             </p>
             <span
               className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                cancelled || subscription?.status === "cancelled" || subscription?.status === "cancelling"
+                isCancelled
                   ? "bg-amber-500/10 text-amber-500"
                   : "bg-green-500/10 text-green-500"
               }`}
             >
               {subscription?.status === "cancelled"
                 ? "Cancelled"
-                : cancelled || subscription?.status === "cancelling"
+                : isCancelled
                 ? "Cancelling"
                 : "Active"}
             </span>
@@ -424,7 +404,7 @@ function ManageView({
 
           {subscription?.status === "cancelled" && renewalDate ? (
             <InfoRow label="Access until" value={renewalDate} />
-          ) : (cancelled || subscription?.status === "cancelling") && renewalDate ? (
+          ) : isCancelled && renewalDate ? (
             <InfoRow label="Cancels on" value={renewalDate} />
           ) : renewalDate ? (
             <InfoRow label="Renews" value={renewalDate} />
@@ -481,7 +461,7 @@ function ManageView({
         )}
 
         {/* ── Cancel section (only for active recurring subscriptions) ── */}
-        {hasRecurring && !cancelled && subscription?.status !== "cancelled" && (
+        {hasRecurring && !isCancelled && (
           <div>
             <SectionHeading
               icon={<AlertTriangle size={14} />}
@@ -554,7 +534,7 @@ function ManageView({
         )}
 
         {/* Cancelled confirmation */}
-        {(cancelled || subscription?.status === "cancelled") && renewalDate && (
+        {isCancelled && renewalDate && (
           <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-2.5">
             <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">

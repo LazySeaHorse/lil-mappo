@@ -304,7 +304,25 @@ All modals are non-modal, floating panels that integrate seamlessly with the Too
 - One-time topups decoupled from recurring subscriptions.
 - Flexible metadata allows future plan variants without code changes.
 
-### 6.1 Label System Overhaul (Dynamic Capabilities)
+**Webhook Handler Refactoring** (post-Phase 4):
+- **Problem**: `api/dodo-webhook.ts` mixed billing logic (grace credits, DB updates, idempotency) with routing logic inside a 100-line switch statement. Debugging credit-provisioning logic required scrolling past unrelated payment/renewal cases.
+- **Solution**: Extracted 5 discrete event handlers (`handleSubscriptionActive`, `handlePaymentSucceeded`, `handleSubscriptionRenewed`, `handleSubscriptionCancelled`, `handleSubscriptionExpired`), each responsible for one event type end-to-end. The switch statement is now a thin 10-line dispatcher.
+  - Handlers throw on DB errors (caught by outer `try/catch` → 500, Dodo retries).
+  - Handlers return early on "soft" failures (missing metadata, unknown product → 200, Dodo doesn't retry).
+  - Idempotency rollback logic stays with each handler.
+- **Benefit**: Clear entry points for each event type; easier to understand and debug subscription state transitions.
+
+### 6.1 Subscription Management Modal Refactoring
+
+**Problem**: `AccountSettingsModal.tsx`'s `ManageView` component (250 lines) mixed concerns: API call logic (`handleCancel` fetch), state management (3 local state vars for cancel flow), and UI rendering. Testing cancel flow required mocking the component; reusing cancel logic elsewhere required duplicating code.
+
+**Solution**: Extracted cancel flow into `useCancelSubscription` hook (`src/hooks/useCancelSubscription.ts`):
+- Hook owns: `cancelling`, `confirmCancel`, `justCancelled` state + `handleCancel` async function + cancel toast notifications.
+- Component calls hook and derives `isCancelled` (computed value covering both "already cancelled on load" and "just cancelled now").
+- Hook can be reused in future cancel-related UIs (e.g., bulk user management).
+- **Benefit**: Clear separation of concerns; cancel flow is now independently testable and reusable.
+
+### 6.2 Label System Overhaul (Dynamic Capabilities)
 **Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles. Standard style also had incorrect Config API property names (`showRoads` → should be `showRoadLabels`, `showPlaces` → should be `showPlaceLabels`) and was missing the `showAdminBoundaries` control, causing country names and borders to remain visible when all toggles were off.
 
 **Solution**: Runtime detection of available labels with accurate Config API mappings.
@@ -327,7 +345,7 @@ Removed from `Project` type (non-persisted); now transient-only in store:
 
 Benefit: Save files now contain only essential animation data. UI state is always fresh on load.
 
-### 6.2 Complexity Reduction
+### 6.3 Complexity Reduction
 Several high-complexity functions have been decomposed into smaller, focused helpers:
 
 **lineAnimation.ts**
@@ -367,10 +385,10 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - Camera Keyframe: `Crosshair` → `Video` (represents video frames)
 - Export: `Video` → `Clapperboard` (more distinct for cinematic final output)
 
-### 6.3 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
+### 6.4 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
 Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
 
-### 6.3 High-Performance Imperative Sync (Zero-Re-render Architecture)
+### 6.5 High-Performance Imperative Sync (Zero-Re-render Architecture)
 **Goal**: Achieve fluid 60fps animations for map layers and UI elements by bypassing React's reconciler during playback and scrubbing.
 
 **Core Implementation:**
@@ -380,7 +398,7 @@ Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
 4. **Self-Subscribing Components**: `CalloutMarker` and `VehicleAnimatedLayer` subscribe to only the specific state they need (like `playheadTime`), localizing re-renders to the smallest possible sub-trees.
 5. **Fast Keyboard Stepping**: Keyboard shortcuts read state imperatively via `useProjectStore.getState()` to avoid dependency-array re-render cascades.
 
-### 6.4 Account UX & Payment Tier Restructuring
+### 6.6 Account UX & Payment Tier Restructuring
 **Problem**: The original auth and payment system had gatekeeping issues (free tier blocking credit purchases, no subscription management UI), limited auth options, and a weak tier structure. New design opens payments to all users and adds granular account controls.
 
 **Tier Restructuring:**
@@ -427,7 +445,7 @@ No free tier exists. Account creation is now tied to payment flow — unauthenti
 - Deletes `auth.users` with no subscription row and `created_at > 24h ago`.
 - Grace period is configurable (single const at top of file).
 
-### 6.5 Cloud Saves & Bi-Directional Sync
+### 6.7 Cloud Saves & Bi-Directional Sync
 
 **Problem**: Users want cloud backup of projects across devices, but only paid subscribers should access this feature. Ex-subscribers (whose paid plan expires) should retain limited cloud access as a grace mechanic.
 
