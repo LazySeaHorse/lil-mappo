@@ -326,13 +326,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // ── Subscription expired (end of billing period, not renewed) ─────────
+      // For paid-tier subscribers (wanderer / cartographer / pioneer):
+      //   • Downgrade to Nomad (status: active, no dodo_subscription_id)
+      //   • Grant 10 non-expiring purchased credits as a grace allowance
+      //     (Nomad can cloud-save as long as purchased_credits > 0)
+      // Nomad-only users (credit-pack buyers) are not touched — their subscription
+      // row has no dodo_subscription_id so they won't match this event.
       case "subscription.expired": {
         const sub = event.data;
-        await supabase
+
+        // Look up the existing row to check the tier before we mutate anything
+        const { data: expiringSub } = await supabase
           .from("subscriptions")
-          .update({ status: "expired" })
-          .eq("dodo_subscription_id", sub.subscription_id);
-        console.log("[dodo-webhook] Expired subscription", sub.subscription_id);
+          .select("user_id, tier")
+          .eq("dodo_subscription_id", sub.subscription_id)
+          .maybeSingle();
+
+        if (!expiringSub) {
+          console.warn(
+            "[dodo-webhook] subscription.expired: no matching row for",
+            sub.subscription_id
+          );
+          break;
+        }
+
+        const isPaidTier =
+          expiringSub.tier === "wanderer" ||
+          expiringSub.tier === "cartographer" ||
+          expiringSub.tier === "pioneer";
+
+        if (isPaidTier) {
+          // Downgrade to Nomad — set status active so useSubscription() still
+          // returns a row and canCloudSave() can gate on purchased_credits > 0
+          const { error: downgradeError } = await supabase
+            .from("subscriptions")
+            .update({
+              tier: "nomad",
+              status: "active",
+              monthly_credits: 0,
+              parallel_renders: 1,
+              renewal_date: null,
+              dodo_subscription_id: null,
+            })
+            .eq("user_id", expiringSub.user_id);
+
+          if (downgradeError) {
+            console.error("[dodo-webhook] Failed to downgrade to nomad:", downgradeError);
+            return res.status(500).json({ error: "DB error downgrading tier" });
+          }
+
+          // Grant 10 non-expiring credits (add, not set — user may already have some)
+          const { data: existingBalance } = await supabase
+            .from("credit_balance")
+            .select("purchased_credits")
+            .eq("user_id", expiringSub.user_id)
+            .maybeSingle();
+
+          const currentPurchased = existingBalance?.purchased_credits ?? 0;
+
+          const { error: creditError } = await supabase
+            .from("credit_balance")
+            .update({ purchased_credits: currentPurchased + 10 })
+            .eq("user_id", expiringSub.user_id);
+
+          if (creditError) {
+            console.error("[dodo-webhook] Failed to grant grace credits:", creditError);
+            return res.status(500).json({ error: "DB error granting credits" });
+          }
+
+          console.log(
+            "[dodo-webhook] Expired",
+            expiringSub.tier,
+            "→ nomad + 10 grace credits for user",
+            expiringSub.user_id
+          );
+        } else {
+          // Already nomad or unknown — just mark expired and leave as-is
+          await supabase
+            .from("subscriptions")
+            .update({ status: "expired" })
+            .eq("dodo_subscription_id", sub.subscription_id);
+          console.log("[dodo-webhook] Expired subscription", sub.subscription_id);
+        }
+
         break;
       }
 

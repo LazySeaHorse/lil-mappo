@@ -11,6 +11,12 @@ import { MapRefContext } from "@/hooks/useMapRef";
 import FontLoader from "@/components/FontLoader";
 import { useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useCredits } from "@/hooks/useCredits";
+import { canCloudSave } from "@/lib/cloudAccess";
+import { syncProjects } from "@/services/cloudSync";
+import { toast } from "sonner";
 import { Eye, Play, Pause } from "lucide-react";
 import { useResponsive } from "@/hooks/useResponsive";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -103,6 +109,30 @@ export default function MapStudioEditor() {
   const [showLibrary, setShowLibrary] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   usePlayback(mapRef);
+
+  // ── Initial cloud sync on sign-in ──────────────────────────────────────────
+  const user = useAuthStore((s) => s.user);
+  const { data: subscription } = useSubscription();
+  const { data: credits } = useCredits();
+  // Track whether we've synced for this user session to avoid repeat syncs
+  const syncedUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    // Only sync once per user session (not on every subscription/credits reload)
+    if (syncedUserId.current === user.id) return;
+    syncedUserId.current = user.id;
+
+    const cloudEnabled = canCloudSave(subscription, credits);
+    syncProjects(cloudEnabled).then((result) => {
+      if (result.offline) {
+        toast.error("Couldn't sync — you're offline");
+      }
+    }).catch(() => {
+      // Sync errors are non-fatal on startup
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const hideUI = useProjectStore((s) => s.hideUI);

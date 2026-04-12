@@ -4,7 +4,11 @@ import { nanoid } from 'nanoid';
 import { importRouteFile } from '@/services/fileImport';
 import type { RouteItem } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
-import { saveProjectToLibrary } from '@/services/projectLibrary';
+import { saveProjectToLibrary, updateCloudSyncMeta } from '@/services/projectLibrary';
+import { saveProjectToCloud } from '@/services/cloudProjectLibrary';
+import { canCloudSave } from '@/lib/cloudAccess';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useCredits } from '@/hooks/useCredits';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 
@@ -15,6 +19,9 @@ export function useToolbarActions() {
     playheadTime, addItem, addCameraKeyframe, selectItem,
     setTerrainEnabled, setBuildingsEnabled,
   } = projectState;
+
+  const { data: subscription } = useSubscription();
+  const { data: credits } = useCredits();
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -84,12 +91,30 @@ export function useToolbarActions() {
   };
 
   const handleSaveToLibrary = async () => {
+    const plainData = JSON.parse(JSON.stringify(projectState));
+    const cloudEnabled = canCloudSave(subscription, credits);
+
     try {
-      const plainData = JSON.parse(JSON.stringify(projectState));
-      await saveProjectToLibrary(plainData);
-      toast.success('Saved to library');
+      if (cloudEnabled) {
+        // 1. Save locally first with pendingSync = true (cleared on cloud success)
+        await saveProjectToLibrary(plainData, { pendingSync: true });
+
+        // 2. Attempt cloud push
+        try {
+          await saveProjectToCloud(plainData);
+          const now = Date.now();
+          await updateCloudSyncMeta(plainData.id, { cloudSyncedAt: now, pendingSync: false });
+          toast.success('Saved');
+        } catch {
+          // Network or cloud error — local copy is safe, sync pending
+          toast.success("Saved locally — you're offline");
+        }
+      } else {
+        await saveProjectToLibrary(plainData);
+        toast.success('Saved to library');
+      }
     } catch {
-      toast.error('Failed to save to library');
+      toast.error('Failed to save');
     }
   };
 

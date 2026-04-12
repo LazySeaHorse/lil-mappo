@@ -42,6 +42,15 @@ export interface RenderJob {
   error_message: string | null;
 }
 
+export interface CloudProject {
+  id: string;
+  user_id: string;
+  name: string;
+  data: Record<string, unknown>;
+  updated_at: string;
+  created_at: string;
+}
+
 export const TIER_LABELS: Record<SubscriptionTier, string> = {
   wanderer: "Wanderer",
   nomad: "Nomad",

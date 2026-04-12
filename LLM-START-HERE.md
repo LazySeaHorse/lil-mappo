@@ -427,6 +427,67 @@ No free tier exists. Account creation is now tied to payment flow — unauthenti
 - Deletes `auth.users` with no subscription row and `created_at > 24h ago`.
 - Grace period is configurable (single const at top of file).
 
+### 6.5 Cloud Saves & Bi-Directional Sync
+
+**Problem**: Users want cloud backup of projects across devices, but only paid subscribers should access this feature. Ex-subscribers (whose paid plan expires) should retain limited cloud access as a grace mechanic.
+
+**Solution**: A Supabase-backed cloud library with tier-based access control and offline-tolerant sync.
+
+**Architecture**:
+
+1. **Supabase Table** (`cloud_projects`):
+   - `id` (UUID, same as local `project.id`)
+   - `user_id`, `name`, `data` (JSONB project), `updated_at`, `created_at`
+   - RLS: users can only CRUD their own rows
+
+2. **Access Rules** (`src/lib/cloudAccess.ts`):
+   - Wanderer / Cartographer / Pioneer (active subscription): unlimited cloud saves
+   - Nomad (credit-pack buyers AND ex-subscribers with grace credits): cloud saves while `purchased_credits > 0`
+   - Credits are a gate only — saving does NOT deduct credits (renders do)
+   - Expired/cancelled subscriptions: webhook downgrades tier to `nomad`, sets status to `active`, grants 10 non-expiring `purchased_credits`
+
+3. **Local Library Extensions** (`src/services/projectLibrary.ts`):
+   - Added `cloudSyncedAt` (Unix ms of last successful cloud push, or null if never synced)
+   - Added `pendingSync` (true when local changes haven't been pushed)
+   - New function `updateCloudSyncMeta()` for patching sync fields only
+
+4. **Sync Engine** (`src/services/cloudSync.ts`):
+   - **Download**: Cloud → Local when cloud's `updated_at > local.cloudSyncedAt` (or cloud-only projects)
+   - **Upload**: Local → Cloud when `pendingSync === true` or `updatedAt > cloudSyncedAt` (only if `canCloudSave()`)
+   - **Conflict**: Newer timestamp always wins
+   - **Network errors**: Returns `offline: true` — caller shows toast and leaves pending flags
+
+5. **Save Flow** (`src/components/Toolbar/useToolbarActions.ts`):
+   - Always save locally first (preserving existing `cloudSyncedAt`)
+   - If `canCloudSave()`:
+     - Try cloud push
+     - On success: update `cloudSyncedAt = now`, clear `pendingSync`
+     - On fail (any error): toast "Saved locally — you're offline", leave `pendingSync = true`
+   - If not `canCloudSave()`: save locally only, no cloud intent
+
+6. **Sync Triggers**:
+   - On app open (once per user session, via `MapStudioEditor.tsx`)
+   - On save button click
+   - On refresh button in "My Projects" modal (`ProjectLibraryModal.tsx`)
+
+7. **Modal UI** (`src/components/ProjectLibrary/ProjectLibraryModal.tsx`):
+   - Merged list: local projects + cloud-only projects (never synced locally)
+   - Cloud icon ☁️: project has ever been synced
+   - CloudUpload icon ⬆️: pending-sync (amber)
+   - Refresh button: syncs cloud + local, downloads new cloud projects
+   - **Loading cloud-only with NO cloud access**: fork with new UUID (prevents mutating a read-only cloud copy)
+   - Delete: removes from both local + cloud (if cloud-backed and access available)
+
+8. **Webhook Behavior** (`api/dodo-webhook.ts`, `subscription.expired` case):
+   - For expired wanderer/cartographer/pioneer: downgrade to nomad, add 10 purchased_credits
+   - Nomad-only users not touched (they have no `dodo_subscription_id`)
+
+**Key Design Decisions**:
+- CloudSyncedAt tracks "last successful push" (not cloud's actual timestamp) to detect local changes
+- Nomad grace credits (10, non-expiring) create a soft landing for expired users
+- Conflict resolution favors newer timestamp (simple, predictable, no data loss)
+- Offline errors are non-fatal (sync retried on next open/save/refresh)
+
 ---
 
 ## 7. Critical Implementation Details
