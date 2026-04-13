@@ -33,6 +33,12 @@ export function BoundaryLayerGroup({
 
   const updateFnRef = useRef<(state: ReturnType<typeof useProjectStore.getState>) => void>(() => {});
 
+  // Paint property cache: avoids calling setPaintProperty with unchanged values at 60 fps.
+  const lastPaintRef = useRef({ fillColor: '', strokeColor: '', strokeWidth: -1 });
+
+  // Geometry cache: fill and static-stroke geometry only need setData when b.geojson changes.
+  const lastGeojsonRef = useRef<GeoJSON.Geometry | null>(null);
+
   useEffect(() => {
     if (!styleLoaded) return;
     if (!boundary.geojson || boundary.resolveStatus !== 'resolved') return;
@@ -44,7 +50,10 @@ export function BoundaryLayerGroup({
     const strokeSourceId = `boundary-stroke-${boundary.id}`;
     const strokeLayerId = `boundary-stroke-layer-${boundary.id}`;
 
-    // Add fill source + layer
+    // Reset caches when layers are recreated (style reload or resolve status change)
+    lastPaintRef.current = { fillColor: '', strokeColor: '', strokeWidth: -1 };
+    lastGeojsonRef.current = null;
+
     if (!map.getSource(fillSourceId)) {
       map.addSource(fillSourceId, { type: 'geojson', data: EMPTY_FC });
     }
@@ -61,7 +70,6 @@ export function BoundaryLayerGroup({
       });
     }
 
-    // Add stroke source + layer
     if (!map.getSource(strokeSourceId)) {
       map.addSource(strokeSourceId, { type: 'geojson', data: EMPTY_FC });
     }
@@ -99,10 +107,24 @@ export function BoundaryLayerGroup({
 
       const progress = getNormalizedProgress(state.playheadTime, b.startTime, b.endTime, b.easing);
 
-      // Exit animation: reverse the entrance after endTime
       const isExiting = b.exitAnimation === true && state.playheadTime > b.endTime;
       const exitT = isExiting ? Math.min((state.playheadTime - b.endTime) / EXIT_DURATION, 1) : 0;
       const reverseP = 1 - exitT;
+
+      // --- Static paint properties: only update when values change ---
+      const lp = lastPaintRef.current;
+      if (lp.fillColor !== style.fillColor) {
+        try { m.setPaintProperty(fillLayerId, 'fill-color', style.fillColor); } catch (_) {}
+        lp.fillColor = style.fillColor;
+      }
+      if (lp.strokeColor !== style.strokeColor) {
+        try { m.setPaintProperty(strokeLayerId, 'line-color', style.strokeColor); } catch (_) {}
+        lp.strokeColor = style.strokeColor;
+      }
+      if (lp.strokeWidth !== style.strokeWidth) {
+        try { m.setPaintProperty(strokeLayerId, 'line-width', style.strokeWidth); } catch (_) {}
+        lp.strokeWidth = style.strokeWidth;
+      }
 
       // --- Fill ---
       let fillProgress: number;
@@ -114,20 +136,31 @@ export function BoundaryLayerGroup({
         fillProgress = animStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
       }
       const fillOpacity = style.fillOpacity * fillProgress;
+
+      // Fill geometry is always the full polygon — only upload when b.geojson reference changes
+      const geojsonChanged = lastGeojsonRef.current !== b.geojson;
+      if (geojsonChanged) {
+        lastGeojsonRef.current = b.geojson;
+        const fillFC: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', properties: {}, geometry: b.geojson }],
+        };
+        fillSource.setData(fillFC);
+      }
+      // Opacity always changes during animation
+      try { m.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity); } catch (_) {}
+
+      // --- Stroke ---
       const fillFC: GeoJSON.FeatureCollection = {
         type: 'FeatureCollection',
         features: [{ type: 'Feature', properties: {}, geometry: b.geojson }],
       };
 
-      try {
-        m.setPaintProperty(fillLayerId, 'fill-color', style.fillColor);
-        m.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity);
-      } catch (_) {}
-      fillSource.setData(fillFC);
-
-      // --- Stroke ---
       let strokeFC: GeoJSON.FeatureCollection;
       let strokeOpacity: number;
+
+      // Whether stroke geometry is static (same polygon every frame) or animated per-frame
+      const isStrokeGeometryStatic = !isAnimating || animStyle === 'fade';
 
       if (isExiting) {
         if (!isAnimating || animStyle === 'fade') {
@@ -184,12 +217,11 @@ export function BoundaryLayerGroup({
           : (progress > 0 ? 1 : 0);
       }
 
-      try {
-        m.setPaintProperty(strokeLayerId, 'line-color', style.strokeColor);
-        m.setPaintProperty(strokeLayerId, 'line-width', style.strokeWidth);
-        m.setPaintProperty(strokeLayerId, 'line-opacity', strokeOpacity);
-      } catch (_) {}
-      strokeSource.setData(strokeFC);
+      // Skip setData for static stroke geometry unless b.geojson itself changed
+      if (!isStrokeGeometryStatic || geojsonChanged) {
+        strokeSource.setData(strokeFC);
+      }
+      try { m.setPaintProperty(strokeLayerId, 'line-opacity', strokeOpacity); } catch (_) {}
     };
 
     const unsub = useProjectStore.subscribe((state) => {
@@ -197,7 +229,7 @@ export function BoundaryLayerGroup({
       lastTimeRef.current = state.playheadTime;
       updateBoundary(state);
     });
-    
+
     updateFnRef.current = updateBoundary;
     updateBoundary(useProjectStore.getState());
 

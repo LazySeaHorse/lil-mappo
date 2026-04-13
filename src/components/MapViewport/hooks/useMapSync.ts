@@ -115,10 +115,21 @@ export function useMapSync(
           map.setConfigProperty('basemap', 'lightPreset', s.lightPreset);
         }
         
-        map.setConfigProperty('basemap', 'show3dObjects', buildingsOn);
-        map.setConfigProperty('basemap', 'show3dLandmarks', buildingsOn && s.show3dLandmarks);
-        map.setConfigProperty('basemap', 'show3dTrees', buildingsOn && s.show3dTrees);
-        map.setConfigProperty('basemap', 'show3dFacades', buildingsOn && s.show3dFacades);
+        if (map.getConfigProperty('basemap', 'show3dObjects') !== buildingsOn) {
+          map.setConfigProperty('basemap', 'show3dObjects', buildingsOn);
+        }
+        const target3dLandmarks = buildingsOn && s.show3dLandmarks;
+        if (map.getConfigProperty('basemap', 'show3dLandmarks') !== target3dLandmarks) {
+          map.setConfigProperty('basemap', 'show3dLandmarks', target3dLandmarks);
+        }
+        const target3dTrees = buildingsOn && s.show3dTrees;
+        if (map.getConfigProperty('basemap', 'show3dTrees') !== target3dTrees) {
+          map.setConfigProperty('basemap', 'show3dTrees', target3dTrees);
+        }
+        const target3dFacades = buildingsOn && s.show3dFacades;
+        if (map.getConfigProperty('basemap', 'show3dFacades') !== target3dFacades) {
+          map.setConfigProperty('basemap', 'show3dFacades', target3dFacades);
+        }
       } else if (map.getLayer('3d-buildings')) {
         const vis = buildingsOn ? 'visible' : 'none';
         if (map.getLayoutProperty('3d-buildings', 'visibility') !== vis) {

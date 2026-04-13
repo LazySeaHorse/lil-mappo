@@ -5,6 +5,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 import { getNormalizedProgress } from '@/engine/easings';
 import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
+import { calculateBearing, calculatePitch } from '@/engine/geoUtils';
 import { VehicleModelLayer } from './VehicleModelLayer';
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -17,15 +18,15 @@ interface RouteLayerGroupProps {
 }
 
 /**
- * RouteLayerGroup — imperative manager, renders null
+ * RouteLayerGroup — imperative manager, renders null (or a VehicleModelLayer for setup).
  * Adds sources/layers on mount, calls setData() on every playhead change.
+ * Vehicle position is updated inside the same subscribe loop — no React re-renders per frame.
  */
 export function RouteLayerGroup({
   route,
   mapRef,
   styleLoaded,
 }: RouteLayerGroupProps) {
-  // Pre-compute the flat coords array — only recalculated when route.geojson changes
   const coords = useMemo(() => {
     const allCoords: number[][] = [];
     for (const feature of route.geojson.features) {
@@ -41,13 +42,19 @@ export function RouteLayerGroup({
   routeRef.current = route;
   const coordsRef = useRef(coords);
   coordsRef.current = coords;
-
   const mapRefRef = useRef(mapRef);
   mapRefRef.current = mapRef;
 
   const updateFnRef = useRef<(state: ReturnType<typeof useProjectStore.getState>) => void>(() => {});
 
-  // Mount effect: add sources + layers imperatively, subscribe to playhead, clean up on unmount
+  // Per-frame paint cache: avoids calling setPaintProperty with unchanged values at 60 fps.
+  // These are scalars/strings, so strict equality is a reliable guard.
+  const lastPaintRef = useRef({
+    mainColor: '', mainWidth: -1,
+    glowColor: '', glowWidth: -1,
+    cometColor: '', cometWidth: -1,
+  });
+
   useEffect(() => {
     if (!styleLoaded) return;
     const map = mapRef.current?.getMap();
@@ -60,20 +67,13 @@ export function RouteLayerGroup({
     const cometId = `route-comet-${route.id}`;
     const cometLayerId = `route-comet-layer-${route.id}`;
 
-    // Add main source
-    if (!map.getSource(mainId)) {
-      map.addSource(mainId, { type: 'geojson', data: EMPTY_FC });
-    }
-    // Add glow source (always add; layer rendered conditionally)
-    if (!map.getSource(glowId)) {
-      map.addSource(glowId, { type: 'geojson', data: EMPTY_FC });
-    }
-    // Add comet source — lineMetrics:true is required for line-gradient paint
-    if (!map.getSource(cometId)) {
-      map.addSource(cometId, { type: 'geojson', data: EMPTY_FC, lineMetrics: true } as any);
-    }
+    // Reset paint cache whenever layers are recreated (style reload or route id change)
+    lastPaintRef.current = { mainColor: '', mainWidth: -1, glowColor: '', glowWidth: -1, cometColor: '', cometWidth: -1 };
 
-    // Add main line layer
+    if (!map.getSource(mainId)) map.addSource(mainId, { type: 'geojson', data: EMPTY_FC });
+    if (!map.getSource(glowId)) map.addSource(glowId, { type: 'geojson', data: EMPTY_FC });
+    if (!map.getSource(cometId)) map.addSource(cometId, { type: 'geojson', data: EMPTY_FC, lineMetrics: true } as any);
+
     if (!map.getLayer(mainLayerId)) {
       map.addLayer({
         id: mainLayerId,
@@ -87,7 +87,29 @@ export function RouteLayerGroup({
         },
       });
     }
-    // Add comet trail layer (initially empty; line-gradient requires lineMetrics source)
+
+    // Glow layer is always present; visibility toggled per frame instead of add/remove.
+    // Adding/removing inside the animation callback causes per-frame layer churn.
+    if (!map.getLayer(glowLayerId)) {
+      const r0 = routeRef.current;
+      const glowColor0 = r0.calculation?.mode === 'flight' ? '#fbbf24' : (r0.style.glowColor || r0.style.color);
+      map.addLayer(
+        {
+          id: glowLayerId,
+          type: 'line',
+          source: glowId,
+          layout: { 'line-cap': 'round', 'line-join': 'round', 'visibility': 'none' },
+          paint: {
+            'line-color': glowColor0,
+            'line-width': r0.style.width * 3,
+            'line-opacity': 0.35,
+            'line-blur': r0.style.width * 2,
+          },
+        },
+        mainLayerId,
+      );
+    }
+
     if (!map.getLayer(cometLayerId)) {
       map.addLayer({
         id: cometLayerId,
@@ -105,10 +127,8 @@ export function RouteLayerGroup({
       });
     }
 
-    // `destroyed` flag prevents callbacks running after cleanup (in-flight race protection).
     let destroyed = false;
 
-    // Named update function — extracted so it can be called immediately as an initial pump.
     const updateRoute = (state: ReturnType<typeof useProjectStore.getState>) => {
       if (destroyed) return;
       const r = routeRef.current;
@@ -167,58 +187,81 @@ export function RouteLayerGroup({
         }
       }
 
-      // --- Main line ---
-      try {
-        m.setPaintProperty(mainLayerId, 'line-color', routeColor);
-        m.setPaintProperty(mainLayerId, 'line-width', r.style.width);
-      } catch (_) {}
+      // --- Main line: only call setPaintProperty when values change ---
+      const lp = lastPaintRef.current;
+      if (lp.mainColor !== routeColor) {
+        try { m.setPaintProperty(mainLayerId, 'line-color', routeColor); } catch (_) {}
+        lp.mainColor = routeColor;
+      }
+      if (lp.mainWidth !== r.style.width) {
+        try { m.setPaintProperty(mainLayerId, 'line-width', r.style.width); } catch (_) {}
+        lp.mainWidth = r.style.width;
+      }
       mainSource.setData(mainFC);
 
-      // --- Comet trail ---
+      // --- Comet trail: guard paint calls ---
       const cometSource = m.getSource(cometId) as GeoJSONSource | undefined;
       if (cometSource) {
-        try {
-          m.setPaintProperty(cometLayerId, 'line-width', r.style.width);
-          m.setPaintProperty(cometLayerId, 'line-gradient', [
-            'interpolate', ['linear'], ['line-progress'],
-            0, 'transparent',
-            1, routeColor,
-          ] as any);
-        } catch (_) {}
+        if (lp.cometColor !== routeColor) {
+          try {
+            m.setPaintProperty(cometLayerId, 'line-gradient', [
+              'interpolate', ['linear'], ['line-progress'],
+              0, 'transparent',
+              1, routeColor,
+            ] as any);
+            lp.cometColor = routeColor;
+          } catch (_) {}
+        }
+        if (lp.cometWidth !== r.style.width) {
+          try { m.setPaintProperty(cometLayerId, 'line-width', r.style.width); } catch (_) {}
+          lp.cometWidth = r.style.width;
+        }
         cometSource.setData(cometFC);
       }
 
-      // --- Glow ---
+      // --- Glow: toggle via visibility, never add/remove mid-animation ---
       const glowSource = m.getSource(glowId) as GeoJSONSource | undefined;
-      if (r.style.glow && glowSource && animType !== 'comet') {
-        if (!m.getLayer(glowLayerId)) {
+      const glowVisible = r.style.glow && animType !== 'comet';
+      try { m.setLayoutProperty(glowLayerId, 'visibility', glowVisible ? 'visible' : 'none'); } catch (_) {}
+      if (glowVisible && glowSource) {
+        if (lp.glowColor !== glowColor) {
+          try { m.setPaintProperty(glowLayerId, 'line-color', glowColor); } catch (_) {}
+          lp.glowColor = glowColor;
+        }
+        if (lp.glowWidth !== r.style.width) {
           try {
-            m.addLayer(
-              {
-                id: glowLayerId,
-                type: 'line',
-                source: glowId,
-                layout: { 'line-cap': 'round', 'line-join': 'round' },
-                paint: {
-                  'line-color': glowColor,
-                  'line-width': r.style.width * 3,
-                  'line-opacity': 0.35,
-                  'line-blur': r.style.width * 2,
-                },
-              },
-              mainLayerId,
-            );
-          } catch (_) {}
-        } else {
-          try {
-            m.setPaintProperty(glowLayerId, 'line-color', glowColor);
             m.setPaintProperty(glowLayerId, 'line-width', r.style.width * 3);
             m.setPaintProperty(glowLayerId, 'line-blur', r.style.width * 2);
+            lp.glowWidth = r.style.width;
           } catch (_) {}
         }
         glowSource.setData(mainFC);
-      } else if (m.getLayer(glowLayerId)) {
-        try { m.removeLayer(glowLayerId); } catch (_) {}
+      }
+
+      // --- Vehicle: update position imperatively, no React re-renders per frame ---
+      if (r.calculation?.vehicle?.enabled && c.length >= 2) {
+        const vSourceId = `vehicle-source-${r.id}`;
+        const vLayerId = `vehicle-layer-${r.id}`;
+        const vSource = m.getSource(vSourceId) as GeoJSONSource | undefined;
+        if (vSource) {
+          // Vehicle head is always at progress along the full route, regardless of animType
+          const headCoords = getAnimatedLine(c, progress);
+          if (headCoords.length >= 2) {
+            const currentPos = headCoords[headCoords.length - 1];
+            const prevPos = headCoords[headCoords.length - 2];
+            vSource.setData({
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [currentPos[0], currentPos[1]] },
+              properties: {},
+            });
+            if (r.calculation.vehicle.type !== 'dot') {
+              const bearing = calculateBearing(prevPos, currentPos);
+              const pitch = calculatePitch(prevPos, currentPos);
+              try { m.setPaintProperty(vLayerId, 'model-rotation', [0, -pitch, bearing]); } catch (_) {}
+              try { m.setPaintProperty(vLayerId, 'model-translation', [0, 0, currentPos[2] || 0]); } catch (_) {}
+            }
+          }
+        }
       }
     };
 
@@ -229,7 +272,7 @@ export function RouteLayerGroup({
       lastTimeRef.current = state.playheadTime;
       updateRoute(state);
     });
-    
+
     updateRoute(useProjectStore.getState());
 
     return () => {
@@ -250,27 +293,6 @@ export function RouteLayerGroup({
     updateFnRef.current(useProjectStore.getState());
   }, [route.style, route.startTime, route.endTime, route.easing, route.exitAnimation]);
 
-  if (route.calculation?.vehicle?.enabled) {
-    return <VehicleAnimatedLayer route={route} coords={coords} />;
-  }
-
-  return null;
-}
-
-/**
- * Thin wrapper that self-subscribes to playheadTime to feed VehicleModelLayer.
- */
-function VehicleAnimatedLayer({ route, coords }: { route: RouteItem; coords: number[][] }) {
-  const playheadTime = useProjectStore((s) => s.playheadTime);
-  const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
-  const animCoords = coords.length >= 2 ? getAnimatedLine(coords, progress) : [];
-
-  if (animCoords.length < 2 || !route.calculation?.vehicle?.enabled) return null;
-  return (
-    <VehicleModelLayer
-      routeId={route.id}
-      coords={animCoords}
-      vehicle={route.calculation.vehicle!}
-    />
-  );
+  if (!route.calculation?.vehicle?.enabled) return null;
+  return <VehicleModelLayer routeId={route.id} vehicle={route.calculation.vehicle!} mapRef={mapRef} />;
 }
