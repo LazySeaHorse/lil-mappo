@@ -17,7 +17,8 @@ import { useCredits } from "@/hooks/useCredits";
 import { canCloudSave } from "@/lib/cloudAccess";
 import { syncProjects } from "@/services/cloudSync";
 import { toast } from "sonner";
-import { Eye, Play, Pause } from "lucide-react";
+import { Eye, Play, Pause, Camera } from "lucide-react";
+import { takeSnapshot } from "@/services/snapshot";
 import { useResponsive } from "@/hooks/useResponsive";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import {
@@ -78,11 +79,13 @@ function ZenModeControls({
   isPlaying,
   onShowUI,
   onTogglePlay,
+  mapRef,
 }: {
   isMobile: boolean;
   isPlaying: boolean;
   onShowUI: () => void;
   onTogglePlay: () => void;
+  mapRef: React.MutableRefObject<MapRef | null>;
 }) {
   return (
     <div
@@ -95,6 +98,14 @@ function ZenModeControls({
         title={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+      </IconButton>
+      <IconButton 
+        variant="zen" 
+        size="lg" 
+        onClick={() => takeSnapshot(mapRef)} 
+        title="Take High-Res Snapshot"
+      >
+        <Camera size={20} />
       </IconButton>
       <IconButton variant="zen" size="lg" onClick={onShowUI} title="Show UI">
         <Eye size={20} />
@@ -190,6 +201,7 @@ export default function MapStudioEditor() {
             isPlaying={isPlaying}
             onShowUI={() => setHideUI(false)}
             onTogglePlay={() => setIsPlaying(!isPlaying)}
+            mapRef={mapRef}
           />
         )}
 
