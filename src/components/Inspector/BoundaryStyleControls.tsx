@@ -61,9 +61,9 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fade">Fade (Basic)</SelectItem>
-                <SelectItem value="draw">Draw (Perimeter)</SelectItem>
-                <SelectItem value="trace">Trace (Comet)</SelectItem>
+                <SelectItem value="fade">Fade In</SelectItem>
+                <SelectItem value="draw">Animated Perimeter</SelectItem>
+                <SelectItem value="trace">Moving Highlight</SelectItem>
               </SelectContent>
             </Select>
           </Field>

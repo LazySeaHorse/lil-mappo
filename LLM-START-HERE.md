@@ -141,16 +141,16 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
 - **Stateless Helpers (`mapUtils.ts`)**: Centralizes logic for runtime capability detection and map-click resolution.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
 - **Route Animation Types** (`item.style.animationType`): Three mutually exclusive modes per route:
-  - **`draw`** (default): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available. **Optimization**: Uses `line-trim-offset: [drawP, 1]` to reveal the route without re-uploading geometry each frame. Full geometry is static in the Mapbox source; only the paint property trim offset changes per frame.
-  - **`navigation`**: Full route is visible from the start; the passed portion erases as the playhead advances. Mirrors Google Maps navigation. Glow supported; no exit animation or dash. **Optimization**: Uses `line-trim-offset: [0, progress]` to hide the passed portion. Same static geometry + paint property strategy as draw mode.
-  - **`comet`**: Only a gradient trail segment is drawn — transparent at the tail, opaque at the head. Trail length is configurable (`item.style.cometTrailLength`, 0–0.8). Uses a dedicated Mapbox source with `lineMetrics: true` and `line-gradient` paint. No glow, no dash. Vehicle/dot shows at the head if enabled. **Note**: Still uses `setData()` each frame since the visible segment spans only a portion of the full line (can't use single `line-trim-offset` to hide both ends).
+  - **`draw`** (UI: **Animated Path**): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available. **Optimization**: Uses `line-trim-offset: [drawP, 1]` to reveal the route without re-uploading geometry each frame. Full geometry is static in the Mapbox source; only the paint property trim offset changes per frame.
+  - **`navigation`** (UI: **Reveal Progress**): Full route is visible from the start; the passed portion erases as the playhead advances. Mirrors Google Maps navigation. Glow supported; no exit animation or dash. **Optimization**: Uses `line-trim-offset: [0, progress]` to hide the passed portion. Same static geometry + paint property strategy as draw mode.
+  - **`comet`** (UI: **Meteor Trail**): Only a gradient trail segment is drawn — transparent at the tail, opaque at the head. Trail length is configurable (`item.style.cometTrailLength`, 0–0.8). Uses a dedicated Mapbox source with `lineMetrics: true` and `line-gradient` paint. No glow, no dash. Vehicle/dot shows at the head if enabled. **Note**: Still uses `setData()` each frame since the visible segment spans only a portion of the full line (can't use single `line-trim-offset` to hide both ends).
   - **Exit Animations**: Both routes and boundaries support three exit modes: `none`, `reverse` (retract/undo the entry), and `fade` (global opacity transition). `comet` and `trace` styles skip exit animations as they naturally self-erase.
-- **Exit Animations**: Optional animations for routes and boundaries after their `endTime`:
-  - **`none`**: Item remains at its final state until explicitly removed or loop ends.
-  - **`reverse`**: 
+- **Exit Animations** (`item.exitAnimation`): Optional animations for routes and boundaries after their `endTime`:
+  - **`none`** (UI: **Persist on Map**): Item remains at its final state until explicitly removed or loop ends.
+  - **`reverse`** (UI: **Erase Backwards**): 
     - **Routes**: Line is erased from the starting point toward the tip over 0.5s (Eraser behavior).
     - **Boundaries**: Stroke is erased from its starting perimeter point toward the finish.
-  - **`fade`**: Global opacity transition to 0 over 0.5s, regardless of entrance style.
+  - **`fade`** (UI: **Fade Out**): Global opacity transition to 0 over 0.5s, regardless of entrance style.
   - Toggle found in Inspector Timing sections. Skip for self-erasing modes (comet/trace).
 - **Vehicle System**: Controlled via `route.calculation.vehicle`. Independent of transport mode selection.
   - **`dot`** (default, free): Rendered as a Mapbox `circle` layer. **Monochromatic**: Color is synced to the route color with a white stroke.
@@ -160,9 +160,22 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
 
 ### 3.4 The Inspector: `src/components/Inspector/`
 The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.
-- `InspectorPanel.tsx`: Acts as a slim routing shell. It reads `item.kind` and delegates rendering to isolated components (`RouteInspector.tsx`, `CalloutInspector.tsx`, `BoundaryInspector.tsx`, etc.).
-- `InspectorLayout.tsx`: Provides shared architectural wrappers (`PanelWrapper`, `InspectorSection`, `ItemActions`) to ensure consistent styling, padding, and mobile drawer behavior across all inspector variants. `InspectorSection` uses standardized typography tokens matching `SectionLabel`.
-- `InspectorShared.tsx`: A **modern thin barrel file** that re-exports universal primitives (Field, SectionLabel, SwitchField) directly from `src/components/ui/`. Legacy backward-compatibility aliases have been removed; developers should import directly from `ui/` or use the new standardized names.
+
+**Architectural Standards:**
+- **Standardized Hierarchy**: All inspectors follow a strict 3-to-4 tab accordion structure using `InspectorSection`. Properties are never left "floating" outside accordions (except for the primary item name).
+    - **Route**: `Path Data` (Search/Planning) → `Style` → `Timing`.
+    - **Callout**: `Content & Location` (Title/Sync/Search) → `Style` (Typography/Aesthetics/Pole) → `3D Transform` (Coordinates/Altitude) → `Timing`.
+    - **Boundary**: `Location Data` (Search/Status) → `Appearance` → `Timing`.
+- **Humanized Terminology**: Avoids technical "engine-speak" in labels.
+    - Animation types: `Animated Path` (draw), `Reveal Progress` (navigation), `Meteor Trail` (comet).
+    - Exit animations: `Persist on Map` (none), `Erase Backwards` (reverse), `Fade Out` (fade).
+    - Timing: Explicit `Start Time` and `End Time` labels.
+- **Visual Grouping**: Large sections use nested subheaders (standardized `text-[10px] font-bold uppercase tracking-widest` labels) to separate logical property clusters (e.g., Typography vs. Aesthetics).
+
+**Components:**
+- `InspectorPanel.tsx`: Slim routing shell that delegates rendering to isolated components based on `item.kind`.
+- `InspectorLayout.tsx`: Provides `PanelWrapper`, `InspectorSection`, and `ItemActions`. Ensures consistent glassmorphism, transitions, and responsive drawer behavior.
+- `InspectorShared.tsx`: Barrel file re-exporting UI primitives (Field, InputText, etc.) for inspector-specific use.
 
 ### 3.5 Dynamic Label Capabilities System
 **Goal**: Allow granular, per-style label toggling without hardcoding layer patterns. Users see exactly which labels are available for each map style.
