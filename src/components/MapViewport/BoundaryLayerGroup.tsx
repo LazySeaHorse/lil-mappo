@@ -203,12 +203,17 @@ export function BoundaryLayerGroup({
         } else {
           const rings = extractLineStringsFromGeometry(b.geojson!);
           const animatedRings: number[][][] = [];
-          const p = isReverseExit ? reverseP : progress;
           for (const ring of rings) {
             let segment: number[][];
             if (animStyle === 'draw') {
-              segment = getLineSegment(ring, 0, p);
+              if (isReverseExit) {
+                // Eraser mode: remove from start of ring to end
+                segment = getLineSegment(ring, exitT, 1);
+              } else {
+                segment = getLineSegment(ring, 0, progress);
+              }
             } else {
+              const p = isReverseExit ? reverseP : progress;
               const start = p * (1 + traceLen) - traceLen;
               const end = p * (1 + traceLen);
               segment = getLineSegment(ring, start, end);

@@ -138,8 +138,8 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
 - **Exit Animations**: Optional animations for routes and boundaries after their `endTime`:
   - **`none`**: Item remains at its final state until explicitly removed or loop ends.
   - **`reverse`**: 
-    - **Routes**: Line retracts from the tip back toward the start over 0.5s.
-    - **Boundaries**: Stroke retracts from its perimeter end (draw mode) or fill retracts.
+    - **Routes**: Line is erased from the starting point toward the tip over 0.5s (Eraser behavior).
+    - **Boundaries**: Stroke is erased from its starting perimeter point toward the finish.
   - **`fade`**: Global opacity transition to 0 over 0.5s, regardless of entrance style.
   - Toggle found in Inspector Timing sections. Skip for self-erasing modes (comet/trace).
 - **Vehicle System**: Controlled via `route.calculation.vehicle`. Independent of transport mode selection.
@@ -836,8 +836,18 @@ The vehicle system (dots and 3D models) in `RouteLayerGroup.tsx` was previously 
 - Implemented a **Visibility Guard** inside the imperative `updateRoute` loop.
 - The vehicle's `visibility` layout property is now toggled correctly based on `playheadTime`, `startTime`, `endTime`, and the exit animation phase.
 - Added **Opacity Synchronization**: Vehicles now fade out during `fade` exit animations by updating `circle-opacity` (dots) or `model-opacity` (3D models).
+- **Eraser Exit Animation**: Redefined the `reverse` exit animation for both routes and boundaries. Instead of retracting lines from the tip, they now function as forward "erasers" that remove geometry from the starting point toward the completion point over 0.5s.
 - Added **Comet Mode Guard**: Vehicles are explicitly hidden at `progress = 0` in comet mode to prevent them from "ghosting" at the start point before the trail appears.
 - **Optimization**: All vehicle `setData` coordinates and transformation logic are now skipped when the vehicle is hidden, reducing per-frame CPU and GPU overhead.
+
+**Issue 21: Broken Dash Pattern Synchronization (Resolved)**
+
+The "Dash Pattern" dropdown in the Route Inspector was previously not functional. While users could select styles (Solid, Dashed, Dotted), the map engine in `RouteLayerGroup.tsx` was not applying the `line-dasharray` property to the Mapbox layers.
+
+**Fix** (RouteLayerGroup.tsx):
+- Integrated `line-dasharray` into the imperative synchronization loop for draw and navigation modes.
+- Added **Glow Parity**: The glow layer now automatically inherits the dash pattern, ensuring that "glow" fragments remain perfectly aligned with the dashed/dotted segments of the main line.
+- Implemented an **Equality Guard** in the paint cache to skip redundant Mapbox updates when the dash pattern hasn't changed.
 
 ---
 

@@ -58,6 +58,7 @@ export function RouteLayerGroup({
     lastAnimType: '',
     vehicleVisible: true,
     vehicleOpacity: -1,
+    dashPattern: null as number[] | null,
   });
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export function RouteLayerGroup({
       lastAnimType: '',
       vehicleVisible: true,
       vehicleOpacity: -1,
+      dashPattern: null as number[] | null,
     };
 
     // lineMetrics: true is required for line-trim-offset (used by draw and navigation modes)
@@ -214,14 +216,16 @@ export function RouteLayerGroup({
           trimStart = 0;
           trimEnd = progress;
         } else {
-          // draw: reveal from start (0…drawP), hide the rest (drawP…1)
-          let drawP = progress;
           if (r.exitAnimation === 'reverse' && state.playheadTime > r.endTime) {
+            // Eraser mode: trim from start (0) to exitT, leaving exitT…1 visible
             const exitT = Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1);
-            drawP = 1 - exitT;
+            trimStart = 0;
+            trimEnd = exitT;
+          } else {
+            // Standard draw: reveal from start (0…progress), hide the rest (drawP…1)
+            trimStart = progress;
+            trimEnd = 1;
           }
-          trimStart = drawP;
-          trimEnd = 1;
         }
 
         let opacity = 1;
@@ -239,6 +243,16 @@ export function RouteLayerGroup({
           try { m.setPaintProperty(mainLayerId, 'line-width', r.style.width); } catch (_) {}
           lp.mainWidth = r.style.width;
         }
+
+        const dp = r.style.dashPattern;
+        if (lp.dashPattern?.[0] !== dp?.[0] || lp.dashPattern?.[1] !== dp?.[1]) {
+          try {
+            m.setPaintProperty(mainLayerId, 'line-dasharray', dp || null);
+            m.setPaintProperty(glowLayerId, 'line-dasharray', dp || null);
+            lp.dashPattern = dp ? [...dp] : null;
+          } catch (_) {}
+        }
+
         if (lp.mainTrimStart !== trimStart || lp.mainTrimEnd !== trimEnd) {
           try { m.setPaintProperty(mainLayerId, 'line-trim-offset', [trimStart, trimEnd]); } catch (_) {}
           lp.mainTrimStart = trimStart;
