@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   RIGHT_RESERVED_DESKTOP,
@@ -28,7 +29,17 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     terrainLoading, buildingsLoading,
     selectItem, setHideUI, isInspectorOpen, isScrubbing,
     setProjectSettingsTab,
-  } = useProjectStore();
+  } = useProjectStore(
+    useShallow(s => ({
+      isPlaying: s.isPlaying, mapStyle: s.mapStyle, setMapStyle: s.setMapStyle,
+      terrainEnabled: s.terrainEnabled, setTerrainEnabled: s.setTerrainEnabled,
+      buildingsEnabled: s.buildingsEnabled, setBuildingsEnabled: s.setBuildingsEnabled,
+      terrainLoading: s.terrainLoading, buildingsLoading: s.buildingsLoading,
+      selectItem: s.selectItem, setHideUI: s.setHideUI,
+      isInspectorOpen: s.isInspectorOpen, isScrubbing: s.isScrubbing,
+      setProjectSettingsTab: s.setProjectSettingsTab,
+    }))
+  );
 
   const { isMobile, isTablet } = useResponsive();
   const actions = useToolbarActions();

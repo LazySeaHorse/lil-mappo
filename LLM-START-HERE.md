@@ -77,6 +77,16 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 
 *(Note: Component-local state (e.g., `activeDropdown`, `mobileMode` in `Toolbar.tsx`) is managed as local `useState` to prevent unnecessary global re-renders.)*
 
+**Best Practice: Zustand Selectors with `useShallow`**
+To prevent components from re-rendering on unrelated state changes (e.g., `playheadTime` updates during 60fps playback), **all UI components should use `useShallow` selectors** when accessing the store. Example:
+```ts
+import { useShallow } from 'zustand/react/shallow';
+const { fieldA, fieldB } = useProjectStore(
+  useShallow(s => ({ fieldA: s.fieldA, fieldB: s.fieldB }))
+);
+```
+This pattern is already applied to `InspectorPanel.tsx`, `ProjectSettings.tsx`, and `Toolbar.tsx` to optimize playback performance. New components reading from the store should follow the same pattern.
+
 ### 3.1b Authentication & User Data: `src/store/useAuthStore.ts`
 Manages user authentication state, account UI visibility, and checkout flow via Supabase + Dodo Payments.
 

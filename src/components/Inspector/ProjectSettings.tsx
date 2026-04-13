@@ -1,5 +1,6 @@
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,22 @@ export function ProjectSettings() {
     mapStyle,
     projectSettingsTab,
     setProjectSettingsTab,
-  } = useProjectStore();
+  } = useProjectStore(
+    useShallow(s => ({
+      name: s.name, duration: s.duration, fps: s.fps, resolution: s.resolution,
+      terrainExaggeration: s.terrainExaggeration, projection: s.projection, lightPreset: s.lightPreset,
+      show3dLandmarks: s.show3dLandmarks, show3dTrees: s.show3dTrees, show3dFacades: s.show3dFacades,
+      starIntensity: s.starIntensity, fogColor: s.fogColor,
+      labelVisibility: s.labelVisibility,
+      setLabelGroupVisibility: s.setLabelGroupVisibility, setAllLabelsVisibility: s.setAllLabelsVisibility,
+      setProjectName: s.setProjectName, setDuration: s.setDuration, setFps: s.setFps,
+      setResolution: s.setResolution, setTerrainExaggeration: s.setTerrainExaggeration,
+      setProjection: s.setProjection, setLightPreset: s.setLightPreset,
+      set3dDetails: s.set3dDetails, setAtmosphere: s.setAtmosphere,
+      mapStyle: s.mapStyle,
+      projectSettingsTab: s.projectSettingsTab, setProjectSettingsTab: s.setProjectSettingsTab,
+    }))
+  );
   const capabilities = useMapStyleCapabilities();
 
   return (
