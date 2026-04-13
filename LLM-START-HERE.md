@@ -63,6 +63,7 @@ Everything lives in a single Zustand store. The `Project` type (persisted to dis
 - `labelVisibility`: Label group toggle state; resets to empty object on project load.
 - `playheadTime`, `isPlaying`, `isScrubbing`: Playback position and state.
 - `isInspectorOpen`, `timelineHeight`: Inspector & timeline UI state. Inspector starts **closed by default** on app load for a clean map-focused view; auto-opens when selecting items or loading projects.
+- `isCameraEnabled`: Mute toggle for the camera track; resets to `true` on project load.
 - `detectedCapabilities`: Runtime-detected label groups for the current style.
 - **Feature Toggles**: `terrainEnabled`, `buildingsEnabled`, `show3dLandmarks`, `show3dTrees`, `show3dFacades` — Reset to defaults on project load.
 - **Selection State**: `selectedItemId`, `selectedKeyframeId` — Reset to null on project load.
@@ -108,6 +109,7 @@ This persists across the password-confirm redirect cycle, ensuring the checkout 
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
+- **Camera Mute Guard**: The `driveCamera` function checks `store.isCameraEnabled` before updating the Mapbox viewState. This allows users to "mute" the camera track via the timeline "Eye" icon to preview object animations from a static or manually controlled perspective.
 
 ### 3.3 The Body: `src/components/MapViewport/`
 The MapViewport is a modularized imperative engine designed for maximum stability and performance. It follows a **Delegation Architecture**.
@@ -115,8 +117,8 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
 - **Orchestrator (`MapViewport.tsx`)**: A slim shell that manages the `<MapGL />` component, lifecycle states (`mapReady`, `styleLoaded`), and coordinate centering. It delegates all business logic to dedicated hooks and sub-components.
 - **Unified Sync Engine (`hooks/useMapSync.ts`)**: The core imperative bridge. Orchestrates Projection, Terrain, Atmosphere, and Config. Uses **numeric epsilon guards** and normalized color comparisons in an `idle` synchronization loop to ensure zero-flicker stability. It also manages the **Export Engine Bridge** (`_syncRef`) used for frame capture during video export.
 - **Guarded Imperative Layer Groups**:
-  - **`RouteLayerGroup.tsx`**: Manages Mapbox sources and layers for routes, including the **Vehicle System**. Uses **`line-trim-offset`** paint property optimization (Mapbox GL JS v3) to eliminate per-frame `setData()` calls for `draw` and `navigation` modes. Full route geometry is uploaded once when the route changes; per-frame updates use imperative `setPaintProperty` trim offset instead of re-slicing and re-uploading geometry. Comet mode retains `setData()` on the bounded trail since it needs to trim both ends.
-  - **`BoundaryLayerGroup.tsx`**: Manages Mapbox sources and layers for polygons/boundaries.
+  - **`RouteLayerGroup.tsx`**: Manages Mapbox sources and layers for routes, including the **Vehicle System**. Uses **`line-trim-offset`** paint property optimization (Mapbox GL JS v3) to eliminate per-frame `setData()` calls for `draw` and `navigation` modes. **Monochromatic Sync**: Enforces that the route line, its glow, and its vehicle (if dot) all share the same primary color.
+  - **`BoundaryLayerGroup.tsx`**: Manages Mapbox sources and layers for polygons/boundaries. **Monochromatic Sync**: Fill and Glow colors are locked to the stroke color. Fill opacity supports a full `0-1.0` range for a "stamp" look. Uses a shared source for stroke and a new neon-style **Glow Layer** (using `line-blur`).
   - Both components use a **Multi-Effect Strategy**:
     1. **Geometry Upload Effect**: Uploads full geometry once per route/boundary change (RouteLayerGroup) or when style changes (BoundaryLayerGroup).
     2. **Playhead Time-Guard (performance)**: Store subscription uses imperative paint/layout property updates (no `setData()` for draw/navigation routes). Prevents memory leaks and CPU-to-GPU transfer spikes.
@@ -132,17 +134,19 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
   - **`draw`** (default): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available. **Optimization**: Uses `line-trim-offset: [drawP, 1]` to reveal the route without re-uploading geometry each frame. Full geometry is static in the Mapbox source; only the paint property trim offset changes per frame.
   - **`navigation`**: Full route is visible from the start; the passed portion erases as the playhead advances. Mirrors Google Maps navigation. Glow supported; no exit animation or dash. **Optimization**: Uses `line-trim-offset: [0, progress]` to hide the passed portion. Same static geometry + paint property strategy as draw mode.
   - **`comet`**: Only a gradient trail segment is drawn — transparent at the tail, opaque at the head. Trail length is configurable (`item.style.cometTrailLength`, 0–0.8). Uses a dedicated Mapbox source with `lineMetrics: true` and `line-gradient` paint. No glow, no dash. Vehicle/dot shows at the head if enabled. **Note**: Still uses `setData()` each frame since the visible segment spans only a portion of the full line (can't use single `line-trim-offset` to hide both ends).
-  - Exit Animation toggle only visible for `draw` mode. Navigation and comet self-erase.
-- **Exit Animations**: Optional reverse animations for routes and boundaries after their `endTime`. When `exitAnimation: true` (draw mode only):
-  - **Routes**: Line retracts from the tip back toward the start over 0.5s (exact reverse of the draw animation).
-  - **Boundaries (fade style)**: Opacity fades out (reverses the fade-in entrance).
-  - **Boundaries (draw style)**: Fill fades out first (mirroring the "fill appears last" entry logic), then stroke retracts from the perimeter end.
-  - **Boundaries (trace style)**: Opacity fades out (the moving comet trace naturally ends at full perimeter).
-  - Controlled by `item.exitAnimation` flag in the store; toggle added to Inspector Timing sections for routes and boundaries.
-- **Vehicle System**: Controlled via `route.calculation.vehicle`. Three types:
-  - **`dot`** (default, free for all users): Rendered as a Mapbox `circle` layer (blue fill `#4285F4`, white stroke). Size scales with `vehicle.scale`.
-  - **`car` / `plane`** (Pro only — `wanderer`, `cartographer`, `pioneer`, or cancelling tiers): Mapbox v3 `model` layer rendering GLB files from `/models/`. Pro gate enforced in `RoutePlanner.tsx`.
-  - Vehicle toggle and type selector live in the Route Planner section of the inspector (not the Style section).
+  - **Exit Animations**: Both routes and boundaries support three exit modes: `none`, `reverse` (retract/undo the entry), and `fade` (global opacity transition). `comet` and `trace` styles skip exit animations as they naturally self-erase.
+- **Exit Animations**: Optional animations for routes and boundaries after their `endTime`:
+  - **`none`**: Item remains at its final state until explicitly removed or loop ends.
+  - **`reverse`**: 
+    - **Routes**: Line retracts from the tip back toward the start over 0.5s.
+    - **Boundaries**: Stroke retracts from its perimeter end (draw mode) or fill retracts.
+  - **`fade`**: Global opacity transition to 0 over 0.5s, regardless of entrance style.
+  - Toggle found in Inspector Timing sections. Skip for self-erasing modes (comet/trace).
+- **Vehicle System**: Controlled via `route.calculation.vehicle`. Independent of transport mode selection.
+  - **`dot`** (default, free): Rendered as a Mapbox `circle` layer. **Monochromatic**: Color is synced to the route color with a white stroke.
+  - **`car` / `plane`** (Pro): GLB model rendering. 
+  - **Mode Independence**: Vehicles can be enabled for any route, including imported KML/GPX or Manual paths. Selecting 'Car' transport mode no longer hard-enforces a car model; users must toggle it on manually. "Walk" transport mode has been removed in favor of "Car" (Directions api provides similar paths).
+  - Controls live in a dedicated **Vehicle** section in the Route Inspector.
 
 ### 3.4 The Inspector: `src/components/Inspector/`
 The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.

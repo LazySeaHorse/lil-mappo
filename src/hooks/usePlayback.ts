@@ -23,6 +23,7 @@ export function usePlayback(mapRef: React.RefObject<any>) {
 
     const driveCamera = (time: number) => {
       const store = useProjectStore.getState();
+      if (!store.isCameraEnabled) return;
       const camItem = store.items[CAMERA_TRACK_ID] as CameraItem | undefined;
       if (!camItem || camItem.keyframes.length === 0 || !mapRef.current) return;
 

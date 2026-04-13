@@ -12,6 +12,7 @@ import {
 import {
   SkipBack, SkipForward, ChevronLeft, ChevronRight,
   Play, Pause, Minus, Plus, Maximize2,
+  Eye, EyeOff
 } from 'lucide-react';
 
 const RULER_HEIGHT = 40;
@@ -421,13 +422,12 @@ const TrackRow = React.memo(({
   onSelect,
   onSelectKeyframe,
 }: {
-  item: TimelineItem;
-  pixelsPerSecond: number;
-  isSelected: boolean;
-  selectedKeyframeId: string | null;
   onSelect: () => void;
   onSelectKeyframe: (id: string | null) => void;
 }) => {
+  const isCameraEnabled = useProjectStore((s) => s.isCameraEnabled);
+  const setIsCameraEnabled = useProjectStore((s) => s.setIsCameraEnabled);
+
   const colorClass = item.kind === 'route' ? 'bg-item-route' : item.kind === 'boundary' ? 'bg-item-boundary' : item.kind === 'callout' ? 'bg-item-callout' : 'bg-item-camera';
 
   const label = item.kind === 'camera'
@@ -468,12 +468,27 @@ const TrackRow = React.memo(({
 
   return (
     <div
-      className={`flex h-10 border-b border-border/30 cursor-pointer group transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'}`}
+      className={`flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
       onClick={onSelect}
     >
       <div className={`w-[160px] shrink-0 sticky left-0 z-10 flex items-center px-4 gap-2.5 border-r border-border/50 bg-background/90 backdrop-blur-sm transition-colors ${isSelected ? 'border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'}`}>
         <div className={`w-2 h-2 rounded-full ${colorClass} shadow-sm`} />
-        <span className={`text-xs truncate font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>{label}</span>
+        <span className={`text-xs truncate font-medium flex-1 ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>{label}</span>
+        
+        {item.kind === 'camera' && (
+          <IconButton 
+            variant="ghost" 
+            size="xs" 
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 data-[enabled=false]:opacity-100 hover:text-primary transition-all"
+            data-enabled={isCameraEnabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsCameraEnabled(!isCameraEnabled);
+            }}
+          >
+            {isCameraEnabled ? <Eye size={12} /> : <EyeOff size={12} className="text-destructive" />}
+          </IconButton>
+        )}
       </div>
 
       <div className="flex-1 relative">

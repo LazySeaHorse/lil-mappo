@@ -15,6 +15,7 @@ interface ProjectStore extends Project {
   timelineHeight: number;
   terrainLoading: boolean;
   buildingsLoading: boolean;
+  isCameraEnabled: boolean;
   detectedCapabilities: MapStyleCapabilities | null;
   // Transient feature toggles (not persisted)
   terrainEnabled: boolean;
@@ -178,6 +179,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   timelineHeight: 256,
   terrainLoading: false,
   buildingsLoading: false,
+  isCameraEnabled: true,
   detectedCapabilities: STANDARD_STYLE_CAPABILITIES,
   // Transient feature toggles (not persisted)
   terrainEnabled: false,
@@ -300,6 +302,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setTerrainLoading: (v) => set({ terrainLoading: v }),
   setBuildingsLoading: (v) => set({ buildingsLoading: v }),
+  setIsCameraEnabled: (v) => set({ isCameraEnabled: v }),
   setDetectedCapabilities: (caps) => set({ detectedCapabilities: caps }),
 
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
