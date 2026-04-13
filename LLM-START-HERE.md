@@ -111,8 +111,11 @@ Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
 
 ### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
 Handles all imperative Mapbox state and reactive layer rendering.
-- **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config.
-- **Imperative Layer Groups**: `RouteLayerGroup` and `BoundaryLayerGroup` manage Mapbox sources and layers directly. They self-subscribe to the store for playhead updates, allowing 60fps geometry animation without React re-renders.
+- **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config. Uses **numeric epsilon guards** and normalized color comparisons in an `idle` synchronization loop to ensure zero-flicker stability without infinite feedback loops.
+- **Guarded Imperative Layer Groups**: `RouteLayerGroup` and `BoundaryLayerGroup` manage Mapbox sources and layers directly. They use a dual-effect strategy:
+  1. **Playhead Time-Guard (performance)**: A store subscription only invokes Mapbox's `setData()` if the playhead has moved, preventing memory leaks and CPU spikes during idle periods or transient UI updates.
+  2. **Style-Watch Effect (liveness)**: A second `useEffect` watches style-relevant props (`color`, `width`, `startTime`, `endTime`, `easing`, `exitAnimation`) and re-applies Mapbox state when paused. This ensures style edits immediately reflect on the map even while playback is stopped.
+- **Selector-Based Performance**: The viewport uses individual store selectors (e.g., `useProjectStore(s => s.foo)`) to isolate itself from the "playhead storm." This prevents the large Map component tree from re-rendering 60 times a second.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
 - **Route Animation Types** (`item.style.animationType`): Three mutually exclusive modes per route:
   - **`draw`** (default): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available.
@@ -403,14 +406,14 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 ### 6.4 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
 Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
 
-### 6.5 High-Performance Imperative Sync (Zero-Re-render Architecture)
-**Goal**: Achieve fluid 60fps animations for map layers and UI elements by bypassing React's reconciler during playback and scrubbing.
+### 6.5 High-Performance Imperative Sync (Guarded Zero-Re-render Architecture)
+**Goal**: Achieve fluid 60fps animations for map layers and UI elements by bypassing React's reconciler during playback and scrubbing, while maintaining a near-zero resource footprint when idle.
 
 **Core Implementation:**
 1. **Imperative Playhead (`TimelinePanel.tsx`)**: The timeline ruler diamond, track line, and time display are updated via DOM refs inside a store subscription. React is only used for the initial Layout and item CRUD.
-2. **Imperative Layers (`MapViewport.tsx`)**: `RouteLayerGroup` and `BoundaryLayerGroup` use `map.addSource()` and `map.addLayer()` directly. They subscribe to the store and call `setData()` and `setPaintProperty()` imperatively.
-3. **Optimized Layer Mounting**: Mount logic is gated by a parent `styleLoaded` prop but specifically avoids the `map.isStyleLoaded()` synchronous check inside sibling components to prevent sequential mount race conditions (where adding one layer dirties the style and blocks the next).
-4. **Self-Subscribing Components**: `CalloutMarker` and `VehicleAnimatedLayer` subscribe to only the specific state they need (like `playheadTime`), localizing re-renders to the smallest possible sub-trees.
+2. **Guarded Imperative Layers (`MapViewport.tsx`)**: `RouteLayerGroup` and `BoundaryLayerGroup` use `map.addSource()` and `map.addLayer()` directly. They subscribe to the store but use **`useRef` time-guards** within the subscriber. If `playheadTime` hasn't changed, no `setData()` calls are sent to Mapbox. This prevents GeoJSON worker threads from being flooded, keeping memory usage stable (avoiding the "3GB RAM" bug).
+3. **Idempotent Sync Engine**: Atmospheric settings (Fog, Star Intensity, Terrain) are synchronized via an `idle` event loop. Comparisons use a small numeric epsilon (0.001) and normalized checks to prevent "setting state to what it already is," which breaks infinite re-render loops and drops idle CPU to <2%.
+4. **Selector-Isolated Viewport**: `MapViewport` never destructures the whole store. It uses individual selectors for configuration (e.g., `mapStyle`, `terrainEnabled`). This ensures that the parent map component **never re-renders** during playback, even though children are animating imperatively.
 5. **Fast Keyboard Stepping**: Keyboard shortcuts read state imperatively via `useProjectStore.getState()` to avoid dependency-array re-render cascades.
 
 ### 6.6 Account UX & Payment Tier Restructuring

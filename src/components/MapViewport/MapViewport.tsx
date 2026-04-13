@@ -622,6 +622,8 @@ function RouteLayerGroup({
   const mapRefRef = useRef(mapRef);
   mapRefRef.current = mapRef;
 
+  const updateFnRef = useRef<(state: ReturnType<typeof useProjectStore.getState>) => void>(() => {});
+
   // Mount effect: add sources + layers imperatively, subscribe to playhead, clean up on unmount
   useEffect(() => {
     if (!styleLoaded) return;
@@ -806,6 +808,8 @@ function RouteLayerGroup({
       }
     };
 
+    updateFnRef.current = updateRoute;
+
     const unsub = useProjectStore.subscribe((state) => {
       if (state.playheadTime === lastTimeRef.current) return;
       lastTimeRef.current = state.playheadTime;
@@ -830,6 +834,11 @@ function RouteLayerGroup({
   // Re-run only when style reloads or the route ID changes (not on every route prop change)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleLoaded, route.id]);
+
+  // Re-apply imperative state when style props change while paused (playhead not moving)
+  useEffect(() => {
+    updateFnRef.current(useProjectStore.getState());
+  }, [route.style, route.startTime, route.endTime, route.easing, route.exitAnimation]);
 
   // Render VehicleModelLayer as a React child (it needs its own lifecycle)
   if (route.calculation?.vehicle?.enabled) {
@@ -878,6 +887,8 @@ function BoundaryLayerGroup({
 
   const mapRefRef = useRef(mapRef);
   mapRefRef.current = mapRef;
+
+  const updateFnRef = useRef<(state: ReturnType<typeof useProjectStore.getState>) => void>(() => {});
 
   useEffect(() => {
     if (!styleLoaded) return;
@@ -1050,6 +1061,7 @@ function BoundaryLayerGroup({
       lastTimeRef.current = state.playheadTime;
       updateBoundary(state);
     });
+    updateFnRef.current = updateBoundary;
     // Initial pump: populate layers immediately with the current state
     updateBoundary(useProjectStore.getState());
 
@@ -1066,6 +1078,11 @@ function BoundaryLayerGroup({
   // Re-run only when styleLoaded or boundary.id changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleLoaded, boundary.id, boundary.resolveStatus]);
+
+  // Re-apply imperative state when style props change while paused (playhead not moving)
+  useEffect(() => {
+    updateFnRef.current(useProjectStore.getState());
+  }, [boundary.style, boundary.startTime, boundary.endTime, boundary.easing, boundary.exitAnimation]);
 
   return null;
 }
