@@ -42,7 +42,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
         <Button
           variant="ghost"
           size="sm"
-          className={`h-8 ${isMobile || isTablet ? 'px-1' : 'px-1.5'} flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0`}
+          className={`h-8 ${isMobile || isTablet ? 'px-1' : 'px-1.5'} flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0 transition-all hover:bg-primary/5 hover:text-primary`}
           title="Menu"
         >
           <Avatar className="h-6 w-6 border border-border/50">
