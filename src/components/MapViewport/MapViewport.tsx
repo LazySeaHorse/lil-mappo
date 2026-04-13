@@ -14,6 +14,8 @@ import { RouteLayerGroup } from './RouteLayerGroup';
 import { BoundaryLayerGroup } from './BoundaryLayerGroup';
 import { CalloutMarker } from './CalloutMarker';
 import { useMapSync } from './hooks/useMapSync';
+import { useCalloutAnimationState } from './hooks/useCalloutAnimationState';
+import { useCalloutAltitudeOffsets } from './hooks/useCalloutAltitudeOffsets';
 
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
@@ -27,6 +29,8 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   const updateItem = useProjectStore((s) => s.updateItem);
   const setMapCenter = useProjectStore((s) => s.setMapCenter);
   const isExporting = useProjectStore((s) => s.isExporting);
+  const playheadTime = useProjectStore((s) => s.playheadTime);
+  const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
 
@@ -99,6 +103,17 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     };
   }, [setMapCenter]);
 
+  // Compute callout animation state once per frame (not per marker)
+  const calloutAnimationStates = useCalloutAnimationState(
+    playheadTime,
+    isMoveModeActive,
+    selectedItemId && items[selectedItemId]?.kind === 'callout' ? selectedItemId : null,
+    callouts
+  );
+
+  // Compute altitude offsets based on map zoom (not on every playhead frame)
+  const calloutAltitudeOffsets = useCalloutAltitudeOffsets(mapRef, callouts);
+
   return (
     <div className="w-full h-full relative">
       <MapGL
@@ -149,14 +164,21 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
         )}
 
         {/* Callouts use Markers (DOM elements) — safe outside the styleLoaded gate. */}
-        {callouts.map((callout) => (
-          <CalloutMarker
-            key={callout.id}
-            callout={callout}
-            mapRef={mapRef}
-            isSelected={selectedItemId === callout.id}
-          />
-        ))}
+        {callouts.map((callout) => {
+          const animState = calloutAnimationStates[callout.id];
+          return (
+            <CalloutMarker
+              key={callout.id}
+              callout={callout}
+              mapRef={mapRef}
+              isSelected={selectedItemId === callout.id}
+              isVisible={animState.isVisible}
+              phase={animState.phase}
+              progress={animState.progress}
+              altitudeOffset={calloutAltitudeOffsets[callout.id] ?? 0}
+            />
+          );
+        })}
       </MapGL>
     </div>
   );

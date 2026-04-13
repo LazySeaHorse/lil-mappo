@@ -120,8 +120,11 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
   - Both components use a **Dual-Effect Strategy**:
     1. **Playhead Time-Guard (performance)**: Store subscription only invokes Mapbox's `setData()` if the playhead has moved, preventing memory leaks and CPU spikes.
     2. **Style-Watch Effect (liveness)**: A second `useEffect` watches style-relevant props (`color`, `width`, `startTime`, `endTime`, `easing`, `exitAnimation`) and re-applies Mapbox state when paused.
-- **Callout System (`CalloutMarker.tsx`)**: Manages 3D markers, altitude offsets, and the **High-Precision Move Mode** for manual coordinate picking.
-- **Selector-Based Performance**: All components use individual store selectors (e.g., `useProjectStore(s => s.foo)`) to isolate themselves from the "playhead storm." This prevents the Map component tree from re-rendering 60 times a second.
+- **Callout System (`CalloutMarker.tsx` + `hooks/useCalloutAnimationState.ts` + `hooks/useCalloutAltitudeOffsets.ts`)**: Manages 3D markers, altitude offsets, and the **High-Precision Move Mode** for manual coordinate picking.
+  - **Animation State Hook** (`useCalloutAnimationState.ts`): Computes visibility, animation phase, and progress for all callouts once per frame in the parent (MapViewport), avoiding per-marker playheadTime subscriptions.
+  - **Altitude Offset Hook** (`useCalloutAltitudeOffsets.ts`): Computes pixel offsets for 3D altitude effects based on map zoom, updating only when zoom changes (not on every playhead frame).
+  - **Decoupled Rendering**: CalloutMarker receives computed animation state as props, preventing the "playhead storm" of 60 re-renders/second per marker during playback.
+- **Selector-Based Performance**: RouteLayerGroup and BoundaryLayerGroup use individual store selectors (e.g., `useProjectStore(s => s.playheadTime)`) with imperative Mapbox updates, avoiding React re-render overhead for layer data.
 - **Stateless Helpers (`mapUtils.ts`)**: Centralizes logic for runtime capability detection and map-click resolution.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
 - **Route Animation Types** (`item.style.animationType`): Three mutually exclusive modes per route:
@@ -158,7 +161,7 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
    - Eagerly initialized with Standard's groups on app load.
    - Updated whenever a style finishes loading.
    
-3. **Label Syncing** (`MapViewport.tsx:toggleFeature()`):
+3. **Label Syncing** (`hooks/useMapSync.ts:toggleFeature()`):
    - **Standard Style**: Maps label group IDs to Config API property names:
      - `'place'` → `'showPlaceLabels'` (countries, states, cities, neighborhoods)
      - `'admin'` → `'showAdminBoundaries'` (country/state borders and boundary labels)
@@ -166,7 +169,8 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
      - `'transit'` → `'showTransitLabels'`
      - `'poi'` → `'showPointOfInterestLabels'`
      - `'water'`, `'natural'`, `'building'` fall through to layer pattern matching (no Config API toggle exists)
-   - **Other Styles**: Scans `getStyle().layers` and uses layer ID pattern matching.
+   - **Other Styles**: Scans `getStyle().layers` once per sync cycle and reuses the result across all label groups (optimized: `map.getStyle()` is expensive, so layers are extracted before the forEach loop).
+   - **Performance**: Calls to expensive operations like `map.getStyle()` are done once and cached, not once-per-label-group.
    
 4. **UI Integration** (`ProjectSettings.tsx`):
    - Shows "All On" / "All Off" buttons for quick bulk toggling.
@@ -174,6 +178,26 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
    - Toggles update `labelVisibility` in the store, which triggers reactive sync.
 
 **Key Design**: Label toggles are **transient UI state** (not persisted). When a project loads, all labels reset to their defaults for that style. Standard style groups are manually defined to match the Mapbox Config API surface (determined via `mapbox:configGroups` in the style schema).
+
+### 3.6 Performance Optimizations (Recent)
+
+**Callout Marker Playhead Storm (Fixed)**
+- **Problem**: CalloutMarkers previously subscribed directly to `playheadTime`, causing 60 re-renders/second per marker during playback.
+- **Solution**: Computation of animation state (`visibility`, `phase`, `progress`) is now centralized in MapViewport via `useCalloutAnimationState` hook, then passed as props to individual markers.
+- **Result**: Markers only re-render when their specific animation state changes, not on every playhead frame.
+
+**Map Style Queries in Loops (Fixed)**
+- **Problem**: `toggleFeature()` called `map.getStyle()` (expensive serialization) inside a forEach loop over label groups, causing 5-10 serializations per sync cycle.
+- **Solution**: Extract layers once before the loop in `useMapSync.ts`, pass as parameter to `toggleFeature()`.
+- **Result**: `map.getStyle()` now called once per sync instead of N times.
+
+**Altitude Offset Calculations (Fixed)**
+- **Problem**: Altitude pixel offset recalculated on every frame due to playhead storm subscription.
+- **Solution**: Dedicated `useCalloutAltitudeOffsets` hook that only recalculates when map zoom changes, not on every playhead frame.
+- **Result**: Expensive zoom/metersPerPixel math runs only when necessary.
+
+**Dead Code Cleanup**
+- Removed unused files: `NavLink.tsx`, `use-mobile.tsx`, `geocoding.ts` (empty barrel), `App.css` (unused Vite boilerplate).
 
 ---
 

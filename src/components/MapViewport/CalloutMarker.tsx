@@ -9,19 +9,25 @@ interface CalloutMarkerProps {
   callout: CalloutItem;
   mapRef: React.MutableRefObject<MapRef | null>;
   isSelected: boolean;
+  isVisible: boolean;
+  phase: 'enter' | 'visible' | 'exit';
+  progress: number;
+  altitudeOffset: number;
 }
 
 /**
- * CalloutMarker — self-subscribes to playheadTime; parent never re-renders it for time
+ * CalloutMarker — receives animation state as props, does not subscribe to playheadTime
  */
 export function CalloutMarker({
   callout,
   mapRef,
   isSelected,
+  isVisible,
+  phase,
+  progress,
+  altitudeOffset,
 }: CalloutMarkerProps) {
   const updateItem = useProjectStore((s) => s.updateItem);
-  // Self-subscribe to only what this marker needs
-  const playheadTime = useProjectStore((s) => s.playheadTime);
   const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
   const debounceRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -29,9 +35,9 @@ export function CalloutMarker({
 
   const handleDragEnd = useCallback((e: any) => {
     const newLngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-    
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    
+
     debounceRef.current = setTimeout(() => {
       updateItem(callout.id, { lngLat: newLngLat } as any);
     }, 500);
@@ -46,26 +52,8 @@ export function CalloutMarker({
 
   if (callout.lngLat[0] === 0 && callout.lngLat[1] === 0) return null;
 
-  // Visibility check — return null when outside time range (unless in move mode)
-  const isVisibleTime = playheadTime >= callout.startTime && playheadTime <= callout.endTime;
-  if (!isActuallyInMoveMode && !isVisibleTime) return null;
-
-  const enterEnd = callout.startTime + callout.animation.enterDuration;
-  const exitStart = callout.endTime - callout.animation.exitDuration;
-  let phase: 'enter' | 'visible' | 'exit' = 'visible';
-  let animProgress = 1;
-  if (playheadTime < enterEnd) { phase = 'enter'; animProgress = (playheadTime - callout.startTime) / callout.animation.enterDuration; }
-  else if (playheadTime > exitStart) { phase = 'exit'; animProgress = (playheadTime - exitStart) / callout.animation.exitDuration; }
-
-  // Compute pixel offset for altitude (3D effect via marker offset)
-  const map = mapRef.current?.getMap?.();
-  let altitudeOffset = 0;
-  if (map && callout.altitude > 0) {
-    const zoom = map.getZoom();
-    const metersPerPixel = 156543.03392 * Math.cos(callout.lngLat[1] * Math.PI / 180) / Math.pow(2, zoom);
-    altitudeOffset = callout.altitude / metersPerPixel;
-    altitudeOffset = Math.min(altitudeOffset, 300);
-  }
+  // Don't render if not visible (unless in move mode)
+  if (!isActuallyInMoveMode && !isVisible) return null;
 
   // If in move mode, show crosshair at altitude 0
   if (isActuallyInMoveMode) {
@@ -104,7 +92,7 @@ export function CalloutMarker({
       pitchAlignment="viewport"
       rotationAlignment="viewport"
     >
-      <CalloutCard callout={callout} phase={phase} progress={animProgress} altitudeOffset={altitudeOffset} />
+      <CalloutCard callout={callout} phase={phase} progress={progress} altitudeOffset={altitudeOffset} />
     </Marker>
   );
 }

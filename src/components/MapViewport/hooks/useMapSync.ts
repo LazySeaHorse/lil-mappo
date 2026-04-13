@@ -62,7 +62,7 @@ export function useMapSync(
 
   const syncRef = useRef<() => void>(() => {});
 
-  const toggleFeature = useCallback((map: any, pkg: string, prop: string, layerIdPatterns: string | string[], visible: boolean) => {
+  const toggleFeature = useCallback((map: any, pkg: string, prop: string, layerIdPatterns: string | string[], visible: boolean, layers?: any[]) => {
     const s = useProjectStore.getState();
 
     if (s.mapStyle === 'standard') {
@@ -81,9 +81,9 @@ export function useMapSync(
       } catch (e) {}
     }
 
-    const layers = map.getStyle()?.layers || [];
+    const layersToSearch = layers || map.getStyle()?.layers || [];
     const patterns = Array.isArray(layerIdPatterns) ? layerIdPatterns : [layerIdPatterns];
-    const matches = layers.filter((l: any) =>
+    const matches = layersToSearch.filter((l: any) =>
       patterns.some(p => l.id.toLowerCase().includes(p.toLowerCase()))
     );
 
@@ -138,9 +138,10 @@ export function useMapSync(
       }
 
       if (s.detectedCapabilities) {
+        const layers = map.getStyle()?.layers || [];
         s.detectedCapabilities.labelGroups.forEach((group) => {
           const isVisible = s.labelVisibility[group.id] ?? true;
-          toggleFeature(map, 'basemap', group.id, group.layerPatterns, isVisible);
+          toggleFeature(map, 'basemap', group.id, group.layerPatterns, isVisible, layers);
         });
       }
 
@@ -168,11 +169,11 @@ export function useMapSync(
       }
 
       const targetFog = fogConfig as any;
-      const currentFog = map.getFog();
-      
-      const needsFogSync = !currentFog || 
-        currentFog.color !== targetFog.color || 
-        Math.abs((currentFog['star-intensity'] || 0) - (targetFog['star-intensity'] || 0)) > 0.005 ||
+      const currentFog = map.getFog() as any;
+
+      const needsFogSync = !currentFog ||
+        currentFog.color !== targetFog.color ||
+        Math.abs(((currentFog['star-intensity'] as number) || 0) - ((targetFog['star-intensity'] as number) || 0)) > 0.005 ||
         currentFog['space-color'] !== targetFog['space-color'];
 
       if (needsFogSync) {
