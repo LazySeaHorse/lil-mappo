@@ -65,7 +65,7 @@ function useSonnerPosition({
 
   return {
     position: "absolute",
-    bottom: `${bottom}px`,
+    bottom: `calc(${bottom}px + env(safe-area-inset-bottom, 0px))`,
     left,
     transform: "translateX(-50%)",
     zIndex: 100,
@@ -86,11 +86,8 @@ function ZenModeControls({
 }) {
   return (
     <div
-      className={`absolute z-50 pointer-events-auto flex gap-2.5 transition-all duration-500 ${isMobile ? "bottom-6 left-1/2 -translate-x-1/2" : "top-4 left-4"}`}
+      className="absolute z-50 pointer-events-auto flex gap-2.5 transition-all duration-500 top-4 right-4"
     >
-      <IconButton variant="zen" size="lg" onClick={onShowUI} title="Show UI">
-        <Eye size={20} />
-      </IconButton>
       <IconButton
         variant="zen"
         size="lg"
@@ -98,6 +95,9 @@ function ZenModeControls({
         title={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+      </IconButton>
+      <IconButton variant="zen" size="lg" onClick={onShowUI} title="Show UI">
+        <Eye size={20} />
       </IconButton>
     </div>
   );
@@ -166,7 +166,7 @@ export default function MapStudioEditor() {
     <MapRefContext.Provider value={mapRef}>
       <FontLoader />
       <Sonner style={sonnerStyle as React.CSSProperties} />
-      <div className="h-screen w-screen relative overflow-hidden bg-background">
+      <div className="h-dvh w-screen relative overflow-hidden bg-background">
         {/* Map Background Layer */}
         <div className="absolute inset-0 z-0">
           <MapViewport mapRef={mapRef} />

@@ -450,7 +450,7 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - Export: `Video` → `Clapperboard` (more distinct for cinematic final output)
 
 ### 6.4 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
-Detects **Mobile (< 640px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
+Detects **Mobile (< 706px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
 
 ### 6.5 High-Performance Imperative Sync (Guarded Zero-Re-render Architecture)
 **Goal**: Achieve fluid 60fps animations for map layers and UI elements by bypassing React's reconciler during playback and scrubbing, while maintaining a near-zero resource footprint when idle.

@@ -36,7 +36,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
   const rightMarginVal = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
   const finalRightMargin = isMobile ? '0px' : `${rightMarginVal}px`;
   const finalLeftMargin = isMobile ? '0px' : `${PANEL_MARGIN}px`;
-  const finalTopMargin = isMobile ? '0px' : `${PANEL_MARGIN}px`;
+  const finalTopMargin = isMobile ? 'env(safe-area-inset-top, 0px)' : `${PANEL_MARGIN}px`;
   const finalRounded = isMobile ? 'rounded-none' : 'rounded-2xl';
 
   const renderAvatarMenu = () => (
@@ -62,7 +62,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
       <input ref={routeInputRef} type="file" accept=".kml,.gpx" multiple className="hidden" onChange={actions.handleImport} />
       <input ref={projectInputRef} type="file" accept=".lilmap,.json" className="hidden" onChange={actions.handleImportProject} />
 
-      {isMobile || isTablet ? (
+      {isMobile ? (
         <MobileToolbarLayout
           mobileMode={mobileMode}
           setMobileMode={setMobileMode}
@@ -78,7 +78,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
         />
       ) : (
         <DesktopToolbarLayout
-          isTablet={false}
+          isTablet={isTablet}
           activeDropdown={activeDropdown}
           setActiveDropdown={setActiveDropdown}
           isPlaying={isPlaying}

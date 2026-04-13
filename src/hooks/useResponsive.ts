@@ -11,7 +11,7 @@ export function useResponsive() {
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
   useEffect(() => {
-    const mobileQuery = window.matchMedia('(max-width: 640px)');
+    const mobileQuery = window.matchMedia('(max-width: 706px)');
     const tabletQuery = window.matchMedia('(min-width: 641px) and (max-width: 1024px)');
     const desktopQuery = window.matchMedia('(min-width: 1025px)');
 

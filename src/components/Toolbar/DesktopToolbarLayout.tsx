@@ -152,33 +152,11 @@ export function DesktopToolbarLayout({
       {renderAvatarMenu()}
       <Divider />
 
-      {/* Add Group */}
       <div className="flex items-center gap-0.5">
         <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
-        {isTablet ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <IconButton variant="toolbar" size="sm" title="Add More Items" className="text-primary">
-                <Plus size={20} />
-              </IconButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48 bg-background/95 rounded-2xl shadow-2xl p-1">
-              <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
-              <div className="h-px bg-border/30 my-1" />
-              <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-              <div className="h-px bg-border/30 my-1" />
-              <DropdownMenuItem onClick={handleAddCameraKF} className="gap-2 cursor-pointer h-9 text-xs rounded-xl">
-                <Video size={14} /> Add Camera KF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <>
-            <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
-            <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-            <ToolbarButton icon={<Video size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
-          </>
-        )}
+        <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
+        <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
+        <ToolbarButton icon={<Video size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
       </div>
 
       <Divider />

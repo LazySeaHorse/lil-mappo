@@ -236,7 +236,7 @@ export default function TimelinePanel() {
       className={`absolute ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} bg-background/85 border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
       style={{
         height: clampedHeight,
-        bottom: `${PANEL_MARGIN}px`,
+        bottom: `calc(${PANEL_MARGIN}px + env(safe-area-inset-bottom, 0px))`,
         left: finalLeftMargin,
         right: finalRightMargin
       }}
@@ -252,58 +252,43 @@ export default function TimelinePanel() {
         className="border-b border-border/50 flex items-center px-3 shrink-0 bg-background/40 rounded-t-2xl relative"
         style={{ height: HEADER_HEIGHT }}
       >
-        {/* Left: label + time — time display updated imperatively */}
-        <div className="flex flex-col gap-0.5 shrink-0">
-          <span className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground leading-none">
-            Timeline
-          </span>
-          <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
-            <span ref={timeDisplayRef}>{formatTime(useProjectStore.getState().playheadTime)}</span>
-            <span className="opacity-50"> / {formatTime(duration)}</span>
-          </span>
-        </div>
-
-        {/* Center: transport controls — absolutely centered so it's always in the middle */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="flex items-center gap-0.5 pointer-events-auto">
-            <IconButton
-              variant="ghost" size="xs"
-              onClick={() => setPlayheadTime(0)}
-              title="Jump to Start ([)"
-            >
-              <SkipBack />
-            </IconButton>
-            <IconButton
-              variant="ghost" size="xs"
-              onClick={() => setPlayheadTime(Math.max(0, useProjectStore.getState().playheadTime - 1 / fps))}
-              title="Step Back (←)"
-            >
-              <ChevronLeft />
-            </IconButton>
-            <IconButton
-              variant="ghost" size="xs"
-              onClick={() => setIsPlaying(!isPlaying)}
-              title="Play / Pause (Space)"
-              className={isPlaying ? 'text-primary' : ''}
-            >
-              {isPlaying ? <Pause /> : <Play />}
-            </IconButton>
-            <IconButton
-              variant="ghost" size="xs"
-              onClick={() => setPlayheadTime(Math.min(duration, useProjectStore.getState().playheadTime + 1 / fps))}
-              title="Step Forward (→)"
-            >
-              <ChevronRight />
-            </IconButton>
-            <IconButton
-              variant="ghost" size="xs"
-              onClick={() => setPlayheadTime(duration)}
-              title="Jump to End (])"
-            >
-              <SkipForward />
-            </IconButton>
+        {/* Desktop: Label + Time / Mobile: Transport Controls */}
+        {!isMobile ? (
+          <div className="flex flex-col gap-0.5 shrink-0">
+            <span className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground leading-none">
+              Timeline
+            </span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
+              <span ref={timeDisplayRef}>{formatTime(useProjectStore.getState().playheadTime)}</span>
+              <span className="opacity-50"> / {formatTime(duration)}</span>
+            </span>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-0.5">
+            <TransportControls 
+              setPlayheadTime={setPlayheadTime}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              duration={duration}
+              fps={fps}
+            />
+          </div>
+        )}
+
+        {/* Desktop: Center transport controls absolutely */}
+        {!isMobile && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="flex items-center gap-0.5 pointer-events-auto">
+              <TransportControls 
+                setPlayheadTime={setPlayheadTime}
+                isPlaying={isPlaying}
+                setIsPlaying={setIsPlaying}
+                duration={duration}
+                fps={fps}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Right: zoom controls */}
         <div className="ml-auto flex items-center gap-1 shrink-0">
@@ -346,7 +331,14 @@ export default function TimelinePanel() {
           {/* RULER ROW */}
           <div className="h-10 border-b border-border/50 relative shrink-0 bg-background/60 sticky top-0 z-30 backdrop-blur-md flex items-end">
 
-            <div className="w-[160px] h-full bg-background/90 border-r border-border/50 shrink-0 sticky left-0 z-30 pointer-events-none" />
+            <div className="w-[160px] h-full bg-background/90 border-r border-border/50 shrink-0 sticky left-0 z-30 pointer-events-none flex items-center px-4">
+              {isMobile && (
+                <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
+                  <span ref={timeDisplayRef}>{formatTime(useProjectStore.getState().playheadTime)}</span>
+                  <span className="opacity-50"> / {formatTime(duration)}</span>
+                </span>
+              )}
+            </div>
 
             <div
               className="flex-1 relative h-full cursor-text"
@@ -413,6 +405,62 @@ export default function TimelinePanel() {
     </div>
   );
 }
+
+function TransportControls({ 
+  setPlayheadTime, 
+  isPlaying, 
+  setIsPlaying, 
+  duration, 
+  fps 
+}: { 
+  setPlayheadTime: (t: number) => void; 
+  isPlaying: boolean; 
+  setIsPlaying: (p: boolean) => void;
+  duration: number;
+  fps: number;
+}) {
+  return (
+    <>
+      <IconButton
+        variant="ghost" size="xs"
+        onClick={() => setPlayheadTime(0)}
+        title="Jump to Start ([)"
+      >
+        <SkipBack />
+      </IconButton>
+      <IconButton
+        variant="ghost" size="xs"
+        onClick={() => setPlayheadTime(Math.max(0, useProjectStore.getState().playheadTime - 1 / fps))}
+        title="Step Back (←)"
+      >
+        <ChevronLeft />
+      </IconButton>
+      <IconButton
+        variant="ghost" size="xs"
+        onClick={() => setIsPlaying(!isPlaying)}
+        title="Play / Pause (Space)"
+        className={isPlaying ? 'text-primary' : ''}
+      >
+        {isPlaying ? <Pause /> : <Play />}
+      </IconButton>
+      <IconButton
+        variant="ghost" size="xs"
+        onClick={() => setPlayheadTime(Math.min(duration, useProjectStore.getState().playheadTime + 1 / fps))}
+        title="Step Forward (→)"
+      >
+        <ChevronRight />
+      </IconButton>
+      <IconButton
+        variant="ghost" size="xs"
+        onClick={() => setPlayheadTime(duration)}
+        title="Jump to End (])"
+      >
+        <SkipForward />
+      </IconButton>
+    </>
+  );
+}
+
 
 const TrackRow = React.memo(({
   item,
