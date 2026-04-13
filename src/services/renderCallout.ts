@@ -1,38 +1,23 @@
 import type { CalloutItem } from '@/store/types';
+import { hexToRgba } from '@/utils/colors';
+import { computeCalloutPhase } from '@/engine/calloutAnimation';
 
-export interface CalloutAnimationState {
+export interface CalloutRenderState {
   opacity: number;
 }
 
 /** Compute fade in/out animation state. Returns null when callout is not visible. */
-export function computeCalloutAnimation(callout: CalloutItem, playheadTime: number): CalloutAnimationState | null {
-  if (playheadTime < callout.startTime || playheadTime > callout.endTime) return null;
+export function computeCalloutAnimation(callout: CalloutItem, playheadTime: number): CalloutRenderState | null {
+  const phaseResult = computeCalloutPhase(callout, playheadTime);
+  if (!phaseResult) return null;
 
-  const enterEnd = callout.startTime + callout.animation.enterDuration;
-  const exitStart = callout.endTime - callout.animation.exitDuration;
-
-  let opacity = 1;
-
-  if (playheadTime < enterEnd) {
-    const p = Math.min((playheadTime - callout.startTime) / callout.animation.enterDuration, 1);
-    opacity = p;
-  } else if (playheadTime > exitStart) {
-    const p = Math.min((playheadTime - exitStart) / callout.animation.exitDuration, 1);
-    opacity = 1 - p;
-  }
+  const { phase, progress } = phaseResult;
+  const opacity = phase === 'enter' ? progress : phase === 'exit' ? 1 - progress : 1;
 
   return { opacity };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function hexWithAlpha(hex: string, alpha: number): string {
-  if (!hex.startsWith('#') || hex.length < 7) return hex;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const cr = Math.min(r, w / 2, h / 2);
@@ -66,7 +51,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 export function renderCalloutToCanvas(
   ctx: CanvasRenderingContext2D,
   callout: CalloutItem,
-  anim: CalloutAnimationState,
+  anim: CalloutRenderState,
   pos: { x: number; y: number },
   altitudeOffset = 0,
 ): void {
@@ -180,7 +165,7 @@ function renderModern(
     ctx.shadowBlur = 20;
     ctx.shadowOffsetY = 6;
   }
-  ctx.fillStyle = hexWithAlpha(callout.style.bgColor, 0.87);
+  ctx.fillStyle = hexToRgba(callout.style.bgColor, 0.87);
   roundRect(ctx, cardX, cardY, cardW, cardH, pillR);
   ctx.fill();
   ctx.restore();

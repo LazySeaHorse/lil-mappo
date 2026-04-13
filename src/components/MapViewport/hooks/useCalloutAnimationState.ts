@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { CalloutItem } from '@/store/types';
+import { computeCalloutPhase } from '@/engine/calloutAnimation';
 
-interface CalloutAnimationState {
+interface CalloutUIAnimationState {
   isVisible: boolean;
   phase: 'enter' | 'visible' | 'exit';
   progress: number;
@@ -16,9 +17,9 @@ export function useCalloutAnimationState(
   isMoveModeActive: boolean,
   selectedCalloutId: string | null,
   callouts: CalloutItem[]
-): Record<string, CalloutAnimationState> {
+): Record<string, CalloutUIAnimationState> {
   return useMemo(() => {
-    const states: Record<string, CalloutAnimationState> = {};
+    const states: Record<string, CalloutUIAnimationState> = {};
 
     for (const callout of callouts) {
       const isSelected = selectedCalloutId === callout.id;
@@ -29,28 +30,9 @@ export function useCalloutAnimationState(
       const isVisible = isActuallyInMoveMode || isVisibleTime;
 
       // Calculate animation phase and progress
-      let phase: 'enter' | 'visible' | 'exit' = 'visible';
-      let progress = 1;
-
-      if (playheadTime < callout.startTime) {
-        // Before start: not visible
-        phase = 'enter';
-        progress = 0;
-      } else {
-        const enterEnd = callout.startTime + callout.animation.enterDuration;
-        const exitStart = callout.endTime - callout.animation.exitDuration;
-
-        if (playheadTime < enterEnd) {
-          phase = 'enter';
-          progress = (playheadTime - callout.startTime) / callout.animation.enterDuration;
-        } else if (playheadTime > exitStart) {
-          phase = 'exit';
-          progress = (playheadTime - exitStart) / callout.animation.exitDuration;
-        } else {
-          phase = 'visible';
-          progress = 1;
-        }
-      }
+      const phaseResult = computeCalloutPhase(callout, playheadTime);
+      const phase = phaseResult?.phase ?? 'enter';
+      const progress = phaseResult?.progress ?? 0;
 
       states[callout.id] = {
         isVisible,

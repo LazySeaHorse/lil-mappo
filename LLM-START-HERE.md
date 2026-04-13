@@ -447,6 +447,53 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - Callout: `MessageSquare` → `Flag` (distinct annotation marker)
 - Boundary: `MapPin` → `Hexagon` (clear polygon indicator)
 - Camera Keyframe: `Crosshair` → `Video` (represents video frames)
+
+### 6.4 Code Duplication Elimination & Utility Extraction
+
+**Problem**: Five instances of significant code duplication were identified across the codebase:
+1. **Search Field Logic**: `SearchField.tsx` and `RoutePlanner.tsx`'s `InspectorSearchField` duplicated ~80% of Mapbox SearchBox session management, proximity bias, and suggestion handling.
+2. **Animation Phase Computation**: Both `useCalloutAnimationState.ts` and `renderCallout.ts` duplicated the `enterEnd`/`exitStart` phase and progress calculation logic.
+3. **Hex Color Conversion**: Identical `withAlpha()` / `hexWithAlpha()` functions existed in `CalloutCard.tsx` and `renderCallout.ts`.
+4. **Interface Name Collision**: Two unrelated interfaces both named `CalloutAnimationState` (UI state in hook vs. canvas render state in service) created confusion despite different semantics.
+5. **Dual State Synchronization**: `ExportModal.tsx` maintained both a local React state and a store state for `isExporting`, requiring manual synchronization in 5+ places.
+
+**Solution**: Systematic extraction of shared logic into reusable abstractions:
+
+**New Files:**
+- **`src/hooks/useLocationSearch.ts`** — Extracted hook managing Mapbox SearchBox session, proximity bias, suggestion fetching, and coordinate parsing.
+  - Owned state: `query`, `suggestions`, `isOpen`, `loading`
+  - Owned functions: `performSearch()`, `handleSelect()`, `handleClose()`, `clear()`
+  - Option: `parseCoordinates` enables direct lat/lng input (used by RoutePlanner)
+  - Both `SearchField` and `InspectorSearchField` now call this hook; each retains its own UI (Popover vs. Card)
+
+- **`src/engine/calloutAnimation.ts`** — Extracted `computeCalloutPhase()` utility for phase and progress calculation.
+  - Returns: `{ phase: 'enter' | 'visible' | 'exit', progress: number } | null`
+  - Used by both `useCalloutAnimationState.ts` (for UI animation) and `renderCallout.ts` (for canvas opacity)
+  - Eliminates duplicate `enterEnd`/`exitStart` calculation logic
+
+- **`src/utils/colors.ts`** — Extracted `hexToRgba()` color utility.
+  - Converts hex strings (e.g., `#FF0000`) to rgba with alpha (e.g., `rgba(255, 0, 0, 0.87)`)
+  - Used by `CalloutCard.tsx` (DOM rendering) and `renderCallout.ts` (canvas rendering)
+
+**Modified Files:**
+- **`src/components/Search/SearchField.tsx`** — Now uses `useLocationSearch` hook; removed 70 lines of session/search logic. Retains Popover UI and `name` prop sync.
+- **`src/components/Inspector/RoutePlanner.tsx`** — `InspectorSearchField` now uses `useLocationSearch` with `parseCoordinates: true`. Removed 70 lines of search logic; retains Card UI and coordinate sync.
+- **`src/components/MapViewport/hooks/useCalloutAnimationState.ts`** — Uses `computeCalloutPhase()` utility; reduced phase/progress computation from 20 lines to 3 lines.
+- **`src/services/renderCallout.ts`** — Uses `computeCalloutPhase()` and `hexToRgba()`; reduced duplication footprint.
+- **`src/components/MapViewport/CalloutCard.tsx`** — Imports `hexToRgba()` from utils; removed inline `withAlpha()` function.
+- **`src/components/ExportModal/ExportModal.tsx`** — Removed local `isExporting` state; now reads from store via selector. Kept only store `setIsExporting()` calls as single update path.
+
+**Interface Renames** (for clarity):
+- `src/components/MapViewport/hooks/useCalloutAnimationState.ts`: Local `CalloutAnimationState` → `CalloutUIAnimationState`
+- `src/services/renderCallout.ts`: Exported `CalloutAnimationState` → `CalloutRenderState`
+- No external import changes needed (types inferred by consumers)
+
+**Benefits:**
+- **Reduced Maintenance Burden**: Future changes to search logic, animation, or color handling require only one edit.
+- **Type Safety**: No more interface name collisions.
+- **Single State Source**: `ExportModal` now reads `isExporting` from store, eliminating sync errors.
+- **Reusability**: `useLocationSearch` and `computeCalloutPhase()` can be used in future features without code duplication.
+- **Testability**: Extracted utilities are independently testable in isolation.
 - Export: `Video` → `Clapperboard` (more distinct for cinematic final output)
 
 ### 6.4 Responsive Layout Logic (`src/hooks/useResponsive.ts`)

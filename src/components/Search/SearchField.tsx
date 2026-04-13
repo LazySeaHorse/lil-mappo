@@ -1,13 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { SearchBoxCore, SearchSession } from '@mapbox/search-js-core';
-import type {
-  SearchBoxSuggestion,
-  SearchBoxOptions,
-  SearchBoxSuggestionResponse,
-  SearchBoxRetrieveResponse,
-} from '@mapbox/search-js-core';
-import { useProjectStore } from '@/store/useProjectStore';
-import { MAPBOX_TOKEN } from '@/config/mapbox';
+import { useEffect } from 'react';
+import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Input } from '@/components/ui/input';
 import { Loader2, Crosshair, MapPin, X } from 'lucide-react';
 
@@ -17,13 +9,6 @@ import {
   PopoverAnchor,
 } from "@/components/ui/popover";
 import { IconButton } from '@/components/ui/icon-button';
-
-type SearchBoxSession = SearchSession<
-  SearchBoxOptions,
-  SearchBoxSuggestion,
-  SearchBoxSuggestionResponse,
-  SearchBoxRetrieveResponse
->;
 
 interface SearchFieldProps {
   label: string;
@@ -40,82 +25,26 @@ interface SearchFieldProps {
 export const SearchField = ({
   label,
   name,
-  onSelect,
+  onSelect: onSelectProp,
   color = "bg-primary/10 text-primary border-primary/20",
   isPicking,
   onStartPick,
   className = "",
   placeholder
 }: SearchFieldProps) => {
-  const [query, setQuery] = useState(name);
-  const [suggestions, setSuggestions] = useState<SearchBoxSuggestion[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { mapCenter } = useProjectStore();
+  // Wrap the prop callback to ensure name is always provided
+  const onSelectWithName = (lngLat: [number, number], name?: string) => {
+    onSelectProp(lngLat, name || '');
+  };
 
-  const sessionRef = useRef<SearchBoxSession | null>(null);
-  const mapCenterRef = useRef(mapCenter);
-
-  useEffect(() => {
-    mapCenterRef.current = mapCenter;
-  }, [mapCenter]);
-
-  useEffect(() => {
-    const core = new SearchBoxCore({ accessToken: MAPBOX_TOKEN });
-    sessionRef.current = new SearchSession(core, 300);
-    return () => { sessionRef.current = null; };
-  }, []);
+  const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, handleClose, clear } = useLocationSearch({
+    onSelect: onSelectWithName,
+  });
 
   // Sync internal query when name prop changes
   useEffect(() => {
     setQuery(name);
-  }, [name]);
-
-  const performSearch = async (searchTerm: string) => {
-    const trimmed = searchTerm.trim();
-    if (trimmed.length < 2 || trimmed === name) {
-      setSuggestions([]);
-      setIsOpen(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const center = mapCenterRef.current;
-      const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
-      const response = await sessionRef.current!.suggest(trimmed, { proximity });
-      setSuggestions(response.suggestions || []);
-      setIsOpen((response.suggestions || []).length > 0);
-    } catch {
-      setSuggestions([]);
-      setIsOpen(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClose = () => {
-    setIsOpen(false);
-    setSuggestions([]);
-  };
-
-  const clear = () => {
-    setQuery('');
-    handleClose();
-    onSelect([0, 0], '');
-  };
-
-  const handleSelect = async (suggestion: SearchBoxSuggestion) => {
-    try {
-      const result = await sessionRef.current!.retrieve(suggestion);
-      const feature = result.features[0];
-      const [lng, lat] = feature.geometry.coordinates;
-      onSelect([lng, lat], feature.properties.name || suggestion.name);
-    } catch {
-      // retrieve failed; no action
-    }
-    handleClose();
-  };
+  }, [name, setQuery]);
 
   const renderResults = () => (
     <div className="flex flex-col p-1 max-h-[300px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -151,10 +80,7 @@ export const SearchField = ({
                 value={isPicking ? "" : query}
                 onChange={(e) => {
                   setQuery(e.target.value);
-                  if (suggestions.length > 0) {
-                    setSuggestions([]);
-                    setIsOpen(false);
-                  }
+                  // Suggestions will be cleared naturally on the next performSearch
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

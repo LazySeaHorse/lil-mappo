@@ -16,20 +16,18 @@ interface ExportModalProps {
 }
 
 export default function ExportModal({ onClose }: ExportModalProps) {
-  const { fps, resolution, duration, name } = useProjectStore();
+  const { fps, resolution, duration, name, isExporting } = useProjectStore();
   const mapRef = useMapRef();
 
   const [exportRes, setExportRes] = useState<[number, number]>(resolution);
   const [exportFps, setExportFps] = useState<number>(fps);
   const [startTime, setStartTime] = useState<number>(0);
   const [endTime, setEndTime] = useState<number>(duration);
-  const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const handleExport = useCallback(async () => {
-    setIsExporting(true);
     useProjectStore.getState().setIsExporting(true);
     setProgress(0);
     setError(null);
@@ -51,14 +49,12 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
           const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.${ext}`;
           saveAs(blob, fileName);
-          setIsExporting(false);
           useProjectStore.getState().setIsExporting(false);
           setProgress(100);
           useProjectStore.getState().setHideUI(false);
         },
         onError: (err) => {
           setError(err);
-          setIsExporting(false);
           useProjectStore.getState().setIsExporting(false);
           useProjectStore.getState().setHideUI(false);
         },
@@ -66,7 +62,6 @@ export default function ExportModal({ onClose }: ExportModalProps) {
       });
     } catch (e: any) {
       setError(e.message || 'Export failed');
-      setIsExporting(false);
       useProjectStore.getState().setIsExporting(false);
       useProjectStore.getState().setHideUI(false);
     }
@@ -74,7 +69,6 @@ export default function ExportModal({ onClose }: ExportModalProps) {
 
   const handleCancel = () => {
     abortRef.current?.abort();
-    setIsExporting(false);
     useProjectStore.getState().setIsExporting(false);
     setProgress(0);
     useProjectStore.getState().setHideUI(false);

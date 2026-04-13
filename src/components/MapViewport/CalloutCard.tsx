@@ -1,4 +1,5 @@
 import type { CalloutItem } from '@/store/types';
+import { hexToRgba } from '@/utils/colors';
 
 interface Props {
   callout: CalloutItem;
@@ -15,15 +16,6 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
   const fontFamily = callout.style.fontFamily || 'Outfit';
 
   const backgroundColor = callout.style.bgColor;
-
-  // Helper to add alpha to hex colors for the 87% requirement
-  const withAlpha = (hex: string, alpha: number) => {
-    if (!hex.startsWith('#')) return hex;
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
 
   // --- ANIMATION CALCULATION ---
   const animStyles = (() => {
@@ -65,7 +57,7 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
             style={{
               ...commonStyles,
               // Always 87% opacity as requested
-              backgroundColor: withAlpha(backgroundColor, 0.87),
+              backgroundColor: hexToRgba(backgroundColor, 0.87),
               border: '1px solid rgba(255,255,255,0.3)',
               borderRadius: '100px',
               padding: '8px 18px',

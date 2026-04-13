@@ -1,15 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { SearchBoxCore, SearchSession } from '@mapbox/search-js-core';
-import type {
-  SearchBoxSuggestion,
-  SearchBoxOptions,
-  SearchBoxSuggestionResponse,
-  SearchBoxRetrieveResponse,
-} from '@mapbox/search-js-core';
+import { useState, useEffect } from 'react';
+import type { SearchBoxSuggestion } from '@mapbox/search-js-core';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
-import { MAPBOX_TOKEN } from '@/config/mapbox';
+import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -25,13 +19,6 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ProBadge } from '@/components/ui/pro-badge';
 import { useSubscription } from '@/hooks/useSubscription';
 
-type SearchBoxSession = SearchSession<
-  SearchBoxOptions,
-  SearchBoxSuggestion,
-  SearchBoxSuggestionResponse,
-  SearchBoxRetrieveResponse
->;
-
 interface InspectorSearchFieldProps {
   label: string;
   value: [number, number];
@@ -40,24 +27,10 @@ interface InspectorSearchFieldProps {
 }
 
 const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearchFieldProps) => {
-  const [query, setQuery] = useState(value[0] !== 0 ? `${value[0].toFixed(4)}, ${value[1].toFixed(4)}` : '');
-  const [suggestions, setSuggestions] = useState<SearchBoxSuggestion[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { mapCenter } = useProjectStore();
-
-  const sessionRef = useRef<SearchBoxSession | null>(null);
-  const mapCenterRef = useRef(mapCenter);
-
-  useEffect(() => {
-    mapCenterRef.current = mapCenter;
-  }, [mapCenter]);
-
-  useEffect(() => {
-    const core = new SearchBoxCore({ accessToken: MAPBOX_TOKEN });
-    sessionRef.current = new SearchSession(core, 300);
-    return () => { sessionRef.current = null; };
-  }, []);
+  const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, handleClose, clear } = useLocationSearch({
+    onSelect: (lngLat) => onSelect(lngLat),
+    parseCoordinates: true,
+  });
 
   // Sync internal query when value (coordinates) changes from map click
   useEffect(() => {
@@ -66,67 +39,7 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
     } else {
       setQuery('');
     }
-  }, [value]);
-
-  const performSearch = async (searchTerm: string) => {
-    const trimmed = searchTerm.trim();
-
-    // Check if it's coordinates: "-74.006, 40.712"
-    const coordMatch = trimmed.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
-    if (coordMatch) {
-      const lng = parseFloat(coordMatch[1]);
-      const lat = parseFloat(coordMatch[2]);
-      if (!isNaN(lng) && !isNaN(lat) && lng !== value[0] && lat !== value[1]) {
-        onSelect([lng, lat]);
-        setSuggestions([]);
-        setIsOpen(false);
-      }
-      return;
-    }
-
-    if (trimmed.length < 2) {
-      setSuggestions([]);
-      setIsOpen(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const center = mapCenterRef.current;
-      const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
-      const response = await sessionRef.current!.suggest(trimmed, { proximity });
-      setSuggestions(response.suggestions || []);
-      setIsOpen((response.suggestions || []).length > 0);
-    } catch {
-      setSuggestions([]);
-      setIsOpen(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClose = () => {
-    setIsOpen(false);
-    setSuggestions([]);
-  };
-
-  const clear = () => {
-    setQuery('');
-    handleClose();
-    onSelect([0, 0]);
-  };
-
-  const handleSelect = async (suggestion: SearchBoxSuggestion) => {
-    try {
-      const result = await sessionRef.current!.retrieve(suggestion);
-      const feature = result.features[0];
-      const [lng, lat] = feature.geometry.coordinates;
-      onSelect([lng, lat]);
-    } catch {
-      // retrieve failed; no action
-    }
-    handleClose();
-  };
+  }, [value, setQuery]);
 
   return (
     <div className="relative group w-full">
@@ -140,10 +53,6 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
-              if (suggestions.length > 0) {
-                setSuggestions([]);
-                setIsOpen(false);
-              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
