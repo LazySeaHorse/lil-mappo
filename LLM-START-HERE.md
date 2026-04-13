@@ -109,13 +109,20 @@ This persists across the password-confirm redirect cycle, ensuring the checkout 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
 Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
 
-### 3.3 The Body: `src/components/MapViewport/MapViewport.tsx`
-Handles all imperative Mapbox state and reactive layer rendering.
-- **Unified Sync Engine**: Orchestrates Projection, Terrain, Atmosphere, and Config. Uses **numeric epsilon guards** and normalized color comparisons in an `idle` synchronization loop to ensure zero-flicker stability without infinite feedback loops.
-- **Guarded Imperative Layer Groups**: `RouteLayerGroup` and `BoundaryLayerGroup` manage Mapbox sources and layers directly. They use a dual-effect strategy:
-  1. **Playhead Time-Guard (performance)**: A store subscription only invokes Mapbox's `setData()` if the playhead has moved, preventing memory leaks and CPU spikes during idle periods or transient UI updates.
-  2. **Style-Watch Effect (liveness)**: A second `useEffect` watches style-relevant props (`color`, `width`, `startTime`, `endTime`, `easing`, `exitAnimation`) and re-applies Mapbox state when paused. This ensures style edits immediately reflect on the map even while playback is stopped.
-- **Selector-Based Performance**: The viewport uses individual store selectors (e.g., `useProjectStore(s => s.foo)`) to isolate itself from the "playhead storm." This prevents the large Map component tree from re-rendering 60 times a second.
+### 3.3 The Body: `src/components/MapViewport/`
+The MapViewport is a modularized imperative engine designed for maximum stability and performance. It follows a **Delegation Architecture**.
+
+- **Orchestrator (`MapViewport.tsx`)**: A slim shell that manages the `<MapGL />` component, lifecycle states (`mapReady`, `styleLoaded`), and coordinate centering. It delegates all business logic to dedicated hooks and sub-components.
+- **Unified Sync Engine (`hooks/useMapSync.ts`)**: The core imperative bridge. Orchestrates Projection, Terrain, Atmosphere, and Config. Uses **numeric epsilon guards** and normalized color comparisons in an `idle` synchronization loop to ensure zero-flicker stability. It also manages the **Export Engine Bridge** (`_syncRef`) used for frame capture during video export.
+- **Guarded Imperative Layer Groups**:
+  - **`RouteLayerGroup.tsx`**: Manages Mapbox sources and layers for routes, including the **Vehicle System**.
+  - **`BoundaryLayerGroup.tsx`**: Manages Mapbox sources and layers for polygons/boundaries.
+  - Both components use a **Dual-Effect Strategy**:
+    1. **Playhead Time-Guard (performance)**: Store subscription only invokes Mapbox's `setData()` if the playhead has moved, preventing memory leaks and CPU spikes.
+    2. **Style-Watch Effect (liveness)**: A second `useEffect` watches style-relevant props (`color`, `width`, `startTime`, `endTime`, `easing`, `exitAnimation`) and re-applies Mapbox state when paused.
+- **Callout System (`CalloutMarker.tsx`)**: Manages 3D markers, altitude offsets, and the **High-Precision Move Mode** for manual coordinate picking.
+- **Selector-Based Performance**: All components use individual store selectors (e.g., `useProjectStore(s => s.foo)`) to isolate themselves from the "playhead storm." This prevents the Map component tree from re-rendering 60 times a second.
+- **Stateless Helpers (`mapUtils.ts`)**: Centralizes logic for runtime capability detection and map-click resolution.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
 - **Route Animation Types** (`item.style.animationType`): Three mutually exclusive modes per route:
   - **`draw`** (default): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available.
@@ -382,10 +389,11 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - `renderCalloutToCanvas()`: Main entry point; dispatches to variant-specific renderers.
 - Supports pole line (dashed, with dot), shadow, text rendering, accent colors, and altitude offsets.
 
-**MapViewport.tsx**
-- Extracted `resolveClickTarget(e, editingPoint)` — resolves click to either search result or raw coordinates.
-- Extracted `applyPickResult(state, editingPoint, target, updateItem)` — applies the pick to draft or existing item.
-- **Picking Logic Clarity**: Coordinate resolution is separated from state updates, making the flow easier to trace.
+**MapViewport.tsx** (Major architectural split)
+- **Delegation Refactor**: Split the ~1,200 line monolith into modular sub-components and hooks.
+- Extracted `useMapSync()` hook — contains the core imperative sync engine and export bridge.
+- Extracted `RouteLayerGroup`, `BoundaryLayerGroup`, and `CalloutMarker` as dedicated functional components.
+- Extracted `mapUtils.ts` — contains `resolveClickTarget` and `applyPickResult` for picking logic clarity.
 
 **MapStudioEditor.tsx**
 - Extracted `useSonnerPosition()` hook — calculates toast positioning based on UI state.
