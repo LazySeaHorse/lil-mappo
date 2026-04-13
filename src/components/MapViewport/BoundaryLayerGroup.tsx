@@ -74,6 +74,21 @@ export function BoundaryLayerGroup({
       map.addSource(strokeSourceId, { type: 'geojson', data: EMPTY_FC });
     }
 
+    if (!map.getLayer(strokeLayerId)) {
+      const b = boundaryRef.current;
+      map.addLayer({
+        id: strokeLayerId,
+        type: 'line',
+        source: strokeSourceId,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': b.style.strokeColor,
+          'line-width': b.style.strokeWidth,
+          'line-opacity': 0,
+        },
+      });
+    }
+
     const glowLayerId = `boundary-glow-layer-${boundary.id}`;
     if (!map.getLayer(glowLayerId)) {
       const b = boundaryRef.current;
@@ -94,21 +109,6 @@ export function BoundaryLayerGroup({
       );
     }
 
-    if (!map.getLayer(strokeLayerId)) {
-      const b = boundaryRef.current;
-      map.addLayer({
-        id: strokeLayerId,
-        type: 'line',
-        source: strokeSourceId,
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': b.style.strokeColor,
-          'line-width': b.style.strokeWidth,
-          'line-opacity': 0,
-        },
-      });
-    }
-
     let destroyed = false;
 
     const updateBoundary = (state: ReturnType<typeof useProjectStore.getState>) => {
@@ -125,6 +125,7 @@ export function BoundaryLayerGroup({
       const isAnimating = style.animateStroke;
       const animStyle = style.animationStyle || 'fade';
       const traceLen = style.traceLength || 0.1;
+      const glowLayerId = `boundary-glow-layer-${b.id}`;
 
       const progress = getNormalizedProgress(state.playheadTime, b.startTime, b.endTime, b.easing);
 
@@ -136,97 +137,80 @@ export function BoundaryLayerGroup({
 
       // --- Static paint properties: only update when values change ---
       const lp = lastPaintRef.current;
+      const glowVisible = style.glow && !isReverseExit;
+
       if (lp.strokeColor !== style.strokeColor) {
         try { m.setPaintProperty(fillLayerId, 'fill-color', style.strokeColor); } catch (_) {}
         try { m.setPaintProperty(strokeLayerId, 'line-color', style.strokeColor); } catch (_) {}
-        const glowLayerId = `boundary-glow-layer-${b.id}`;
-        if (m.getLayer(glowLayerId)) {
-          try { m.setPaintProperty(glowLayerId, 'line-color', style.strokeColor); } catch (_) {}
-        }
+        try { m.setPaintProperty(glowLayerId, 'line-color', style.strokeColor); } catch (_) {}
         lp.strokeColor = style.strokeColor;
       }
       if (lp.strokeWidth !== style.strokeWidth) {
         try { m.setPaintProperty(strokeLayerId, 'line-width', style.strokeWidth); } catch (_) {}
+        try {
+          m.setPaintProperty(glowLayerId, 'line-width', style.strokeWidth * 3);
+          m.setPaintProperty(glowLayerId, 'line-blur', style.strokeWidth * 2);
+        } catch (_) {}
         lp.strokeWidth = style.strokeWidth;
+      }
+      if (lp.glowVisible !== glowVisible) {
+        try { m.setLayoutProperty(glowLayerId, 'visibility', glowVisible ? 'visible' : 'none'); } catch (_) {}
+        lp.glowVisible = glowVisible;
       }
 
       // --- Fill ---
       let fillProgress: number;
       if (isReverseExit) {
-        fillProgress = animStyle === 'draw'
-          ? Math.max(0, (reverseP - 0.7) / 0.3)
-          : reverseP;
+        fillProgress = animStyle === 'draw' ? Math.max(0, (reverseP - 0.7) / 0.3) : reverseP;
       } else {
         fillProgress = animStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
       }
       
       let fillOpacity = style.fillOpacity * fillProgress;
-      if (isFadeExit) {
-        fillOpacity *= reverseP;
-      }
+      if (isFadeExit) fillOpacity *= reverseP;
 
-      // Fill geometry is always the full polygon — only upload when b.geojson reference changes
       const geojsonChanged = lastGeojsonRef.current !== b.geojson;
       if (geojsonChanged) {
         lastGeojsonRef.current = b.geojson;
-        const fillFC: GeoJSON.FeatureCollection = {
+        fillSource.setData({
           type: 'FeatureCollection',
           features: [{ type: 'Feature', properties: {}, geometry: b.geojson }],
-        };
-        fillSource.setData(fillFC);
+        });
       }
-      // Opacity always changes during animation
       try { m.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity); } catch (_) {}
 
-      // --- Stroke ---
-      const fillFC: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: [{ type: 'Feature', properties: {}, geometry: b.geojson }],
-      };
-
-      let strokeFC: GeoJSON.FeatureCollection;
+      // --- Stroke & Glow (Shared Source) ---
+      const isStrokeGeometryStatic = !isAnimating || animStyle === 'fade';
       let strokeOpacity: number;
 
-      // Whether stroke geometry is static (same polygon every frame) or animated per-frame
-      const isStrokeGeometryStatic = !isAnimating || animStyle === 'fade';
-
       if (isReverseExit) {
-        if (!isAnimating || animStyle === 'fade') {
-          strokeFC = fillFC;
+        if (isStrokeGeometryStatic) {
           strokeOpacity = Math.min(reverseP * 2, 1);
         } else if (animStyle === 'draw') {
-          const rings = extractLineStringsFromGeometry(b.geojson!);
-          const animatedRings: number[][][] = [];
-          for (const ring of rings) {
-            const segment = getLineSegment(ring, 0, reverseP);
-            if (segment.length >= 2) animatedRings.push(segment);
-          }
-          strokeFC = {
-            type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              properties: {},
-              geometry: { type: 'MultiLineString', coordinates: animatedRings },
-            }],
-          };
           strokeOpacity = reverseP > 0 ? 1 : 0;
         } else {
-          strokeFC = fillFC;
           strokeOpacity = reverseP;
         }
       } else {
-        if (!isAnimating || animStyle === 'fade') {
-          strokeFC = fillFC;
+        strokeOpacity = animStyle === 'fade' ? Math.min(progress * 2, 1) : (progress > 0 ? 1 : 0);
+        if (isFadeExit) strokeOpacity *= reverseP;
+      }
+
+      if (!isStrokeGeometryStatic || geojsonChanged) {
+        let strokeFC: GeoJSON.FeatureCollection;
+        if (isStrokeGeometryStatic) {
+          strokeFC = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: b.geojson! }] };
         } else {
           const rings = extractLineStringsFromGeometry(b.geojson!);
           const animatedRings: number[][][] = [];
+          const p = isReverseExit ? reverseP : progress;
           for (const ring of rings) {
             let segment: number[][];
             if (animStyle === 'draw') {
-              segment = getLineSegment(ring, 0, progress);
+              segment = getLineSegment(ring, 0, p);
             } else {
-              const start = progress * (1 + traceLen) - traceLen;
-              const end = progress * (1 + traceLen);
+              const start = p * (1 + traceLen) - traceLen;
+              const end = p * (1 + traceLen);
               segment = getLineSegment(ring, start, end);
             }
             if (segment.length >= 2) animatedRings.push(segment);
@@ -240,41 +224,12 @@ export function BoundaryLayerGroup({
             }],
           };
         }
-        strokeOpacity = animStyle === 'fade'
-          ? Math.min(progress * 2, 1)
-          : (progress > 0 ? 1 : 0);
-        
-        if (isFadeExit) {
-          strokeOpacity *= reverseP;
-        }
-      }
-
-      // Skip setData for static stroke geometry unless b.geojson itself changed
-      if (!isStrokeGeometryStatic || geojsonChanged) {
         strokeSource.setData(strokeFC);
       }
-      try { m.setPaintProperty(strokeLayerId, 'line-opacity', strokeOpacity); } catch (_) {}
 
-      // --- Glow ---
-      const glowLayerId = `boundary-glow-layer-${boundary.id}`;
-      const glowVisible = style.glow && !isReverseExit;
-      if (lp.glowVisible !== glowVisible) {
-        try { m.setLayoutProperty(glowLayerId, 'visibility', glowVisible ? 'visible' : 'none'); } catch (_) {}
-        lp.glowVisible = glowVisible;
-      }
+      try { m.setPaintProperty(strokeLayerId, 'line-opacity', strokeOpacity); } catch (_) {}
       if (glowVisible) {
-        let glowOpacity = 0.35 * strokeOpacity;
-        try { m.setPaintProperty(glowLayerId, 'line-opacity', glowOpacity); } catch (_) {}
-        if (lp.strokeWidth !== style.strokeWidth) {
-           try {
-             m.setPaintProperty(glowLayerId, 'line-width', style.strokeWidth * 3);
-             m.setPaintProperty(glowLayerId, 'line-blur', style.strokeWidth * 2);
-           } catch (_) {}
-        }
-        if (!isStrokeGeometryStatic || geojsonChanged) {
-          const glowSource = m.getSource(strokeSourceId) as GeoJSONSource | undefined;
-          if (glowSource) glowSource.setData(strokeFC);
-        }
+        try { m.setPaintProperty(glowLayerId, 'line-opacity', 0.35 * strokeOpacity); } catch (_) {}
       }
     };
 
@@ -292,6 +247,7 @@ export function BoundaryLayerGroup({
       unsub();
       const m = mapRefRef.current.current?.getMap();
       if (!m) return;
+      if (m.getLayer(glowLayerId)) try { m.removeLayer(glowLayerId); } catch (_) {}
       if (m.getLayer(strokeLayerId)) try { m.removeLayer(strokeLayerId); } catch (_) {}
       if (m.getLayer(fillLayerId)) try { m.removeLayer(fillLayerId); } catch (_) {}
       if (m.getSource(strokeSourceId)) try { m.removeSource(strokeSourceId); } catch (_) {}

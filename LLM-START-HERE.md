@@ -201,6 +201,15 @@ The right-hand properties panel uses a **delegation strategy** to maintain the S
 - **Solution**: Dedicated `useCalloutAltitudeOffsets` hook that only recalculates when map zoom changes, not on every playhead frame.
 - **Result**: Expensive zoom/metersPerPixel math runs only when necessary.
 
+**Boundary Layer Lifecycle & Sync (Fixed)**
+- **Problem**: `BoundaryLayerGroup` had incorrect layer ordering (adding glow before stroke), leading to persistent Mapbox errors. It also called `setData` twice per frame on a shared source and allocated new GeoJSON objects every frame during playback.
+- **Solution**: 
+  1. Reordered `addLayer` calls (stroke then glow).
+  2. Implemented explicit glow layer cleanup.
+  3. Optimized `updateBoundary` to perform a single `setData` on the shared source.
+  4. Moved GeoJSON feature creation inside change guards to reduce GC pressure.
+- **Result**: Elimination of console error flood and significantly smoother boundary animations (lower CPU/GPU overhead).
+
 **Dead Code Cleanup**
 - Removed unused files: `NavLink.tsx`, `use-mobile.tsx`, `geocoding.ts` (empty barrel), `App.css` (unused Vite boilerplate).
 
