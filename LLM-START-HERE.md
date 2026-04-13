@@ -115,11 +115,12 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
 - **Orchestrator (`MapViewport.tsx`)**: A slim shell that manages the `<MapGL />` component, lifecycle states (`mapReady`, `styleLoaded`), and coordinate centering. It delegates all business logic to dedicated hooks and sub-components.
 - **Unified Sync Engine (`hooks/useMapSync.ts`)**: The core imperative bridge. Orchestrates Projection, Terrain, Atmosphere, and Config. Uses **numeric epsilon guards** and normalized color comparisons in an `idle` synchronization loop to ensure zero-flicker stability. It also manages the **Export Engine Bridge** (`_syncRef`) used for frame capture during video export.
 - **Guarded Imperative Layer Groups**:
-  - **`RouteLayerGroup.tsx`**: Manages Mapbox sources and layers for routes, including the **Vehicle System**.
+  - **`RouteLayerGroup.tsx`**: Manages Mapbox sources and layers for routes, including the **Vehicle System**. Uses **`line-trim-offset`** paint property optimization (Mapbox GL JS v3) to eliminate per-frame `setData()` calls for `draw` and `navigation` modes. Full route geometry is uploaded once when the route changes; per-frame updates use imperative `setPaintProperty` trim offset instead of re-slicing and re-uploading geometry. Comet mode retains `setData()` on the bounded trail since it needs to trim both ends.
   - **`BoundaryLayerGroup.tsx`**: Manages Mapbox sources and layers for polygons/boundaries.
-  - Both components use a **Dual-Effect Strategy**:
-    1. **Playhead Time-Guard (performance)**: Store subscription only invokes Mapbox's `setData()` if the playhead has moved, preventing memory leaks and CPU spikes.
-    2. **Style-Watch Effect (liveness)**: A second `useEffect` watches style-relevant props (`color`, `width`, `startTime`, `endTime`, `easing`, `exitAnimation`) and re-applies Mapbox state when paused.
+  - Both components use a **Multi-Effect Strategy**:
+    1. **Geometry Upload Effect**: Uploads full geometry once per route/boundary change (RouteLayerGroup) or when style changes (BoundaryLayerGroup).
+    2. **Playhead Time-Guard (performance)**: Store subscription uses imperative paint/layout property updates (no `setData()` for draw/navigation routes). Prevents memory leaks and CPU-to-GPU transfer spikes.
+    3. **Style-Watch Effect (liveness)**: A second `useEffect` watches style-relevant props (`color`, `width`, `startTime`, `endTime`, `easing`, `exitAnimation`) and re-applies Mapbox state when paused.
 - **Callout System (`CalloutMarker.tsx` + `hooks/useCalloutAnimationState.ts` + `hooks/useCalloutAltitudeOffsets.ts`)**: Manages 3D markers, altitude offsets, and the **High-Precision Move Mode** for manual coordinate picking.
   - **Animation State Hook** (`useCalloutAnimationState.ts`): Computes visibility, animation phase, and progress for all callouts once per frame in the parent (MapViewport), avoiding per-marker playheadTime subscriptions.
   - **Altitude Offset Hook** (`useCalloutAltitudeOffsets.ts`): Computes pixel offsets for 3D altitude effects based on map zoom, updating only when zoom changes (not on every playhead frame).
@@ -128,9 +129,9 @@ The MapViewport is a modularized imperative engine designed for maximum stabilit
 - **Stateless Helpers (`mapUtils.ts`)**: Centralizes logic for runtime capability detection and map-click resolution.
 - **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
 - **Route Animation Types** (`item.style.animationType`): Three mutually exclusive modes per route:
-  - **`draw`** (default): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available.
-  - **`navigation`**: Full route is visible from the start; the passed portion erases as the playhead advances (`getLineSegment(coords, progress, 1)`). Mirrors Google Maps navigation. Glow supported; no exit animation or dash.
-  - **`comet`**: Only a gradient trail segment is drawn — transparent at the tail, opaque at the head. Trail length is configurable (`item.style.cometTrailLength`, 0–0.8). Uses a dedicated Mapbox source with `lineMetrics: true` and `line-gradient` paint. No glow, no dash. Vehicle/dot shows at the head if enabled.
+  - **`draw`** (default): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available. **Optimization**: Uses `line-trim-offset: [drawP, 1]` to reveal the route without re-uploading geometry each frame. Full geometry is static in the Mapbox source; only the paint property trim offset changes per frame.
+  - **`navigation`**: Full route is visible from the start; the passed portion erases as the playhead advances. Mirrors Google Maps navigation. Glow supported; no exit animation or dash. **Optimization**: Uses `line-trim-offset: [0, progress]` to hide the passed portion. Same static geometry + paint property strategy as draw mode.
+  - **`comet`**: Only a gradient trail segment is drawn — transparent at the tail, opaque at the head. Trail length is configurable (`item.style.cometTrailLength`, 0–0.8). Uses a dedicated Mapbox source with `lineMetrics: true` and `line-gradient` paint. No glow, no dash. Vehicle/dot shows at the head if enabled. **Note**: Still uses `setData()` each frame since the visible segment spans only a portion of the full line (can't use single `line-trim-offset` to hide both ends).
   - Exit Animation toggle only visible for `draw` mode. Navigation and comet self-erase.
 - **Exit Animations**: Optional reverse animations for routes and boundaries after their `endTime`. When `exitAnimation: true` (draw mode only):
   - **Routes**: Line retracts from the tip back toward the start over 0.5s (exact reverse of the draw animation).
