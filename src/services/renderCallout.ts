@@ -136,14 +136,14 @@ function renderDefault(
     ctx.shadowOffsetY = 4;
   }
   ctx.fillStyle = callout.style.bgColor;
-  roundRect(ctx, cardX, cardY, cardW, cardH, callout.style.borderRadius);
+  roundRect(ctx, cardX, cardY, cardW, cardH, 0);
   ctx.fill();
   ctx.restore();
 
   // Border
   ctx.strokeStyle = 'rgba(255,255,255,0.2)';
   ctx.lineWidth = 1;
-  roundRect(ctx, cardX, cardY, cardW, cardH, callout.style.borderRadius);
+  roundRect(ctx, cardX, cardY, cardW, cardH, 0);
   ctx.stroke();
 
   // Text

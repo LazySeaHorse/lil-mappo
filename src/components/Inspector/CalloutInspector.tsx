@@ -140,9 +140,6 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
             <SwitchField checked={item.style.showMetadata} onChange={(v) => us({ showMetadata: v })} label="Show GPS Metadata" />
           )}
 
-          {item.style.variant === 'default' && (
-            <SliderField label="Border Radius" value={item.style.borderRadius} onChange={(v) => us({ borderRadius: v })} min={0} max={24} step={1} />
-          )}
         </InspectorSection>
       </Accordion>
     </PanelWrapper>

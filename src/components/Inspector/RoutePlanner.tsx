@@ -68,8 +68,8 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
     }
   }, [value]);
 
-  useEffect(() => {
-    const trimmed = query.trim();
+  const performSearch = async (searchTerm: string) => {
+    const trimmed = searchTerm.trim();
 
     // Check if it's coordinates: "-74.006, 40.712"
     const coordMatch = trimmed.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
@@ -86,32 +86,24 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
 
     if (trimmed.length < 2) {
       setSuggestions([]);
+      setIsOpen(false);
       return;
     }
 
-    let cancelled = false;
     setLoading(true);
-
-    (async () => {
-      try {
-        const center = mapCenterRef.current;
-        const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
-        const response = await sessionRef.current!.suggest(trimmed, { proximity });
-        if (!cancelled) {
-          setSuggestions(response.suggestions || []);
-          setIsOpen((response.suggestions || []).length > 0);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
+    try {
+      const center = mapCenterRef.current;
+      const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
+      const response = await sessionRef.current!.suggest(trimmed, { proximity });
+      setSuggestions(response.suggestions || []);
+      setIsOpen((response.suggestions || []).length > 0);
+    } catch {
+      setSuggestions([]);
+      setIsOpen(false);
+    } finally {
       setLoading(false);
-    };
-  }, [query]);
+    }
+  };
 
   const handleClose = () => {
     setIsOpen(false);
@@ -146,7 +138,19 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
           <Input
             placeholder={label}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (suggestions.length > 0) {
+                setSuggestions([]);
+                setIsOpen(false);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch(query);
+              }
+            }}
             className="h-8 text-[11px] font-mono pl-3 pr-8 bg-background/50 border-border/50 rounded-full focus-visible:ring-1 focus-visible:ring-primary/20"
           />
           {query && (

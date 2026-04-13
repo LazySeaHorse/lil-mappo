@@ -71,37 +71,28 @@ export const SearchField = ({
     setQuery(name);
   }, [name]);
 
-  useEffect(() => {
-    const trimmed = query.trim();
+  const performSearch = async (searchTerm: string) => {
+    const trimmed = searchTerm.trim();
     if (trimmed.length < 2 || trimmed === name) {
       setSuggestions([]);
       setIsOpen(false);
       return;
     }
 
-    let cancelled = false;
     setLoading(true);
-
-    (async () => {
-      try {
-        const center = mapCenterRef.current;
-        const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
-        const response = await sessionRef.current!.suggest(trimmed, { proximity });
-        if (!cancelled) {
-          setSuggestions(response.suggestions || []);
-          setIsOpen((response.suggestions || []).length > 0);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
+    try {
+      const center = mapCenterRef.current;
+      const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
+      const response = await sessionRef.current!.suggest(trimmed, { proximity });
+      setSuggestions(response.suggestions || []);
+      setIsOpen((response.suggestions || []).length > 0);
+    } catch {
+      setSuggestions([]);
+      setIsOpen(false);
+    } finally {
       setLoading(false);
-    };
-  }, [query, name]);
+    }
+  };
 
   const handleClose = () => {
     setIsOpen(false);
@@ -158,7 +149,19 @@ export const SearchField = ({
               <Input
                 placeholder={isPicking ? "Click on map..." : (placeholder || label)}
                 value={isPicking ? "" : query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (suggestions.length > 0) {
+                    setSuggestions([]);
+                    setIsOpen(false);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    performSearch(query);
+                  }
+                }}
                 disabled={isPicking}
                 className={`h-8 text-sm pl-2 pr-7 bg-secondary/20 border-transparent focus:border-border/50 rounded-md transition-all focus-visible:ring-1 focus-visible:ring-primary/20 ${isPicking ? 'placeholder:text-primary animate-pulse' : ''}`}
               />

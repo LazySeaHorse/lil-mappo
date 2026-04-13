@@ -17,6 +17,46 @@ import { useMapSync } from './hooks/useMapSync';
 import { useCalloutAnimationState } from './hooks/useCalloutAnimationState';
 import { useCalloutAltitudeOffsets } from './hooks/useCalloutAltitudeOffsets';
 
+interface CalloutMarkerListProps {
+  callouts: CalloutItem[];
+  selectedCalloutId: string | null;
+  mapRef: React.MutableRefObject<MapRef | null>;
+}
+
+function CalloutMarkerList({ callouts, selectedCalloutId, mapRef }: CalloutMarkerListProps) {
+  const playheadTime = useProjectStore((s) => s.playheadTime);
+  const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
+
+  const calloutAnimationStates = useCalloutAnimationState(
+    playheadTime,
+    isMoveModeActive,
+    selectedCalloutId,
+    callouts
+  );
+
+  const calloutAltitudeOffsets = useCalloutAltitudeOffsets(mapRef, callouts);
+
+  return (
+    <>
+      {callouts.map((callout) => {
+        const animState = calloutAnimationStates[callout.id];
+        return (
+          <CalloutMarker
+            key={callout.id}
+            callout={callout}
+            mapRef={mapRef}
+            isSelected={selectedCalloutId === callout.id}
+            isVisible={animState.isVisible}
+            phase={animState.phase}
+            progress={animState.progress}
+            altitudeOffset={calloutAltitudeOffsets[callout.id] ?? 0}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
 }
@@ -29,8 +69,6 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   const updateItem = useProjectStore((s) => s.updateItem);
   const setMapCenter = useProjectStore((s) => s.setMapCenter);
   const isExporting = useProjectStore((s) => s.isExporting);
-  const playheadTime = useProjectStore((s) => s.playheadTime);
-  const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
 
@@ -103,16 +141,7 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
     };
   }, [setMapCenter]);
 
-  // Compute callout animation state once per frame (not per marker)
-  const calloutAnimationStates = useCalloutAnimationState(
-    playheadTime,
-    isMoveModeActive,
-    selectedItemId && items[selectedItemId]?.kind === 'callout' ? selectedItemId : null,
-    callouts
-  );
-
-  // Compute altitude offsets based on map zoom (not on every playhead frame)
-  const calloutAltitudeOffsets = useCalloutAltitudeOffsets(mapRef, callouts);
+  const selectedCalloutId = selectedItemId && items[selectedItemId]?.kind === 'callout' ? selectedItemId : null;
 
   return (
     <div className="w-full h-full relative">
@@ -163,22 +192,13 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
           </>
         )}
 
-        {/* Callouts use Markers (DOM elements) — safe outside the styleLoaded gate. */}
-        {callouts.map((callout) => {
-          const animState = calloutAnimationStates[callout.id];
-          return (
-            <CalloutMarker
-              key={callout.id}
-              callout={callout}
-              mapRef={mapRef}
-              isSelected={selectedItemId === callout.id}
-              isVisible={animState.isVisible}
-              phase={animState.phase}
-              progress={animState.progress}
-              altitudeOffset={calloutAltitudeOffsets[callout.id] ?? 0}
-            />
-          );
-        })}
+        {/* Callouts use Markers (DOM elements) — safe outside the styleLoaded gate.
+            CalloutMarkerList owns playheadTime so MapViewport never re-renders during playback. */}
+        <CalloutMarkerList
+          callouts={callouts}
+          selectedCalloutId={selectedCalloutId}
+          mapRef={mapRef}
+        />
       </MapGL>
     </div>
   );

@@ -7,7 +7,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Import** route data (GPX/KML).
 - **Plan Routes**: Automatically generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math. Features a **unified Route Planning interface** shared between the floating Toolbar (for new drafts) and the Inspector (for existing items).
 - **Interactive Callouts & Boundaries**: A premium, search-based placement workflow. Users can search for locations, select from animated dots, or "Pick on Map." Features a **unified Boundary drafting tool** within the Toolbar for searching, styling, and previewing polygons before they are added to the timeline.
-- **Interactive Search**: A unified geocoding system (`SearchField.tsx` for points, `BoundarySearch.tsx` for polygons) with **viewport-proximity bias**. Uses the Mapbox Search Box API for improved POI coverage and session-based pricing.
+- **Interactive Search**: A unified geocoding system (`SearchField.tsx` for points, `BoundarySearch.tsx` for polygons) with **viewport-proximity bias**. Uses the Mapbox Search Box API for improved POI coverage and session-based pricing. Searches are **manually triggered by the Enter key** to prevent UI flickering during rapid typing.
 - **Manual Picking & Move Mode**: High-precision "Pick on Map" (Crosshair) mode for setting coordinates directly on the terrain. Existing items also support a **"Move Mode"** for manual repositioning via map clicks.
 - **Annotate** with 3D callout cards.
 - **Choreograph** camera movements using a keyframe-based timeline.
@@ -450,7 +450,7 @@ Several high-complexity functions have been decomposed into smaller, focused hel
 - Export: `Video` → `Clapperboard` (more distinct for cinematic final output)
 
 ### 6.4 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
-Detects **Mobile (< 706px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically.
+Detects **Mobile (< 706px)**, **Tablet (707px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically. Note: The mobile breakpoint was recently moved to 706px to better accommodate larger modern phone displays.
 
 ### 6.5 High-Performance Imperative Sync (Guarded Zero-Re-render Architecture)
 **Goal**: Achieve fluid 60fps animations for map layers and UI elements by bypassing React's reconciler during playback and scrubbing, while maintaining a near-zero resource footprint when idle.
@@ -464,7 +464,7 @@ Detects **Mobile (< 706px)**, **Tablet (641px - 1024px)**, and **Desktop (> 1025
    - **Vehicle animation**: Vehicle position (dot/car/plane) is now updated imperatively inside `RouteLayerGroup`'s subscription loop instead of triggering React re-renders via `VehicleAnimatedLayer`. Zero per-frame React reconciliation.
    - **Glow layer lifecycle**: Glow layer is added once on mount with `visibility: 'none'`, then toggled via `setLayoutProperty('visibility')` per-frame. This eliminates the expensive `addLayer`/`removeLayer` churn that occurred inside animation callbacks.
 3. **Idempotent Sync Engine**: Atmospheric settings (Fog, Star Intensity, Terrain) and 3D config properties are synchronized via an `idle` event loop. All `setConfigProperty`/`setTerrain`/`setFog` calls are guarded by change checks to prevent redundant Mapbox operations during continuous tile loading and camera movement.
-4. **Selector-Isolated Viewport**: `MapViewport` never destructures the whole store. It uses individual selectors for configuration (e.g., `mapStyle`, `terrainEnabled`). This ensures that the parent map component **never re-renders** during playback, even though children are animating imperatively.
+4. **Selector-Isolated Viewport**: `MapViewport` uses only low-frequency selectors (`mapStyle`, `items`, `itemOrder`, `selectedItemId`, etc.) and **never subscribes to `playheadTime` or `isMoveModeActive`**. These high-frequency subscriptions are isolated in the `CalloutMarkerList` child component, which owns callout animation state computation. This ensures the parent map shell **never re-renders** during playback, even though `CalloutMarkerList` is animating imperatively.
 5. **Fast Keyboard Stepping**: Keyboard shortcuts read state imperatively via `useProjectStore.getState()` to avoid dependency-array re-render cascades.
 
 ### 6.6 Account UX & Payment Tier Restructuring
@@ -579,10 +579,24 @@ No free tier exists. Account creation is now tied to payment flow — unauthenti
 
 ---
 
+### 6.8 UI & Design Refinements
+
+**Enter-to-Search (Stability)**
+- **Problem**: Automatic debounced search on every keystroke was causing "input stutter" and visual flickering in the dropdown when users typed quickly.
+- **Solution**: Shifted to a manual search model. The `SearchField` and `InspectorSearchField` (used for routes, callouts, and boundaries) now only hit the geocoding APIs when the user presses **Enter**. Typing immediately clears stale suggestions to keep the interface clean.
+- **Result**: Zero typing lag and more predictable search results.
+
+**Sharp-Cornered Callouts (Aesthetics)**
+- **Problem**: The "Standard Box" callout style used variable rounding that sometimes felt inconsistent with the "News" and "Topo" variants.
+- **Solution**: Standardized the 'default' variant to use **sharp corners (0px radius)**.
+- **Complexity Reduction**: Removed the `borderRadius` control from the Callout Inspector for the default variant, simplifying the property shelf.
+
+---
+
 ## 7. Critical Implementation Details
 
 ### 7.1 Animation & Routing Logic
-- **Search Box API Integration**: The app uses `@mapbox/search-js-core` (SearchBoxCore + SearchSession) for geocoding instead of the legacy Geocoding v5 API. Each search component maintains its own `SearchSession` instance for proper session scoping and automatic 300ms debouncing. The SDK handles session token lifecycle and race condition prevention internally, eliminating the need for manual `setTimeout` debounce logic. Results include improved POI coverage with `place_formatted` secondary text.
+- **Search Box API Integration**: The app uses `@mapbox/search-js-core` (SearchBoxCore + SearchSession) for geocoding instead of the legacy Geocoding v5 API. Each search component maintains its own `SearchSession` instance for proper session scoping. To ensure stability and prevent race conditions during rapid typing, searches are **triggered only when the user presses Enter**. The SDK handles session token lifecycle internally. Results include improved POI coverage with `place_formatted` secondary text.
 - **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx` and `RoutePlanner.tsx`. Supports viewport-proximity biasing for better local results.
 - **Boundary Logic**: Uses Nominatim (OSM) to fetch high-quality polygons. Features a **unified drafting interface** that syncs stroke and fill colors during the search phase.
 - **Callout Logic**:
@@ -605,10 +619,13 @@ The export process advances time step-by-step via frame capture loop. Main funct
 - **finalizeExport()**: Flush encoder and produce final blob.
 
 Callouts are rendered using pure Canvas 2D (`src/services/renderCallout.ts`), eliminating the DOM-parsing overhead of `html2canvas`. Each frame, visible callouts are projected to screen coordinates and drawn directly to the compositing canvas with their animation state (opacity fade in/out). Four style variants are supported:
-- **default**: Rounded rect + text
+- **default**: Sharp-cornered rectangle + text. (Radius control removed for professional clarity).
 - **modern**: Pill shape + accent glow dot + 87% opacity background
 - **news**: Rectangle + 5px left accent bar + uppercase bold text
 - **topo**: Left border + metadata (coordinates/elevation) + accent square dot
+
+### 7.5 High-Resolution Snapshot Service (`src/services/snapshot.ts`)
+A dedicated service for capturing 60fps-quality stills without the overhead of video encoding. It shares the `renderCallout.ts` logic with the video export engine but focuses on a single-frame capture of the **manual manual camera state**. It handles the complex lifecycle of enabling `preserveDrawingBuffer`, resizing the map to target resolution, waiting for tile resolution, compositing callouts, and cleaning up — all while keeping the user informed via Sonner toasts.
 
 ### 7.4 Security Fixes & Vulnerability Mitigation
 
@@ -825,8 +842,38 @@ Earlier analysis suggested that `subscription.cancelled` arriving after `subscri
 
 - The `subscription.expired` handler sets `dodo_subscription_id: null` (line 453).
 - The `subscription.cancelled` handler does `.eq("dodo_subscription_id", sub.subscription_id)` to find the row.
-- If cancelled arrives after expired, it matches **zero rows** (the ID was already cleared).
 - Concurrent or out-of-order execution both resolve correctly; no user data is lost.
+
+**Issue 22: Mobile UI Overlap & Viewport Height (Resolved)**
+
+The application previously used `h-screen` (100vh) for the root container, which in many mobile browsers includes the area hidden behind the dynamic address bar. This caused bottom-anchored UI (like the timeline) to be obscured when the address bar was visible.
+
+**Fix** (MapStudioEditor.tsx, TimelinePanel.tsx):
+- Replaced `h-screen` with **`h-dvh`** (Dynamic Viewport Height). The app now automatically resizes as the browser chrome collapses/expands.
+- Added **`viewport-fit=cover`** to `index.html` to enable safe area support.
+- Implemented **`env(safe-area-inset-bottom)`** and **`env(safe-area-inset-top)`** across the Toolbar, Timeline, and Toasts. This ensures the UI respects hardware notches and the iOS home indicator.
+
+**Issue 23: Mobile/Tablet UI Efficiency (Overhauled)**
+
+The mobile and tablet interfaces were previously too cramped or overly condensed, missing opportunities for better spatial utilization.
+
+**Fix** (Toolbar.tsx, TimelinePanel.tsx):
+- **Mobile Timeline**: Removed redundant "Timeline" text and left-anchored transport controls. The time readout was moved to the previously empty sticky column to the left of the ruler, saving vertical space.
+- **Hybrid Tablet Toolbar**: Tablet now uses the **Desktop Toolbar** as its base but with a **Condensed Layers Dropdown**. This keeps the "Add" tools expanded for high productivity while grouping map environment settings into a single layers button.
+- **Zen Mode Controls**: Repositioned to the **Top-Right** corner for all devices and reordered to prioritize the Play/Pause button.
+
+**Issue 24: High-Resolution Map Snapshots (New Service)**
+
+Users needed a way to capture high-quality stills of their maps without starting a full video export, specifically at the target product resolution rather than just a screenshot of their window.
+
+**Fix** (src/services/snapshot.ts):
+- Created a dedicated **Snapshot Service** that handles off-screen map rendering.
+- **Resolution Independence**: Temporarily resizes an off-screen map container to the project's target resolution (e.g., 1080p/4K) to ensure crisp captures.
+- **Manual Camera Mode**: Specifically ignores playhead-interpolated camera keyframes, capturing exactly what the user is currently looking at manually in the viewport.
+- **Automatic Sync**: Flips `preserveDrawingBuffer` on/off automatically, triggering the necessary Mapbox re-initialization passes only when needed.
+- Integrated into **Zen Mode** with a new Camera button in the top-right controls.
+
+---
 
 **Issue 20: Decoupled Vehicle Visibility & Animation (High)**
 

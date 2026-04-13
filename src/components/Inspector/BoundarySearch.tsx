@@ -46,7 +46,10 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
         <Input 
           type="text" 
           value={query} 
-          onChange={(e) => setQuery(e.target.value)} 
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (results.length > 0) setResults([]);
+          }} 
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()} 
           className="h-9 text-sm bg-secondary/30 border-transparent focus:border-border pr-10" 
           placeholder="e.g. Central Park, Germany..." 

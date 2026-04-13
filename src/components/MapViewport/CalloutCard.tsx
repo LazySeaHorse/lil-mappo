@@ -141,7 +141,7 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
             style={{
               ...commonStyles,
               backgroundColor: callout.style.bgColor,
-              borderRadius: `${callout.style.borderRadius}px`,
+              borderRadius: '0px',
               maxWidth: `${callout.style.maxWidth}px`,
               border: '1px solid rgba(255,255,255,0.2)',
             }}
