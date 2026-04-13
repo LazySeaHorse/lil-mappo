@@ -828,7 +828,16 @@ Earlier analysis suggested that `subscription.cancelled` arriving after `subscri
 - If cancelled arrives after expired, it matches **zero rows** (the ID was already cleared).
 - Concurrent or out-of-order execution both resolve correctly; no user data is lost.
 
-No fix required. This was a defensive analysis of a race condition that the current implementation already guards against.
+**Issue 20: Decoupled Vehicle Visibility & Animation (High)**
+
+The vehicle system (dots and 3D models) in `RouteLayerGroup.tsx` was previously decoupled from the route's active time window. Vehicles remained visible at the start or end of a path even when the route line itself was hidden (before `startTime` or after `endTime`). They also failed to respect "fade" exit animations, remaining fully opaque while the route line disappeared.
+
+**Fix** (RouteLayerGroup.tsx):
+- Implemented a **Visibility Guard** inside the imperative `updateRoute` loop.
+- The vehicle's `visibility` layout property is now toggled correctly based on `playheadTime`, `startTime`, `endTime`, and the exit animation phase.
+- Added **Opacity Synchronization**: Vehicles now fade out during `fade` exit animations by updating `circle-opacity` (dots) or `model-opacity` (3D models).
+- Added **Comet Mode Guard**: Vehicles are explicitly hidden at `progress = 0` in comet mode to prevent them from "ghosting" at the start point before the trail appears.
+- **Optimization**: All vehicle `setData` coordinates and transformation logic are now skipped when the vehicle is hidden, reducing per-frame CPU and GPU overhead.
 
 ---
 

@@ -56,6 +56,8 @@ export function RouteLayerGroup({
     glowTrimStart: -1, glowTrimEnd: -1,
     cometColor: '', cometWidth: -1,
     lastAnimType: '',
+    vehicleVisible: true,
+    vehicleOpacity: -1,
   });
 
   useEffect(() => {
@@ -78,6 +80,8 @@ export function RouteLayerGroup({
       glowTrimStart: -1, glowTrimEnd: -1,
       cometColor: '', cometWidth: -1,
       lastAnimType: '',
+      vehicleVisible: true,
+      vehicleOpacity: -1,
     };
 
     // lineMetrics: true is required for line-trim-offset (used by draw and navigation modes)
@@ -278,7 +282,21 @@ export function RouteLayerGroup({
         const vSourceId = `vehicle-source-${r.id}`;
         const vLayerId = `vehicle-layer-${r.id}`;
         const vSource = m.getSource(vSourceId) as GeoJSONSource | undefined;
-        if (vSource) {
+
+        const isExitActive = state.playheadTime > r.endTime && r.exitAnimation !== 'none';
+        const exitProgress = isExitActive ? Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1) : 0;
+
+        // Visibility Guard: Hidden before startTime or after exitAnimation completes.
+        // Special Case: In 'comet' mode at exactly progress=0, the head hasn't appeared yet.
+        let vehicleVisible = state.playheadTime >= r.startTime && exitProgress < 1;
+        if (animType === 'comet' && progress === 0) vehicleVisible = false;
+
+        if (lp.vehicleVisible !== vehicleVisible) {
+          try { m.setLayoutProperty(vLayerId, 'visibility', vehicleVisible ? 'visible' : 'none'); } catch (_) {}
+          lp.vehicleVisible = vehicleVisible;
+        }
+
+        if (vehicleVisible && vSource) {
           // Vehicle head is always at progress along the full route, regardless of animType
           const headCoords = getAnimatedLine(c, progress);
           if (headCoords.length >= 2) {
@@ -289,6 +307,19 @@ export function RouteLayerGroup({
               geometry: { type: 'Point', coordinates: [currentPos[0], currentPos[1]] },
               properties: {},
             });
+
+            // Handle opacity for fade exits
+            let vOpacity = 1;
+            if (r.exitAnimation === 'fade' && isExitActive) {
+              vOpacity = 1 - exitProgress;
+            }
+
+            if (lp.vehicleOpacity !== vOpacity) {
+              const opacityProp = r.calculation.vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
+              try { m.setPaintProperty(vLayerId, opacityProp, vOpacity); } catch (_) {}
+              lp.vehicleOpacity = vOpacity;
+            }
+
             if (r.calculation.vehicle.type !== 'dot') {
               const bearing = calculateBearing(prevPos, currentPos);
               const pitch = calculatePitch(prevPos, currentPos);
