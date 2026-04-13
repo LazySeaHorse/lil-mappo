@@ -4,6 +4,7 @@ import type { BoundaryItem } from '@/store/types';
 import { NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
 import { Accordion } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BoundarySearch } from './BoundarySearch';
 import { BoundaryStyleControls } from './BoundaryStyleControls';
 import { Field, SwitchField, InputNumber, EasingSelect } from './InspectorShared';
@@ -45,7 +46,22 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             <Field label="End (s)"><InputNumber value={item.endTime} onChange={(v) => u({ endTime: v })} min={0} step={0.1} /></Field>
           </div>
           <EasingSelect value={item.easing} onChange={(v) => u({ easing: v })} />
-          <SwitchField checked={item.exitAnimation ?? false} onChange={(v) => u({ exitAnimation: v })} label="Exit Animation" />
+          
+          {item.style.animationStyle !== 'trace' && (
+            <Field label="Exit Animation">
+              <Select 
+                value={item.exitAnimation || 'none'} 
+                onValueChange={(v) => u({ exitAnimation: v as any })}
+              >
+                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="reverse">Reverse</SelectItem>
+                  <SelectItem value="fade">Fade</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
         </InspectorSection>
 
         <InspectorSection value="style" title="Style">

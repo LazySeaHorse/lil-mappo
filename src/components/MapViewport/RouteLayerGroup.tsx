@@ -212,7 +212,7 @@ export function RouteLayerGroup({
         } else {
           // draw: reveal from start (0…drawP), hide the rest (drawP…1)
           let drawP = progress;
-          if (r.exitAnimation && state.playheadTime > r.endTime) {
+          if (r.exitAnimation === 'reverse' && state.playheadTime > r.endTime) {
             const exitT = Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1);
             drawP = 1 - exitT;
           }
@@ -220,10 +220,17 @@ export function RouteLayerGroup({
           trimEnd = 1;
         }
 
+        let opacity = 1;
+        if (state.playheadTime > r.endTime && r.exitAnimation === 'fade') {
+          const fadeT = Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1);
+          opacity = 1 - fadeT;
+        }
+
         if (lp.mainColor !== routeColor) {
           try { m.setPaintProperty(mainLayerId, 'line-color', routeColor); } catch (_) {}
           lp.mainColor = routeColor;
         }
+        try { m.setPaintProperty(mainLayerId, 'line-opacity', opacity); } catch (_) {}
         if (lp.mainWidth !== r.style.width) {
           try { m.setPaintProperty(mainLayerId, 'line-width', r.style.width); } catch (_) {}
           lp.mainWidth = r.style.width;
@@ -240,10 +247,16 @@ export function RouteLayerGroup({
       const glowVisible = r.style.glow && animType !== 'comet';
       try { m.setLayoutProperty(glowLayerId, 'visibility', glowVisible ? 'visible' : 'none'); } catch (_) {}
       if (glowVisible && glowSource) {
-        if (lp.glowColor !== glowColor) {
-          try { m.setPaintProperty(glowLayerId, 'line-color', glowColor); } catch (_) {}
-          lp.glowColor = glowColor;
+        if (lp.glowColor !== routeColor) {
+          try { m.setPaintProperty(glowLayerId, 'line-color', routeColor); } catch (_) {}
+          lp.glowColor = routeColor;
         }
+        let glowOpacity = 0.35;
+        if (state.playheadTime > r.endTime && r.exitAnimation === 'fade') {
+          const fadeT = Math.min((state.playheadTime - r.endTime) / EXIT_DURATION, 1);
+          glowOpacity *= (1 - fadeT);
+        }
+        try { m.setPaintProperty(glowLayerId, 'line-opacity', glowOpacity); } catch (_) {}
         if (lp.glowWidth !== r.style.width) {
           try {
             m.setPaintProperty(glowLayerId, 'line-width', r.style.width * 3);
@@ -333,5 +346,5 @@ export function RouteLayerGroup({
   }, [route.style, route.startTime, route.endTime, route.easing, route.exitAnimation]);
 
   if (!route.calculation?.vehicle?.enabled) return null;
-  return <VehicleModelLayer routeId={route.id} vehicle={route.calculation.vehicle!} mapRef={mapRef} />;
+  return <VehicleModelLayer routeId={route.id} vehicle={route.calculation.vehicle!} color={route.style.color} mapRef={mapRef} />;
 }

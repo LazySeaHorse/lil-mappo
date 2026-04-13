@@ -378,8 +378,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       strokeColor: '#a855f7',
       strokeWidth: 5,
       glow: true,
-      glowColor: '#a855f7',
-      fillColor: '#a855f7',
       fillOpacity: 0.1,
       animateStroke: true,
       animationStyle: 'draw',

@@ -9,6 +9,7 @@ interface VehicleModelLayerProps {
     scale: number;
     enabled: boolean;
   };
+  color: string;
   mapRef: React.MutableRefObject<MapRef | null>;
 }
 
@@ -25,7 +26,7 @@ const DOT_BASE_RADIUS = 9;
  * Position is driven imperatively inside RouteLayerGroup's updateRoute subscribe loop,
  * keeping vehicle animation out of the React render cycle entirely.
  */
-export const VehicleModelLayer = ({ routeId, vehicle, mapRef }: VehicleModelLayerProps) => {
+export const VehicleModelLayer = ({ routeId, vehicle, color, mapRef }: VehicleModelLayerProps) => {
   const layerId = `vehicle-layer-${routeId}`;
   const sourceId = `vehicle-source-${routeId}`;
 
@@ -76,7 +77,7 @@ export const VehicleModelLayer = ({ routeId, vehicle, mapRef }: VehicleModelLaye
           source: sourceId,
           paint: {
             'circle-radius': DOT_BASE_RADIUS * vehicle.scale,
-            'circle-color': '#4285F4',
+            'circle-color': color,
             'circle-stroke-color': '#FFFFFF',
             'circle-stroke-width': 2.5,
             'circle-stroke-opacity': 1,
@@ -98,12 +99,15 @@ export const VehicleModelLayer = ({ routeId, vehicle, mapRef }: VehicleModelLaye
     } else {
       // Layer already exists — only update scale (position comes from updateRoute)
       if (vehicle.type === 'dot') {
-        try { map.setPaintProperty(layerId, 'circle-radius', DOT_BASE_RADIUS * vehicle.scale); } catch (_) {}
+        try { 
+          map.setPaintProperty(layerId, 'circle-radius', DOT_BASE_RADIUS * vehicle.scale); 
+          map.setPaintProperty(layerId, 'circle-color', color);
+        } catch (_) {}
       } else {
         try { map.setPaintProperty(layerId, 'model-scale', [vehicle.scale, vehicle.scale, vehicle.scale]); } catch (_) {}
       }
     }
-  }, [mapRef, vehicle.type, vehicle.scale, layerId, sourceId]);
+  }, [mapRef, vehicle.type, vehicle.scale, color, layerId, sourceId]);
 
   // Cleanup on unmount
   useEffect(() => {

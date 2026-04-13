@@ -35,19 +35,12 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
         label="Glow" 
       />
       
-      <Field label="Fill Color">
-        <ColorPicker 
-          value={style.fillColor} 
-          onChange={(v) => onChange({ fillColor: v })} 
-        />
-      </Field>
-      
       <SliderField 
         label="Fill Opacity" 
         value={style.fillOpacity} 
         onChange={(v) => onChange({ fillOpacity: v })} 
         min={0} 
-        max={0.5} 
+        max={1} 
         step={0.01} 
       />
       

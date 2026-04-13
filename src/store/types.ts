@@ -17,7 +17,6 @@ export interface RouteItem {
     color: string;
     width: number;
     glow: boolean;
-    glowColor: string;
     glowWidth: number;
     trailFade: boolean;
     trailFadeLength: number;
@@ -26,11 +25,11 @@ export interface RouteItem {
     cometTrailLength?: number;
   };
   easing: EasingName;
-  exitAnimation?: boolean;
+  exitAnimation?: 'none' | 'reverse' | 'fade';
   calculation?: {
     startPoint: [number, number];
     endPoint: [number, number];
-    mode: 'car' | 'walk' | 'flight' | 'manual';
+    mode: 'car' | 'flight' | 'manual';
     vehicle?: {
       enabled: boolean;
       type: 'car' | 'plane' | 'dot';
@@ -52,15 +51,13 @@ export interface BoundaryItem {
     strokeColor: string;
     strokeWidth: number;
     glow: boolean;
-    glowColor: string;
-    fillColor: string;
     fillOpacity: number;
     animateStroke: boolean;
     animationStyle: 'fade' | 'draw' | 'trace';
     traceLength: number;
   };
   easing: EasingName;
-  exitAnimation?: boolean;
+  exitAnimation?: 'none' | 'reverse' | 'fade';
 }
 
 export interface CalloutItem {

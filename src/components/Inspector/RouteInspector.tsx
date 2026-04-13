@@ -35,8 +35,21 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             <Field label="End (s)"><InputNumber value={item.endTime} onChange={(v) => u({ endTime: v })} min={0} step={0.1} /></Field>
           </div>
           <EasingSelect value={item.easing} onChange={(v) => u({ easing: v })} />
+          
           {animType === 'draw' && (
-            <SwitchField checked={item.exitAnimation ?? false} onChange={(v) => u({ exitAnimation: v })} label="Exit Animation" />
+            <Field label="Exit Animation">
+              <Select 
+                value={item.exitAnimation || 'none'} 
+                onValueChange={(v) => u({ exitAnimation: v as any })}
+              >
+                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="reverse">Reverse</SelectItem>
+                  <SelectItem value="fade">Fade</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
           )}
         </InspectorSection>
 
@@ -56,10 +69,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
           <SliderField label="Width" value={item.style.width} onChange={(v) => us({ width: v })} min={1} max={12} step={1} />
 
           {animType !== 'comet' && (
-            <>
-              <SwitchField checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
-              {item.style.glow && <Field label="Glow Color"><ColorPicker value={item.style.glowColor} onChange={(v) => us({ glowColor: v })} /></Field>}
-            </>
+            <SwitchField checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
           )}
 
           {animType === 'comet' && (
