@@ -3,1186 +3,320 @@
 Welcome to **li'l Mappo**, a cinematic map animation and export tool. This document provides a high-level technical map of the codebase, its architecture, and the mental model required to work with it effectively.
 
 ## 1. Project Identity & Purpose
-**li'l Mappo** (`http://mappo.lazycatto.tech/`) is a browser-based "motion graphics" tool specifically for maps. Users can:
-- **Import** route data (GPX/KML).
-- **Plan Routes**: Automatically generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math. Features a **unified Route Planning interface** shared between the floating Toolbar (for new drafts) and the Inspector (for existing items).
-- **Interactive Callouts & Boundaries**: A premium, search-based placement workflow. Users can search for locations, select from animated dots, or "Pick on Map." Features a **unified Boundary drafting tool** within the Toolbar for searching, styling, and previewing polygons before they are added to the timeline.
-- **Interactive Search**: A unified geocoding system (`SearchField.tsx` for points, `BoundarySearch.tsx` for polygons) with **viewport-proximity bias**. Uses the Mapbox Search Box API for improved POI coverage and session-based pricing. Searches are **manually triggered by the Enter key** to prevent UI flickering during rapid typing.
-- **Manual Picking & Move Mode**: High-precision "Pick on Map" (Crosshair) mode for setting coordinates directly on the terrain. Existing items also support a **"Move Mode"** for manual repositioning via map clicks.
-- **Annotate** with 3D callout cards.
-- **Choreograph** camera movements using a keyframe-based timeline.
-- **Save & Manage** multiple projects locally via an IndexedDB-powered library, or cloud-sync via Supabase (authenticated users).
-- **Export**: Projects as `.lilmap` files or high-quality MP4 videos. Render jobs tracked in user account.
-- **User Accounts**: Supabase-powered authentication with account settings, credits tracking, and render job history.
-- **Zen Mode**: Focus mode for immersive map experience.
 
-The UI is a premium, **responsive "floating island"** design.
-- **Transformative Mobile Toolbar**: On mobile devices, the toolbar switches between **'Default', 'Add', and 'Layers' modes**. This "mode-switching" layout slides in specialized toolsets, replacing standard dropdowns to maximize screen space while ensuring a focused experience.
-- **Mutually Exclusive Tools**: The 3 "Add" tools (Route, Callout, Boundary) are **controlled components**. Opening one automatically closes any other open "Add" tool, preventing overlapping panels and UI clutter.
-- **Non-Modal Interaction**: The Toolbar routing, callout, and boundary tools are **non-modal and persistent**. They use `onPointerDownOutside` overrides to stay open during map interaction, allowing for a "floating workspace" feel.
-- **Professional Aesthetics**: Features synchronized design tokens and glassmorphism across all panels. Headers use `SectionLabel` (shared), and components like `ToolbarDropdownPanel` feature `rounded-2xl` corners with heavy `shadow-2xl` support.
+**li'l Mappo** (`http://mappo.lazycatto.tech/`) is a browser-based "motion graphics" tool specifically for maps. Users can:
+- **Import & Plan Routes**: Auto-generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math.
+- **Interactive Callouts & Boundaries**: Search-based placement workflow with "Pick on Map" and unified drafting tools.
+- **Choreograph**: Camera movements via keyframe-based timeline.
+- **Annotate**: 3D callout cards with multiple style variants (default, modern, news, topo).
+- **Save & Export**: Local IndexedDB library, cloud sync via Supabase, MP4 video export.
+- **User Accounts**: Supabase Auth with credits, render job history, subscription tiers.
+
+**UI Design**: Premium "floating island" aesthetic with responsive mobile/tablet/desktop modes. Tools are **mutually exclusive and non-modal** — opening one closes others, and they stay open during map interaction.
 
 ---
 
 ## 2. Tech Stack
-- **Framework**: React 18+ (Vite)
-- **State Management**: Zustand
-- **Map Engine**: Mapbox GL JS v3 (via `react-map-gl/mapbox`)
-- **Persistence**: IndexedDB (for the project library) + Supabase PostgreSQL (for user data)
-- **Authentication**: Supabase Auth (email + password, Google OAuth, GitHub OAuth)
-- **Data Fetching**: React Query v5 (for efficient caching of user data)
-- **Icons**: Lucide React
-- **Animations**: Custom `requestAnimationFrame` loop + easing functions
-- **Geospatial Tools**: `@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`
-- **Video Export**: `mp4-muxer` + WebCodecs API + pure Canvas 2D (for callout rendering)
-- **Testing**: Vitest (Unit/Integration) and Playwright (E2E)
-- **External APIs**: Mapbox Directions (v5), Mapbox Search Box API (via `@mapbox/search-js-core`), and Supabase (v2).
 
-- **UI Components**: Standardized **Tier 1 & Tier 2 Component Library** in `src/components/ui/` (IconButton, SegmentedControl, Field, PanelHeader, etc.), built on top of **shadcn/ui v0.9+**.
+- **Framework**: React 18+ (Vite) + Zustand (state management)
+- **Maps**: Mapbox GL JS v3 via `react-map-gl/mapbox`
+- **Persistence**: IndexedDB (local projects) + Supabase PostgreSQL (user data)
+- **Auth**: Supabase Auth (email, Google OAuth, GitHub OAuth)
+- **Data Fetching**: React Query v5
+- **Video Export**: `mp4-muxer` + WebCodecs API + pure Canvas 2D (no DOM parsing)
+- **Geospatial**: Turf.js libraries (`@turf/along`, `@turf/great-circle`, etc.)
+- **Search**: `@mapbox/search-js-core` (SearchBox API with session-based pricing)
+- **Payments**: Dodo Payments (hosted checkout, webhooks for provisioning)
+- **UI Components**: Tier 1 (primitives) + Tier 2 (composites) built on shadcn/ui v0.9+
 
 ---
 
 ## 3. Core Architecture
+
 The application is built around a **state-driven animation engine**.
 
 ### 3.1 The Brain: `src/store/useProjectStore.ts`
-Everything lives in a single Zustand store. The `Project` type (persisted to disk) contains only essential animation data. Transient UI state is stored alongside but never saved.
 
-**Persisted (Project):**
-- `items`: A record of all timeline elements (Routes, Boundaries, Callouts, Camera).
-- `itemOrder`: Display order of timeline items.
+Everything lives in a single Zustand store. The `Project` type contains **only essential animation data**. Transient UI state lives alongside but is never persisted.
+
+**Persisted (Project)**:
+- `items`, `itemOrder`: Timeline elements (Routes, Boundaries, Callouts, Camera).
 - `duration`, `fps`, `resolution`: Export settings.
-- `projection`, `lightPreset`: Environment settings.
-- `starIntensity`, `fogColor`: Atmosphere customization.
-- `terrainExaggeration`: Terrain elevation multiplier.
-- `mapCenter`: Current viewport center (for search proximity bias).
-- `customMapStyleUrl`, `customMapStyleLabel`: Custom map style support (future feature).
+- `projection`, `lightPreset`, `starIntensity`, `fogColor`, `terrainExaggeration`: Environment.
+- `mapCenter`: For search proximity bias.
 
-**Transient (UI State — NOT persisted):**
-- `mapStyle`: Always defaults to `'standard'` on app load; resets when loading a project.
-- `labelVisibility`: Label group toggle state; resets to empty object on project load.
-- `playheadTime`, `isPlaying`, `isScrubbing`: Playback position and state.
-- `isInspectorOpen`, `timelineHeight`: Inspector & timeline UI state. Inspector starts **closed by default** on app load for a clean map-focused view; auto-opens when selecting items or loading projects.
-- `isCameraEnabled`: Mute toggle for the camera track; resets to `true` on project load.
-- `detectedCapabilities`: Runtime-detected label groups for the current style.
-- **Feature Toggles**: `terrainEnabled`, `buildingsEnabled`, `show3dLandmarks`, `show3dTrees`, `show3dFacades` — Reset to defaults on project load.
-- **Selection State**: `selectedItemId`, `selectedKeyframeId` — Reset to null on project load.
-- **UI Modes**: `isMoveModeActive`, `hideUI`, `isExporting` — Reset to defaults on project load.
-- **Drafting & Picking State**: 
-  - `editingRoutePoint` ('start' | 'end' | 'callout') activates the **global pick mode**. 
-  - `editingItemId`: Tracks the ID of the specific item currently being geocoded or picked.
-  - `draftStart`, `draftEnd`, `draftCallout`: Temporary coordinates and names for Toolbar workflows.
-  - `previewRoute`, `previewBoundary`, `previewBoundaryStyle`, `draftBoundaryName`: Temporary GeoJSON and styles for routes/polygons being planned before insertion.
-  - All reset to null/empty on project load.
+**Transient (UI State — NOT persisted)**:
+- `mapStyle`, `labelVisibility`, `playheadTime`, `isInspectorOpen`, `timelineHeight`, selection state, drafting state (search results, preview geometries).
 
-*(Note: Component-local state (e.g., `activeDropdown`, `mobileMode` in `Toolbar.tsx`) is managed as local `useState` to prevent unnecessary global re-renders.)*
-
-**Best Practice: Zustand Selectors with `useShallow`**
-To prevent components from re-rendering on unrelated state changes (e.g., `playheadTime` updates during 60fps playback), **all UI components should use `useShallow` selectors** when accessing the store. Example:
+**Key Practice**: Use `useShallow` selectors to prevent unnecessary re-renders during playback:
 ```ts
-import { useShallow } from 'zustand/react/shallow';
 const { fieldA, fieldB } = useProjectStore(
   useShallow(s => ({ fieldA: s.fieldA, fieldB: s.fieldB }))
 );
 ```
-This pattern is already applied to `InspectorPanel.tsx`, `ProjectSettings.tsx`, and `Toolbar.tsx` to optimize playback performance. New components reading from the store should follow the same pattern.
+
+This is applied to high-frequency components like `InspectorPanel` and `Toolbar` to avoid 60fps thrashing.
 
 ### 3.1b Authentication & User Data: `src/store/useAuthStore.ts`
-Manages user authentication state, account UI visibility, and checkout flow via Supabase + Dodo Payments.
 
-**Auth State:**
-- `user`: Current authenticated user object (converted from Supabase `User` to `AuthUser` with `id`, `email`, `displayName`, `avatarUrl`).
-- `session`: Active Supabase session token.
-- `isLoading`: Auth initialization state (true until `initAuth()` completes).
+Manages user auth state, modal visibility, and checkout flow. Integrates Supabase Auth + Dodo Payments webhooks.
 
-**Modal Visibility & Mode:**
-- `showAuthModal`: Whether the auth modal is open.
-- `authModalMode: 'signin' | 'signup'`: Distinguishes sign-in-only flow (regular user re-login) from signup flow (account creation during checkout).
-- `showSettingsModal`, `showCreditsModal`, `showRendersModal`: Boolean flags for other account modals.
+**Auth State**: `user`, `session`, `isLoading`.
 
-**Methods:**
-- `initAuth()`: Called once on app mount. Hydrates session from Supabase, subscribes to auth state changes, auto-closes auth modal on successful sign-in, and resumes any pending checkout/topup from localStorage.
-- `signOut()`: Calls Supabase auth signout; state is cleared by the `onAuthStateChange` listener.
-- `openAuthModal()`: Opens auth modal in `'signin'` mode (standard sign-in).
-- `openSignupModal()`: Opens auth modal in `'signup'` mode (account creation during checkout). Used by the checkout flow when user is unauthenticated.
-- `closeAuthModal()`, and similar for other modals: Toggle visibility.
-- `startCheckout(plan, quantity?)`: Initiates checkout for a subscription plan or topup. If unauthenticated, stores pending intent in localStorage and opens signup modal. If authenticated, redirects to Dodo immediately.
-
-**Pending Checkout Persistence:**
-When an unauthenticated user clicks "Subscribe" or "Top Up Credits", the intent is stored in localStorage:
-- Subscription plans: `storePendingPlan(plan)` → SIGNED_IN handler → `initiateDodoCheckout(plan)`
-- Topup credits: `storePendingTopup(amount)` → SIGNED_IN handler → `initiateDodoCheckout('topup', { quantity: amount })`
-
-This persists across the password-confirm redirect cycle, ensuring the checkout resumes seamlessly after account creation.
-
-**Key Design**: Auth state is orthogonal to project state. Modal visibility and mode are managed here to keep the store focused. User data (credits, subscription, render jobs) is fetched separately via React Query hooks (`useCredits()`, `useSubscription()`, `useRenderJobs()`) to enable efficient caching and refetching. After checkout, React Query caches are invalidated to show live provisioned data.
+**Modal Flow**: 
+- `showAuthModal` + `authModalMode` ('signin' | 'signup') for OAuth redirects.
+- After signup, `pendingPlan` (stored in localStorage) survives redirects and auto-triggers checkout.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
-Runs the `requestAnimationFrame` loop to drive time and camera interpolation.
-- **Camera Mute Guard**: The `driveCamera` function checks `store.isCameraEnabled` before updating the Mapbox viewState. This allows users to "mute" the camera track via the timeline "Eye" icon to preview object animations from a static or manually controlled perspective.
+
+Drives the 60fps animation loop. Updates `playheadTime` and synchronizes all cameras/routes/callouts to the current frame.
 
 ### 3.3 The Body: `src/components/MapViewport/`
-The MapViewport is a modularized imperative engine designed for maximum stability and performance. It follows a **Delegation Architecture**.
 
-- **Orchestrator (`MapViewport.tsx`)**: A slim shell that manages the `<MapGL />` component, lifecycle states (`mapReady`, `styleLoaded`), and coordinate centering. It delegates all business logic to dedicated hooks and sub-components.
-- **Unified Sync Engine (`hooks/useMapSync.ts`)**: The core imperative bridge. Orchestrates Projection, Terrain, Atmosphere, and Config. Uses **numeric epsilon guards** and normalized color comparisons in an `idle` synchronization loop to ensure zero-flicker stability. It also manages the **Export Engine Bridge** (`_syncRef`) used for frame capture during video export.
-- **Guarded Imperative Layer Groups**:
-  - **`RouteLayerGroup.tsx`**: Manages Mapbox sources and layers for routes, including the **Vehicle System**. Uses **`line-trim-offset`** paint property optimization (Mapbox GL JS v3) to eliminate per-frame `setData()` calls for `draw` and `navigation` modes. **Monochromatic Sync**: Enforces that the route line, its glow, and its vehicle (if dot) all share the same primary color.
-  - **`BoundaryLayerGroup.tsx`**: Manages Mapbox sources and layers for polygons/boundaries. **Monochromatic Sync**: Fill and Glow colors are locked to the stroke color. Fill opacity supports a full `0-1.0` range for a "stamp" look. Uses a shared source for stroke and a new neon-style **Glow Layer** (using `line-blur`).
-  - Both components use a **Multi-Effect Strategy**:
-    1. **Geometry Upload Effect**: Uploads full geometry once per route/boundary change (RouteLayerGroup) or when style changes (BoundaryLayerGroup).
-    2. **Playhead Time-Guard (performance)**: Store subscription uses imperative paint/layout property updates (no `setData()` for draw/navigation routes). Prevents memory leaks and CPU-to-GPU transfer spikes.
-    3. **Style-Watch Effect (liveness)**: A second `useEffect` watches style-relevant props (`color`, `width`, `startTime`, `endTime`, `easing`, `exitAnimation`) and re-applies Mapbox state when paused.
-- **Callout System (`CalloutMarker.tsx` + `hooks/useCalloutAnimationState.ts` + `hooks/useCalloutAltitudeOffsets.ts`)**: Manages 3D markers, altitude offsets, and the **High-Precision Move Mode** for manual coordinate picking.
-  - **Animation State Hook** (`useCalloutAnimationState.ts`): Computes visibility, animation phase, and progress for all callouts once per frame in the parent (MapViewport), avoiding per-marker playheadTime subscriptions.
-  - **Altitude Offset Hook** (`useCalloutAltitudeOffsets.ts`): Computes pixel offsets for 3D altitude effects based on map zoom, updating only when zoom changes (not on every playhead frame).
-  - **Decoupled Rendering**: CalloutMarker receives computed animation state as props, preventing the "playhead storm" of 60 re-renders/second per marker during playback.
-- **Selector-Based Performance**: RouteLayerGroup and BoundaryLayerGroup use individual store selectors (e.g., `useProjectStore(s => s.playheadTime)`) with imperative Mapbox updates, avoiding React re-render overhead for layer data.
-- **Stateless Helpers (`mapUtils.ts`)**: Centralizes logic for runtime capability detection and map-click resolution.
-- **Preview Layers**: `PreviewRouteLayer` and `PreviewBoundaryLayer` render draft geometries using declarative components for planning.
-- **Route Animation Types** (`item.style.animationType`): Three mutually exclusive modes per route:
-  - **`draw`** (UI: **Animated Path**): Line animates from start to end as time progresses. Supports exit animation (retract from tip) and trail fade. Glow and dash pattern available. **Optimization**: Uses `line-trim-offset: [drawP, 1]` to reveal the route without re-uploading geometry each frame. Full geometry is static in the Mapbox source; only the paint property trim offset changes per frame.
-  - **`navigation`** (UI: **Reveal Progress**): Full route is visible from the start; the passed portion erases as the playhead advances. Mirrors Google Maps navigation. Glow supported; no exit animation or dash. **Optimization**: Uses `line-trim-offset: [0, progress]` to hide the passed portion. Same static geometry + paint property strategy as draw mode.
-  - **`comet`** (UI: **Meteor Trail**): Only a gradient trail segment is drawn — transparent at the tail, opaque at the head. Trail length is configurable (`item.style.cometTrailLength`, 0–0.8). Uses a dedicated Mapbox source with `lineMetrics: true` and `line-gradient` paint. No glow, no dash. Vehicle/dot shows at the head if enabled. **Note**: Still uses `setData()` each frame since the visible segment spans only a portion of the full line (can't use single `line-trim-offset` to hide both ends).
-  - **Exit Animations**: Both routes and boundaries support three exit modes: `none`, `reverse` (retract/undo the entry), and `fade` (global opacity transition). `comet` and `trace` styles skip exit animations as they naturally self-erase.
-- **Exit Animations** (`item.exitAnimation`): Optional animations for routes and boundaries after their `endTime`:
-  - **`none`** (UI: **Persist on Map**): Item remains at its final state until explicitly removed or loop ends.
-  - **`reverse`** (UI: **Erase Backwards**): 
-    - **Routes**: Line is erased from the starting point toward the tip over 0.5s (Eraser behavior).
-    - **Boundaries**: Stroke is erased from its starting perimeter point toward the finish.
-  - **`fade`** (UI: **Fade Out**): Global opacity transition to 0 over 0.5s, regardless of entrance style.
-  - Toggle found in Inspector Timing sections. Skip for self-erasing modes (comet/trace).
-- **Vehicle System**: Controlled via `route.calculation.vehicle`. Independent of transport mode selection.
-  - **`dot`** (default, free): Rendered as a Mapbox `circle` layer. **Monochromatic**: Color is synced to the route color with a white stroke.
-  - **`car` / `plane`** (Pro): GLB model rendering. 
-  - **Mode Independence**: Vehicles can be enabled for any route, including imported KML/GPX or Manual paths. Selecting 'Car' transport mode no longer hard-enforces a car model; users must toggle it on manually. "Walk" transport mode has been removed in favor of "Car" (Directions api provides similar paths).
-  - Controls live in a dedicated **Vehicle** section in the Route Inspector.
+Manages the Mapbox instance. Hosts:
+- **RouteLayerGroup**: Imperative syncing of Mapbox layers (draw/nav lines, vehicles, dasharrays, opacity).
+- **BoundaryLayerGroup**: Polygon rendering with animation phases (fade, reverse "eraser").
+- **CalloutGroup**: Screen-space projection and Canvas 2D rendering.
+- **CameraController**: Interpolates camera keyframes.
+
+**Key Lesson**: Imperative Mapbox layer updates avoid React re-renders but require careful **null/undefined guards** and equality checks to prevent redundant paint calls.
 
 ### 3.4 The Inspector: `src/components/Inspector/`
-The right-hand properties panel uses a **delegation strategy** to maintain the Single Responsibility Principle and avoid massive "God Object" files.
 
-**Architectural Standards:**
-- **Standardized Hierarchy**: All inspectors follow a strict 3-to-4 tab accordion structure using `InspectorSection`. Properties are never left "floating" outside accordions (except for the primary item name).
-    - **Route**: `Path Data` (Search/Planning) → `Style` → `Timing`.
-    - **Callout**: `Content & Location` (Title/Sync/Search) → `Style` (Typography/Aesthetics/Pole) → `3D Transform` (Coordinates/Altitude) → `Timing`.
-    - **Boundary**: `Location Data` (Search/Status) → `Appearance` → `Timing`.
-- **Humanized Terminology**: Avoids technical "engine-speak" in labels.
-    - Animation types: `Animated Path` (draw), `Reveal Progress` (navigation), `Meteor Trail` (comet).
-    - Exit animations: `Persist on Map` (none), `Erase Backwards` (reverse), `Fade Out` (fade).
-    - Timing: Explicit `Start Time` and `End Time` labels.
-- **Visual Grouping**: Large sections use nested subheaders (standardized `text-[10px] font-bold uppercase tracking-widest` labels) to separate logical property clusters (e.g., Typography vs. Aesthetics).
+Right-side panel for editing selected items. Uses local state for draft values (to avoid store thrashing on keystroke) and flushes to store on blur/Enter. Shares unified **Route Planning UI** between Toolbar (new items) and Inspector (existing items) to avoid duplication.
 
-**Components:**
-- `InspectorPanel.tsx`: Slim routing shell that delegates rendering to isolated components based on `item.kind`.
-- `InspectorLayout.tsx`: Provides `PanelWrapper`, `InspectorSection`, and `ItemActions`. Ensures consistent glassmorphism, transitions, and responsive drawer behavior.
-- `InspectorShared.tsx`: Barrel file re-exporting UI primitives (Field, InputText, etc.) for inspector-specific use.
+### 3.5 Label System (Dynamic Capabilities)
 
-### 3.5 Dynamic Label Capabilities System
-**Goal**: Allow granular, per-style label toggling without hardcoding layer patterns. Users see exactly which labels are available for each map style.
+**Lesson Learned**: Hardcoded label toggles per style + incorrect Config API property names = broken UX.
 
-**How it works:**
-1. **Runtime Detection** (`MapViewport.tsx:detectRuntimeCapabilities()`): When a style loads, the system scans the style's actual label layers and dynamically creates label groups with formatted names.
-   - Example: `country-label` → group ID `place`, label "Place Names"
-   - **Standard Style Special Case**: Uses hardcoded label groups mapped to Mapbox Config API properties (since Standard uses Config API for label control).
-   
-2. **Capabilities Store** (`useProjectStore.ts`): `detectedCapabilities` holds the label groups for the current style.
-   - Eagerly initialized with Standard's groups on app load.
-   - Updated whenever a style finishes loading.
-   
-3. **Label Syncing** (`hooks/useMapSync.ts:toggleFeature()`):
-   - **Standard Style**: Maps label group IDs to Config API property names:
-     - `'place'` → `'showPlaceLabels'` (countries, states, cities, neighborhoods)
-     - `'admin'` → `'showAdminBoundaries'` (country/state borders and boundary labels)
-     - `'road'` → `'showRoadLabels'` (road text and shields)
-     - `'transit'` → `'showTransitLabels'`
-     - `'poi'` → `'showPointOfInterestLabels'`
-     - `'water'`, `'natural'`, `'building'` fall through to layer pattern matching (no Config API toggle exists)
-   - **Other Styles**: Scans `getStyle().layers` once per sync cycle and reuses the result across all label groups (optimized: `map.getStyle()` is expensive, so layers are extracted before the forEach loop).
-   - **Performance**: Calls to expensive operations like `map.getStyle()` are done once and cached, not once-per-label-group.
-   
-4. **UI Integration** (`ProjectSettings.tsx`):
-   - Shows "All On" / "All Off" buttons for quick bulk toggling.
-   - Renders a switch for each label group detected in the current style.
-   - Toggles update `labelVisibility` in the store, which triggers reactive sync.
+**Solution**: 
+- `detectRuntimeCapabilities()` scans the loaded style's actual label layers at runtime.
+- **Standard style** uses verified Config API mappings (`'place'` → `'showPlaceLabels'`, etc.).
+- Custom styles use layer pattern matching.
+- `toggleFeature()` routes to Config API (Standard) or layer visibility (others) intelligently.
+- UI renders dynamically based on detected capabilities.
 
-**Key Design**: Label toggles are **transient UI state** (not persisted). When a project loads, all labels reset to their defaults for that style. Standard style groups are manually defined to match the Mapbox Config API surface (determined via `mapbox:configGroups` in the style schema).
+**Key Design**: Label visibility is **transient** (never persisted) — resets on project load.
 
-### 3.6 Performance Optimizations (Recent)
+### 3.6 Canvas Callout Rendering
 
-**Callout Marker Playhead Storm (Fixed)**
-- **Problem**: CalloutMarkers previously subscribed directly to `playheadTime`, causing 60 re-renders/second per marker during playback.
-- **Solution**: Computation of animation state (`visibility`, `phase`, `progress`) is now centralized in MapViewport via `useCalloutAnimationState` hook, then passed as props to individual markers.
-- **Result**: Markers only re-render when their specific animation state changes, not on every playhead frame.
+**Lesson Learned**: `html2canvas` DOM parsing = 100–300ms per frame overhead during export.
 
-**Map Style Queries in Loops (Fixed)**
-- **Problem**: `toggleFeature()` called `map.getStyle()` (expensive serialization) inside a forEach loop over label groups, causing 5-10 serializations per sync cycle.
-- **Solution**: Extract layers once before the loop in `useMapSync.ts`, pass as parameter to `toggleFeature()`.
-- **Result**: `map.getStyle()` now called once per sync instead of N times.
+**Solution**: Pure Canvas 2D rendering in `src/services/renderCallout.ts`. Four style variants (default, modern, news, topo) dispatch to variant-specific renderers. Each frame, callouts are projected to screen space, animation state computed, and drawn directly. **<1ms per callout.**
 
-**Altitude Offset Calculations (Fixed)**
-- **Problem**: Altitude pixel offset recalculated on every frame due to playhead storm subscription.
-- **Solution**: Dedicated `useCalloutAltitudeOffsets` hook that only recalculates when map zoom changes, not on every playhead frame.
-- **Result**: Expensive zoom/metersPerPixel math runs only when necessary.
-
-**Boundary Layer Lifecycle & Sync (Fixed)**
-- **Problem**: `BoundaryLayerGroup` had incorrect layer ordering (adding glow before stroke), leading to persistent Mapbox errors. It also called `setData` twice per frame on a shared source and allocated new GeoJSON objects every frame during playback.
-- **Solution**: 
-  1. Reordered `addLayer` calls (stroke then glow).
-  2. Implemented explicit glow layer cleanup.
-  3. Optimized `updateBoundary` to perform a single `setData` on the shared source.
-  4. Moved GeoJSON feature creation inside change guards to reduce GC pressure.
-- **Result**: Elimination of console error flood and significantly smoother boundary animations (lower CPU/GPU overhead).
-
-**Dead Code Cleanup**
-- Removed unused files: `NavLink.tsx`, `use-mobile.tsx`, `geocoding.ts` (empty barrel), `App.css` (unused Vite boilerplate).
+This approach also eliminated the DOM re-creation penalty and enabled frame-perfect callout animations during export.
 
 ---
 
 ## 4. UI Layout & Design System
 
-### 4.1 Centralized Layout Constants (`src/constants/layout.ts`)
-The application shell uses standardized margins and dimensions to ensure floating panels align perfectly:
-- **`PANEL_MARGIN` (16px)**: The gutter between panels and the screen edge.
-- **`PANEL_GAP` (16px)**: The vertical/horizontal air-gap between adjacent panels.
-- **`RIGHT_RESERVED_DESKTOP` (352px)**: Total width reserved when the Inspector is open, used to center map-based UI (like the Toolbar or Sonner toasts).
+### 4.1 Centralized Layout Constants
 
-### 4.2 UI Component Standardization (Tier 1 & Tier 2)
-The UI uses a consistent "Floating Island" language across the codebase:
-- **Tier 1 (Primitives)**: Found in `src/components/ui/`. Includes `IconButton.tsx` (unified square icon buttons with `toolbar`, `zen`, and `destructive` variants), `SegmentedControl.tsx` (animated tabs), and `Field.tsx` (labeled inputs).
-- **Tier 2 (Composites)**: Components that combine Tier 1 primitives, such as `PanelHeader.tsx` and `ToolbarDropdownPanel.tsx`.
-- **Polish**: All components use a shared CSS `glass` effect and consistent `shadow-2xl` for depth. Hover states, especially in the Project Menu and Toolbar, are meticulously tuned for visual stability.
+`src/constants/layout.ts` defines:
+- `PANEL_MARGIN` (16px): Gutter between panels and screen edge.
+- `PANEL_GAP` (16px): Air-gap between adjacent panels.
+- `RIGHT_RESERVED_DESKTOP` (352px): Width reserved when Inspector is open (used to center map UI).
 
-### 4.3 Intelligent Toast Positioning (`useSonnerPosition`)
-Toasts (via `Sonner`) are not tethered to corners. Instead, the `useSonnerPosition` hook (in `MapStudioEditor.tsx`) calculates their position dynamically based on `isMobile`, `isInspectorOpen`, and `timelineHeight`. This ensures toasts always appear horizontally centered in the "active map area" and don't overlap with the timeline or Inspector.
+### 4.2 Component Standardization
+
+**Tier 1 (Primitives)**: `IconButton`, `SegmentedControl`, `Field`, etc. in `src/components/ui/`.
+**Tier 2 (Composites)**: `PanelHeader`, `ToolbarDropdownPanel`, etc. that combine Tier 1 primitives.
+
+All use shared CSS `glass` effect + `shadow-2xl` for depth and polished hover states.
+
+### 4.3 Toast Positioning
+
+`useSonnerPosition` dynamically calculates toast position based on `isMobile`, `isInspectorOpen`, and `timelineHeight`. Toasts are **not corner-tethered** — they always appear in the active map area without overlapping UI.
 
 ---
 
 ## 5. Toolbar & Layout Architecture
 
-### 5.1 Mobile & Tablet Layout (`src/components/Toolbar/MobileToolbarLayout.tsx`)
-Uses **mode-switching** with slide animations (not dropdowns):
-- **Default**: Logo, Project menu, Add (+), Layers buttons, Play, Export, Hide UI
-- **Add mode**: Route, Boundary, Callout dropdowns + Camera KF + close button
-- **Layers mode**: Map style select, Terrain, Buildings toggles + close button
-Tablet retains rounded borders and floating positioning despite sharing this layout.
+### 5.1 Mobile & Tablet (`src/components/Toolbar/MobileToolbarLayout.tsx`)
 
-### 5.2 Desktop Layout (`src/components/Toolbar/DesktopToolbarLayout.tsx`)
-Uses inline controls and dropdowns:
-- Route, Boundary, Callout always visible (Boundary/Callout in dropdown on tablet)
-- Map style + Terrain/Buildings inline (or in dropdown on tablet)
-- All controls visible at once; no mode-switching
+**Mode-Switching** (slide animations, not dropdowns):
+- **Default**: Logo, Project menu, Add (+), Layers, Play, Export, Hide UI.
+- **Add Mode**: Route, Boundary, Callout + Camera KF + close.
+- **Layers Mode**: Map style, Terrain, Buildings toggles + close.
 
-### 5.3 Toolbar Helpers
-- `useToolbarActions()` — Encapsulates all handlers (import, export, new project, camera KF)
-- `ToolbarPrimitives.tsx` — Shared `ToolbarButton`, `ToolbarToggle`, `Divider` atoms; now backed by `IconButton` for icon-only modes.
+**Lesson Learned**: Dropdowns on mobile waste vertical space; mode-switching creates a focused, immersive experience.
 
-### 5.4 Avatar Menu & Account Integration
-The Toolbar's top-left now features an **Avatar Menu** (`src/components/Account/AvatarMenu.tsx`) that replaces the legacy Project menu:
-- **Logged Out**: Shows "Sign In" button.
-- **Logged In**: Displays user avatar with dropdown menu:
-  - Account Settings (email, password, profile, BYOK Mapbox token)
-  - Credits & Subscription status
-  - Render Jobs history
-  - Sign Out
+### 5.2 Desktop (`src/components/Toolbar/DesktopToolbarLayout.tsx`)
 
-**Account Modals** (`src/components/Account/`):
-- `AuthModal.tsx`: Sign in form with email + password, Google OAuth, GitHub OAuth. Includes "View plans" CTA for new users.
-- `AccountSettingsModal.tsx`: Edit email, password, profile picture. BYOK Mapbox token storage in localStorage.
-- `CreditsModal.tsx`: Tabbed interface with Subscriptions and Top Up Credit tabs. Shows current balance, tier info, and plan comparison cards.
-- `RendersModal.tsx`: List past and in-progress render jobs with status and download links.
-- `MockCheckout.tsx`: Test-mode checkout form (TODO: replace with Dodo Payments integration). Accepts email and card details, stores pending checkout in localStorage.
+Inline controls + dropdowns; all controls visible at once.
 
-**Subscription Tiers** (via `SubscriptionTiers` component):
-- **Wanderer** (Free): 0 credits/mo, sequential rendering, local saves only.
-- **Cartographer** ($15/mo): 500 credits/mo, 2 parallel renders, unlimited cloud saves.
-- **Pioneer** ($35/mo): 2,000 credits/mo, 5 parallel renders, unlimited cloud saves.
+### 5.3 Tablet Optimization
 
-All modals are non-modal, floating panels that integrate seamlessly with the Toolbar's floating island aesthetic.
+Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdown**. Keeps "Add" tools expanded for high productivity while grouping map settings into one button.
 
 ---
 
-## 6. Recent Architectural Refactoring
+## 6. Architectural Refactoring & Lessons Learned
 
-### 6.0 User Accounts & Supabase Integration (Phase 1–3) + Checkout Flow (Phase 4)
-**Problem**: li'l Mappo needed user authentication, account management, cloud persistence, and a monetization system for subscription tiers.
+### 6.0 User Accounts & Supabase Integration
 
-**Solution**: Four-phase rollout of Supabase-powered user accounts and mock checkout:
+**Problem**: li'l Mappo needed auth, cloud persistence, and monetization.
 
-**Phase 1 — Avatar Menu & Account Modals** (`2cdf4c2`)
-- Replaced legacy Project menu with **Avatar Menu** (`AvatarMenu.tsx`).
-- Created account modal suite:
-  - `AuthModal.tsx`: Sign in with email + password, Google OAuth, GitHub OAuth.
-  - `AccountSettingsModal.tsx`: Edit profile, email, password, BYOK Mapbox token.
-  - `CreditsModal.tsx`: Display credits and subscription tier.
-  - `RendersModal.tsx`: View render job history.
-- Created `useAuthStore.ts` to manage auth state (user, session, loading, modal visibility).
-- Integrated Supabase client (`src/lib/supabase.ts`).
+**Solution**: Four-phase rollout (auth modals → Supabase wiring → real data → Dodo Payments checkout).
 
-**Phase 2 — Supabase Auth Wiring** (`c00c7bd`)
-- Connected `AuthModal` to real Supabase Auth endpoints (email + password, Google OAuth, GitHub OAuth).
-- Implemented session persistence and auto-login on app load via `initAuth()`.
-- Created database schema migration (`supabase/migrations/001_initial_schema.sql`):
-  - `credit_balance`: Track monthly and purchased render credits per user (auto-created on first sign-in via trigger).
-  - `subscriptions`: Store subscription tier and status (one row per paying user; free users have no row).
-  - `render_jobs`: Log all export jobs with status, resolution, FPS, GPU flag, credits cost, and output URLs.
-  - `feature_votes`: Anonymous feature voting table.
-- Added Row Level Security (RLS) policies to ensure users can only access their own data.
-- Added custom hooks using React Query: `useCredits()`, `useSubscription()`, `useRenderJobs()` for efficient data fetching and caching.
+**Key Milestones**:
+- **Phase 1**: Avatar Menu + Auth/Account/Credits/Renders modals + `useAuthStore`.
+- **Phase 2**: Real Supabase Auth endpoints (email + OAuth) + RLS policies + database schema (credit_balance, subscriptions, render_jobs).
+- **Phase 3**: Live data wiring + React Query caching (30s/60s/0s stale times).
+- **Phase 4**: Dodo Payments integration (Vercel API routes for session creation + webhook fulfillment).
 
-**Phase 3 — Real Data Wiring** (`b697eb2`)
-- Connected account modals to live Supabase data:
-  - `AccountSettingsModal`: Displays user email and display name from Supabase Auth; includes BYOK (Bring Your Own Key) Mapbox token storage in localStorage.
-  - `CreditsModal`: Fetches and displays live monthly and purchased credits from `credit_balance` table; shows renewal date and purchase CTA.
-  - `RendersModal`: Lists render jobs from `render_jobs` table with real-time status (queued, rendering, done, failed); includes download links for completed renders and expiration tracking.
-- Enhanced `useAuthStore` to call `initAuth()` on app mount, which hydrates session from Supabase and subscribes to auth state changes.
-- Added database type definitions (`src/lib/database.types.ts`) for type safety across all queries.
-- Implemented React Query caching strategy:
-  - `useCredits()`: 30s stale time (credits don't change often).
-  - `useSubscription()`: 60s stale time.
-  - `useRenderJobs()`: 0s stale time (always refetch on manual refresh).
-- All modals gracefully handle loading, error, and unauthenticated states with appropriate UI feedback.
+**Lesson**: Bi-directional sync with webhooks requires **idempotent event handlers** and **advisory locks** to prevent race conditions.
 
-**Phase 4 — Checkout & Subscription Tiers (Mock → Real)**
+### 6.1 Subscription Management Refactoring
 
-*Mock Phase (obsolete):*
-- Initially created `MockCheckout.tsx` component: Test-mode checkout form with email, card number, expiry, CVV fields.
-- Created `mockCheckout.ts` service with `initiateMockCheckout()` and `fulfillPendingCheckout()` for localStorage-based flow.
+**Problem**: 250-line `ManageView` component mixed API logic, state management, and UI rendering. Cancel flow was untestable and unreusable.
 
-*Production Phase — Dodo Payments Integration* (`4e91c5c`)
-- **Replaced mock checkout with live Dodo Payments integration:**
-  - Removed `MockCheckout.tsx` and `mockCheckout.ts`; created `checkout.ts` service with real payment flow.
-  - Added two Vercel API routes:
-    - `api/dodo-create-session.ts`: Authenticates via Supabase JWT, validates the plan/quantity, creates a Dodo checkout session, and returns the hosted checkout URL.
-    - `api/dodo-webhook.ts`: Receives Dodo's `payment.succeeded` webhook; creates subscription records and provisions credits to `credit_balance` table.
-  - Added database migration (`supabase/migrations/002_add_dodo_fields.sql`): Added `dodo_subscription_id` (unique) and `status` fields to `subscriptions` table for webhook lookups.
-- **Checkout Flow (Dodo Hosted)**:
-  1. User clicks "Subscribe" or "Top Up Credits" in `CreditsModal`.
-  2. If signed in: `startCheckout(plan, quantity?)` calls `initiateDodoCheckout()` with access token.
-  3. If not signed in: `startCheckout()` stores plan in localStorage via `storePendingPlan()` and opens `AuthModal`.
-  4. `initiateDodoCheckout()` sends POST to `/api/dodo-create-session` with plan, quantity, and Bearer token.
-  5. Vercel route validates JWT, creates Dodo session with metadata (supabase_uid, plan, credits for topup), and returns `checkout_url`.
-  6. Browser redirects to Dodo's hosted checkout page (Dodo domain, PCI compliance, secure).
-  7. After payment, Dodo sends webhook to `/api/dodo-webhook` with `payment.succeeded` event.
-  8. Webhook handler:
-     - Validates Dodo signature.
-     - Extracts `supabase_uid`, `plan`, and `credits` from metadata.
-     - For subscriptions (cartographer/pioneer): Creates row in `subscriptions` table with `dodo_subscription_id`.
-     - For topups: Increments purchased credits in `credit_balance` table.
-     - Supabase RLS policies ensure webhook has admin access.
-  9. After payment, Dodo redirects user back to `/?checkout=success` (or error URL if cancelled).
-  10. `MapStudioEditor.tsx` detects `?checkout=success` query param and shows success toast.
-- **Pending Plan Persistence**: `getPendingPlan()` and `clearPendingPlan()` helpers manage localStorage across the OAuth redirect cycle.
-- **Enhanced `useAuthStore.startCheckout()`**:
-  - Signed-in users: Immediately redirect to Dodo.
-  - Unauthenticated users: Store plan, open AuthModal, and after `SIGNED_IN` event fires (via `onAuthStateChange` listener), automatically resume checkout via `initiateDodoCheckout()`.
-- **PLAN_CONFIG** in `checkout.ts`:
-  - Cartographer: $15/mo, 500 credits/mo, 2 parallel renders.
-  - Pioneer: $35/mo, 2000 credits/mo, 5 parallel renders.
-  - Topup: $1–$200 (slider on credits modal), 100 credits per dollar.
-  - Product IDs map to Dodo dashboard product entries.
-- **Dodo Environment**: Currently running in `test_mode` for development; switch to live mode via env var for production.
+**Solution**: Extracted `useCancelSubscription()` hook. Component calls hook for cancel state + toast notifications; hook is independently testable and reusable.
 
-**Key Design**: Checkout is now fully server-driven. Magic-link / OAuth sessions are persisted in localStorage, allowing checkout to resume after auth redirects. Dodo handles all payment processing and security; webhooks ensure server-side subscription provisioning. No payment card data ever touches li'l Mappo servers.
+**Lesson**: Separate concerns early. Logic that will be reused across UIs should be a hook, not a component method.
 
-**Benefits**:
-- PCI compliance via Dodo's hosted checkout.
-- Automatic webhook fulfillment (no polling or manual verification).
-- One-time topups decoupled from recurring subscriptions.
-- Flexible metadata allows future plan variants without code changes.
+### 6.2 Webhook Idempotency & Security
 
-**Webhook Handler Refactoring** (post-Phase 4):
-- **Problem**: `api/dodo-webhook.ts` mixed billing logic (grace credits, DB updates, idempotency) with routing logic inside a 100-line switch statement. Debugging credit-provisioning logic required scrolling past unrelated payment/renewal cases.
-- **Solution**: Extracted 5 discrete event handlers (`handleSubscriptionActive`, `handlePaymentSucceeded`, `handleSubscriptionRenewed`, `handleSubscriptionCancelled`, `handleSubscriptionExpired`), each responsible for one event type end-to-end. The switch statement is now a thin 10-line dispatcher.
-  - Handlers throw on DB errors (caught by outer `try/catch` → 500, Dodo retries).
-  - Handlers return early on "soft" failures (missing metadata, unknown product → 200, Dodo doesn't retry).
-  - Idempotency rollback logic stays with each handler.
-- **Benefit**: Clear entry points for each event type; easier to understand and debug subscription state transitions.
+**Problem 1: Replay Attacks** — Duplicate webhook events (due to network retries) could double-credit topups.
 
-### 6.1 Subscription Management Modal Refactoring
+**Solution**: `processed_payments` table with payment_id PRIMARY KEY. Before crediting, INSERT the payment_id. Unique constraint violation = already processed → return 200 without crediting.
 
-**Problem**: `AccountSettingsModal.tsx`'s `ManageView` component (250 lines) mixed concerns: API call logic (`handleCancel` fetch), state management (3 local state vars for cancel flow), and UI rendering. Testing cancel flow required mocking the component; reusing cancel logic elsewhere required duplicating code.
+**Problem 2: TOCTOU in Render Job Limits** — SELECT concurrent_count, then INSERT could race with another request, allowing users to exceed their parallel render limit.
 
-**Solution**: Extracted cancel flow into `useCancelSubscription` hook (`src/hooks/useCancelSubscription.ts`):
-- Hook owns: `cancelling`, `confirmCancel`, `justCancelled` state + `handleCancel` async function + cancel toast notifications.
-- Component calls hook and derives `isCancelled` (computed value covering both "already cancelled on load" and "just cancelled now").
-- Hook can be reused in future cancel-related UIs (e.g., bulk user management).
-- **Benefit**: Clear separation of concerns; cancel flow is now independently testable and reusable.
+**Solution**: Postgres RPC with advisory lock (`pg_advisory_xact_lock(hashtext(user_id))`) ensures count check + INSERT happen atomically.
 
-### 6.2 Label System Overhaul (Dynamic Capabilities)
-**Problem**: Label toggles were hardcoded per style, duplicating layer patterns and breaking for custom styles. Standard style also had incorrect Config API property names (`showRoads` → should be `showRoadLabels`, `showPlaces` → should be `showPlaceLabels`) and was missing the `showAdminBoundaries` control, causing country names and borders to remain visible when all toggles were off.
+**Problem 3: Infinite Credit Generation** — Negative `durationSec` in render dispatch → negative `totalCredits` → user effectively credited.
 
-**Solution**: Runtime detection of available labels with accurate Config API mappings.
-- **`detectRuntimeCapabilities()`** scans the loaded style's actual label layers and builds label groups on-the-fly (non-Standard styles).
-- **Standard Style** uses hardcoded groups mapped to verified Mapbox Config API properties (discovered via `mapbox:configGroups` in the style schema):
-  - `'place'` → `'showPlaceLabels'`, `'admin'` → `'showAdminBoundaries'`, `'road'` → `'showRoadLabels'`, `'poi'` → `'showPointOfInterestLabels'`, `'transit'` → `'showTransitLabels'`
-  - `'water'`, `'natural'`, `'building'` fall through to layer pattern matching (no Config API toggle exists for these)
-- **`toggleFeature()`** intelligently routes to either Config API (Standard) or layer visibility (all others) based on style.
-- **ProjectSettings** renders toggles dynamically based on detected capabilities.
-- **UI Enhancement**: Added "All On" / "All Off" buttons for quick bulk label toggling.
-- **Transient State**: Label visibility is never persisted; resets on project load.
+**Solution**: Explicit `durationSec <= 0` guard before any credit/job logic.
 
-**Transient UI State Cleanup**
-Removed from `Project` type (non-persisted); now transient-only in store:
-- `mapStyle` — always defaults to 'standard'
-- `labelVisibility` — resets to empty object
-- `playheadTime`, `isPlaying`, `isScrubbing` — playback state
-- `isInspectorOpen`, `timelineHeight` — UI layout state
-- `isExporting` — tracks active video export; controls `preserveDrawingBuffer`
+**Key Lesson**: **Client-side validation is UX; server-side validation is security.** Always validate on the backend.
 
-Benefit: Save files now contain only essential animation data. UI state is always fresh on load.
+### 6.3 Open Redirect + Token Leakage
 
-### 6.3 Complexity Reduction
-Several high-complexity functions have been decomposed into smaller, focused helpers:
+**Problem**: `api/dodo-create-session.ts` forwarded client-provided `returnUrl` and `cancelUrl` directly to Dodo without validation. Attacker could craft checkout with malicious redirect to exfiltrate tokens.
 
-**lineAnimation.ts**
-- Extracted `interpolateCoord(a, b, frac)` helper to eliminate duplicate 3D coordinate interpolation logic.
+**Solution**: 
+- Removed client-side URL parameters.
+- Server constructs canonically: `${APP_URL}?checkout=success` or error URL.
+- If Dodo needs custom redirects in future, validate against explicit whitelist.
 
-**videoExport.ts** (Canvas Callout Rendering)
-- Replaced `html2canvas` DOM parsing with pure Canvas 2D callout rendering via `renderCallout.ts`.
-- Each frame, callouts are projected to screen space, animation state computed, and drawn directly to compositing canvas.
-- **Performance**: <1ms per callout vs. 100–300ms per frame for html2canvas DOM re-parsing.
-- Split `runExport()` into three phases: `initEncoder()`, `captureFrame()`, `finalizeExport()`.
-- Main function acts as orchestrator rather than monolith.
+**Key Lesson**: Never trust redirect URLs from clients. Use canonicalized URLs or whitelists.
 
-**renderCallout.ts** (New)
-- Pure Canvas 2D rendering for all 4 callout style variants (default, modern, news, topo).
-- `computeCalloutAnimation()`: Computes opacity for fade in/out based on playhead time.
-- `renderCalloutToCanvas()`: Main entry point; dispatches to variant-specific renderers.
-- Supports pole line (dashed, with dot), shadow, text rendering, accent colors, and altitude offsets.
+### 6.4 RLS Policy Loophole (Critical)
 
-**MapViewport.tsx** (Major architectural split)
-- **Delegation Refactor**: Split the ~1,200 line monolith into modular sub-components and hooks.
-- Extracted `useMapSync()` hook — contains the core imperative sync engine and export bridge.
-- Extracted `RouteLayerGroup`, `BoundaryLayerGroup`, and `CalloutMarker` as dedicated functional components.
-- Extracted `mapUtils.ts` — contains `resolveClickTarget` and `applyPickResult` for picking logic clarity.
+**Problem**: Initial schema used `FOR ALL` policies with only `USING` clause. Authenticated users could UPDATE their own rows directly from browser (e.g., set `purchased_credits = 999999`).
 
-**MapStudioEditor.tsx**
-- Extracted `useSonnerPosition()` hook — calculates toast positioning based on UI state.
-- Extracted `<ZenModeControls />` component — floating play/show UI buttons for zen mode.
+**Solution** (Migration 005): Dropped `FOR ALL` policies. Replaced with `FOR SELECT` only — clients can read but not write. All provisioning is server-side (webhook handlers use service role, which bypasses RLS).
 
-**Toolbar.tsx** (Major architectural split)
-- Extracted `useToolbarActions()` hook — contains all route/project/export business logic.
-- Layout split into `<MobileToolbarLayout />` and `<DesktopToolbarLayout />`.
-- Unified triggers via `<ToolbarPrimitives />` backed by `IconButton`.
+**Key Lesson**: RLS `USING` alone is not enough. You need `WITH CHECK` for UPDATE/INSERT or restrictive policies that omit write clauses entirely.
 
-**Icon Updates** (Improved Visual Clarity)
-- Route: `Route` → `Navigation` (more intuitive for travel)
-- Callout: `MessageSquare` → `Flag` (distinct annotation marker)
-- Boundary: `MapPin` → `Hexagon` (clear polygon indicator)
-- Camera Keyframe: `Crosshair` → `Video` (represents video frames)
-
-### 6.4 Code Duplication Elimination & Utility Extraction
-
-**Problem**: Five instances of significant code duplication were identified across the codebase:
-1. **Search Field Logic**: `SearchField.tsx` and `RoutePlanner.tsx`'s `InspectorSearchField` duplicated ~80% of Mapbox SearchBox session management, proximity bias, and suggestion handling.
-2. **Animation Phase Computation**: Both `useCalloutAnimationState.ts` and `renderCallout.ts` duplicated the `enterEnd`/`exitStart` phase and progress calculation logic.
-3. **Hex Color Conversion**: Identical `withAlpha()` / `hexWithAlpha()` functions existed in `CalloutCard.tsx` and `renderCallout.ts`.
-4. **Interface Name Collision**: Two unrelated interfaces both named `CalloutAnimationState` (UI state in hook vs. canvas render state in service) created confusion despite different semantics.
-5. **Dual State Synchronization**: `ExportModal.tsx` maintained both a local React state and a store state for `isExporting`, requiring manual synchronization in 5+ places.
-
-**Solution**: Systematic extraction of shared logic into reusable abstractions:
-
-**New Files:**
-- **`src/hooks/useLocationSearch.ts`** — Extracted hook managing Mapbox SearchBox session, proximity bias, suggestion fetching, and coordinate parsing.
-  - Owned state: `query`, `suggestions`, `isOpen`, `loading`
-  - Owned functions: `performSearch()`, `handleSelect()`, `handleClose()`, `clear()`
-  - Option: `parseCoordinates` enables direct lat/lng input (used by RoutePlanner)
-  - Both `SearchField` and `InspectorSearchField` now call this hook; each retains its own UI (Popover vs. Card)
-
-- **`src/engine/calloutAnimation.ts`** — Extracted `computeCalloutPhase()` utility for phase and progress calculation.
-  - Returns: `{ phase: 'enter' | 'visible' | 'exit', progress: number } | null`
-  - Used by both `useCalloutAnimationState.ts` (for UI animation) and `renderCallout.ts` (for canvas opacity)
-  - Eliminates duplicate `enterEnd`/`exitStart` calculation logic
-
-- **`src/utils/colors.ts`** — Extracted `hexToRgba()` color utility.
-  - Converts hex strings (e.g., `#FF0000`) to rgba with alpha (e.g., `rgba(255, 0, 0, 0.87)`)
-  - Used by `CalloutCard.tsx` (DOM rendering) and `renderCallout.ts` (canvas rendering)
-
-**Modified Files:**
-- **`src/components/Search/SearchField.tsx`** — Now uses `useLocationSearch` hook; removed 70 lines of session/search logic. Retains Popover UI and `name` prop sync.
-- **`src/components/Inspector/RoutePlanner.tsx`** — `InspectorSearchField` now uses `useLocationSearch` with `parseCoordinates: true`. Removed 70 lines of search logic; retains Card UI and coordinate sync.
-- **`src/components/MapViewport/hooks/useCalloutAnimationState.ts`** — Uses `computeCalloutPhase()` utility; reduced phase/progress computation from 20 lines to 3 lines.
-- **`src/services/renderCallout.ts`** — Uses `computeCalloutPhase()` and `hexToRgba()`; reduced duplication footprint.
-- **`src/components/MapViewport/CalloutCard.tsx`** — Imports `hexToRgba()` from utils; removed inline `withAlpha()` function.
-- **`src/components/ExportModal/ExportModal.tsx`** — Removed local `isExporting` state; now reads from store via selector. Kept only store `setIsExporting()` calls as single update path.
-
-**Interface Renames** (for clarity):
-- `src/components/MapViewport/hooks/useCalloutAnimationState.ts`: Local `CalloutAnimationState` → `CalloutUIAnimationState`
-- `src/services/renderCallout.ts`: Exported `CalloutAnimationState` → `CalloutRenderState`
-- No external import changes needed (types inferred by consumers)
-
-**Benefits:**
-- **Reduced Maintenance Burden**: Future changes to search logic, animation, or color handling require only one edit.
-- **Type Safety**: No more interface name collisions.
-- **Single State Source**: `ExportModal` now reads `isExporting` from store, eliminating sync errors.
-- **Reusability**: `useLocationSearch` and `computeCalloutPhase()` can be used in future features without code duplication.
-- **Testability**: Extracted utilities are independently testable in isolation.
-- Export: `Video` → `Clapperboard` (more distinct for cinematic final output)
-
-### 6.4 Responsive Layout Logic (`src/hooks/useResponsive.ts`)
-Detects **Mobile (< 706px)**, **Tablet (707px - 1024px)**, and **Desktop (> 1025px)**. Allows components to switch layouts or "modes" dynamically. Note: The mobile breakpoint was recently moved to 706px to better accommodate larger modern phone displays.
-
-### 6.5 High-Performance Imperative Sync (Guarded Zero-Re-render Architecture)
-**Goal**: Achieve fluid 60fps animations for map layers and UI elements by bypassing React's reconciler during playback and scrubbing, while maintaining a near-zero resource footprint when idle.
-
-**Core Implementation:**
-1. **Imperative Playhead (`TimelinePanel.tsx`)**: The timeline ruler diamond, track line, and time display are updated via DOM refs inside a store subscription. React is only used for the initial Layout and item CRUD.
-2. **Guarded Imperative Layers (`MapViewport.tsx`, `RouteLayerGroup.tsx`, `BoundaryLayerGroup.tsx`)**: 
-   - `RouteLayerGroup` and `BoundaryLayerGroup` use `map.addSource()` and `map.addLayer()` directly. They subscribe to the store with **`useRef` time-guards** that prevent redundant `setData()` calls when `playheadTime` hasn't changed.
-   - **Paint property guards**: `setPaintProperty` is only called when a property value actually changes (via `lastPaintRef` cache). During playback at 60fps, static style properties like `line-color` and `line-width` are no longer re-applied every frame — only when the user changes them in the Inspector.
-   - **Geometry caching**: For static geometry (e.g., fade-style boundaries where only opacity animates), `setData()` is skipped unless the underlying GeoJSON reference changes, eliminating redundant GPU uploads.
-   - **Vehicle animation**: Vehicle position (dot/car/plane) is now updated imperatively inside `RouteLayerGroup`'s subscription loop instead of triggering React re-renders via `VehicleAnimatedLayer`. Zero per-frame React reconciliation.
-   - **Glow layer lifecycle**: Glow layer is added once on mount with `visibility: 'none'`, then toggled via `setLayoutProperty('visibility')` per-frame. This eliminates the expensive `addLayer`/`removeLayer` churn that occurred inside animation callbacks.
-3. **Idempotent Sync Engine**: Atmospheric settings (Fog, Star Intensity, Terrain) and 3D config properties are synchronized via an `idle` event loop. All `setConfigProperty`/`setTerrain`/`setFog` calls are guarded by change checks to prevent redundant Mapbox operations during continuous tile loading and camera movement.
-4. **Selector-Isolated Viewport**: `MapViewport` uses only low-frequency selectors (`mapStyle`, `items`, `itemOrder`, `selectedItemId`, etc.) and **never subscribes to `playheadTime` or `isMoveModeActive`**. These high-frequency subscriptions are isolated in the `CalloutMarkerList` child component, which owns callout animation state computation. This ensures the parent map shell **never re-renders** during playback, even though `CalloutMarkerList` is animating imperatively.
-5. **Fast Keyboard Stepping**: Keyboard shortcuts read state imperatively via `useProjectStore.getState()` to avoid dependency-array re-render cascades.
-
-### 6.6 Account UX & Payment Tier Restructuring
-**Problem**: The original auth and payment system had gatekeeping issues (free tier blocking credit purchases, no subscription management UI), limited auth options, and a weak tier structure. New design opens payments to all users and adds granular account controls.
-
-**Tier Restructuring:**
-- **Wanderer** ($10/mo): New **paid entry tier**. 100 credits/mo, 1 cloud render at a time, unlimited cloud saves.
-- **Cartographer** ($15/mo): 500 credits/mo, 2 parallel renders, unlimited cloud saves.
-- **Pioneer** ($35/mo): 2,000 credits/mo, 5 parallel renders, unlimited cloud saves.
-- **Nomad** (credit-pack only): New **automatic tier** granted when users buy credit packs. 0 monthly credits, 1 parallel render, cloud saves while balance > 0. Credits purchased this way never expire.
-
-No free tier exists. Account creation is now tied to payment flow — unauthenticated users can see the credits modal, buy a pack, and sign up during checkout. Abandoned accounts (created but never paid) are cleaned up via daily Vercel cron after 24h.
-
-**Auth Modal Redesign (`AuthModal.tsx`)**:
-- **Sign-in mode**: Email + password. Google & Apple OAuth buttons disabled (greyed out for future support).
-- **Sign-up mode**: Same form, opened during checkout. Shows "Create Account & Subscribe" CTA and "Already have an account?" link for existing users.
-- Password is stored via Supabase Auth.
-
-**Unauthenticated Checkout Flow**:
-1. User opens Credits modal → clicks "Top Up Credits" or clicks "Subscribe" on a plan card.
-2. `startCheckout()` stores intent in localStorage (`storePendingPlan()` or `storePendingTopup()`).
-3. Opens signup modal (not sign-in modal).
-4. After account creation, `SIGNED_IN` event fires → `initAuth()` checks localStorage → resumes `initiateDodoCheckout()`.
-5. User redirected to Dodo hosted checkout.
-
-**Subscription Management (`AccountSettingsModal.tsx`)**:
-- New **Manage sub-view** with:
-  - Current tier + active/cancelled status.
-  - Renewal or access-until date.
-  - Credit balance breakdown (monthly + purchased).
-  - **For recurring subs**: Two-step cancel button with warning ("You'll lose cloud save access on [date]. Existing saves remain.")
-  - Cancel-at-period-end via Dodo API; user retains access until renewal_date.
-  - Upgrade path to higher tier.
-
-**Credits Modal for Everyone**:
-- Top Up tab now shows the slider to **all users** (removed the gate).
-- Benefit callout explains: "30s timeline unlock, cloud saves while balance > 0, credits never expire."
-- Unauthenticated users clicking Checkout triggers the signup flow.
-
-**Webhook Safeguards (`api/dodo-webhook.ts`)**:
-- Product IDs and environment mode read from env vars (support test_mode and live_mode without code changes).
-- Error checking on all credit balance writes and subscription upserts — failures return 500 so Dodo retries.
-- Nomad upsert only happens if user has no active subscription (preserves higher tiers).
-
-**Daily Account Cleanup (`api/cleanup-free-accounts.ts`)**:
-- Vercel cron job runs daily at midnight UTC.
-- Deletes `auth.users` with no subscription row and `created_at > 24h ago`.
-- Grace period is configurable (single const at top of file).
-
-### 6.7 Cloud Saves & Bi-Directional Sync
-
-**Problem**: Users want cloud backup of projects across devices, but only paid subscribers should access this feature. Ex-subscribers (whose paid plan expires) should retain limited cloud access as a grace mechanic.
-
-**Solution**: A Supabase-backed cloud library with tier-based access control and offline-tolerant sync.
+### 6.5 Cloud Rendering Pipeline
 
 **Architecture**:
+1. User clicks "Export" → `ExportModal` collects frame range, resolution, FPS.
+2. `api/render-dispatch.ts` validates, deducts credits, inserts `render_jobs` row, POSTs config to Modal (headless renderer).
+3. Modal worker encodes frames, POSTs blob to presigned DigitalOcean Spaces URL.
+4. Dodo webhook receives render status updates → updates `render_jobs` table.
+5. **"My Renders"** modal fetches jobs, displays status (Queued/Rendering/Done/Failed) + download links.
 
-1. **Supabase Table** (`cloud_projects`):
-   - `id` (TEXT, nanoid-generated, same as local `project.id`)
-   - `user_id` (UUID, required), `name`, `data` (JSONB project), `updated_at`, `created_at`
-   - RLS: users can only CRUD their own rows
+**Key Design**: **Presigned S3 URLs** let the renderer bypass Vercel's request size limits. Videos expire after 24 hours.
 
-2. **Access Rules** (`src/lib/cloudAccess.ts`):
-   - Wanderer / Cartographer / Pioneer (active subscription): unlimited cloud saves
-   - Nomad (credit-pack buyers AND ex-subscribers with grace credits): cloud saves while `purchased_credits > 0`
-   - Credits are a gate only — saving does NOT deduct credits (renders do)
-   - Expired/cancelled subscriptions: webhook downgrades tier to `nomad`, sets status to `active`, grants 10 non-expiring `purchased_credits`
+**Two-Phase Progress Reporting**: `onProgress(pct, phase)` with `'prewarm' | 'capture'` phases for precise UI feedback.
 
-3. **Local Library Extensions** (`src/services/projectLibrary.ts`):
-   - Added `cloudSyncedAt` (Unix ms of last successful cloud push, or null if never synced)
-   - Added `pendingSync` (true when local changes haven't been pushed)
-   - New function `updateCloudSyncMeta()` for patching sync fields only
+**Tile Cache Prewarm**: 24-frame scrub before actual capture, waiting for `map.once('idle')` (max 2s/frame) to pre-load tiles.
 
-4. **Sync Engine** (`src/services/cloudSync.ts`):
-   - **Download**: Cloud → Local when cloud's `updated_at > local.cloudSyncedAt` (or cloud-only projects)
-   - **Upload**: Local → Cloud when `pendingSync === true` or `updatedAt > cloudSyncedAt` (only if `canCloudSave()`)
-   - **Conflict**: Newer timestamp always wins
-   - **Network errors**: Returns `offline: true` — caller shows toast and leaves pending flags
+**Encoder Back-Pressure**: Monitor `videoEncoder.encodeQueueSize`. If > 8, wait via requestAnimationFrame drain loop until <= 4 before encoding next frame.
 
-5. **Save Flow** (`src/components/Toolbar/useToolbarActions.ts`):
-   - Always save locally first (preserving existing `cloudSyncedAt`)
-   - If `canCloudSave()`:
-     - Try cloud push
-     - On success: update `cloudSyncedAt = now`, clear `pendingSync`
-     - On fail (any error): toast "Saved locally — you're offline", leave `pendingSync = true`
-   - If not `canCloudSave()`: save locally only, no cloud intent
+### 6.6 Export & Snapshot Services
 
-6. **Sync Triggers**:
-   - On app open (once per user session, via `MapStudioEditor.tsx`)
-   - On save button click
-   - On refresh button in "My Projects" modal (`ProjectLibraryModal.tsx`)
+**Lesson Learned**: Multiple UI entry points (video export, snapshot) both need map resizing + frame compositing → extract shared utilities.
 
-7. **Modal UI** (`src/components/ProjectLibrary/ProjectLibraryModal.tsx`):
-   - Merged list: local projects + cloud-only projects (never synced locally)
-   - Cloud icon ☁️: project has ever been synced
-   - CloudUpload icon ⬆️: pending-sync (amber)
-   - Refresh button: syncs cloud + local, downloads new cloud projects
-   - **Loading cloud-only with NO cloud access**: fork with new UUID (prevents mutating a read-only cloud copy)
-   - Delete: removes from both local + cloud (if cloud-backed and access available)
+**Solution**: 
+- `src/services/mapCapture.ts`: Shared `compositeFrame()` + `withMapResized()`.
+- `src/services/videoExport.ts`: Uses shared utilities; phases: initEncoder → captureFrame loop → finalizeExport.
+- `src/services/snapshot.ts`: High-res PNG capture (new). Respects manual camera position (ignores keyframe interpolation).
 
-8. **Webhook Behavior** (`api/dodo-webhook.ts`, `subscription.expired` case):
-   - For expired wanderer/cartographer/pioneer: downgrade to nomad, add 10 purchased_credits
-   - Nomad-only users not touched (they have no `dodo_subscription_id`)
+**Why `preserveDrawingBuffer = true`?** Allows reliable canvas capture during export/snapshots. ~1-2% GPU overhead on modern hardware (acceptable trade-off).
 
-**Key Design Decisions**:
-- CloudSyncedAt tracks "last successful push" (not cloud's actual timestamp) to detect local changes
-- Nomad grace credits (10, non-expiring) create a soft landing for expired users
-- Conflict resolution favors newer timestamp (simple, predictable, no data loss)
-- Offline errors are non-fatal (sync retried on next open/save/refresh)
+### 6.7 Vehicle & Route Animation Fixes
 
-**Recent Bug Fix**: The `cloud_projects.id` column was originally UUID-typed, but the app generates nanoid-style IDs. Migration `004_cloud_projects_text_id.sql` changed the column to TEXT. Additionally, `saveProjectToCloud()` was missing the `user_id` field in the upsert payload, violating the RLS policy — now includes it via `useAuthStore.getState().user?.id`.
+**Problem 1: Vehicle Visibility Decoupled** — Vehicles remained visible at route start/end even when route line was hidden (before `startTime` or after `endTime`). They also ignored "fade" exit animations.
 
----
+**Solution** (RouteLayerGroup.tsx):
+- Imperative visibility guard: toggle vehicle `visibility` based on playheadTime + time window.
+- Opacity sync: vehicles fade out during `fade` exit animations.
+- Comet mode guard: explicitly hide vehicle at progress = 0 to prevent ghosting.
 
-### 6.8 UI & Design Refinements
+**Problem 2: Broken Dash Pattern** — Route Inspector allowed users to select dashed/dotted styles, but Mapbox layers weren't applying `line-dasharray`.
 
-**Enter-to-Search (Stability)**
-- **Problem**: Automatic debounced search on every keystroke was causing "input stutter" and visual flickering in the dropdown when users typed quickly.
-- **Solution**: Shifted to a manual search model. The `SearchField` and `InspectorSearchField` (used for routes, callouts, and boundaries) now only hit the geocoding APIs when the user presses **Enter**. Typing immediately clears stale suggestions to keep the interface clean.
-- **Result**: Zero typing lag and more predictable search results.
+**Solution**: Integrated `line-dasharray` into imperative sync loop. Added glow parity (glow layer inherits dash pattern). Equality guard skips redundant updates.
 
-**Sharp-Cornered Callouts (Aesthetics)**
-- **Problem**: The "Standard Box" callout style used variable rounding that sometimes felt inconsistent with the "News" and "Topo" variants.
-- **Solution**: Standardized the 'default' variant to use **sharp corners (0px radius)**.
-- **Complexity Reduction**: Removed the `borderRadius` control from the Callout Inspector for the default variant, simplifying the property shelf.
+**Eraser Animation**: Redefined `reverse` exit animation for routes and boundaries as forward "erasers" (remove geometry from start → end over 0.5s) instead of retracting from the tip.
+
+### 6.8 Mobile Viewport Height & Safe Areas
+
+**Problem**: Root container used `h-screen` (100vh), which includes area hidden behind dynamic address bar on mobile. Bottom-anchored UI (timeline) was obscured.
+
+**Solution**:
+- Replaced `h-screen` with **`h-dvh`** (Dynamic Viewport Height).
+- Added **`viewport-fit=cover`** to index.html.
+- Implemented **`env(safe-area-inset-top/bottom)`** in Toolbar, Timeline, Toasts for notch/home indicator support.
+
+**Result**: App auto-resizes as browser chrome collapses/expands. Works on all modern mobile browsers.
+
+### 6.9 Timeline & Zen Mode Efficiency
+
+**Problem**: Mobile/tablet interfaces were cramped; redundant text wasted space.
+
+**Solution**:
+- **Mobile Timeline**: Removed redundant "Timeline" label. Left-anchored transport controls. Time readout moved to previously empty sticky column.
+- **Zen Mode**: Repositioned controls to top-right for all devices. Reordered to prioritize Play/Pause.
+- New Camera button triggers **Snapshot Service** for high-res stills.
 
 ---
 
-### 6.9 Cloud Rendering Pipeline
+## 7. Critical Implementation Notes
 
-**Problem Statement**:
-The local video export pipeline (`src/services/videoExport.ts`) was broken by recent map engine refactoring. More importantly, local exports tie up the user's browser for 30+ minutes during encoding, making long videos impractical. The solution was a complete architecture rewrite supporting both fixed local exports and a new **cloud rendering service** (Modal T4 GPU) that lets users kick off renders and check status asynchronously.
+### 7.1 Search & Geocoding
 
-**Solution Overview**:
-- **Local exports**: Fixed two-phase pipeline (prewarm tile cache → capture frames at specified FPS).
-- **Cloud exports**: Fire-and-forget job submission with headless Chromium on Modal GPU, background upload to DigitalOcean Spaces, status polling in "My Renders" modal.
-- **Credit system**: Renders cost credits based on resolution, FPS, and duration. Formula: `(resolutionMultiplier × fps/30) × Math.ceil(durationSec / 30)`. Examples:
-  - 480p · 30fps · 30s = 1 credit
-  - 1080p · 30fps · 30s = 4 credits
-  - 1080p · 60fps · 60s = 16 credits (fps doubled, duration rounded to next 30s chunk)
-- **Atomicity**: Credits are deducted immediately on job submission via atomic Postgres RPC. If rendering fails, credits are refunded via a second RPC that tracks exact monthly/purchased split for precise reversal.
+- **Search Box API**: Uses session-based pricing. Searches **triggered only on Enter key** (not onChange) to prevent UI flickering during rapid typing.
+- **Viewport Proximity Bias**: Searches favor results near `mapCenter` for local relevance.
+- **Shared Geocoding**: Centralized in `SearchField.tsx` + `BoundarySearch.tsx`.
+- **POI Coverage**: Search Box API includes improved `place_formatted` secondary text vs. legacy Geocoding v5.
 
-**Core Data Types** (`src/types/render.ts`):
-- `AspectRatio = '16:9' | '4:3' | '1:1' | '21:9'` — selectable in both ProjectSettings and ExportModal.
-- `ExportResolution = '480p' | '720p' | '1080p' | '1440p' | '2160p'` — user-visible labels like "Full HD 1080p", "4K 2160p".
-- `getExportDimensions(res, aspectRatio, isVertical)` — returns `[width, height]` by looking up the resolution height and deriving width from aspect ratio, then swapping if vertical.
-- `calculateRenderCredits(res, fps, durationSec)` — applies multipliers per resolution and FPS.
-- `RenderConfig` — transient state snapshot: `{ resolution: [w, h], fps, aspectRatio, exportResolution, isVertical, mapStyle, terrainEnabled, buildingsEnabled, labelVisibility, show3dLandmarks, show3dTrees, show3dFacades }`. This is pickled into the render job and applied in the headless renderer to ensure visual consistency.
+### 7.2 Callout Styling
 
-**Store Modifications** (`src/store/useProjectStore.ts`):
-- Added three persistent fields to `Project` interface: `aspectRatio: AspectRatio`, `exportResolution: ExportResolution`, `isVertical: boolean`.
-- Added setters: `setAspectRatio()`, `setExportResolution()`, `setIsVertical()` — each recomputes the derived `resolution` via `getExportDimensions()`.
-- Added `applyRenderConfig(cfg: RenderConfig)` — bulk-applies transient map visual state (terrain, buildings, labels, 3D geometry, map style) during headless rendering.
+- **Four Variants**: Default (sharp rectangle), Modern (pill + glow), News (left accent bar), Topo (border + elevation metadata).
+- **Title Linking**: If `linkTitleToLocation` enabled, callout title auto-syncs with geocoded location name.
+- **Animations**: Simple fade in/out (no scale/slide variants exposed in UI).
 
-**Export Modal** (`src/components/ExportModal/ExportModal.tsx`):
-- Segmented control tabs: **Local** (browser export) vs **Cloud** (Modal GPU).
-- Shared **Format section** (both tabs):
-  - Four **AspectRatioButton** components (16:9, 4:3, 1:1, 21:9) with visual preview boxes.
-  - **Rotate icon button** — toggles `isVertical` (swaps width/height).
-  - **Resolution dropdown** — RESOLUTION_LABELS (480p–2160p) with computed pixel dimensions display.
-- **Local tab**: FPS select, start/end time pickers, progress bar with phase label ("Warming tile cache..." vs "Rendering frames...").
-- **Cloud tab**: Credit cost preview, current balance display, "Cloud Render" button (disabled if insufficient credits or no auth).
-- `buildRenderConfig()` helper — snapshots current map state (style, terrain, buildings, labels, 3D models).
+### 7.3 3D Vehicles & Flight Arcs
 
-**Project Settings** (`src/components/Inspector/ProjectSettings.tsx`):
-- Integrated aspect ratio and resolution picker into the main settings panel.
-- Aspect ratio shown as four small visual preview buttons.
-- Vertical toggle via rotate-CW icon.
-- Resolution dropdown with dimensions display.
-- All three setters triggered on change, recomputing pixel dimensions live.
+- **3D Vehicles**: Gated as PRO feature in Inspector (toggle + scale controls disabled with "PRO" badge).
+- **Flight Arcs**: Generated via `@turf/great-circle` with parabolic altitude curve.
+- **Land Routes**: Use Mapbox Directions v5.
 
-**API Routes Architecture**:
+### 7.4 Map Sync Engine
 
-1. **`api/render-dispatch.ts`** (POST) — Client submits render job
-   - Verifies Bearer token (JWT via Supabase).
-   - Validates `durationSec > 0` (rejects inverted `startTime`/`endTime` to prevent negative-credit exploit).
-   - Checks parallel render limit from `subscriptions.max_parallel_renders`.
-   - Calculates credits via `calculateRenderCredits()`.
-   - Calls **`deduct_render_credits(user_id, amount)` RPC** (atomic, returns `[monthlyCharged, purchasedCharged]`).
-   - Generates 32-byte hex `render_secret` and SHA-256 hash for one-time validation.
-   - Inserts `render_jobs` row with metadata, render_config (JSONB), project_data (JSONB), render_secret_hash, and credit split tracking.
-   - POSTs to `MODAL_WEBHOOK_URL` with `{ jobId, renderSecret, appUrl }` to kick off headless render.
-   - On error *after deduction*: calls **`refund_render_credits(user_id, monthlyAmount, purchasedAmount)` RPC** before returning error.
+The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine to force-synchronize styles during frame capture (necessary for consistent rendering across multiple frames).
 
-2. **`api/render-job-data.ts`** (GET) — Headless renderer fetches job config
-   - Query params: `?jobId=<id>&secret=<secret>`.
-   - Hashes secret and verifies against `render_secret_hash` in DB.
-   - Returns `{ projectData, renderConfig, startTime, endTime }`.
+### 7.5 Common Gotchas
 
-3. **`api/render-presign.ts`** (POST) — Headless renderer requests upload URL
-   - Body: `{ jobId, secret }`.
-   - Verifies secret hash.
-   - Creates S3 presigned PUT URL for `renders/${jobId}.mp4` (1hr expiry) via DigitalOcean Spaces.
-   - Returns `{ presignedUrl, outputUrl }`.
-
-4. **`api/render-complete.ts`** (POST) — Headless renderer signals success
-   - Body: `{ jobId, secret, outputUrl }`.
-   - Verifies secret, updates `render_jobs`: `status = 'done'`, `output_url`, `expires_at = now + 24h`, nulls secret hash (one-use).
-
-5. **`api/render-fail.ts`** (POST) — Headless renderer signals error
-   - Body: `{ jobId, secret, errorMessage }`.
-   - Fetches job to retrieve `user_id` and credit split (`monthly_credits_charged`, `purchased_credits_charged`).
-   - Calls `refund_render_credits()` RPC with exact split.
-   - Updates `render_jobs`: `status = 'failed'`, `error_message`, nulls secret hash.
-
-**HeadlessRenderer Component** (`src/components/RenderMode/HeadlessRenderer.tsx`):
-- Props: `{ jobId: string, secret: string }`.
-- Lifecycle:
-  1. Fetch job data via `/api/render-job-data?jobId=<id>&secret=<secret>`.
-  2. Load project from `projectData` JSON.
-  3. Restore to store via `useProjectStore.getState()` methods.
-  4. Call `applyRenderConfig()` to snapshot transient map state.
-  5. Set `isExporting = true` (hide UI, reserve draw buffer).
-  6. Render invisible `<MapViewport onMapReady={...}>` with `<MapRefContext.Provider>`.
-  7. On map ready: run `runExport()` from `videoExport.ts` with resolved map reference.
-  8. On export complete: fetch presigned PUT URL, upload blob to DigitalOcean Spaces, call `/api/render-complete`.
-  9. Signal success via `window.__renderResult = { success: true, outputUrl }`.
-  10. On any error: call `/api/render-fail`, set `window.__renderResult = { success: false, error }`.
-
-**Modal Worker** (`modal/render_worker.py`):
-- **Docker image**: Debian slim + playwright + chromium.
-- **Resources**: T4 GPU, 8GB memory, 4 CPU, 1hr timeout.
-- **Secrets**: Modal secrets `lil-mappo-dispatch-secret` (shared auth secret + APP_URL).
-- **`dispatch_render(data: dict, request)` web endpoint** (POST):
-  - Validates `Authorization: Bearer ${MODAL_DISPATCH_SECRET}` header using constant-time comparison (`hmac.compare_digest`).
-  - Accepts only `jobId` and `renderSecret` in request body (no `appUrl` to prevent SSRF).
-  - Spawns `run_render_background.spawn()` background task.
-  - Returns immediately to Vercel (< 10s timeout).
-  - Returns 401 Unauthorized if secret is missing or invalid.
-- **`run_render_background(job_id, render_secret, app_url)` background task**:
-  - `app_url` is resolved from Modal secret environment (not from caller).
-  - Launches headless Chromium with `--no-sandbox --disable-dev-shm-usage --enable-gpu --use-gl=egl`.
-  - Navigates to `{app_url}?render_job={job_id}&render_secret={render_secret}`.
-  - Logs browser console/errors.
-  - Waits up to 50 minutes for `window.__renderResult` to be set (HeadlessRenderer completion signal).
-  - Closes browser.
-- **Deploy**: `modal deploy modal/render_worker.py` (outputs webhook URL for `MODAL_WEBHOOK_URL` env var). Then create Modal secret: `modal secret create lil-mappo-dispatch-secret MODAL_DISPATCH_SECRET=<strong-random-value> APP_URL=<app_url>`.
-
-**Credit System Atomicity** (Postgres Migrations 011–012):
-- **`deduct_render_credits(p_user_id, p_total_credits)` RPC**:
-  - Locks `credit_balance` row with `FOR UPDATE`.
-  - Deducts monthly first, then purchased (preserves monthly credits for subscription periods).
-  - Returns `(monthly_charged, purchased_charged)` tuple for refund precision.
-  - Raises exception if insufficient credits.
-  - Revoked from PUBLIC, anon, authenticated — service_role only.
-  
-- **`refund_render_credits(p_user_id, p_monthly_amount, p_purchased_amount)` RPC**:
-  - Atomically refunds exact split.
-  - Revoked from PUBLIC, anon, authenticated — service_role only.
-
-- **`create_render_job(...)` RPC (Migration 012)**:
-  - **Atomicity via advisory lock**: Acquires per-user advisory lock `pg_advisory_xact_lock(hashtext(p_user_id::TEXT))` for duration of transaction. Serializes concurrent render requests from the same user without blocking other users.
-  - Resolves subscription parallel-render limit.
-  - Counts active queued/rendering jobs.
-  - Returns error if at or over limit (`{ error: 'limit_exceeded', limit: N }`).
-  - Otherwise inserts render_jobs row and returns `{ job_id: ... }`.
-  - Closes the TOCTOU race condition that existed when count check and insert were separate API operations.
-  - Revoked from PUBLIC, anon, authenticated — service_role only.
-
-- **One-time secret validation**: Render secret is hashed (SHA-256) in DB. After `/api/render-complete` or `/api/render-fail` completes, `render_secret_hash` is set to null, invalidating further requests with that secret.
-
-**DigitalOcean Spaces Integration**:
-- S3-compatible storage bucket for rendered videos (`renders/${jobId}.mp4`).
-- Presigned PUT URLs generated server-side with 1-hour expiry.
-- Headless renderer POSTs blob directly to presigned URL (bypassing Vercel's request size limits).
-- Output URL `https://spaces.lilmappo.tech/renders/${jobId}.mp4` made available for download in "My Renders" modal.
-- Videos expire after 24 hours (controlled by `expires_at` in render_jobs).
-
-**Local Export Pipeline Fixes** (`src/services/videoExport.ts`):
-- **Two-phase progress reporting**: `onProgress` callback now receives `(pct: number, phase: 'prewarm' | 'capture')` for precise UI feedback.
-- **Tile cache prewarm**: 24-frame scrub through timeline to pre-load map tiles before actual capture. Waits max 2s per frame with `map.once('idle')`.
-- **Encoder back-pressure**: Monitors `videoEncoder.encodeQueueSize`. If > 8, waits via requestAnimationFrame drain loop until <= 4 before encoding next frame.
-- **Map idle synchronization**: Replaced anti-pattern (`map.loaded() ? resolve() : map.once('idle')`) with `Promise.race([map.once('idle') + requestAnimationFrame, 5s timeout])` for stable frame capture.
-
-**"My Renders" Modal** (`src/components/Account/RendersModal.tsx`):
-- Fetches `render_jobs` for authenticated user.
-- Displays: resolution label, aspect ratio, orientation (portrait/landscape), FPS, credit cost, creation date, status, time remaining (if not expired), error message (if failed).
-- Actions: Download (if done and not expired), Retry (if failed or expired, opens ExportModal with same config).
-- Status badges: "Done" (green), "Rendering" (blue spinner), "Queued" (gray hourglass), "Failed" (red alert).
-
-**Environment Variables**:
-- `MODAL_WEBHOOK_URL` — from Modal deploy output (`api/render-dispatch.ts` POSTs here).
-- `MODAL_DISPATCH_SECRET` — shared secret for `dispatch_render` authentication (must match Modal secret).
-- `APP_URL` — canonical app URL (e.g., `https://app.lilmappo.tech`), passed to Modal worker.
-- `DO_SPACES_KEY` / `DO_SPACES_SECRET` — DigitalOcean Spaces API credentials (used by `api/render-presign.ts`).
-- `DO_SPACES_REGION` — e.g., `"nyc3"`.
-- `DO_SPACES_BUCKET` — e.g., `"lilmappo"`.
+- **Scrollbar Aesthetics**: Hidden in search menus via CSS (`scrollbar-width: none`) to maintain clean design.
+- **Move Mode UX**: During "Pick on Map" or "Move Mode", input fields pulse with "Click on map..." placeholder + disabled state.
+- **Session Pricing**: Search Box API session tokens are scoped per `SearchSession` instance to prevent cross-component token reuse.
 
 ---
 
-## 7. Critical Implementation Details
-
-### 7.1 Animation & Routing Logic
-- **Search Box API Integration**: The app uses `@mapbox/search-js-core` (SearchBoxCore + SearchSession) for geocoding instead of the legacy Geocoding v5 API. Each search component maintains its own `SearchSession` instance for proper session scoping. To ensure stability and prevent race conditions during rapid typing, searches are **triggered only when the user presses Enter**. The SDK handles session token lifecycle internally. Results include improved POI coverage with `place_formatted` secondary text.
-- **Shared Geocoding System**: Centralized in `src/components/Search/SearchField.tsx` and `RoutePlanner.tsx`. Supports viewport-proximity biasing for better local results.
-- **Boundary Logic**: Uses Nominatim (OSM) to fetch high-quality polygons. Features a **unified drafting interface** that syncs stroke and fill colors during the search phase.
-- **Callout Logic**:
-  - **Topo Styling**: High-contrast variant for geographic annotations with optional coordinate/elevation metadata.
-  - **Title Linking**: If `linkTitleToLocation` is enabled, the callout `title` field automatically syncs with the geocoded location name during search or map-picks.
-  - **Animations**: All callouts use simple fade in/out animations (both live preview and export). No scale or slide variants are exposed in the UI.
-- **3D Vehicles**: Currently **gated as a PRO feature** in the Inspector. The toggle and scale controls are visible but disabled with a high-contrast "PRO" badge to denotate advanced tiered functionality.
-- **Flight Arcs**: Generated via `src/services/flightPath.ts` using `@turf/great-circle` with a parabolic altitude curve.
-- **Directions**: Land-based routes use Mapbox Directions.
-
-### 7.2 Performance Optimizations
-- **preserveDrawingBuffer**: The Mapbox canvas's `preserveDrawingBuffer` is set to `true` to enable reliable canvas capture during video export and snapshots. This has negligible performance cost (~1-2% GPU overhead) on modern hardware, since Mapbox rendering is primarily network/CPU bound. Setting it conditionally at runtime doesn't work — WebGL context attributes are read-only after initialization.
-- **Debounced mapCenter**: Viewport updates to the Zustand store are debounced by 100ms during panning to prevent excessive UI re-renders.
-- **Portal-based Popovers**: `SearchField` use Portals (via Radix Popover) to break out of `overflow-hidden` containers, enabling wide location names to display fully over the map without being clipped.
-
-### 7.3 Shared Canvas Capture (`src/services/mapCapture.ts`)
-Utility functions shared by video export and snapshot:
-- **`compositeFrame(map, compCtx, width, height, items, itemOrder, playheadTime)`**: Draws the current map state (Mapbox canvas + callouts) onto a composite canvas. Callouts are rendered using pure Canvas 2D, eliminating DOM overhead. Four callout style variants supported: **default** (sharp rectangle), **modern** (pill shape + glow), **news** (left accent bar), **topo** (border + metadata).
-- **`withMapResized(map, width, height, fn)`**: Resizes the map container off-screen to target capture dimensions, runs `fn()`, then restores original styles — guaranteed via `finally` block even if `fn()` throws.
-
-### 7.4 Video Export (`src/services/videoExport.ts`)
-The export process advances time step-by-step via frame capture loop. Main function orchestrates three phases:
-- **initEncoder()**: Initializes WebCodecs or MediaRecorder fallback.
-- **captureFrame()**: Single frame: update playhead, drive camera, call `compositeFrame()` to composite map + callouts, encode.
-- **finalizeExport()**: Flush encoder and produce final blob.
-
-Uses `withMapResized()` to manage off-screen map resizing during capture, ensuring proper cleanup even on error.
-
-### 7.5 High-Resolution Snapshot Service (`src/services/snapshot.ts`)
-A dedicated service for capturing high-resolution PNG stills of the current map view without video encoding overhead. Uses `withMapResized()` + `compositeFrame()` from mapCapture.ts to handle off-screen resizing, tile settlement, and canvas compositing. Captures at the project's configured resolution, respecting the current manual camera position and playhead time. Cleaned up to remove dead logic around `isExporting` toggle — now relies on always-on `preserveDrawingBuffer`.
-
-### 7.6 Security Fixes & Vulnerability Mitigation
-
-**Issue 1: RLS Policy Loophole (Critical)**
-
-The initial schema used `FOR ALL` policies on `subscriptions`, `credit_balance`, and `render_jobs` with only a `USING` clause. In Postgres, this allows authenticated users to UPDATE their own rows directly from the browser — e.g., setting `purchased_credits = 999999` or upgrading their own `tier`.
-
-**Fix** (Migration 005):
-- Dropped over-permissive `FOR ALL` policies.
-- Replaced with `FOR SELECT` policies only — clients can read their own data but cannot write.
-- Service role key (used by webhook handlers) bypasses RLS entirely, so writes via `api/dodo-webhook.ts` are unaffected.
-- This closes the attack surface since the frontend never INSERTs/UPDATEs these tables — all provisioning is server-side.
-
-**Issue 2: Payment Replay Attack (Medium)**
-
-The webhook's `payment.succeeded` (topup) handler used a read-modify-write pattern without deduplication: `update({ purchased_credits: existing + credits })`. If Dodo retried a webhook (e.g., due to temporary network timeout), the user would receive double or triple credits.
-
-**Fix** (Migration 006 + webhook change):
-- Added `processed_payments` table (payment_id TEXT PRIMARY KEY) to track payments that have been processed.
-- Before crediting a topup, the webhook attempts to INSERT the payment's `payment_id` into this table.
-- A unique-constraint violation (code 23505) means the event is a duplicate — the handler returns 200 without crediting.
-- Any other DB error returns 500 so Dodo retries (correct behavior for infrastructure failures).
-- Other webhook events (`subscription.active`, `subscription.renewed`, `subscription.expired`) were already idempotent by design (upsert with fixed values, or keyed on `dodo_subscription_id`).
-
-**Webhook References**:
-- `subscription.active` case (lines 96–185): Upsert on `user_id` — idempotent. Now also recognizes `"cancelling"` status to avoid premature downgrade when user buys credits during cancellation period.
-- `payment.succeeded` case (lines 191–285): Idempotency-guarded via `processed_payments` table. Uses atomic `increment_purchased_credits()` RPC to avoid race with concurrent topups.
-- `subscription.renewed` case (lines 288–311): Sets fixed monthly_credits value — idempotent.
-- `subscription.expired` case (lines 335–413): Idempotency-guarded via `processed_webhook_events` table (new in Migration 008). Grace credits granted via atomic `increment_purchased_credits()` RPC (fixes issue 9). Recognizes `"cancelling"` status to preserve tier during subscription winding-down period.
-
-**Issue 3: Render Job Tampering (Low-Medium)**
-
-Same `FOR ALL` policy allowed users to UPDATE their own `render_jobs` rows, potentially changing `status` or `credits_cost`. Frontend never exercises this (only SELECTs), but the DB-level vulnerability exists.
-
-**Fix**: Covered by Migration 005 (changed to `FOR SELECT` only).
-
-**Issue 4: Open Redirect + Token Leakage via Unvalidated Checkout URLs (High)**
-
-The `api/dodo-create-session.ts` endpoint accepted `returnUrl` and `cancelUrl` directly from the client request body and forwarded them to Dodo's payment processor without validation. An authenticated attacker could craft a checkout with a malicious redirect URL (e.g., `https://attacker.com/?token=...`) to redirect users post-payment and potentially exfiltrate tokens in query parameters.
-
-**Fix** (api/dodo-create-session.ts):
-- Added hostname/origin validation using `new URL().hostname` parsing.
-- Allows any subdomain of `APP_DOMAIN` (e.g., `lilmappo.tech`, `app.lilmappo.tech`, `preview-*.lilmappo.tech`) plus localhost for development.
-- Set `APP_DOMAIN=lilmappo.tech` in `.env`; production must set this in Vercel env vars.
-- Rejects URLs with invalid origins at the server before sending to Dodo.
-
-**Issue 5: Race Condition on Concurrent Topup Credits (High)**
-
-The `api/dodo-webhook.ts` handler for `payment.succeeded` (topup event) used read-modify-write without atomicity: `read purchased_credits → insert processed_payments → update purchased_credits = old + new`. While the `processed_payments` table guards against the *same* payment_id being processed twice, it does NOT protect against two *different* payment events for the same user arriving concurrently — both would read the old balance and one increment would be silently lost.
-
-**Fix** (Migration 007 + webhook update):
-- Created new Postgres function `increment_purchased_credits(p_user_id, p_amount)` that atomically increments the credit balance in a single UPDATE statement.
-- Webhook now calls `supabase.rpc('increment_purchased_credits', { p_user_id: uid, p_amount: credits })` instead of the read-then-write pattern.
-- The function handles the fallback case (row doesn't exist) via ON CONFLICT upsert.
-
-**Issue 6: Hardcoded `test_mode` Environment in Cancel Endpoint (Medium)**
-
-The `api/dodo-cancel-subscription.ts` hardcoded `environment: "test_mode"` while `dodo-create-session.ts` and `dodo-webhook.ts` correctly read from `process.env.DODO_ENVIRONMENT`. In production, subscription cancellations would be sent to the test environment and silently fail, leaving users' subscriptions active while they believed they'd cancelled.
-
-**Fix** (api/dodo-cancel-subscription.ts:63):
-- Changed hardcoded `"test_mode"` to `(process.env.DODO_ENVIRONMENT as "test_mode" | "live_mode") ?? "test_mode"`.
-- Now correctly reads the same environment variable as the other endpoints.
-
-**Issue 7: Verbose Upstream Error Propagation to Client (Medium)**
-
-Both `api/dodo-create-session.ts` and `api/dodo-cancel-subscription.ts` returned raw provider error messages to the client: e.g., `error: "Checkout session creation failed: Network timeout from provider"`. These internal error details can aid attackers in reconnaissance and social engineering.
-
-**Fix**:
-- Changed error responses to generic client-safe messages: `"Checkout unavailable. Please try again."` and `"Cancellation failed. Please try again."`.
-- Full error messages remain in `console.error()` for server-side debugging.
-
-**Issue 8: Immediate Access Revocation on Subscription Cancel (Critical Logic Error)**
-
-When a user clicked "Cancel Subscription", the endpoint immediately set `status: "cancelled"` in the database. The subscription hook (`useSubscription.ts`) queries for `status === "active"`, and the cloud-save gate (`canCloudSave.ts`) checks the same condition. As a result, users lost access to cloud saves and parallel renders *instantly*, even though they had days or weeks remaining in their billing period — violating standard SaaS practice where paid access continues until period end.
-
-**Fix** (Multiple files):
-- Added new `"cancelling"` status to the subscription status union (`database.types.ts`).
-- Changed `dodo-cancel-subscription.ts` to set `status: "cancelling"` instead of `"cancelled"`. This status persists until the webhook's `subscription.cancelled` event fires at period end.
-- Updated `useSubscription.ts` to query for `.in("status", ["active", "cancelling"])` — both statuses are treated as "subscribed".
-- Updated `canCloudSave()` to allow both `"active"` and `"cancelling"` status for cloud-save access.
-- Updated UI (`AccountSettingsModal.tsx`) to:
-  - Show "Cancelling" badge (instead of just "Cancelled") for the in-between state.
-  - Display "Cancels on [date]" for subscriptions scheduled to cancel (helpful context for users).
-  - Show "Access until [date]" for subscriptions already cancelled (past state).
-- The existing webhook handlers complete the lifecycle: `subscription.cancelled` event (at period end) sets status to `"cancelled"` (briefly), then `subscription.expired` downgrades the user to the nomad tier with grace credits.
-
-**Webhook Behavior Unchanged**:
-- `subscription.cancelled` → transitions from `"cancelling"` to `"cancelled"` (as intended).
-- `subscription.expired` → downgrades paid tiers to nomad + grace credits (unchanged).
-
-**Issue 9: Grace Credits Race Condition in `subscription.expired` Handler (High)**
-
-When a paid-tier subscription expired, the handler read the user's `purchased_credits` balance, added 10 grace credits, and wrote it back: `update({ purchased_credits: existing + 10 })`. If a concurrent topup webhook arrived between the read and write, the topup increment would be overwritten and lost — the same race condition that issue 5 fixed for topups.
-
-**Fix** (Migration 007 + webhook update):
-- The existing `increment_purchased_credits()` RPC (created for issue 5) is now also used by the `subscription.expired` handler.
-- Call: `supabase.rpc('increment_purchased_credits', { p_user_id: expiringSub.user_id, p_amount: 10 })`.
-- The RPC atomically increments in a single UPDATE, eliminating the race window.
-
-**Issue 10: `subscription.expired` Event Replay Vulnerability (Medium)**
-
-The `subscription.expired` webhook event handler had no idempotency guard. Unlike the `payment.succeeded` topup handler (guarded by `processed_payments` table) and `subscription.cancelled`/`subscription.renewed` handlers (naturally idempotent by upsert pattern), the expired handler had a side-effect (granting 10 grace credits) that was not replay-safe. If Dodo retried the webhook, the user would receive another 10 credits.
-
-**Fix** (Migration 008 + webhook update):
-- Created new `processed_webhook_events` table (event_key TEXT PRIMARY KEY) to track mutating webhook events.
-- Before downgrading to nomad and granting grace credits, the handler inserts `subscription.expired:{dodo_subscription_id}` into the table.
-- A unique-constraint violation (code 23505) indicates a duplicate event — the handler returns 200 without re-processing.
-- Any other DB error returns 500 so Dodo retries (correct behavior for infrastructure failures).
-
-**Issue 11: Premature Tier Downgrade on Topup Purchase During Cancellation Period (Medium)**
-
-The topup handler checked for an "active" subscription before deciding whether to grant Nomad tier. The logic did not recognize the `"cancelling"` status (a user who has requested cancellation but is still in their billing period with full access). A Cartographer subscriber in `"cancelling"` status who bought a credit pack would be immediately downgraded to Nomad tier, losing their 2 parallel render slots for the remainder of their subscription period.
-
-**Fix** (api/dodo-webhook.ts, lines 252–254):
-- Updated `hasActiveSub` check to include `"cancelling"` status: `existingSub.status === "active" || existingSub.status === "on_hold" || existingSub.status === "cancelling"`.
-- A user in any "active-like" status now correctly preserves their tier when buying credits.
-
-**Issue 12: Webhook Header Type Casting Vulnerability (Low)**
-
-The signature verification code cast `req.headers` to `Record<string, string>`: `{ headers: req.headers as Record<string, string> }`. However, Node.js delivers header values as `string | string[] | undefined`. This TypeScript-only cast did not affect runtime behavior, but if the Dodo SDK internally encountered a multi-valued header (e.g., a duplicate signature header injected by a proxy or attacker), the SDK's behavior would be undefined — potentially treating the array as a string (`"value1,value2"`) or using only the first element.
-
-**Fix** (api/dodo-webhook.ts, lines 74–82):
-- Added explicit normalization before passing to `dodo.webhooks.unwrap()`:
-  ```typescript
-  const normalizedHeaders: Record<string, string> = {};
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (value !== undefined) {
-      normalizedHeaders[key] = Array.isArray(value) ? value[0] : value;
-    }
-  }
-  ```
-- Coerces all multi-valued headers to their first element (standard HTTP semantics for signature verification).
-- Ensures the Dodo SDK receives the correct type, eliminating runtime ambiguity.
-
-**Issue 13: Unvalidated Redirect URLs in Test Environments (Low-Medium)**
-
-The `dodo-create-session.ts` endpoint validated redirect URLs but had a fallback that allowed misconfigured environments to proceed without validation. Specifically, if `APP_DOMAIN` was unset and `DODO_ENVIRONMENT !== "live_mode"`, the validation would only log a warning and allow any redirect URL to pass through. An attacker with a valid Supabase JWT in such an environment could craft a phishing redirect (e.g., `https://attacker.com/?token=...`) to steal user tokens post-payment.
-
-**Fix** (api/dodo-create-session.ts, lines 76–81):
-- Changed validation to unconditionally reject invalid redirect URLs regardless of environment or `APP_DOMAIN` setting.
-- Separated the misconfiguration warning: if `DODO_ENVIRONMENT === "live_mode"` without `APP_DOMAIN`, log a warning (only localhost redirects are allowed by default).
-- Local development remains unaffected — `isAllowedHost()` already allows localhost and any domain matching `APP_DOMAIN` if set.
-
-**Issue 14: Unlimited Credits via Public RPC (Critical)**
-
-The `increment_purchased_credits()` function (Migration 007) was created with `SECURITY DEFINER` but never revoked the default `PUBLIC` execute grant. In PostgreSQL, functions in the public schema are executable by `PUBLIC` (all users, including `anon` and `authenticated` roles) by default. This meant any browser client could call `supabase.rpc('increment_purchased_credits', { p_user_id: 'xxx', p_amount: 999999 })` to arbitrarily inflate any user's credit balance.
-
-While Migration 005 made `credit_balance` read-only for direct table access, the RPC bypasses RLS entirely (functions with `SECURITY DEFINER` run as the owner, not the caller).
-
-**Fix** (Migration 009):
-- Added `REVOKE EXECUTE` statements for `PUBLIC`, `anon`, and `authenticated` roles.
-- Only `service_role` (and postgres) can now execute the function. Server-side webhook handlers use the service_role key and are unaffected.
-
-**Issue 15: Catastrophic Data Loss in Cleanup Script (High)**
-
-The daily account cleanup cron job (`api/cleanup-free-accounts.ts`) properly paginates the `auth.users` fetch but made a **single unpaginated query** to `subscriptions.select("user_id")`. PostgREST defaults to a 1000-row maximum. If the app has more than 1000 subscribers:
-- The `subscribedIds` set is incomplete.
-- Any subscriber not returned in the first 1000 rows is falsely identified as a "free user".
-- Their account is **permanently deleted** if created >24 hours ago.
-
-This is a latent bug: currently harmless for a new app, but catastrophic once subscriber count exceeds 1000.
-
-**Fix** (api/cleanup-free-accounts.ts, lines 61–82):
-- Converted the subscriptions fetch to a paginated loop using `.range()` and `subsFrom`/`subsPageSize`.
-- Accumulates all subscriber IDs before filtering.
-- Mirrors the existing users pagination pattern for consistency.
-
-**Issue 16: Cloud Save Gate Bypass (High)**
-
-The RLS policy `own_cloud_projects` (Migration 003) only checked `auth.uid() = user_id` for all operations. No subscription or credit-balance validation. The `canCloudSave()` frontend gate checks subscription status and nomad-tier credits, but the **backend enforces nothing**.
-
-Result: Any authenticated user could call `supabase.from('cloud_projects').upsert(...)` from the browser console to bypass the subscription requirement entirely.
-
-**Fix** (Migration 010):
-- Split the `own_cloud_projects` `FOR ALL` policy into four targeted policies:
-  - **SELECT** and **DELETE**: Ownership only (unchanged). Users must access their data even after subscription lapses.
-  - **INSERT** and **UPDATE**: Ownership + subscription gate with a `WITH CHECK` subquery.
-- The gating logic mirrors `canCloudSave()` exactly:
-  - User must have a row in `subscriptions` with `status IN ('active', 'cancelling')`.
-  - If `tier = 'nomad'`, also requires `credit_balance.purchased_credits > 0`.
-  - All other combinations (no subscription, expired/cancelled, nomad with no credits) are denied.
-
-**Issue 17: Credit Inflation via Webhook Replay (High)**
-
-The `subscription.active` and `subscription.renewed` handlers in `api/dodo-webhook.ts` lacked idempotency guards on their credit balance updates. Specifically:
-
-- `subscription.active`: If Dodo replayed the webhook (due to transient 500 error), the `credit_balance.monthly_credits` UPDATE would run again, resetting the user's balance to the plan max even if they had already spent some credits.
-- `subscription.renewed`: No idempotency guard at all. A user could exhaust credits, trigger a server failure during renewal, and receive fresh credits on each Dodo retry, effectively infinite credit generation.
-
-**Fix** (api/dodo-webhook.ts, lines 128–146, 327–344):
-- Added idempotency guards using `processed_webhook_events` table (Migration 008).
-- `subscription.active`: Key format `subscription.active:{subscription_id}` prevents duplicate activation processing.
-- `subscription.renewed`: Key format `subscription.renewed:{subscription_id}:{renewalDate}` is critical — the billing-period suffix allows legitimate credit resets on the *next* cycle while blocking replays within the same period.
-- Both handlers now DELETE the idempotency key on error before returning 500, allowing Dodo to retry cleanly.
-
-**Issue 18: Credit Loss on Failed Transaction (High)**
-
-The `payment.succeeded` (topup) and `subscription.expired` handlers inserted the idempotency key, then executed the side effect (RPC or UPDATE). If the side effect failed and returned 500:
-
-1. Dodo retried the webhook.
-2. Idempotency key INSERT failed with 23505 (unique constraint).
-3. Handler detected 23505 and silently returned 200 without executing the side effect.
-4. User never received credits despite payment being collected.
-
-**Fix** (api/dodo-webhook.ts, lines 268–272, 351–355, 367–371):
-- Added compensating `DELETE` statements on operation failure.
-- If the RPC or UPDATE fails, the idempotency key is deleted before returning 500.
-- On Dodo's retry, the key re-inserts cleanly and the side effect executes.
-- This restores the invariant: "idempotency key exists iff the operation succeeded."
-
-**Issue 19: False Positive — Nomad Access Breakage via Race Condition (NOT EXPLOITABLE)**
-
-Earlier analysis suggested that `subscription.cancelled` arriving after `subscription.expired` could overwrite nomad status, causing users to lose cloud-save access. However, this scenario is not possible:
-
-- The `subscription.expired` handler sets `dodo_subscription_id: null` (line 453).
-- The `subscription.cancelled` handler does `.eq("dodo_subscription_id", sub.subscription_id)` to find the row.
-- Concurrent or out-of-order execution both resolve correctly; no user data is lost.
-
-**Issue 20: Unauthenticated & Unvalidated Modal Webhook (Critical)**
-
-The `dispatch_render` endpoint in `modal/render_worker.py` was publicly accessible and did not validate the `appUrl` parameter, creating two attack surfaces:
-
-1. **Resource Exhaustion**: Anyone who discovered the Modal webhook URL could POST render jobs without authentication, spawning GPU-intensive Chromium instances and draining credits in seconds.
-2. **SSRF (Server-Side Request Forgery)**: The `appUrl` parameter was accepted from the request body and directly passed to headless Chromium via `page.goto()`. An attacker could force Modal GPU workers to navigate to internal metadata services (e.g., `http://169.254.169.254/`) or arbitrary internal hosts, enabling network reconnaissance and port scanning.
-
-**Fix** (modal/render_worker.py + migration 012):
-- Added **Authentication**: `dispatch_render` now validates an `Authorization: Bearer ${MODAL_DISPATCH_SECRET}` header using constant-time comparison (`hmac.compare_digest`). Shared secret is configured via Modal secret `lil-mappo-dispatch-secret`.
-- **Eliminated SSRF**: `appUrl` is no longer accepted from the request body. Instead, it is resolved from the Modal secret environment variable, ensuring only the configured canonical app URL is ever used.
-- `api/render-dispatch.ts` now includes `MODAL_DISPATCH_SECRET` in the Authorization header when POSTing to the Modal webhook.
-
-**Issue 21: Race Condition in Parallel Render Limit (Medium)**
-
-The check for a user's active render count and the insertion of a new render job were separate, non-atomic operations in `api/render-dispatch.ts`:
-1. SELECT COUNT(*) to check if user is at their parallel limit.
-2. Separate INSERT into render_jobs.
-
-A user could send two simultaneous requests; both would see `activeCount < parallelLimit` before either had inserted, both would pass validation, and both would insert — bypassing the parallel-render quota.
-
-**Fix** (api/render-dispatch.ts + migration 012):
-- Introduced new `create_render_job()` Postgres RPC function (Migration 012).
-- The RPC acquires a per-user advisory lock (`pg_advisory_xact_lock(hashtext(p_user_id::TEXT))`) at the start of the transaction.
-- Concurrent requests from the same user queue at the database level. Other users are unaffected.
-- Count check and INSERT happen atomically inside the lock, eliminating the TOCTOU window.
-- Returns `{ error: 'limit_exceeded', limit: N }` if at/over limit, or `{ job_id: '...' }` on success.
-- `api/render-dispatch.ts` now calls `supabase.rpc('create_render_job', {...})` instead of separate SELECT + INSERT operations.
-
-**Issue 22: Infinite Credit Generation via Negative Duration (Critical)**
-
-A user could provide a `startTime` greater than `endTime` in the render dispatch request body, producing a negative `durationSec`. `calculateRenderCredits()` passes this through `Math.ceil(negative / 30)`, yielding a negative `timeChunks` value and thus a negative `totalCredits`. The `deduct_render_credits` RPC's insufficient-credits guard (`total < required`) never fires for a negative required amount, so the UPDATE subtracts a negative value — effectively crediting the user's balance on every render dispatch call.
-
-**Fix** (`api/render-dispatch.ts`):
-- Added an explicit `durationSec <= 0` guard immediately after computing duration.
-- Returns `400 Bad Request` before any credit or job logic runs if the time range is invalid.
-
-**Issue 23: Data Loss via Pagination Race Condition in Account Cleanup (Critical)**
-
-`api/cleanup-free-accounts.ts` fetched all auth users and all subscription IDs via separate application-level pagination loops, then diffed them in memory to find free accounts to delete. Two failure modes:
-1. **Race condition**: A new subscriber could be written to the `subscriptions` table after the subscription pagination loop completed but before the deletion loop ran; they would not be in `subscribedIds` and could be deleted.
-2. **PostgREST position-based pagination unreliability**: The `.range()` cursor can skip rows if rows are inserted or deleted between page fetches, leaving legitimate subscribers absent from `subscribedIds`.
-
-**Fix** (`api/cleanup-free-accounts.ts` + migration 013):
-- Introduced `delete_old_free_accounts(p_grace_period_hours INT)` Postgres RPC (Migration 013).
-- The RPC performs a single atomic `DELETE FROM auth.users WHERE NOT EXISTS (SELECT 1 FROM subscriptions …)` — the subscription check and deletion happen inside one transaction, eliminating any window for a concurrent insert to be missed.
-- `api/cleanup-free-accounts.ts` is now a thin caller: invoke the RPC, check `error_message`, return `{ deleted }`. All ~80 lines of pagination logic removed.
-
-**Issue 24: Mobile UI Overlap & Viewport Height (Resolved)**
-
-The application previously used `h-screen` (100vh) for the root container, which in many mobile browsers includes the area hidden behind the dynamic address bar. This caused bottom-anchored UI (like the timeline) to be obscured when the address bar was visible.
-
-**Fix** (MapStudioEditor.tsx, TimelinePanel.tsx):
-- Replaced `h-screen` with **`h-dvh`** (Dynamic Viewport Height). The app now automatically resizes as the browser chrome collapses/expands.
-- Added **`viewport-fit=cover`** to `index.html` to enable safe area support.
-- Implemented **`env(safe-area-inset-bottom)`** and **`env(safe-area-inset-top)`** across the Toolbar, Timeline, and Toasts. This ensures the UI respects hardware notches and the iOS home indicator.
-
-**Issue 23: Mobile/Tablet UI Efficiency (Overhauled)**
-
-The mobile and tablet interfaces were previously too cramped or overly condensed, missing opportunities for better spatial utilization.
-
-**Fix** (Toolbar.tsx, TimelinePanel.tsx):
-- **Mobile Timeline**: Removed redundant "Timeline" text and left-anchored transport controls. The time readout was moved to the previously empty sticky column to the left of the ruler, saving vertical space.
-- **Hybrid Tablet Toolbar**: Tablet now uses the **Desktop Toolbar** as its base but with a **Condensed Layers Dropdown**. This keeps the "Add" tools expanded for high productivity while grouping map environment settings into a single layers button.
-- **Zen Mode Controls**: Repositioned to the **Top-Right** corner for all devices and reordered to prioritize the Play/Pause button.
-
-**Issue 24: High-Resolution Map Snapshots (New Service)**
-
-Users needed a way to capture high-quality stills of their maps without starting a full video export, specifically at the target product resolution rather than just a screenshot of their window.
-
-**Fix** (src/services/snapshot.ts):
-- Created a dedicated **Snapshot Service** that handles off-screen map rendering.
-- **Resolution Independence**: Temporarily resizes an off-screen map container to the project's target resolution (e.g., 1080p/4K) to ensure crisp captures.
-- **Manual Camera Mode**: Specifically ignores playhead-interpolated camera keyframes, capturing exactly what the user is currently looking at manually in the viewport.
-- **Automatic Sync**: Flips `preserveDrawingBuffer` on/off automatically, triggering the necessary Mapbox re-initialization passes only when needed.
-- Integrated into **Zen Mode** with a new Camera button in the top-right controls.
-
----
-
-**Issue 20: Decoupled Vehicle Visibility & Animation (High)**
-
-The vehicle system (dots and 3D models) in `RouteLayerGroup.tsx` was previously decoupled from the route's active time window. Vehicles remained visible at the start or end of a path even when the route line itself was hidden (before `startTime` or after `endTime`). They also failed to respect "fade" exit animations, remaining fully opaque while the route line disappeared.
-
-**Fix** (RouteLayerGroup.tsx):
-- Implemented a **Visibility Guard** inside the imperative `updateRoute` loop.
-- The vehicle's `visibility` layout property is now toggled correctly based on `playheadTime`, `startTime`, `endTime`, and the exit animation phase.
-- Added **Opacity Synchronization**: Vehicles now fade out during `fade` exit animations by updating `circle-opacity` (dots) or `model-opacity` (3D models).
-- **Eraser Exit Animation**: Redefined the `reverse` exit animation for both routes and boundaries. Instead of retracting lines from the tip, they now function as forward "erasers" that remove geometry from the starting point toward the completion point over 0.5s.
-- Added **Comet Mode Guard**: Vehicles are explicitly hidden at `progress = 0` in comet mode to prevent them from "ghosting" at the start point before the trail appears.
-- **Optimization**: All vehicle `setData` coordinates and transformation logic are now skipped when the vehicle is hidden, reducing per-frame CPU and GPU overhead.
-
-**Issue 21: Broken Dash Pattern Synchronization (Resolved)**
-
-The "Dash Pattern" dropdown in the Route Inspector was previously not functional. While users could select styles (Solid, Dashed, Dotted), the map engine in `RouteLayerGroup.tsx` was not applying the `line-dasharray` property to the Mapbox layers.
-
-**Fix** (RouteLayerGroup.tsx):
-- Integrated `line-dasharray` into the imperative synchronization loop for draw and navigation modes.
-- Added **Glow Parity**: The glow layer now automatically inherits the dash pattern, ensuring that "glow" fragments remain perfectly aligned with the dashed/dotted segments of the main line.
-- Implemented an **Equality Guard** in the paint cache to skip redundant Mapbox updates when the dash pattern hasn't changed.
-
----
-
-## 8. Common Gotchas
-- **Sync Engine Exposure**: The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine to force-synchronize styles during frame capture.
-- **Move Mode Persistence**: During "Pick on Map" or "Move Mode", input fields pulse and display "Click on map..." while disabling standard text input.
-- **Scrollbar Aesthetics**: System-native scrollbars are hidden in search suggestions and routing menus via CSS (`scrollbar-width: none`) to maintain a clean aesthetic.
-- **Search Box API Session Pricing**: The Search Box API uses session-based pricing. Search result suggestions don't include coordinates, so animated preview dots on the map are not feasible. Users interact with suggestions directly in the dropdown.
+## 8. For Future Maintainers
+
+When adding features or refactoring:
+
+1. **Preserve Zustand Selector Optimization**: New components reading frequently-updated store fields (e.g., `playheadTime`) should use `useShallow` selectors.
+2. **Idempotent Webhooks**: If adding new webhook events, ensure handlers can be safely replayed (use unique constraints or version keys).
+3. **Transient State Clarity**: Keep UI state out of the persisted `Project` type. This keeps save files small and UI fresh on load.
+4. **Shared Utilities**: Before duplicating geocoding, map resizing, or frame compositing logic across components, extract to a hook or service.
+5. **Server-Side Validation**: Always validate critical operations (credits, limits, data mutations) on the backend, regardless of client checks.
 
 ---
 

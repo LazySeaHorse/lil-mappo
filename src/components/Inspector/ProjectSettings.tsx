@@ -10,38 +10,11 @@ import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
-import { RotateCw } from 'lucide-react';
+import { RotateCw, Monitor, Smartphone } from 'lucide-react';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { RESOLUTION_LABELS } from '@/types/render';
 
-const ASPECT_RATIO_SIZES: Record<AspectRatio, { w: number; h: number }> = {
-  '1:1':  { w: 16, h: 16 },
-  '16:9': { w: 26, h: 15 },
-  '4:3':  { w: 22, h: 16 },
-  '21:9': { w: 29, h: 12 },
-};
 
-function AspectRatioButton({ ratio, selected, onClick }: {
-  ratio: AspectRatio; selected: boolean; onClick: () => void;
-}) {
-  const { w, h } = ASPECT_RATIO_SIZES[ratio];
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-md border text-[9px] font-bold transition-all ${
-        selected
-          ? 'bg-primary/10 border-primary/40 text-primary'
-          : 'border-border text-muted-foreground hover:border-border/80'
-      }`}
-    >
-      <div
-        className={`rounded-[2px] border-2 ${selected ? 'border-primary' : 'border-current opacity-60'}`}
-        style={{ width: w, height: h }}
-      />
-      {ratio}
-    </button>
-  );
-}
 
 export function ProjectSettings() {
   const {
@@ -101,30 +74,33 @@ export function ProjectSettings() {
               </Select>
             </Field>
           </div>
-          {/* Aspect ratio */}
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Aspect Ratio</p>
-            <div className="flex items-center gap-1.5">
-              {(['16:9', '4:3', '1:1', '21:9'] as AspectRatio[]).map((r) => (
-                <AspectRatioButton key={r} ratio={r} selected={aspectRatio === r} onClick={() => setAspectRatio(r)} />
-              ))}
-              <button
-                onClick={() => setIsVertical(!isVertical)}
-                title={isVertical ? 'Switch to Landscape' : 'Switch to Portrait'}
-                className={`ml-auto p-1.5 rounded-md border transition-all ${
-                  isVertical
-                    ? 'bg-primary/10 border-primary/40 text-primary'
-                    : 'border-border text-muted-foreground hover:border-border/80'
-                }`}
-              >
-                <RotateCw size={13} />
-              </button>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Aspect Ratio">
+              <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
+                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="16:9">16:9</SelectItem>
+                  <SelectItem value="21:9">21:9</SelectItem>
+                  <SelectItem value="4:3">4:3</SelectItem>
+                  <SelectItem value="1:1">1:1</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Orientation">
+              <SegmentedControl
+                options={[
+                  { value: 'landscape', label: <Monitor size={14} /> },
+                  { value: 'portrait', label: <Smartphone size={14} /> },
+                ]}
+                value={isVertical ? 'portrait' : 'landscape'}
+                onValueChange={(v) => setIsVertical(v === 'portrait')}
+                className="h-8 w-full"
+              />
+            </Field>
           </div>
 
-          {/* Resolution */}
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resolution</p>
+          <Field label="Resolution">
             <div className="flex items-center gap-2">
               <Select
                 value={exportResolution}
@@ -137,11 +113,11 @@ export function ProjectSettings() {
                   ))}
                 </SelectContent>
               </Select>
-              <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap">
+              <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap min-w-[70px] text-right">
                 {resolution[0]} × {resolution[1]}
               </span>
             </div>
-          </div>
+          </Field>
         </>
       ) : (
         <Accordion type="multiple" defaultValue={['env', 'labels', '3d']} className="w-full">

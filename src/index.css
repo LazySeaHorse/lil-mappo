@@ -155,15 +155,19 @@
 
 /* Mapbox overrides */
 .mapboxgl-ctrl-logo {
+  display: block !important;
+}
+
+html:not(.hide-ui-active) .mapboxgl-ctrl-logo {
   display: none !important;
 }
 
 .mapboxgl-ctrl-attrib {
-  display: none !important;
+  display: block !important;
 }
 
-html.hide-ui-active .mapboxgl-ctrl-attrib {
-  display: block !important;
+html:not(.hide-ui-active) .mapboxgl-ctrl-attrib {
+  display: none !important;
 }
 
 /* Callout animations */

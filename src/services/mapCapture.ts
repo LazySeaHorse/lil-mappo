@@ -39,6 +39,20 @@ export function compositeFrame(
 
     renderCalloutToCanvas(compCtx, callout, anim, { x: projected.x, y: projected.y }, altitudeOffset);
   }
+
+  // Draw Mapbox attribution (required for legal compliance on exported assets)
+  // Since attribution is a DOM overlay, it doesn't exist on the map canvas itself.
+  const attribText = '© Mapbox © OpenStreetMap';
+  compCtx.save();
+  compCtx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  compCtx.textAlign = 'right';
+  compCtx.textBaseline = 'bottom';
+  // Subtle white glow/shadow for readability on dark map areas
+  compCtx.shadowColor = 'white';
+  compCtx.shadowBlur = 4;
+  compCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+  compCtx.fillText(attribText, width - 8, height - 8);
+  compCtx.restore();
 }
 
 /**
