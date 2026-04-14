@@ -663,6 +663,152 @@ No free tier exists. Account creation is now tied to payment flow — unauthenti
 
 ---
 
+### 6.9 Cloud Rendering Pipeline
+
+**Problem Statement**:
+The local video export pipeline (`src/services/videoExport.ts`) was broken by recent map engine refactoring. More importantly, local exports tie up the user's browser for 30+ minutes during encoding, making long videos impractical. The solution was a complete architecture rewrite supporting both fixed local exports and a new **cloud rendering service** (Modal T4 GPU) that lets users kick off renders and check status asynchronously.
+
+**Solution Overview**:
+- **Local exports**: Fixed two-phase pipeline (prewarm tile cache → capture frames at specified FPS).
+- **Cloud exports**: Fire-and-forget job submission with headless Chromium on Modal GPU, background upload to DigitalOcean Spaces, status polling in "My Renders" modal.
+- **Credit system**: Renders cost credits based on resolution, FPS, and duration. Formula: `(resolutionMultiplier × fps/30) × Math.ceil(durationSec / 30)`. Examples:
+  - 480p · 30fps · 30s = 1 credit
+  - 1080p · 30fps · 30s = 4 credits
+  - 1080p · 60fps · 60s = 16 credits (fps doubled, duration rounded to next 30s chunk)
+- **Atomicity**: Credits are deducted immediately on job submission via atomic Postgres RPC. If rendering fails, credits are refunded via a second RPC that tracks exact monthly/purchased split for precise reversal.
+
+**Core Data Types** (`src/types/render.ts`):
+- `AspectRatio = '16:9' | '4:3' | '1:1' | '21:9'` — selectable in both ProjectSettings and ExportModal.
+- `ExportResolution = '480p' | '720p' | '1080p' | '1440p' | '2160p'` — user-visible labels like "Full HD 1080p", "4K 2160p".
+- `getExportDimensions(res, aspectRatio, isVertical)` — returns `[width, height]` by looking up the resolution height and deriving width from aspect ratio, then swapping if vertical.
+- `calculateRenderCredits(res, fps, durationSec)` — applies multipliers per resolution and FPS.
+- `RenderConfig` — transient state snapshot: `{ resolution: [w, h], fps, aspectRatio, exportResolution, isVertical, mapStyle, terrainEnabled, buildingsEnabled, labelVisibility, show3dLandmarks, show3dTrees, show3dFacades }`. This is pickled into the render job and applied in the headless renderer to ensure visual consistency.
+
+**Store Modifications** (`src/store/useProjectStore.ts`):
+- Added three persistent fields to `Project` interface: `aspectRatio: AspectRatio`, `exportResolution: ExportResolution`, `isVertical: boolean`.
+- Added setters: `setAspectRatio()`, `setExportResolution()`, `setIsVertical()` — each recomputes the derived `resolution` via `getExportDimensions()`.
+- Added `applyRenderConfig(cfg: RenderConfig)` — bulk-applies transient map visual state (terrain, buildings, labels, 3D geometry, map style) during headless rendering.
+
+**Export Modal** (`src/components/ExportModal/ExportModal.tsx`):
+- Segmented control tabs: **Local** (browser export) vs **Cloud** (Modal GPU).
+- Shared **Format section** (both tabs):
+  - Four **AspectRatioButton** components (16:9, 4:3, 1:1, 21:9) with visual preview boxes.
+  - **Rotate icon button** — toggles `isVertical` (swaps width/height).
+  - **Resolution dropdown** — RESOLUTION_LABELS (480p–2160p) with computed pixel dimensions display.
+- **Local tab**: FPS select, start/end time pickers, progress bar with phase label ("Warming tile cache..." vs "Rendering frames...").
+- **Cloud tab**: Credit cost preview, current balance display, "Cloud Render" button (disabled if insufficient credits or no auth).
+- `buildRenderConfig()` helper — snapshots current map state (style, terrain, buildings, labels, 3D models).
+
+**Project Settings** (`src/components/Inspector/ProjectSettings.tsx`):
+- Integrated aspect ratio and resolution picker into the main settings panel.
+- Aspect ratio shown as four small visual preview buttons.
+- Vertical toggle via rotate-CW icon.
+- Resolution dropdown with dimensions display.
+- All three setters triggered on change, recomputing pixel dimensions live.
+
+**API Routes Architecture**:
+
+1. **`api/render-dispatch.ts`** (POST) — Client submits render job
+   - Verifies Bearer token (JWT via Supabase).
+   - Checks parallel render limit from `subscriptions.max_parallel_renders`.
+   - Calculates credits via `calculateRenderCredits()`.
+   - Calls **`deduct_render_credits(user_id, amount)` RPC** (atomic, returns `[monthlyCharged, purchasedCharged]`).
+   - Generates 32-byte hex `render_secret` and SHA-256 hash for one-time validation.
+   - Inserts `render_jobs` row with metadata, render_config (JSONB), project_data (JSONB), render_secret_hash, and credit split tracking.
+   - POSTs to `MODAL_WEBHOOK_URL` with `{ jobId, renderSecret, appUrl }` to kick off headless render.
+   - On error *after deduction*: calls **`refund_render_credits(user_id, monthlyAmount, purchasedAmount)` RPC** before returning error.
+
+2. **`api/render-job-data.ts`** (GET) — Headless renderer fetches job config
+   - Query params: `?jobId=<id>&secret=<secret>`.
+   - Hashes secret and verifies against `render_secret_hash` in DB.
+   - Returns `{ projectData, renderConfig, startTime, endTime }`.
+
+3. **`api/render-presign.ts`** (POST) — Headless renderer requests upload URL
+   - Body: `{ jobId, secret }`.
+   - Verifies secret hash.
+   - Creates S3 presigned PUT URL for `renders/${jobId}.mp4` (1hr expiry) via DigitalOcean Spaces.
+   - Returns `{ presignedUrl, outputUrl }`.
+
+4. **`api/render-complete.ts`** (POST) — Headless renderer signals success
+   - Body: `{ jobId, secret, outputUrl }`.
+   - Verifies secret, updates `render_jobs`: `status = 'done'`, `output_url`, `expires_at = now + 24h`, nulls secret hash (one-use).
+
+5. **`api/render-fail.ts`** (POST) — Headless renderer signals error
+   - Body: `{ jobId, secret, errorMessage }`.
+   - Fetches job to retrieve `user_id` and credit split (`monthly_credits_charged`, `purchased_credits_charged`).
+   - Calls `refund_render_credits()` RPC with exact split.
+   - Updates `render_jobs`: `status = 'failed'`, `error_message`, nulls secret hash.
+
+**HeadlessRenderer Component** (`src/components/RenderMode/HeadlessRenderer.tsx`):
+- Props: `{ jobId: string, secret: string }`.
+- Lifecycle:
+  1. Fetch job data via `/api/render-job-data?jobId=<id>&secret=<secret>`.
+  2. Load project from `projectData` JSON.
+  3. Restore to store via `useProjectStore.getState()` methods.
+  4. Call `applyRenderConfig()` to snapshot transient map state.
+  5. Set `isExporting = true` (hide UI, reserve draw buffer).
+  6. Render invisible `<MapViewport onMapReady={...}>` with `<MapRefContext.Provider>`.
+  7. On map ready: run `runExport()` from `videoExport.ts` with resolved map reference.
+  8. On export complete: fetch presigned PUT URL, upload blob to DigitalOcean Spaces, call `/api/render-complete`.
+  9. Signal success via `window.__renderResult = { success: true, outputUrl }`.
+  10. On any error: call `/api/render-fail`, set `window.__renderResult = { success: false, error }`.
+
+**Modal Worker** (`modal/render_worker.py`):
+- **Docker image**: Debian slim + playwright + chromium.
+- **Resources**: T4 GPU, 8GB memory, 4 CPU, 1hr timeout.
+- **`dispatch_render(data: dict)` web endpoint** (POST):
+  - Lightweight, fire-and-forget.
+  - Spawns `run_render_background.spawn()` background task.
+  - Returns immediately to Vercel (< 10s timeout).
+- **`run_render_background(job_id, render_secret, app_url)` background task**:
+  - Launches headless Chromium with `--no-sandbox --disable-dev-shm-usage --enable-gpu --use-gl=egl`.
+  - Navigates to `{app_url}?render_job={job_id}&render_secret={render_secret}`.
+  - Logs browser console/errors.
+  - Waits up to 50 minutes for `window.__renderResult` to be set (HeadlessRenderer completion signal).
+  - Closes browser.
+- **Deploy**: `modal deploy modal/render_worker.py` (outputs webhook URL for `MODAL_WEBHOOK_URL` env var).
+
+**Credit System Atomicity** (Postgres Migrations 011+):
+- **`deduct_render_credits(p_user_id, p_total_credits)` RPC**:
+  - Locks `credit_balance` row with `FOR UPDATE`.
+  - Deducts monthly first, then purchased (preserves monthly credits for subscription periods).
+  - Returns `(monthly_charged, purchased_charged)` tuple for refund precision.
+  - Raises exception if insufficient credits.
+  - Revoked from PUBLIC, anon, authenticated — service_role only.
+  
+- **`refund_render_credits(p_user_id, p_monthly_amount, p_purchased_amount)` RPC**:
+  - Atomically refunds exact split.
+  - Revoked from PUBLIC, anon, authenticated — service_role only.
+
+- **One-time secret validation**: Render secret is hashed (SHA-256) in DB. After `/api/render-complete` or `/api/render-fail` completes, `render_secret_hash` is set to null, invalidating further requests with that secret.
+
+**DigitalOcean Spaces Integration**:
+- S3-compatible storage bucket for rendered videos (`renders/${jobId}.mp4`).
+- Presigned PUT URLs generated server-side with 1-hour expiry.
+- Headless renderer POSTs blob directly to presigned URL (bypassing Vercel's request size limits).
+- Output URL `https://spaces.lilmappo.tech/renders/${jobId}.mp4` made available for download in "My Renders" modal.
+- Videos expire after 24 hours (controlled by `expires_at` in render_jobs).
+
+**Local Export Pipeline Fixes** (`src/services/videoExport.ts`):
+- **Two-phase progress reporting**: `onProgress` callback now receives `(pct: number, phase: 'prewarm' | 'capture')` for precise UI feedback.
+- **Tile cache prewarm**: 24-frame scrub through timeline to pre-load map tiles before actual capture. Waits max 2s per frame with `map.once('idle')`.
+- **Encoder back-pressure**: Monitors `videoEncoder.encodeQueueSize`. If > 8, waits via requestAnimationFrame drain loop until <= 4 before encoding next frame.
+- **Map idle synchronization**: Replaced anti-pattern (`map.loaded() ? resolve() : map.once('idle')`) with `Promise.race([map.once('idle') + requestAnimationFrame, 5s timeout])` for stable frame capture.
+
+**"My Renders" Modal** (`src/components/Account/RendersModal.tsx`):
+- Fetches `render_jobs` for authenticated user.
+- Displays: resolution label, aspect ratio, orientation (portrait/landscape), FPS, credit cost, creation date, status, time remaining (if not expired), error message (if failed).
+- Actions: Download (if done and not expired), Retry (if failed or expired, opens ExportModal with same config).
+- Status badges: "Done" (green), "Rendering" (blue spinner), "Queued" (gray hourglass), "Failed" (red alert).
+
+**Environment Variables**:
+- `MODAL_WEBHOOK_URL` — from Modal deploy output (`api/render-dispatch.ts` POSTs here).
+- `DO_SPACES_KEY` / `DO_SPACES_SECRET` — DigitalOcean Spaces API credentials (used by `api/render-presign.ts`).
+- `DO_SPACES_REGION` — e.g., `"nyc3"`.
+- `DO_SPACES_BUCKET` — e.g., `"lilmappo"`.
+
+---
+
 ## 7. Critical Implementation Details
 
 ### 7.1 Animation & Routing Logic

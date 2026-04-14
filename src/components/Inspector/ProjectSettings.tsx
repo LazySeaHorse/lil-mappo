@@ -10,17 +10,50 @@ import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
+import { RotateCw } from 'lucide-react';
+import type { AspectRatio, ExportResolution } from '@/types/render';
+import { RESOLUTION_LABELS } from '@/types/render';
+
+const ASPECT_RATIO_SIZES: Record<AspectRatio, { w: number; h: number }> = {
+  '1:1':  { w: 16, h: 16 },
+  '16:9': { w: 26, h: 15 },
+  '4:3':  { w: 22, h: 16 },
+  '21:9': { w: 29, h: 12 },
+};
+
+function AspectRatioButton({ ratio, selected, onClick }: {
+  ratio: AspectRatio; selected: boolean; onClick: () => void;
+}) {
+  const { w, h } = ASPECT_RATIO_SIZES[ratio];
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-md border text-[9px] font-bold transition-all ${
+        selected
+          ? 'bg-primary/10 border-primary/40 text-primary'
+          : 'border-border text-muted-foreground hover:border-border/80'
+      }`}
+    >
+      <div
+        className={`rounded-[2px] border-2 ${selected ? 'border-primary' : 'border-current opacity-60'}`}
+        style={{ width: w, height: h }}
+      />
+      {ratio}
+    </button>
+  );
+}
 
 export function ProjectSettings() {
   const {
     name, duration, fps, resolution, terrainExaggeration, projection, lightPreset,
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     labelVisibility, setLabelGroupVisibility, setAllLabelsVisibility,
-    setProjectName, setDuration, setFps, setResolution, setTerrainExaggeration,
+    setProjectName, setDuration, setFps, setTerrainExaggeration,
     setProjection, setLightPreset, set3dDetails, setAtmosphere,
     mapStyle,
-    projectSettingsTab,
-    setProjectSettingsTab,
+    projectSettingsTab, setProjectSettingsTab,
+    aspectRatio, exportResolution, isVertical,
+    setAspectRatio, setExportResolution, setIsVertical,
   } = useProjectStore(
     useShallow(s => ({
       name: s.name, duration: s.duration, fps: s.fps, resolution: s.resolution,
@@ -30,11 +63,13 @@ export function ProjectSettings() {
       labelVisibility: s.labelVisibility,
       setLabelGroupVisibility: s.setLabelGroupVisibility, setAllLabelsVisibility: s.setAllLabelsVisibility,
       setProjectName: s.setProjectName, setDuration: s.setDuration, setFps: s.setFps,
-      setResolution: s.setResolution, setTerrainExaggeration: s.setTerrainExaggeration,
+      setTerrainExaggeration: s.setTerrainExaggeration,
       setProjection: s.setProjection, setLightPreset: s.setLightPreset,
       set3dDetails: s.set3dDetails, setAtmosphere: s.setAtmosphere,
       mapStyle: s.mapStyle,
       projectSettingsTab: s.projectSettingsTab, setProjectSettingsTab: s.setProjectSettingsTab,
+      aspectRatio: s.aspectRatio, exportResolution: s.exportResolution, isVertical: s.isVertical,
+      setAspectRatio: s.setAspectRatio, setExportResolution: s.setExportResolution, setIsVertical: s.setIsVertical,
     }))
   );
   const capabilities = useMapStyleCapabilities();
@@ -66,16 +101,47 @@ export function ProjectSettings() {
               </Select>
             </Field>
           </div>
-          <Field label="Resolution">
-            <Select value={resolution.join('x')} onValueChange={(v) => { const [w, h] = v.split('x').map(Number); setResolution([w, h]); }}>
-              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1920x1080">1920 × 1080</SelectItem>
-                <SelectItem value="2560x1440">2560 × 1440</SelectItem>
-                <SelectItem value="3840x2160">3840 × 2160</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          {/* Aspect ratio */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Aspect Ratio</p>
+            <div className="flex items-center gap-1.5">
+              {(['16:9', '4:3', '1:1', '21:9'] as AspectRatio[]).map((r) => (
+                <AspectRatioButton key={r} ratio={r} selected={aspectRatio === r} onClick={() => setAspectRatio(r)} />
+              ))}
+              <button
+                onClick={() => setIsVertical(!isVertical)}
+                title={isVertical ? 'Switch to Landscape' : 'Switch to Portrait'}
+                className={`ml-auto p-1.5 rounded-md border transition-all ${
+                  isVertical
+                    ? 'bg-primary/10 border-primary/40 text-primary'
+                    : 'border-border text-muted-foreground hover:border-border/80'
+                }`}
+              >
+                <RotateCw size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Resolution */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resolution</p>
+            <div className="flex items-center gap-2">
+              <Select
+                value={exportResolution}
+                onValueChange={(v) => setExportResolution(v as ExportResolution)}
+              >
+                <SelectTrigger className="h-8 text-sm flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['480p', '720p', '1080p', '1440p', '2160p'] as ExportResolution[]).map((r) => (
+                    <SelectItem key={r} value={r}>{RESOLUTION_LABELS[r]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap">
+                {resolution[0]} × {resolution[1]}
+              </span>
+            </div>
+          </div>
         </>
       ) : (
         <Accordion type="multiple" defaultValue={['env', 'labels', '3d']} className="w-full">

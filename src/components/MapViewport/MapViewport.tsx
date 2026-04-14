@@ -59,9 +59,10 @@ function CalloutMarkerList({ callouts, selectedCalloutId, mapRef }: CalloutMarke
 
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
+  onMapReady?: () => void;
 }
 
-export default function MapViewport({ mapRef }: MapViewportProps) {
+export default function MapViewport({ mapRef, onMapReady }: MapViewportProps) {
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const items = useProjectStore((s) => s.items);
   const itemOrder = useProjectStore((s) => s.itemOrder);
@@ -89,7 +90,8 @@ export default function MapViewport({ mapRef }: MapViewportProps) {
   const handleMapLoad = useCallback(() => {
     setMapReady(true);
     setStyleLoaded(true);
-  }, []);
+    onMapReady?.();
+  }, [onMapReady]);
 
   const handleMapClick = useCallback((e: any) => {
     const s = useProjectStore.getState();

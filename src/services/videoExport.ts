@@ -1,23 +1,24 @@
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, CalloutItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
-import { getAnimatedLine } from '@/engine/lineAnimation';
-import { useMapRef } from '@/hooks/useMapRef';
 import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout';
+import type { RenderConfig } from '@/types/render';
 
 /**
  * Non-realtime offline export engine.
- * Steps through each frame at 1/fps, renders the map, composites callout DOM
- * via html2canvas, then encodes with WebCodecs + mp4-muxer (or MediaRecorder fallback).
+ * Steps through each frame at 1/fps, renders the map, composites callouts via
+ * canvas 2D, then encodes with WebCodecs + mp4-muxer (or MediaRecorder fallback).
+ *
+ * Two phases are reported via onProgress:
+ *   'prewarm'  — 24-frame cache warm-up pass (scrubs timeline to force tile loads)
+ *   'capture'  — actual frame-by-frame encoding pass
  */
 
-interface ExportOptions {
-  resolution: [number, number];
-  fps: number;
+export interface ExportOptions {
+  renderConfig: RenderConfig;
   startTime?: number;
   endTime?: number;
-  disableFading?: boolean;
-  onProgress: (pct: number) => void;
+  onProgress: (pct: number, phase: 'prewarm' | 'capture') => void;
   onComplete: (blob: Blob) => void;
   onError: (err: string) => void;
   abortSignal: AbortSignal;
@@ -29,10 +30,18 @@ interface EncoderState {
   muxer: any;
   videoEncoder: VideoEncoder | null;
   mediaRecorder: MediaRecorder | null;
+  mediaStream: MediaStream | null;
   recordedChunks: Blob[];
 }
 
-async function initEncoder(width: number, height: number, fps: number, onError: (err: string) => void): Promise<EncoderState> {
+// ─── Encoder init ─────────────────────────────────────────────────────────────
+
+async function initEncoder(
+  width: number,
+  height: number,
+  fps: number,
+  onError: (err: string) => void,
+): Promise<EncoderState> {
   const compCanvas = document.createElement('canvas');
   compCanvas.width = width;
   compCanvas.height = height;
@@ -41,6 +50,7 @@ async function initEncoder(width: number, height: number, fps: number, onError: 
   let muxer: any = null;
   let videoEncoder: VideoEncoder | null = null;
   let mediaRecorder: MediaRecorder | null = null;
+  let mediaStream: MediaStream | null = null;
   const recordedChunks: Blob[] = [];
 
   if (typeof VideoEncoder !== 'undefined') {
@@ -53,8 +63,8 @@ async function initEncoder(width: number, height: number, fps: number, onError: 
         fastStart: 'in-memory',
       });
       videoEncoder = new VideoEncoder({
-        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-        error: (e) => onError(`VideoEncoder error: ${e.message}`),
+        output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
+        error: (e: Error) => onError(`VideoEncoder error: ${e.message}`),
       });
       videoEncoder.configure({
         codec: 'avc1.640028',
@@ -70,17 +80,64 @@ async function initEncoder(width: number, height: number, fps: number, onError: 
   }
 
   if (!videoEncoder) {
-    const stream = compCanvas.captureStream(0);
+    mediaStream = compCanvas.captureStream(0);
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm';
-    mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+    mediaRecorder = new MediaRecorder(mediaStream, { mimeType, videoBitsPerSecond: 8_000_000 });
     mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.start();
   }
 
-  return { compCanvas, compCtx, muxer, videoEncoder, mediaRecorder, recordedChunks };
+  return { compCanvas, compCtx, muxer, videoEncoder, mediaRecorder, mediaStream, recordedChunks };
 }
+
+// ─── Tile cache pre-warm ───────────────────────────────────────────────────────
+
+async function prewarmTileCache(
+  map: any,
+  getRouteCoords: (id: string) => number[][] | null,
+  totalDuration: number,
+  startTime: number,
+  onProgress: (pct: number, phase: 'prewarm' | 'capture') => void,
+  abortSignal: AbortSignal,
+) {
+  const STEPS = 24;
+  const freshStore = useProjectStore.getState();
+  const camItem = freshStore.items[CAMERA_TRACK_ID] as CameraItem | undefined;
+
+  for (let i = 0; i < STEPS; i++) {
+    if (abortSignal.aborted) return;
+
+    const t = startTime + (totalDuration / (STEPS - 1)) * i;
+    const clampedT = Math.min(t, freshStore.duration);
+
+    if (camItem && camItem.keyframes.length > 0) {
+      const cam = getCameraAtTime(camItem.keyframes, clampedT, getRouteCoords);
+      if (cam) {
+        map.jumpTo({ center: cam.center, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+      }
+    }
+
+    // Wait for map to settle, max 2s
+    await Promise.race([
+      new Promise<void>((resolve) => map.once('idle', resolve)),
+      new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+    ]);
+
+    onProgress(Math.round(((i + 1) / STEPS) * 100), 'prewarm');
+  }
+
+  // Reset to start position
+  if (camItem && camItem.keyframes.length > 0) {
+    const cam = getCameraAtTime(camItem.keyframes, startTime, getRouteCoords);
+    if (cam) {
+      map.jumpTo({ center: cam.center, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+    }
+  }
+}
+
+// ─── Single frame capture ─────────────────────────────────────────────────────
 
 async function captureFrame(
   map: any,
@@ -108,23 +165,39 @@ async function captureFrame(
     }
   }
 
-  // Wait for render
-  map.triggerRepaint();
+  // Sync map engine and trigger repaint
   const syncEngine = (map as any)._syncRef?.current;
   if (syncEngine) syncEngine();
+  map.triggerRepaint();
 
-  await new Promise<void>((resolve) => {
-    if (map.loaded()) resolve();
-    else map.once('idle', () => resolve());
-  });
-  await new Promise(r => setTimeout(r, 16));
+  // Wait for map idle, then one animation frame to flush compositing
+  await Promise.race([
+    new Promise<void>((resolve) =>
+      map.once('idle', () => requestAnimationFrame(() => resolve()))
+    ),
+    new Promise<void>((resolve) => setTimeout(resolve, 5000)), // safety timeout
+  ]);
+
+  // Back-pressure: don't let the encoder queue grow unbounded
+  if (videoEncoder && (videoEncoder as any).encodeQueueSize > 8) {
+    await new Promise<void>((resolve) => {
+      const drain = () => {
+        if ((videoEncoder as any).encodeQueueSize <= 4) {
+          resolve();
+        } else {
+          requestAnimationFrame(drain);
+        }
+      };
+      requestAnimationFrame(drain);
+    });
+  }
 
   // Composite: map canvas
   const mapCanvas = map.getCanvas() as HTMLCanvasElement;
   compCtx.clearRect(0, 0, width, height);
   compCtx.drawImage(mapCanvas, 0, 0, width, height);
 
-  // Draw callouts via canvas (DOM-free, replaces html2canvas)
+  // Draw callouts via canvas (DOM-free)
   const zoom = map.getZoom();
   for (const id of freshStore.itemOrder) {
     const item = freshStore.items[id];
@@ -145,7 +218,7 @@ async function captureFrame(
     renderCalloutToCanvas(compCtx, callout, anim, { x: projected.x, y: projected.y }, altitudeOffset);
   }
 
-  // Encode
+  // Encode frame
   if (videoEncoder) {
     const videoFrame = new VideoFrame(compCanvas, {
       timestamp: frameIndex * (1_000_000 / fps),
@@ -159,6 +232,8 @@ async function captureFrame(
     if (track?.requestFrame) track.requestFrame();
   }
 }
+
+// ─── Finalize ─────────────────────────────────────────────────────────────────
 
 async function finalizeExport(
   state: Pick<EncoderState, 'videoEncoder' | 'muxer' | 'mediaRecorder' | 'recordedChunks'>,
@@ -177,12 +252,16 @@ async function finalizeExport(
   }
 }
 
+// ─── Main entry point ─────────────────────────────────────────────────────────
+
 export async function runExport(
   mapRef: React.MutableRefObject<any>,
   options: ExportOptions,
 ) {
-  const { resolution, fps, startTime = 0, endTime: requestedEndTime, onProgress, onComplete, onError, abortSignal } = options;
-  const [width, height] = resolution;
+  const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, onComplete, onError, abortSignal } = options;
+  const [width, height] = renderConfig.resolution;
+  const { fps } = renderConfig;
+
   const store = useProjectStore.getState();
   const { duration } = store;
 
@@ -199,9 +278,12 @@ export async function runExport(
 
   const mapContainer = map.getContainer();
   const orig = {
-    width: mapContainer.style.width, height: mapContainer.style.height,
-    position: mapContainer.style.position, left: mapContainer.style.left,
-    top: mapContainer.style.top, zIndex: mapContainer.style.zIndex,
+    width: mapContainer.style.width,
+    height: mapContainer.style.height,
+    position: mapContainer.style.position,
+    left: mapContainer.style.left,
+    top: mapContainer.style.top,
+    zIndex: mapContainer.style.zIndex,
   };
 
   const getRouteCoords = (routeId: string): number[][] | null => {
@@ -216,6 +298,7 @@ export async function runExport(
   };
 
   try {
+    // Resize map container off-screen to target export dimensions
     mapContainer.style.position = 'fixed';
     mapContainer.style.width = `${width}px`;
     mapContainer.style.height = `${height}px`;
@@ -224,9 +307,17 @@ export async function runExport(
     mapContainer.style.zIndex = '-100';
     map.resize();
 
-    await new Promise(r => setTimeout(r, 500));
+    // Wait for map ready
+    await Promise.race([
+      new Promise<void>((resolve) => map.once('idle', resolve)),
+      new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+    ]);
     await document.fonts.ready;
 
+    // Phase 1: pre-warm tile cache
+    await prewarmTileCache(map, getRouteCoords, effectiveDuration, startTime, onProgress, abortSignal);
+
+    // Phase 2: capture frames
     for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
       if (abortSignal.aborted) {
         encoderState.videoEncoder?.close();
@@ -238,7 +329,7 @@ export async function runExport(
       const clampedTime = Math.min(currentTime, duration);
 
       await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords);
-      onProgress(Math.round((frameIndex / totalFrames) * 100));
+      onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
     }
 
     await finalizeExport(encoderState, onComplete);

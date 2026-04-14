@@ -1,4 +1,5 @@
 import type { MapStyleKey } from '@/config/mapbox';
+import type { AspectRatio, ExportResolution } from '@/types/render';
 
 export type EasingName =
   | 'linear'
@@ -120,7 +121,10 @@ export interface Project {
   name: string;
   duration: number;
   fps: 30 | 60;
-  resolution: [number, number];
+  resolution: [number, number]; // auto-derived from exportResolution + aspectRatio + isVertical; kept for backwards compat
+  aspectRatio: AspectRatio;
+  exportResolution: ExportResolution;
+  isVertical: boolean;
   projection: 'globe' | 'mercator';
   lightPreset: 'day' | 'night' | 'dusk' | 'dawn';
   starIntensity: number;

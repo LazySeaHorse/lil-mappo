@@ -3,6 +3,8 @@ import { nanoid } from 'nanoid';
 import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName } from './types';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import { MAP_STYLES } from '@/config/mapbox';
+import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
+import { getExportDimensions } from '@/types/render';
 
 interface ProjectStore extends Project {
   // Transient UI state (not persisted)
@@ -66,6 +68,9 @@ interface ProjectStore extends Project {
   setDuration: (d: number) => void;
   setFps: (fps: 30 | 60) => void;
   setResolution: (r: [number, number]) => void;
+  setAspectRatio: (v: AspectRatio) => void;
+  setExportResolution: (v: ExportResolution) => void;
+  setIsVertical: (v: boolean) => void;
   setMapStyle: (s: string) => void;
   setProjection: (v: 'globe' | 'mercator') => void;
   setLightPreset: (v: 'day' | 'night' | 'dusk' | 'dawn') => void;
@@ -110,6 +115,9 @@ interface ProjectStore extends Project {
   // Timeline visibility/height
   setTimelineHeight: (v: number) => void;
 
+  // Headless render mode: bulk-apply transient map state from a RenderConfig
+  applyRenderConfig: (config: RenderConfig) => void;
+
   // Project loading
   loadFullProject: (project: Project) => void;
 
@@ -138,6 +146,9 @@ const defaultProject: Project = {
   duration: 30,
   fps: 30,
   resolution: [1920, 1080],
+  aspectRatio: '16:9' as AspectRatio,
+  exportResolution: '1080p' as ExportResolution,
+  isVertical: false,
   projection: 'globe',
   lightPreset: 'day',
   starIntensity: 0.6,
@@ -270,6 +281,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setDuration: (d) => set({ duration: Math.max(1, d) }),
   setFps: (fps) => set({ fps }),
   setResolution: (r) => set({ resolution: r }),
+  setAspectRatio: (v) => set((s) => ({
+    aspectRatio: v,
+    resolution: getExportDimensions(s.exportResolution, v, s.isVertical),
+  })),
+  setExportResolution: (v) => set((s) => ({
+    exportResolution: v,
+    resolution: getExportDimensions(v, s.aspectRatio, s.isVertical),
+  })),
+  setIsVertical: (v) => set((s) => ({
+    isVertical: v,
+    resolution: getExportDimensions(s.exportResolution, s.aspectRatio, v),
+  })),
   setMapStyle: (s) => set({ mapStyle: s as any, terrainEnabled: false, buildingsEnabled: false, terrainLoading: false, buildingsLoading: false, detectedCapabilities: null }),
   setProjection: (v) => set({ projection: v }),
   setLightPreset: (v) => set({ lightPreset: v }),
@@ -308,6 +331,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
 
   setTimelineHeight: (v) => set({ timelineHeight: v }),
+
+  applyRenderConfig: (config) => set({
+    mapStyle: config.mapStyle as any,
+    terrainEnabled: config.terrainEnabled,
+    buildingsEnabled: config.buildingsEnabled,
+    labelVisibility: config.labelVisibility,
+    show3dLandmarks: config.show3dLandmarks,
+    show3dTrees: config.show3dTrees,
+    show3dFacades: config.show3dFacades,
+  }),
 
   loadFullProject: (project) => set({
     ...defaultProject,

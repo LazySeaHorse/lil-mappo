@@ -40,6 +40,15 @@ export interface RenderJob {
   created_at: string;
   expires_at: string | null;
   error_message: string | null;
+  // v2 fields (migration 011)
+  aspect_ratio: string | null;
+  resolution_preset: string | null;
+  is_vertical: boolean;
+  render_config: Record<string, unknown> | null;
+  project_data: Record<string, unknown> | null;
+  render_secret_hash: string | null;
+  monthly_credits_charged: number;
+  purchased_credits_charged: number;
 }
 
 export interface CloudProject {

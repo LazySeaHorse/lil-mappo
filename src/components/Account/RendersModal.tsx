@@ -7,6 +7,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useRenderJobs } from '@/hooks/useRenderJobs';
 import type { RenderJob, RenderStatus } from '@/lib/database.types';
 import { STATUS_LABELS } from '@/lib/database.types';
+import type { ExportResolution } from '@/types/render';
+import { RESOLUTION_LABELS } from '@/types/render';
 import {
   Clapperboard, RefreshCcw, LogIn, Loader2, Download,
   RotateCcw, Clock, CheckCircle2, AlertCircle, Hourglass, PlayCircle
@@ -125,7 +127,14 @@ function RenderJobRow({ job }: { job: RenderJob }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-bold tracking-tight truncate">
-            {job.resolution ?? 'Custom'} <span className="text-muted-foreground font-medium mx-1">&middot;</span> {job.fps ?? '—'} fps
+            {(() => {
+              const resLabel = job.resolution_preset
+                ? (RESOLUTION_LABELS[job.resolution_preset as ExportResolution] ?? job.resolution_preset)
+                : (job.resolution ?? 'Custom');
+              const orientLabel = job.is_vertical ? 'Portrait' : 'Landscape';
+              const arLabel = job.aspect_ratio ?? '';
+              return `${resLabel}${arLabel ? ` · ${arLabel}` : ''} · ${orientLabel} · ${job.fps ?? '—'} fps`;
+            })()}
           </span>
           <StatusBadge status={job.status} />
         </div>
