@@ -21,23 +21,23 @@ export const PLAN_CONFIG: Record<
 > = {
   wanderer: {
     name: "Wanderer",
-    price: "$10/mo",
-    priceMonthly: 10,
+    price: "$7/mo",
+    priceMonthly: 7,
     monthlyCredits: 100,
     parallelRenders: 1,
   },
   cartographer: {
     name: "Cartographer",
-    price: "$15/mo",
-    priceMonthly: 15,
-    monthlyCredits: 500,
+    price: "$19/mo",
+    priceMonthly: 19,
+    monthlyCredits: 1000,
     parallelRenders: 2,
   },
   pioneer: {
     name: "Pioneer",
-    price: "$35/mo",
-    priceMonthly: 35,
-    monthlyCredits: 2000,
+    price: "$49/mo",
+    priceMonthly: 49,
+    monthlyCredits: 3000,
     parallelRenders: 5,
   },
 };

@@ -60,8 +60,8 @@ function CreditsModalBody() {
   const [purchaseAmount, setPurchaseAmount] = useState<number>(10);
   const minAmount = 10;
   const maxAmount = 200;
-  const creditsPerDollar = 100;
-  const creditsToGet = purchaseAmount * creditsPerDollar;
+  const creditsToGet = purchaseAmount * (purchaseAmount >= 50 ? 50 : 40);
+  const minutesToGet = creditsToGet / 8;
   const hasActiveSubscription =
     !!subscription && subscription.status === "active";
 
@@ -214,6 +214,9 @@ function CreditsModalBody() {
                     <span className="text-sm font-medium text-muted-foreground ml-1">
                       credits
                     </span>
+                  </p>
+                  <p className="text-[11px] font-bold text-primary flex items-center gap-1 mt-1">
+                    <Timer size={11} /> ~{minutesToGet.toLocaleString()} mins of 1080p
                   </p>
                 </div>
               </div>

@@ -25,6 +25,7 @@ import {
   Zap,
   Clock,
   AlertTriangle,
+  Timer,
 } from "lucide-react";
 import { SubscriptionTiers } from "./SubscriptionTiers";
 import { BYOK_STORAGE_KEY } from "@/config/mapbox";
@@ -88,10 +89,10 @@ function AccountSettingsModalBody() {
   const hasRecurring = !!subscription?.dodo_subscription_id;
   const renewalDate = subscription?.renewal_date
     ? new Date(subscription.renewal_date).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
     : null;
 
   // ── Manage sub-view ────────────────────────────────────────────────────────
@@ -384,17 +385,16 @@ function ManageView({
               Status
             </p>
             <span
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                isCancelled
+              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isCancelled
                   ? "bg-amber-500/10 text-amber-500"
                   : "bg-green-500/10 text-green-500"
-              }`}
+                }`}
             >
               {subscription?.status === "cancelled"
                 ? "Cancelled"
                 : isCancelled
-                ? "Cancelling"
-                : "Active"}
+                  ? "Cancelling"
+                  : "Active"}
             </span>
           </div>
 
@@ -423,6 +423,9 @@ function ManageView({
                 total credits
               </span>
             </div>
+            <p className="text-[11px] font-bold text-primary flex items-center gap-1 -mt-1 mb-1">
+              <Timer size={11} /> ~{(totalCredits / 8).toLocaleString()} mins of 1080p
+            </p>
             <div className="flex flex-wrap gap-2">
               {(credits?.monthly_credits ?? 0) > 0 && (
                 <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">

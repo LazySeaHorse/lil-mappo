@@ -2,15 +2,15 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
-import type { PlanSlug } from "@/services/checkout";
-import { Coins, Layers, CloudUpload, Package } from "lucide-react";
+import { type PlanSlug, PLAN_CONFIG } from "@/services/checkout";
+import { Coins, Layers, CloudUpload, Package, Timer } from "lucide-react";
 
 // ─── Tier card ────────────────────────────────────────────────────────────────
 
 function TierCard({
   name,
   price,
-  credits,
+  creditsCount,
   parallel,
   saves,
   planSlug,
@@ -20,7 +20,7 @@ function TierCard({
 }: {
   name: string;
   price: string;
-  credits: string;
+  creditsCount: number;
   parallel: string;
   saves: string;
   planSlug: PlanSlug;
@@ -41,11 +41,10 @@ function TierCard({
 
   return (
     <div
-      className={`relative flex flex-col rounded-2xl p-4 border transition-all ${
-        highlight
-          ? "bg-primary/5 border-primary/30 shadow-xl shadow-primary/5 scale-[1.02] z-10"
-          : "bg-secondary/20 border-border/50 hover:bg-secondary/40"
-      }`}
+      className={`relative flex flex-col rounded-2xl p-4 border transition-all ${highlight
+        ? "bg-primary/5 border-primary/30 shadow-xl shadow-primary/5 scale-[1.02] z-10"
+        : "bg-secondary/20 border-border/50 hover:bg-secondary/40"
+        }`}
     >
       {highlight && (
         <div className="absolute -top-3 inset-x-0 flex justify-center">
@@ -69,7 +68,13 @@ function TierCard({
         <div className="flex items-start gap-2">
           <Coins size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground leading-tight">
-            {credits}
+            {creditsCount.toLocaleString()} credits/mo
+          </span>
+        </div>
+        <div className="flex items-start gap-2">
+          <Timer size={14} className="mt-0.5 shrink-0 text-primary" />
+          <span className="text-xs font-bold text-primary leading-tight">
+            {(creditsCount / 8).toLocaleString()} mins of 1080p
           </span>
         </div>
         <div className="flex items-start gap-2">
@@ -139,20 +144,20 @@ export function SubscriptionTiers({
       {tierSlug === "nomad" && <NomadBadge />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <TierCard
-          name="Wanderer"
-          price="$10/mo"
-          credits="100 credits/mo"
-          parallel="1 cloud render at a time"
+          name={PLAN_CONFIG.wanderer.name}
+          price={PLAN_CONFIG.wanderer.price}
+          creditsCount={PLAN_CONFIG.wanderer.monthlyCredits}
+          parallel={`No parallel cloud renders`}
           saves="Unlimited cloud saves"
           planSlug="wanderer"
           isCurrent={highlightCurrent && tierSlug === "wanderer"}
           onCheckout={handleCheckout}
         />
         <TierCard
-          name="Cartographer"
-          price="$15/mo"
-          credits="500 credits/mo"
-          parallel="2 parallel renders"
+          name={PLAN_CONFIG.cartographer.name}
+          price={PLAN_CONFIG.cartographer.price}
+          creditsCount={PLAN_CONFIG.cartographer.monthlyCredits}
+          parallel={`${PLAN_CONFIG.cartographer.parallelRenders} parallel renders`}
           saves="Unlimited cloud saves"
           planSlug="cartographer"
           highlight
@@ -160,10 +165,10 @@ export function SubscriptionTiers({
           onCheckout={handleCheckout}
         />
         <TierCard
-          name="Pioneer"
-          price="$35/mo"
-          credits="2,000 credits/mo"
-          parallel="5 parallel renders"
+          name={PLAN_CONFIG.pioneer.name}
+          price={PLAN_CONFIG.pioneer.price}
+          creditsCount={PLAN_CONFIG.pioneer.monthlyCredits}
+          parallel={`${PLAN_CONFIG.pioneer.parallelRenders} parallel renders`}
           saves="Unlimited cloud saves"
           planSlug="pioneer"
           isCurrent={highlightCurrent && tierSlug === "pioneer"}
