@@ -1,7 +1,7 @@
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import type { CameraItem, CalloutItem, RouteItem } from '@/store/types';
+import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
-import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout';
+import { compositeFrame, withMapResized } from './mapCapture';
 import type { RenderConfig } from '@/types/render';
 
 /**
@@ -192,31 +192,8 @@ async function captureFrame(
     });
   }
 
-  // Composite: map canvas
-  const mapCanvas = map.getCanvas() as HTMLCanvasElement;
-  compCtx.clearRect(0, 0, width, height);
-  compCtx.drawImage(mapCanvas, 0, 0, width, height);
-
-  // Draw callouts via canvas (DOM-free)
-  const zoom = map.getZoom();
-  for (const id of freshStore.itemOrder) {
-    const item = freshStore.items[id];
-    if (item?.kind !== 'callout') continue;
-    const callout = item as CalloutItem;
-    if (callout.lngLat[0] === 0 && callout.lngLat[1] === 0) continue;
-
-    const anim = computeCalloutAnimation(callout, clampedTime);
-    if (!anim || anim.opacity <= 0) continue;
-
-    const projected = map.project(callout.lngLat);
-    let altitudeOffset = 0;
-    if (callout.altitude > 0) {
-      const metersPerPixel = 156543.03392 * Math.cos(callout.lngLat[1] * Math.PI / 180) / Math.pow(2, zoom);
-      altitudeOffset = Math.min(callout.altitude / metersPerPixel, 300);
-    }
-
-    renderCalloutToCanvas(compCtx, callout, anim, { x: projected.x, y: projected.y }, altitudeOffset);
-  }
+  // Composite: map canvas + callouts
+  compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime);
 
   // Encode frame
   if (videoEncoder) {
@@ -276,16 +253,6 @@ export async function runExport(
   const map = mapRef.current?.getMap?.();
   if (!map) { onError('Map not available'); return; }
 
-  const mapContainer = map.getContainer();
-  const orig = {
-    width: mapContainer.style.width,
-    height: mapContainer.style.height,
-    position: mapContainer.style.position,
-    left: mapContainer.style.left,
-    top: mapContainer.style.top,
-    zIndex: mapContainer.style.zIndex,
-  };
-
   const getRouteCoords = (routeId: string): number[][] | null => {
     const route = store.items[routeId] as RouteItem | undefined;
     if (!route) return null;
@@ -298,50 +265,35 @@ export async function runExport(
   };
 
   try {
-    // Resize map container off-screen to target export dimensions
-    mapContainer.style.position = 'fixed';
-    mapContainer.style.width = `${width}px`;
-    mapContainer.style.height = `${height}px`;
-    mapContainer.style.left = '0';
-    mapContainer.style.top = '0';
-    mapContainer.style.zIndex = '-100';
-    map.resize();
+    await withMapResized(map, width, height, async () => {
+      // Wait for map ready
+      await Promise.race([
+        new Promise<void>((resolve) => map.once('idle', resolve)),
+        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+      ]);
+      await document.fonts.ready;
 
-    // Wait for map ready
-    await Promise.race([
-      new Promise<void>((resolve) => map.once('idle', resolve)),
-      new Promise<void>((resolve) => setTimeout(resolve, 3000)),
-    ]);
-    await document.fonts.ready;
+      // Phase 1: pre-warm tile cache
+      await prewarmTileCache(map, getRouteCoords, effectiveDuration, startTime, onProgress, abortSignal);
 
-    // Phase 1: pre-warm tile cache
-    await prewarmTileCache(map, getRouteCoords, effectiveDuration, startTime, onProgress, abortSignal);
+      // Phase 2: capture frames
+      for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
+        if (abortSignal.aborted) {
+          encoderState.videoEncoder?.close();
+          encoderState.mediaRecorder?.stop();
+          return;
+        }
 
-    // Phase 2: capture frames
-    for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
-      if (abortSignal.aborted) {
-        encoderState.videoEncoder?.close();
-        encoderState.mediaRecorder?.stop();
-        return;
+        const currentTime = (startFrame + frameIndex) / fps;
+        const clampedTime = Math.min(currentTime, duration);
+
+        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords);
+        onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
       }
 
-      const currentTime = (startFrame + frameIndex) / fps;
-      const clampedTime = Math.min(currentTime, duration);
-
-      await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords);
-      onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
-    }
-
-    await finalizeExport(encoderState, onComplete);
+      await finalizeExport(encoderState, onComplete);
+    });
   } catch (e: any) {
     onError(e.message || 'Export failed');
-  } finally {
-    mapContainer.style.width = orig.width;
-    mapContainer.style.height = orig.height;
-    mapContainer.style.position = orig.position;
-    mapContainer.style.left = orig.left;
-    mapContainer.style.top = orig.top;
-    mapContainer.style.zIndex = orig.zIndex;
-    map.resize();
   }
 }

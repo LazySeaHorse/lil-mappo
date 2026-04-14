@@ -157,7 +157,7 @@ export default function MapViewport({ mapRef, onMapReady }: MapViewportProps) {
         onLoad={handleMapLoad}
         onMove={(evt) => debouncedSetMapCenter(evt.viewState.longitude, evt.viewState.latitude)}
         interactiveLayerIds={["search-results-circles"]}
-        preserveDrawingBuffer={isExporting}
+        preserveDrawingBuffer={true}
       >
         {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}
         {styleLoaded && (

@@ -840,26 +840,27 @@ The local video export pipeline (`src/services/videoExport.ts`) was broken by re
 - **Directions**: Land-based routes use Mapbox Directions.
 
 ### 7.2 Performance Optimizations
-- **preserveDrawingBuffer Optimization**: The Mapbox canvas's `preserveDrawingBuffer` is `false` during normal use for better performance, and only flips to `true` when a video export is actively running. This is controlled via the `isExporting` transient state in the store.
+- **preserveDrawingBuffer**: The Mapbox canvas's `preserveDrawingBuffer` is set to `true` to enable reliable canvas capture during video export and snapshots. This has negligible performance cost (~1-2% GPU overhead) on modern hardware, since Mapbox rendering is primarily network/CPU bound. Setting it conditionally at runtime doesn't work — WebGL context attributes are read-only after initialization.
 - **Debounced mapCenter**: Viewport updates to the Zustand store are debounced by 100ms during panning to prevent excessive UI re-renders.
 - **Portal-based Popovers**: `SearchField` use Portals (via Radix Popover) to break out of `overflow-hidden` containers, enabling wide location names to display fully over the map without being clipped.
 
-### 7.3 Video Export (`src/services/videoExport.ts`)
+### 7.3 Shared Canvas Capture (`src/services/mapCapture.ts`)
+Utility functions shared by video export and snapshot:
+- **`compositeFrame(map, compCtx, width, height, items, itemOrder, playheadTime)`**: Draws the current map state (Mapbox canvas + callouts) onto a composite canvas. Callouts are rendered using pure Canvas 2D, eliminating DOM overhead. Four callout style variants supported: **default** (sharp rectangle), **modern** (pill shape + glow), **news** (left accent bar), **topo** (border + metadata).
+- **`withMapResized(map, width, height, fn)`**: Resizes the map container off-screen to target capture dimensions, runs `fn()`, then restores original styles — guaranteed via `finally` block even if `fn()` throws.
+
+### 7.4 Video Export (`src/services/videoExport.ts`)
 The export process advances time step-by-step via frame capture loop. Main function orchestrates three phases:
 - **initEncoder()**: Initializes WebCodecs or MediaRecorder fallback.
-- **captureFrame()**: Single frame: update playhead, drive camera, composite map canvas, render callouts via Canvas 2D, encode.
+- **captureFrame()**: Single frame: update playhead, drive camera, call `compositeFrame()` to composite map + callouts, encode.
 - **finalizeExport()**: Flush encoder and produce final blob.
 
-Callouts are rendered using pure Canvas 2D (`src/services/renderCallout.ts`), eliminating the DOM-parsing overhead of `html2canvas`. Each frame, visible callouts are projected to screen coordinates and drawn directly to the compositing canvas with their animation state (opacity fade in/out). Four style variants are supported:
-- **default**: Sharp-cornered rectangle + text. (Radius control removed for professional clarity).
-- **modern**: Pill shape + accent glow dot + 87% opacity background
-- **news**: Rectangle + 5px left accent bar + uppercase bold text
-- **topo**: Left border + metadata (coordinates/elevation) + accent square dot
+Uses `withMapResized()` to manage off-screen map resizing during capture, ensuring proper cleanup even on error.
 
 ### 7.5 High-Resolution Snapshot Service (`src/services/snapshot.ts`)
-A dedicated service for capturing 60fps-quality stills without the overhead of video encoding. It shares the `renderCallout.ts` logic with the video export engine but focuses on a single-frame capture of the **manual manual camera state**. It handles the complex lifecycle of enabling `preserveDrawingBuffer`, resizing the map to target resolution, waiting for tile resolution, compositing callouts, and cleaning up — all while keeping the user informed via Sonner toasts.
+A dedicated service for capturing high-resolution PNG stills of the current map view without video encoding overhead. Uses `withMapResized()` + `compositeFrame()` from mapCapture.ts to handle off-screen resizing, tile settlement, and canvas compositing. Captures at the project's configured resolution, respecting the current manual camera position and playhead time. Cleaned up to remove dead logic around `isExporting` toggle — now relies on always-on `preserveDrawingBuffer`.
 
-### 7.4 Security Fixes & Vulnerability Mitigation
+### 7.6 Security Fixes & Vulnerability Mitigation
 
 **Issue 1: RLS Policy Loophole (Critical)**
 
