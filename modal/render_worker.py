@@ -91,10 +91,10 @@ def run_render_background(job_id: str, render_secret: str, app_url: str):
 
 
 @app.function(
-    image=modal.Image.debian_slim(python_version="3.11"),
+    image=modal.Image.debian_slim(python_version="3.11").pip_install("fastapi[standard]"),
     timeout=30,
 )
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def dispatch_render(data: dict):
     """
     Lightweight web endpoint — immediately spawns run_render_background as a
