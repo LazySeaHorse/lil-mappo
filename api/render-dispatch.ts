@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import { calculateRenderCredits } from '../src/types/render';
-import type { ExportResolution } from '../src/types/render';
+import { calculateRenderCredits } from './_lib/render.js';
+import type { ExportResolution } from './_lib/render.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
