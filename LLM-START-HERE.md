@@ -710,6 +710,7 @@ The local video export pipeline (`src/services/videoExport.ts`) was broken by re
 
 1. **`api/render-dispatch.ts`** (POST) — Client submits render job
    - Verifies Bearer token (JWT via Supabase).
+   - Validates `durationSec > 0` (rejects inverted `startTime`/`endTime` to prevent negative-credit exploit).
    - Checks parallel render limit from `subscriptions.max_parallel_renders`.
    - Calculates credits via `calculateRenderCredits()`.
    - Calls **`deduct_render_credits(user_id, amount)` RPC** (atomic, returns `[monthlyCharged, purchasedCharged]`).
@@ -1103,7 +1104,26 @@ A user could send two simultaneous requests; both would see `activeCount < paral
 - Returns `{ error: 'limit_exceeded', limit: N }` if at/over limit, or `{ job_id: '...' }` on success.
 - `api/render-dispatch.ts` now calls `supabase.rpc('create_render_job', {...})` instead of separate SELECT + INSERT operations.
 
-**Issue 22: Mobile UI Overlap & Viewport Height (Resolved)**
+**Issue 22: Infinite Credit Generation via Negative Duration (Critical)**
+
+A user could provide a `startTime` greater than `endTime` in the render dispatch request body, producing a negative `durationSec`. `calculateRenderCredits()` passes this through `Math.ceil(negative / 30)`, yielding a negative `timeChunks` value and thus a negative `totalCredits`. The `deduct_render_credits` RPC's insufficient-credits guard (`total < required`) never fires for a negative required amount, so the UPDATE subtracts a negative value — effectively crediting the user's balance on every render dispatch call.
+
+**Fix** (`api/render-dispatch.ts`):
+- Added an explicit `durationSec <= 0` guard immediately after computing duration.
+- Returns `400 Bad Request` before any credit or job logic runs if the time range is invalid.
+
+**Issue 23: Data Loss via Pagination Race Condition in Account Cleanup (Critical)**
+
+`api/cleanup-free-accounts.ts` fetched all auth users and all subscription IDs via separate application-level pagination loops, then diffed them in memory to find free accounts to delete. Two failure modes:
+1. **Race condition**: A new subscriber could be written to the `subscriptions` table after the subscription pagination loop completed but before the deletion loop ran; they would not be in `subscribedIds` and could be deleted.
+2. **PostgREST position-based pagination unreliability**: The `.range()` cursor can skip rows if rows are inserted or deleted between page fetches, leaving legitimate subscribers absent from `subscribedIds`.
+
+**Fix** (`api/cleanup-free-accounts.ts` + migration 013):
+- Introduced `delete_old_free_accounts(p_grace_period_hours INT)` Postgres RPC (Migration 013).
+- The RPC performs a single atomic `DELETE FROM auth.users WHERE NOT EXISTS (SELECT 1 FROM subscriptions …)` — the subscription check and deletion happen inside one transaction, eliminating any window for a concurrent insert to be missed.
+- `api/cleanup-free-accounts.ts` is now a thin caller: invoke the RPC, check `error_message`, return `{ deleted }`. All ~80 lines of pagination logic removed.
+
+**Issue 24: Mobile UI Overlap & Viewport Height (Resolved)**
 
 The application previously used `h-screen` (100vh) for the root container, which in many mobile browsers includes the area hidden behind the dynamic address bar. This caused bottom-anchored UI (like the timeline) to be obscured when the address bar was visible.
 

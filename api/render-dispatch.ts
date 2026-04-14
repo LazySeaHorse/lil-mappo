@@ -36,6 +36,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const durationSec = (endTime ?? (projectData.duration as number ?? 30)) - startTime;
 
+  // ── 2b. Validate duration ─────────────────────────────────────────────────────
+  if (durationSec <= 0) {
+    return res.status(400).json({ error: 'Invalid time range: end time must be greater than start time' });
+  }
+
   // ── 3. Credit deduction ───────────────────────────────────────────────────────
   const totalCredits = calculateRenderCredits(renderConfig.exportResolution, durationSec, renderConfig.fps);
 

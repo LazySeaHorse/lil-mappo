@@ -34,87 +34,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  // ── List all auth users (paginated) ───────────────────────────────────────
-  // For large user bases this should be converted to a Supabase RPC that does
-  // the join server-side. For now, two queries are fine.
-
-  let allUsers: { id: string; created_at: string }[] = [];
-  let page = 1;
-  const perPage = 1000;
-
-  while (true) {
-    const { data, error } = await supabase.auth.admin.listUsers({
-      page,
-      perPage,
-    });
-    if (error) {
-      console.error("[cleanup] Failed to list users:", error);
-      return res.status(500).json({ error: "Failed to list users" });
-    }
-    allUsers = allUsers.concat(
-      data.users.map((u) => ({ id: u.id, created_at: u.created_at }))
-    );
-    if (data.users.length < perPage) break;
-    page++;
-  }
-
-  // ── Fetch all user IDs that have ANY subscription row (paginated) ──────────
-  // PostgREST caps single responses at db-max-rows (default 1000). Without
-  // pagination, any subscriber beyond that cap would be misidentified as a
-  // free user and permanently deleted.
-  const subscribedIds = new Set<string>();
-  let subsFrom = 0;
-  const subsPageSize = 1000;
-
-  while (true) {
-    const { data: subsPage, error: subsError } = await supabase
-      .from("subscriptions")
-      .select("user_id")
-      .range(subsFrom, subsFrom + subsPageSize - 1);
-
-    if (subsError) {
-      console.error("[cleanup] Failed to fetch subscriptions:", subsError);
-      return res.status(500).json({ error: "Failed to fetch subscriptions" });
-    }
-
-    for (const s of subsPage ?? []) {
-      subscribedIds.add((s as { user_id: string }).user_id);
-    }
-
-    if ((subsPage ?? []).length < subsPageSize) break;
-    subsFrom += subsPageSize;
-  }
-
-  // ── Filter: no subscription AND created > grace period ago ────────────────
-  const cutoff = new Date(Date.now() - GRACE_PERIOD_HOURS * 60 * 60 * 1000);
-
-  const toDelete = allUsers.filter(
-    (u) => !subscribedIds.has(u.id) && new Date(u.created_at) < cutoff
+  // ── Call atomic RPC to delete old free accounts ────────────────────────────
+  // This uses a server-side function that atomically identifies users older than
+  // the grace period with no subscriptions and deletes them in a single transaction.
+  // This eliminates pagination race conditions and ensures consistency.
+  const { data: result, error: rpcError } = await supabase.rpc(
+    "delete_old_free_accounts",
+    { p_grace_period_hours: GRACE_PERIOD_HOURS }
   );
 
-  if (toDelete.length === 0) {
-    console.log("[cleanup] No accounts to delete.");
-    return res.status(200).json({ deleted: 0 });
+  if (rpcError) {
+    console.error("[cleanup] RPC failed:", rpcError);
+    return res.status(500).json({ error: "Failed to cleanup accounts" });
   }
 
-  // ── Delete each account ───────────────────────────────────────────────────
-  let deleted = 0;
-  const errors: string[] = [];
-
-  for (const u of toDelete) {
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(u.id);
-    if (deleteError) {
-      console.error("[cleanup] Failed to delete user", u.id, ":", deleteError);
-      errors.push(u.id);
-    } else {
-      deleted++;
-    }
+  if (!result || (result as unknown[]).length === 0) {
+    console.error("[cleanup] RPC returned empty result");
+    return res.status(500).json({ error: "Unexpected empty response from cleanup function" });
   }
 
-  console.log(
-    `[cleanup] Deleted ${deleted}/${toDelete.length} accounts.`,
-    errors.length > 0 ? `Failed IDs: ${errors.join(", ")}` : ""
-  );
+  const [{ deleted_count, error_message }] = result as {
+    deleted_count: number;
+    error_message: string | null;
+  }[];
 
-  return res.status(200).json({ deleted, failed: errors.length });
+  if (error_message) {
+    console.error("[cleanup] Database error during cleanup:", error_message);
+    return res.status(500).json({ error: "Database error during cleanup" });
+  }
+
+  console.log(`[cleanup] Deleted ${deleted_count} accounts.`);
+
+  return res.status(200).json({ deleted: deleted_count });
 }
