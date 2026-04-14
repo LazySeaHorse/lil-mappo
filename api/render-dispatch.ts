@@ -36,27 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const durationSec = (endTime ?? (projectData.duration as number ?? 30)) - startTime;
 
-  // ── 3. Parallel render limit check ───────────────────────────────────────────
-  const { data: sub } = await supabase
-    .from('subscriptions')
-    .select('parallel_renders')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .maybeSingle();
-
-  const parallelLimit: number = sub?.parallel_renders ?? 1;
-
-  const { count: activeCount } = await supabase
-    .from('render_jobs')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .in('status', ['queued', 'rendering']);
-
-  if ((activeCount ?? 0) >= parallelLimit) {
-    return res.status(429).json({ error: `Parallel render limit (${parallelLimit}) reached. Wait for a render to finish.` });
-  }
-
-  // ── 4. Credit deduction ───────────────────────────────────────────────────────
+  // ── 3. Credit deduction ───────────────────────────────────────────────────────
   const totalCredits = calculateRenderCredits(renderConfig.exportResolution, durationSec, renderConfig.fps);
 
   const { data: creditResult, error: creditError } = await supabase.rpc('deduct_render_credits', {
@@ -71,34 +51,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const [{ monthly_charged, purchased_charged }] = creditResult as { monthly_charged: number; purchased_charged: number }[];
 
-  // ── 5. Generate render secret ─────────────────────────────────────────────────
+  // ── 4. Generate render secret ─────────────────────────────────────────────────
   const renderSecret = crypto.randomBytes(32).toString('hex');
   const renderSecretHash = crypto.createHash('sha256').update(renderSecret).digest('hex');
 
-  // ── 6. Insert render_jobs row ─────────────────────────────────────────────────
-  const { data: job, error: insertError } = await supabase
-    .from('render_jobs')
-    .insert({
-      user_id: user.id,
-      status: 'queued',
-      fps: renderConfig.fps,
-      duration_sec: durationSec,
-      credits_cost: totalCredits,
-      gpu: true,
-      aspect_ratio: renderConfig.aspectRatio,
-      resolution_preset: renderConfig.exportResolution,
-      is_vertical: renderConfig.isVertical,
-      render_config: renderConfig,
-      project_data: projectData,
-      render_secret_hash: renderSecretHash,
-      monthly_credits_charged: monthly_charged,
-      purchased_credits_charged: purchased_charged,
-    })
-    .select('id')
-    .single();
+  // ── 5. Atomically check parallel limit and insert render_jobs row ─────────────
+  // create_render_job acquires a per-user advisory lock in Postgres, so the
+  // count check and insert are never interleaved by concurrent requests.
+  const { data: rpcResult, error: rpcError } = await supabase.rpc('create_render_job', {
+    p_user_id: user.id,
+    p_fps: renderConfig.fps,
+    p_duration_sec: durationSec,
+    p_credits_cost: totalCredits,
+    p_aspect_ratio: renderConfig.aspectRatio,
+    p_resolution_preset: renderConfig.exportResolution,
+    p_is_vertical: renderConfig.isVertical,
+    p_render_config: renderConfig,
+    p_project_data: projectData,
+    p_render_secret_hash: renderSecretHash,
+    p_monthly_credits_charged: monthly_charged,
+    p_purchased_credits_charged: purchased_charged,
+  });
 
-  if (insertError || !job) {
-    // Refund on insert failure
+  if (rpcError || !rpcResult) {
     await supabase.rpc('refund_render_credits', {
       p_user_id: user.id,
       p_monthly_amount: monthly_charged,
@@ -107,20 +82,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Failed to create render job' });
   }
 
-  // ── 7. Trigger Modal worker ───────────────────────────────────────────────────
+  if (rpcResult.error === 'limit_exceeded') {
+    await supabase.rpc('refund_render_credits', {
+      p_user_id: user.id,
+      p_monthly_amount: monthly_charged,
+      p_purchased_amount: purchased_charged,
+    });
+    return res.status(429).json({ error: `Parallel render limit (${rpcResult.limit}) reached. Wait for a render to finish.` });
+  }
+
+  const jobId = rpcResult.job_id as string;
+
+  // ── 6. Trigger Modal worker ───────────────────────────────────────────────────
   try {
     const webhookRes = await fetch(process.env.MODAL_WEBHOOK_URL!, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jobId: job.id,
-        renderSecret,
-        appUrl: process.env.APP_URL ?? 'https://app.lilmappo.tech',
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.MODAL_DISPATCH_SECRET}`,
+      },
+      body: JSON.stringify({ jobId, renderSecret }),
     });
     if (!webhookRes.ok) throw new Error(`Modal webhook returned ${webhookRes.status}`);
   } catch (e: any) {
-    // Refund and mark failed if Modal is unreachable
     await supabase.rpc('refund_render_credits', {
       p_user_id: user.id,
       p_monthly_amount: monthly_charged,
@@ -129,9 +113,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await supabase
       .from('render_jobs')
       .update({ status: 'failed', error_message: `Failed to dispatch to worker: ${e.message}` })
-      .eq('id', job.id);
+      .eq('id', jobId);
     return res.status(502).json({ error: 'Failed to dispatch render worker' });
   }
 
-  return res.status(200).json({ jobId: job.id });
+  return res.status(200).json({ jobId });
 }

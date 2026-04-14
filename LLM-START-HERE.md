@@ -756,19 +756,23 @@ The local video export pipeline (`src/services/videoExport.ts`) was broken by re
 **Modal Worker** (`modal/render_worker.py`):
 - **Docker image**: Debian slim + playwright + chromium.
 - **Resources**: T4 GPU, 8GB memory, 4 CPU, 1hr timeout.
-- **`dispatch_render(data: dict)` web endpoint** (POST):
-  - Lightweight, fire-and-forget.
+- **Secrets**: Modal secrets `lil-mappo-dispatch-secret` (shared auth secret + APP_URL).
+- **`dispatch_render(data: dict, request)` web endpoint** (POST):
+  - Validates `Authorization: Bearer ${MODAL_DISPATCH_SECRET}` header using constant-time comparison (`hmac.compare_digest`).
+  - Accepts only `jobId` and `renderSecret` in request body (no `appUrl` to prevent SSRF).
   - Spawns `run_render_background.spawn()` background task.
   - Returns immediately to Vercel (< 10s timeout).
+  - Returns 401 Unauthorized if secret is missing or invalid.
 - **`run_render_background(job_id, render_secret, app_url)` background task**:
+  - `app_url` is resolved from Modal secret environment (not from caller).
   - Launches headless Chromium with `--no-sandbox --disable-dev-shm-usage --enable-gpu --use-gl=egl`.
   - Navigates to `{app_url}?render_job={job_id}&render_secret={render_secret}`.
   - Logs browser console/errors.
   - Waits up to 50 minutes for `window.__renderResult` to be set (HeadlessRenderer completion signal).
   - Closes browser.
-- **Deploy**: `modal deploy modal/render_worker.py` (outputs webhook URL for `MODAL_WEBHOOK_URL` env var).
+- **Deploy**: `modal deploy modal/render_worker.py` (outputs webhook URL for `MODAL_WEBHOOK_URL` env var). Then create Modal secret: `modal secret create lil-mappo-dispatch-secret MODAL_DISPATCH_SECRET=<strong-random-value> APP_URL=<app_url>`.
 
-**Credit System Atomicity** (Postgres Migrations 011+):
+**Credit System Atomicity** (Postgres Migrations 011–012):
 - **`deduct_render_credits(p_user_id, p_total_credits)` RPC**:
   - Locks `credit_balance` row with `FOR UPDATE`.
   - Deducts monthly first, then purchased (preserves monthly credits for subscription periods).
@@ -778,6 +782,15 @@ The local video export pipeline (`src/services/videoExport.ts`) was broken by re
   
 - **`refund_render_credits(p_user_id, p_monthly_amount, p_purchased_amount)` RPC**:
   - Atomically refunds exact split.
+  - Revoked from PUBLIC, anon, authenticated — service_role only.
+
+- **`create_render_job(...)` RPC (Migration 012)**:
+  - **Atomicity via advisory lock**: Acquires per-user advisory lock `pg_advisory_xact_lock(hashtext(p_user_id::TEXT))` for duration of transaction. Serializes concurrent render requests from the same user without blocking other users.
+  - Resolves subscription parallel-render limit.
+  - Counts active queued/rendering jobs.
+  - Returns error if at or over limit (`{ error: 'limit_exceeded', limit: N }`).
+  - Otherwise inserts render_jobs row and returns `{ job_id: ... }`.
+  - Closes the TOCTOU race condition that existed when count check and insert were separate API operations.
   - Revoked from PUBLIC, anon, authenticated — service_role only.
 
 - **One-time secret validation**: Render secret is hashed (SHA-256) in DB. After `/api/render-complete` or `/api/render-fail` completes, `render_secret_hash` is set to null, invalidating further requests with that secret.
@@ -803,6 +816,8 @@ The local video export pipeline (`src/services/videoExport.ts`) was broken by re
 
 **Environment Variables**:
 - `MODAL_WEBHOOK_URL` — from Modal deploy output (`api/render-dispatch.ts` POSTs here).
+- `MODAL_DISPATCH_SECRET` — shared secret for `dispatch_render` authentication (must match Modal secret).
+- `APP_URL` — canonical app URL (e.g., `https://app.lilmappo.tech`), passed to Modal worker.
 - `DO_SPACES_KEY` / `DO_SPACES_SECRET` — DigitalOcean Spaces API credentials (used by `api/render-presign.ts`).
 - `DO_SPACES_REGION` — e.g., `"nyc3"`.
 - `DO_SPACES_BUCKET` — e.g., `"lilmappo"`.
@@ -1059,6 +1074,34 @@ Earlier analysis suggested that `subscription.cancelled` arriving after `subscri
 - The `subscription.expired` handler sets `dodo_subscription_id: null` (line 453).
 - The `subscription.cancelled` handler does `.eq("dodo_subscription_id", sub.subscription_id)` to find the row.
 - Concurrent or out-of-order execution both resolve correctly; no user data is lost.
+
+**Issue 20: Unauthenticated & Unvalidated Modal Webhook (Critical)**
+
+The `dispatch_render` endpoint in `modal/render_worker.py` was publicly accessible and did not validate the `appUrl` parameter, creating two attack surfaces:
+
+1. **Resource Exhaustion**: Anyone who discovered the Modal webhook URL could POST render jobs without authentication, spawning GPU-intensive Chromium instances and draining credits in seconds.
+2. **SSRF (Server-Side Request Forgery)**: The `appUrl` parameter was accepted from the request body and directly passed to headless Chromium via `page.goto()`. An attacker could force Modal GPU workers to navigate to internal metadata services (e.g., `http://169.254.169.254/`) or arbitrary internal hosts, enabling network reconnaissance and port scanning.
+
+**Fix** (modal/render_worker.py + migration 012):
+- Added **Authentication**: `dispatch_render` now validates an `Authorization: Bearer ${MODAL_DISPATCH_SECRET}` header using constant-time comparison (`hmac.compare_digest`). Shared secret is configured via Modal secret `lil-mappo-dispatch-secret`.
+- **Eliminated SSRF**: `appUrl` is no longer accepted from the request body. Instead, it is resolved from the Modal secret environment variable, ensuring only the configured canonical app URL is ever used.
+- `api/render-dispatch.ts` now includes `MODAL_DISPATCH_SECRET` in the Authorization header when POSTing to the Modal webhook.
+
+**Issue 21: Race Condition in Parallel Render Limit (Medium)**
+
+The check for a user's active render count and the insertion of a new render job were separate, non-atomic operations in `api/render-dispatch.ts`:
+1. SELECT COUNT(*) to check if user is at their parallel limit.
+2. Separate INSERT into render_jobs.
+
+A user could send two simultaneous requests; both would see `activeCount < parallelLimit` before either had inserted, both would pass validation, and both would insert — bypassing the parallel-render quota.
+
+**Fix** (api/render-dispatch.ts + migration 012):
+- Introduced new `create_render_job()` Postgres RPC function (Migration 012).
+- The RPC acquires a per-user advisory lock (`pg_advisory_xact_lock(hashtext(p_user_id::TEXT))`) at the start of the transaction.
+- Concurrent requests from the same user queue at the database level. Other users are unaffected.
+- Count check and INSERT happen atomically inside the lock, eliminating the TOCTOU window.
+- Returns `{ error: 'limit_exceeded', limit: N }` if at/over limit, or `{ job_id: '...' }` on success.
+- `api/render-dispatch.ts` now calls `supabase.rpc('create_render_job', {...})` instead of separate SELECT + INSERT operations.
 
 **Issue 22: Mobile UI Overlap & Viewport Height (Resolved)**
 

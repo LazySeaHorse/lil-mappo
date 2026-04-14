@@ -14,10 +14,18 @@ After deploying, copy the printed web endpoint URL into the Vercel env var
 MODAL_WEBHOOK_URL.
 
 Required Vercel env vars:
-  MODAL_WEBHOOK_URL — from Modal deploy output
-  APP_URL           — e.g. https://app.lilmappo.tech
-  DO_SPACES_*       — DigitalOcean Spaces credentials (used by the app, not Modal)
+  MODAL_WEBHOOK_URL      — from Modal deploy output
+  MODAL_DISPATCH_SECRET  — shared secret; must match the Modal secret of the same name
+  APP_URL                — e.g. https://app.lilmappo.tech
+  DO_SPACES_*            — DigitalOcean Spaces credentials (used by the app, not Modal)
+
+Required Modal secret (modal secret create lil-mappo-dispatch-secret):
+  MODAL_DISPATCH_SECRET  — same value as the Vercel env var
+  APP_URL                — e.g. https://app.lilmappo.tech
 """
+
+import hmac
+import os
 
 import modal
 
@@ -93,17 +101,39 @@ def run_render_background(job_id: str, render_secret: str, app_url: str):
 @app.function(
     image=modal.Image.debian_slim(python_version="3.11").pip_install("fastapi[standard]"),
     timeout=30,
+    secrets=[modal.Secret.from_name("lil-mappo-dispatch-secret")],
 )
 @modal.fastapi_endpoint(method="POST")
-def dispatch_render(data: dict):
+def dispatch_render(data: dict, request: object):
     """
-    Lightweight web endpoint — immediately spawns run_render_background as a
-    fire-and-forget task and returns, so Vercel's POST to this endpoint
-    completes in well under its 10s response timeout.
+    Lightweight web endpoint — validates the shared dispatch secret, then
+    immediately spawns run_render_background as a fire-and-forget task and
+    returns, so Vercel's POST to this endpoint completes in well under its
+    10s response timeout.
+
+    `request` is injected by FastAPI as a starlette.requests.Request; typed
+    as object here to avoid importing FastAPI at module level.
     """
+    from fastapi import HTTPException, Request as FastAPIRequest
+
+    req: FastAPIRequest = request  # type: ignore[assignment]
+
+    # Reject requests that don't carry the shared dispatch secret.
+    # hmac.compare_digest prevents timing-based secret enumeration.
+    expected_secret = os.environ.get("MODAL_DISPATCH_SECRET", "")
+    if not expected_secret:
+        raise HTTPException(status_code=500, detail="Server misconfiguration: missing dispatch secret")
+
+    provided = req.headers.get("authorization", "")
+    if not hmac.compare_digest(provided, f"Bearer {expected_secret}"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     job_id = data["jobId"]
     render_secret = data["renderSecret"]
-    app_url = data.get("appUrl", "https://app.lilmappo.tech")
+
+    # APP_URL comes from the Modal secret, not from the caller, eliminating
+    # the SSRF surface that existed when it was accepted as a request param.
+    app_url = os.environ.get("APP_URL", "https://app.lilmappo.tech")
 
     print(f"[dispatch_render] Spawning render for job {job_id}")
     run_render_background.spawn(job_id, render_secret, app_url)
