@@ -16,6 +16,7 @@ function TierCard({
   planSlug,
   highlight,
   isCurrent,
+  comingSoon,
   onCheckout,
 }: {
   name: string;
@@ -26,12 +27,16 @@ function TierCard({
   planSlug: PlanSlug;
   highlight?: boolean;
   isCurrent?: boolean;
+  // CLOUD RENDERING TEMPORARILY DISABLED — not dead code.
+  // Remove comingSoon prop and restore normal behaviour once GPU acceleration
+  // is working in the Modal render worker.
+  comingSoon?: boolean;
   onCheckout?: (plan: PlanSlug) => void;
 }) {
   const { startCheckout } = useAuthStore();
 
   const handleClick = () => {
-    if (isCurrent) return;
+    if (isCurrent || comingSoon) return;
     if (onCheckout) {
       onCheckout(planSlug);
     } else {
@@ -41,12 +46,21 @@ function TierCard({
 
   return (
     <div
-      className={`relative flex flex-col rounded-2xl p-4 border transition-all ${highlight
-        ? "bg-primary/5 border-primary/30 shadow-xl shadow-primary/5 scale-[1.02] z-10"
-        : "bg-secondary/20 border-border/50 hover:bg-secondary/40"
+      className={`relative flex flex-col rounded-2xl p-4 border transition-all ${comingSoon
+        ? "bg-secondary/10 border-border/30 opacity-50 cursor-not-allowed"
+        : highlight
+          ? "bg-primary/5 border-primary/30 shadow-xl shadow-primary/5 scale-[1.02] z-10"
+          : "bg-secondary/20 border-border/50 hover:bg-secondary/40"
         }`}
     >
-      {highlight && (
+      {comingSoon && (
+        <div className="absolute -top-3 inset-x-0 flex justify-center">
+          <span className="bg-muted text-muted-foreground text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
+            soon™
+          </span>
+        </div>
+      )}
+      {!comingSoon && highlight && (
         <div className="absolute -top-3 inset-x-0 flex justify-center">
           <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
             Popular
@@ -92,12 +106,12 @@ function TierCard({
       </div>
 
       <Button
-        variant={highlight ? "default" : "secondary"}
-        className={`w-full h-8 text-xs rounded-lg font-semibold ${highlight ? "shadow-md" : ""}`}
-        disabled={isCurrent}
+        variant={highlight && !comingSoon ? "default" : "secondary"}
+        className={`w-full h-8 text-xs rounded-lg font-semibold ${highlight && !comingSoon ? "shadow-md" : ""}`}
+        disabled={isCurrent || comingSoon}
         onClick={handleClick}
       >
-        {isCurrent ? "Current Plan" : "Subscribe"}
+        {isCurrent ? "Current Plan" : comingSoon ? "Coming soon" : "Subscribe"}
       </Button>
     </div>
   );
@@ -153,6 +167,9 @@ export function SubscriptionTiers({
           isCurrent={highlightCurrent && tierSlug === "wanderer"}
           onCheckout={handleCheckout}
         />
+        {/* CLOUD RENDERING TEMPORARILY DISABLED — not dead code.
+            Remove comingSoon props from Cartographer and Pioneer once GPU
+            acceleration is working in the Modal render worker. */}
         <TierCard
           name={PLAN_CONFIG.cartographer.name}
           price={PLAN_CONFIG.cartographer.price}
@@ -161,6 +178,7 @@ export function SubscriptionTiers({
           saves="Unlimited cloud saves"
           planSlug="cartographer"
           highlight
+          comingSoon
           isCurrent={highlightCurrent && tierSlug === "cartographer"}
           onCheckout={handleCheckout}
         />
@@ -171,6 +189,7 @@ export function SubscriptionTiers({
           parallel={`${PLAN_CONFIG.pioneer.parallelRenders} parallel renders`}
           saves="Unlimited cloud saves"
           planSlug="pioneer"
+          comingSoon
           isCurrent={highlightCurrent && tierSlug === "pioneer"}
           onCheckout={handleCheckout}
         />

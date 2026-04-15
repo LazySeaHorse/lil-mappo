@@ -103,11 +103,14 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
           <DropdownMenuItem onClick={openSettingsModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Settings2 size={14} /> Settings
           </DropdownMenuItem>
+          {/* CLOUD RENDERS TEMPORARILY DISABLED — not dead code.
+              Re-enable once GPU acceleration is working in the Modal render worker.
           {user && (
             <DropdownMenuItem onClick={openRendersModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
               <Clapperboard size={14} /> My Renders
             </DropdownMenuItem>
           )}
+          */}
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
           {user ? (
             <DropdownMenuItem onClick={signOut} variant="destructive" className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">

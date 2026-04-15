@@ -49,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       Bucket: process.env.DO_SPACES_BUCKET!,
       Key: outputKey,
       ContentType: 'video/mp4',
+      ACL: 'public-read',
     }),
     { expiresIn: 3600 },
   );

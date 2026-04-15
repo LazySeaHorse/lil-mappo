@@ -94,13 +94,17 @@ function CreditsModalBody() {
   return (
     <div className="px-6 pb-6 pt-2 max-h-[75vh] md:max-h-none overflow-y-auto">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6 bg-secondary/50 p-1 rounded-2xl">
+        {/* TOP-UP CREDITS TEMPORARILY DISABLED — not dead code.
+            Re-enable the second TabsTrigger and TabsContent below once cloud
+            rendering (and therefore credits) is live and working. Also restore
+            grid-cols-2 on TabsList. */}
+        <TabsList className="grid w-full grid-cols-1 mb-6 bg-secondary/50 p-1 rounded-2xl">
           <TabsTrigger value="plans" className="rounded-xl text-sm font-medium">
             Subscriptions
           </TabsTrigger>
-          <TabsTrigger value="topup" className="rounded-xl text-sm font-medium">
+          {/* <TabsTrigger value="topup" className="rounded-xl text-sm font-medium">
             Top Up Credits
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         {/* ── Plans tab ── */}
@@ -148,116 +152,120 @@ function CreditsModalBody() {
           />
         </TabsContent>
 
-        {/* ── Top Up tab ── */}
-        <TabsContent value="topup" className="space-y-4 mt-0 outline-none">
-          {/* Benefit callout — always visible */}
-          <div className="bg-secondary/30 rounded-2xl border border-border/40 p-4 space-y-2.5">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-              What you get
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Timer size={13} className="text-primary shrink-0" />
-                <span>Unlocks the 30-second timeline limit on all exports</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Cloud size={13} className="text-primary shrink-0" />
-                <span>Free cloud saves while your credit balance is positive</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <InfinityIcon size={13} className="text-primary shrink-0" />
-                <span>Credits never expire</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Slider + checkout — visible to everyone */}
-          <div className="bg-gradient-to-tr from-secondary/30 via-secondary/10 to-transparent rounded-2xl border border-border/50 p-6 shadow-inner">
-            <div className="flex justify-between items-end mb-8">
-              <div>
-                <h3 className="text-lg font-bold">Pay as you go</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Purchase credits that never expire.
-                </p>
-              </div>
-              <div className="text-right">
-                <span className="text-3xl font-black text-primary">
-                  ${purchaseAmount}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <Slider
-                min={minAmount}
-                max={maxAmount}
-                step={5}
-                value={[purchaseAmount]}
-                onValueChange={(val) => setPurchaseAmount(val[0])}
-                className="cursor-grab active:cursor-grabbing py-2"
-              />
-              <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground px-1">
-                <span>${minAmount}</span>
-                <span>${maxAmount}</span>
-              </div>
-            </div>
-
-            <div className="mt-8 bg-background/50 rounded-xl p-4 border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <Coins size={20} className="text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">You will receive</p>
-                  <p className="text-2xl font-black tracking-tight tabular-nums mt-0.5">
-                    {creditsToGet.toLocaleString()}{" "}
-                    <span className="text-sm font-medium text-muted-foreground ml-1">
-                      credits
-                    </span>
-                  </p>
-                  <p className="text-[11px] font-bold text-primary flex items-center gap-1 mt-1">
-                    <Timer size={11} /> ~{minutesToGet.toLocaleString()} mins of 1080p
-                  </p>
-                </div>
-              </div>
-              <Button
-                className="h-11 w-full sm:w-auto px-8 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5"
-                onClick={() => startCheckout("topup", purchaseAmount)}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                {user ? "Checkout" : "Get Started"}
-              </Button>
-            </div>
-
-            {!user && (
-              <p className="text-[11px] text-muted-foreground/60 text-center mt-3">
-                You'll create an account as part of the checkout flow.
+        {/* TOP-UP CREDITS TEMPORARILY DISABLED — not dead code.
+            Re-enable by restoring the TabsTrigger above (grid-cols-2) and
+            unwrapping the false && block below once cloud rendering is live. */}
+        {false && (
+          <TabsContent value="topup" className="space-y-4 mt-0 outline-none">
+            {/* Benefit callout — always visible */}
+            <div className="bg-secondary/30 rounded-2xl border border-border/40 p-4 space-y-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                What you get
               </p>
-            )}
-          </div>
-
-          {/* Credit balance for signed-in users */}
-          {user && hasActiveSubscription && (
-            <div className="bg-secondary/20 rounded-xl border border-border/30 p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Coins size={13} className="text-amber-500 shrink-0" />
-                <span>Current balance</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {(credits?.monthly_credits ?? 0) > 0 && (
-                  <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                    <Clock size={10} /> {credits!.monthly_credits} Monthly
-                  </span>
-                )}
-                {(credits?.purchased_credits ?? 0) > 0 && (
-                  <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                    <Zap size={10} /> {credits!.purchased_credits} Purchased
-                  </span>
-                )}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Timer size={13} className="text-primary shrink-0" />
+                  <span>Unlocks the 30-second timeline limit on all exports</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Cloud size={13} className="text-primary shrink-0" />
+                  <span>Free cloud saves while your credit balance is positive</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <InfinityIcon size={13} className="text-primary shrink-0" />
+                  <span>Credits never expire</span>
+                </div>
               </div>
             </div>
-          )}
-        </TabsContent>
+
+            {/* Slider + checkout — visible to everyone */}
+            <div className="bg-gradient-to-tr from-secondary/30 via-secondary/10 to-transparent rounded-2xl border border-border/50 p-6 shadow-inner">
+              <div className="flex justify-between items-end mb-8">
+                <div>
+                  <h3 className="text-lg font-bold">Pay as you go</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Purchase credits that never expire.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-black text-primary">
+                    ${purchaseAmount}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <Slider
+                  min={minAmount}
+                  max={maxAmount}
+                  step={5}
+                  value={[purchaseAmount]}
+                  onValueChange={(val) => setPurchaseAmount(val[0])}
+                  className="cursor-grab active:cursor-grabbing py-2"
+                />
+                <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground px-1">
+                  <span>${minAmount}</span>
+                  <span>${maxAmount}</span>
+                </div>
+              </div>
+
+              <div className="mt-8 bg-background/50 rounded-xl p-4 border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                    <Coins size={20} className="text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">You will receive</p>
+                    <p className="text-2xl font-black tracking-tight tabular-nums mt-0.5">
+                      {creditsToGet.toLocaleString()}{" "}
+                      <span className="text-sm font-medium text-muted-foreground ml-1">
+                        credits
+                      </span>
+                    </p>
+                    <p className="text-[11px] font-bold text-primary flex items-center gap-1 mt-1">
+                      <Timer size={11} /> ~{minutesToGet.toLocaleString()} mins of 1080p
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  className="h-11 w-full sm:w-auto px-8 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5"
+                  onClick={() => startCheckout("topup", purchaseAmount)}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  {user ? "Checkout" : "Get Started"}
+                </Button>
+              </div>
+
+              {!user && (
+                <p className="text-[11px] text-muted-foreground/60 text-center mt-3">
+                  You'll create an account as part of the checkout flow.
+                </p>
+              )}
+            </div>
+
+            {/* Credit balance for signed-in users */}
+            {user && hasActiveSubscription && (
+              <div className="bg-secondary/20 rounded-xl border border-border/30 p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Coins size={13} className="text-amber-500 shrink-0" />
+                  <span>Current balance</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {(credits?.monthly_credits ?? 0) > 0 && (
+                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
+                      <Clock size={10} /> {credits!.monthly_credits} Monthly
+                    </span>
+                  )}
+                  {(credits?.purchased_credits ?? 0) > 0 && (
+                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
+                      <Zap size={10} /> {credits!.purchased_credits} Purchased
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

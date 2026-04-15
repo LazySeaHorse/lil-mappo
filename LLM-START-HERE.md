@@ -212,20 +212,34 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 ### 6.5 Cloud Rendering Pipeline
 
+**⚠️ STATUS: Temporarily disabled in the UI.** The pipeline is fully implemented and functional but produces poor quality output because headless Chromium on Modal falls back to SwiftShader (CPU software rasterizer) instead of using the GPU. GPU acceleration requires NVIDIA's rendering stack (OpenGL/Vulkan ICD) which is not available in Modal's standard CUDA containers. Re-enable once this is resolved.
+
+**What's disabled (commented out, not deleted)**:
+- Cloud Render button in `ExportModal` (shows "soon™")
+- My Renders menu item in `AvatarMenu`
+- Cartographer and Pioneer subscription tiers in `SubscriptionTiers` (show "soon™")
+- Top Up Credits tab in `CreditsModal`
+
 **Architecture**:
 1. User clicks "Export" → `ExportModal` collects frame range, resolution, FPS.
-2. `api/render-dispatch.ts` validates, deducts credits, inserts `render_jobs` row, POSTs config to Modal (headless renderer).
-3. Modal worker encodes frames, POSTs blob to presigned DigitalOcean Spaces URL.
-4. Dodo webhook receives render status updates → updates `render_jobs` table.
-5. **"My Renders"** modal fetches jobs, displays status (Queued/Rendering/Done/Failed) + download links.
+2. `api/render-dispatch.ts` validates, deducts credits, inserts `render_jobs` row, POSTs `{ jobId, renderSecret }` to Modal.
+3. Modal's `dispatch_render` (FastAPI endpoint) spawns `run_render_background` fire-and-forget.
+4. `run_render_background` boots headless Chromium (SwiftShader), loads app in render mode via `?render_job=&render_secret=` URL params.
+5. `HeadlessRenderer.tsx` runs the WebCodecs export pipeline, triggers a browser download of the MP4 blob.
+6. Playwright intercepts the download and saves to `/tmp/{jobId}.mp4`.
+7. Python calls `api/render-presign` (Vercel) via urllib to get a presigned DO Spaces PUT URL, then uploads via `curl`.
+8. Python calls `api/render-complete` (Vercel) with the output URL.
+9. **"My Renders"** modal fetches jobs, displays status (Queued/Rendering/Done/Failed) + download links.
 
-**Key Design**: **Presigned S3 URLs** let the renderer bypass Vercel's request size limits. Videos expire after 24 hours.
+**Key Design**: Upload goes Modal → Vercel (presign) → curl PUT to DO Spaces. The Modal worker never holds DO Spaces credentials — Vercel generates the presigned URL server-side. This avoids DNS resolution issues for external hostnames inside the Modal container.
 
 **Two-Phase Progress Reporting**: `onProgress(pct, phase)` with `'prewarm' | 'capture'` phases for precise UI feedback.
 
 **Tile Cache Prewarm**: 24-frame scrub before actual capture, waiting for `map.once('idle')` (max 2s/frame) to pre-load tiles.
 
 **Encoder Back-Pressure**: Monitor `videoEncoder.encodeQueueSize`. If > 8, wait via requestAnimationFrame drain loop until <= 4 before encoding next frame.
+
+**WebCodecs config**: Uses `hardwareAcceleration: 'prefer-software'` + `VideoEncoder.isConfigSupported()` pre-check. Hardware H.264 (NVENC) is not accessible in Playwright's Chromium on Modal containers even with a GPU present.
 
 ### 6.6 Export & Snapshot Services
 

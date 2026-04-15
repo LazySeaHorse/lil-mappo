@@ -1,7 +1,7 @@
 """
 li'l Mappo — Cloud Render Worker
 =================================
-Runs headless Chromium on a Modal T4 GPU instance.
+Runs headless Chromium (SwiftShader software renderer) on a Modal CPU instance.
 
 Architecture (two-function pattern):
   dispatch_render        — lightweight web endpoint, validates the dispatch
@@ -53,44 +53,35 @@ except ImportError:
 
 app = modal.App("lil-mappo-renderer")
 
-# CUDA base image gives Chromium access to the T4's NVIDIA Vulkan driver
-# (bind-mounted from the host by Modal). libvulkan1 provides the Vulkan loader;
-# the NVIDIA ICD is supplied by the host driver. Chromium uses ANGLE's Vulkan
-# backend for hardware-accelerated WebGL instead of falling back to SwiftShader.
 render_image = (
-    modal.Image.from_registry(
-        "nvidia/cuda:12.3.0-base-ubuntu22.04",
-        add_python="3.11",
-    )
-    .apt_install(["libvulkan1", "mesa-vulkan-drivers"])
-    .pip_install("playwright==1.44.0", "boto3==1.34.0", "requests==2.31.0")
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install(["curl"])
+    .pip_install("playwright==1.44.0")
     .run_commands("playwright install chromium --with-deps")
 )
 
 
 @app.function(
     image=render_image,
-    gpu="T4",
     timeout=3600,
     memory=8192,
     cpu=4.0,
-    secrets=[modal.Secret.from_name("lil-mappo-spaces-secret")],
 )
 def run_render_background(job_id: str, render_secret: str, app_url: str):
     """
-    1. Boots headless Chromium with NVIDIA Vulkan-backed WebGL.
+    1. Boots headless Chromium (SwiftShader).
     2. Loads the app in render mode; HeadlessRenderer runs the export pipeline.
     3. On success HeadlessRenderer triggers a browser download of the MP4.
        Playwright intercepts it and saves to a temp file.
-    4. This function uploads the file to DO Spaces via boto3 and calls
-       /api/render-complete.
+    4. Calls /api/render-presign (urllib) to get a presigned DO Spaces PUT URL,
+       uploads via curl, then calls /api/render-complete.
     5. On render failure HeadlessRenderer already called /api/render-fail via
        signalFailure(), so nothing more is needed here.
     """
+    import json
+    import subprocess
     import time
-
-    import boto3
-    import requests as http
+    import urllib.request
     from playwright.sync_api import sync_playwright
 
     url = f"{app_url}?render_job={job_id}&render_secret={render_secret}"
@@ -105,11 +96,7 @@ def run_render_background(job_id: str, render_secret: str, app_url: str):
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
-                "--enable-gpu",
-                "--use-gl=angle",
-                "--use-angle=vulkan",
-                "--ignore-gpu-blocklist",
-                "--disable-gpu-sandbox",
+                "--use-gl=swiftshader",
             ],
         )
         context = browser.new_context(
@@ -158,42 +145,47 @@ def run_render_background(job_id: str, render_secret: str, app_url: str):
     else:
         raise RuntimeError(f"Download file not found at {download_path} after render")
 
-    # Upload to DigitalOcean Spaces
+    def api_post(path: str, body: dict) -> dict:
+        data = json.dumps(body).encode()
+        req = urllib.request.Request(
+            f"{app_url}{path}",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+
     try:
-        bucket = os.environ["DO_SPACES_BUCKET"]
-        endpoint = os.environ["DO_SPACES_ENDPOINT"]
-        output_key = f"renders/{job_id}.mp4"
+        # Get presigned PUT URL from Vercel (same origin — always reachable)
+        print("[render_worker] Fetching presigned upload URL ...")
+        presign = api_post("/api/render-presign", {"jobId": job_id, "secret": render_secret})
+        presigned_url = presign["presignedUrl"]
+        output_url = presign["outputUrl"]
 
-        s3 = boto3.client(
-            "s3",
-            region_name=os.environ["DO_SPACES_REGION"],
-            endpoint_url=f"https://{endpoint}",
-            aws_access_key_id=os.environ["DO_SPACES_KEY"],
-            aws_secret_access_key=os.environ["DO_SPACES_SECRET"],
+        # Upload via curl — no Python HTTP library involved
+        print(f"[render_worker] Uploading to DO Spaces via curl ...")
+        subprocess.run(
+            [
+                "curl", "--fail", "--silent", "--show-error",
+                "-X", "PUT",
+                "-H", "Content-Type: video/mp4",
+                "--data-binary", f"@{download_path}",
+                presigned_url,
+            ],
+            check=True,
         )
-
-        print(f"[render_worker] Uploading to {bucket}/{output_key} ...")
-        s3.upload_file(
-            download_path, bucket, output_key,
-            ExtraArgs={"ContentType": "video/mp4"},
-        )
-        output_url = f"https://{bucket}.{endpoint}/{output_key}"
         print(f"[render_worker] Upload complete: {output_url}")
 
-        resp = http.post(
-            f"{app_url}/api/render-complete",
-            json={"jobId": job_id, "secret": render_secret, "outputUrl": output_url},
-            timeout=30,
-        )
-        print(f"[render_worker] render-complete: {resp.status_code}")
+        result = api_post("/api/render-complete", {"jobId": job_id, "secret": render_secret, "outputUrl": output_url})
+        print(f"[render_worker] render-complete: {result}")
 
     except Exception as e:
         print(f"[render_worker] Upload/complete failed: {e}")
-        http.post(
-            f"{app_url}/api/render-fail",
-            json={"jobId": job_id, "secret": render_secret, "errorMessage": str(e)},
-            timeout=30,
-        )
+        try:
+            api_post("/api/render-fail", {"jobId": job_id, "secret": render_secret, "errorMessage": str(e)})
+        except Exception:
+            pass
 
 
 @app.function(

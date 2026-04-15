@@ -299,6 +299,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
 
         {/* Footer */}
         <div className="flex items-center gap-3 px-5 py-5 border-t border-border bg-secondary/10">
+          {/* CLOUD RENDERING TEMPORARILY DISABLED — not dead code.
+              Re-enable once GPU acceleration is working in the Modal render worker.
           <Button
             variant="outline"
             onClick={handleCloudRender}
@@ -308,6 +310,16 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             <Cloud size={16} className={isExporting || cloudSubmitted ? 'text-muted-foreground' : 'text-primary'} />
             <span className="shrink-0 font-medium whitespace-nowrap">Cloud Render &middot; {credits} cr</span>
             <ProBadge />
+          </Button>
+          */}
+          <Button
+            variant="outline"
+            disabled
+            className="flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-2 opacity-40 border-dashed cursor-not-allowed"
+          >
+            <Cloud size={16} className="text-muted-foreground" />
+            <span className="font-medium whitespace-nowrap">Cloud Render</span>
+            <span className="text-[10px] text-muted-foreground font-normal">soon™</span>
           </Button>
 
           {isExporting ? (
