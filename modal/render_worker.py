@@ -29,6 +29,17 @@ import os
 
 import modal
 
+# Request is only available in the fastapi container (dispatch_render's image),
+# not in the playwright container (run_render_background's image). The try/except
+# lets Modal import this module in all containers without crashing.
+# FastAPI uses the resolved type annotation to decide whether to inject the
+# starlette Request object or treat the parameter as a body/query field —
+# "object" was causing FastAPI to expect a "request" key in the JSON body → 422.
+try:
+    from starlette.requests import Request as _Request
+except ImportError:
+    _Request = object  # type: ignore[assignment, misc]
+
 app = modal.App("lil-mappo-renderer")
 
 render_image = (
@@ -104,19 +115,16 @@ def run_render_background(job_id: str, render_secret: str, app_url: str):
     secrets=[modal.Secret.from_name("lil-mappo-dispatch-secret")],
 )
 @modal.fastapi_endpoint(method="POST")
-def dispatch_render(data: dict, request: object):
+def dispatch_render(data: dict, request: _Request):
     """
     Lightweight web endpoint — validates the shared dispatch secret, then
     immediately spawns run_render_background as a fire-and-forget task and
     returns, so Vercel's POST to this endpoint completes in well under its
     10s response timeout.
-
-    `request` is injected by FastAPI as a starlette.requests.Request; typed
-    as object here to avoid importing FastAPI at module level.
     """
-    from fastapi import HTTPException, Request as FastAPIRequest
+    from fastapi import HTTPException
 
-    req: FastAPIRequest = request  # type: ignore[assignment]
+    req = request
 
     # Reject requests that don't carry the shared dispatch secret.
     # hmac.compare_digest prevents timing-based secret enumeration.
