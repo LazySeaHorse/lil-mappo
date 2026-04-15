@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -65,6 +65,20 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
           endTime: data.endTime,
         });
         setStatus('Waiting for map...');
+
+        // Log the WebGL renderer so Modal logs show whether the T4 is actually
+        // being used or whether Chrome fell back to SwiftShader (CPU rendering).
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+        if (gl) {
+          const ext = gl.getExtension('WEBGL_debug_renderer_info');
+          const renderer = ext
+            ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)
+            : gl.getParameter(gl.RENDERER);
+          console.log(`[GPU] WebGL renderer: ${renderer}`);
+        } else {
+          console.log('[GPU] WebGL not available');
+        }
       } catch (e: any) {
         setStatus(`Init error: ${e.message}`);
         await signalFailure(e.message);
