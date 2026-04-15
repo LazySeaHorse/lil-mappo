@@ -55,6 +55,22 @@ async function initEncoder(
 
   if (typeof VideoEncoder !== 'undefined') {
     try {
+      // Prefer software encoding: hardware H.264 (NVENC) is unavailable in
+      // headless Chromium containers even when a GPU is present. prefer-software
+      // uses libx264/OpenH264 and works reliably in both browser and headless.
+      const codecConfig: VideoEncoderConfig = {
+        codec: 'avc1.640028',
+        width,
+        height,
+        bitrate: 8_000_000,
+        framerate: fps,
+        hardwareAcceleration: 'prefer-software',
+      };
+      // isConfigSupported() is a synchronous-path check — if unsupported it
+      // throws here, which the catch block catches to fall back to MediaRecorder.
+      const support = await VideoEncoder.isConfigSupported(codecConfig);
+      if (!support.supported) throw new Error('H.264 software encoding not supported');
+
       const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
       const target = new ArrayBufferTarget();
       muxer = new Muxer({
@@ -66,13 +82,7 @@ async function initEncoder(
         output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
         error: (e: Error) => onError(`VideoEncoder error: ${e.message}`),
       });
-      videoEncoder.configure({
-        codec: 'avc1.640028',
-        width,
-        height,
-        bitrate: 8_000_000,
-        framerate: fps,
-      });
+      videoEncoder.configure(codecConfig);
     } catch {
       videoEncoder = null;
       muxer = null;
