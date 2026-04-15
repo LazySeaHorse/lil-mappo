@@ -106,38 +106,21 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
           onProgress: (pct, phase) => {
             setStatus(`${phase === 'prewarm' ? 'Warming cache' : 'Rendering'}: ${pct}%`);
           },
-          onComplete: async (blob) => {
-            setStatus('Uploading...');
-            try {
-              // Get presigned PUT URL
-              const presignRes = await fetch('/api/render-presign', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jobId, secret }),
-              });
-              if (!presignRes.ok) throw new Error(`Presign failed: ${presignRes.status}`);
-              const { presignedUrl, outputUrl } = await presignRes.json();
-
-              // Upload directly to DO Spaces
-              const uploadRes = await fetch(presignedUrl, {
-                method: 'PUT',
-                body: blob,
-                headers: { 'Content-Type': 'video/mp4' },
-              });
-              if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
-
-              // Mark job complete
-              await fetch('/api/render-complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jobId, secret, outputUrl }),
-              });
-
-              setStatus('Done!');
-              (window as any).__renderResult = { success: true, outputUrl };
-            } catch (uploadErr: any) {
-              await signalFailure(uploadErr.message);
-            }
+          onComplete: (blob) => {
+            // Trigger a browser download so Playwright can intercept and save
+            // the file to disk. The Modal Python worker uploads it to DO Spaces
+            // via boto3 and calls /api/render-complete — this avoids DNS
+            // resolution failures for external hostnames inside the container.
+            setStatus('Done!');
+            const objectUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = `render-${jobId}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(objectUrl);
+            (window as any).__renderResult = { success: true };
           },
           onError: async (err) => {
             setStatus(`Error: ${err}`);
