@@ -4,9 +4,10 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapRef } from '@/hooks/useMapRef';
 import { useCredits } from '@/hooks/useCredits';
+import { useSubscription } from '@/hooks/useSubscription';
 import { runExport } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
-import { X, Download, Clapperboard, AlertTriangle, Cloud, RotateCw, Monitor, Smartphone } from 'lucide-react';
+import { X, Download, Clapperboard, AlertTriangle, Cloud, Lock, Monitor, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +21,7 @@ import {
   getExportDimensions,
   calculateRenderCredits,
 } from '@/types/render';
+import { getExportLimits } from '@/lib/cloudAccess';
 
 interface ExportModalProps {
   onClose: () => void;
@@ -59,12 +61,20 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     useShallow((s) => ({ session: s.session, user: s.user, openAuthModal: s.openAuthModal, openCreditsModal: s.openCreditsModal }))
   );
 
+  const { data: subscription } = useSubscription();
+  const limits = getExportLimits(subscription);
+
   const { data: creditBalance } = useCredits();
   const mapRef = useMapRef();
 
-  const [exportFps, setExportFps] = useState<30 | 60>(fps);
+  // Clamp initial values to limits so state is always valid on open
+  const [exportFps, setExportFps] = useState<30 | 60>(
+    fps > limits.maxFps ? limits.maxFps : fps
+  );
   const [startTime, setStartTime] = useState<number>(0);
-  const [endTime, setEndTime] = useState<number>(duration);
+  const [endTime, setEndTime] = useState<number>(
+    Math.min(duration, limits.maxDuration)
+  );
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<'prewarm' | 'capture'>('capture');
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +104,11 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   }), [resolution, exportFps, aspectRatio, exportResolution, isVertical, mapStyle, terrainEnabled, buildingsEnabled, labelVisibility, show3dLandmarks, show3dTrees, show3dFacades]);
 
   const handleExport = useCallback(async () => {
+    // Guests without BYOK must sign in before exporting
+    if (!session && limits.limited) {
+      openAuthModal();
+      return;
+    }
     useProjectStore.getState().setIsExporting(true);
     setProgress(0);
     setError(null);
@@ -219,23 +234,49 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Resolution">
-              <Select value={exportResolution} onValueChange={(v) => setExportResolution(v as ExportResolution)} disabled={isExporting || cloudSubmitted}>
+            <Field label={
+              <span className="flex items-center gap-1">
+                Resolution
+                {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
+              </span>
+            }>
+              <Select
+                value={exportResolution}
+                onValueChange={(v) => setExportResolution(v as ExportResolution)}
+                disabled={isExporting || cloudSubmitted}
+              >
                 <SelectTrigger className="h-9 text-sm flex-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(['480p', '720p', '1080p', '1440p', '2160p'] as ExportResolution[]).map((r) => (
-                    <SelectItem key={r} value={r}>{RESOLUTION_LABELS[r]}</SelectItem>
-                  ))}
+                  {(['480p', '720p', '1080p', '1440p', '2160p'] as ExportResolution[]).map((r) => {
+                    const resOrder = ['480p', '720p', '1080p', '1440p', '2160p'];
+                    const isLocked = limits.limited && resOrder.indexOf(r) > resOrder.indexOf(limits.maxResolution);
+                    return (
+                      <SelectItem key={r} value={r} disabled={isLocked}>
+                        {RESOLUTION_LABELS[r]}{isLocked ? ' 🔒' : ''}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </Field>
 
-            <Field label="Frame Rate">
-              <Select value={exportFps.toString()} onValueChange={(v) => setExportFps(Number(v) as 30 | 60)} disabled={isExporting || cloudSubmitted}>
+            <Field label={
+              <span className="flex items-center gap-1">
+                Frame Rate
+                {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
+              </span>
+            }>
+              <Select
+                value={exportFps.toString()}
+                onValueChange={(v) => setExportFps(Number(v) as 30 | 60)}
+                disabled={isExporting || cloudSubmitted}
+              >
                 <SelectTrigger className="h-9 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="30">30 FPS</SelectItem>
-                  <SelectItem value="60">60 FPS</SelectItem>
+                  <SelectItem value="60" disabled={limits.maxFps < 60}>
+                    60 FPS{limits.maxFps < 60 ? ' 🔒' : ''}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
@@ -243,12 +284,53 @@ export default function ExportModal({ onClose }: ExportModalProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Start Time (s)">
-              <Input type="number" min={0} max={endTime} step={0.1} value={startTime} onChange={(e) => setStartTime(Number(e.target.value))} disabled={isExporting || cloudSubmitted} className="h-9 text-sm" />
+              <Input
+                type="number"
+                min={0}
+                max={endTime}
+                step={0.1}
+                value={startTime}
+                onChange={(e) => setStartTime(Number(e.target.value))}
+                disabled={isExporting || cloudSubmitted}
+                className="h-9 text-sm"
+              />
             </Field>
-            <Field label="End Time (s)">
-              <Input type="number" min={startTime} max={duration} step={0.1} value={endTime} onChange={(e) => setEndTime(Number(e.target.value))} disabled={isExporting || cloudSubmitted} className="h-9 text-sm" />
+            <Field label={
+              <span className="flex items-center gap-1">
+                End Time (s)
+                {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
+              </span>
+            }>
+              <Input
+                type="number"
+                min={startTime}
+                max={Math.min(duration, limits.maxDuration)}
+                step={0.1}
+                value={endTime}
+                onChange={(e) => setEndTime(Math.min(Number(e.target.value), limits.maxDuration))}
+                disabled={isExporting || cloudSubmitted}
+                className="h-9 text-sm"
+              />
             </Field>
           </div>
+
+          {/* Limits upsell banner */}
+          {limits.limited && (
+            <div className="flex items-start gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-lg p-3">
+              <Lock size={13} className="mt-0.5 shrink-0" />
+              <span>
+                Free plan: exports capped at 720p / 30fps / 30s.{' '}
+                <button
+                  type="button"
+                  className="font-semibold underline underline-offset-2 hover:no-underline"
+                  onClick={openCreditsModal}
+                >
+                  Upgrade or add your own Mapbox key (BYOK)
+                </button>{' '}
+                to unlock full quality.
+              </span>
+            </div>
+          )}
 
           {/* Info row */}
           <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">

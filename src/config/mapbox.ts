@@ -17,6 +17,16 @@ export function getEffectiveMapboxToken(): string {
 }
 
 /**
+ * Returns true if the given token is our own built-in app key.
+ * Used to block users from submitting the app key as their BYOK token —
+ * the key is already embedded in the bundle so this provides no benefit
+ * and would bypass our quota tracking without the user actually paying for their own key.
+ */
+export function isAppOwnKey(token: string): boolean {
+  return !!MAPBOX_TOKEN && token.trim() === MAPBOX_TOKEN;
+}
+
+/**
  * Represents a group of related label layers that can be toggled together.
  * Examples: "road" labels, "water" labels, "poi" labels, etc.
  */

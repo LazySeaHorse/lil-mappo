@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/mapbox";
 import Toolbar from "@/components/Toolbar/Toolbar";
 import MapViewport from "@/components/MapViewport/MapViewport";
+import { MapLoadGate } from "@/components/MapLoadGate";
 import InspectorPanel from "@/components/Inspector/InspectorPanel";
 import TimelinePanel from "@/components/Timeline/TimelinePanel";
 import ExportModal from "@/components/ExportModal/ExportModal";
@@ -13,8 +14,8 @@ import { useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useCredits } from "@/hooks/useCredits";
-import { canCloudSave } from "@/lib/cloudAccess";
+import { isFreeUser } from "@/lib/cloudAccess";
+import { useMapLoadGate } from "@/hooks/useMapLoadGate";
 import { syncProjects } from "@/services/cloudSync";
 import { toast } from "sonner";
 import { Eye, Play, Pause, Camera } from "lucide-react";
@@ -120,11 +121,11 @@ export default function MapStudioEditor() {
   const [showLibrary, setShowLibrary] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   usePlayback(mapRef);
+  const mapLoadGate = useMapLoadGate();
 
   // ── Initial cloud sync on sign-in ──────────────────────────────────────────
   const user = useAuthStore((s) => s.user);
   const { data: subscription } = useSubscription();
-  const { data: credits } = useCredits();
   // Track whether we've synced for this user session to avoid repeat syncs
   const syncedUserId = useRef<string | null>(null);
 
@@ -134,7 +135,8 @@ export default function MapStudioEditor() {
     if (syncedUserId.current === user.id) return;
     syncedUserId.current = user.id;
 
-    const cloudEnabled = canCloudSave(subscription, credits);
+    // Wanderer subscribers get bidirectional cloud sync; free users don't auto-sync.
+    const cloudEnabled = !isFreeUser(subscription);
     syncProjects(cloudEnabled).then((result) => {
       if (result.offline) {
         toast.error("Couldn't sync — you're offline");
@@ -178,9 +180,11 @@ export default function MapStudioEditor() {
       <FontLoader />
       <Sonner style={sonnerStyle as React.CSSProperties} />
       <div className="h-dvh w-screen relative overflow-hidden bg-background">
-        {/* Map Background Layer */}
+        {/* Map Background Layer — wrapped in gate to prevent loads over quota */}
         <div className="absolute inset-0 z-0">
-          <MapViewport mapRef={mapRef} />
+          <MapLoadGate gate={mapLoadGate}>
+            <MapViewport mapRef={mapRef} onMapReady={mapLoadGate.onMapLoaded} />
+          </MapLoadGate>
         </div>
 
         {/* Floating UI Layer */}

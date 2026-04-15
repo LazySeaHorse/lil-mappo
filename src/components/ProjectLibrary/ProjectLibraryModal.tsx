@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  X, Library, Trash2, Clock, Cloud, CloudUpload, RefreshCw, CloudOff,
+  X, Library, Trash2, Clock, Cloud, CloudUpload, RefreshCw, CloudOff, Lock,
 } from 'lucide-react';
 import {
   SavedProjectInfo,
@@ -8,19 +8,20 @@ import {
   loadProjectFromLibrary,
   deleteProjectFromLibrary,
   saveProjectToLibrary,
+  updateCloudSyncMeta,
 } from '@/services/projectLibrary';
 import {
   CloudProjectInfo,
   listCloudProjects,
   loadProjectFromCloud,
   deleteProjectFromCloud,
+  saveProjectToCloud,
 } from '@/services/cloudProjectLibrary';
 import { syncProjects } from '@/services/cloudSync';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useCredits } from '@/hooks/useCredits';
-import { canCloudSave } from '@/lib/cloudAccess';
+import { canCloudSave, isFreeUser, FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
@@ -78,11 +79,17 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
   const [projects, setProjects] = useState<DisplayProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  // When free user hits the 3-save limit and tries to upload, show this picker
+  const [pendingUploadProject, setPendingUploadProject] = useState<DisplayProject | null>(null);
 
   const user = useAuthStore((s) => s.user);
   const { data: subscription } = useSubscription();
-  const { data: credits } = useCredits();
-  const cloudEnabled = canCloudSave(subscription, credits);
+
+  // Cloud save count = projects that are cloud-backed (source cloud-only or isCloudBacked)
+  const cloudSaveCount = projects.filter((p) => p.isCloudBacked || p.source === 'cloud-only').length;
+  const cloudEnabled = canCloudSave(subscription, cloudSaveCount);
+  // Wanderer gets auto-sync; free users manage uploads manually
+  const autoSyncEnabled = !isFreeUser(subscription);
 
   const refreshList = useCallback(async () => {
     setIsLoading(true);
@@ -111,7 +118,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
 
     setIsSyncing(true);
     try {
-      const result = await syncProjects(cloudEnabled);
+      const result = await syncProjects(autoSyncEnabled);
       if (result.offline) {
         toast.error("Couldn't sync — you're offline");
       }
@@ -120,6 +127,60 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
     } finally {
       setIsSyncing(false);
       await refreshList();
+    }
+  };
+
+  /** Upload a local project to cloud (free users, manual). */
+  const handleUploadToCloud = async (project: DisplayProject) => {
+    if (!user) return;
+
+    // At limit: open the "delete to free a slot" dialog
+    if (!cloudEnabled) {
+      setPendingUploadProject(project);
+      return;
+    }
+
+    try {
+      const full = await loadProjectFromLibrary(project.id);
+      await saveProjectToCloud(full);
+      const now = Date.now();
+      await updateCloudSyncMeta(project.id, { cloudSyncedAt: now, pendingSync: false });
+      toast.success('Uploaded to cloud');
+      await refreshList();
+    } catch {
+      toast.error('Upload failed — check your connection');
+    }
+  };
+
+  /** After user deletes a cloud project to free a slot, retry the pending upload. */
+  const handleDeleteAndRetryUpload = async (cloudProjectToDelete: DisplayProject) => {
+    try {
+      if (cloudProjectToDelete.source === 'local') {
+        await deleteProjectFromLibrary(cloudProjectToDelete.id);
+        await deleteProjectFromCloud(cloudProjectToDelete.id).catch(() => {});
+      } else {
+        await deleteProjectFromCloud(cloudProjectToDelete.id);
+      }
+      toast.success(`Deleted "${cloudProjectToDelete.name}"`);
+    } catch {
+      toast.error('Delete failed');
+      return;
+    }
+
+    // Refresh the list so cloudSaveCount updates, then upload
+    await refreshList();
+    setPendingUploadProject(null);
+
+    if (!pendingUploadProject) return;
+    try {
+      const full = await loadProjectFromLibrary(pendingUploadProject.id);
+      await saveProjectToCloud(full);
+      const now = Date.now();
+      await updateCloudSyncMeta(pendingUploadProject.id, { cloudSyncedAt: now, pendingSync: false });
+      toast.success('Uploaded to cloud');
+      await refreshList();
+    } catch {
+      toast.error('Upload failed — check your connection');
     }
   };
 
@@ -228,8 +289,11 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
                 <ProjectRow
                   key={p.id}
                   project={p}
+                  showUpload={!!user && !autoSyncEnabled && p.source === 'local' && !p.isCloudBacked}
+                  uploadDisabledReason={!cloudEnabled ? `Cloud save limit reached (${cloudSaveCount}/${FREE_CLOUD_SAVE_LIMIT})` : undefined}
                   onLoad={() => handleLoad(p)}
                   onDelete={() => handleDelete(p)}
+                  onUpload={() => handleUploadToCloud(p)}
                 />
               ))}
             </div>
@@ -238,15 +302,20 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
 
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-secondary/30 shrink-0">
-          {user && cloudEnabled ? (
+          {user && autoSyncEnabled ? (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Cloud size={12} className="text-primary/70" />
               Cloud sync active
             </div>
           ) : user ? (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <CloudOff size={12} />
-              Cloud saves unavailable
+              <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-amber-400' : 'text-primary/70'} />
+              <span>
+                {cloudSaveCount}/{FREE_CLOUD_SAVE_LIMIT} cloud saves used
+              </span>
+              {cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT && (
+                <Lock size={10} className="text-amber-400" />
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -263,6 +332,56 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
           </Button>
         </div>
       </div>
+
+      {/* Delete-to-free-slot dialog */}
+      {pendingUploadProject && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60">
+          <div className="bg-background border border-border rounded-xl shadow-2xl w-[420px] overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 className="text-sm font-semibold">Cloud save limit reached</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                You've used all {FREE_CLOUD_SAVE_LIMIT} cloud save slots. Delete an existing
+                cloud save to free a slot, then retry the upload.
+              </p>
+            </div>
+            <div className="px-5 py-4 max-h-64 overflow-y-auto flex flex-col gap-2">
+              {projects
+                .filter((p) => p.isCloudBacked || p.source === 'cloud-only')
+                .map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-destructive/40 hover:bg-destructive/5 transition-all"
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium truncate">{p.name || 'Untitled'}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(p.updatedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 px-3 text-xs shrink-0 ml-3"
+                      onClick={() => handleDeleteAndRetryUpload(p)}
+                    >
+                      Delete &amp; use slot
+                    </Button>
+                  </div>
+                ))}
+            </div>
+            <div className="px-5 py-3 border-t border-border bg-secondary/20 flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setPendingUploadProject(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -271,12 +390,18 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
 
 function ProjectRow({
   project,
+  showUpload,
+  uploadDisabledReason,
   onLoad,
   onDelete,
+  onUpload,
 }: {
   project: DisplayProject;
+  showUpload?: boolean;
+  uploadDisabledReason?: string;
   onLoad: () => void;
   onDelete: () => void;
+  onUpload?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-primary/30 hover:bg-secondary/30 transition-all group">
@@ -294,6 +419,17 @@ function ProjectRow({
       </div>
 
       <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+        {showUpload && onUpload && (
+          <IconButton
+            variant="ghost"
+            size="sm"
+            onClick={onUpload}
+            title={uploadDisabledReason ?? 'Upload to cloud'}
+            className={uploadDisabledReason ? 'text-muted-foreground/40' : 'text-primary/70 hover:text-primary'}
+          >
+            <CloudUpload size={14} />
+          </IconButton>
+        )}
         <Button
           onClick={onLoad}
           size="sm"

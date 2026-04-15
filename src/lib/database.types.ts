@@ -3,6 +3,11 @@
  * Keep in sync with supabase/migrations/001_initial_schema.sql
  */
 
+/**
+ * Active paid tier. "nomad" | "cartographer" | "pioneer" are legacy values
+ * kept for DB compatibility but are no longer issued to new users.
+ * Free tier = no subscription row.
+ */
 export type SubscriptionTier = "wanderer" | "nomad" | "cartographer" | "pioneer";
 export type RenderStatus = "queued" | "rendering" | "done" | "failed";
 

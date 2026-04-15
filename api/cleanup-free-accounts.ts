@@ -15,6 +15,11 @@ import { createClient } from "@supabase/supabase-js";
 const GRACE_PERIOD_HOURS = 24;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // ── TEMPORARILY DISABLED — free-tier users are allowed; re-enable once cloud
+  //    rendering is back and the new payment model is fully in place.
+  return res.status(200).json({ disabled: true, deleted: 0 });
+
+  // eslint-disable-next-line no-unreachable
   if (req.method !== "GET") {
     return res.status(405).end();
   }

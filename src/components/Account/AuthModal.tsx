@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { isAllowedEmailDomain } from "@/lib/emailAllowlist";
 import {
   Dialog,
   DialogContent,
@@ -122,6 +123,14 @@ function AuthModalBody({
 
     try {
       if (isSignup) {
+        // Frontend domain check — server-side hook is the authoritative guard,
+        // but this gives immediate feedback before the network round-trip.
+        if (!isAllowedEmailDomain(email.trim())) {
+          toast.error("Sign-ups are limited to major email providers (Gmail, Outlook, iCloud, etc.).");
+          setIsSubmitting(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,

@@ -202,45 +202,7 @@ async function handlePaymentSucceeded(
     throw new Error("DB error writing credits");
   }
 
-  // Grant Nomad tier if the user has no active subscription.
-  // Users on wanderer/cartographer/pioneer keep their existing tier.
-  const { data: existingSub } = await supabase
-    .from("subscriptions")
-    .select("tier, status")
-    .eq("user_id", uid)
-    .maybeSingle();
-
-  const hasActiveSub =
-    existingSub &&
-    (existingSub.status === "active" ||
-      existingSub.status === "on_hold" ||
-      existingSub.status === "cancelling");
-
-  if (!hasActiveSub) {
-    const { error: nomadError } = await supabase
-      .from("subscriptions")
-      .upsert(
-        {
-          user_id: uid,
-          tier: "nomad",
-          monthly_credits: 0,
-          parallel_renders: 1,
-          renewal_date: null,
-          dodo_subscription_id: null,
-          status: "active",
-        },
-        { onConflict: "user_id" }
-      );
-    if (nomadError) {
-      console.error("[dodo-webhook] Failed to grant nomad tier:", nomadError);
-      throw new Error("DB error writing subscription");
-    }
-  }
-
-  console.log(
-    "[dodo-webhook] Added", credits, "purchased credits to user", uid,
-    hasActiveSub ? "(kept existing tier)" : "(granted nomad tier)"
-  );
+  console.log("[dodo-webhook] Added", credits, "purchased credits to user", uid);
 }
 
 async function handleSubscriptionRenewed(
@@ -306,7 +268,7 @@ async function handleSubscriptionExpired(
   sub: SubEventData,
   supabase: SupabaseClient
 ): Promise<void> {
-  // Look up the existing row to check the tier before we mutate anything
+  // Look up the existing row so we have the user_id
   const { data: expiringSub } = await supabase
     .from("subscriptions")
     .select("user_id, tier")
@@ -318,76 +280,22 @@ async function handleSubscriptionExpired(
     return;
   }
 
-  const isPaidTier =
-    expiringSub.tier === "wanderer" ||
-    expiringSub.tier === "cartographer" ||
-    expiringSub.tier === "pioneer";
-
-  if (!isPaidTier) {
-    // Already nomad or unknown — just mark expired and leave as-is
-    await supabase
-      .from("subscriptions")
-      .update({ status: "expired" })
-      .eq("dodo_subscription_id", sub.subscription_id);
-    console.log("[dodo-webhook] Expired subscription", sub.subscription_id);
-    return;
-  }
-
-  // Paid-tier expiry:
-  //   • Downgrade to Nomad (status: active, no dodo_subscription_id)
-  //   • Grant 10 non-expiring purchased credits as a grace allowance
-  //     (Nomad can cloud-save as long as purchased_credits > 0)
-  const eventKey = `subscription.expired:${sub.subscription_id}`;
-
-  // Downgrade first — SET operation, idempotent, safe to retry without a key.
-  const { error: downgradeError } = await supabase
+  // Delete the subscription row — the user drops to the free tier.
+  // Free tier = no subscription row. Existing cloud saves remain readable
+  // and writable (UPDATE), but new saves are capped at 3 by the RLS policy.
+  const { error: deleteError } = await supabase
     .from("subscriptions")
-    .update({
-      tier: "nomad",
-      status: "active",
-      monthly_credits: 0,
-      parallel_renders: 1,
-      renewal_date: null,
-      dodo_subscription_id: null,
-    })
+    .delete()
     .eq("user_id", expiringSub.user_id);
 
-  if (downgradeError) {
-    console.error("[dodo-webhook] Failed to downgrade to nomad:", downgradeError);
-    throw new Error("DB error downgrading tier");
-  }
-
-  // Idempotency key inserted AFTER the downgrade but BEFORE the credit grant.
-  // The downgrade above is idempotent so a crash before this point is safe to retry.
-  // The credit grant below is a non-idempotent INCREMENT, so it must be guarded.
-  const { error: idempotencyError } = await supabase
-    .from("processed_webhook_events")
-    .insert({ event_key: eventKey });
-
-  if (idempotencyError) {
-    if (idempotencyError.code === "23505") {
-      console.log("[dodo-webhook] subscription.expired: duplicate event, skipping", sub.subscription_id);
-      return;
-    }
-    console.error("[dodo-webhook] Failed to record expiry idempotency key:", idempotencyError);
-    throw new Error("DB error recording event");
-  }
-
-  // Grant 10 non-expiring credits atomically — same RPC used by the topup
-  // flow, which also handles a missing row gracefully via an upsert fallback.
-  const { error: creditError } = await supabase.rpc(
-    "increment_purchased_credits",
-    { p_user_id: expiringSub.user_id, p_amount: 10 }
-  );
-
-  if (creditError) {
-    console.error("[dodo-webhook] Failed to grant grace credits:", creditError);
-    throw new Error("DB error granting credits");
+  if (deleteError) {
+    console.error("[dodo-webhook] Failed to delete expired subscription:", deleteError);
+    throw new Error("DB error deleting subscription");
   }
 
   console.log(
     "[dodo-webhook] Expired", expiringSub.tier,
-    "→ nomad + 10 grace credits for user", expiringSub.user_id
+    "→ free tier (subscription row deleted) for user", expiringSub.user_id
   );
 }
 

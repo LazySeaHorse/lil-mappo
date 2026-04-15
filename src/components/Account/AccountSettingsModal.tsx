@@ -28,7 +28,7 @@ import {
   Timer,
 } from "lucide-react";
 import { SubscriptionTiers } from "./SubscriptionTiers";
-import { BYOK_STORAGE_KEY } from "@/config/mapbox";
+import { BYOK_STORAGE_KEY, isAppOwnKey } from "@/config/mapbox";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,7 @@ function AccountSettingsModalBody() {
   const [view, setView] = useState<View>("main");
   const [mapboxToken, setMapboxToken] = useState("");
   const [tokenSaved, setTokenSaved] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
     setMapboxToken(localStorage.getItem(BYOK_STORAGE_KEY) || "");
@@ -67,19 +68,29 @@ function AccountSettingsModalBody() {
 
   const handleSaveToken = () => {
     const trimmed = mapboxToken.trim();
+    setTokenError(null);
+
     if (trimmed) {
+      if (isAppOwnKey(trimmed)) {
+        setTokenError("This key isn't valid for BYOK — please use your own Mapbox access token.");
+        return;
+      }
       localStorage.setItem(BYOK_STORAGE_KEY, trimmed);
     } else {
       localStorage.removeItem(BYOK_STORAGE_KEY);
     }
     setTokenSaved(true);
-    setTimeout(() => setTokenSaved(false), 2000);
+    // Reload so the new token takes effect for Mapbox map initialisation
+    setTimeout(() => window.location.reload(), 800);
   };
 
   const handleClearToken = () => {
     localStorage.removeItem(BYOK_STORAGE_KEY);
     setMapboxToken("");
     setTokenSaved(false);
+    setTokenError(null);
+    // Reload so the app reverts to the built-in token
+    setTimeout(() => window.location.reload(), 400);
   };
 
   const tierSlug = subscription?.tier ?? null;
@@ -252,8 +263,9 @@ function AccountSettingsModalBody() {
           />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Paste your own Mapbox access token to lift the 30s export limit
-              on local renders. Your token is stored locally and{" "}
+              Paste your own Mapbox access token to lift the 30s timeline limit,
+              export quality cap, and map load quota. Your token is stored
+              locally and{" "}
               <span className="font-medium text-foreground">
                 never sent to our servers
               </span>
@@ -275,8 +287,9 @@ function AccountSettingsModalBody() {
                 onChange={(e) => {
                   setMapboxToken(e.target.value);
                   setTokenSaved(false);
+                  setTokenError(null);
                 }}
-                className="h-9 rounded-lg bg-background/50 border-border/50 text-xs font-mono placeholder:text-muted-foreground/40 flex-1"
+                className={`h-9 rounded-lg bg-background/50 border-border/50 text-xs font-mono placeholder:text-muted-foreground/40 flex-1 ${tokenError ? "border-destructive" : ""}`}
               />
               <Button
                 size="sm"
@@ -288,14 +301,20 @@ function AccountSettingsModalBody() {
                 {tokenSaved ? (
                   <>
                     <Check size={14} className="mr-1" />
-                    Saved
+                    Reloading…
                   </>
                 ) : (
                   "Save"
                 )}
               </Button>
             </div>
-            {!!mapboxToken.trim() && !tokenSaved && (
+            {tokenError && (
+              <p className="text-xs text-destructive flex items-start gap-1.5">
+                <AlertCircle size={12} className="mt-0.5 shrink-0" />
+                {tokenError}
+              </p>
+            )}
+            {!!mapboxToken.trim() && !tokenSaved && !tokenError && (
               <Button
                 variant="ghost"
                 size="sm"

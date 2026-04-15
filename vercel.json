@@ -3,10 +3,5 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "npm ci",
-  "crons": [
-    {
-      "path": "/api/cleanup-free-accounts",
-      "schedule": "0 0 * * *"
-    }
-  ]
+  "crons": []
 }

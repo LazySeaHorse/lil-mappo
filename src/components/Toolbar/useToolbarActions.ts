@@ -6,9 +6,8 @@ import type { RouteItem } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
 import { saveProjectToLibrary, updateCloudSyncMeta } from '@/services/projectLibrary';
 import { saveProjectToCloud } from '@/services/cloudProjectLibrary';
-import { canCloudSave } from '@/lib/cloudAccess';
+import { isFreeUser } from '@/lib/cloudAccess';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useCredits } from '@/hooks/useCredits';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 
@@ -21,7 +20,6 @@ export function useToolbarActions() {
   } = projectState;
 
   const { data: subscription } = useSubscription();
-  const { data: credits } = useCredits();
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -94,7 +92,8 @@ export function useToolbarActions() {
 
   const handleSaveToLibrary = async () => {
     const plainData = JSON.parse(JSON.stringify(projectState));
-    const cloudEnabled = canCloudSave(subscription, credits);
+    // Free users always save locally; Wanderer subscribers also push to cloud.
+    const cloudEnabled = !isFreeUser(subscription);
 
     try {
       if (cloudEnabled) {

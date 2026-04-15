@@ -2,6 +2,7 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Accordion } from "@/components/ui/accordion";
@@ -10,9 +11,10 @@ import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
-import { RotateCw, Monitor, Smartphone } from 'lucide-react';
+import { RotateCw, Monitor, Smartphone, Lock } from 'lucide-react';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { RESOLUTION_LABELS } from '@/types/render';
+import { getExportLimits } from '@/lib/cloudAccess';
 
 
 
@@ -46,6 +48,8 @@ export function ProjectSettings() {
     }))
   );
   const capabilities = useMapStyleCapabilities();
+  const { data: subscription } = useSubscription();
+  const limits = getExportLimits(subscription);
 
   return (
     <PanelWrapper title="Project Settings">
@@ -63,13 +67,32 @@ export function ProjectSettings() {
         <>
           <Field label="Name"><InputText value={name} onChange={setProjectName} /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Duration (s)"><InputNumber value={duration} onChange={setDuration} min={1} max={600} /></Field>
-            <Field label="FPS">
+            <Field label={
+              <span className="flex items-center gap-1">
+                Duration (s)
+                {limits.limited && <Lock size={9} className="text-muted-foreground/60" />}
+              </span>
+            }>
+              <InputNumber
+                value={duration}
+                onChange={(v) => setDuration(Math.min(v, limits.maxDuration))}
+                min={1}
+                max={limits.maxDuration}
+              />
+            </Field>
+            <Field label={
+              <span className="flex items-center gap-1">
+                FPS
+                {limits.limited && <Lock size={9} className="text-muted-foreground/60" />}
+              </span>
+            }>
               <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="30">30</SelectItem>
-                  <SelectItem value="60">60</SelectItem>
+                  <SelectItem value="60" disabled={limits.maxFps < 60}>
+                    60{limits.maxFps < 60 ? ' 🔒' : ''}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>

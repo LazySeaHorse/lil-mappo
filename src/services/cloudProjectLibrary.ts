@@ -67,6 +67,19 @@ export async function loadProjectFromCloud(id: string): Promise<Project> {
 }
 
 /**
+ * Returns the number of cloud projects the current user has saved.
+ * Used to enforce the free-tier 3-save limit in the UI.
+ */
+export async function getCloudSaveCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('cloud_projects')
+    .select('id', { count: 'exact', head: true });
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/**
  * Deletes a cloud project by ID.
  */
 export async function deleteProjectFromCloud(id: string): Promise<void> {
