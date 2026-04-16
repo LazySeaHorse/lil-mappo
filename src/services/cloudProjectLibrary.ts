@@ -12,26 +12,29 @@ export interface CloudProjectInfo {
 /**
  * Upserts a project to Supabase cloud_projects.
  * Inserts on first save; updates on subsequent saves.
- * RLS ensures the user can only write their own rows.
+ *
+ * Goes through the upsert_cloud_project RPC rather than a direct table write
+ * so the free-tier 3-save limit is enforced atomically (advisory lock prevents
+ * concurrent inserts from racing past the COUNT check).
  */
 export async function saveProjectToCloud(project: Project): Promise<void> {
   const userId = useAuthStore.getState().user?.id;
   if (!userId) throw new Error('Not authenticated');
 
-  const { error } = await supabase
-    .from('cloud_projects')
-    .upsert(
-      {
-        id: project.id,
-        user_id: userId,
-        name: project.name,
-        data: project as unknown as Record<string, unknown>,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    );
+  const { data, error } = await supabase.rpc('upsert_cloud_project', {
+    p_project_id: project.id,
+    p_user_id: userId,
+    p_name: project.name,
+    p_data: project as unknown as Record<string, unknown>,
+    p_updated_at: new Date().toISOString(),
+  });
 
   if (error) throw error;
+
+  const result = data as { error?: string; limit?: number } | null;
+  if (result?.error === 'limit_exceeded') {
+    throw new Error(`Cloud save limit reached (free accounts can save up to ${result.limit ?? 3} projects)`);
+  }
 }
 
 /**

@@ -257,10 +257,16 @@ async function handleSubscriptionCancelled(
   sub: SubEventData,
   supabase: SupabaseClient
 ): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from("subscriptions")
     .update({ status: "cancelled" })
     .eq("dodo_subscription_id", sub.subscription_id);
+
+  if (error) {
+    console.error("[dodo-webhook] Failed to update subscription on cancellation:", error);
+    throw new Error("DB error cancelling subscription");
+  }
+
   console.log("[dodo-webhook] Cancelled subscription", sub.subscription_id);
 }
 

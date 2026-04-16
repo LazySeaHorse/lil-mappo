@@ -13,7 +13,8 @@ import {
 export type MapGateReason =
   | 'guest_limit'        // Guest hit the 3-load localStorage limit
   | 'daily_throttled'    // Free signed-in user hit 3 loads today (after 30 this month)
-  | 'monthly_exhausted'; // Free signed-in user hit 50 loads this month
+  | 'monthly_exhausted'  // Free signed-in user hit 50 loads this month
+  | 'quota_error';       // Quota API unreachable — fail closed rather than granting free access
 
 export interface MapLoadGateState {
   /** False while auth is still loading — don't render Map or gate until known. */
@@ -85,7 +86,11 @@ export function useMapLoadGate(): MapLoadGateState {
         setReady(true);
       })
       .catch(() => {
-        // Fail open: quota API error → allow the map to load
+        // Fail closed: a quota API error blocks the map rather than granting
+        // free unlimited access. Vercel + Supabase outages are rare enough
+        // that this is the safer tradeoff.
+        setBlocked(true);
+        setReason('quota_error');
         setReady(true);
       });
   }, [authLoading, session, subLoading, subscription]);

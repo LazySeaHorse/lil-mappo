@@ -214,6 +214,27 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Key Lesson**: RLS `USING` alone is not enough. You need `WITH CHECK` for UPDATE/INSERT or restrictive policies that omit write clauses entirely.
 
+### 6.4a Cloud Projects: RLS COUNT(*) Race Condition Fix
+
+**Problem**: Migration 015's `cloud_projects_insert` policy used `COUNT(*) < 3` to enforce the free-tier 3-save limit. Under MVCC, concurrent transactions each see a snapshot of committed rows — a user firing 5 simultaneous saves could have all 5 pass the count check before any commit, exceeding the limit.
+
+**Solution** (Migration 017): Replaced the direct INSERT path with a SECURITY DEFINER RPC `upsert_cloud_project` that:
+- Acquires `pg_advisory_xact_lock(hashtext(user_id))` before counting (same pattern as `create_render_job` from Migration 012)
+- Checks the limit atomically inside the lock — concurrent calls queue, guaranteeing no race
+- Dropped the direct INSERT policy so clients must call the RPC (which bypasses RLS due to SECURITY DEFINER)
+
+**Client Update**: `saveProjectToCloud()` in `cloudProjectLibrary.ts` now calls `supabase.rpc('upsert_cloud_project', {...})` instead of `.upsert()`.
+
+**Key Lesson**: COUNT(*) checks in RLS policies are inherently racy under concurrency. Use atomic RPC functions with advisory locks for critical limits.
+
+### 6.4b Webhook Error Handling: handleSubscriptionCancelled
+
+**Problem**: The `handleSubscriptionCancelled` webhook handler in `dodo-webhook.ts` never checked for DB errors. If the UPDATE failed, the function returned 200 anyway — Dodo considered the event processed and wouldn't retry, leaving the subscription stuck in `'cancelling'` state.
+
+**Solution**: Added error destructuring and throw pattern matching all other handlers. DB failures now cause a 500, triggering Dodo's retry logic.
+
+**Key Lesson**: Webhook handlers must fail loudly on DB errors so the payment provider retries. Silently succeeding masks data corruption.
+
 ### 6.5 Cloud Rendering Pipeline
 
 **⚠️ STATUS: Temporarily disabled in the UI.** The pipeline is fully implemented and functional but produces poor quality output because headless Chromium on Modal falls back to SwiftShader (CPU software rasterizer) instead of using the GPU. GPU acceleration requires NVIDIA's rendering stack (OpenGL/Vulkan ICD) which is not available in Modal's standard CUDA containers. Re-enable once this is resolved.
@@ -303,6 +324,23 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **Implementation**: `src/lib/cloudAccess.ts` provides the logic; `src/hooks/useMapLoadGate.ts` and `src/components/MapLoadGate.tsx` enforce the map mounting logic.
 - **Expiry Logic**: `api/dodo-webhook.ts` now deletes the subscription row on expiry, effectively dropping the user to the free tier (rather than the legacy 'Nomad' tier).
 - **Cleanup**: The daily account purge (`api/cleanup-free-accounts.ts`) is temporarily disabled via early return and `vercel.json` cron removal to allow free users to exist while cloud renders are broken.
+
+### 6.11 BYOK Security: Blacklist Enforcement + Quota Fail-Closed
+
+**Problem 1: BYOK Blacklist Bypass** — The `BYOKQuickEntry` component in `MapLoadGate.tsx` (shown when a free user hits monthly quota) allowed pasting the app's own Mapbox key without validation. A user could extract `VITE_MAPBOX_TOKEN` from the Network tab and paste it as "BYOK" to bypass all limits.
+
+**Solution**: Added `isAppOwnKey()` check in `BYOKQuickEntry.handleSave()` before accepting the key. Shows inline error if matched. This mirrors the check in `AccountSettingsModal` (now enforced consistently).
+
+**Problem 2: Quota Fail-Open Bypass** — The original `useMapLoadGate.ts` caught network errors from `/api/track-map-load` and silently allowed the map to load ("fail open" for availability). A user with a browser extension could block the tracking request and get unlimited free loads.
+
+**Solution**: Changed to fail-closed — network errors now set `blocked: true` / `reason: 'quota_error'`, showing a "Something went wrong" screen with a Retry button. This is justified because:
+- Vercel + Supabase outages are rare (<1% of the time)
+- Blocking a handful of legitimate users for minutes during an outage is better than silently allowing unlimited free usage
+- The tradeoff favors security over perfect availability
+
+**UI Changes**: New `quota_error` reason type in `MapGateReason` union. `MapLoadBlockedScreen` shows a friendly retry screen with a `window.location.reload()` button (re-runs the quota check from scratch).
+
+**Key Lesson**: Fail-open strategies are appropriate for audit logs or observability, not for security gatekeeping. Quota systems should fail-closed.
 
 ---
 
