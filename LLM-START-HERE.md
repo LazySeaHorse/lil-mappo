@@ -266,7 +266,7 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Encoder Back-Pressure**: Monitor `videoEncoder.encodeQueueSize`. If > 8, wait via requestAnimationFrame drain loop until <= 4 before encoding next frame.
 
-**WebCodecs config**: Uses `hardwareAcceleration: 'prefer-software'` + `VideoEncoder.isConfigSupported()` pre-check. Hardware H.264 (NVENC) is not accessible in Playwright's Chromium on Modal containers even with a GPU present.
+**WebCodecs config**: Codec Level 5.2 (`avc1.640034`). Relies on browser hardware encoder (no software fallback for cloud renders).
 
 ### 6.6 Export & Snapshot Services
 
@@ -285,6 +285,22 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 - `videoExport.ts`: Threads `zoomOffset` through `prewarmTileCache()` and `captureFrame()`, applying it to keyframe-interpolated camera zoom.
 - `snapshot.ts`: Adjusts live camera zoom after resize to preserve current view framing at higher resolution.
+
+### 6.6a Video Export: H.264 Codec & Timestamp Precision Fixes
+
+**Problem 1: Unplayable MP4 from Codec Level Mismatch** — The encoder was reporting codec Level 4.0 (`avc1.640028`) but hardware encoders (especially on Windows) sometimes fail silently when a too-high level is demanded, causing a fallback to WebM without updating the UI label. This left users with a "MP4" label but a `.webm` file.
+
+**Solution**: 
+- Removed pre-flight `VideoEncoder.isConfigSupported()` check (was causing false-negatives for high levels on some hardware).
+- Standardized to `avc1.640034` (H.264 Level 5.2), which covers 4K/60fps and is supported universally by modern browsers' hardware encoders.
+- Added `onFormatDecided` callback to `ExportOptions`: fires immediately after `initEncoder` resolves with the *actual* format (`'mp4' | 'webm'`).
+- UI state `outputFormat` is now determined by what actually initialized, not by API availability. The format label and WebM fallback warning both read from this state.
+
+**Problem 2: Floating-Point Microsecond Timestamps** — The timestamp calculation `frameIndex * (1_000_000 / fps)` produced non-integers (e.g., 33333.33... for 30fps), violating the WebCodecs spec which requires integer microseconds. While most browsers truncated silently, strict decoders could reject the file as malformed.
+
+**Solution**: Precompute `frameDuration = Math.round(1_000_000 / fps)` once and use `frameIndex * frameDuration` for all timestamps. Ensures all microsecond values are integers and perfectly consistent across the video.
+
+**Key Files**: `src/services/videoExport.ts` (encoder init, timestamp calculation) and `src/components/ExportModal/ExportModal.tsx` (format state + callback wiring).
 
 ### 6.7 Vehicle & Route Animation Fixes
 

@@ -21,6 +21,7 @@ export interface ExportOptions {
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void;
   onComplete: (blob: Blob) => void;
   onError: (err: string) => void;
+  onFormatDecided?: (format: 'mp4' | 'webm') => void;
   abortSignal: AbortSignal;
   showWatermark: boolean;
 }
@@ -201,9 +202,10 @@ async function captureFrame(
 
   // Encode frame
   if (videoEncoder) {
+    const frameDuration = Math.round(1_000_000 / fps);
     const videoFrame = new VideoFrame(compCanvas, {
-      timestamp: frameIndex * (1_000_000 / fps),
-      duration: 1_000_000 / fps,
+      timestamp: frameIndex * frameDuration,
+      duration: frameDuration,
     });
     videoEncoder.encode(videoFrame, { keyFrame: frameIndex % (fps * 2) === 0 });
     videoFrame.close();
@@ -239,7 +241,7 @@ export async function runExport(
   mapRef: React.MutableRefObject<any>,
   options: ExportOptions,
 ) {
-  const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, onComplete, onError, abortSignal } = options;
+  const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, onComplete, onError, onFormatDecided, abortSignal } = options;
   const [width, height] = renderConfig.resolution;
   const { fps } = renderConfig;
 
@@ -252,6 +254,7 @@ export async function runExport(
   const totalFrames = Math.ceil(effectiveDuration * fps);
 
   const encoderState = await initEncoder(width, height, fps, onError);
+  onFormatDecided?.(encoderState.videoEncoder ? 'mp4' : 'webm');
   const { compCanvas, compCtx } = encoderState;
 
   const map = mapRef.current?.getMap?.();

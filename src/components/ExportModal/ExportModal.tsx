@@ -78,6 +78,9 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<'prewarm' | 'capture'>('capture');
   const [error, setError] = useState<string | null>(null);
+  const [outputFormat, setOutputFormat] = useState<'mp4' | 'webm'>(
+    typeof VideoEncoder !== 'undefined' ? 'mp4' : 'webm'
+  );
   const [cloudSubmitted, setCloudSubmitted] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -125,6 +128,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
         endTime,
         showWatermark,
         onProgress: (pct, p) => { setProgress(pct); setPhase(p); },
+        onFormatDecided: setOutputFormat,
         onComplete: (blob) => {
           const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
           const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.${ext}`;
@@ -341,11 +345,11 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             <div><span className="block font-semibold text-foreground">{exportDuration.toFixed(1)}s</span>Duration</div>
             <div><span className="block font-semibold text-foreground whitespace-nowrap">{w} × {h}</span>Dimensions</div>
             <div><span className="block font-semibold text-foreground">{totalFrames}</span>Total frames</div>
-            <div><span className="block font-semibold text-foreground">{typeof VideoEncoder !== 'undefined' ? 'MP4' : 'WebM'}</span>Format</div>
+            <div><span className="block font-semibold text-foreground">{outputFormat.toUpperCase()}</span>Format</div>
           </div>
 
           {/* WebCodecs fallback warning */}
-          {typeof VideoEncoder === 'undefined' && (
+          {outputFormat === 'webm' && (
             <div className="flex items-start gap-2 text-xs text-amber-600 bg-amber-50 rounded-lg p-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
               <span>WebCodecs not available. Export will use WebM (MediaRecorder fallback). For MP4, use Chrome 94+.</span>
