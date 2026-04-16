@@ -1,6 +1,6 @@
 import type { Subscription } from './database.types';
 import type { ExportResolution } from '@/types/render';
-import { BYOK_STORAGE_KEY } from '@/config/mapbox';
+import { BYOK_STORAGE_KEY, isAppOwnKey } from '@/config/mapbox';
 
 // ─── Tier helpers ─────────────────────────────────────────────────────────────
 
@@ -24,7 +24,11 @@ export function isFreeUser(subscription: Subscription | null | undefined): boole
 export function hasByok(): boolean {
   if (typeof localStorage === 'undefined') return false;
   const token = localStorage.getItem(BYOK_STORAGE_KEY)?.trim();
-  return !!token;
+  if (!token) return false;
+  // Reject the app's own key — storing it in localStorage bypasses quota
+  // tracking without the user actually supplying their own token.
+  if (isAppOwnKey(token)) return false;
+  return true;
 }
 
 // ─── Cloud saves ──────────────────────────────────────────────────────────────

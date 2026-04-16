@@ -225,7 +225,9 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Client Update**: `saveProjectToCloud()` in `cloudProjectLibrary.ts` now calls `supabase.rpc('upsert_cloud_project', {...})` instead of `.upsert()`.
 
-**Key Lesson**: COUNT(*) checks in RLS policies are inherently racy under concurrency. Use atomic RPC functions with advisory locks for critical limits.
+**Security Update** (Migration 019): Added `IF auth.uid() != p_user_id THEN RAISE EXCEPTION 'unauthorized'; END IF;` as the first statement in the RPC. SECURITY DEFINER bypasses RLS, so explicit caller identity validation is required — never assume a user_id parameter is trustworthy.
+
+**Key Lesson**: COUNT(*) checks in RLS policies are inherently racy under concurrency. Use atomic RPC functions with advisory locks for critical limits. SECURITY DEFINER functions must explicitly validate caller identity.
 
 ### 6.4b Webhook Error Handling: handleSubscriptionCancelled
 
@@ -342,6 +344,26 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Key Lesson**: Fail-open strategies are appropriate for audit logs or observability, not for security gatekeeping. Quota systems should fail-closed.
 
+### 6.12 Security Hardening: Four Critical Fixes (Migrations 018-019)
+
+**Problem 1: BYOK Blacklist Bypass via localStorage** — While `BYOKQuickEntry` and `AccountSettingsModal` validated that pasted tokens weren't the app's own key, a user opening DevTools could directly write the app's key to localStorage via `localStorage.setItem('lil-mappo-mapbox-token', '<app-key>')`. The underlying `hasByok()` function only checked token existence, not validity.
+
+**Solution** (cloudAccess.ts): Added `isAppOwnKey(token)` check inside `hasByok()`. Now returns `false` if the stored token matches the app's own key, regardless of how it was stored. Quota tracking is correctly re-enabled.
+
+**Problem 2: upsert_cloud_project RPC lacked caller identity check** — The RPC is `SECURITY DEFINER` (bypasses RLS) and accepts `p_user_id` as a parameter, but never verified it matched `auth.uid()`. An authenticated user knowing another user's UUID could inject new projects into that user's namespace or overwrite existing projects.
+
+**Solution** (Migration 019): Added identity check as the first statement: `IF auth.uid() IS NULL OR auth.uid() != p_user_id THEN RAISE EXCEPTION 'unauthorized'; END IF;`. Pattern mirrors server-side JWT verification in API routes.
+
+**Problem 3: track_map_load RPC lacked advisory locks** — Unlike `create_render_job` and `upsert_cloud_project`, the RPC did SELECT → check quota → UPDATE without holding a lock. Concurrent page loads by the same user could both read the same counter snapshot, both pass the quota check, and both increment — allowing a slight over-count at boundaries.
+
+**Solution** (Migration 018): Added `PERFORM pg_advisory_xact_lock(hashtext(p_user_id::TEXT));` as the first statement. Concurrent calls queue behind the first, guaranteeing atomicity. Matches the established pattern in Migrations 012 and 017.
+
+**Problem 4: track-map-load API endpoint failed open on DB error** — The backend returned `{ allowed: true, monthly_total: 0, daily_total: 0 }` when the RPC threw a DB error. While `useMapLoadGate.ts` was updated to fail-closed on network errors, the backend explicitly granted access on internal failures — bypassing the quota system.
+
+**Solution** (api/track-map-load.ts): Changed error handler to return `res.status(500).json({ error: "quota_unavailable" })`. The frontend's `.catch()` handler correctly interprets a 500 as quota_error → blocks the map. Creates a consistent fail-closed behavior across the system.
+
+**Key Lesson**: SECURITY DEFINER functions must explicitly validate caller identity (don't rely on RLS). Always use advisory locks for critical counters. Fail closed on errors in security-critical paths.
+
 ---
 
 ## 7. Critical Implementation Notes
@@ -362,7 +384,8 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 ### 7.3 B.Y.O.K. (Bring Your Own Key)
 
 - **Storage**: Key is stored in `localStorage` under `BYOK_STORAGE_KEY`.
-- **Security**: The app blacklists its own `VITE_MAPBOX_TOKEN` for BYOK to prevent users from just copying the app's key to bypass limits.
+- **Security**: The app blacklists its own `VITE_MAPBOX_TOKEN` for BYOK to prevent users from just copying the app's key to bypass limits. The check runs in `hasByok()` in `cloudAccess.ts` (not just in UI handlers), so localStorage tampering is caught at the quota-logic layer.
+- **UI Validation**: `BYOKQuickEntry` (in `MapLoadGate.tsx`) and `AccountSettingsModal` both call `isAppOwnKey()` before accepting pasted tokens, providing immediate feedback.
 - **UX**: Updating or clearing the key triggers a page reload to re-initialize the Mapbox instance with the new token.
 
 ### 7.4 3D Vehicles & Flight Arcs

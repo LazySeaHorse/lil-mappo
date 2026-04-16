@@ -64,8 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (error) {
     console.error("[track-map-load] RPC error:", error);
-    // Fail open: don't block the user if our quota system has an error
-    return res.status(200).json({ allowed: true, monthly_total: 0, daily_total: 0 });
+    return res.status(500).json({ error: "quota_unavailable" });
   }
 
   const result = Array.isArray(data) ? data[0] : data;
