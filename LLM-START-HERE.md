@@ -286,21 +286,28 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - `videoExport.ts`: Threads `zoomOffset` through `prewarmTileCache()` and `captureFrame()`, applying it to keyframe-interpolated camera zoom.
 - `snapshot.ts`: Adjusts live camera zoom after resize to preserve current view framing at higher resolution.
 
-### 6.6a Video Export: H.264 Codec & Timestamp Precision Fixes
+### 6.6a Video Export: H.264 Codec, Timestamp Precision & WebM Path Fixes
 
-**Problem 1: Unplayable MP4 from Codec Level Mismatch** — The encoder was reporting codec Level 4.0 (`avc1.640028`) but hardware encoders (especially on Windows) sometimes fail silently when a too-high level is demanded, causing a fallback to WebM without updating the UI label. This left users with a "MP4" label but a `.webm` file.
+**Problem 1: Codec Level Mismatch + Hardware Rejection** — The encoder was hardcoded to request `avc1.640034` (H.264 Level 5.2). On hardware that rejects this level (or reports it as unsupported via `isConfigSupported()`), the encoder either failed silently or fell back to WebM without indication.
 
 **Solution**: 
-- Removed pre-flight `VideoEncoder.isConfigSupported()` check (was causing false-negatives for high levels on some hardware).
-- Standardized to `avc1.640034` (H.264 Level 5.2), which covers 4K/60fps and is supported universally by modern browsers' hardware encoders.
-- Added `onFormatDecided` callback to `ExportOptions`: fires immediately after `initEncoder` resolves with the *actual* format (`'mp4' | 'webm'`).
-- UI state `outputFormat` is now determined by what actually initialized, not by API availability. The format label and WebM fallback warning both read from this state.
+- Re-introduced `VideoEncoder.isConfigSupported()` as a probe (not a hard gate). `selectH264Codec()` tries Levels 5.2 → 5.1 → 4.2 → 4.0 in order, returning the best supported codec.
+- If `isConfigSupported()` reports all levels as unsupported (false-negative on some hardware), fall back to Level 5.2 anyway — the try/catch in `initEncoder` still catches actual config failures.
+- Added `onFormatDecided` callback: fires immediately after `initEncoder` with the actual format (`'mp4' | 'webm'`).
+- UI now correctly reflects what actually initialized instead of guessing from API availability.
 
-**Problem 2: Floating-Point Microsecond Timestamps** — The timestamp calculation `frameIndex * (1_000_000 / fps)` produced non-integers (e.g., 33333.33... for 30fps), violating the WebCodecs spec which requires integer microseconds. While most browsers truncated silently, strict decoders could reject the file as malformed.
+**Problem 2: Broken WebM Fallback (110-byte File)** — The `captureFrame` function for the MediaRecorder (WebM) path was creating a fresh `captureStream(0)` on every frame and calling `requestFrame()` on the wrong stream. The `MediaRecorder` was bound to a different stream (from `initEncoder`), so it never received frame signals, producing a hollow 110-byte header-only file.
+
+**Solution**: 
+- Include `mediaStream` in the `encoder` parameter's Pick type for `captureFrame`.
+- Call `requestFrame()` on the track from the correct `mediaStream` (the one the recorder is actually bound to).
+- Frames now flow correctly to the MediaRecorder, producing valid WebM files.
+
+**Problem 3: Floating-Point Microsecond Timestamps** — The timestamp calculation `frameIndex * (1_000_000 / fps)` produced non-integers (e.g., 33333.33... for 30fps), violating the WebCodecs spec which requires integer microseconds. While most browsers truncated silently, strict decoders could reject the file as malformed.
 
 **Solution**: Precompute `frameDuration = Math.round(1_000_000 / fps)` once and use `frameIndex * frameDuration` for all timestamps. Ensures all microsecond values are integers and perfectly consistent across the video.
 
-**Key Files**: `src/services/videoExport.ts` (encoder init, timestamp calculation) and `src/components/ExportModal/ExportModal.tsx` (format state + callback wiring).
+**Key Files**: `src/services/videoExport.ts` (codec probe, encoder init, frame capture).
 
 ### 6.7 Vehicle & Route Animation Fixes
 

@@ -36,6 +36,29 @@ interface EncoderState {
   recordedChunks: Blob[];
 }
 
+// ─── Codec level probe ────────────────────────────────────────────────────────
+
+// Tries isConfigSupported() on H.264 levels in descending order. Falls back to
+// the highest level if none report support (guards against false-negatives seen
+// on some hardware — the caller still wraps configure() in a try/catch).
+async function selectH264Codec(width: number, height: number, fps: number): Promise<string> {
+  const candidates = [
+    'avc1.640034', // Level 5.2 — 4K@60
+    'avc1.640033', // Level 5.1 — 4K@30
+    'avc1.64002A', // Level 4.2 — 1080@60
+    'avc1.640028', // Level 4.0 — 1080@30
+  ];
+  for (const codec of candidates) {
+    try {
+      const { supported } = await VideoEncoder.isConfigSupported({ codec, width, height, bitrate: 8_000_000, framerate: fps });
+      if (supported) return codec;
+    } catch {
+      // isConfigSupported itself can throw on some browsers — skip this candidate
+    }
+  }
+  return candidates[0]; // false-negative fallback: try highest level anyway
+}
+
 // ─── Encoder init ─────────────────────────────────────────────────────────────
 
 async function initEncoder(
@@ -57,6 +80,7 @@ async function initEncoder(
 
   if (typeof VideoEncoder !== 'undefined') {
     try {
+      const codec = await selectH264Codec(width, height, fps);
       const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
       const target = new ArrayBufferTarget();
       muxer = new Muxer({
@@ -68,13 +92,7 @@ async function initEncoder(
         output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
         error: (e: Error) => onError(`VideoEncoder error: ${e.message}`),
       });
-      videoEncoder.configure({
-        codec: 'avc1.640034',
-        width,
-        height,
-        bitrate: 8_000_000,
-        framerate: fps,
-      });
+      videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
     } catch {
       videoEncoder = null;
       muxer = null;
@@ -146,7 +164,7 @@ async function captureFrame(
   map: any,
   compCanvas: HTMLCanvasElement,
   compCtx: CanvasRenderingContext2D,
-  encoder: Pick<EncoderState, 'videoEncoder' | 'mediaRecorder'>,
+  encoder: Pick<EncoderState, 'videoEncoder' | 'mediaRecorder' | 'mediaStream'>,
   frameIndex: number,
   fps: number,
   clampedTime: number,
@@ -154,7 +172,7 @@ async function captureFrame(
   showWatermark: boolean,
   zoomOffset: number,
 ) {
-  const { videoEncoder, mediaRecorder } = encoder;
+  const { videoEncoder, mediaRecorder, mediaStream } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
 
   // Set playhead
@@ -210,8 +228,7 @@ async function captureFrame(
     videoEncoder.encode(videoFrame, { keyFrame: frameIndex % (fps * 2) === 0 });
     videoFrame.close();
   } else if (mediaRecorder) {
-    const stream = compCanvas.captureStream(0) as MediaStream;
-    const track = stream.getVideoTracks()[0] as any;
+    const track = mediaStream?.getVideoTracks()[0] as any;
     if (track?.requestFrame) track.requestFrame();
   }
 }
