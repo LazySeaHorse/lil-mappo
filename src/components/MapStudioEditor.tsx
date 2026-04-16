@@ -149,6 +149,7 @@ export default function MapStudioEditor() {
   }, [user?.id]);
 
   const mapStyle = useProjectStore((s) => s.mapStyle);
+  const lightPreset = useProjectStore((s) => s.lightPreset);
   const hideUI = useProjectStore((s) => s.hideUI);
   const setHideUI = useProjectStore((s) => s.setHideUI);
   const isPlaying = useProjectStore((s) => s.isPlaying);
@@ -160,9 +161,10 @@ export default function MapStudioEditor() {
     const isDark =
       mapStyle === "dark" ||
       mapStyle === "satellite" ||
-      mapStyle === "satelliteStreets";
+      mapStyle === "satelliteStreets" ||
+      (mapStyle === "standard" && (lightPreset === "night" || lightPreset === "dusk"));
     document.documentElement.classList.toggle("dark", isDark);
-  }, [mapStyle]);
+  }, [mapStyle, lightPreset]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("hide-ui-active", hideUI);
