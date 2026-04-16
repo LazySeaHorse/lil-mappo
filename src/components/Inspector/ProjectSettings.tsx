@@ -1,5 +1,6 @@
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -11,7 +12,7 @@ import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
-import { RotateCw, Monitor, Smartphone, Lock } from 'lucide-react';
+import { RotateCw, Monitor, Smartphone, Lock, ArrowRight } from 'lucide-react';
 import { ProBadge } from '@/components/ui/pro-badge';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { RESOLUTION_LABELS } from '@/types/render';
@@ -51,6 +52,7 @@ export function ProjectSettings() {
   const capabilities = useMapStyleCapabilities();
   const { data: subscription } = useSubscription();
   const limits = getExportLimits(subscription);
+  const { openCreditsModal } = useAuthStore();
 
   return (
     <PanelWrapper title="Project Settings">
@@ -143,6 +145,20 @@ export function ProjectSettings() {
               </span>
             </div>
           </Field>
+
+          {limits.limited && (
+            <div className="mt-4 p-3 bg-primary/5 rounded-xl border border-primary/10 space-y-2">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                <span className="font-bold text-primary">Free plan:</span> Limited to 720p, 30fps and 30s.
+              </p>
+              <button
+                onClick={openCreditsModal}
+                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+              >
+                Upgrade to a paid plan (or BYOK) to unlock <ArrowRight size={10} />
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <Accordion type="multiple" defaultValue={['env', 'labels', '3d']} className="w-full">
@@ -181,8 +197,8 @@ export function ProjectSettings() {
                 <ColorPicker
                   value={fogColor || (
                     mapStyle === 'satellite' || mapStyle === 'satelliteStreets' ? '#DC9F71' :
-                    mapStyle === 'dark' ? '#171717' :
-                    '#BAD2EB'
+                      mapStyle === 'dark' ? '#171717' :
+                        '#BAD2EB'
                   )}
                   onChange={(v) => setAtmosphere({ fogColor: v })}
                 />

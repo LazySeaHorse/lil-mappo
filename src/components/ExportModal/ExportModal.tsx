@@ -7,7 +7,7 @@ import { useCredits } from '@/hooks/useCredits';
 import { useSubscription } from '@/hooks/useSubscription';
 import { runExport } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
-import { X, Download, Clapperboard, AlertTriangle, Cloud, Lock, Monitor, Smartphone } from 'lucide-react';
+import { X, Download, Clapperboard, AlertTriangle, Cloud, Lock, Monitor, Smartphone, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -320,7 +320,19 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             </Field>
           </div>
 
-
+          {limits.limited && (
+            <div className="p-3 bg-primary/5 rounded-xl border border-primary/10 space-y-2">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                <span className="font-bold text-primary">Free plan:</span> Limited to 720p, 30fps and 30s.
+              </p>
+              <button
+                onClick={openCreditsModal}
+                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+              >
+                Upgrade to a paid plan (or BYOK) to unlock <ArrowRight size={10} />
+              </button>
+            </div>
+          )}
 
           {/* Info row */}
           <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">
