@@ -279,6 +279,13 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Why `preserveDrawingBuffer = true`?** Allows reliable canvas capture during export/snapshots. ~1-2% GPU overhead on modern hardware (acceptable trade-off).
 
+**Resolution-Independent Framing (Zoom Offset)**: When rendering at a different resolution than the preview viewport, Mapbox GL JS shows a different geographic area at the same zoom level. For example, 4K (3840px) shows exactly twice as much as FHD (1920px).
+
+**Solution**: Before resizing the map for export/snapshot, capture the preview viewport width and compute `zoomOffset = log2(renderWidth / previewWidth)`. Apply this offset to all camera zoom values during render. This preserves the "designed framing" regardless of output resolution. Example: FHD→4K gives `+1.0` zoom stop, which maintains identical visual composition.
+
+- `videoExport.ts`: Threads `zoomOffset` through `prewarmTileCache()` and `captureFrame()`, applying it to keyframe-interpolated camera zoom.
+- `snapshot.ts`: Adjusts live camera zoom after resize to preserve current view framing at higher resolution.
+
 ### 6.7 Vehicle & Route Animation Fixes
 
 **Problem 1: Vehicle Visibility Decoupled** — Vehicles remained visible at route start/end even when route line was hidden (before `startTime` or after `endTime`). They also ignored "fade" exit animations.

@@ -112,6 +112,7 @@ async function prewarmTileCache(
   startTime: number,
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void,
   abortSignal: AbortSignal,
+  zoomOffset: number,
 ) {
   const STEPS = 24;
   const freshStore = useProjectStore.getState();
@@ -126,7 +127,7 @@ async function prewarmTileCache(
     if (camItem && camItem.keyframes.length > 0) {
       const cam = getCameraAtTime(camItem.keyframes, clampedT, getRouteCoords);
       if (cam) {
-        map.jumpTo({ center: cam.center, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+        map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
       }
     }
 
@@ -143,7 +144,7 @@ async function prewarmTileCache(
   if (camItem && camItem.keyframes.length > 0) {
     const cam = getCameraAtTime(camItem.keyframes, startTime, getRouteCoords);
     if (cam) {
-      map.jumpTo({ center: cam.center, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+      map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
     }
   }
 }
@@ -160,6 +161,7 @@ async function captureFrame(
   clampedTime: number,
   getRouteCoords: (id: string) => number[][] | null,
   showWatermark: boolean,
+  zoomOffset: number,
 ) {
   const { videoEncoder, mediaRecorder } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
@@ -173,7 +175,7 @@ async function captureFrame(
   if (camItem && camItem.keyframes.length > 0) {
     const cam = getCameraAtTime(camItem.keyframes, clampedTime, getRouteCoords);
     if (cam) {
-      map.jumpTo({ center: cam.center, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+      map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
     }
   }
 
@@ -265,6 +267,12 @@ export async function runExport(
   const map = mapRef.current?.getMap?.();
   if (!map) { onError('Map not available'); return; }
 
+  // Zoom offset: compensates for the viewport size change during export so the
+  // rendered framing matches what was designed at preview resolution.
+  // log2(renderWidth / previewWidth) — positive when rendering larger than preview.
+  const previewWidth = map.getContainer().getBoundingClientRect().width;
+  const zoomOffset = Math.log2(width / previewWidth);
+
   const getRouteCoords = (routeId: string): number[][] | null => {
     const route = store.items[routeId] as RouteItem | undefined;
     if (!route) return null;
@@ -286,7 +294,7 @@ export async function runExport(
       await document.fonts.ready;
 
       // Phase 1: pre-warm tile cache
-      await prewarmTileCache(map, getRouteCoords, effectiveDuration, startTime, onProgress, abortSignal);
+      await prewarmTileCache(map, getRouteCoords, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
 
       // Phase 2: capture frames
       for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
@@ -299,7 +307,7 @@ export async function runExport(
         const currentTime = (startFrame + frameIndex) / fps;
         const clampedTime = Math.min(currentTime, duration);
 
-        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, options.showWatermark);
+        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, options.showWatermark, zoomOffset);
         onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
       }
 

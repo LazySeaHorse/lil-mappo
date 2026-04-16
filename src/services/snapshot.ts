@@ -21,8 +21,16 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<any>, showWate
   const [width, height] = store.resolution;
   const id = toast.loading('Preparing high-res snapshot...');
 
+  // Capture preview dimensions before resize so we can preserve framing.
+  const previewWidth = map.getContainer().getBoundingClientRect().width;
+  const previewZoom = map.getZoom();
+  const zoomOffset = Math.log2(width / previewWidth);
+
   try {
     await withMapResized(map, width, height, async () => {
+      // Restore equivalent framing at the new resolution.
+      if (zoomOffset !== 0) map.jumpTo({ zoom: previewZoom + zoomOffset });
+
       toast.loading('Rendering high-res tiles...', { id });
       await Promise.race([
         new Promise<void>((resolve) => map.once('idle', resolve)),
