@@ -60,7 +60,7 @@ async function initEncoder(
       // headless Chromium containers even when a GPU is present. prefer-software
       // uses libx264/OpenH264 and works reliably in both browser and headless.
       const codecConfig: VideoEncoderConfig = {
-        codec: 'avc1.640028',
+        codec: 'avc1.640034',
         width,
         height,
         bitrate: 8_000_000,
