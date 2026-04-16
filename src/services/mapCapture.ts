@@ -13,6 +13,7 @@ export function compositeFrame(
   items: Record<string, Item>,
   itemOrder: string[],
   playheadTime: number,
+  showWatermark: boolean,
 ): void {
   const mapCanvas = map.getCanvas() as HTMLCanvasElement;
   compCtx.clearRect(0, 0, width, height);
@@ -44,16 +45,46 @@ export function compositeFrame(
   // Since attribution is a DOM overlay, it doesn't exist on the map canvas itself.
   const attribText = '© Mapbox © OpenStreetMap';
   compCtx.save();
-  compCtx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  compCtx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   compCtx.textAlign = 'right';
   compCtx.textBaseline = 'bottom';
   // Subtle white glow/shadow for readability on dark map areas
   compCtx.shadowColor = 'white';
   compCtx.shadowBlur = 4;
   compCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-  compCtx.fillText(attribText, width - 8, height - 8);
+  compCtx.fillText(attribText, width - 12, height - 12);
   compCtx.restore();
+
+  // Draw Mapbox Logo (bottom-left)
+  // Standard Mapbox logo is roughly 88x20. We draw a simplified version or 
+  // assume the logo image is pre-loaded or available.
+  if (mapboxLogo.complete && mapboxLogo.naturalWidth !== 0) {
+    compCtx.save();
+    compCtx.globalAlpha = 0.8;
+    // Keep it proportional, roughly 70px wide
+    const logoW = 70;
+    const logoH = (mapboxLogo.naturalHeight / mapboxLogo.naturalWidth) * logoW;
+    compCtx.drawImage(mapboxLogo, 12, height - 12 - logoH, logoW, logoH);
+    compCtx.restore();
+  }
+
+  // Draw "made with li'l Mappo" (top-right)
+  if (showWatermark) {
+    compCtx.save();
+    compCtx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    compCtx.textAlign = 'right';
+    compCtx.textBaseline = 'top';
+    compCtx.shadowColor = 'rgba(0,0,0,0.5)';
+    compCtx.shadowBlur = 4;
+    compCtx.fillStyle = 'white';
+    compCtx.fillText('made with li\'l Mappo', width - 12, 12);
+    compCtx.restore();
+  }
 }
+
+// Mapbox logo in SVG format (simplified logotype)
+const mapboxLogo = new Image();
+mapboxLogo.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4OCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDg4IDIwIj48cGF0aCBmaWxsPSIjMDAwIiBkPSJNMTEgNi4zYTIuNiAyLjYgMCAxIDAgMCA1LjIgMi42IDIuNiAwIDAgMCAwLTUuMnpNMTEgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTE5LjMgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTI3LjYgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTM1LjkgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTQ0LjIgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuM2MtLjkgMC0xLjUuNy0xLjUgMS41cy43IDEuNSAxLjUgMS41IDEuNS0uNyAxLjUtMS41LS42LTEuNS0xLjUtMS41em0tMTEuNi0uMmMtLjkgMC0xLjUuNy0xLjUgMS41cz43IDEuNSAxLjUgMS41IDEuNS0uNyAxLjUtMS41LS43LTEuNS0xLjUtMS41em0xNy41IDBjLS45IDAtMS41LjctMS41IDEuNXMuNyAxLjUgMS41IDEuNSAxLjUtLjcgMS41LTEuNS0uNy0xLjUtMS41LTEuNXptLTguOCAwaC0uNnYzLjVoLjh2LTMuNXoiLz48L3N2Zz4=';
 
 /**
  * Resizes the map container off-screen to the target capture dimensions,

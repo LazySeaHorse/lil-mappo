@@ -14,7 +14,7 @@ import { useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
-import { isFreeUser, hasByok } from "@/lib/cloudAccess";
+import { isFreeUser, hasByok, shouldShowWatermark } from "@/lib/cloudAccess";
 import { useMapLoadGate } from "@/hooks/useMapLoadGate";
 import { syncProjects } from "@/services/cloudSync";
 import { toast } from "sonner";
@@ -81,12 +81,14 @@ function ZenModeControls({
   onShowUI,
   onTogglePlay,
   mapRef,
+  subscription,
 }: {
   isMobile: boolean;
   isPlaying: boolean;
   onShowUI: () => void;
   onTogglePlay: () => void;
   mapRef: React.MutableRefObject<MapRef | null>;
+  subscription: any;
 }) {
   return (
     <div
@@ -103,7 +105,7 @@ function ZenModeControls({
       <IconButton 
         variant="zen" 
         size="lg" 
-        onClick={() => takeSnapshot(mapRef)} 
+        onClick={() => takeSnapshot(mapRef, shouldShowWatermark(subscription))} 
         title="Take High-Res Snapshot"
       >
         <Camera size={20} />
@@ -208,6 +210,7 @@ export default function MapStudioEditor() {
             onShowUI={() => setHideUI(false)}
             onTogglePlay={() => setIsPlaying(!isPlaying)}
             mapRef={mapRef}
+            subscription={subscription}
           />
         )}
 

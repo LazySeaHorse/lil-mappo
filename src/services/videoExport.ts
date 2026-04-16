@@ -22,6 +22,7 @@ export interface ExportOptions {
   onComplete: (blob: Blob) => void;
   onError: (err: string) => void;
   abortSignal: AbortSignal;
+  showWatermark: boolean;
 }
 
 interface EncoderState {
@@ -158,6 +159,7 @@ async function captureFrame(
   fps: number,
   clampedTime: number,
   getRouteCoords: (id: string) => number[][] | null,
+  showWatermark: boolean,
 ) {
   const { videoEncoder, mediaRecorder } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
@@ -203,7 +205,7 @@ async function captureFrame(
   }
 
   // Composite: map canvas + callouts
-  compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime);
+  compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime, showWatermark);
 
   // Encode frame
   if (videoEncoder) {
@@ -297,7 +299,7 @@ export async function runExport(
         const currentTime = (startFrame + frameIndex) / fps;
         const clampedTime = Math.min(currentTime, duration);
 
-        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords);
+        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, options.showWatermark);
         onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
       }
 

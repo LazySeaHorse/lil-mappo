@@ -10,7 +10,7 @@ import { toast } from 'sonner';
  * waits for tiles to settle, composites callouts, then downloads as PNG.
  * Uses current playhead position (not interpolated camera).
  */
-export async function takeSnapshot(mapRef: React.MutableRefObject<any>) {
+export async function takeSnapshot(mapRef: React.MutableRefObject<any>, showWatermark: boolean) {
   const map = mapRef.current?.getMap?.();
   if (!map) {
     toast.error('Snapshot failed: Map not initialized');
@@ -36,7 +36,7 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<any>) {
       const compCtx = compCanvas.getContext('2d')!;
 
       const freshStore = useProjectStore.getState();
-      compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, freshStore.playheadTime);
+      compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, freshStore.playheadTime, showWatermark);
 
       await new Promise<void>((resolve, reject) => {
         compCanvas.toBlob((blob) => {

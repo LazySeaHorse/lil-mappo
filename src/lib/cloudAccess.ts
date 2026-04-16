@@ -18,6 +18,14 @@ export function isFreeUser(subscription: Subscription | null | undefined): boole
   return !isWanderer(subscription);
 }
 
+/** 
+ * Returns true if the product watermark ("made with li'l Mappo") should be shown.
+ * Watermarks are hidden ONLY for paid users. BYOK and Free users still see it.
+ */
+export function shouldShowWatermark(subscription: Subscription | null | undefined): boolean {
+  return !isWanderer(subscription);
+}
+
 // ─── BYOK ─────────────────────────────────────────────────────────────────────
 
 /** Returns true if the user has a valid BYOK Mapbox token set in localStorage. */

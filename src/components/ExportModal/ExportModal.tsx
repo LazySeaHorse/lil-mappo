@@ -21,7 +21,7 @@ import {
   getExportDimensions,
   calculateRenderCredits,
 } from '@/types/render';
-import { getExportLimits } from '@/lib/cloudAccess';
+import { getExportLimits, shouldShowWatermark } from '@/lib/cloudAccess';
 
 interface ExportModalProps {
   onClose: () => void;
@@ -114,6 +114,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     setError(null);
     abortRef.current = new AbortController();
 
+    const showWatermark = shouldShowWatermark(subscription);
     useProjectStore.getState().setIsPlaying(false);
     useProjectStore.getState().setHideUI(true);
 
@@ -122,6 +123,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
         renderConfig: buildRenderConfig(),
         startTime,
         endTime,
+        showWatermark,
         onProgress: (pct, p) => { setProgress(pct); setPhase(p); },
         onComplete: (blob) => {
           const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
