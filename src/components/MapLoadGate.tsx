@@ -67,13 +67,6 @@ function MapLoadBlockedScreen({
         <>
           <div className="space-y-2 max-w-sm">
             <h2 className="text-xl font-black tracking-tight">Sign in to continue</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              You've used your {GUEST_LOAD_LIMIT} free map loads. Create a free account to
-              get 50 loads per month.
-            </p>
-            <p className="text-xs text-muted-foreground/60">
-              {guestLoadsUsed}/{GUEST_LOAD_LIMIT} loads used
-            </p>
           </div>
           <Button className="rounded-xl px-8 h-11 font-semibold" onClick={onSignIn}>
             Sign in / Create account

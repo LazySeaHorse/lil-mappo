@@ -6,7 +6,8 @@ import type { RouteItem } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
 import { saveProjectToLibrary, updateCloudSyncMeta } from '@/services/projectLibrary';
 import { saveProjectToCloud } from '@/services/cloudProjectLibrary';
-import { isFreeUser } from '@/lib/cloudAccess';
+import { isFreeUser, hasByok } from '@/lib/cloudAccess';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
@@ -20,8 +21,15 @@ export function useToolbarActions() {
   } = projectState;
 
   const { data: subscription } = useSubscription();
+  const { user, openAuthModal } = useAuthStore();
+  const isLocked = !user && !hasByok();
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLocked) {
+      openAuthModal();
+      e.target.value = '';
+      return;
+    }
     const files = e.target.files;
     if (!files) return;
     for (const file of Array.from(files)) {
@@ -63,9 +71,14 @@ export function useToolbarActions() {
       }
     }
     e.target.value = '';
-  }, [playheadTime, addItem, selectItem, setTerrainEnabled, setBuildingsEnabled]);
+  }, [playheadTime, addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, openAuthModal]);
 
   const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLocked) {
+      openAuthModal();
+      e.target.value = '';
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
     try {
@@ -84,6 +97,10 @@ export function useToolbarActions() {
   };
 
   const handleExportProject = () => {
+    if (isLocked) {
+      openAuthModal();
+      return;
+    }
     const data = JSON.stringify(projectState, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.lilmap`;
@@ -91,6 +108,10 @@ export function useToolbarActions() {
   };
 
   const handleSaveToLibrary = async () => {
+    if (isLocked) {
+      openAuthModal();
+      return;
+    }
     const plainData = JSON.parse(JSON.stringify(projectState));
     // Free users always save locally; Wanderer subscribers also push to cloud.
     const cloudEnabled = !isFreeUser(subscription);

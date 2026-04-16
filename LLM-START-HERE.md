@@ -11,6 +11,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Annotate**: 3D callout cards with multiple style variants (default, modern, news, topo).
 - **Save & Export**: Local IndexedDB library, cloud sync via Supabase, MP4 video export.
 - **User Accounts**: Supabase Auth with credits, render job history, subscription tiers.
+- **Payment Strategy**: Dodo Payments integration with a B.Y.O.K option to offload infra costs.
 
 **UI Design**: Premium "floating island" aesthetic with responsive mobile/tablet/desktop modes. Tools are **mutually exclusive and non-modal** — opening one closes others, and they stay open during map interaction.
 
@@ -28,6 +29,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Search**: `@mapbox/search-js-core` (SearchBox API with session-based pricing)
 - **Payments**: Dodo Payments (hosted checkout, webhooks for provisioning)
 - **UI Components**: Tier 1 (primitives) + Tier 2 (composites) built on shadcn/ui v0.9+
+- **Quotas & Limits**: Custom enforcement for map loads, cloud saves, and export quality based on user tier and BYOK status.
 
 ---
 
@@ -65,6 +67,7 @@ Manages user auth state, modal visibility, and checkout flow. Integrates Supabas
 
 **Modal Flow**: 
 - `showAuthModal` + `authModalMode` ('signin' | 'signup') for OAuth redirects.
+- After signup, domain-level allowlist is enforced both on the frontend and via Supabase Auth Hooks.
 - After signup, `pendingPlan` (stored in localStorage) survives redirects and auto-triggers checkout.
 
 ### 3.2 The Heart: `src/hooks/usePlayback.ts`
@@ -164,6 +167,7 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **Phase 2**: Real Supabase Auth endpoints (email + OAuth) + RLS policies + database schema (credit_balance, subscriptions, render_jobs).
 - **Phase 3**: Live data wiring + React Query caching (30s/60s/0s stale times).
 - **Phase 4**: Dodo Payments integration (Vercel API routes for session creation + webhook fulfillment).
+- **Phase 5 (Refactor)**: Transition to the New Payment Model (April 2026).
 
 **Lesson**: Bi-directional sync with webhooks requires **idempotent event handlers** and **advisory locks** to prevent race conditions.
 
@@ -215,9 +219,9 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 **⚠️ STATUS: Temporarily disabled in the UI.** The pipeline is fully implemented and functional but produces poor quality output because headless Chromium on Modal falls back to SwiftShader (CPU software rasterizer) instead of using the GPU. GPU acceleration requires NVIDIA's rendering stack (OpenGL/Vulkan ICD) which is not available in Modal's standard CUDA containers. Re-enable once this is resolved.
 
 **What's disabled (commented out, not deleted)**:
-- Cloud Render button in `ExportModal` (shows "soon™")
+- Cloud Render button in `ExportModal` (shows "soon™" for now)
 - My Renders menu item in `AvatarMenu`
-- Cartographer and Pioneer subscription tiers in `SubscriptionTiers` (show "soon™")
+- Wanderer is currently the ONLY paid tier ($7/mo). Cartographer and Pioneer remain disabled.
 - Top Up Credits tab in `CreditsModal`
 
 **Architecture**:
@@ -287,6 +291,19 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **Zen Mode**: Repositioned controls to top-right for all devices. Reordered to prioritize Play/Pause.
 - New Camera button triggers **Snapshot Service** for high-res stills.
 
+### 6.10 New Payment Model (April 2026 Refactor)
+
+**Problem**: Mapbox costs and broken cloud renders necessitated a limit-heavy model to ensure sustainability.
+
+**Solution**:
+- **Guest Users**: Restricted to 3 map loads (tracked in `localStorage`). Blocked from exporting or saving projects.
+- **Free Signed-in Users**: 50 map loads/month (server-tracked). Throttled to 3 loads/day after 30 monthly loads. Limited to 3 cloud saves, 30s timeline duration, and 720p 30fps exports.
+- **Wanderer ($7/mo)**: Unlimited map loads, unlimited cloud saves, unlimited quality settings.
+- **BYOK (Bring Your Own Key)**: Lifts map load counter and quality/duration limits for *all* users (even guests). Blacklists the app's own key to prevent token theft/bypass.
+- **Implementation**: `src/lib/cloudAccess.ts` provides the logic; `src/hooks/useMapLoadGate.ts` and `src/components/MapLoadGate.tsx` enforce the map mounting logic.
+- **Expiry Logic**: `api/dodo-webhook.ts` now deletes the subscription row on expiry, effectively dropping the user to the free tier (rather than the legacy 'Nomad' tier).
+- **Cleanup**: The daily account purge (`api/cleanup-free-accounts.ts`) is temporarily disabled via early return and `vercel.json` cron removal to allow free users to exist while cloud renders are broken.
+
 ---
 
 ## 7. Critical Implementation Notes
@@ -304,9 +321,15 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **Title Linking**: If `linkTitleToLocation` enabled, callout title auto-syncs with geocoded location name.
 - **Animations**: Simple fade in/out (no scale/slide variants exposed in UI).
 
-### 7.3 3D Vehicles & Flight Arcs
+### 7.3 B.Y.O.K. (Bring Your Own Key)
 
-- **3D Vehicles**: Gated as PRO feature in Inspector (toggle + scale controls disabled with "PRO" badge).
+- **Storage**: Key is stored in `localStorage` under `BYOK_STORAGE_KEY`.
+- **Security**: The app blacklists its own `VITE_MAPBOX_TOKEN` for BYOK to prevent users from just copying the app's key to bypass limits.
+- **UX**: Updating or clearing the key triggers a page reload to re-initialize the Mapbox instance with the new token.
+
+### 7.4 3D Vehicles & Flight Arcs
+
+- **3D Vehicles**: Gated as PRO feature in Inspector (toggle + scale controls disabled for free users).
 - **Flight Arcs**: Generated via `@turf/great-circle` with parabolic altitude curve.
 - **Land Routes**: Use Mapbox Directions v5.
 
@@ -319,6 +342,15 @@ The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the
 - **Scrollbar Aesthetics**: Hidden in search menus via CSS (`scrollbar-width: none`) to maintain clean design.
 - **Move Mode UX**: During "Pick on Map" or "Move Mode", input fields pulse with "Click on map..." placeholder + disabled state.
 - **Session Pricing**: Search Box API session tokens are scoped per `SearchSession` instance to prevent cross-component token reuse.
+
+### 7.6 Anti-Abuse & Email Allowlist
+
+- **Problem**: Spam account creation using disposable email services.
+- **Solution**: `src/lib/emailAllowlist.ts` maintains a list of ~14 trusted domains (Gmail, Outlook, etc.).
+- **Enforcement**:
+    - **Frontend**: `AuthModal.tsx` checks the email before calling Supabase signup.
+    - **Server-side**: Supabase "Before user creation" Auth Hook (Migration 016) rejects signups from blacklisted domains.
+- **Obfuscation**: Production builds use `rollup-plugin-obfuscator` to make reverse-engineering client-side limits harder (Phase 10).
 
 ---
 

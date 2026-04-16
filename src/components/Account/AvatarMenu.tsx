@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useResponsive } from '@/hooks/useResponsive';
+import { hasByok } from '@/lib/cloudAccess';
 import { useToolbarActions } from '@/components/Toolbar/useToolbarActions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -11,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
-  ChevronDown, Coins, Settings2, Clapperboard, LogIn, LogOut, UserCircle,
+  ChevronDown, Coins, Settings2, Clapperboard, LogIn, LogOut, UserCircle, Lock,
 } from 'lucide-react';
 
 interface AvatarMenuProps {
@@ -29,6 +30,12 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
   const { user, openAuthModal, openSettingsModal, openCreditsModal, openRendersModal, signOut } = useAuthStore();
   const { selectItem, setProjectSettingsTab } = useProjectStore();
   const actions = useToolbarActions();
+  const isLocked = !user && !hasByok();
+
+  const gatedClick = (fn: () => void) => {
+    if (isLocked) openAuthModal();
+    else fn();
+  };
 
   const initials = user?.displayName
     ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -71,16 +78,20 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
           </DropdownMenuItem>
           <DropdownMenuItem onClick={actions.handleSaveToLibrary} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Save size={14} /> Save to Library
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onLibrary} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Library size={14} /> My Projects...
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
           <DropdownMenuItem onClick={actions.handleExportProject} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <FileJson size={14} /> Export Project File
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onImportProjectClick} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={() => gatedClick(onImportProjectClick)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Upload size={14} /> Import Project File
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
           <DropdownMenuItem

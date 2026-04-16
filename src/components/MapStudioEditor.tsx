@@ -14,7 +14,7 @@ import { useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
-import { isFreeUser } from "@/lib/cloudAccess";
+import { isFreeUser, hasByok } from "@/lib/cloudAccess";
 import { useMapLoadGate } from "@/hooks/useMapLoadGate";
 import { syncProjects } from "@/services/cloudSync";
 import { toast } from "sonner";
@@ -122,9 +122,8 @@ export default function MapStudioEditor() {
   const { isMobile, isTablet } = useResponsive();
   usePlayback(mapRef);
   const mapLoadGate = useMapLoadGate();
-
-  // ── Initial cloud sync on sign-in ──────────────────────────────────────────
-  const user = useAuthStore((s) => s.user);
+  const { user, openAuthModal } = useAuthStore();
+  const isLocked = !user && !hasByok();
   const { data: subscription } = useSubscription();
   // Track whether we've synced for this user session to avoid repeat syncs
   const syncedUserId = useRef<string | null>(null);
@@ -192,8 +191,14 @@ export default function MapStudioEditor() {
           className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${hideUI ? "opacity-0 invisible" : "opacity-100 visible"}`}
         >
           <Toolbar
-            onExport={() => setShowExport(true)}
-            onLibrary={() => setShowLibrary(true)}
+            onExport={() => {
+              if (isLocked) openAuthModal();
+              else setShowExport(true);
+            }}
+            onLibrary={() => {
+              if (isLocked) openAuthModal();
+              else setShowLibrary(true);
+            }}
           />
           <InspectorPanel />
           <TimelinePanel />

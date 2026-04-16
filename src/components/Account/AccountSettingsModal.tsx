@@ -271,12 +271,12 @@ function AccountSettingsModalBody() {
               </span>
               .{" "}
               <a
-                href="https://account.mapbox.com/access-tokens/"
+                href="https://mapbox.com/"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-0.5 text-primary hover:underline"
               >
-                Get a token <ExternalLink size={10} />
+                you can get one for free at mapbox.com <ExternalLink size={10} />
               </a>
             </p>
             <div className="flex gap-2">
@@ -405,8 +405,8 @@ function ManageView({
             </p>
             <span
               className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isCancelled
-                  ? "bg-amber-500/10 text-amber-500"
-                  : "bg-green-500/10 text-green-500"
+                ? "bg-amber-500/10 text-amber-500"
+                : "bg-green-500/10 text-green-500"
                 }`}
             >
               {subscription?.status === "cancelled"
