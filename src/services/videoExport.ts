@@ -56,16 +56,6 @@ async function initEncoder(
 
   if (typeof VideoEncoder !== 'undefined') {
     try {
-      const codecConfig: VideoEncoderConfig = {
-        codec: 'avc1.640034',
-        width,
-        height,
-        bitrate: 8_000_000,
-        framerate: fps,
-      };
-      const support = await VideoEncoder.isConfigSupported(codecConfig);
-      if (!support.supported) throw new Error('H.264 encoding not supported');
-
       const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
       const target = new ArrayBufferTarget();
       muxer = new Muxer({
@@ -77,7 +67,13 @@ async function initEncoder(
         output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
         error: (e: Error) => onError(`VideoEncoder error: ${e.message}`),
       });
-      videoEncoder.configure(codecConfig);
+      videoEncoder.configure({
+        codec: 'avc1.640034',
+        width,
+        height,
+        bitrate: 8_000_000,
+        framerate: fps,
+      });
     } catch {
       videoEncoder = null;
       muxer = null;
