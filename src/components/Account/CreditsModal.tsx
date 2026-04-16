@@ -98,13 +98,13 @@ function CreditsModalBody() {
             Re-enable the second TabsTrigger and TabsContent below once cloud
             rendering (and therefore credits) is live and working. Also restore
             grid-cols-2 on TabsList. */}
-        <TabsList className="grid w-full grid-cols-1 mb-6 bg-secondary/50 p-1 rounded-2xl">
+        <TabsList className="grid w-full grid-cols-2 mb-6 bg-secondary/50 p-1 rounded-2xl">
           <TabsTrigger value="plans" className="rounded-xl text-sm font-medium">
             Subscriptions
           </TabsTrigger>
-          {/* <TabsTrigger value="topup" className="rounded-xl text-sm font-medium">
+          <TabsTrigger value="topup" className="rounded-xl text-sm font-medium">
             Top Up Credits
-          </TabsTrigger> */}
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Plans tab ── */}
@@ -152,11 +152,9 @@ function CreditsModalBody() {
           />
         </TabsContent>
 
-        {/* TOP-UP CREDITS TEMPORARILY DISABLED — not dead code.
-            Re-enable by restoring the TabsTrigger above (grid-cols-2) and
-            unwrapping the false && block below once cloud rendering is live. */}
-        {false && (
-          <TabsContent value="topup" className="space-y-4 mt-0 outline-none">
+        {/* TOP-UP CREDITS PARTIALLY RE-ENABLED — Checkout is disabled.
+            Unwrap and disable Button below once cloud rendering is live. */}
+        <TabsContent value="topup" className="space-y-4 mt-0 outline-none">
             {/* Benefit callout — always visible */}
             <div className="bg-secondary/30 rounded-2xl border border-border/40 p-4 space-y-2.5">
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
@@ -228,8 +226,9 @@ function CreditsModalBody() {
                   </div>
                 </div>
                 <Button
-                  className="h-11 w-full sm:w-auto px-8 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5"
+                  className="h-11 w-full sm:w-auto px-8 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 opacity-50 cursor-not-allowed"
                   onClick={() => startCheckout("topup", purchaseAmount)}
+                  disabled
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
                   {user ? "Checkout" : "Get Started"}
@@ -265,7 +264,6 @@ function CreditsModalBody() {
               </div>
             )}
           </TabsContent>
-        )}
       </Tabs>
     </div>
   );

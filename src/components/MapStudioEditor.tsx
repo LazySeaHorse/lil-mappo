@@ -191,10 +191,7 @@ export default function MapStudioEditor() {
           className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${hideUI ? "opacity-0 invisible" : "opacity-100 visible"}`}
         >
           <Toolbar
-            onExport={() => {
-              if (isLocked) openAuthModal();
-              else setShowExport(true);
-            }}
+            onExport={() => setShowExport(true)}
             onLibrary={() => {
               if (isLocked) openAuthModal();
               else setShowLibrary(true);

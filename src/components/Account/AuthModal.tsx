@@ -50,7 +50,7 @@ function AppleIcon() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AuthModal() {
-  const { showAuthModal, authModalMode, closeAuthModal, openAuthModal } =
+  const { showAuthModal, authModalMode, closeAuthModal, openAuthModal, openSignupModal } =
     useAuthStore();
 
   const handleOpenChange = (open: boolean) => {
@@ -89,8 +89,11 @@ export function AuthModal() {
             isSignup={isSignup}
             onSwitchToSignin={() => {
               closeAuthModal();
-              // Small delay so the close animation finishes before reopening
               setTimeout(() => openAuthModal(), 150);
+            }}
+            onSwitchToSignup={() => {
+              closeAuthModal();
+              setTimeout(() => openSignupModal(), 150);
             }}
           />
         </div>
@@ -104,9 +107,11 @@ export function AuthModal() {
 function AuthModalBody({
   isSignup,
   onSwitchToSignin,
+  onSwitchToSignup,
 }: {
   isSignup: boolean;
   onSwitchToSignin: () => void;
+  onSwitchToSignup: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -273,8 +278,7 @@ function AuthModalBody({
         </Button>
       </form>
 
-      {/* Signup mode: offer sign-in for existing users */}
-      {isSignup && (
+      {isSignup ? (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
           <p className="text-[11px] text-muted-foreground/70">
             Already have an account?
@@ -285,6 +289,19 @@ function AuthModalBody({
             className="text-[11px] text-primary hover:text-primary/80 font-semibold transition-colors"
           >
             Sign in
+          </button>
+        </div>
+      ) : (
+        <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
+          <p className="text-[11px] text-muted-foreground/70">
+            Don't have an account?
+          </p>
+          <button
+            type="button"
+            onClick={onSwitchToSignup}
+            className="text-[11px] text-primary hover:text-primary/80 font-semibold transition-colors"
+          >
+            Create one
           </button>
         </div>
       )}

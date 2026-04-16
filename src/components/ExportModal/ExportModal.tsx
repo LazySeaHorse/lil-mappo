@@ -252,7 +252,10 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                     const isLocked = limits.limited && resOrder.indexOf(r) > resOrder.indexOf(limits.maxResolution);
                     return (
                       <SelectItem key={r} value={r} disabled={isLocked}>
-                        {RESOLUTION_LABELS[r]}{isLocked ? ' 🔒' : ''}
+                        <div className="flex items-center gap-1.5">
+                          {RESOLUTION_LABELS[r]}
+                          {isLocked && <ProBadge />}
+                        </div>
                       </SelectItem>
                     );
                   })}
@@ -275,7 +278,10 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 <SelectContent>
                   <SelectItem value="30">30 FPS</SelectItem>
                   <SelectItem value="60" disabled={limits.maxFps < 60}>
-                    60 FPS{limits.maxFps < 60 ? ' 🔒' : ''}
+                    <div className="flex items-center gap-1.5">
+                      60 FPS
+                      {limits.maxFps < 60 && <ProBadge />}
+                    </div>
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -314,23 +320,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             </Field>
           </div>
 
-          {/* Limits upsell banner */}
-          {limits.limited && (
-            <div className="flex items-start gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-lg p-3">
-              <Lock size={13} className="mt-0.5 shrink-0" />
-              <span>
-                Free plan: exports capped at 720p / 30fps / 30s.{' '}
-                <button
-                  type="button"
-                  className="font-semibold underline underline-offset-2 hover:no-underline"
-                  onClick={openCreditsModal}
-                >
-                  Upgrade or add your own Mapbox key (BYOK)
-                </button>{' '}
-                to unlock full quality.
-              </span>
-            </div>
-          )}
+
 
           {/* Info row */}
           <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">

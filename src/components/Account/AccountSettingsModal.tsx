@@ -239,18 +239,6 @@ function AccountSettingsModalBody() {
                 </div>
               </div>
               <SubscriptionTiers />
-              <div className="flex justify-center pt-2">
-                <Button
-                  variant="link"
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                  onClick={() => {
-                    closeSettingsModal();
-                    openAuthModal();
-                  }}
-                >
-                  Sign in to manage your plan
-                </Button>
-              </div>
             </div>
           )}
         </section>
@@ -263,8 +251,8 @@ function AccountSettingsModalBody() {
           />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Paste your own Mapbox access token to lift the 30s timeline limit,
-              export quality cap, and map load quota. Your token is stored
+              Paste your own Mapbox access token to lift the 30s timeline limit and
+              export quality cap. Your token is stored
               locally and{" "}
               <span className="font-medium text-foreground">
                 never sent to our servers
@@ -276,7 +264,7 @@ function AccountSettingsModalBody() {
                 rel="noreferrer"
                 className="inline-flex items-center gap-0.5 text-primary hover:underline"
               >
-                you can get one for free at mapbox.com <ExternalLink size={10} />
+                You can get one for free at mapbox.com <ExternalLink size={10} />
               </a>
             </p>
             <div className="flex gap-2">
