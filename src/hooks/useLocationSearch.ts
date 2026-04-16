@@ -7,7 +7,7 @@ import type {
   SearchBoxRetrieveResponse,
 } from '@mapbox/search-js-core';
 import { useProjectStore } from '@/store/useProjectStore';
-import { MAPBOX_TOKEN } from '@/config/mapbox';
+import { getEffectiveMapboxToken } from '@/config/mapbox';
 
 type SearchBoxSession = SearchSession<
   SearchBoxOptions,
@@ -60,7 +60,7 @@ export function useLocationSearch({
 
   // Initialize SearchBox session once
   useEffect(() => {
-    const core = new SearchBoxCore({ accessToken: MAPBOX_TOKEN });
+    const core = new SearchBoxCore({ accessToken: getEffectiveMapboxToken() });
     sessionRef.current = new SearchSession(core, 300);
     return () => { sessionRef.current = null; };
   }, []);
