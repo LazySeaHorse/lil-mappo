@@ -50,21 +50,23 @@ export const PLAN_CONFIG: Record<
 // link or OAuth), useAuthStore reads this value and triggers checkout.
 // =============================================================================
 
+import secureLocalStorage from "react-secure-storage";
+
 const PENDING_PLAN_KEY = "mappo_pending_plan";
 
 export function storePendingPlan(plan: SubscriptionPlan): void {
-  localStorage.setItem(PENDING_PLAN_KEY, plan);
+  secureLocalStorage.setItem(PENDING_PLAN_KEY, plan);
 }
 
 export function getPendingPlan(): SubscriptionPlan | null {
-  const raw = localStorage.getItem(PENDING_PLAN_KEY);
+  const raw = secureLocalStorage.getItem(PENDING_PLAN_KEY);
   return raw === "wanderer" || raw === "cartographer" || raw === "pioneer"
     ? raw
     : null;
 }
 
 export function clearPendingPlan(): void {
-  localStorage.removeItem(PENDING_PLAN_KEY);
+  secureLocalStorage.removeItem(PENDING_PLAN_KEY);
 }
 
 // =============================================================================
@@ -78,17 +80,17 @@ export function clearPendingPlan(): void {
 const PENDING_TOPUP_KEY = "mappo_pending_topup";
 
 export function storePendingTopup(amount: number): void {
-  localStorage.setItem(PENDING_TOPUP_KEY, String(amount));
+  secureLocalStorage.setItem(PENDING_TOPUP_KEY, amount);
 }
 
 export function getPendingTopup(): number | null {
-  const raw = localStorage.getItem(PENDING_TOPUP_KEY);
+  const raw = secureLocalStorage.getItem(PENDING_TOPUP_KEY);
   const n = Number(raw);
   return raw !== null && !isNaN(n) && n > 0 ? n : null;
 }
 
 export function clearPendingTopup(): void {
-  localStorage.removeItem(PENDING_TOPUP_KEY);
+  secureLocalStorage.removeItem(PENDING_TOPUP_KEY);
 }
 
 // =============================================================================

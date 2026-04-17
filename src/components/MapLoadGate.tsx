@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMapLoadGate } from '@/hooks/useMapLoadGate';
 import { GUEST_LOAD_LIMIT } from '@/lib/cloudAccess';
-import { isAppOwnKey } from '@/config/mapbox';
+import { isAppOwnKey, BYOK_STORAGE_KEY } from '@/config/mapbox';
+import secureLocalStorage from "react-secure-storage";
 
 interface MapLoadGateProps {
   children: React.ReactNode;
@@ -148,7 +149,7 @@ function BYOKQuickEntry() {
       return;
     }
     setError('');
-    localStorage.setItem('lil-mappo-mapbox-token', t);
+    secureLocalStorage.setItem(BYOK_STORAGE_KEY, t);
     setSaved(true);
     setTimeout(() => window.location.reload(), 800);
   };

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import secureLocalStorage from "react-secure-storage";
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import {
@@ -54,14 +55,15 @@ export function useMapLoadGate(): MapLoadGateState {
     if (checkedRef.current) return;
     checkedRef.current = true;
 
-    // Read localStorage exactly once and derive both the BYOK flag and the
+    // Read secureLocalStorage exactly once and derive both the BYOK flag and the
     // resolved token from that single read. This prevents a timing-based
-    // spoof where localStorage.getItem is overridden to return a dummy value
+    // spoof where secureLocalStorage.getItem is overridden to return a dummy value
     // during the quota check, then null when the map reads its token —
     // getting quota-bypass AND the app's token for free.
-    const storedToken = localStorage.getItem(BYOK_STORAGE_KEY)?.trim() ?? '';
-    const byok = !!storedToken && !isAppOwnKey(storedToken);
-    setMapboxToken(byok ? storedToken : MAPBOX_TOKEN);
+    const storedToken = secureLocalStorage.getItem(BYOK_STORAGE_KEY);
+    const storedTokenStr = typeof storedToken === 'string' ? storedToken.trim() : '';
+    const byok = !!storedTokenStr && !isAppOwnKey(storedTokenStr);
+    setMapboxToken(byok ? storedTokenStr : MAPBOX_TOKEN);
 
     // ── BYOK: always allow, no tracking ───────────────────────────────────────
     if (byok) {
@@ -112,7 +114,7 @@ export function useMapLoadGate(): MapLoadGateState {
   }, [authLoading, session, subLoading, subscription]);
 
   const onMapLoaded = () => {
-    // For guests: increment the localStorage counter after the map loads
+    // For guests: increment the secureLocalStorage counter after the map loads
     // (not before, to avoid counting failed loads).
     if (!session && !hasByok()) {
       const next = incrementGuestLoadCount();

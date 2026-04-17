@@ -1,3 +1,4 @@
+import secureLocalStorage from "react-secure-storage";
 import type { Subscription } from './database.types';
 import type { ExportResolution } from '@/types/render';
 import { BYOK_STORAGE_KEY, isAppOwnKey } from '@/config/mapbox';
@@ -30,9 +31,8 @@ export function shouldShowWatermark(subscription: Subscription | null | undefine
 
 /** Returns true if the user has a valid BYOK Mapbox token set in localStorage. */
 export function hasByok(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  const token = localStorage.getItem(BYOK_STORAGE_KEY)?.trim();
-  if (!token) return false;
+  const token = secureLocalStorage.getItem(BYOK_STORAGE_KEY);
+  if (typeof token !== 'string' || !token.trim()) return false;
   // Reject the app's own key — storing it in localStorage bypasses quota
   // tracking without the user actually supplying their own token.
   if (isAppOwnKey(token)) return false;
@@ -116,14 +116,15 @@ export function isMapLoadTracked(
 
 // ─── Guest load counter (localStorage) ───────────────────────────────────────
 
-const GUEST_LOAD_KEY = 'mappo-guest-loads';
+const GUEST_LOAD_KEY = 'mapbox.styler';
 const GUEST_SESSION_KEY = 'mappo-session-counted';
 export const GUEST_LOAD_LIMIT = 3;
 
 /** How many loads the guest has used so far. */
 export function getGuestLoadCount(): number {
   try {
-    return parseInt(localStorage.getItem(GUEST_LOAD_KEY) ?? '0', 10) || 0;
+    const raw = secureLocalStorage.getItem(GUEST_LOAD_KEY);
+    return typeof raw === 'number' ? raw : (parseInt(String(raw ?? '0'), 10) || 0);
   } catch {
     return 0;
   }
@@ -140,7 +141,7 @@ export function incrementGuestLoadCount(): number {
       return getGuestLoadCount();
     }
     const next = getGuestLoadCount() + 1;
-    localStorage.setItem(GUEST_LOAD_KEY, String(next));
+    secureLocalStorage.setItem(GUEST_LOAD_KEY, next);
     sessionStorage.setItem(GUEST_SESSION_KEY, '1');
     return next;
   } catch {

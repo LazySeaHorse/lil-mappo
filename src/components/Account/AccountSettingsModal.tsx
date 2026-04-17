@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { BYOK_STORAGE_KEY, isAppOwnKey } from "@/config/mapbox";
 import { PremiumUpsellCard } from "./PremiumUpsellCard";
+import secureLocalStorage from "react-secure-storage";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -64,7 +65,8 @@ function AccountSettingsModalBody() {
   const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMapboxToken(localStorage.getItem(BYOK_STORAGE_KEY) || "");
+    const token = secureLocalStorage.getItem(BYOK_STORAGE_KEY);
+    setMapboxToken(typeof token === "string" ? token : "");
   }, []);
 
   const handleSaveToken = () => {
@@ -76,9 +78,9 @@ function AccountSettingsModalBody() {
         setTokenError("This key isn't valid for BYOK — please use your own Mapbox access token.");
         return;
       }
-      localStorage.setItem(BYOK_STORAGE_KEY, trimmed);
+      secureLocalStorage.setItem(BYOK_STORAGE_KEY, trimmed);
     } else {
-      localStorage.removeItem(BYOK_STORAGE_KEY);
+      secureLocalStorage.removeItem(BYOK_STORAGE_KEY);
     }
     setTokenSaved(true);
     // Reload so the new token takes effect for Mapbox map initialisation
@@ -86,7 +88,7 @@ function AccountSettingsModalBody() {
   };
 
   const handleClearToken = () => {
-    localStorage.removeItem(BYOK_STORAGE_KEY);
+    secureLocalStorage.removeItem(BYOK_STORAGE_KEY);
     setMapboxToken("");
     setTokenSaved(false);
     setTokenError(null);

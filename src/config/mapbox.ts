@@ -1,3 +1,5 @@
+import secureLocalStorage from "react-secure-storage";
+
 /**
  * Mapbox API token loaded from environment variable.
  * Requires VITE_MAPBOX_TOKEN to be set in .env, GitHub Actions secrets, or Vercel environment.
@@ -13,7 +15,8 @@ export const BYOK_STORAGE_KEY = 'lil-mappo-mapbox-token';
  * access is needed so BYOK takes effect without extra configuration.
  */
 export function getEffectiveMapboxToken(): string {
-  return localStorage.getItem(BYOK_STORAGE_KEY)?.trim() || MAPBOX_TOKEN;
+  const token = secureLocalStorage.getItem(BYOK_STORAGE_KEY);
+  return (typeof token === 'string' ? token.trim() : null) || MAPBOX_TOKEN;
 }
 
 /**
