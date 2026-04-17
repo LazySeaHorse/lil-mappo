@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import MapGL, { Layer } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
-import { getEffectiveMapboxToken, MAP_STYLES } from '@/config/mapbox';
+import { MAP_STYLES } from '@/config/mapbox';
 
 import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
@@ -60,9 +60,10 @@ function CalloutMarkerList({ callouts, selectedCalloutId, mapRef }: CalloutMarke
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
   onMapReady?: () => void;
+  mapboxToken: string;
 }
 
-export default function MapViewport({ mapRef, onMapReady }: MapViewportProps) {
+export default function MapViewport({ mapRef, onMapReady, mapboxToken }: MapViewportProps) {
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const items = useProjectStore((s) => s.items);
   const itemOrder = useProjectStore((s) => s.itemOrder);
@@ -149,7 +150,7 @@ export default function MapViewport({ mapRef, onMapReady }: MapViewportProps) {
     <div className="w-full h-full relative">
       <MapGL
         ref={mapRef}
-        mapboxAccessToken={getEffectiveMapboxToken()}
+        mapboxAccessToken={mapboxToken}
         initialViewState={{ longitude: -73.97, latitude: 40.77, zoom: 12, pitch: 0, bearing: 0 }}
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}

@@ -433,6 +433,37 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Key Lesson**: SECURITY DEFINER functions must explicitly validate caller identity (don't rely on RLS). Always use advisory locks for critical counters. Fail closed on errors in security-critical paths.
 
+### 6.13 Three Client-Side Security Fixes (April 2026)
+
+**Problem 1: Quota Tracking Bypass via Token Spoofing (Critical)** — The gate (`useMapLoadGate`) and the map (`MapViewport`) each independently called `localStorage.getItem(BYOK_STORAGE_KEY)` to determine whether the user was using BYOK. An attacker could override `localStorage.getItem` in the DevTools console to return a dummy token during the gate check (bypassing quota tracking) and then return `null` afterward (causing the map to fall back to the app's built-in token), achieving unlimited free loads on the app's bill.
+
+**Solution**: Single atomic read in `useMapLoadGate.ts`:
+- When the gate resolves, read `localStorage.getItem(BYOK_STORAGE_KEY)` **exactly once**
+- Derive both the `byok` flag (with `isAppOwnKey()` validation) AND the `mapboxToken` from that single read
+- Expose `mapboxToken` in the gate state and pass it directly to `MapViewport` as a prop
+- `MapViewport` no longer calls `getEffectiveMapboxToken()` — it uses the snapshotted token from the gate
+- If an attacker has a dummy token in localStorage at gate-check time, the map receives the dummy → tiles fail to load → no working map
+- If an attacker wants a working map, they must not have a dummy token → `hasByok()` returns false → quota is tracked
+
+**Key Changes**: `useMapLoadGate.ts` (snapshot token), `MapViewport.tsx` (accept token prop), `MapStudioEditor.tsx` (pass token to map).
+
+**Problem 2: Stolen Paid Time (Low/UX)** — The `subscription.cancelled` webhook handler immediately set the subscription status to `'cancelled'`. However, the quota system and frontend only recognized `'active'` or `'cancelling'` as paid states. Users lost access to their paid features the moment they clicked "Cancel" in the UI, rather than at the end of their billing period.
+
+**Solution** (api/dodo-webhook.ts): Changed `handleSubscriptionCancelled` to set status to `'cancelling'` (not `'cancelled'`). The existing `handleSubscriptionExpired` webhook (fired by Dodo at period end) already deletes the subscription row, dropping the user to the free tier. Now the flow is:
+1. User hits Cancel → webhook sets status = `'cancelling'` → user keeps access during paid period
+2. Renewal date arrives → Dodo fires `subscription.expired` → subscription row deleted → user drops to free tier
+
+**Problem 3: Client-Side Export Limits (Low)** — Export resolution, FPS, and duration limits were enforced only in the React UI (disabled buttons for free users). A user could use DevTools to override `exportResolution: '2160p'` in the store, bypassing the UI restriction and exporting at premium quality for free.
+
+**Solution** (ExportModal.tsx): In `handleExport`, **before** calling `runExport()`, silently clamp the resolved render config to the user's tier limits:
+- Compare `exportResolution` against `limits.maxResolution`
+- Compare `fps` against `limits.maxFps`
+- Clamp `endTime` to `limits.maxDuration`
+- If a value exceeds the limit, silently downgrade to the free-tier value (no error toast)
+- This gracefully handles both DevTools tampering and projects authored on a higher tier the user has since downgraded from
+
+**Key Lesson**: Client-side validation is UX enforcement; server-side/encode-time validation is security enforcement. Tier limits on exports must be re-checked at encode time, not just at UI-render time. For quota bypass attacks with multiple timing windows (gate vs. map creation), snapshot the security-relevant decision and pass it forward instead of re-evaluating independently.
+
 ---
 
 ## 7. Critical Implementation Notes

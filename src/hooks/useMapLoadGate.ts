@@ -9,6 +9,7 @@ import {
   getGuestLoadCount,
   GUEST_LOAD_LIMIT,
 } from '@/lib/cloudAccess';
+import { BYOK_STORAGE_KEY, MAPBOX_TOKEN, isAppOwnKey } from '@/config/mapbox';
 
 export type MapGateReason =
   | 'guest_limit'        // Guest hit the 3-load localStorage limit
@@ -27,6 +28,13 @@ export interface MapLoadGateState {
   guestLoadsUsed: number;
   /** Called by MapViewport's onLoad event to count the load. */
   onMapLoaded: () => void;
+  /**
+   * The Mapbox token snapshotted at gate-check time. Pass this directly to
+   * MapViewport instead of calling getEffectiveMapboxToken() again — this
+   * ensures the quota decision and the token used by the map come from the
+   * same localStorage read, closing the timing-spoof window.
+   */
+  mapboxToken: string;
 }
 
 export function useMapLoadGate(): MapLoadGateState {
@@ -37,6 +45,7 @@ export function useMapLoadGate(): MapLoadGateState {
   const [blocked, setBlocked] = useState(false);
   const [reason, setReason] = useState<MapGateReason | null>(null);
   const [guestLoadsUsed, setGuestLoadsUsed] = useState(0);
+  const [mapboxToken, setMapboxToken] = useState<string>('');
   const checkedRef = useRef(false);
 
   useEffect(() => {
@@ -45,7 +54,14 @@ export function useMapLoadGate(): MapLoadGateState {
     if (checkedRef.current) return;
     checkedRef.current = true;
 
-    const byok = hasByok();
+    // Read localStorage exactly once and derive both the BYOK flag and the
+    // resolved token from that single read. This prevents a timing-based
+    // spoof where localStorage.getItem is overridden to return a dummy value
+    // during the quota check, then null when the map reads its token —
+    // getting quota-bypass AND the app's token for free.
+    const storedToken = localStorage.getItem(BYOK_STORAGE_KEY)?.trim() ?? '';
+    const byok = !!storedToken && !isAppOwnKey(storedToken);
+    setMapboxToken(byok ? storedToken : MAPBOX_TOKEN);
 
     // ── BYOK: always allow, no tracking ───────────────────────────────────────
     if (byok) {
@@ -104,5 +120,5 @@ export function useMapLoadGate(): MapLoadGateState {
     }
   };
 
-  return { ready, blocked, reason, guestLoadsUsed, onMapLoaded };
+  return { ready, blocked, reason, guestLoadsUsed, onMapLoaded, mapboxToken };
 }

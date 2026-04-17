@@ -257,9 +257,11 @@ async function handleSubscriptionCancelled(
   sub: SubEventData,
   supabase: SupabaseClient
 ): Promise<void> {
+  // Set to "cancelling" — user keeps paid access until the renewal_date.
+  // subscription.expired fires at period end and deletes the row (→ free tier).
   const { error } = await supabase
     .from("subscriptions")
-    .update({ status: "cancelled" })
+    .update({ status: "cancelling" })
     .eq("dodo_subscription_id", sub.subscription_id);
 
   if (error) {
@@ -267,7 +269,7 @@ async function handleSubscriptionCancelled(
     throw new Error("DB error cancelling subscription");
   }
 
-  console.log("[dodo-webhook] Cancelled subscription", sub.subscription_id);
+  console.log("[dodo-webhook] Scheduled cancellation for subscription", sub.subscription_id);
 }
 
 async function handleSubscriptionExpired(

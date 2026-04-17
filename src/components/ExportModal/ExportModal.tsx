@@ -121,10 +121,23 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     useProjectStore.getState().setHideUI(true);
 
     try {
+      // Silently clamp to the user's tier limits before encoding starts.
+      // This handles store values that were tampered via DevTools, or projects
+      // originally made on a higher tier the user has since downgraded from.
+      const rc = buildRenderConfig();
+      const resOrder: ExportResolution[] = ['480p', '720p', '1080p', '1440p', '2160p'];
+      const safeRes: ExportResolution =
+        resOrder.indexOf(rc.exportResolution) > resOrder.indexOf(limits.maxResolution)
+          ? limits.maxResolution
+          : rc.exportResolution;
+      const safeFps: 30 | 60 = rc.fps > limits.maxFps ? limits.maxFps : rc.fps;
+      const safeEndTime = Math.min(endTime, limits.maxDuration);
+      const safeResolution = getExportDimensions(safeRes, rc.aspectRatio, rc.isVertical);
+
       await runExport(mapRef, {
-        renderConfig: buildRenderConfig(),
+        renderConfig: { ...rc, exportResolution: safeRes, fps: safeFps, resolution: safeResolution },
         startTime,
-        endTime,
+        endTime: safeEndTime,
         showWatermark,
         onProgress: (pct, p) => { setProgress(pct); setPhase(p); },
         onComplete: (blob) => {

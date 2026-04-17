@@ -186,7 +186,7 @@ export default function MapStudioEditor() {
         {/* Map Background Layer — wrapped in gate to prevent loads over quota */}
         <div className="absolute inset-0 z-0">
           <MapLoadGate gate={mapLoadGate}>
-            <MapViewport mapRef={mapRef} onMapReady={mapLoadGate.onMapLoaded} />
+            <MapViewport mapRef={mapRef} onMapReady={mapLoadGate.onMapLoaded} mapboxToken={mapLoadGate.mapboxToken} />
           </MapLoadGate>
         </div>
 
