@@ -3,6 +3,7 @@ import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { compositeFrame, withMapResized } from './mapCapture';
 import type { RenderConfig } from '@/types/render';
+import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 
 /**
  * Non-realtime offline export engine.
@@ -93,7 +94,6 @@ async function initEncoder(
   }
 
   const codec = await selectH264Codec(width, height, fps);
-  const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
   const target = new ArrayBufferTarget();
   const muxer = new Muxer({
     target,
