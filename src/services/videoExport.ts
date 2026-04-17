@@ -7,7 +7,10 @@ import type { RenderConfig } from '@/types/render';
 /**
  * Non-realtime offline export engine.
  * Steps through each frame at 1/fps, renders the map, composites callouts via
- * canvas 2D, then encodes with WebCodecs + mp4-muxer (or MediaRecorder fallback).
+ * canvas 2D, then encodes with WebCodecs (H.264) + mp4-muxer.
+ *
+ * Requires WebCodecs (Chrome 94+). If H.264 init fails, onError is called with
+ * a clear message instead of silently producing a broken WebM file.
  *
  * Two phases are reported via onProgress:
  *   'prewarm'  — 24-frame cache warm-up pass (scrubs timeline to force tile loads)
@@ -21,7 +24,7 @@ export interface ExportOptions {
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void;
   onComplete: (blob: Blob) => void;
   onError: (err: string) => void;
-  onFormatDecided?: (format: 'mp4' | 'webm') => void;
+  onFormatDecided?: (format: 'mp4') => void;
   abortSignal: AbortSignal;
   showWatermark: boolean;
 }
@@ -30,23 +33,34 @@ interface EncoderState {
   compCanvas: HTMLCanvasElement;
   compCtx: CanvasRenderingContext2D;
   muxer: any;
-  videoEncoder: VideoEncoder | null;
-  mediaRecorder: MediaRecorder | null;
-  mediaStream: MediaStream | null;
-  recordedChunks: Blob[];
+  videoEncoder: VideoEncoder;
 }
 
 // ─── Codec level probe ────────────────────────────────────────────────────────
 
-// Tries isConfigSupported() on H.264 levels in descending order. Falls back to
-// the highest level if none report support (guards against false-negatives seen
-// on some hardware — the caller still wraps configure() in a try/catch).
+// Probes H.264 profiles (High → Main → Baseline) in descending quality order.
+// Covers all three profile tiers because hardware encoders frequently support
+// Baseline/Main even when they reject High Profile. The previous probe used only
+// High Profile (0x64) strings — hardware that only handles Baseline would cause
+// all probes to return false, triggering the false-negative fallback with the
+// worst possible codec (Level 5.2), which would then throw and silently fall
+// back to MediaRecorder.
+//
+// False-negative fallback: if isConfigSupported() reports nothing as supported
+// (known browser bug on some setups), try Baseline Level 3.0 — the most
+// universally supported H.264 codec. initEncoder still wraps configure() in a
+// try/catch and surfaces a clear error if it throws.
 async function selectH264Codec(width: number, height: number, fps: number): Promise<string> {
   const candidates = [
-    'avc1.640034', // Level 5.2 — 4K@60
-    'avc1.640033', // Level 5.1 — 4K@30
-    'avc1.64002A', // Level 4.2 — 1080@60
-    'avc1.640028', // Level 4.0 — 1080@30
+    'avc1.640034', // High Profile Level 5.2 — 4K@60
+    'avc1.640033', // High Profile Level 5.1 — 4K@30
+    'avc1.64002A', // High Profile Level 4.2 — 1080@60
+    'avc1.640028', // High Profile Level 4.0 — 1080@30
+    'avc1.4D002A', // Main Profile Level 4.2
+    'avc1.4D0028', // Main Profile Level 4.0
+    'avc1.42E028', // Baseline Level 4.0
+    'avc1.42E01F', // Baseline Level 3.1
+    'avc1.42E01E', // Baseline Level 3.0 — most universally supported
   ];
   for (const codec of candidates) {
     try {
@@ -56,11 +70,13 @@ async function selectH264Codec(width: number, height: number, fps: number): Prom
       // isConfigSupported itself can throw on some browsers — skip this candidate
     }
   }
-  return candidates[0]; // false-negative fallback: try highest level anyway
+  return 'avc1.42E01E'; // false-negative fallback
 }
 
 // ─── Encoder init ─────────────────────────────────────────────────────────────
 
+// Throws if H.264 encoding is unavailable. Callers should surface the error
+// directly rather than silently degrading to a broken fallback format.
 async function initEncoder(
   width: number,
   height: number,
@@ -72,44 +88,36 @@ async function initEncoder(
   compCanvas.height = height;
   const compCtx = compCanvas.getContext('2d')!;
 
-  let muxer: any = null;
-  let videoEncoder: VideoEncoder | null = null;
-  let mediaRecorder: MediaRecorder | null = null;
-  let mediaStream: MediaStream | null = null;
-  const recordedChunks: Blob[] = [];
-
-  if (typeof VideoEncoder !== 'undefined') {
-    try {
-      const codec = await selectH264Codec(width, height, fps);
-      const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
-      const target = new ArrayBufferTarget();
-      muxer = new Muxer({
-        target,
-        video: { codec: 'avc', width, height },
-        fastStart: 'in-memory',
-      });
-      videoEncoder = new VideoEncoder({
-        output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
-        error: (e: Error) => onError(`VideoEncoder error: ${e.message}`),
-      });
-      videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
-    } catch {
-      videoEncoder = null;
-      muxer = null;
-    }
+  if (typeof VideoEncoder === 'undefined') {
+    throw new Error('WebCodecs (VideoEncoder) is not available in this browser. Use Chrome 94+ or Edge 94+ to export video.');
   }
 
-  if (!videoEncoder) {
-    mediaStream = compCanvas.captureStream(0);
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm';
-    mediaRecorder = new MediaRecorder(mediaStream, { mimeType, videoBitsPerSecond: 8_000_000 });
-    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-    mediaRecorder.start();
+  const codec = await selectH264Codec(width, height, fps);
+  const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({
+    target,
+    video: { codec: 'avc', width, height },
+    fastStart: 'in-memory',
+  });
+
+  let videoEncoder: VideoEncoder;
+  try {
+    videoEncoder = new VideoEncoder({
+      output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
+      error: (e: Error) => onError(`VideoEncoder error: ${e.message}`),
+    });
+    videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
+  } catch (e: any) {
+    console.error('[videoExport] VideoEncoder.configure() failed:', e);
+    throw new Error(
+      `H.264 encoding failed on this device (codec: ${codec}). ` +
+      `Your browser supports WebCodecs but rejected the encoder config. ` +
+      `Try a lower resolution or use a different browser. Details: ${e?.message ?? e}`
+    );
   }
 
-  return { compCanvas, compCtx, muxer, videoEncoder, mediaRecorder, mediaStream, recordedChunks };
+  return { compCanvas, compCtx, muxer, videoEncoder };
 }
 
 // ─── Tile cache pre-warm ───────────────────────────────────────────────────────
@@ -164,7 +172,7 @@ async function captureFrame(
   map: any,
   compCanvas: HTMLCanvasElement,
   compCtx: CanvasRenderingContext2D,
-  encoder: Pick<EncoderState, 'videoEncoder' | 'mediaRecorder' | 'mediaStream'>,
+  encoder: Pick<EncoderState, 'videoEncoder'>,
   frameIndex: number,
   fps: number,
   clampedTime: number,
@@ -172,7 +180,7 @@ async function captureFrame(
   showWatermark: boolean,
   zoomOffset: number,
 ) {
-  const { videoEncoder, mediaRecorder, mediaStream } = encoder;
+  const { videoEncoder } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
 
   // Set playhead
@@ -202,7 +210,7 @@ async function captureFrame(
   ]);
 
   // Back-pressure: don't let the encoder queue grow unbounded
-  if (videoEncoder && (videoEncoder as any).encodeQueueSize > 8) {
+  if ((videoEncoder as any).encodeQueueSize > 8) {
     await new Promise<void>((resolve) => {
       const drain = () => {
         if ((videoEncoder as any).encodeQueueSize <= 4) {
@@ -218,38 +226,26 @@ async function captureFrame(
   // Composite: map canvas + callouts
   compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime, showWatermark);
 
-  // Encode frame
-  if (videoEncoder) {
-    const frameDuration = Math.round(1_000_000 / fps);
-    const videoFrame = new VideoFrame(compCanvas, {
-      timestamp: frameIndex * frameDuration,
-      duration: frameDuration,
-    });
-    videoEncoder.encode(videoFrame, { keyFrame: frameIndex % (fps * 2) === 0 });
-    videoFrame.close();
-  } else if (mediaRecorder) {
-    const track = mediaStream?.getVideoTracks()[0] as any;
-    if (track?.requestFrame) track.requestFrame();
-  }
+  const frameDuration = Math.round(1_000_000 / fps);
+  const videoFrame = new VideoFrame(compCanvas, {
+    timestamp: frameIndex * frameDuration,
+    duration: frameDuration,
+  });
+  videoEncoder.encode(videoFrame, { keyFrame: frameIndex % (fps * 2) === 0 });
+  videoFrame.close();
 }
 
 // ─── Finalize ─────────────────────────────────────────────────────────────────
 
 async function finalizeExport(
-  state: Pick<EncoderState, 'videoEncoder' | 'muxer' | 'mediaRecorder' | 'recordedChunks'>,
+  state: Pick<EncoderState, 'videoEncoder' | 'muxer'>,
   onComplete: (blob: Blob) => void,
 ) {
-  const { videoEncoder, muxer, mediaRecorder, recordedChunks } = state;
-  if (videoEncoder) {
-    await videoEncoder.flush();
-    videoEncoder.close();
-    muxer.finalize();
-    onComplete(new Blob([muxer.target.buffer], { type: 'video/mp4' }));
-  } else if (mediaRecorder) {
-    mediaRecorder.stop();
-    await new Promise<void>((resolve) => { mediaRecorder!.onstop = () => resolve(); });
-    onComplete(new Blob(recordedChunks, { type: 'video/webm' }));
-  }
+  const { videoEncoder, muxer } = state;
+  await videoEncoder.flush();
+  videoEncoder.close();
+  muxer.finalize();
+  onComplete(new Blob([muxer.target.buffer], { type: 'video/mp4' }));
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -270,8 +266,14 @@ export async function runExport(
   const startFrame = Math.floor(startTime * fps);
   const totalFrames = Math.ceil(effectiveDuration * fps);
 
-  const encoderState = await initEncoder(width, height, fps, onError);
-  onFormatDecided?.(encoderState.videoEncoder ? 'mp4' : 'webm');
+  let encoderState: EncoderState;
+  try {
+    encoderState = await initEncoder(width, height, fps, onError);
+  } catch (e: any) {
+    onError(e.message || 'Export failed: could not initialize video encoder');
+    return;
+  }
+  onFormatDecided?.('mp4');
   const { compCanvas, compCtx } = encoderState;
 
   const map = mapRef.current?.getMap?.();
@@ -309,8 +311,7 @@ export async function runExport(
       // Phase 2: capture frames
       for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
         if (abortSignal.aborted) {
-          encoderState.videoEncoder?.close();
-          encoderState.mediaRecorder?.stop();
+          encoderState.videoEncoder.close();
           return;
         }
 

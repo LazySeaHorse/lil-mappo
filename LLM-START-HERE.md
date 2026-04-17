@@ -309,6 +309,34 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Key Files**: `src/services/videoExport.ts` (codec probe, encoder init, frame capture).
 
+### 6.6b Video Export: Profile-Aware Codec Probing & MediaRecorder Removal (April 2026)
+
+**Problem 1: H.264 Codec Probe Did Not Cover Profile Tiers** — `selectH264Codec()` only probed High Profile (`0x64`) codec strings: `avc1.640034/640033/64002A/640028`. On hardware/drivers where the GPU encoder rejects High Profile but accepts Main or Baseline, all four probes returned `false`. The false-negative fallback then picked `avc1.640034` (the worst possible choice), `videoEncoder.configure()` threw, and the silent catch block fell back to MediaRecorder WebM.
+
+**Impact**: Users on modern browsers with full WebCodecs API support still got choppy WebM instead of MP4 if their GPU/driver didn't advertise High Profile support.
+
+**Solution**:
+- Expanded codec candidates to cover all three profile tiers: High (Levels 5.2 → 4.0), Main (Levels 4.2 → 4.0), Baseline (Levels 4.0 → 3.0). Total of 9 candidates.
+- Changed the false-negative fallback from `avc1.640034` to `avc1.42E01E` (Baseline Level 3.0) — the most universally supported H.264 codec across all encoders.
+- Now the probe has a high probability of finding at least one supported codec string across any modern hardware.
+
+**Problem 2: MediaRecorder Fallback Is Fundamentally Broken for Offline Rendering** — `MediaRecorder` is a real-time recorder that timestamps frames using wall-clock time via `requestFrame()`. Since each frame can take 0–5 seconds to render (waiting for map idle, tile loads, etc.), the resulting video has completely non-uniform frame durations. This causes visible choppiness and broken playback; the problem is not fixable without a WebM muxer library.
+
+**Impact**: Even when H.264 was unavailable (rare on Chrome 94+), the fallback produced an unwatchable file, damaging user confidence in the tool.
+
+**Solution**:
+- Removed the MediaRecorder fallback entirely. `initEncoder()` now throws with a clear, actionable error if H.264 initialization fails.
+- UI disables the Export button and shows a message if WebCodecs is unavailable (non-Chrome browsers, or old versions).
+- Users in unsupported browsers are directed to Cloud Render instead.
+- Removed `recordedChunks`, `mediaRecorder`, and `mediaStream` from `EncoderState`.
+
+**Key Changes**:
+- `src/services/videoExport.ts`: 9-candidate codec probe, removed MediaRecorder path, errors now throw instead of silently falling back.
+- `src/components/ExportModal/ExportModal.tsx`: Export button disabled if `typeof VideoEncoder === 'undefined'`; error message is clear and actionable.
+- Removed `onFormatDecided` callback (now always MP4 or error, never WebM).
+
+**Key Lesson**: When a fallback produces worse user experience than a clear error, remove the fallback. Broken output damages trust more than no output with a helpful message.
+
 ### 6.7 Vehicle & Route Animation Fixes
 
 **Problem 1: Vehicle Visibility Decoupled** — Vehicles remained visible at route start/end even when route line was hidden (before `startTime` or after `endTime`). They also ignored "fade" exit animations.

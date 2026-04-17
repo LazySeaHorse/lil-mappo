@@ -78,10 +78,9 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<'prewarm' | 'capture'>('capture');
   const [error, setError] = useState<string | null>(null);
-  const [outputFormat, setOutputFormat] = useState<'mp4' | 'webm'>(
-    typeof VideoEncoder !== 'undefined' ? 'mp4' : 'webm'
-  );
   const [cloudSubmitted, setCloudSubmitted] = useState(false);
+
+  const webCodecsSupported = typeof VideoEncoder !== 'undefined';
   const abortRef = useRef<AbortController | null>(null);
 
   const [w, h] = resolution;
@@ -128,10 +127,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
         endTime,
         showWatermark,
         onProgress: (pct, p) => { setProgress(pct); setPhase(p); },
-        onFormatDecided: setOutputFormat,
         onComplete: (blob) => {
-          const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
-          const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.${ext}`;
+          const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.mp4`;
           saveAs(blob, fileName);
           useProjectStore.getState().setIsExporting(false);
           setProgress(100);
@@ -345,14 +342,14 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             <div><span className="block font-semibold text-foreground">{exportDuration.toFixed(1)}s</span>Duration</div>
             <div><span className="block font-semibold text-foreground whitespace-nowrap">{w} × {h}</span>Dimensions</div>
             <div><span className="block font-semibold text-foreground">{totalFrames}</span>Total frames</div>
-            <div><span className="block font-semibold text-foreground">{outputFormat.toUpperCase()}</span>Format</div>
+            <div><span className="block font-semibold text-foreground">MP4</span>Format</div>
           </div>
 
-          {/* WebCodecs fallback warning */}
-          {outputFormat === 'webm' && (
-            <div className="flex items-start gap-2 text-xs text-amber-600 bg-amber-50 rounded-lg p-3">
+          {/* Unsupported browser warning */}
+          {!webCodecsSupported && (
+            <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded-lg p-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>WebCodecs not available. Export will use WebM (MediaRecorder fallback). For MP4, use Chrome 94+.</span>
+              <span>Local export requires WebCodecs (Chrome 94+ or Edge 94+). This browser cannot export video.</span>
             </div>
           )}
 
@@ -419,7 +416,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           ) : (
             <Button
               onClick={handleExport}
-              disabled={cloudSubmitted}
+              disabled={cloudSubmitted || !webCodecsSupported}
               className="flex-1 h-11 text-sm font-bold flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all active:scale-[0.99] shadow-lg shadow-primary/10"
             >
               {progress === 100 ? <><Download size={16} /> Again</> : <><Clapperboard size={16} /> Local Export</>}
