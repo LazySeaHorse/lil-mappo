@@ -6,14 +6,20 @@ import { RouteInspector } from "./RouteInspector";
 import { BoundaryInspector } from "./BoundaryInspector";
 import { CalloutInspector } from "./CalloutInspector";
 import { CameraKFInspector } from "./CameraKFInspector";
+import { AutoCamInspector } from "./AutoCamInspector";
+import type { RouteItem } from "@/store/types";
 
 export default function InspectorPanel() {
-  const { selectedItemId, items, isInspectorOpen } = useProjectStore(
-    useShallow(s => ({ selectedItemId: s.selectedItemId, items: s.items, isInspectorOpen: s.isInspectorOpen }))
+  const { selectedItemId, selectedAutoCamRouteId, items, isInspectorOpen } = useProjectStore(
+    useShallow(s => ({
+      selectedItemId: s.selectedItemId,
+      selectedAutoCamRouteId: s.selectedAutoCamRouteId,
+      items: s.items,
+      isInspectorOpen: s.isInspectorOpen,
+    }))
   );
 
   if (!isInspectorOpen) return null;
-
   if (!selectedItemId) return <ProjectSettings />;
 
   const item = items[selectedItemId];
@@ -21,7 +27,10 @@ export default function InspectorPanel() {
 
   switch (item.kind) {
     case "route":
-      return <RouteInspector item={item} />;
+      if (selectedAutoCamRouteId === selectedItemId && (item as RouteItem).autoCam?.enabled) {
+        return <AutoCamInspector item={item as RouteItem} />;
+      }
+      return <RouteInspector item={item as RouteItem} />;
     case "boundary":
       return <BoundaryInspector item={item} />;
     case "callout":

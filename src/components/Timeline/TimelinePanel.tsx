@@ -1,6 +1,13 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { TimelineItem, CameraItem, RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
+
+interface AutoCamBlock {
+  routeId: string;
+  routeName: string;
+  startTime: number;
+  endTime: number;
+}
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { IconButton } from '@/components/ui/icon-button';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -47,7 +54,8 @@ export default function TimelinePanel() {
     duration, setPlayheadTime, items, itemOrder,
     selectedItemId, selectItem, selectKeyframe, selectedKeyframeId,
     isInspectorOpen, timelineHeight, setTimelineHeight,
-    isPlaying, setIsPlaying, fps, removeItem, setIsScrubbing
+    isPlaying, setIsPlaying, fps, removeItem, setIsScrubbing,
+    setSelectedAutoCamRouteId,
   } = useProjectStore();
 
   const [displayHeight, setDisplayHeight] = useState(timelineHeight);
@@ -63,6 +71,15 @@ export default function TimelinePanel() {
 
   const orderedItems = itemOrder.map((id) => items[id]).filter(Boolean);
   const maxContentHeight = HEADER_HEIGHT + RULER_HEIGHT + (orderedItems.length * 40) + 16;
+
+  const autoCamBlocks: AutoCamBlock[] = orderedItems
+    .filter((i): i is RouteItem => i.kind === 'route' && !!(i as RouteItem).autoCam?.enabled)
+    .map((r) => ({
+      routeId: r.id,
+      routeName: r.name,
+      startTime: r.startTime,
+      endTime: r.endTime,
+    }));
 
   // --- Imperative playhead subscription: zero React re-renders during playback ---
   useEffect(() => {
@@ -394,6 +411,11 @@ export default function TimelinePanel() {
                 selectedKeyframeId={selectedKeyframeId}
                 onSelect={() => selectItem(item.id)}
                 onSelectKeyframe={selectKeyframe}
+                autoCamBlocks={item.kind === 'camera' ? autoCamBlocks : undefined}
+                onSelectAutoCam={(routeId) => {
+                  selectItem(routeId);
+                  setSelectedAutoCamRouteId(routeId);
+                }}
               />
             ))}
           </div>
@@ -469,9 +491,17 @@ const TrackRow = React.memo(({
   selectedKeyframeId,
   onSelect,
   onSelectKeyframe,
+  autoCamBlocks,
+  onSelectAutoCam,
 }: {
+  item: TimelineItem;
+  pixelsPerSecond: number;
+  isSelected: boolean;
+  selectedKeyframeId: string | null;
   onSelect: () => void;
   onSelectKeyframe: (id: string | null) => void;
+  autoCamBlocks?: AutoCamBlock[];
+  onSelectAutoCam?: (routeId: string) => void;
 }) => {
   const isCameraEnabled = useProjectStore((s) => s.isCameraEnabled);
   const setIsCameraEnabled = useProjectStore((s) => s.setIsCameraEnabled);
@@ -541,22 +571,68 @@ const TrackRow = React.memo(({
 
       <div className="flex-1 relative">
         {item.kind === 'camera' ? (
-          (item as CameraItem).keyframes.map((kf) => {
-            const x = kf.time * pixelsPerSecond;
-            return (
-              <div
-                key={kf.id}
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-transform ${selectedKeyframeId === kf.id ? 'z-20 scale-125' : 'hover:scale-110 z-10'} active:scale-95`}
-                style={{ left: x }}
-                onMouseDown={(e) => handleKeyframeMouseDown(e, kf.id, kf.time)}
-                onClick={(e) => { e.stopPropagation(); onSelect(); onSelectKeyframe(kf.id); }}
-              >
+          <>
+            {/* Auto-cam blocks: light-blue overlay + fake boundary diamonds */}
+            {autoCamBlocks?.map((block) => {
+              const startX = block.startTime * pixelsPerSecond;
+              const endX = block.endTime * pixelsPerSecond;
+              const blockWidth = Math.max(0, endX - startX);
+              return (
+                <React.Fragment key={block.routeId}>
+                  {/* Block background */}
+                  <div
+                    className="absolute top-2 bottom-2 bg-sky-400/15 border-t border-b border-sky-400/30 cursor-pointer z-5"
+                    style={{ left: startX, width: blockWidth }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectAutoCam?.(block.routeId);
+                    }}
+                    title={`Auto Cam: ${block.routeName}`}
+                  />
+                  {/* Start diamond (fake, non-interactive) */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none"
+                    style={{ left: startX }}
+                  >
+                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-sky-400 shadow-sm" />
+                  </div>
+                  {/* End diamond (fake, non-interactive) */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none"
+                    style={{ left: endX }}
+                  >
+                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-sky-400 shadow-sm" />
+                  </div>
+                </React.Fragment>
+              );
+            })}
+
+            {/* Real keyframe diamonds — greyed if inside an auto-cam block */}
+            {(item as CameraItem).keyframes.map((kf) => {
+              const x = kf.time * pixelsPerSecond;
+              const isDisabled = autoCamBlocks?.some(
+                (b) => kf.time >= b.startTime && kf.time <= b.endTime,
+              ) ?? false;
+              return (
                 <div
-                  className={`w-3.5 h-3.5 rotate-45 rounded-[2px] shadow-sm border ${selectedKeyframeId === kf.id ? 'bg-primary border-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background' : 'bg-background border-primary'}`}
-                />
-              </div>
-            );
-          })
+                  key={kf.id}
+                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-transform z-10
+                    ${isDisabled ? 'opacity-35 grayscale' : selectedKeyframeId === kf.id ? 'scale-125 z-20' : 'hover:scale-110'} active:scale-95`}
+                  style={{ left: x }}
+                  onMouseDown={(e) => handleKeyframeMouseDown(e, kf.id, kf.time)}
+                  onClick={(e) => { e.stopPropagation(); onSelect(); onSelectKeyframe(kf.id); }}
+                >
+                  <div
+                    className={`w-3.5 h-3.5 rotate-45 rounded-[2px] shadow-sm border ${
+                      selectedKeyframeId === kf.id && !isDisabled
+                        ? 'bg-primary border-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background'
+                        : 'bg-background border-primary'
+                    }`}
+                  />
+                </div>
+              );
+            })}
+          </>
         ) : (
           <TimelineItemBar
             item={item as any}
@@ -594,24 +670,65 @@ const TimelineItemBar = React.memo(({
     const initialEnd = item.endTime;
     const itemDuration = Math.max(0.1, initialEnd - initialStart);
 
+    // Clamp a proposed [proposedStart, proposedEnd] range so it doesn't overlap
+    // any other route that has autoCam enabled. Only applies when this route also
+    // has autoCam enabled (two non-auto-cam routes can freely overlap).
+    const clampAutoCamOverlap = (proposedStart: number, proposedEnd: number): [number, number] => {
+      const currentItem = useProjectStore.getState().items[item.id] as RouteItem | undefined;
+      if (!currentItem?.autoCam?.enabled) return [proposedStart, proposedEnd];
+
+      const allItems = useProjectStore.getState().items;
+      const others = Object.values(allItems).filter(
+        (other) =>
+          other.id !== item.id &&
+          other.kind === 'route' &&
+          (other as RouteItem).autoCam?.enabled,
+      ) as RouteItem[];
+
+      let s = proposedStart;
+      let e2 = proposedEnd;
+      for (const other of others) {
+        if (s < other.endTime && e2 > other.startTime) {
+          // Overlap detected — push whichever direction is smaller movement
+          const pushRight = other.endTime;
+          const pushLeft = other.startTime - (e2 - s);
+          if (Math.abs(pushRight - s) <= Math.abs(pushLeft - s)) {
+            s = pushRight;
+          } else {
+            s = Math.max(0, pushLeft);
+          }
+          e2 = s + (e2 - proposedStart + proposedStart - s + (proposedEnd - proposedStart));
+          e2 = s + (proposedEnd - proposedStart);
+        }
+      }
+      // Clamp to timeline
+      if (s < 0) { e2 -= s; s = 0; }
+      const d = useProjectStore.getState().duration;
+      if (e2 > d) { s -= (e2 - d); e2 = d; s = Math.max(0, s); }
+      return [s, e2];
+    };
+
     const handleMove = (ev: MouseEvent) => {
       const deltaX = ev.clientX - startX;
       const deltaTime = deltaX / pixelsPerSecond;
 
       if (type === 'start') {
-        const newStart = Math.max(0, Math.min(initialEnd - 0.2, initialStart + deltaTime));
-        updateItem(item.id, { startTime: newStart });
+        let newStart = Math.max(0, Math.min(initialEnd - 0.2, initialStart + deltaTime));
+        const [clampedStart] = clampAutoCamOverlap(newStart, initialEnd);
+        updateItem(item.id, { startTime: clampedStart });
       } else if (type === 'end') {
-        const newEnd = Math.max(initialStart + 0.2, Math.min(duration, initialEnd + deltaTime));
-        updateItem(item.id, { endTime: newEnd });
+        let newEnd = Math.max(initialStart + 0.2, Math.min(duration, initialEnd + deltaTime));
+        const [, clampedEnd] = clampAutoCamOverlap(initialStart, newEnd);
+        updateItem(item.id, { endTime: clampedEnd });
       } else if (type === 'move') {
         let newStart = initialStart + deltaTime;
         if (newStart < 0) newStart = 0;
         if (newStart + itemDuration > duration) newStart = duration - itemDuration;
 
+        const [clampedStart, clampedEnd] = clampAutoCamOverlap(newStart, newStart + itemDuration);
         updateItem(item.id, {
-          startTime: newStart,
-          endTime: newStart + itemDuration,
+          startTime: clampedStart,
+          endTime: clampedEnd,
         });
       }
     };

@@ -1,7 +1,22 @@
 import { useEffect, useRef } from 'react';
+import mapboxgl from 'mapbox-gl';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import { getCameraAtTime } from '@/engine/cameraInterpolation';
+import { getCameraAtTime, type CameraOutput } from '@/engine/cameraInterpolation';
 import type { CameraItem, RouteItem } from '@/store/types';
+
+function applyCamera(map: any, cam: CameraOutput, zoomOffset = 0): void {
+  if (cam.type === 'freeCam') {
+    const opts = new mapboxgl.FreeCameraOptions();
+    opts.position = mapboxgl.MercatorCoordinate.fromLngLat(
+      { lng: cam.position[0], lat: cam.position[1] },
+      cam.position[2],
+    );
+    opts.lookAtPoint({ lng: cam.lookAt[0], lat: cam.lookAt[1] });
+    map.setFreeCameraOptions(opts);
+  } else {
+    map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
+  }
+}
 
 export function usePlayback(mapRef: React.RefObject<any>) {
   const rafRef = useRef<number>(0);
@@ -9,7 +24,7 @@ export function usePlayback(mapRef: React.RefObject<any>) {
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    const getRouteCoords = (routeId: string) => {
+    const getRouteCoords = (routeId: string): number[][] | null => {
       const store = useProjectStore.getState();
       const route = store.items[routeId] as RouteItem | undefined;
       if (!route) return null;
@@ -21,44 +36,37 @@ export function usePlayback(mapRef: React.RefObject<any>) {
       return coords.length >= 2 ? coords : null;
     };
 
+    const getRoutes = (): RouteItem[] =>
+      Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route') as RouteItem[];
+
     const driveCamera = (time: number) => {
       const store = useProjectStore.getState();
       if (!store.isCameraEnabled) return;
       const camItem = store.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-      if (!camItem || camItem.keyframes.length === 0 || !mapRef.current) return;
+      if (!camItem || !mapRef.current) return;
 
-      const cam = getCameraAtTime(camItem.keyframes, time, getRouteCoords);
+      const routes = getRoutes();
+      const cam = getCameraAtTime(camItem.keyframes, time, getRouteCoords, routes);
       if (cam) {
         const map = mapRef.current.getMap?.() || mapRef.current;
-        if (map?.jumpTo) {
-          map.jumpTo({
-            center: cam.center,
-            zoom: cam.zoom,
-            pitch: cam.pitch,
-            bearing: cam.bearing,
-          });
-        }
+        if (map?.jumpTo) applyCamera(map, cam);
       }
     };
 
     const unsub = useProjectStore.subscribe((state, prev) => {
-      // Start playback loop
       if (state.isPlaying && !prev.isPlaying) {
         startWallRef.current = performance.now();
         startTimeRef.current = state.playheadTime;
         const loop = () => {
           const store = useProjectStore.getState();
           if (!store.isPlaying) return;
-
           const elapsed = (performance.now() - startWallRef.current) / 1000;
           const currentTime = startTimeRef.current + elapsed;
-
           if (currentTime >= store.duration) {
             store.setPlayheadTime(0);
             store.setIsPlaying(false);
             return;
           }
-
           store.setPlayheadTime(currentTime);
           driveCamera(currentTime);
           rafRef.current = requestAnimationFrame(loop);
@@ -66,12 +74,10 @@ export function usePlayback(mapRef: React.RefObject<any>) {
         rafRef.current = requestAnimationFrame(loop);
       }
 
-      // Stop playback loop
       if (!state.isPlaying && prev.isPlaying) {
         cancelAnimationFrame(rafRef.current);
       }
 
-      // Drive camera on scrub (when not playing, if playhead changed)
       if (!state.isPlaying && state.playheadTime !== prev.playheadTime) {
         driveCamera(state.playheadTime);
       }

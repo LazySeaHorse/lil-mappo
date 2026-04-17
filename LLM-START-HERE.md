@@ -48,7 +48,7 @@ Everything lives in a single Zustand store. The `Project` type contains **only e
 - `mapCenter`: For search proximity bias.
 
 **Transient (UI State — NOT persisted)**:
-- `mapStyle`, `labelVisibility`, `playheadTime`, `isInspectorOpen`, `timelineHeight`, selection state, drafting state (search results, preview geometries).
+- `mapStyle`, `labelVisibility`, `playheadTime`, `isInspectorOpen`, `timelineHeight`, selection state (selectedItemId, selectedKeyframeId, selectedAutoCamRouteId), drafting state (search results, preview geometries).
 
 **Key Practice**: Use `useShallow` selectors to prevent unnecessary re-renders during playback:
 ```ts
@@ -463,6 +463,27 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - This gracefully handles both DevTools tampering and projects authored on a higher tier the user has since downgraded from
 
 **Key Lesson**: Client-side validation is UX enforcement; server-side/encode-time validation is security enforcement. Tier limits on exports must be re-checked at encode time, not just at UI-render time. For quota bypass attacks with multiple timing windows (gate vs. map creation), snapshot the security-relevant decision and pass it forward instead of re-evaluating independently.
+
+### 6.14 AutoCam: Route-Driven Camera Engine (April 2026)
+
+**Problem**: Manually keyframing long, complex routes (like cross-country drives or high-altitude flight arcs) is tedious and hard to keep smooth.
+
+**Solution**: Integrated an AutoCam system that derives camera state directly from route geometries.
+
+- **Dual Output Modes**: 
+  - `jumpTo`: Standard center/zoom/pitch/bearing (used for **Navigation** mode).
+  - `freeCam`: Uses Mapbox `FreeCameraOptions` (3D position + look-at) for **Cinematic** mode, allowing true camera-behind-vehicle framing.
+- **Interpolation & Blending**:
+  - `getCameraAtTime` (in `cameraInterpolation.ts`) prioritized active AutoCam blocks.
+  - A 0.5s `BLEND` window handles smooth eases between manual keyframes and AutoCam start/end points using `lerpJumpTo`.
+  - Manual keyframes located *inside* an AutoCam route's time window are ignored to prevent conflicting signals.
+- **Shared Application**: `applyCamera()` utility standardizes how camera outputs are applied to the map instance in both `usePlayback.ts` and `videoExport.ts`.
+- **Pre-warming & Exports**: `videoExport.ts` now passes the full routes list to the interpolation engine, ensuring "Pre-warm" correctly samples tiles along automated paths before capture.
+
+**Key Files**: `cameraInterpolation.ts` (logic), `AutoCamInspector.tsx` (UI), `usePlayback.ts` / `videoExport.ts` (application).
+
+**Key Lesson**: When adding complex automated behaviors that override manual defaults, implement a dedicated "blend" layer rather than binary switching to avoid jarring "camera jerks" at transition boundaries.
+
 
 ---
 

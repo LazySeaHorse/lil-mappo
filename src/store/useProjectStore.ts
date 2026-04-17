@@ -28,6 +28,7 @@ interface ProjectStore extends Project {
   // Transient selection state (not persisted)
   selectedItemId: string | null;
   selectedKeyframeId: string | null;
+  selectedAutoCamRouteId: string | null;
   // Transient UI modes (not persisted)
   isMoveModeActive: boolean;
   hideUI: boolean;
@@ -54,6 +55,7 @@ interface ProjectStore extends Project {
   // Selection
   selectItem: (id: string | null) => void;
   selectKeyframe: (id: string | null) => void;
+  setSelectedAutoCamRouteId: (id: string | null) => void;
 
   // Camera keyframes
   addCameraKeyframe: (kf: CameraKeyframe) => void;
@@ -203,6 +205,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Transient selection state (not persisted)
   selectedItemId: null,
   selectedKeyframeId: null,
+  selectedAutoCamRouteId: null,
   // Transient UI modes (not persisted)
   isMoveModeActive: false,
   hideUI: false,
@@ -244,8 +247,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   reorderItems: (newOrder) => set({ itemOrder: newOrder }),
 
-  selectItem: (id) => set({ selectedItemId: id, selectedKeyframeId: null, isInspectorOpen: true }),
+  selectItem: (id) => set({ selectedItemId: id, selectedKeyframeId: null, selectedAutoCamRouteId: null, isInspectorOpen: true }),
   selectKeyframe: (id) => set({ selectedKeyframeId: id, isInspectorOpen: true }),
+  setSelectedAutoCamRouteId: (id) => set({ selectedAutoCamRouteId: id }),
 
   addCameraKeyframe: (kf) => set((s) => {
     const cam = s.items[CAMERA_ID] as CameraItem;
@@ -369,6 +373,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Reset transient selection state
     selectedItemId: null,
     selectedKeyframeId: null,
+    selectedAutoCamRouteId: null,
     // Reset transient UI modes
     isMoveModeActive: false,
     hideUI: false,

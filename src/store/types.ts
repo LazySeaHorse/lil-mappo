@@ -7,6 +7,18 @@ export type EasingName =
   | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic'
   | 'easeInOutSine';
 
+export interface AutoCamConfig {
+  enabled: boolean;
+  mode: 'cinematic' | 'navigation';
+  pitch: number;
+  smoothing: number;
+  distance: number;
+  height: number;
+  zoom: number;
+  lookAhead: number;
+  easing: EasingName;
+}
+
 export interface RouteItem {
   kind: 'route';
   id: string;
@@ -14,6 +26,7 @@ export interface RouteItem {
   geojson: GeoJSON.FeatureCollection;
   startTime: number;
   endTime: number;
+  autoCam?: AutoCamConfig;
   style: {
     color: string;
     width: number;

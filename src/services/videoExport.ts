@@ -1,9 +1,24 @@
+import mapboxgl from 'mapbox-gl';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
-import { getCameraAtTime } from '@/engine/cameraInterpolation';
+import { getCameraAtTime, type CameraOutput } from '@/engine/cameraInterpolation';
 import { compositeFrame, withMapResized } from './mapCapture';
 import type { RenderConfig } from '@/types/render';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
+
+function applyCamera(map: any, cam: CameraOutput, zoomOffset = 0): void {
+  if (cam.type === 'freeCam') {
+    const opts = new mapboxgl.FreeCameraOptions();
+    opts.position = mapboxgl.MercatorCoordinate.fromLngLat(
+      { lng: cam.position[0], lat: cam.position[1] },
+      cam.position[2],
+    );
+    opts.lookAtPoint({ lng: cam.lookAt[0], lat: cam.lookAt[1] });
+    map.setFreeCameraOptions(opts);
+  } else {
+    map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
+  }
+}
 
 /**
  * Non-realtime offline export engine.
@@ -125,6 +140,7 @@ async function initEncoder(
 async function prewarmTileCache(
   map: any,
   getRouteCoords: (id: string) => number[][] | null,
+  getRoutes: () => RouteItem[],
   totalDuration: number,
   startTime: number,
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void,
@@ -141,11 +157,9 @@ async function prewarmTileCache(
     const t = startTime + (totalDuration / (STEPS - 1)) * i;
     const clampedT = Math.min(t, freshStore.duration);
 
-    if (camItem && camItem.keyframes.length > 0) {
-      const cam = getCameraAtTime(camItem.keyframes, clampedT, getRouteCoords);
-      if (cam) {
-        map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
-      }
+    if (camItem) {
+      const cam = getCameraAtTime(camItem.keyframes, clampedT, getRouteCoords, getRoutes());
+      if (cam) applyCamera(map, cam, zoomOffset);
     }
 
     // Wait for map to settle, max 2s
@@ -158,11 +172,9 @@ async function prewarmTileCache(
   }
 
   // Reset to start position
-  if (camItem && camItem.keyframes.length > 0) {
-    const cam = getCameraAtTime(camItem.keyframes, startTime, getRouteCoords);
-    if (cam) {
-      map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
-    }
+  if (camItem) {
+    const cam = getCameraAtTime(camItem.keyframes, startTime, getRouteCoords, getRoutes());
+    if (cam) applyCamera(map, cam, zoomOffset);
   }
 }
 
@@ -177,6 +189,7 @@ async function captureFrame(
   fps: number,
   clampedTime: number,
   getRouteCoords: (id: string) => number[][] | null,
+  getRoutes: () => RouteItem[],
   showWatermark: boolean,
   zoomOffset: number,
 ) {
@@ -189,11 +202,9 @@ async function captureFrame(
   // Drive camera
   const freshStore = useProjectStore.getState();
   const camItem = freshStore.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-  if (camItem && camItem.keyframes.length > 0) {
-    const cam = getCameraAtTime(camItem.keyframes, clampedTime, getRouteCoords);
-    if (cam) {
-      map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
-    }
+  if (camItem) {
+    const cam = getCameraAtTime(camItem.keyframes, clampedTime, getRouteCoords, getRoutes());
+    if (cam) applyCamera(map, cam, zoomOffset);
   }
 
   // Sync map engine and trigger repaint
@@ -286,7 +297,7 @@ export async function runExport(
   const zoomOffset = Math.log2(width / previewWidth);
 
   const getRouteCoords = (routeId: string): number[][] | null => {
-    const route = store.items[routeId] as RouteItem | undefined;
+    const route = useProjectStore.getState().items[routeId] as RouteItem | undefined;
     if (!route) return null;
     const coords: number[][] = [];
     for (const f of route.geojson.features) {
@@ -295,6 +306,9 @@ export async function runExport(
     }
     return coords.length >= 2 ? coords : null;
   };
+
+  const getRoutes = (): RouteItem[] =>
+    Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route') as RouteItem[];
 
   try {
     await withMapResized(map, width, height, async () => {
@@ -306,7 +320,7 @@ export async function runExport(
       await document.fonts.ready;
 
       // Phase 1: pre-warm tile cache
-      await prewarmTileCache(map, getRouteCoords, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
+      await prewarmTileCache(map, getRouteCoords, getRoutes, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
 
       // Phase 2: capture frames
       for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
@@ -318,7 +332,7 @@ export async function runExport(
         const currentTime = (startFrame + frameIndex) / fps;
         const clampedTime = Math.min(currentTime, duration);
 
-        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, options.showWatermark, zoomOffset);
+        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, getRoutes, options.showWatermark, zoomOffset);
         onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
       }
 

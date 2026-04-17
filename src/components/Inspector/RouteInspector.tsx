@@ -1,13 +1,27 @@
 import React from 'react';
+import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { RouteItem } from '@/store/types';
+import type { RouteItem, EasingName, AutoCamConfig } from '@/store/types';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field, SwitchField } from '@/components/ui/field';
+import { Clapperboard } from 'lucide-react';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { InputText, InputNumber, SliderField, EasingSelect } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+
+const AUTO_CAM_DEFAULTS: AutoCamConfig = {
+  enabled: true,
+  mode: 'cinematic',
+  pitch: 65,
+  smoothing: 0.3,
+  distance: 500,
+  height: 300,
+  zoom: 14,
+  lookAhead: 300,
+  easing: 'easeInOutSine' as EasingName,
+};
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
@@ -17,6 +31,42 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch as any);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
 
+  const handleAutoCamToggle = (enabled: boolean) => {
+    if (enabled) {
+      // Require geometry
+      let coordCount = 0;
+      for (const f of item.geojson.features) {
+        if (f.geometry.type === 'LineString') coordCount += (f.geometry.coordinates as any[]).length;
+        else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry.coordinates as any[])) coordCount += l.length;
+      }
+      if (coordCount < 2) {
+        toast.error('Add a route path before enabling Auto Camera.');
+        return;
+      }
+
+      // Check for overlap with other enabled auto-cam routes
+      const allItems = useProjectStore.getState().items;
+      const overlapping = Object.values(allItems).find(
+        (other) =>
+          other.id !== item.id &&
+          other.kind === 'route' &&
+          (other as RouteItem).autoCam?.enabled &&
+          (other as RouteItem).startTime < item.endTime &&
+          (other as RouteItem).endTime > item.startTime,
+      ) as RouteItem | undefined;
+
+      if (overlapping) {
+        toast.error(`"${overlapping.name}" already has Auto Camera on in this time range.`);
+        return;
+      }
+
+      // Preserve prior settings if they exist, otherwise use defaults
+      u({ autoCam: { ...AUTO_CAM_DEFAULTS, ...(item.autoCam ?? {}), enabled: true } });
+    } else {
+      u({ autoCam: item.autoCam ? { ...item.autoCam, enabled: false } : undefined });
+    }
+  };
+
   const animType = item.style.animationType || 'draw';
   const footer = <ItemActions id={item.id} kind="route" />;
 
@@ -24,7 +74,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     <PanelWrapper title={`Route: ${item.name}`} footer={footer}>
       <Field label="Name"><InputText value={item.name} onChange={(v) => u({ name: v })} /></Field>
 
-      <Accordion type="multiple" defaultValue={['path', 'style', 'timing']} className="w-full mt-4">
+      <Accordion type="multiple" defaultValue={['path', 'style', 'timing', 'autocam']} className="w-full mt-4">
         
         <InspectorSection value="path" title="Path Data">
           <div className="px-1 mt-1 mb-2">
@@ -106,6 +156,19 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                 </SelectContent>
               </Select>
             </Field>
+          )}
+        </InspectorSection>
+        <InspectorSection value="autocam" title="Auto Camera">
+          <SwitchField
+            checked={item.autoCam?.enabled ?? false}
+            onChange={handleAutoCamToggle}
+            label="Follow this route automatically"
+          />
+          {item.autoCam?.enabled && (
+            <p className="text-[11px] text-sky-400/80 mt-2 flex items-center gap-1.5">
+              <Clapperboard size={11} />
+              Click the blue block in the Camera track to edit camera settings.
+            </p>
           )}
         </InspectorSection>
       </Accordion>
