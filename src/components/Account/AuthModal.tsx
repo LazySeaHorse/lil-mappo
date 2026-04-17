@@ -61,7 +61,7 @@ export function AuthModal() {
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
             <div className="flex items-center justify-center gap-3 mb-2">

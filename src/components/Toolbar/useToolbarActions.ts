@@ -141,9 +141,7 @@ export function useToolbarActions() {
   };
 
   const handleNewProject = () => {
-    if (window.confirm('Clear current project and start fresh? Unsaved changes will be lost.')) {
-      window.location.reload();
-    }
+    projectState.setShowNewProjectModal(true);
   };
 
   const handleAddCameraKF = () => {

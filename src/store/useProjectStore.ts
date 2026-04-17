@@ -32,6 +32,7 @@ interface ProjectStore extends Project {
   isMoveModeActive: boolean;
   hideUI: boolean;
   isExporting: boolean;
+  showNewProjectModal: boolean;
   projectSettingsTab: 'general' | 'map';
   // Transient drafting/picking state (not persisted)
   editingRoutePoint: 'start' | 'end' | 'callout' | null;
@@ -93,6 +94,7 @@ interface ProjectStore extends Project {
   // Zen Mode
   setHideUI: (v: boolean) => void;
   setIsExporting: (v: boolean) => void;
+  setShowNewProjectModal: (v: boolean) => void;
 
   // Project Settings Tab
   setProjectSettingsTab: (tab: 'general' | 'map') => void;
@@ -205,6 +207,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   isMoveModeActive: false,
   hideUI: false,
   isExporting: false,
+  showNewProjectModal: false,
   projectSettingsTab: 'general' as 'general' | 'map',
   // Transient drafting/picking state (not persisted)
   editingRoutePoint: null,
@@ -321,6 +324,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setMoveModeActive: (v) => set({ isMoveModeActive: v }),
   setHideUI: (v) => set({ hideUI: v }),
   setIsExporting: (v) => set({ isExporting: v }),
+  setShowNewProjectModal: (v) => set({ showNewProjectModal: v }),
   setProjectSettingsTab: (tab) => set({ projectSettingsTab: tab }),
 
   setTerrainLoading: (v) => set({ terrainLoading: v }),
@@ -368,6 +372,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Reset transient UI modes
     isMoveModeActive: false,
     hideUI: false,
+    showNewProjectModal: false,
     projectSettingsTab: 'general',
     // Reset transient drafting/picking state
     editingRoutePoint: null,

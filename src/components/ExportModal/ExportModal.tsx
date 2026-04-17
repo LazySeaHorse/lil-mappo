@@ -8,6 +8,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { runExport } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
 import { X, Download, Clapperboard, AlertTriangle, Cloud, Lock, Monitor, Smartphone, ArrowRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -208,20 +209,21 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background border border-border rounded-xl shadow-2xl w-[460px] overflow-hidden">
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <Clapperboard size={18} className="text-primary" />
-            <h2 className="text-sm font-semibold">Export Video</h2>
-          </div>
-          <IconButton onClick={onClose} variant="ghost" size="sm" disabled={isExporting}>
-            <X size={16} />
-          </IconButton>
+        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <Clapperboard className="text-primary h-6 w-6" /> Export Video
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm mt-1">
+              Configure and render your animation locally or in the cloud.
+            </DialogDescription>
+          </DialogHeader>
         </div>
 
-        <div className="px-5 py-4 space-y-4">
+        <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Aspect Ratio">
               <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)} disabled={isExporting || cloudSubmitted}>
@@ -456,7 +458,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             </Button>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

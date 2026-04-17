@@ -7,6 +7,7 @@ import InspectorPanel from "@/components/Inspector/InspectorPanel";
 import TimelinePanel from "@/components/Timeline/TimelinePanel";
 import ExportModal from "@/components/ExportModal/ExportModal";
 import ProjectLibraryModal from "@/components/ProjectLibrary/ProjectLibraryModal";
+import { NewProjectModal } from "@/components/ProjectLibrary/NewProjectModal";
 import { usePlayback } from "@/hooks/usePlayback";
 import { MapRefContext } from "@/hooks/useMapRef";
 import FontLoader from "@/components/FontLoader";
@@ -222,6 +223,7 @@ export default function MapStudioEditor() {
         )}
 
         {/* Account Modals */}
+        <NewProjectModal />
         <AuthModal />
         <AccountSettingsModal />
         <CreditsModal />

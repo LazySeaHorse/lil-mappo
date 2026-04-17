@@ -26,6 +26,7 @@ import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { IconButton } from '@/components/ui/icon-button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface ProjectLibraryModalProps {
   onClose: () => void;
@@ -241,32 +242,34 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background border border-border rounded-xl shadow-2xl w-[500px] overflow-hidden max-h-[80vh] flex flex-col">
+    <>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2.5">
-            <Library size={18} className="text-primary" />
-            <h2 className="text-sm font-semibold">My Projects</h2>
-          </div>
-          <div className="flex items-center gap-1">
+        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent flex justify-between items-start">
+          <DialogHeader className="text-left flex-1">
+            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <Library className="text-primary h-6 w-6" /> My Projects
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm mt-1">
+              Manage your local and cloud-saved projects.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center pt-1 mr-6">
             <IconButton
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={handleRefresh}
               disabled={isSyncing || isLoading}
               title="Sync and refresh"
             >
-              <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
-            </IconButton>
-            <IconButton variant="ghost" size="sm" onClick={onClose}>
-              <X size={16} />
+              <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
             </IconButton>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto px-6 pb-2 max-h-[60vh]">
           {isLoading ? (
             <div className="flex items-center justify-center p-8 text-muted-foreground">
               <span className="text-sm">Loading library…</span>
@@ -301,7 +304,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-secondary/30 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-secondary/10 shrink-0">
           {user && autoSyncEnabled ? (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Cloud size={12} className="text-primary/70" />
@@ -326,12 +329,13 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
           <Button
             onClick={onClose}
             variant="outline"
-            className="h-9 px-4 text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="h-10 px-6 rounded-xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             Close
           </Button>
         </div>
-      </div>
+      </DialogContent>
+    </Dialog>
 
       {/* Delete-to-free-slot dialog */}
       {pendingUploadProject && (
@@ -382,7 +386,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
