@@ -26,9 +26,10 @@ import {
   Clock,
   AlertTriangle,
   Timer,
+  Sparkles,
 } from "lucide-react";
-import { SubscriptionTiers } from "./SubscriptionTiers";
 import { BYOK_STORAGE_KEY, isAppOwnKey } from "@/config/mapbox";
+import { PremiumUpsellCard } from "./PremiumUpsellCard";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ export function AccountSettingsModal() {
 type View = "main" | "manage";
 
 function AccountSettingsModalBody() {
-  const { user, closeSettingsModal, openAuthModal, session, startCheckout } =
+  const { user, closeSettingsModal, openAuthModal, session, startCheckout, openCreditsModal } =
     useAuthStore();
   const { data: subscription, isLoading: subLoading, refetch: refetchSub } =
     useSubscription();
@@ -118,9 +119,9 @@ function AccountSettingsModalBody() {
         accessToken={session?.access_token ?? null}
         onBack={() => setView("main")}
         onRefetch={() => refetchSub()}
-        onUpgrade={(plan) => {
+        onOpenCredits={() => {
           closeSettingsModal();
-          startCheckout(plan);
+          openCreditsModal();
         }}
       />
     );
@@ -174,72 +175,44 @@ function AccountSettingsModalBody() {
         {/* ─── Subscription ─── */}
         <section>
           <SectionHeading icon={<Crown size={14} />} label="Subscription" />
-          {user ? (
-            subLoading ? (
-              <div className="bg-secondary/30 rounded-xl p-4 flex items-center justify-center h-16">
-                <Loader2 size={16} className="animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {tierLabel ?? "No plan"}
-                    </p>
-                    {(subscription?.status === "cancelled" || subscription?.status === "cancelling") && renewalDate ? (
-                      <p className="text-[11px] text-amber-500">
-                        {subscription.status === "cancelling" ? `Cancels ${renewalDate}` : `Access until ${renewalDate}`}
-                      </p>
-                    ) : renewalDate ? (
-                      <p className="text-[11px] text-muted-foreground">
-                        Renews {renewalDate}
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground">
-                        {hasSubscription ? "Credit pack" : "No active plan"}
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    className="text-xs h-8 rounded-lg px-4"
-                    onClick={() => setView("manage")}
-                  >
-                    {hasSubscription ? "Manage" : "Get a plan"}
-                  </Button>
-                </div>
-                {!hasSubscription && (
-                  <>
-                    <div className="h-px bg-border/30" />
-                    <div className="flex items-start gap-2 text-[11px] text-muted-foreground">
-                      <AlertCircle size={12} className="mt-0.5 shrink-0" />
-                      <span>
-                        Subscribe to unlock cloud renders, cloud saves, and
-                        more.
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-            )
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-secondary/30 rounded-xl p-4 flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 shadow-sm">
-                  <Crown size={24} className="text-primary" />
-                </div>
+          {hasSubscription ? (
+            <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-base font-bold tracking-tight">
-                    Expand your horizons
+                  <p className="text-sm font-semibold">
+                    {tierLabel ?? "No plan"}
                   </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                    Get cloud renders, parallel exports, and unlimited cloud
-                    saves with a premium plan.
-                  </p>
+                  {(subscription?.status === "cancelled" || subscription?.status === "cancelling") && renewalDate ? (
+                    <p className="text-[11px] text-amber-500">
+                      {subscription.status === "cancelling" ? `Cancels ${renewalDate}` : `Access until ${renewalDate}`}
+                    </p>
+                  ) : renewalDate ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Renews {renewalDate}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      {hasSubscription ? "Credit pack" : "No active plan"}
+                    </p>
+                  )}
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-8 rounded-lg px-4"
+                  onClick={() => setView("manage")}
+                >
+                  Manage
+                </Button>
               </div>
-              <SubscriptionTiers />
             </div>
+          ) : (
+            <PremiumUpsellCard
+              onClick={() => {
+                closeSettingsModal();
+                openCreditsModal();
+              }}
+            />
           )}
         </section>
 
@@ -322,7 +295,6 @@ function AccountSettingsModalBody() {
 // ─── Manage sub-view ──────────────────────────────────────────────────────────
 
 import type { Subscription, CreditBalance } from "@/lib/database.types";
-import type { PlanSlug } from "@/services/checkout";
 import { useCancelSubscription } from "@/hooks/useCancelSubscription";
 
 function ManageView({
@@ -344,7 +316,7 @@ function ManageView({
   accessToken: string | null;
   onBack: () => void;
   onRefetch: () => void;
-  onUpgrade: (plan: PlanSlug) => void;
+  onOpenCredits: () => void;
 }) {
   const { cancelling, confirmCancel, setConfirmCancel, justCancelled, handleCancel } =
     useCancelSubscription({ accessToken, renewalDate, onSuccess: onRefetch });
@@ -465,8 +437,15 @@ function ManageView({
         {/* ── Upgrade options (if not on Pioneer) ── */}
         {canUpgrade && (
           <div>
-            <SectionHeading icon={<Crown size={14} />} label="Upgrade" />
-            <SubscriptionTiers onCheckout={onUpgrade} />
+            <SectionHeading icon={<Sparkles size={14} />} label="Plans" />
+            <Button
+              variant="outline"
+              className="w-full rounded-xl gap-2 h-11 text-xs font-semibold bg-secondary/20 hover:bg-secondary/40 border-border/40"
+              onClick={onOpenCredits}
+            >
+              <Crown size={14} className="text-primary" />
+              Upgrade or Change Plan
+            </Button>
           </div>
         )}
 

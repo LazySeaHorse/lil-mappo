@@ -265,6 +265,12 @@ function CreditsModalBody() {
             )}
           </TabsContent>
       </Tabs>
+
+      <div className="mt-6 pt-4 border-t border-border/20 text-center">
+        <p className="text-[11px] text-muted-foreground/60">
+          Questions about your credits or plan? Reach out to <a href="mailto:support@lilmappo.tech" className="text-primary hover:underline font-medium">support@lilmappo.tech</a>
+        </p>
+      </div>
     </div>
   );
 }

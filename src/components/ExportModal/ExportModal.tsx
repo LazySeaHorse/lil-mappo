@@ -337,11 +337,10 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           </div>
 
           {(limits.limited || isExporting) && (
-            <div className={`p-3 rounded-xl border space-y-2 ${
-              isExporting 
-                ? 'bg-destructive/10 border-destructive/20' 
+            <div className={`p-3 rounded-xl border space-y-2 ${isExporting
+                ? 'bg-destructive/10 border-destructive/20'
                 : 'bg-primary/5 border-primary/10'
-            }`}>
+              }`}>
               {isExporting ? (
                 <div className="space-y-1">
                   <p className="text-[11px] font-bold text-destructive flex items-center gap-1.5">
@@ -349,7 +348,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                     IMPORTANT: KEEP TAB OPEN
                   </p>
                   <p className="text-[11px] leading-relaxed text-destructive/80">
-                    Stay on this browser tab and don't minimize the browser or else the render will fail. 
+                    Keep this tab active. Don’t minimize the browser or rendering will fail.
                   </p>
                   <p className="text-[10px] text-destructive/50 italic leading-none">
                     Cloud renders don't have this issue.
