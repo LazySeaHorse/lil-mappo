@@ -43,7 +43,7 @@ Everything lives in a single Zustand store. The `Project` type contains **only e
 
 **Persisted (Project)**:
 - `items`, `itemOrder`: Timeline elements (Routes, Boundaries, Callouts, Camera).
-- `duration`, `fps`, `resolution`: Export settings.
+- `duration`, `fps`, `resolution`: Export settings. **Default: 30s, 30fps, 720p (1280×720).**
 - `projection`, `lightPreset`, `starIntensity`, `fogColor`, `terrainExaggeration`: Environment.
 - `mapCenter`: For search proximity bias.
 
@@ -330,12 +330,23 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - Users in unsupported browsers are directed to Cloud Render instead.
 - Removed `recordedChunks`, `mediaRecorder`, and `mediaStream` from `EncoderState`.
 
+**Problem 3: Dynamic Import of mp4-muxer Failed at Runtime** — The original code used `await import('mp4-muxer')` inside `initEncoder()`. Browsers cannot resolve bare module specifiers at runtime — this is the bundler's job, and it only works for static imports. The dynamic import failed silently, the catch block swallowed the error, and the code fell through to MediaRecorder every single time, regardless of codec support.
+
+**Impact**: This was the PRIMARY root cause of all WebM output. Even if H.264 would have worked, the muxer wasn't loading.
+
+**Solution**:
+- Changed to static import at module top: `import { Muxer, ArrayBufferTarget } from 'mp4-muxer'`
+- Vite now bundles mp4-muxer at build time, eliminating runtime resolution entirely.
+
 **Key Changes**:
-- `src/services/videoExport.ts`: 9-candidate codec probe, removed MediaRecorder path, errors now throw instead of silently falling back.
+- `src/services/videoExport.ts`: 9-candidate codec probe, removed MediaRecorder path, static mp4-muxer import, errors now throw instead of silently falling back.
 - `src/components/ExportModal/ExportModal.tsx`: Export button disabled if `typeof VideoEncoder === 'undefined'`; error message is clear and actionable.
 - Removed `onFormatDecided` callback (now always MP4 or error, never WebM).
 
-**Key Lesson**: When a fallback produces worse user experience than a clear error, remove the fallback. Broken output damages trust more than no output with a helpful message.
+**Key Lessons**: 
+1. Bare module specifiers can only be resolved by bundlers at build time (static imports). Dynamic imports in the browser fail silently.
+2. When a fallback produces worse user experience than a clear error, remove the fallback. Broken output damages trust more than no output with a helpful message.
+3. Silent catch blocks hide critical failures. Always surface errors or log them for debugging.
 
 ### 6.7 Vehicle & Route Animation Fixes
 
