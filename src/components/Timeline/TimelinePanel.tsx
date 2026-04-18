@@ -581,7 +581,7 @@ const TrackRow = React.memo(({
                 <React.Fragment key={block.routeId}>
                   {/* Block background */}
                   <div
-                    className="absolute top-2 bottom-2 bg-sky-400/15 border-t border-b border-sky-400/30 cursor-pointer z-5"
+                    className="absolute top-2 bottom-2 bg-primary/10 border-t border-b border-primary/20 cursor-pointer z-5"
                     style={{ left: startX, width: blockWidth }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -594,14 +594,14 @@ const TrackRow = React.memo(({
                     className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none"
                     style={{ left: startX }}
                   >
-                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-sky-400 shadow-sm" />
+                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-background border border-primary shadow-sm" />
                   </div>
                   {/* End diamond (fake, non-interactive) */}
                   <div
                     className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none"
                     style={{ left: endX }}
                   >
-                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-sky-400 shadow-sm" />
+                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-background border border-primary shadow-sm" />
                   </div>
                 </React.Fragment>
               );

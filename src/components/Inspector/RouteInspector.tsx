@@ -165,7 +165,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             label="Follow this route automatically"
           />
           {item.autoCam?.enabled && (
-            <p className="text-[11px] text-sky-400/80 mt-2 flex items-center gap-1.5">
+            <p className="text-[11px] text-primary mt-2 flex items-center gap-1.5">
               <Clapperboard size={11} />
               Click the blue block in the Camera track to edit camera settings.
             </p>
