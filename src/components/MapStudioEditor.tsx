@@ -23,54 +23,23 @@ import { Eye, Play, Pause, Camera } from "lucide-react";
 import { takeSnapshot } from "@/services/snapshot";
 import { useResponsive } from "@/hooks/useResponsive";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import {
-  RIGHT_RESERVED_DESKTOP,
-  RIGHT_RESERVED_TABLET,
-  PANEL_MARGIN,
-} from "@/constants/layout";
+import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
 import { AuthModal } from "@/components/Account/AuthModal";
 import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal";
 import { CreditsModal } from "@/components/Account/CreditsModal";
 import { RendersModal } from "@/components/Account/RendersModal";
 
-function useSonnerPosition({
-  hideUI,
-  isMobile,
-  isInspectorOpen,
-  isTablet,
-  timelineHeight,
-}: {
-  hideUI: boolean;
-  isMobile: boolean;
-  isInspectorOpen: boolean;
-  isTablet: boolean;
-  timelineHeight: number;
-}): React.CSSProperties {
-  const zenOrMobileInspector = hideUI || (isMobile && isInspectorOpen);
-
-  // Center horizontally in the remaining map area
-  const rightMargin =
-    !isInspectorOpen || isMobile
-      ? PANEL_MARGIN
-      : isTablet
-        ? RIGHT_RESERVED_TABLET
-        : RIGHT_RESERVED_DESKTOP;
-  const leftMargin = PANEL_MARGIN;
-
-  const bottom = zenOrMobileInspector
-    ? PANEL_MARGIN * 2
-    : timelineHeight + PANEL_MARGIN * 2;
-
-  const left = zenOrMobileInspector
-    ? "50%"
-    : `calc(50% + (${leftMargin}px - ${rightMargin}px) / 2)`;
+function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
+  // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
+  const top = isMobile
+    ? `calc(env(safe-area-inset-top, 0px) + 56px + ${PANEL_MARGIN}px)`
+    : `${PANEL_MARGIN + 56 + PANEL_MARGIN}px`;
 
   return {
     position: "absolute",
-    bottom: `calc(${bottom}px + env(safe-area-inset-bottom, 0px))`,
-    left,
-    transform: "translateX(-50%)",
+    top,
+    left: `${PANEL_MARGIN}px`,
     zIndex: 100,
     pointerEvents: "none",
   };
@@ -155,9 +124,6 @@ export default function MapStudioEditor() {
   const setHideUI = useProjectStore((s) => s.setHideUI);
   const isPlaying = useProjectStore((s) => s.isPlaying);
   const setIsPlaying = useProjectStore((s) => s.setIsPlaying);
-  const timelineHeight = useProjectStore((s) => s.timelineHeight);
-  const isInspectorOpen = useProjectStore((s) => s.isInspectorOpen);
-
   useEffect(() => {
     const isDark =
       mapStyle === "dark" ||
@@ -171,13 +137,7 @@ export default function MapStudioEditor() {
     document.documentElement.classList.toggle("hide-ui-active", hideUI);
   }, [hideUI]);
 
-  const sonnerStyle = useSonnerPosition({
-    hideUI,
-    isMobile,
-    isInspectorOpen,
-    isTablet,
-    timelineHeight,
-  });
+  const sonnerStyle = useSonnerPosition({ isMobile });
 
   return (
     <MapRefContext.Provider value={mapRef}>

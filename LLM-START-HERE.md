@@ -127,9 +127,18 @@ This approach also eliminated the DOM re-creation penalty and enabled frame-perf
 
 All use shared CSS `glass` effect + `shadow-2xl` for depth and polished hover states.
 
-### 4.3 Toast Positioning
+### 4.3 Toast System
 
-`useSonnerPosition` dynamically calculates toast position based on `isMobile`, `isInspectorOpen`, and `timelineHeight`. Toasts are **not corner-tethered** — they always appear in the active map area without overlapping UI.
+Toasts appear in the **top-left corner** with fixed positioning, matching the toolbar height (56px / `h-14`). 
+
+**Layout:**
+- **Desktop/Tablet**: `top: 88px` (PANEL_MARGIN 16 + toolbar 56 + gap 16), `left: 16px`
+- **Mobile**: `top: calc(env(safe-area-inset-top) + 56px + 16px)`, `left: 16px`
+- **Styling**: `rounded-2xl` squircle, `bg-background/85 backdrop-blur-xl border-border/50` glass effect matching the toolbar
+- **Width**: `max-w-[min(20rem,calc(100vw-2rem))]` — caps at 320px but yields to narrow screens
+- **Content**: Left-aligned, vertically centered within the toast height
+
+**Implementation**: `useSonnerPosition()` in `MapStudioEditor.tsx` computes the top offset; the Sonner instance uses `position="top-left"` to stack new toasts downward from that anchor. No reactive dependencies — position is purely device-based (`isMobile` only).
 
 ---
 
