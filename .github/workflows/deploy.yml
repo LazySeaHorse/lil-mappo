@@ -24,6 +24,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Landing Page CSS
+        run: |
+          npx tailwindcss -c landing-page/tailwind.config.js -i landing-page/input.css -o landing-page/style.css --minify
+
+      - name: Prepare production HTML
+        run: |
+          sed -i '/<!-- tailwind-dev-only-start -->/,/<!-- tailwind-dev-only-end -->/c\        <link rel="stylesheet" href="style.css">' landing-page/index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
