@@ -138,8 +138,8 @@
 
         <h1 class="text-4xl sm:text-5xl md:text-7xl font-black leading-[1.1] tracking-tight mb-6 relative z-10">
             Cinematic map animations. <br />
-            <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-blue-400">Zero
-                subscriptions.</span>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-blue-400">Right
+                in your browser.</span>
         </h1>
 
         <p class="text-base sm:text-lg md:text-xl text-brand-muted max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
@@ -148,32 +148,47 @@
         </p>
 
         <div
-            class="relative mx-auto max-w-5xl mt-12 md:mt-16 rounded-[1.5rem] md:rounded-[2rem] bg-white p-2 shadow-float border border-gray-100 animate-float-slow">
+            class="relative mx-auto max-w-5xl mt-12 md:mt-16 rounded-[2rem] md:rounded-[2.5rem] bg-white p-2.5 shadow-float border border-gray-100 animate-float-slow group/hero">
 
-            <div class="hidden md:block absolute -left-8 top-12 bg-white p-3 rounded-2xl shadow-xl animate-float-fast z-20">
-                <i class="ph-fill ph-navigation-arrow text-3xl text-brand-blue"></i>
+            <div
+                class="hidden md:block absolute -left-12 top-12 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl animate-float-fast z-20 border border-white/50">
+                <i class="ph-fill ph-navigation-arrow text-4xl text-brand-blue"></i>
             </div>
-            <div class="hidden md:block absolute -right-6 bottom-32 bg-white p-3 rounded-2xl shadow-xl animate-float-fast z-20"
-                style="animation-delay: 1s;">
-                <i class="ph-fill ph-video-camera text-3xl text-brand-purple"></i>
+            <div class="hidden md:block absolute -right-10 bottom-32 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl animate-float-fast z-20 border border-white/50"
+                style="animation-delay: 1.5s;">
+                <i class="ph-fill ph-video-camera text-4xl text-brand-purple"></i>
             </div>
-            <div class="hidden sm:flex absolute -left-4 bottom-16 bg-white px-4 py-2 rounded-xl shadow-lg items-center gap-2 animate-float-slow z-20"
-                style="animation-delay: 2s;">
-                <div class="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
-                <span class="text-xs font-bold">1080p • 60fps</span>
+            <div class="hidden sm:flex absolute -left-4 bottom-20 bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl items-center gap-3 animate-float-slow z-20 border border-white/50"
+                style="animation-delay: 2.5s;">
+                <div class="w-2.5 h-2.5 rounded-full bg-brand-green animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                <span class="text-xs font-bold tracking-tight text-gray-800">4K • 60fps Rendering</span>
             </div>
 
             <div
-                class="bg-gray-50 rounded-xl md:rounded-[1.5rem] overflow-hidden border border-gray-100 aspect-video relative flex flex-col shadow-inner z-10">
-                <div class="h-6 md:h-10 border-b border-gray-100 bg-white/80 backdrop-blur-sm flex items-center px-3 md:px-5 gap-1.5 md:gap-2 shrink-0">
-                    <div class="w-2 h-2 md:w-3 md:h-3 rounded-full bg-[#ff5f57]"></div>
-                    <div class="w-2 h-2 md:w-3 md:h-3 rounded-full bg-[#febc2e]"></div>
-                    <div class="w-2 h-2 md:w-3 md:h-3 rounded-full bg-[#28c840]"></div>
-                    <div class="ml-4 flex-1 h-3 md:h-5 bg-gray-100 rounded-lg max-w-[400px]"></div>
+                class="bg-gray-50 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-gray-100/50 relative flex flex-col shadow-inner z-10 group/browser">
+                <div
+                    class="h-8 md:h-12 border-b border-gray-100 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-2 shrink-0 relative z-20 transition-colors group-hover/browser:bg-white">
+                    <div class="flex gap-1.5 md:gap-2">
+                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#ff5f57] shadow-inner opacity-80"></div>
+                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#febc2e] shadow-inner opacity-80"></div>
+                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#28c840] shadow-inner opacity-80"></div>
+                    </div>
+                    <div class="ml-4 flex-1 h-5 md:h-7 bg-gray-100/60 rounded-full max-w-[480px] border border-gray-200/20 flex items-center px-4">
+                        <div class="w-3 md:w-4 h-px bg-gray-300/50"></div>
+                    </div>
                 </div>
-                <img src="screenshot.webp" alt="li'l Mappo Editor" class="w-full h-full object-cover">
+
+                <div class="aspect-video relative overflow-hidden bg-slate-100">
+                    <img src="screenshot.webp" alt="li'l Mappo Editor"
+                        class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover/browser:scale-[1.02]">
+                    <div class="absolute inset-0 shadow-[inner_0_0_100px_rgba(0,0,0,0.03)] pointer-events-none"></div>
+                </div>
             </div>
+
+            <!-- Enhanced Glow Effect -->
+            <div class="absolute -inset-4 bg-gradient-to-r from-brand-blue/5 via-transparent to-brand-purple/5 rounded-[3rem] blur-2xl -z-10 opacity-0 group-hover/hero:opacity-100 transition-opacity duration-700"></div>
         </div>
+
     </main>
 
     <section id="how-it-works" class="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto group">
@@ -273,7 +288,8 @@
 
             <div
                 class="lg:col-span-7 p-2 bg-white rounded-2xl md:rounded-[2rem] shadow-float border border-gray-100 transform transition-transform duration-700">
-                <div class="bg-gray-50 rounded-xl md:rounded-[1.5rem] overflow-hidden border border-gray-100 flex flex-col relative shadow-inner z-10 transition-colors duration-500 group-has-[#step2:checked]:bg-gray-950 group-has-[#step2:checked]:border-white/10 group-has-[#step4:checked]:bg-gray-950 group-has-[#step4:checked]:border-white/10">
+                <div
+                    class="bg-gray-50 rounded-xl md:rounded-[1.5rem] overflow-hidden border border-gray-100 flex flex-col relative shadow-inner z-10 transition-colors duration-500 group-has-[#step2:checked]:bg-gray-950 group-has-[#step2:checked]:border-white/10 group-has-[#step4:checked]:bg-gray-950 group-has-[#step4:checked]:border-white/10">
                     <div
                         class="h-10 md:h-12 bg-white/90 backdrop-blur border-b border-gray-100 flex items-center px-3 md:px-5 justify-between z-30 relative shrink-0 transition-colors duration-500 group-has-[#step2:checked]:bg-gray-900/90 group-has-[#step2:checked]:border-white/10 group-has-[#step4:checked]:bg-gray-900/90 group-has-[#step4:checked]:border-white/10">
                         <div class="flex items-center gap-2">
@@ -290,18 +306,19 @@
                         </div>
                     </div>
 
-                    <div class="aspect-[4/3] relative bg-gray-100 overflow-hidden w-full transition-colors group-has-[#step2:checked]:bg-gray-900 group-has-[#step4:checked]:bg-gray-900">
-                        <img src="1-route.webp" alt="Step 1: Plan Route" 
-                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step1:checked]:opacity-100 z-10">
-                        
-                        <img src="2-callout.webp" alt="Step 2: Add Context" 
-                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step2:checked]:opacity-100 z-10">
-                        
-                        <img src="3-keyframes.webp" alt="Step 3: Auto Camera" 
-                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step3:checked]:opacity-100 z-10">
-                        
-                        <img src="4-render.webp" alt="Step 4: Render Local" 
-                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step4:checked]:opacity-100 z-10">
+                    <div
+                        class="aspect-video relative bg-gray-100 overflow-hidden w-full transition-colors group-has-[#step2:checked]:bg-gray-900 group-has-[#step4:checked]:bg-gray-900">
+                        <img src="1-route.webp" alt="Step 1: Plan Route"
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0 group-has-[#step1:checked]:opacity-100 z-10">
+
+                        <img src="2-callout.webp" alt="Step 2: Add Context"
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0 group-has-[#step2:checked]:opacity-100 z-10">
+
+                        <img src="3-keyframes.webp" alt="Step 3: Auto Camera"
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0 group-has-[#step3:checked]:opacity-100 z-10">
+
+                        <img src="4-render.webp" alt="Step 4: Render Local"
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0 group-has-[#step4:checked]:opacity-100 z-10">
                     </div>
                 </div>
             </div>
@@ -980,7 +997,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-brand-muted">Multi-track timeline, interactive boundaries, and basic routing engine.</p>
+                    <p class="text-[10px] md:text-xs text-brand-muted">Multi-track timeline, interactive boundaries, and
+                        basic routing engine.</p>
                 </div>
             </div>
 
@@ -997,7 +1015,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-brand-muted">Cinematic and navigation-aware camera automation for complex routes.</p>
+                    <p class="text-[10px] md:text-xs text-brand-muted">Cinematic and navigation-aware camera automation
+                        for complex routes.</p>
                 </div>
             </div>
 
@@ -1014,7 +1033,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-brand-muted">High-fidelity 60fps rendering directly in the browser via WebCodecs.</p>
+                    <p class="text-[10px] md:text-xs text-brand-muted">High-fidelity 60fps rendering directly in the
+                        browser via WebCodecs.</p>
                 </div>
             </div>
 
@@ -1031,7 +1051,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-brand-muted">Four premium label variants with real-time geographic coordinate linking.</p>
+                    <p class="text-[10px] md:text-xs text-brand-muted">Four premium label variants with real-time
+                        geographic coordinate linking.</p>
                 </div>
             </div>
 
@@ -1048,7 +1069,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-brand-muted">Persistent cloud storage and device-to-device synchronization via Supabase.</p>
+                    <p class="text-[10px] md:text-xs text-brand-muted">Persistent cloud storage and device-to-device
+                        synchronization via Supabase.</p>
                 </div>
             </div>
 
@@ -1065,7 +1087,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-brand-muted">"Bring Your Own Key" support to unlock unlimited Mapbox potential for free.</p>
+                    <p class="text-[10px] md:text-xs text-brand-muted">"Bring Your Own Key" support to unlock unlimited
+                        Mapbox potential for free.</p>
                 </div>
             </div>
 
@@ -1083,7 +1106,8 @@
                             class="text-[8px] md:text-[10px] font-bold text-brand-blue bg-blue-50 px-2 py-0.5 rounded-md whitespace-nowrap">Active
                             Dev</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-brand-muted">Great Circle physics for realistic high-altitude curves and flight visualizations.</p>
+                    <p class="text-[10px] md:text-xs text-brand-muted">Great Circle physics for realistic high-altitude
+                        curves and flight visualizations.</p>
                 </div>
             </div>
 
@@ -1099,7 +1123,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">Planned</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-gray-400">Background exports on high-performance serverless GPU clusters.</p>
+                    <p class="text-[10px] md:text-xs text-gray-400">Background exports on high-performance serverless
+                        GPU clusters.</p>
                 </div>
             </div>
 
@@ -1115,7 +1140,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">Planned</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-gray-400">Integrated music tracks, voiceover support, and SFX synchronization.</p>
+                    <p class="text-[10px] md:text-xs text-gray-400">Integrated music tracks, voiceover support, and SFX
+                        synchronization.</p>
                 </div>
             </div>
 
@@ -1131,7 +1157,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">Planned</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-gray-400">Direct data flow plugins for professional GIS software and GeoPackage support.</p>
+                    <p class="text-[10px] md:text-xs text-gray-400">Direct data flow plugins for professional GIS
+                        software and GeoPackage support.</p>
                 </div>
             </div>
 
@@ -1147,7 +1174,8 @@
                         <span
                             class="text-[8px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">Planned</span>
                     </div>
-                    <p class="text-[10px] md:text-xs text-gray-400">Custom logo overlays and removable watermarks for professional content creators.</p>
+                    <p class="text-[10px] md:text-xs text-gray-400">Custom logo overlays and removable watermarks for
+                        professional content creators.</p>
                 </div>
             </div>
 
