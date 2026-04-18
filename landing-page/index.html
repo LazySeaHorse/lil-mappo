@@ -62,7 +62,7 @@
 
     <style>
         html {
-            overflow-x: hidden;
+            /* Remove overflow-x to allow native mobile behaviors */
         }
 
         body {
@@ -70,7 +70,20 @@
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
             background-size: 24px 24px;
             color: #0f172a;
-            overflow-x: hidden;
+            /* Remove overflow-x to allow smooth address bar transitions */
+        }
+
+        /* Safe area aware fixed positioning for mobile */
+        .nav-safe-top {
+            top: 1rem;
+            top: max(1rem, env(safe-area-inset-top, 1rem));
+        }
+
+        /* Fixes the zoom bug by clipping content spilling off-screen */
+        .content-overflow-fix {
+            overflow-x: clip;
+            width: 100%;
+            position: relative;
         }
 
         .glass-panel {
@@ -104,11 +117,7 @@
 </head>
 
 <body class="antialiased selection:bg-brand-blue selection:text-white pb-24">
-    <div class="blob bg-brand-blue w-96 h-96 top-0 left-[-10%]"></div>
-    <div class="blob bg-brand-purple w-80 h-80 top-[20%] right-[-5%] opacity-10"></div>
-    <div class="blob bg-brand-green w-64 h-64 bottom-[10%] left-[20%] opacity-10"></div>
-
-    <nav class="fixed top-4 md:top-6 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
+    <nav class="fixed nav-safe-top md:top-6 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
         <div
             class="glass-panel flex items-center justify-between px-4 md:px-6 py-3 rounded-full w-full max-w-5xl shadow-soft">
             <a href="#"
@@ -134,6 +143,11 @@
             </div>
         </div>
     </nav>
+
+    <div class="content-overflow-fix">
+        <div class="blob bg-brand-blue w-96 h-96 top-0 left-[-10%]"></div>
+        <div class="blob bg-brand-purple w-80 h-80 top-[20%] right-[-5%] opacity-10"></div>
+        <div class="blob bg-brand-green w-64 h-64 bottom-[10%] left-[20%] opacity-10"></div>
 
     <main class="pt-28 md:pt-40 pb-16 md:pb-20 px-4 md:px-6 max-w-6xl mx-auto text-center relative">
         <div
@@ -1492,33 +1506,9 @@
                 <a href="#" class="hover:text-brand-blue transition-colors">Terms</a>
             </div>
         </div>
-    </footer>
-</body>
-
-</html>             </a>
-                    <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank"
-                        class="bg-white/10 hover:bg-white/20 text-white px-6 md:px-8 py-3 md:py-4 rounded-full font-bold text-base md:text-lg backdrop-blur-md transition-colors flex items-center justify-center">
-                        View on GitHub
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="max-w-6xl mx-auto mt-8 md:mt-12 pb-8 flex flex-col md:flex-row items-center justify-between text-xs md:text-sm text-brand-muted font-medium gap-4">
-            <p>© 2026 li'l Mappo. Free and Open Source.</p>
-            <div class="flex flex-wrap justify-center gap-4 md:gap-6">
-                <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank" class="hover:text-brand-blue transition-colors">GitHub</a>
-                <a href="https://github.com/LazySeaHorse/lil-mappo#readme" target="_blank" class="hover:text-brand-blue transition-colors">Documentation</a>
-                <a href="#" class="hover:text-brand-blue transition-colors">Terms</a>
-            </div>
         </div>
     </footer>
-
+    </div>
 </body>
 
-</html>               </div>
-            </div>
-        </footer>
-    </body>
 </html>
