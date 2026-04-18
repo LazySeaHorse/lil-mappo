@@ -176,7 +176,7 @@
         </div>
     </main>
 
-    <section id="how-it-works" class="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto group/process">
+    <section id="how-it-works" class="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto group">
 
         <input type="radio" name="process-step" id="step1" class="hidden" checked>
         <input type="radio" name="process-step" id="step2" class="hidden">
@@ -272,188 +272,39 @@
             </div>
 
             <div
-                class="lg:col-span-7 h-[400px] md:h-[500px] bg-white rounded-2xl md:rounded-[2rem] border border-gray-200 shadow-float overflow-hidden flex flex-col relative transform transition-transform duration-700">
-
-                <div
-                    class="h-10 md:h-12 bg-white/90 backdrop-blur border-b border-gray-100 flex items-center px-3 md:px-5 justify-between z-30 relative shrink-0">
-                    <div class="flex items-center gap-2">
-                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
-                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
-                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
-                    </div>
+                class="lg:col-span-7 p-2 bg-white rounded-2xl md:rounded-[2rem] shadow-float border border-gray-100 transform transition-transform duration-700">
+                <div class="bg-gray-50 rounded-xl md:rounded-[1.5rem] overflow-hidden border border-gray-100 flex flex-col relative shadow-inner z-10 transition-colors duration-500 group-has-[#step2:checked]:bg-gray-950 group-has-[#step2:checked]:border-white/10 group-has-[#step4:checked]:bg-gray-950 group-has-[#step4:checked]:border-white/10">
                     <div
-                        class="text-[10px] md:text-xs font-bold text-gray-400 bg-gray-50 px-2 md:px-3 py-1 rounded-full">
-                        li'l Mappo Studio</div>
-                    <div
-                        class="w-5 h-5 md:w-6 md:h-6 rounded bg-gray-50 flex items-center justify-center text-gray-400">
-                        <i class="ph-bold ph-list"></i>
-                    </div>
-                </div>
-
-                <div class="flex-1 relative bg-gray-50 overflow-hidden"
-                    style="background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 24px 24px;">
-
-                    <div class="absolute inset-0 transition-all duration-700 ease-in-out origin-center group-has-[#step3:checked]:scale-125 group-has-[#step3:checked]:rotate-x-45 group-has-[#step3:checked]:-rotate-6 group-has-[#step4:checked]:blur-sm"
-                        style="perspective: 1000px; transform-style: preserve-3d;">
-
+                        class="h-10 md:h-12 bg-white/90 backdrop-blur border-b border-gray-100 flex items-center px-3 md:px-5 justify-between z-30 relative shrink-0 transition-colors duration-500 group-has-[#step2:checked]:bg-gray-900/90 group-has-[#step2:checked]:border-white/10 group-has-[#step4:checked]:bg-gray-900/90 group-has-[#step4:checked]:border-white/10">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200 opacity-40"></div>
+                            <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200 opacity-40"></div>
+                            <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200 opacity-40"></div>
+                        </div>
                         <div
-                            class="absolute inset-0 opacity-0 group-has-[#step1:checked]:opacity-100 group-has-[#step2:checked]:opacity-100 group-has-[#step3:checked]:opacity-100 group-has-[#step4:checked]:opacity-100 transition-opacity duration-500">
-                            <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                <path d="M 20 80 Q 40 40, 80 30" fill="none" stroke="#1e3fda" stroke-width="1.5"
-                                    stroke-dasharray="2 3" class="opacity-80" />
-                                <circle cx="20" cy="80" r="1.5" fill="#1e3fda" />
-                                <circle cx="80" cy="30" r="1.5" fill="#10b981" />
-                                <circle cx="45" cy="51" r="2" fill="#8b5cf6" class="shadow-lg" />
-                            </svg>
-                        </div>
-
+                            class="text-[10px] md:text-xs font-bold text-gray-400 bg-gray-50 px-2 md:px-3 py-1 rounded-full transition-colors group-has-[#step2:checked]:bg-white/5 group-has-[#step2:checked]:text-gray-500 group-has-[#step4:checked]:bg-white/5 group-has-[#step4:checked]:text-gray-500">
+                            li'l Mappo Studio</div>
                         <div
-                            class="absolute inset-0 opacity-0 group-has-[#step2:checked]:opacity-100 group-has-[#step3:checked]:opacity-100 group-has-[#step4:checked]:opacity-100 transition-opacity duration-500">
-                            <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                <polygon points="10,90 30,70 40,95 20,105" fill="#10b981" fill-opacity="0.1"
-                                    stroke="#10b981" stroke-width="0.5" stroke-dasharray="1 2" />
-                            </svg>
-                            <div
-                                class="absolute top-[75%] left-[15%] bg-white border border-gray-100 shadow-lg rounded-lg px-2 py-1 flex items-center gap-1.5 -translate-y-full -translate-x-1/2">
-                                <div class="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>
-                                <span class="text-[9px] font-bold text-gray-700">Paris</span>
-                            </div>
-                            <div
-                                class="absolute top-[25%] left-[80%] bg-gray-900 border border-gray-800 shadow-lg rounded-lg px-2 py-1 flex items-center gap-1.5 -translate-y-full -translate-x-1/2">
-                                <div class="w-1.5 h-1.5 rounded-full bg-brand-green"></div>
-                                <span class="text-[9px] font-bold text-white">Berlin</span>
-                            </div>
+                            class="w-5 h-5 md:w-6 md:h-6 rounded bg-gray-50 flex items-center justify-center text-gray-400 transition-colors group-has-[#step2:checked]:bg-white/5 group-has-[#step4:checked]:bg-white/5 group-has-[#step2:checked]:text-gray-500 group-has-[#step4:checked]:text-gray-500">
+                            <i class="ph-bold ph-list"></i>
                         </div>
                     </div>
 
-                    <div
-                        class="absolute top-2 md:top-4 left-2 md:left-4 w-40 md:w-48 bg-white/95 backdrop-blur rounded-xl md:rounded-2xl shadow-lg border border-gray-100 p-3 md:p-4 transform -translate-x-8 opacity-0 pointer-events-none transition-all duration-500 group-has-[#step1:checked]:translate-x-0 group-has-[#step1:checked]:opacity-100 z-20">
-                        <div
-                            class="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 md:mb-3">
-                            Route Planner</div>
-                        <div class="space-y-2 mb-2 md:mb-3">
-                            <div
-                                class="bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs font-semibold text-gray-700 flex items-center gap-2">
-                                <i class="ph-bold ph-magnifying-glass text-brand-blue"></i> Paris, FR
-                            </div>
-                            <div
-                                class="bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs font-semibold text-gray-700 flex items-center gap-2">
-                                <i class="ph-bold ph-magnifying-glass text-brand-green"></i> Berlin, DE
-                            </div>
-                        </div>
-                        <div class="flex bg-gray-50 rounded-lg p-1 mb-2 md:mb-3">
-                            <div
-                                class="flex-1 bg-white shadow-sm rounded flex justify-center py-1 text-brand-blue text-sm md:text-base">
-                                <i class="ph-fill ph-airplane-tilt"></i>
-                            </div>
-                            <div class="flex-1 flex justify-center py-1 text-gray-400 text-sm md:text-base"><i
-                                    class="ph-fill ph-car"></i></div>
-                        </div>
-                        <button
-                            class="w-full bg-brand-blue text-white rounded-lg py-1.5 text-[10px] md:text-xs font-bold">Insert
-                            Route</button>
+                    <div class="aspect-[4/3] relative bg-gray-100 overflow-hidden w-full transition-colors group-has-[#step2:checked]:bg-gray-900 group-has-[#step4:checked]:bg-gray-900">
+                        <img src="1-route.webp" alt="Step 1: Plan Route" 
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step1:checked]:opacity-100 z-10">
+                        
+                        <img src="2-callout.webp" alt="Step 2: Add Context" 
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step2:checked]:opacity-100 z-10">
+                        
+                        <img src="3-keyframes.webp" alt="Step 3: Auto Camera" 
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step3:checked]:opacity-100 z-10">
+                        
+                        <img src="4-render.webp" alt="Step 4: Render Local" 
+                            class="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-has-[#step4:checked]:opacity-100 z-10">
                     </div>
-
-                    <div
-                        class="absolute top-[60%] left-[30%] bg-white/95 backdrop-blur rounded-xl shadow-xl border border-gray-100 p-2 transform scale-95 opacity-0 pointer-events-none transition-all duration-500 group-has-[#step2:checked]:scale-100 group-has-[#step2:checked]:opacity-100 z-20">
-                        <div class="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
-                            <div
-                                class="w-4 h-4 md:w-5 md:h-5 rounded bg-purple-50 text-brand-purple flex items-center justify-center text-[10px]">
-                                <i class="ph-bold ph-polygon"></i>
-                            </div>
-                            <span class="text-[10px] md:text-xs font-bold text-gray-700">Add Boundary</span>
-                        </div>
-                        <div class="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
-                            <div
-                                class="w-4 h-4 md:w-5 md:h-5 rounded bg-blue-50 text-brand-blue flex items-center justify-center text-[10px]">
-                                <i class="ph-bold ph-chat-circle-text"></i>
-                            </div>
-                            <span class="text-[10px] md:text-xs font-bold text-gray-700">Add Callout</span>
-                        </div>
-                    </div>
-
-                    <div
-                        class="absolute bottom-0 left-0 right-0 h-28 md:h-32 bg-white/95 backdrop-blur border-t border-gray-200 transform translate-y-full opacity-0 pointer-events-none transition-all duration-500 group-has-[#step3:checked]:translate-y-0 group-has-[#step3:checked]:opacity-100 z-20 flex flex-col">
-                        <div class="flex items-center justify-between px-3 md:px-4 py-2 border-b border-gray-100">
-                            <div class="flex items-center gap-2 md:gap-3 text-brand-blue">
-                                <i class="ph-fill ph-play-circle text-xl md:text-2xl"></i>
-                                <span class="text-[10px] md:text-xs font-bold font-mono">00:04:12</span>
-                            </div>
-                            <div
-                                class="bg-blue-50 text-brand-blue text-[8px] md:text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
-                                <i class="ph-fill ph-video-camera"></i> Auto Cam Active
-                            </div>
-                        </div>
-                        <div class="flex-1 p-2 md:p-3 space-y-2 relative">
-                            <div class="absolute top-0 bottom-0 left-[30%] w-px bg-red-400 z-10">
-                                <div
-                                    class="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-400 absolute -top-1 -left-0.5 md:-left-1">
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span
-                                    class="text-[8px] md:text-[9px] font-bold text-gray-400 w-10 md:w-12 text-right">ROUTE</span>
-                                <div class="flex-1 h-4 md:h-5 bg-gray-50 rounded flex items-center px-1">
-                                    <div class="h-2.5 md:h-3 bg-brand-blue/80 rounded w-1/2 ml-[10%]"></div>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span
-                                    class="text-[8px] md:text-[9px] font-bold text-gray-400 w-10 md:w-12 text-right">CAMERA</span>
-                                <div class="flex-1 h-4 md:h-5 bg-gray-50 rounded flex items-center px-1">
-                                    <div
-                                        class="h-2.5 md:h-3 bg-brand-purple/80 rounded w-1/2 ml-[10%] border border-brand-purple">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        class="absolute inset-0 bg-white/30 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-500 group-has-[#step4:checked]:opacity-100 z-30 flex items-center justify-center p-4 md:p-6">
-                        <div
-                            class="bg-white rounded-2xl md:rounded-[2rem] shadow-float border border-gray-100 w-full max-w-sm p-4 md:p-6 transform scale-95 transition-transform duration-500 group-has-[#step4:checked]:scale-100">
-                            <div class="flex justify-between items-center mb-4 md:mb-6">
-                                <h3 class="text-base md:text-lg font-black text-gray-900">Export Video</h3>
-                                <i class="ph-bold ph-x text-gray-400"></i>
-                            </div>
-
-                            <div class="space-y-2 md:space-y-3 mb-4 md:mb-6">
-                                <div
-                                    class="flex justify-between items-center text-xs md:text-sm font-medium border-b border-gray-50 pb-2">
-                                    <span class="text-gray-500">Resolution</span>
-                                    <span class="text-brand-blue font-bold">1080p HD</span>
-                                </div>
-                                <div
-                                    class="flex justify-between items-center text-xs md:text-sm font-medium border-b border-gray-50 pb-2">
-                                    <span class="text-gray-500">Framerate</span>
-                                    <span class="text-gray-900 font-bold">60 FPS</span>
-                                </div>
-                                <div class="flex justify-between items-center text-xs md:text-sm font-medium">
-                                    <span class="text-gray-500">Engine</span>
-                                    <span
-                                        class="bg-gray-100 px-2 py-0.5 rounded text-[10px] md:text-xs font-bold text-gray-600">WebCodecs
-                                        (Local)</span>
-                                </div>
-                            </div>
-
-                            <div
-                                class="relative w-full h-10 md:h-12 bg-brand-light rounded-xl overflow-hidden flex items-center justify-center font-bold text-brand-blue text-xs md:text-sm">
-                                <div
-                                    class="absolute top-0 bottom-0 left-0 bg-brand-blue w-[70%] transition-all duration-1000 ease-out flex items-center overflow-hidden">
-                                    <div
-                                        class="absolute inset-0 flex items-center justify-center text-white min-w-[200px]">
-                                        Rendering... 70%
-                                    </div>
-                                </div>
-                                <span class="relative z-10 drop-shadow-md">Rendering... 70%</span>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
             </div>
-
         </div>
     </section>
 
