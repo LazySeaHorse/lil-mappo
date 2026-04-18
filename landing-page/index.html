@@ -1,17 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>li'l Mappo - Cinematic Map Animations</title>
-    
+    <title>li'l Mappo</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="logo.svg" />
+
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <script>
         tailwind.config = {
             theme: {
@@ -77,20 +81,23 @@
             z-index: -1;
             opacity: 0.15;
         }
-        
+
         .table-wrapper::-webkit-scrollbar {
             height: 8px;
         }
+
         .table-wrapper::-webkit-scrollbar-track {
             background: #f1f5f9;
             border-radius: 4px;
         }
+
         .table-wrapper::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 4px;
         }
     </style>
 </head>
+
 <body class="antialiased selection:bg-brand-blue selection:text-white pb-24">
 
     <div class="blob bg-brand-blue w-96 h-96 top-0 left-[-10%]"></div>
@@ -98,7 +105,8 @@
     <div class="blob bg-brand-green w-64 h-64 bottom-[10%] left-[20%] opacity-10"></div>
 
     <nav class="fixed top-4 md:top-6 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
-        <div class="glass-panel flex items-center justify-between px-4 md:px-6 py-3 rounded-full w-full max-w-5xl shadow-soft">
+        <div
+            class="glass-panel flex items-center justify-between px-4 md:px-6 py-3 rounded-full w-full max-w-5xl shadow-soft">
             <div class="flex items-center gap-2 font-bold text-lg md:text-xl tracking-tight text-brand-blue">
                 <i class="ph-fill ph-map-trifold text-xl md:text-2xl"></i>
                 <span class="hidden sm:inline">li'l Mappo</span>
@@ -110,66 +118,86 @@
                 <a href="#roadmap" class="hover:text-brand-blue transition-colors">Roadmap</a>
             </div>
             <div class="flex items-center gap-2 md:gap-3">
-                <a href="#" class="hidden sm:flex items-center gap-1.5 text-sm font-bold bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-full transition-colors">
+                <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank"
+                    class="hidden sm:flex items-center gap-1.5 text-sm font-bold bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-full transition-colors">
                     <i class="ph-bold ph-github-logo"></i> FOSS
                 </a>
-                <a href="#" class="flex items-center gap-2 text-sm font-bold bg-brand-blue text-white px-4 md:px-5 py-2 rounded-full hover:bg-blue-700 hover:shadow-lg transition-all transform hover:-translate-y-0.5">
-                    Launch <span class="hidden sm:inline">Editor</span> <i class="ph-bold ph-arrow-right"></i>
+                <a href="https://app.lilmappo.tech"
+                    class="flex items-center gap-2 text-sm font-bold bg-brand-blue text-white px-4 md:px-5 py-2 rounded-full hover:bg-blue-700 hover:shadow-lg transition-all transform hover:-translate-y-0.5">
+                    Launch <span class="hidden sm:inline">Editor</span>
                 </a>
             </div>
         </div>
     </nav>
 
     <main class="pt-32 md:pt-40 pb-16 md:pb-20 px-4 md:px-6 max-w-6xl mx-auto text-center relative">
-        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-light text-brand-blue text-[10px] md:text-xs font-bold uppercase tracking-wide mb-6">
+        <div
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-light text-brand-blue text-[10px] md:text-xs font-bold uppercase tracking-wide mb-6">
             <i class="ph-fill ph-planet"></i> Open Source & Browser-Based
         </div>
-        
+
         <h1 class="text-4xl sm:text-5xl md:text-7xl font-black leading-[1.1] tracking-tight mb-6 relative z-10">
             Cinematic map animations. <br />
-            <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-blue-400">Zero subscriptions.</span>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-blue-400">Zero
+                subscriptions.</span>
         </h1>
-        
+
         <p class="text-base sm:text-lg md:text-xl text-brand-muted max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
-            Build timeline-driven travel routes, dynamic boundaries, and 3D callouts directly in your browser. Render locally for free, or bring your own Mapbox key to unlock unlimited potential.
+            Build timeline-driven travel routes, dynamic boundaries, and 3D callouts directly in your browser. Render
+            locally for free, or bring your own Mapbox key to unlock unlimited potential.
         </p>
 
-        <div class="relative mx-auto max-w-5xl mt-12 md:mt-16 rounded-[1.5rem] md:rounded-[2rem] bg-white p-2 shadow-float border border-gray-100 animate-float-slow">
-            
+        <div
+            class="relative mx-auto max-w-5xl mt-12 md:mt-16 rounded-[1.5rem] md:rounded-[2rem] bg-white p-2 shadow-float border border-gray-100 animate-float-slow">
+
             <div class="hidden md:block absolute -left-8 top-12 bg-white p-3 rounded-2xl shadow-xl animate-float-fast">
                 <i class="ph-fill ph-navigation-arrow text-3xl text-brand-blue"></i>
             </div>
-            <div class="hidden md:block absolute -right-6 bottom-32 bg-white p-3 rounded-2xl shadow-xl animate-float-fast" style="animation-delay: 1s;">
+            <div class="hidden md:block absolute -right-6 bottom-32 bg-white p-3 rounded-2xl shadow-xl animate-float-fast"
+                style="animation-delay: 1s;">
                 <i class="ph-fill ph-video-camera text-3xl text-brand-purple"></i>
             </div>
-            <div class="hidden sm:flex absolute -left-4 bottom-16 bg-white px-4 py-2 rounded-xl shadow-lg items-center gap-2 animate-float-slow" style="animation-delay: 2s;">
+            <div class="hidden sm:flex absolute -left-4 bottom-16 bg-white px-4 py-2 rounded-xl shadow-lg items-center gap-2 animate-float-slow"
+                style="animation-delay: 2s;">
                 <div class="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
                 <span class="text-xs font-bold">1080p • 60fps</span>
             </div>
 
-            <div class="bg-gray-50 rounded-xl md:rounded-[1.5rem] overflow-hidden border border-gray-100 aspect-video relative flex flex-col">
-                <div class="h-10 md:h-12 bg-white border-b border-gray-100 flex items-center px-2 md:px-4 justify-between">
+            <div
+                class="bg-gray-50 rounded-xl md:rounded-[1.5rem] overflow-hidden border border-gray-100 aspect-video relative flex flex-col">
+                <div
+                    class="h-10 md:h-12 bg-white border-b border-gray-100 flex items-center px-2 md:px-4 justify-between">
                     <div class="flex gap-2 md:gap-4">
                         <div class="w-16 md:w-24 h-4 md:h-6 bg-gray-100 rounded-full"></div>
                         <div class="w-12 md:w-16 h-4 md:h-6 bg-gray-100 rounded-full"></div>
                     </div>
                     <div class="flex gap-2">
-                        <div class="w-6 h-6 md:w-8 md:h-8 rounded-full bg-brand-light flex items-center justify-center text-brand-blue text-xs md:text-base"><i class="ph-bold ph-export"></i></div>
+                        <div
+                            class="w-6 h-6 md:w-8 md:h-8 rounded-full bg-brand-light flex items-center justify-center text-brand-blue text-xs md:text-base">
+                            <i class="ph-bold ph-export"></i>
+                        </div>
                     </div>
                 </div>
-                
+
                 <div class="flex-1 relative bg-[#e5e7eb] overflow-hidden">
-                    <svg class="absolute inset-0 w-full h-full text-gray-300 opacity-50" preserveAspectRatio="none" viewBox="0 0 100 100">
-                        <path d="M0,50 Q25,20 50,50 T100,50" fill="none" stroke="currentColor" stroke-width="0.5"/>
-                        <path d="M0,80 Q30,40 60,70 T100,20" fill="none" stroke="currentColor" stroke-width="0.5"/>
+                    <svg class="absolute inset-0 w-full h-full text-gray-300 opacity-50" preserveAspectRatio="none"
+                        viewBox="0 0 100 100">
+                        <path d="M0,50 Q25,20 50,50 T100,50" fill="none" stroke="currentColor" stroke-width="0.5" />
+                        <path d="M0,80 Q30,40 60,70 T100,20" fill="none" stroke="currentColor" stroke-width="0.5" />
                     </svg>
-                    <svg class="absolute inset-0 w-full h-full text-brand-blue drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 100">
-                        <path d="M20,70 Q40,30 70,40 T90,30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 4"/>
+                    <svg class="absolute inset-0 w-full h-full text-brand-blue drop-shadow-md"
+                        preserveAspectRatio="none" viewBox="0 0 100 100">
+                        <path d="M20,70 Q40,30 70,40 T90,30" fill="none" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" stroke-dasharray="2 4" />
                         <circle cx="20" cy="70" r="2" fill="currentColor" />
                         <circle cx="90" cy="30" r="2" fill="#10b981" />
                     </svg>
-                    <div class="absolute top-[35%] left-[65%] bg-white rounded-xl shadow-lg p-2 text-left flex items-center gap-2 transform -translate-x-1/2 -translate-y-1/2 scale-75 md:scale-100">
-                        <div class="w-6 h-6 rounded-full bg-brand-light text-brand-blue flex items-center justify-center"><i class="ph-bold ph-mountains"></i></div>
+                    <div
+                        class="absolute top-[35%] left-[65%] bg-white rounded-xl shadow-lg p-2 text-left flex items-center gap-2 transform -translate-x-1/2 -translate-y-1/2 scale-75 md:scale-100">
+                        <div
+                            class="w-6 h-6 rounded-full bg-brand-light text-brand-blue flex items-center justify-center">
+                            <i class="ph-bold ph-mountains"></i>
+                        </div>
                         <div>
                             <div class="h-2 w-12 bg-gray-200 rounded mb-1"></div>
                             <div class="h-1 w-8 bg-gray-100 rounded"></div>
@@ -193,227 +221,313 @@
     </main>
 
     <section id="how-it-works" class="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto group/process">
-            
-            <input type="radio" name="process-step" id="step1" class="hidden" checked>
-            <input type="radio" name="process-step" id="step2" class="hidden">
-            <input type="radio" name="process-step" id="step3" class="hidden">
-            <input type="radio" name="process-step" id="step4" class="hidden">
 
-            <div class="text-center mb-12 md:mb-16">
-                <h2 class="text-3xl md:text-5xl font-black tracking-tight mb-4">From blank canvas to polished export.</h2>
-                <p class="text-brand-muted text-base md:text-lg font-medium">See how intuitive map animation can be. No timeline-editing degree required.</p>
+        <input type="radio" name="process-step" id="step1" class="hidden" checked>
+        <input type="radio" name="process-step" id="step2" class="hidden">
+        <input type="radio" name="process-step" id="step3" class="hidden">
+        <input type="radio" name="process-step" id="step4" class="hidden">
+
+        <div class="text-center mb-12 md:mb-16">
+            <h2 class="text-3xl md:text-5xl font-black tracking-tight mb-4">From blank canvas to polished export.</h2>
+            <p class="text-brand-muted text-base md:text-lg font-medium">See how intuitive map animation can be. No
+                timeline-editing degree required.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 items-center">
+
+            <div class="lg:col-span-5 flex flex-col gap-3 md:gap-4">
+
+                <label for="step1"
+                    class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step1:checked]:bg-white group-has-[#step1:checked]:border-brand-blue/20 group-has-[#step1:checked]:shadow-soft">
+                    <div class="flex gap-4 md:gap-5">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step1:checked]:bg-brand-blue group-has-[#step1:checked]:text-white transition-colors duration-300 shadow-inner">
+                            <i class="ph-fill ph-map-pin-line"></i>
+                        </div>
+                        <div>
+                            <h3
+                                class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step1:checked]:text-gray-900 transition-colors">
+                                1. Plan Route</h3>
+                            <p
+                                class="text-gray-400 group-has-[#step1:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">
+                                Search locations or import GPX/KML files. Pick Car, Walk, or Flight modes and let the
+                                routing engine plot the path.</p>
+                        </div>
+                    </div>
+                </label>
+
+                <label for="step2"
+                    class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step2:checked]:bg-white group-has-[#step2:checked]:border-brand-purple/20 group-has-[#step2:checked]:shadow-soft">
+                    <div class="flex gap-4 md:gap-5">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step2:checked]:bg-brand-purple group-has-[#step2:checked]:text-white transition-colors duration-300 shadow-inner">
+                            <i class="ph-fill ph-bounding-box"></i>
+                        </div>
+                        <div>
+                            <h3
+                                class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step2:checked]:text-gray-900 transition-colors">
+                                2. Add Context</h3>
+                            <p
+                                class="text-gray-400 group-has-[#step2:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">
+                                Highlight country boundaries and drop beautifully styled 3D callouts that auto-sync to
+                                real place names.</p>
+                        </div>
+                    </div>
+                </label>
+
+                <label for="step3"
+                    class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step3:checked]:bg-white group-has-[#step3:checked]:border-brand-blue/20 group-has-[#step3:checked]:shadow-soft">
+                    <div class="flex gap-4 md:gap-5">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step3:checked]:bg-brand-blue group-has-[#step3:checked]:text-white transition-colors duration-300 shadow-inner">
+                            <i class="ph-fill ph-faders"></i>
+                        </div>
+                        <div>
+                            <h3
+                                class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step3:checked]:text-gray-900 transition-colors">
+                                3. Auto Camera</h3>
+                            <p
+                                class="text-gray-400 group-has-[#step3:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">
+                                Let the cinematic Auto-Cam follow your route automatically, or manually keyframe zoom,
+                                pitch, and bearing.</p>
+                        </div>
+                    </div>
+                </label>
+
+                <label for="step4"
+                    class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step4:checked]:bg-white group-has-[#step4:checked]:border-brand-green/20 group-has-[#step4:checked]:shadow-soft">
+                    <div class="flex gap-4 md:gap-5">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step4:checked]:bg-brand-green group-has-[#step4:checked]:text-white transition-colors duration-300 shadow-inner">
+                            <i class="ph-fill ph-export"></i>
+                        </div>
+                        <div>
+                            <h3
+                                class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step4:checked]:text-gray-900 transition-colors">
+                                4. Render Local</h3>
+                            <p
+                                class="text-gray-400 group-has-[#step4:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">
+                                Export crisp 60fps MP4s directly from your browser utilizing WebCodecs. No cloud queues,
+                                no credit fees.</p>
+                        </div>
+                    </div>
+                </label>
+
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 items-center">
-                
-                <div class="lg:col-span-5 flex flex-col gap-3 md:gap-4">
-                    
-                    <label for="step1" class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step1:checked]:bg-white group-has-[#step1:checked]:border-brand-blue/20 group-has-[#step1:checked]:shadow-soft">
-                        <div class="flex gap-4 md:gap-5">
-                            <div class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step1:checked]:bg-brand-blue group-has-[#step1:checked]:text-white transition-colors duration-300 shadow-inner">
-                                <i class="ph-fill ph-map-pin-line"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step1:checked]:text-gray-900 transition-colors">1. Plan Route</h3>
-                                <p class="text-gray-400 group-has-[#step1:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">Search locations or import GPX/KML files. Pick Car, Walk, or Flight modes and let the routing engine plot the path.</p>
-                            </div>
-                        </div>
-                    </label>
+            <div
+                class="lg:col-span-7 h-[400px] md:h-[500px] bg-white rounded-2xl md:rounded-[2rem] border border-gray-200 shadow-float overflow-hidden flex flex-col relative transform transition-transform duration-700">
 
-                    <label for="step2" class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step2:checked]:bg-white group-has-[#step2:checked]:border-brand-purple/20 group-has-[#step2:checked]:shadow-soft">
-                        <div class="flex gap-4 md:gap-5">
-                            <div class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step2:checked]:bg-brand-purple group-has-[#step2:checked]:text-white transition-colors duration-300 shadow-inner">
-                                <i class="ph-fill ph-bounding-box"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step2:checked]:text-gray-900 transition-colors">2. Add Context</h3>
-                                <p class="text-gray-400 group-has-[#step2:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">Highlight country boundaries and drop beautifully styled 3D callouts that auto-sync to real place names.</p>
-                            </div>
-                        </div>
-                    </label>
-
-                    <label for="step3" class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step3:checked]:bg-white group-has-[#step3:checked]:border-brand-blue/20 group-has-[#step3:checked]:shadow-soft">
-                        <div class="flex gap-4 md:gap-5">
-                            <div class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step3:checked]:bg-brand-blue group-has-[#step3:checked]:text-white transition-colors duration-300 shadow-inner">
-                                <i class="ph-fill ph-faders"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step3:checked]:text-gray-900 transition-colors">3. Auto Camera</h3>
-                                <p class="text-gray-400 group-has-[#step3:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">Let the cinematic Auto-Cam follow your route automatically, or manually keyframe zoom, pitch, and bearing.</p>
-                            </div>
-                        </div>
-                    </label>
-
-                    <label for="step4" class="block p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white group-has-[#step4:checked]:bg-white group-has-[#step4:checked]:border-brand-green/20 group-has-[#step4:checked]:shadow-soft">
-                        <div class="flex gap-4 md:gap-5">
-                            <div class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl shrink-0 bg-gray-100 text-gray-400 group-has-[#step4:checked]:bg-brand-green group-has-[#step4:checked]:text-white transition-colors duration-300 shadow-inner">
-                                <i class="ph-fill ph-export"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg md:text-xl font-bold mb-1 md:mb-2 text-gray-500 group-has-[#step4:checked]:text-gray-900 transition-colors">4. Render Local</h3>
-                                <p class="text-gray-400 group-has-[#step4:checked]:text-brand-muted text-xs md:text-sm font-medium leading-relaxed transition-colors">Export crisp 60fps MP4s directly from your browser utilizing WebCodecs. No cloud queues, no credit fees.</p>
-                            </div>
-                        </div>
-                    </label>
-
-                </div>
-
-                <div class="lg:col-span-7 h-[400px] md:h-[500px] bg-white rounded-2xl md:rounded-[2rem] border border-gray-200 shadow-float overflow-hidden flex flex-col relative transform transition-transform duration-700">
-                    
-                    <div class="h-10 md:h-12 bg-white/90 backdrop-blur border-b border-gray-100 flex items-center px-3 md:px-5 justify-between z-30 relative shrink-0">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
-                            <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
-                            <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
-                        </div>
-                        <div class="text-[10px] md:text-xs font-bold text-gray-400 bg-gray-50 px-2 md:px-3 py-1 rounded-full">li'l Mappo Studio</div>
-                        <div class="w-5 h-5 md:w-6 md:h-6 rounded bg-gray-50 flex items-center justify-center text-gray-400"><i class="ph-bold ph-list"></i></div>
+                <div
+                    class="h-10 md:h-12 bg-white/90 backdrop-blur border-b border-gray-100 flex items-center px-3 md:px-5 justify-between z-30 relative shrink-0">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
+                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
+                        <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200"></div>
                     </div>
-
-                    <div class="flex-1 relative bg-gray-50 overflow-hidden" style="background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 24px 24px;">
-                        
-                        <div class="absolute inset-0 transition-all duration-700 ease-in-out origin-center group-has-[#step3:checked]:scale-125 group-has-[#step3:checked]:rotate-x-45 group-has-[#step3:checked]:-rotate-6 group-has-[#step4:checked]:blur-sm" style="perspective: 1000px; transform-style: preserve-3d;">
-                            
-                            <div class="absolute inset-0 opacity-0 group-has-[#step1:checked]:opacity-100 group-has-[#step2:checked]:opacity-100 group-has-[#step3:checked]:opacity-100 group-has-[#step4:checked]:opacity-100 transition-opacity duration-500">
-                                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                    <path d="M 20 80 Q 40 40, 80 30" fill="none" stroke="#1e3fda" stroke-width="1.5" stroke-dasharray="2 3" class="opacity-80" />
-                                    <circle cx="20" cy="80" r="1.5" fill="#1e3fda" />
-                                    <circle cx="80" cy="30" r="1.5" fill="#10b981" />
-                                    <circle cx="45" cy="51" r="2" fill="#8b5cf6" class="shadow-lg" />
-                                </svg>
-                            </div>
-
-                            <div class="absolute inset-0 opacity-0 group-has-[#step2:checked]:opacity-100 group-has-[#step3:checked]:opacity-100 group-has-[#step4:checked]:opacity-100 transition-opacity duration-500">
-                                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                    <polygon points="10,90 30,70 40,95 20,105" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-width="0.5" stroke-dasharray="1 2" />
-                                </svg>
-                                <div class="absolute top-[75%] left-[15%] bg-white border border-gray-100 shadow-lg rounded-lg px-2 py-1 flex items-center gap-1.5 -translate-y-full -translate-x-1/2">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>
-                                    <span class="text-[9px] font-bold text-gray-700">Paris</span>
-                                </div>
-                                <div class="absolute top-[25%] left-[80%] bg-gray-900 border border-gray-800 shadow-lg rounded-lg px-2 py-1 flex items-center gap-1.5 -translate-y-full -translate-x-1/2">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-brand-green"></div>
-                                    <span class="text-[9px] font-bold text-white">Berlin</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="absolute top-2 md:top-4 left-2 md:left-4 w-40 md:w-48 bg-white/95 backdrop-blur rounded-xl md:rounded-2xl shadow-lg border border-gray-100 p-3 md:p-4 transform -translate-x-8 opacity-0 pointer-events-none transition-all duration-500 group-has-[#step1:checked]:translate-x-0 group-has-[#step1:checked]:opacity-100 z-20">
-                            <div class="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 md:mb-3">Route Planner</div>
-                            <div class="space-y-2 mb-2 md:mb-3">
-                                <div class="bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs font-semibold text-gray-700 flex items-center gap-2">
-                                    <i class="ph-bold ph-magnifying-glass text-brand-blue"></i> Paris, FR
-                                </div>
-                                <div class="bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs font-semibold text-gray-700 flex items-center gap-2">
-                                    <i class="ph-bold ph-magnifying-glass text-brand-green"></i> Berlin, DE
-                                </div>
-                            </div>
-                            <div class="flex bg-gray-50 rounded-lg p-1 mb-2 md:mb-3">
-                                <div class="flex-1 bg-white shadow-sm rounded flex justify-center py-1 text-brand-blue text-sm md:text-base"><i class="ph-fill ph-airplane-tilt"></i></div>
-                                <div class="flex-1 flex justify-center py-1 text-gray-400 text-sm md:text-base"><i class="ph-fill ph-car"></i></div>
-                            </div>
-                            <button class="w-full bg-brand-blue text-white rounded-lg py-1.5 text-[10px] md:text-xs font-bold">Insert Route</button>
-                        </div>
-
-                        <div class="absolute top-[60%] left-[30%] bg-white/95 backdrop-blur rounded-xl shadow-xl border border-gray-100 p-2 transform scale-95 opacity-0 pointer-events-none transition-all duration-500 group-has-[#step2:checked]:scale-100 group-has-[#step2:checked]:opacity-100 z-20">
-                            <div class="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
-                                <div class="w-4 h-4 md:w-5 md:h-5 rounded bg-purple-50 text-brand-purple flex items-center justify-center text-[10px]"><i class="ph-bold ph-polygon"></i></div>
-                                <span class="text-[10px] md:text-xs font-bold text-gray-700">Add Boundary</span>
-                            </div>
-                            <div class="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
-                                <div class="w-4 h-4 md:w-5 md:h-5 rounded bg-blue-50 text-brand-blue flex items-center justify-center text-[10px]"><i class="ph-bold ph-chat-circle-text"></i></div>
-                                <span class="text-[10px] md:text-xs font-bold text-gray-700">Add Callout</span>
-                            </div>
-                        </div>
-
-                        <div class="absolute bottom-0 left-0 right-0 h-28 md:h-32 bg-white/95 backdrop-blur border-t border-gray-200 transform translate-y-full opacity-0 pointer-events-none transition-all duration-500 group-has-[#step3:checked]:translate-y-0 group-has-[#step3:checked]:opacity-100 z-20 flex flex-col">
-                            <div class="flex items-center justify-between px-3 md:px-4 py-2 border-b border-gray-100">
-                                <div class="flex items-center gap-2 md:gap-3 text-brand-blue">
-                                    <i class="ph-fill ph-play-circle text-xl md:text-2xl"></i>
-                                    <span class="text-[10px] md:text-xs font-bold font-mono">00:04:12</span>
-                                </div>
-                                <div class="bg-blue-50 text-brand-blue text-[8px] md:text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
-                                    <i class="ph-fill ph-video-camera"></i> Auto Cam Active
-                                </div>
-                            </div>
-                            <div class="flex-1 p-2 md:p-3 space-y-2 relative">
-                                <div class="absolute top-0 bottom-0 left-[30%] w-px bg-red-400 z-10">
-                                    <div class="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-400 absolute -top-1 -left-0.5 md:-left-1"></div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[8px] md:text-[9px] font-bold text-gray-400 w-10 md:w-12 text-right">ROUTE</span>
-                                    <div class="flex-1 h-4 md:h-5 bg-gray-50 rounded flex items-center px-1">
-                                        <div class="h-2.5 md:h-3 bg-brand-blue/80 rounded w-1/2 ml-[10%]"></div>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[8px] md:text-[9px] font-bold text-gray-400 w-10 md:w-12 text-right">CAMERA</span>
-                                    <div class="flex-1 h-4 md:h-5 bg-gray-50 rounded flex items-center px-1">
-                                        <div class="h-2.5 md:h-3 bg-brand-purple/80 rounded w-1/2 ml-[10%] border border-brand-purple"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="absolute inset-0 bg-white/30 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-500 group-has-[#step4:checked]:opacity-100 z-30 flex items-center justify-center p-4 md:p-6">
-                            <div class="bg-white rounded-2xl md:rounded-[2rem] shadow-float border border-gray-100 w-full max-w-sm p-4 md:p-6 transform scale-95 transition-transform duration-500 group-has-[#step4:checked]:scale-100">
-                                <div class="flex justify-between items-center mb-4 md:mb-6">
-                                    <h3 class="text-base md:text-lg font-black text-gray-900">Export Video</h3>
-                                    <i class="ph-bold ph-x text-gray-400"></i>
-                                </div>
-                                
-                                <div class="space-y-2 md:space-y-3 mb-4 md:mb-6">
-                                    <div class="flex justify-between items-center text-xs md:text-sm font-medium border-b border-gray-50 pb-2">
-                                        <span class="text-gray-500">Resolution</span>
-                                        <span class="text-brand-blue font-bold">1080p HD</span>
-                                    </div>
-                                    <div class="flex justify-between items-center text-xs md:text-sm font-medium border-b border-gray-50 pb-2">
-                                        <span class="text-gray-500">Framerate</span>
-                                        <span class="text-gray-900 font-bold">60 FPS</span>
-                                    </div>
-                                    <div class="flex justify-between items-center text-xs md:text-sm font-medium">
-                                        <span class="text-gray-500">Engine</span>
-                                        <span class="bg-gray-100 px-2 py-0.5 rounded text-[10px] md:text-xs font-bold text-gray-600">WebCodecs (Local)</span>
-                                    </div>
-                                </div>
-
-                                <div class="relative w-full h-10 md:h-12 bg-brand-light rounded-xl overflow-hidden flex items-center justify-center font-bold text-brand-blue text-xs md:text-sm">
-                                    <div class="absolute top-0 bottom-0 left-0 bg-brand-blue w-[70%] transition-all duration-1000 ease-out flex items-center overflow-hidden">
-                                        <div class="absolute inset-0 flex items-center justify-center text-white min-w-[200px]">
-                                            Rendering... 70%
-                                        </div>
-                                    </div>
-                                    <span class="relative z-10 drop-shadow-md">Rendering... 70%</span>
-                                </div>
-                            </div>
-                        </div>
-
+                    <div
+                        class="text-[10px] md:text-xs font-bold text-gray-400 bg-gray-50 px-2 md:px-3 py-1 rounded-full">
+                        li'l Mappo Studio</div>
+                    <div
+                        class="w-5 h-5 md:w-6 md:h-6 rounded bg-gray-50 flex items-center justify-center text-gray-400">
+                        <i class="ph-bold ph-list"></i>
                     </div>
                 </div>
-                
+
+                <div class="flex-1 relative bg-gray-50 overflow-hidden"
+                    style="background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 24px 24px;">
+
+                    <div class="absolute inset-0 transition-all duration-700 ease-in-out origin-center group-has-[#step3:checked]:scale-125 group-has-[#step3:checked]:rotate-x-45 group-has-[#step3:checked]:-rotate-6 group-has-[#step4:checked]:blur-sm"
+                        style="perspective: 1000px; transform-style: preserve-3d;">
+
+                        <div
+                            class="absolute inset-0 opacity-0 group-has-[#step1:checked]:opacity-100 group-has-[#step2:checked]:opacity-100 group-has-[#step3:checked]:opacity-100 group-has-[#step4:checked]:opacity-100 transition-opacity duration-500">
+                            <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                <path d="M 20 80 Q 40 40, 80 30" fill="none" stroke="#1e3fda" stroke-width="1.5"
+                                    stroke-dasharray="2 3" class="opacity-80" />
+                                <circle cx="20" cy="80" r="1.5" fill="#1e3fda" />
+                                <circle cx="80" cy="30" r="1.5" fill="#10b981" />
+                                <circle cx="45" cy="51" r="2" fill="#8b5cf6" class="shadow-lg" />
+                            </svg>
+                        </div>
+
+                        <div
+                            class="absolute inset-0 opacity-0 group-has-[#step2:checked]:opacity-100 group-has-[#step3:checked]:opacity-100 group-has-[#step4:checked]:opacity-100 transition-opacity duration-500">
+                            <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                <polygon points="10,90 30,70 40,95 20,105" fill="#10b981" fill-opacity="0.1"
+                                    stroke="#10b981" stroke-width="0.5" stroke-dasharray="1 2" />
+                            </svg>
+                            <div
+                                class="absolute top-[75%] left-[15%] bg-white border border-gray-100 shadow-lg rounded-lg px-2 py-1 flex items-center gap-1.5 -translate-y-full -translate-x-1/2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>
+                                <span class="text-[9px] font-bold text-gray-700">Paris</span>
+                            </div>
+                            <div
+                                class="absolute top-[25%] left-[80%] bg-gray-900 border border-gray-800 shadow-lg rounded-lg px-2 py-1 flex items-center gap-1.5 -translate-y-full -translate-x-1/2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-brand-green"></div>
+                                <span class="text-[9px] font-bold text-white">Berlin</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="absolute top-2 md:top-4 left-2 md:left-4 w-40 md:w-48 bg-white/95 backdrop-blur rounded-xl md:rounded-2xl shadow-lg border border-gray-100 p-3 md:p-4 transform -translate-x-8 opacity-0 pointer-events-none transition-all duration-500 group-has-[#step1:checked]:translate-x-0 group-has-[#step1:checked]:opacity-100 z-20">
+                        <div
+                            class="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 md:mb-3">
+                            Route Planner</div>
+                        <div class="space-y-2 mb-2 md:mb-3">
+                            <div
+                                class="bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs font-semibold text-gray-700 flex items-center gap-2">
+                                <i class="ph-bold ph-magnifying-glass text-brand-blue"></i> Paris, FR
+                            </div>
+                            <div
+                                class="bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs font-semibold text-gray-700 flex items-center gap-2">
+                                <i class="ph-bold ph-magnifying-glass text-brand-green"></i> Berlin, DE
+                            </div>
+                        </div>
+                        <div class="flex bg-gray-50 rounded-lg p-1 mb-2 md:mb-3">
+                            <div
+                                class="flex-1 bg-white shadow-sm rounded flex justify-center py-1 text-brand-blue text-sm md:text-base">
+                                <i class="ph-fill ph-airplane-tilt"></i>
+                            </div>
+                            <div class="flex-1 flex justify-center py-1 text-gray-400 text-sm md:text-base"><i
+                                    class="ph-fill ph-car"></i></div>
+                        </div>
+                        <button
+                            class="w-full bg-brand-blue text-white rounded-lg py-1.5 text-[10px] md:text-xs font-bold">Insert
+                            Route</button>
+                    </div>
+
+                    <div
+                        class="absolute top-[60%] left-[30%] bg-white/95 backdrop-blur rounded-xl shadow-xl border border-gray-100 p-2 transform scale-95 opacity-0 pointer-events-none transition-all duration-500 group-has-[#step2:checked]:scale-100 group-has-[#step2:checked]:opacity-100 z-20">
+                        <div class="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
+                            <div
+                                class="w-4 h-4 md:w-5 md:h-5 rounded bg-purple-50 text-brand-purple flex items-center justify-center text-[10px]">
+                                <i class="ph-bold ph-polygon"></i>
+                            </div>
+                            <span class="text-[10px] md:text-xs font-bold text-gray-700">Add Boundary</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
+                            <div
+                                class="w-4 h-4 md:w-5 md:h-5 rounded bg-blue-50 text-brand-blue flex items-center justify-center text-[10px]">
+                                <i class="ph-bold ph-chat-circle-text"></i>
+                            </div>
+                            <span class="text-[10px] md:text-xs font-bold text-gray-700">Add Callout</span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="absolute bottom-0 left-0 right-0 h-28 md:h-32 bg-white/95 backdrop-blur border-t border-gray-200 transform translate-y-full opacity-0 pointer-events-none transition-all duration-500 group-has-[#step3:checked]:translate-y-0 group-has-[#step3:checked]:opacity-100 z-20 flex flex-col">
+                        <div class="flex items-center justify-between px-3 md:px-4 py-2 border-b border-gray-100">
+                            <div class="flex items-center gap-2 md:gap-3 text-brand-blue">
+                                <i class="ph-fill ph-play-circle text-xl md:text-2xl"></i>
+                                <span class="text-[10px] md:text-xs font-bold font-mono">00:04:12</span>
+                            </div>
+                            <div
+                                class="bg-blue-50 text-brand-blue text-[8px] md:text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
+                                <i class="ph-fill ph-video-camera"></i> Auto Cam Active
+                            </div>
+                        </div>
+                        <div class="flex-1 p-2 md:p-3 space-y-2 relative">
+                            <div class="absolute top-0 bottom-0 left-[30%] w-px bg-red-400 z-10">
+                                <div
+                                    class="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-400 absolute -top-1 -left-0.5 md:-left-1">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="text-[8px] md:text-[9px] font-bold text-gray-400 w-10 md:w-12 text-right">ROUTE</span>
+                                <div class="flex-1 h-4 md:h-5 bg-gray-50 rounded flex items-center px-1">
+                                    <div class="h-2.5 md:h-3 bg-brand-blue/80 rounded w-1/2 ml-[10%]"></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="text-[8px] md:text-[9px] font-bold text-gray-400 w-10 md:w-12 text-right">CAMERA</span>
+                                <div class="flex-1 h-4 md:h-5 bg-gray-50 rounded flex items-center px-1">
+                                    <div
+                                        class="h-2.5 md:h-3 bg-brand-purple/80 rounded w-1/2 ml-[10%] border border-brand-purple">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="absolute inset-0 bg-white/30 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-500 group-has-[#step4:checked]:opacity-100 z-30 flex items-center justify-center p-4 md:p-6">
+                        <div
+                            class="bg-white rounded-2xl md:rounded-[2rem] shadow-float border border-gray-100 w-full max-w-sm p-4 md:p-6 transform scale-95 transition-transform duration-500 group-has-[#step4:checked]:scale-100">
+                            <div class="flex justify-between items-center mb-4 md:mb-6">
+                                <h3 class="text-base md:text-lg font-black text-gray-900">Export Video</h3>
+                                <i class="ph-bold ph-x text-gray-400"></i>
+                            </div>
+
+                            <div class="space-y-2 md:space-y-3 mb-4 md:mb-6">
+                                <div
+                                    class="flex justify-between items-center text-xs md:text-sm font-medium border-b border-gray-50 pb-2">
+                                    <span class="text-gray-500">Resolution</span>
+                                    <span class="text-brand-blue font-bold">1080p HD</span>
+                                </div>
+                                <div
+                                    class="flex justify-between items-center text-xs md:text-sm font-medium border-b border-gray-50 pb-2">
+                                    <span class="text-gray-500">Framerate</span>
+                                    <span class="text-gray-900 font-bold">60 FPS</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs md:text-sm font-medium">
+                                    <span class="text-gray-500">Engine</span>
+                                    <span
+                                        class="bg-gray-100 px-2 py-0.5 rounded text-[10px] md:text-xs font-bold text-gray-600">WebCodecs
+                                        (Local)</span>
+                                </div>
+                            </div>
+
+                            <div
+                                class="relative w-full h-10 md:h-12 bg-brand-light rounded-xl overflow-hidden flex items-center justify-center font-bold text-brand-blue text-xs md:text-sm">
+                                <div
+                                    class="absolute top-0 bottom-0 left-0 bg-brand-blue w-[70%] transition-all duration-1000 ease-out flex items-center overflow-hidden">
+                                    <div
+                                        class="absolute inset-0 flex items-center justify-center text-white min-w-[200px]">
+                                        Rendering... 70%
+                                    </div>
+                                </div>
+                                <span class="relative z-10 drop-shadow-md">Rendering... 70%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
-        </section>
+
+        </div>
+    </section>
 
     <section id="features" class="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto">
         <div class="text-center mb-12 md:mb-16">
             <h2 class="text-3xl md:text-5xl font-black tracking-tight mb-4">Everything your map video needs</h2>
             <p class="text-brand-muted text-base md:text-lg font-medium max-w-2xl mx-auto">
-                A full animation studio, not a one-trick route tracer. Timeline-driven editing with layered tracks, keyframes, and cinematic export.
+                A full animation studio, not a one-trick route tracer. Timeline-driven editing with layered tracks,
+                keyframes, and cinematic export.
             </p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-            <div class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
-                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-blue-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50" style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
+            <div
+                class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
+                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-blue-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50"
+                    style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
                     <div class="w-3/4 relative z-10 flex flex-col gap-3">
                         <div class="absolute top-0 bottom-0 left-6 w-px bg-gray-200"></div>
                         <div class="absolute top-0 bottom-0 left-20 w-px bg-gray-200"></div>
                         <div class="absolute top-0 bottom-0 left-32 w-px bg-gray-200"></div>
-                        
-                        <div class="h-4 bg-brand-blue rounded-full w-full relative group-hover:scale-105 transition-transform origin-left"></div>
-                        <div class="h-4 bg-brand-green rounded-full w-2/3 ml-6 relative group-hover:scale-105 transition-transform origin-left delay-75"></div>
-                        
+
+                        <div
+                            class="h-4 bg-brand-blue rounded-full w-full relative group-hover:scale-105 transition-transform origin-left">
+                        </div>
+                        <div
+                            class="h-4 bg-brand-green rounded-full w-2/3 ml-6 relative group-hover:scale-105 transition-transform origin-left delay-75">
+                        </div>
+
                         <div class="relative h-4 w-full flex items-center">
                             <div class="absolute left-[15%] w-2 h-2 bg-brand-purple rotate-45"></div>
                             <div class="h-1 bg-gray-200 w-full rounded-full"></div>
@@ -427,7 +541,8 @@
                         <span class="w-1.5 h-5 bg-brand-blue rounded-full block"></span>Timeline-Driven Animation
                     </h3>
                     <p class="text-sm text-brand-muted leading-relaxed mb-4">
-                        Sequence routes, boundaries, callouts, and camera moves on a precision multi-track timeline with per-element timing and easing.
+                        Sequence routes, boundaries, callouts, and camera moves on a precision multi-track timeline with
+                        per-element timing and easing.
                     </p>
                     <p class="text-xs font-semibold italic text-brand-blue mt-auto">
                         Other tools give you a route and call it a day.
@@ -435,13 +550,19 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
-                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-blue-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50" style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
-                    <svg class="w-3/4 h-24 overflow-visible group-hover:translate-x-2 transition-transform duration-500" viewBox="0 0 200 80" fill="none">
-                        <path d="M 10 70 C 60 70, 70 20, 130 30 S 170 10, 190 10" stroke="#1e3fda" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            <div
+                class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
+                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-blue-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50"
+                    style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
+                    <svg class="w-3/4 h-24 overflow-visible group-hover:translate-x-2 transition-transform duration-500"
+                        viewBox="0 0 200 80" fill="none">
+                        <path d="M 10 70 C 60 70, 70 20, 130 30 S 170 10, 190 10" stroke="#1e3fda" stroke-width="4"
+                            stroke-linecap="round" stroke-linejoin="round" />
                         <circle cx="10" cy="70" r="4" fill="#1e3fda" />
-                        <circle cx="190" cy="10" r="5" fill="#ffffff" stroke="#1e3fda" stroke-width="2" class="animate-pulse" />
-                        <path d="M 10 70 C 60 70, 70 20, 130 30" stroke="#8b5cf6" stroke-width="4" stroke-linecap="round" opacity="0.3" class="blur-sm" />
+                        <circle cx="190" cy="10" r="5" fill="#ffffff" stroke="#1e3fda" stroke-width="2"
+                            class="animate-pulse" />
+                        <path d="M 10 70 C 60 70, 70 20, 130 30" stroke="#8b5cf6" stroke-width="4"
+                            stroke-linecap="round" opacity="0.3" class="blur-sm" />
                     </svg>
                 </div>
                 <div class="p-4 md:p-5 flex-1 flex flex-col">
@@ -449,7 +570,8 @@
                         <span class="w-1.5 h-5 bg-brand-blue rounded-full block"></span>Animated Routes
                     </h3>
                     <p class="text-sm text-brand-muted leading-relaxed mb-4">
-                        Car, walk, or flight paths with animated drawing, meteor trails, and reveal progress. Attach vehicles that follow along.
+                        Car, walk, or flight paths with animated drawing, meteor trails, and reveal progress. Attach
+                        vehicles that follow along.
                     </p>
                     <p class="text-xs font-semibold italic text-brand-blue mt-auto">
                         Because a plain line on a map isn't an animation.
@@ -457,11 +579,14 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
-                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-green-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50" style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
+            <div
+                class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
+                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-green-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50"
+                    style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
                     <div class="relative group-hover:scale-105 transition-transform duration-500">
                         <svg class="w-32 h-24 overflow-visible" viewBox="0 0 100 80">
-                            <polygon points="20,10 70,5 90,30 80,70 30,75 10,40" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-width="2" stroke-dasharray="4 4" />
+                            <polygon points="20,10 70,5 90,30 80,70 30,75 10,40" fill="#10b981" fill-opacity="0.1"
+                                stroke="#10b981" stroke-width="2" stroke-dasharray="4 4" />
                             <circle cx="20" cy="10" r="2" fill="#10b981" />
                             <circle cx="90" cy="30" r="2" fill="#10b981" />
                             <circle cx="30" cy="75" r="2" fill="#10b981" />
@@ -476,7 +601,8 @@
                         <span class="w-1.5 h-5 bg-brand-green rounded-full block"></span>Animated Boundaries
                     </h3>
                     <p class="text-sm text-brand-muted leading-relaxed mb-4">
-                        Search any place and animate its boundary with subtle fades, precise drawing, or contour tracing. No polygon editing needed.
+                        Search any place and animate its boundary with subtle fades, precise drawing, or contour
+                        tracing. No polygon editing needed.
                     </p>
                     <p class="text-xs font-semibold italic text-brand-green mt-auto">
                         Try finding this in a mobile app.
@@ -484,21 +610,30 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
-                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-orange-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50" style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
+            <div
+                class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
+                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-orange-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50"
+                    style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
                     <div class="relative w-full h-full">
                         <div class="absolute top-10 left-8 md:left-12 group-hover:-translate-y-1 transition-transform">
-                            <div class="bg-white border border-gray-200 text-[10px] font-bold px-3 py-1 rounded shadow-sm text-gray-700">Tokyo</div>
+                            <div
+                                class="bg-white border border-gray-200 text-[10px] font-bold px-3 py-1 rounded shadow-sm text-gray-700">
+                                Tokyo</div>
                             <div class="w-px h-6 bg-gray-300 mx-auto"></div>
                             <div class="w-2 h-2 bg-amber-500 rounded-full mx-auto -mt-1"></div>
                         </div>
-                        <div class="absolute top-20 left-1/2 -translate-x-1/2 group-hover:-translate-y-1 transition-transform delay-75">
-                            <div class="bg-gray-900 text-white text-[10px] font-bold px-4 py-1.5 rounded shadow-md">Paris</div>
+                        <div
+                            class="absolute top-20 left-1/2 -translate-x-1/2 group-hover:-translate-y-1 transition-transform delay-75">
+                            <div class="bg-gray-900 text-white text-[10px] font-bold px-4 py-1.5 rounded shadow-md">
+                                Paris</div>
                             <div class="w-px h-8 bg-gray-400 mx-auto"></div>
                             <div class="w-2 h-2 bg-amber-500 rounded-full mx-auto -mt-1"></div>
                         </div>
-                        <div class="absolute top-8 right-12 md:right-16 group-hover:-translate-y-1 transition-transform delay-150">
-                            <div class="bg-white border border-amber-500 text-[10px] font-bold px-3 py-1 rounded shadow-sm text-amber-600">London</div>
+                        <div
+                            class="absolute top-8 right-12 md:right-16 group-hover:-translate-y-1 transition-transform delay-150">
+                            <div
+                                class="bg-white border border-amber-500 text-[10px] font-bold px-3 py-1 rounded shadow-sm text-amber-600">
+                                London</div>
                             <div class="w-px h-4 bg-amber-200 mx-auto"></div>
                             <div class="w-2 h-2 bg-amber-500 rounded-full mx-auto -mt-1"></div>
                         </div>
@@ -509,7 +644,8 @@
                         <span class="w-1.5 h-5 bg-amber-500 rounded-full block"></span>Smart Callouts
                     </h3>
                     <p class="text-sm text-brand-muted leading-relaxed mb-4">
-                        Four visual variants — Default, Modern, News, and Topo — with auto-linked place names, 3D positioning, and animated timing.
+                        Four visual variants — Default, Modern, News, and Topo — with auto-linked place names, 3D
+                        positioning, and animated timing.
                     </p>
                     <p class="text-xs font-semibold italic text-amber-600 mt-auto">
                         Map labels that actually look professional.
@@ -517,12 +653,16 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
-                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-blue-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50" style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
+            <div
+                class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
+                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-blue-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50"
+                    style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
                     <div class="relative group-hover:scale-105 transition-transform duration-700">
                         <svg class="w-32 h-24 overflow-visible" viewBox="0 0 100 80">
-                            <polygon points="10,60 90,60 70,20 30,20" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="3 3" />
-                            <polygon points="25,50 75,50 65,30 35,30" fill="#1e3fda" fill-opacity="0.05" stroke="#1e3fda" stroke-width="1.5" />
+                            <polygon points="10,60 90,60 70,20 30,20" fill="none" stroke="#cbd5e1" stroke-width="1.5"
+                                stroke-dasharray="3 3" />
+                            <polygon points="25,50 75,50 65,30 35,30" fill="#1e3fda" fill-opacity="0.05"
+                                stroke="#1e3fda" stroke-width="1.5" />
                             <circle cx="50" cy="40" r="3" fill="#1e3fda" />
                             <rect x="23" y="48" w="4" h="4" fill="#1e3fda" />
                             <rect x="73" y="48" w="4" h="4" fill="#1e3fda" />
@@ -536,7 +676,8 @@
                         <span class="w-1.5 h-5 bg-brand-blue rounded-full block"></span>Cinematic Camera Control
                     </h3>
                     <p class="text-sm text-brand-muted leading-relaxed mb-4">
-                        Place camera keyframes for zoom, pitch, and bearing. Or enable Auto Camera to follow routes with cinematic or navigation presets.
+                        Place camera keyframes for zoom, pitch, and bearing. Or enable Auto Camera to follow routes with
+                        cinematic or navigation presets.
                     </p>
                     <p class="text-xs font-semibold italic text-brand-blue mt-auto">
                         Your camera angle shouldn't be chosen for you.
@@ -544,25 +685,45 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
-                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-green-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50" style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
+            <div
+                class="bg-white rounded-[2rem] p-3 shadow-soft border border-gray-100 flex flex-col group hover:shadow-float hover:-translate-y-1 transition-all duration-300">
+                <div class="h-40 md:h-48 rounded-[1.5rem] bg-gradient-to-br from-green-50/50 to-white relative overflow-hidden flex items-center justify-center border border-gray-50"
+                    style="background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
                     <div class="relative group-hover:scale-105 transition-transform duration-500">
-                        <div class="w-28 h-16 bg-white border-2 border-gray-200 rounded-lg shadow-sm flex items-center justify-center relative">
-                            <div class="absolute -top-1 left-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -top-1 left-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -top-1 left-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -top-1 right-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -top-1 right-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -top-1 right-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            
-                            <div class="absolute -bottom-1 left-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -bottom-1 left-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -bottom-1 left-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -bottom-1 right-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -bottom-1 right-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
-                            <div class="absolute -bottom-1 right-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm"></div>
+                        <div
+                            class="w-28 h-16 bg-white border-2 border-gray-200 rounded-lg shadow-sm flex items-center justify-center relative">
+                            <div class="absolute -top-1 left-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div class="absolute -top-1 left-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div class="absolute -top-1 left-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div class="absolute -top-1 right-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div class="absolute -top-1 right-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div class="absolute -top-1 right-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
 
-                            <div class="w-10 h-10 bg-blue-50 text-brand-blue rounded-full flex items-center justify-center">
+                            <div class="absolute -bottom-1 left-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div class="absolute -bottom-1 left-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div
+                                class="absolute -bottom-1 left-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div
+                                class="absolute -bottom-1 right-2 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div
+                                class="absolute -bottom-1 right-6 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+                            <div
+                                class="absolute -bottom-1 right-10 w-2 h-2 bg-gray-50 border border-gray-200 rounded-sm">
+                            </div>
+
+                            <div
+                                class="w-10 h-10 bg-blue-50 text-brand-blue rounded-full flex items-center justify-center">
                                 <i class="ph-fill ph-play text-xl ml-1"></i>
                             </div>
                             <div class="absolute -bottom-6 text-[9px] font-bold text-gray-400">MP4</div>
@@ -574,7 +735,8 @@
                         <span class="w-1.5 h-5 bg-brand-green rounded-full block"></span>Export Without Surprises
                     </h3>
                     <p class="text-sm text-brand-muted leading-relaxed mb-4">
-                        Local MP4 export right in your browser. Bring your own Mapbox key for unlimited free renders, or subscribe for watermark-free output.
+                        Local MP4 export right in your browser. Bring your own Mapbox key for unlimited free renders, or
+                        subscribe for watermark-free output.
                     </p>
                     <p class="text-xs font-semibold italic text-brand-green mt-auto">
                         No per-video fees. No credits that expire.
@@ -585,24 +747,32 @@
         </div>
 
         <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4 mt-12">
-            <div class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
+            <div
+                class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
                 <i class="ph-bold ph-eye text-brand-blue"></i>
-                <span class="bg-blue-50 text-brand-blue text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.kml</span>
+                <span
+                    class="bg-blue-50 text-brand-blue text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.kml</span>
                 <span class="hidden sm:inline">KML Import</span>
             </div>
-            <div class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
+            <div
+                class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
                 <i class="ph-bold ph-eye text-brand-blue"></i>
-                <span class="bg-blue-50 text-brand-blue text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.gpx</span>
+                <span
+                    class="bg-blue-50 text-brand-blue text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.gpx</span>
                 <span class="hidden sm:inline">GPX Import</span>
             </div>
-            <div class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
+            <div
+                class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
                 <i class="ph-bold ph-tree-structure text-brand-purple"></i>
-                <span class="bg-purple-50 text-brand-purple text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.lilmap</span>
+                <span
+                    class="bg-purple-50 text-brand-purple text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.lilmap</span>
                 <span class="hidden sm:inline">Project Files</span>
             </div>
-            <div class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
+            <div
+                class="bg-white border border-gray-100 shadow-sm rounded-full px-3 md:px-4 py-2 flex items-center gap-2 text-xs md:text-sm font-bold text-gray-600 hover:shadow-md transition-shadow cursor-default">
                 <i class="ph-bold ph-download-simple text-brand-green"></i>
-                <span class="bg-green-50 text-brand-green text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.mp4</span>
+                <span
+                    class="bg-green-50 text-brand-green text-[9px] md:text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">.mp4</span>
                 <span class="hidden sm:inline">Video Export</span>
             </div>
         </div>
@@ -611,7 +781,8 @@
     <section id="compare" class="py-16 md:py-24 px-4 md:px-6 max-w-6xl mx-auto">
         <div class="text-center mb-12">
             <h2 class="text-3xl md:text-5xl font-black tracking-tight mb-4">Why other tools let you down.</h2>
-            <p class="text-brand-muted text-base md:text-lg font-medium">We built what we wanted to use. No hidden credits, no bloated software.</p>
+            <p class="text-brand-muted text-base md:text-lg font-medium">We built what we wanted to use. No hidden
+                credits, no bloated software.</p>
         </div>
 
         <div class="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-soft border border-gray-100">
@@ -619,21 +790,27 @@
                 <table class="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                         <tr class="bg-gray-50/50">
-                            <th class="p-4 md:p-6 font-semibold text-gray-400 border-b border-gray-100 w-1/5">Feature</th>
-                            <th class="p-4 md:p-6 font-black text-brand-blue text-base md:text-lg border-b border-gray-100 bg-brand-light/30 w-1/5">
+                            <th class="p-4 md:p-6 font-semibold text-gray-400 border-b border-gray-100 w-1/5">Feature
+                            </th>
+                            <th
+                                class="p-4 md:p-6 font-black text-brand-blue text-base md:text-lg border-b border-gray-100 bg-brand-light/30 w-1/5">
                                 <div class="flex items-center gap-2">
                                     <i class="ph-fill ph-map-trifold"></i> li'l Mappo
                                 </div>
                             </th>
-                            <th class="p-4 md:p-6 font-semibold text-gray-800 border-b border-gray-100 w-1/5">The "Credit Gobblers"</th>
-                            <th class="p-4 md:p-6 font-semibold text-gray-800 border-b border-gray-100 w-1/5">The Phone Apps</th>
-                            <th class="p-4 md:p-6 font-semibold text-gray-800 border-b border-gray-100 w-1/5">The Big Corp Studio</th>
+                            <th class="p-4 md:p-6 font-semibold text-gray-800 border-b border-gray-100 w-1/5">The
+                                "Credit Gobblers"</th>
+                            <th class="p-4 md:p-6 font-semibold text-gray-800 border-b border-gray-100 w-1/5">The Phone
+                                Apps</th>
+                            <th class="p-4 md:p-6 font-semibold text-gray-800 border-b border-gray-100 w-1/5">The Big
+                                Corp Studio</th>
                         </tr>
                     </thead>
                     <tfoot class="text-sm font-medium text-gray-600">
                         <tr class="hover:bg-gray-50/50 transition-colors">
                             <td class="p-4 md:p-6 border-b border-gray-50 font-bold text-gray-800">Business Model</td>
-                            <td class="p-4 md:p-6 border-b border-gray-50 bg-brand-light/10 text-brand-blue">Free / FOSS / BYOK</td>
+                            <td class="p-4 md:p-6 border-b border-gray-50 bg-brand-light/10 text-brand-blue">Free / FOSS
+                                / BYOK</td>
                             <td class="p-4 md:p-6 border-b border-gray-50 text-red-500">Pay per render / Credits</td>
                             <td class="p-4 md:p-6 border-b border-gray-50">Expensive Weekly Subs</td>
                             <td class="p-4 md:p-6 border-b border-gray-50">Free, but restrictive terms</td>
@@ -646,7 +823,8 @@
                             <td class="p-4 md:p-6 border-b border-gray-50">Browser-based</td>
                         </tr>
                         <tr class="hover:bg-gray-50/50 transition-colors">
-                            <td class="p-4 md:p-6 border-b border-gray-50 font-bold text-gray-800">Timeline / Keyframes</td>
+                            <td class="p-4 md:p-6 border-b border-gray-50 font-bold text-gray-800">Timeline / Keyframes
+                            </td>
                             <td class="p-4 md:p-6 border-b border-gray-50 bg-brand-light/10">
                                 <i class="ph-bold ph-check-circle text-brand-green text-lg"></i> Complete control
                             </td>
@@ -664,7 +842,8 @@
                             <td class="p-4 md:p-6 border-b border-gray-50 text-red-500">Watermarked/Locked</td>
                         </tr>
                         <tr class="hover:bg-gray-50/50 transition-colors">
-                            <td class="p-4 md:p-6 font-bold text-gray-800 md:rounded-bl-[2rem]">White-label Commercial</td>
+                            <td class="p-4 md:p-6 font-bold text-gray-800 md:rounded-bl-[2rem]">White-label Commercial
+                            </td>
                             <td class="p-4 md:p-6 bg-brand-light/10 font-bold text-brand-green">
                                 Yes. It's yours.
                             </td>
@@ -681,101 +860,151 @@
     <section id="pricing" class="py-16 md:py-24 px-4 md:px-6 max-w-6xl mx-auto">
         <div class="text-center mb-12 md:mb-16">
             <h2 class="text-3xl md:text-5xl font-black tracking-tight mb-4">Choose your journey.</h2>
-            <p class="text-brand-muted text-base md:text-lg font-medium">Start for free, bring your own key, or unlock the cloud.</p>
+            <p class="text-brand-muted text-base md:text-lg font-medium">Start for free, bring your own key, or unlock
+                the cloud.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-12 items-stretch">
-            
-            <div class="bg-white rounded-[2rem] p-6 md:p-8 shadow-soft border border-gray-100 flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1">
+
+            <div
+                class="bg-white rounded-[2rem] p-6 md:p-8 shadow-soft border border-gray-100 flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1">
                 <div class="mb-6 md:mb-8">
                     <h3 class="text-xl md:text-2xl font-black text-gray-900 mb-2">Guest / Free</h3>
-                    <div class="text-3xl md:text-4xl font-black text-brand-blue mb-2">$0<span class="text-sm md:text-base font-medium text-gray-400">/forever</span></div>
-                    <p class="text-xs md:text-sm text-brand-muted font-medium">Perfect for testing the waters and short social clips.</p>
+                    <div class="text-3xl md:text-4xl font-black text-brand-blue mb-2">$0<span
+                            class="text-sm md:text-base font-medium text-gray-400">/forever</span></div>
+                    <p class="text-xs md:text-sm text-brand-muted font-medium">Perfect for testing the waters and short
+                        social clips.</p>
                 </div>
                 <ul class="space-y-3 md:space-y-4 mb-6 md:mb-8 flex-1 text-xs md:text-sm font-medium text-gray-700">
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> Up to 720p / 30fps export</li>
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> 30-second timeline limit</li>
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> 3 Cloud Save slots</li>
-                    <li class="flex items-start gap-3 opacity-60"><i class="ph-bold ph-x text-gray-400 mt-0.5 text-base md:text-lg"></i> li'l Mappo watermark applied</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> Up to 720p /
+                        30fps export</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> 30-second
+                        timeline limit</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> 3 Cloud Save
+                        slots</li>
+                    <li class="flex items-start gap-3 opacity-60"><i
+                            class="ph-bold ph-x text-gray-400 mt-0.5 text-base md:text-lg"></i> li'l Mappo watermark
+                        applied</li>
                 </ul>
-                <button class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-full transition-colors text-sm md:text-base">
+                <button
+                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-full transition-colors text-sm md:text-base">
                     Current Plan
                 </button>
             </div>
 
-            <div class="bg-white rounded-[2rem] p-6 md:p-8 shadow-soft border-2 border-brand-green flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1">
-                <div class="absolute top-0 right-0 bg-brand-green text-white text-[10px] md:text-xs font-bold px-3 md:px-4 py-1.5 rounded-bl-xl">Hacker Favorite</div>
+            <div
+                class="bg-white rounded-[2rem] p-6 md:p-8 shadow-soft border-2 border-brand-green flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1">
+                <div
+                    class="absolute top-0 right-0 bg-brand-green text-white text-[10px] md:text-xs font-bold px-3 md:px-4 py-1.5 rounded-bl-xl">
+                    Hacker Favorite</div>
                 <div class="mb-6 md:mb-8">
                     <h3 class="text-xl md:text-2xl font-black text-gray-900 mb-2">BYOK</h3>
-                    <div class="text-3xl md:text-4xl font-black text-brand-green mb-2">$0<span class="text-sm md:text-base font-medium text-gray-400"> + API Key</span></div>
-                    <p class="text-xs md:text-sm text-brand-muted font-medium">Bring your own Mapbox key to bypass our limits locally.</p>
+                    <div class="text-3xl md:text-4xl font-black text-brand-green mb-2">$0<span
+                            class="text-sm md:text-base font-medium text-gray-400"> + API Key</span></div>
+                    <p class="text-xs md:text-sm text-brand-muted font-medium">Bring your own Mapbox key to bypass our
+                        limits locally.</p>
                 </div>
                 <ul class="space-y-3 md:space-y-4 mb-6 md:mb-8 flex-1 text-xs md:text-sm font-medium text-gray-700">
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> Unlimited export duration</li>
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> 4K / 60fps unlocked</li>
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> No watermarks</li>
-                    <li class="flex items-start gap-3 opacity-60"><i class="ph-bold ph-warning text-yellow-500 mt-0.5 text-base md:text-lg"></i> Local storage & rendering only</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> Unlimited export
+                        duration</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> 4K / 60fps
+                        unlocked</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-brand-green mt-0.5 text-base md:text-lg"></i> No watermarks
+                    </li>
+                    <li class="flex items-start gap-3 opacity-60"><i
+                            class="ph-bold ph-warning text-yellow-500 mt-0.5 text-base md:text-lg"></i> Local storage &
+                        rendering only</li>
                 </ul>
-                <button class="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full transition-colors shadow-lg shadow-green-500/20 text-sm md:text-base">
+                <button
+                    class="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full transition-colors shadow-lg shadow-green-500/20 text-sm md:text-base">
                     Add API Key
                 </button>
             </div>
 
-            <div class="bg-brand-blue rounded-[2rem] p-6 md:p-8 shadow-float border border-blue-400 flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1 text-white">
-                <div class="absolute -right-16 -top-16 w-32 h-32 md:w-48 md:h-48 bg-white/10 rounded-full blur-2xl"></div>
+            <div
+                class="bg-brand-blue rounded-[2rem] p-6 md:p-8 shadow-float border border-blue-400 flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1 text-white">
+                <div class="absolute -right-16 -top-16 w-32 h-32 md:w-48 md:h-48 bg-white/10 rounded-full blur-2xl">
+                </div>
                 <div class="mb-6 md:mb-8 relative z-10">
                     <h3 class="text-xl md:text-2xl font-black text-white mb-2">Wanderer</h3>
-                    <div class="text-3xl md:text-4xl font-black text-white mb-2">$7<span class="text-sm md:text-base font-medium text-blue-200">/mo</span></div>
-                    <p class="text-xs md:text-sm text-blue-100 font-medium">For the frequent traveler or content creator who wants it all.</p>
+                    <div class="text-3xl md:text-4xl font-black text-white mb-2">$7<span
+                            class="text-sm md:text-base font-medium text-blue-200">/mo</span></div>
+                    <p class="text-xs md:text-sm text-blue-100 font-medium">For the frequent traveler or content creator
+                        who wants it all.</p>
                 </div>
-                <ul class="space-y-3 md:space-y-4 mb-6 md:mb-8 flex-1 text-xs md:text-sm font-medium text-white/90 relative z-10">
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> Unlimited Cloud Saves</li>
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> Auto-sync across devices</li>
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> Unlimited 4K/60fps exports</li>
-                    <li class="flex items-start gap-3"><i class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> No watermarks</li>
+                <ul
+                    class="space-y-3 md:space-y-4 mb-6 md:mb-8 flex-1 text-xs md:text-sm font-medium text-white/90 relative z-10">
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> Unlimited Cloud
+                        Saves</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> Auto-sync across
+                        devices</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> Unlimited 4K/60fps
+                        exports</li>
+                    <li class="flex items-start gap-3"><i
+                            class="ph-bold ph-check text-blue-300 mt-0.5 text-base md:text-lg"></i> No watermarks</li>
                 </ul>
-                <button class="w-full bg-white hover:bg-gray-50 text-brand-blue font-bold py-3 px-6 rounded-full transition-colors relative z-10 text-sm md:text-base">
+                <button
+                    class="w-full bg-white hover:bg-gray-50 text-brand-blue font-bold py-3 px-6 rounded-full transition-colors relative z-10 text-sm md:text-base">
                     Subscribe Now
                 </button>
             </div>
-            
+
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                    
-                    <div class="bg-white rounded-[2rem] p-6 md:p-8 border border-gray-100 shadow-sm hover:shadow-soft transition-shadow flex flex-col">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-yellow-50 text-yellow-500 flex items-center justify-center shrink-0">
-                                    <i class="ph-fill ph-coins text-xl"></i>
+
+            <div
+                class="bg-white rounded-[2rem] p-6 md:p-8 border border-gray-100 shadow-sm hover:shadow-soft transition-shadow flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-full bg-yellow-50 text-yellow-500 flex items-center justify-center shrink-0">
+                            <i class="ph-fill ph-coins text-xl"></i>
                         </div>
                         <h4 class="font-bold text-gray-900 text-lg">Credit Packs</h4>
                     </div>
-                    <span class="bg-gray-50 border border-gray-100 text-gray-400 text-[10px] md:text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
+                    <span
+                        class="bg-gray-50 border border-gray-100 text-gray-400 text-[10px] md:text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
                         Available Soon™
                     </span>
                 </div>
                 <p class="text-sm text-brand-muted font-medium leading-relaxed mt-2">
-                    Not a fan of subscriptions? Buy non-expiring credits for ad-hoc exports with optional Cloud Rendering support.
+                    Not a fan of subscriptions? Buy non-expiring credits for ad-hoc exports with optional Cloud
+                    Rendering support.
                 </p>
             </div>
 
-            <div class="bg-white rounded-[2rem] p-6 md:p-8 border border-gray-100 shadow-sm hover:shadow-soft transition-shadow flex flex-col">
+            <div
+                class="bg-white rounded-[2rem] p-6 md:p-8 border border-gray-100 shadow-sm hover:shadow-soft transition-shadow flex flex-col">
                 <div class="flex items-center gap-3 mb-5">
-                    <div class="w-10 h-10 rounded-full bg-purple-50 text-brand-purple flex items-center justify-center shrink-0">
+                    <div
+                        class="w-10 h-10 rounded-full bg-purple-50 text-brand-purple flex items-center justify-center shrink-0">
                         <i class="ph-fill ph-rocket-launch text-xl"></i>
                     </div>
                     <h4 class="font-bold text-gray-900 text-lg">Coming Later: Teams & Pro</h4>
                 </div>
-                
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mt-auto">
-                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:border-brand-purple/30 transition-colors">
+                    <div
+                        class="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:border-brand-purple/30 transition-colors">
                         <div class="font-bold text-gray-800 text-sm mb-1">Cartographer</div>
-                        <p class="text-[11px] text-brand-muted leading-relaxed">Advanced custom map styles & team workflows.</p>
+                        <p class="text-[11px] text-brand-muted leading-relaxed">Advanced custom map styles & team
+                            workflows.</p>
                     </div>
-                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:border-brand-purple/30 transition-colors">
+                    <div
+                        class="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:border-brand-purple/30 transition-colors">
                         <div class="font-bold text-gray-800 text-sm mb-1">Pioneer</div>
-                        <p class="text-[11px] text-brand-muted leading-relaxed">Enterprise limits, API access, and custom branding.</p>
+                        <p class="text-[11px] text-brand-muted leading-relaxed">Enterprise limits, API access, and
+                            custom branding.</p>
                     </div>
                 </div>
             </div>
@@ -785,100 +1014,140 @@
     </section>
 
     <section id="faq" class="py-16 md:py-24 px-4 md:px-6 max-w-3xl mx-auto">
-            <div class="text-center mb-10 md:mb-12">
-                <h2 class="text-3xl md:text-5xl font-black tracking-tight mb-4">Frequently Asked Questions</h2>
-                <p class="text-brand-muted text-base md:text-lg font-medium">Everything you need to know about how li'l Mappo works.</p>
+        <div class="text-center mb-10 md:mb-12">
+            <h2 class="text-3xl md:text-5xl font-black tracking-tight mb-4">Frequently Asked Questions</h2>
+            <p class="text-brand-muted text-base md:text-lg font-medium">Everything you need to know about how li'l
+                Mappo works.</p>
+        </div>
+
+        <div class="space-y-4">
+
+            <div
+                class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
+                <input type="radio" name="faq-accordion" id="faq-1" class="peer hidden" checked>
+                <label for="faq-1"
+                    class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
+                    <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Is li'l Mappo really free?</span>
+                    <div
+                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
+                        <i
+                            class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
+                    </div>
+                </label>
+                <div
+                    class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
+                    <div class="overflow-hidden">
+                        <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
+                            Yes! The core studio is 100% free and open-source. Guests can export up to 720p/30fps with a
+                            30-second limit. If you use the <strong class="text-brand-blue">BYOK (Bring Your Own
+                                Key)</strong> feature, you instantly unlock unlimited 4K/60fps exports without paying us
+                            a dime.
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="space-y-4">
-                
-                <div class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
-                    <input type="radio" name="faq-accordion" id="faq-1" class="peer hidden" checked>
-                    <label for="faq-1" class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
-                        <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Is li'l Mappo really free?</span>
-                        <div class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
-                            <i class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
-                        </div>
-                    </label>
-                    <div class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
-                        <div class="overflow-hidden">
-                            <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
-                                Yes! The core studio is 100% free and open-source. Guests can export up to 720p/30fps with a 30-second limit. If you use the <strong class="text-brand-blue">BYOK (Bring Your Own Key)</strong> feature, you instantly unlock unlimited 4K/60fps exports without paying us a dime.
-                            </div>
+            <div
+                class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
+                <input type="radio" name="faq-accordion" id="faq-2" class="peer hidden">
+                <label for="faq-2"
+                    class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
+                    <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">What is a "Mapbox Key"
+                        (BYOK)?</span>
+                    <div
+                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
+                        <i
+                            class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
+                    </div>
+                </label>
+                <div
+                    class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
+                    <div class="overflow-hidden">
+                        <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
+                            Map providers charge for map loads. Instead of forcing you into a monthly subscription to
+                            cover our API costs, you can create a free Mapbox account, get your own public token, and
+                            paste it into li'l Mappo. This routes the map loads through your own generous free tier,
+                            allowing us to remove all export restrictions.
                         </div>
                     </div>
                 </div>
-
-                <div class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
-                    <input type="radio" name="faq-accordion" id="faq-2" class="peer hidden">
-                    <label for="faq-2" class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
-                        <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">What is a "Mapbox Key" (BYOK)?</span>
-                        <div class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
-                            <i class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
-                        </div>
-                    </label>
-                    <div class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
-                        <div class="overflow-hidden">
-                            <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
-                                Map providers charge for map loads. Instead of forcing you into a monthly subscription to cover our API costs, you can create a free Mapbox account, get your own public token, and paste it into li'l Mappo. This routes the map loads through your own generous free tier, allowing us to remove all export restrictions.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
-                    <input type="radio" name="faq-accordion" id="faq-3" class="peer hidden">
-                    <label for="faq-3" class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
-                        <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Can I use the exported videos commercially?</span>
-                        <div class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
-                            <i class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
-                        </div>
-                    </label>
-                    <div class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
-                        <div class="overflow-hidden">
-                            <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
-                                Absolutely. Whether you are on the Free tier, using BYOK, or on a paid subscription, the videos you generate are yours to use for YouTube channels, client work, broadcasting, or social media. No hidden licensing traps.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
-                    <input type="radio" name="faq-accordion" id="faq-4" class="peer hidden">
-                    <label for="faq-4" class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
-                        <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Why is there no mobile app?</span>
-                        <div class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
-                            <i class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
-                        </div>
-                    </label>
-                    <div class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
-                        <div class="overflow-hidden">
-                            <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
-                                li'l Mappo leverages modern browser APIs like WebCodecs to render high-fidelity 60fps video directly on your local GPU. This requires the processing power and memory of a desktop or laptop environment. We prioritize professional-grade output over a quick mobile toy.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
-                    <input type="radio" name="faq-accordion" id="faq-5" class="peer hidden">
-                    <label for="faq-5" class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
-                        <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Where are my projects saved?</span>
-                        <div class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
-                            <i class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
-                        </div>
-                    </label>
-                    <div class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
-                        <div class="overflow-hidden">
-                            <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
-                                By default, all projects are saved locally in your browser's IndexedDB storage. You can also export `.lilmap` project files to your hard drive. If you create a free account, you unlock 3 Cloud Save slots. Subscribers get unlimited cloud auto-syncing across devices.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
-        </section>
+
+            <div
+                class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
+                <input type="radio" name="faq-accordion" id="faq-3" class="peer hidden">
+                <label for="faq-3"
+                    class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
+                    <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Can I use the exported videos
+                        commercially?</span>
+                    <div
+                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
+                        <i
+                            class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
+                    </div>
+                </label>
+                <div
+                    class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
+                    <div class="overflow-hidden">
+                        <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
+                            Absolutely. Whether you are on the Free tier, using BYOK, or on a paid subscription, the
+                            videos you generate are yours to use for YouTube channels, client work, broadcasting, or
+                            social media. No hidden licensing traps.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
+                <input type="radio" name="faq-accordion" id="faq-4" class="peer hidden">
+                <label for="faq-4"
+                    class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
+                    <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Why is there no mobile app?</span>
+                    <div
+                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
+                        <i
+                            class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
+                    </div>
+                </label>
+                <div
+                    class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
+                    <div class="overflow-hidden">
+                        <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
+                            li'l Mappo leverages modern browser APIs like WebCodecs to render high-fidelity 60fps video
+                            directly on your local GPU. This requires the processing power and memory of a desktop or
+                            laptop environment. We prioritize professional-grade output over a quick mobile toy.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="group bg-white border border-gray-100 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm hover:shadow-soft transition-all duration-300 has-[:checked]:border-brand-blue/30 has-[:checked]:shadow-md">
+                <input type="radio" name="faq-accordion" id="faq-5" class="peer hidden">
+                <label for="faq-5"
+                    class="flex items-center justify-between p-4 md:p-6 cursor-pointer group-has-[:checked]:bg-brand-light/30 transition-colors">
+                    <span class="font-bold text-gray-900 pr-4 text-sm md:text-base">Where are my projects saved?</span>
+                    <div
+                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-brand-blue group-has-[:checked]:text-white transition-colors duration-300">
+                        <i
+                            class="ph-bold ph-caret-down text-base md:text-lg transition-transform duration-300 group-has-[:checked]:rotate-180"></i>
+                    </div>
+                </label>
+                <div
+                    class="grid grid-rows-[0fr] peer-checked:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out group-has-[:checked]:bg-brand-light/30">
+                    <div class="overflow-hidden">
+                        <div class="p-4 md:p-6 pt-0 text-xs md:text-sm text-brand-muted font-medium leading-relaxed">
+                            By default, all projects are saved locally in your browser's IndexedDB storage. You can also
+                            export `.lilmap` project files to your hard drive. If you create a free account, you unlock
+                            3 Cloud Save slots. Subscribers get unlimited cloud auto-syncing across devices.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
 
     <section id="roadmap" class="py-16 md:py-24 px-4 md:px-6 max-w-3xl mx-auto">
         <div class="text-center mb-12 md:mb-16">
@@ -888,45 +1157,60 @@
             </p>
         </div>
 
-        <div class="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
+        <div
+            class="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
 
-            <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-brand-green text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+            <div
+                class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                <div
+                    class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-brand-green text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                     <i class="ph-bold ph-check"></i>
                 </div>
-                <div class="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <div
+                    class="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                         <h4 class="font-bold text-gray-900 text-sm md:text-base">Core Editor Foundation</h4>
-                        <span class="text-[10px] md:text-xs font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
+                        <span
+                            class="text-[10px] md:text-xs font-bold text-brand-green bg-green-50 px-2 py-0.5 rounded-md">Live</span>
                     </div>
-                    <p class="text-xs md:text-sm text-brand-muted">Routes, auto-cameras, bounds, 3D callouts, local WebCodecs MP4 rendering, and BYOK capabilities.</p>
+                    <p class="text-xs md:text-sm text-brand-muted">Routes, auto-cameras, bounds, 3D callouts, local
+                        WebCodecs MP4 rendering, and BYOK capabilities.</p>
                 </div>
             </div>
 
             <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
-                <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-brand-blue text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                <div
+                    class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-brand-blue text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                     <i class="ph-bold ph-cloud-arrow-up"></i>
                 </div>
-                <div class="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 relative">
+                <div
+                    class="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 relative">
                     <div class="absolute -inset-0.5 bg-brand-blue opacity-20 rounded-2xl blur-sm -z-10"></div>
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                         <h4 class="font-bold text-gray-900 text-sm md:text-base">Cloud Render & Subs</h4>
-                        <span class="text-[10px] md:text-xs font-bold text-brand-blue bg-blue-50 px-2 py-0.5 rounded-md whitespace-nowrap">Active Dev</span>
+                        <span
+                            class="text-[10px] md:text-xs font-bold text-brand-blue bg-blue-50 px-2 py-0.5 rounded-md whitespace-nowrap">Active
+                            Dev</span>
                     </div>
-                    <p class="text-xs md:text-sm text-brand-muted">Optional "Wanderer" tier ($7/mo) for those who don't want to bring keys. Cloud saves and background rendering without keeping the tab open.</p>
+                    <p class="text-xs md:text-sm text-brand-muted">Optional "Wanderer" tier ($7/mo) for those who don't
+                        want to bring keys. Cloud saves and background rendering without keeping the tab open.</p>
                 </div>
             </div>
 
             <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
-                <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-gray-200 text-gray-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                <div
+                    class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-gray-200 text-gray-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                     <i class="ph-bold ph-hourglass"></i>
                 </div>
-                <div class="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] bg-white/60 p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 border-dashed">
+                <div
+                    class="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] bg-white/60 p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 border-dashed">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                         <h4 class="font-bold text-gray-500 text-sm md:text-base">More Vehicles & Styling</h4>
-                        <span class="text-[10px] md:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">Planned</span>
+                        <span
+                            class="text-[10px] md:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">Planned</span>
                     </div>
-                    <p class="text-xs md:text-sm text-gray-400">Expanding the PRO vehicle models (planes, boats, hiking icons), plus custom marker upload support.</p>
+                    <p class="text-xs md:text-sm text-gray-400">Expanding the PRO vehicle models (planes, boats, hiking
+                        icons), plus custom marker upload support.</p>
                 </div>
             </div>
 
@@ -934,25 +1218,34 @@
     </section>
 
     <footer class="mt-8 md:mt-12 px-4 md:px-6">
-        <div class="max-w-4xl mx-auto bg-[#0f172a] text-white rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl">
-            <div class="absolute w-48 h-48 md:w-64 md:h-64 bg-brand-blue rounded-full blur-[80px] opacity-40 -top-10 -left-10"></div>
-            <div class="absolute w-48 h-48 md:w-64 md:h-64 bg-brand-purple rounded-full blur-[80px] opacity-40 -bottom-10 -right-10"></div>
-            
+        <div
+            class="max-w-4xl mx-auto bg-[#0f172a] text-white rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl">
+            <div
+                class="absolute w-48 h-48 md:w-64 md:h-64 bg-brand-blue rounded-full blur-[80px] opacity-40 -top-10 -left-10">
+            </div>
+            <div
+                class="absolute w-48 h-48 md:w-64 md:h-64 bg-brand-purple rounded-full blur-[80px] opacity-40 -bottom-10 -right-10">
+            </div>
+
             <div class="relative z-10">
                 <h2 class="text-2xl sm:text-3xl md:text-5xl font-black mb-4 md:mb-6">Ready to map it out?</h2>
-                <p class="text-gray-300 font-medium mb-6 md:mb-8 max-w-md mx-auto text-sm md:text-base">Start creating completely free in your browser. No account required to test the editor.</p>
+                <p class="text-gray-300 font-medium mb-6 md:mb-8 max-w-md mx-auto text-sm md:text-base">Start creating
+                    completely free in your browser. No account required to test the editor.</p>
                 <div class="flex flex-col sm:flex-row justify-center gap-3 md:gap-4">
-                    <button class="bg-brand-blue hover:bg-blue-600 text-white px-6 md:px-8 py-3 md:py-4 rounded-full font-bold text-base md:text-lg shadow-lg transition-transform transform hover:-translate-y-1">
+                    <button
+                        class="bg-brand-blue hover:bg-blue-600 text-white px-6 md:px-8 py-3 md:py-4 rounded-full font-bold text-base md:text-lg shadow-lg transition-transform transform hover:-translate-y-1">
                         Open the Studio
                     </button>
-                    <button class="bg-white/10 hover:bg-white/20 text-white px-6 md:px-8 py-3 md:py-4 rounded-full font-bold text-base md:text-lg backdrop-blur-md transition-colors">
+                    <button
+                        class="bg-white/10 hover:bg-white/20 text-white px-6 md:px-8 py-3 md:py-4 rounded-full font-bold text-base md:text-lg backdrop-blur-md transition-colors">
                         View on GitHub
                     </button>
                 </div>
             </div>
         </div>
-        
-        <div class="max-w-6xl mx-auto mt-8 md:mt-12 pb-8 flex flex-col md:flex-row items-center justify-between text-xs md:text-sm text-brand-muted font-medium gap-4">
+
+        <div
+            class="max-w-6xl mx-auto mt-8 md:mt-12 pb-8 flex flex-col md:flex-row items-center justify-between text-xs md:text-sm text-brand-muted font-medium gap-4">
             <p>© 2026 li'l Mappo. Free and Open Source.</p>
             <div class="flex flex-wrap justify-center gap-4 md:gap-6">
                 <a href="#" class="hover:text-brand-blue transition-colors">GitHub</a>
@@ -963,4 +1256,5 @@
     </footer>
 
 </body>
+
 </html>
