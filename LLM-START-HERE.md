@@ -129,14 +129,15 @@ All use shared CSS `glass` effect + `shadow-2xl` for depth and polished hover st
 
 ### 4.3 Toast System
 
-Toasts appear in the **top-left corner** with fixed positioning, matching the toolbar height (56px / `h-14`). 
+Toasts appear in the **top-left corner** with fixed positioning, defaulting to the toolbar height (56px / `min-h-14`) but expanding vertically for multi-line content.
 
 **Layout:**
 - **Desktop/Tablet**: `top: 88px` (PANEL_MARGIN 16 + toolbar 56 + gap 16), `left: 16px`
 - **Mobile**: `top: calc(env(safe-area-inset-top) + 56px + 16px)`, `left: 16px`
+- **Height**: `min-h-14 py-3` — defaults to 56px (toolbar height) with vertical padding; grows if text wraps
 - **Styling**: `rounded-2xl` squircle, `bg-background/85 backdrop-blur-xl border-border/50` glass effect matching the toolbar
 - **Width**: `max-w-[min(20rem,calc(100vw-2rem))]` — caps at 320px but yields to narrow screens
-- **Content**: Left-aligned, vertically centered within the toast height
+- **Content**: Left-aligned, vertically centered
 
 **Implementation**: `useSonnerPosition()` in `MapStudioEditor.tsx` computes the top offset; the Sonner instance uses `position="top-left"` to stack new toasts downward from that anchor. No reactive dependencies — position is purely device-based (`isMobile` only).
 

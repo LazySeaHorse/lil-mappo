@@ -14,7 +14,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         unstyled: true,
         classNames: {
-          toast: "group toast relative flex items-center gap-3 rounded-2xl px-4 h-14 text-sm font-medium shadow-2xl shadow-black/10 backdrop-blur-xl bg-background/85 text-foreground border border-border/50 transition-all duration-300 w-auto max-w-[min(20rem,calc(100vw-2rem))]",
+          toast: "group toast relative flex items-center gap-3 rounded-2xl px-4 min-h-14 py-3 text-sm font-medium shadow-2xl shadow-black/10 backdrop-blur-xl bg-background/85 text-foreground border border-border/50 transition-all duration-300 w-auto max-w-[min(20rem,calc(100vw-2rem))]",
           title: "text-left leading-snug",
           description: "text-left opacity-70 text-xs",
         },
