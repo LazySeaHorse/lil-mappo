@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in to li'l Mappo</title>
+  <style>
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f4f5f7;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    table {
+      border-collapse: collapse;
+      border-spacing: 0;
+    }
+    .wrapper {
+      width: 100%;
+      table-layout: fixed;
+      background-color: #f4f5f7;
+      padding: 40px 0;
+    }
+    .container {
+      background-color: #ffffff;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 540px;
+      border-radius: 20px;
+      border: 1px solid #cfd4db;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    .header {
+      padding: 40px 40px 16px 40px;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1c2430;
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+    .content {
+      padding: 16px 40px 40px 40px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      color: #1c2430;
+    }
+    p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 0 0 28px 0;
+      color: #657185;
+    }
+    .btn-container {
+      margin-bottom: 32px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #005ce6;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 16px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      border: 1px solid #005ce6;
+    }
+    .fallback {
+      font-size: 14px;
+      color: #8c96a8;
+      word-break: break-all;
+    }
+    .fallback a {
+      color: #005ce6;
+    }
+    .footer {
+      padding: 32px 40px;
+      text-align: center;
+      background-color: #f8f9fa;
+      border-top: 1px solid #cfd4db;
+    }
+    .footer p {
+      font-size: 13px;
+      color: #8c96a8;
+      margin: 0 0 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <table class="container" role="presentation" align="center">
+      <tr>
+        <td class="header">
+          <a href="{{ .SiteURL }}" class="logo">li'l Mappo</a>
+        </td>
+      </tr>
+      <tr>
+        <td class="content">
+          <h1>Sign in to li'l Mappo</h1>
+          <p>Click the button below to securely sign in to your li'l Mappo account. No password required. This link will expire shortly.</p>
+          
+          <div class="btn-container">
+            <a href="{{ .ConfirmationURL }}" class="btn">Sign In</a>
+          </div>
+
+          <p class="fallback">
+            If the button doesn't work, copy and paste this link into your browser:<br>
+            <a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a>
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td class="footer">
+          <p>If you didn't request this email, you can safely ignore it.</p>
+          <p>&copy; li'l Mappo. All rights reserved.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>
