@@ -7,12 +7,11 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { CalloutAddDropdown } from './CalloutAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
-import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
-import { MAP_STYLES } from '@/config/mapbox';
+import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
 
 interface DesktopToolbarLayoutProps {
@@ -61,9 +60,7 @@ function TabletLayerDropdown({
               <SelectValue placeholder="Map Style" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-              {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-                <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-              ))}
+              <MapStyleSelectItems />
             </SelectContent>
           </Select>
         </div>
@@ -95,9 +92,7 @@ function InlineLayerGroup({
             <SelectValue placeholder="Map Style" />
           </SelectTrigger>
           <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-            {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-              <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-            ))}
+            <MapStyleSelectItems />
           </SelectContent>
         </Select>
       </div>

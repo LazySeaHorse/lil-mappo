@@ -1,24 +1,10 @@
-import mapboxgl from 'mapbox-gl';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
-import { getCameraAtTime, type CameraOutput } from '@/engine/cameraInterpolation';
+import { getCameraAtTime } from '@/engine/cameraInterpolation';
+import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
 import { compositeFrame, withMapResized } from './mapCapture';
 import type { RenderConfig } from '@/types/render';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
-
-function applyCamera(map: any, cam: CameraOutput, zoomOffset = 0): void {
-  if (cam.type === 'freeCam') {
-    const opts = new mapboxgl.FreeCameraOptions();
-    opts.position = mapboxgl.MercatorCoordinate.fromLngLat(
-      { lng: cam.position[0], lat: cam.position[1] },
-      cam.position[2],
-    );
-    opts.lookAtPoint({ lng: cam.lookAt[0], lat: cam.lookAt[1] });
-    map.setFreeCameraOptions(opts);
-  } else {
-    map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
-  }
-}
 
 /**
  * Non-realtime offline export engine.
@@ -295,20 +281,6 @@ export async function runExport(
   // log2(renderWidth / previewWidth) — positive when rendering larger than preview.
   const previewWidth = map.getContainer().getBoundingClientRect().width;
   const zoomOffset = Math.log2(width / previewWidth);
-
-  const getRouteCoords = (routeId: string): number[][] | null => {
-    const route = useProjectStore.getState().items[routeId] as RouteItem | undefined;
-    if (!route) return null;
-    const coords: number[][] = [];
-    for (const f of route.geojson.features) {
-      if (f.geometry.type === 'LineString') coords.push(...(f.geometry as any).coordinates);
-      else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as any).coordinates) coords.push(...l);
-    }
-    return coords.length >= 2 ? coords : null;
-  };
-
-  const getRoutes = (): RouteItem[] =>
-    Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route') as RouteItem[];
 
   try {
     await withMapResized(map, width, height, async () => {

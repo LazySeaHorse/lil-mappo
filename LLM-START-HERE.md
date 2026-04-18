@@ -493,6 +493,28 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Key Lesson**: When adding complex automated behaviors that override manual defaults, implement a dedicated "blend" layer rather than binary switching to avoid jarring "camera jerks" at transition boundaries.
 
+### 6.15 Duplicate Code Consolidation (April 2026)
+
+**Problem 1: Camera utility duplication** — `applyCamera`, `getRouteCoords`, and `getRoutes` were defined identically in both `usePlayback.ts` and `videoExport.ts`. These utilities drive the 60fps playback loop and the offline export engine, but they shared the same logic.
+
+**Solution**: Extracted all three to `src/engine/cameraUtils.ts`. Both `usePlayback` and `videoExport` now import from this shared module. Since the utilities touch Mapbox and the store (not pure math), they live separately from `cameraInterpolation.ts` (which remains pure).
+
+**Problem 2: Map style SelectItems duplication** — The `MAP_STYLES` dropdown items were rendered identically in three toolbar locations: Desktop's `InlineLayerGroup`, Desktop's `TabletLayerDropdown`, and Mobile's layers mode. Each had a `map()` over the same `Object.entries(MAP_STYLES)` list.
+
+**Solution**: Extracted `MapStyleSelectItems` component to `src/components/Toolbar/ToolbarPrimitives.tsx`. All three render sites now call this single component, eliminating the pattern duplication.
+
+**Problem 3: Resolution & FPS select duplication** — The resolution select items (with lock-based-on-tier logic) and FPS select items were duplicated across `ExportModal.tsx` and `ProjectSettings.tsx`. Both even re-declared the resolution order array locally.
+
+**Solution**: Extracted `ResolutionSelectItems` and `FpsSelectItems` to `src/components/ui/render-select-items.tsx`. Both accept `ExportLimits` directly; `FpsSelectItems` takes an optional `showUnit` prop to handle the label text difference ("30 FPS" vs "30") between the two contexts.
+
+**Bonus: SelectTrigger fill** — While consolidating, discovered that SelectTrigger lacked a light-mode background (used undefined `--input-background` CSS var). Fixed by:
+- Changed SelectTrigger base class from `bg-input-background` to `bg-background` (light mode fill)
+- Updated `--background` CSS variable from `0 0% 98%` to `0 0% 100%` (pure white, matching native `<input>` elements)
+- Dark mode remains unchanged (`dark:bg-input/30` override still applies)
+
+**Key Files**: `src/engine/cameraUtils.ts` (new), `src/components/Toolbar/ToolbarPrimitives.tsx` (updated), `src/components/ui/render-select-items.tsx` (new), `src/components/ui/select.tsx` (light-mode fill fix).
+
+**Key Lesson**: Identify duplication early — when the same logic appears in 2+ places, extract to shared utilities. This reduces maintenance burden and ensures single-source-of-truth for behavior.
 
 ---
 

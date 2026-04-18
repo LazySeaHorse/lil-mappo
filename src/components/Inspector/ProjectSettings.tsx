@@ -13,9 +13,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
 import { RotateCw, Monitor, Smartphone, Lock, ArrowRight } from 'lucide-react';
-import { ProBadge } from '@/components/ui/pro-badge';
+import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution } from '@/types/render';
-import { RESOLUTION_LABELS } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
 
 
@@ -82,12 +81,7 @@ export function ProjectSettings() {
               <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="30">30</SelectItem>
-                  <SelectItem value="60" disabled={limits.maxFps < 60}>
-                    <div className="flex items-center gap-1.5">
-                      60 {limits.maxFps < 60 && <ProBadge />}
-                    </div>
-                  </SelectItem>
+                  <FpsSelectItems limits={limits} />
                 </SelectContent>
               </Select>
             </Field>
@@ -126,18 +120,7 @@ export function ProjectSettings() {
               >
                 <SelectTrigger className="h-8 text-sm flex-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(['480p', '720p', '1080p', '1440p', '2160p'] as ExportResolution[]).map((r) => {
-                    const resOrder = ['480p', '720p', '1080p', '1440p', '2160p'];
-                    const isLocked = limits.limited && resOrder.indexOf(r) > resOrder.indexOf(limits.maxResolution);
-                    return (
-                      <SelectItem key={r} value={r} disabled={isLocked}>
-                        <div className="flex items-center gap-1.5">
-                          {RESOLUTION_LABELS[r]}
-                          {isLocked && <ProBadge />}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
+                  <ResolutionSelectItems limits={limits} />
                 </SelectContent>
               </Select>
               <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap min-w-[70px] text-right">

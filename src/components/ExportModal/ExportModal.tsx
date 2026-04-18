@@ -16,9 +16,9 @@ import { Field } from '@/components/ui/field';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ProBadge } from '@/components/ui/pro-badge';
+import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
 import {
-  RESOLUTION_LABELS,
   getExportDimensions,
   calculateRenderCredits,
 } from '@/types/render';
@@ -265,18 +265,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
               >
                 <SelectTrigger className="h-9 text-sm flex-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(['480p', '720p', '1080p', '1440p', '2160p'] as ExportResolution[]).map((r) => {
-                    const resOrder = ['480p', '720p', '1080p', '1440p', '2160p'];
-                    const isLocked = limits.limited && resOrder.indexOf(r) > resOrder.indexOf(limits.maxResolution);
-                    return (
-                      <SelectItem key={r} value={r} disabled={isLocked}>
-                        <div className="flex items-center gap-1.5">
-                          {RESOLUTION_LABELS[r]}
-                          {isLocked && <ProBadge />}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
+                  <ResolutionSelectItems limits={limits} />
                 </SelectContent>
               </Select>
             </Field>
@@ -294,13 +283,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
               >
                 <SelectTrigger className="h-9 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="30">30 FPS</SelectItem>
-                  <SelectItem value="60" disabled={limits.maxFps < 60}>
-                    <div className="flex items-center gap-1.5">
-                      60 FPS
-                      {limits.maxFps < 60 && <ProBadge />}
-                    </div>
-                  </SelectItem>
+                  <FpsSelectItems limits={limits} showUnit />
                 </SelectContent>
               </Select>
             </Field>

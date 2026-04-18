@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { CalloutAddDropdown } from './CalloutAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
-import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
-import { MAP_STYLES } from '@/config/mapbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
+import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { IconButton } from '@/components/ui/icon-button';
 
 interface MobileToolbarLayoutProps {
@@ -88,9 +87,7 @@ export function MobileToolbarLayout({
                   <SelectValue placeholder="Map Style" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-                  {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-                    <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-                  ))}
+                  <MapStyleSelectItems />
                 </SelectContent>
               </Select>
             </div>
