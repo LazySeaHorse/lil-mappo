@@ -22,7 +22,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; base-uri 'self'; frame-ancestors 'none';"
+          "value": "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; worker-src blob: 'self'; base-uri 'self'; frame-ancestors 'none';"
         }
       ]
     }
