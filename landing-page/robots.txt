@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /terms.html
+Disallow: /privacy.html
+
+Sitemap: https://lilmappo.tech/sitemap.xml
