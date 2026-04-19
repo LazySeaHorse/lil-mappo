@@ -1,5 +1,5 @@
 export default {
-  content: ["./landing-page/index.html"],
+  content: ["./landing-page/*.html"],
   theme: {
     extend: {
       fontFamily: {

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy — li'l Mappo</title>
+    <meta name="description" content="Privacy Policy for li'l Mappo." />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- tailwind-dev-only-start -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ["Outfit", "sans-serif"] },
+                    colors: {
+                        brand: {
+                            blue: "#1e3fda",
+                            light: "#eef2ff",
+                            bg: "#f8f9fa",
+                            text: "#0f172a",
+                            muted: "#64748b",
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+    <!-- tailwind-dev-only-end -->
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #0f172a;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .prose h2 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+            color: #0f172a;
+        }
+
+        .prose p,
+        .prose li {
+            color: #64748b;
+            font-size: 0.9375rem;
+            line-height: 1.75;
+            font-weight: 500;
+        }
+
+        .prose ul {
+            list-style: disc;
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .prose li {
+            margin-bottom: 0.25rem;
+        }
+
+        .prose a {
+            color: #1e3fda;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body class="antialiased">
+    <nav class="fixed top-4 md:top-6 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
+        <div
+            class="glass-panel flex items-center justify-between px-4 md:px-6 py-3 rounded-full w-full max-w-5xl shadow-sm">
+            <a href="/"
+                class="flex items-center gap-2 font-bold text-lg tracking-tight text-brand-blue hover:opacity-80 transition-opacity">
+                <i class="ph-fill ph-map-trifold text-xl"></i>
+                <span>li'l Mappo</span>
+            </a>
+            <a href="https://app.lilmappo.tech"
+                class="flex items-center gap-2 text-sm font-bold bg-brand-blue text-white px-4 py-2 rounded-full hover:bg-blue-700 transition-all">
+                Launch Editor
+            </a>
+        </div>
+    </nav>
+
+    <main class="pt-32 pb-24 px-4 max-w-3xl mx-auto">
+        <div class="bg-white rounded-[2rem] p-8 md:p-12 shadow-sm border border-gray-100">
+            <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-2">Privacy Policy</h1>
+            <p class="text-brand-muted text-sm font-medium mb-8">Last updated: April 2026</p>
+
+            <div class="prose">
+                <p>
+                    This policy explains what information li'l Mappo collects, why, and what we do with it.
+                    We keep it plain. If something isn't clear, email us at
+                    <a href="mailto:support@lilmappo.tech">support@lilmappo.tech</a>.
+                </p>
+
+                <h2>What we collect</h2>
+                <p><strong>If you create an account</strong>, we collect:</p>
+                <ul>
+                    <li>Your email address (required for sign-up).</li>
+                    <li>If you sign in via Google or GitHub OAuth, your name and profile picture as
+                        provided by those services.</li>
+                    <li>Your map load usage count (tracked server-side against your account).</li>
+                    <li>Your projects, if you choose to save them to the cloud.</li>
+                </ul>
+
+                <p><strong>If you subscribe or make a payment</strong>, payment is handled by
+                    <a href="https://dodopayments.com" target="_blank">Dodo Payments</a>. We do not
+                    store your card details. We receive a webhook notification confirming payment and
+                    record your subscription status in our database.
+                </p>
+
+                <p><strong>If you use Bring Your Own Key (BYOK)</strong>, your Mapbox token is stored
+                    only in your browser's <code>localStorage</code>. It is never sent to our servers.</p>
+
+                <h2>How we use it</h2>
+                <ul>
+                    <li>To let you sign in and access your account.</li>
+                    <li>To enforce free-tier usage limits.</li>
+                    <li>To process your subscription and send you access to paid features.</li>
+                    <li>To sync your saved projects across devices (if you're a subscriber).</li>
+                </ul>
+                <p>We do not sell your data. We do not use it for advertising.</p>
+
+                <h2>Third-party services</h2>
+                <p>li'l Mappo uses the following third-party services, each with their own privacy policies:</p>
+                <ul>
+                    <li><strong>Supabase</strong> — Database, authentication, and cloud storage.
+                        <a href="https://supabase.com/privacy" target="_blank">supabase.com/privacy</a>
+                    </li>
+                    <li><strong>Mapbox</strong> — Map rendering and routing. When you load the map,
+                        Mapbox receives standard request data (IP address, tile requests).
+                        <a href="https://www.mapbox.com/legal/privacy" target="_blank">mapbox.com/legal/privacy</a>
+                    </li>
+                    <li><strong>Dodo Payments</strong> — Payment processing.
+                        <a href="https://dodopayments.com/privacy" target="_blank">dodopayments.com/privacy</a>
+                    </li>
+                    <li><strong>Google / GitHub</strong> — Optional OAuth sign-in providers.</li>
+                    <li><strong>Vercel Analytics</strong> — Anonymous usage analytics on the hosted app.
+                        Collects page views, browser, OS, and country. No cookies, no personal data.
+                        <a href="https://vercel.com/legal/privacy-policy" target="_blank">vercel.com/legal/privacy-policy</a>
+                    </li>
+                </ul>
+
+                <h2>Data storage and retention</h2>
+                <p>
+                    Account data is stored in Supabase on servers in England. We retain your
+                    account data for as long as your account exists. If you delete your account, your data
+                    is deleted within 30 days.
+                </p>
+
+                <h2>Your rights</h2>
+                <p>You can:</p>
+                <ul>
+                    <li>Request a copy of the data we hold about you.</li>
+                    <li>Request deletion of your account and associated data.</li>
+                    <li>Correct any inaccurate account information via your account settings.</li>
+                </ul>
+                <p>To exercise any of these rights, email
+                    <a href="mailto:support@lilmappo.tech">support@lilmappo.tech</a>.
+                </p>
+
+                <h2>Cookies and local storage</h2>
+                <p>
+                    We use browser <code>localStorage</code> (not cookies) for:
+                </p>
+                <ul>
+                    <li>Storing your BYOK Mapbox token (never sent to our servers).</li>
+                    <li>Remembering your pending checkout plan across OAuth redirects.</li>
+                </ul>
+                <p>We do not use tracking cookies or third-party analytics cookies.</p>
+
+                <h2>Children</h2>
+                <p>li'l Mappo is not directed at children under 13. We do not knowingly collect
+                    personal information from children.</p>
+
+                <h2>Changes to this policy</h2>
+                <p>
+                    If we make material changes, we'll update the date at the top of this page. Continued
+                    use of the service after changes means you accept the updated policy.
+                </p>
+
+                <h2>Contact</h2>
+                <p>
+                    Questions? Email us at
+                    <a href="mailto:support@lilmappo.tech">support@lilmappo.tech</a>.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="pb-8 text-center text-xs text-brand-muted font-medium">
+        <div class="flex justify-center gap-6">
+            <a href="/" class="hover:text-brand-blue transition-colors">Home</a>
+            <a href="/terms.html" class="hover:text-brand-blue transition-colors">Terms</a>
+            <a href="mailto:support@lilmappo.tech" class="hover:text-brand-blue transition-colors">Contact</a>
+        </div>
+    </footer>
+</body>
+
+</html>
