@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; base-uri 'self';">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>How to Turn GPX Tracks into Cinematic 3D Map Animations for Travel Vlogs</title>
+    <meta name="description"
+        content="Step-by-step guide to converting GPX files from Strava, Garmin, or AllTrails into 4K 3D map animation flythroughs for YouTube vlogs and social media." />
+    <meta name="keywords" content="how to turn GPX into 3D video, Strava map animation video, Garmin GPX flyover 3D, travel vlog route map generator, hiking trail animation creator" />
+    <meta name="theme-color" content="#1e3fda" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://lilmappo.tech/blog/how-to-turn-gpx-tracks-into-3d-map-animations.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://lilmappo.tech/blog/how-to-turn-gpx-tracks-into-3d-map-animations.html" />
+    <meta property="og:title" content="How to Turn GPX Tracks into Cinematic 3D Map Animations for Travel Vlogs" />
+    <meta property="og:description"
+        content="Step-by-step guide to converting GPX files from Strava, Garmin, or AllTrails into 4K 3D map animation flythroughs for YouTube vlogs." />
+    <meta property="og:image" content="https://i.postimg.cc/nhvCjTzX/redsfxfgdfbvcx.webp" />
+    <meta property="og:site_name" content="li'l Mappo" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How to Turn GPX Tracks into Cinematic 3D Map Animations for Travel Vlogs" />
+    <meta name="twitter:description"
+        content="Step-by-step guide to converting GPX files from Strava, Garmin, or AllTrails into 4K 3D map animation flythroughs for YouTube vlogs." />
+    <meta name="twitter:image" content="https://i.postimg.cc/nhvCjTzX/redsfxfgdfbvcx.webp" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "How to Turn GPX Tracks into Cinematic 3D Map Animations",
+      "description": "A comprehensive guide on exporting GPX route data and rendering high-quality 3D video map flyovers using li'l Mappo.",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "name": "Export your GPX or KML track file",
+          "text": "Export your recorded route file from Strava, Garmin Connect, AllTrails, or Komoot."
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Import into li'l Mappo Studio",
+          "text": "Drag and drop your GPX file into li'l Mappo. The studio will parse coordinates and calculate distance elevation."
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Configure 3D terrain and AutoCam",
+          "text": "Enable 3D terrain pitch and enable AutoCam to lock camera motion to your route geometry."
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Add 3D Callout Cards",
+          "text": "Place interactive callout cards for key waypoints, summits, or photo stops."
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Export 4K 60FPS MP4 video",
+          "text": "Render high-resolution video directly in your browser using local WebCodecs hardware encoding."
+        }
+      ]
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- tailwind-dev-only-start -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                    },
+                    colors: {
+                        brand: {
+                            blue: "#1e3fda",
+                            light: "#eef2ff",
+                            green: "#10b981",
+                            purple: "#8b5cf6",
+                            bg: "#f8f9fa",
+                            surface: "#ffffff",
+                            text: "#0f172a",
+                            muted: "#64748b",
+                        },
+                    },
+                    boxShadow: {
+                        soft: "0 20px 40px -15px rgba(30, 63, 218, 0.08)",
+                        float: "0 30px 60px -20px rgba(30, 63, 218, 0.15)",
+                    },
+                },
+            },
+        };
+    </script>
+    <!-- tailwind-dev-only-end -->
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #0f172a;
+        }
+        .prose h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #0f172a;
+            scroll-margin-top: 5rem;
+        }
+        .prose h3 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #1e293b;
+            scroll-margin-top: 5rem;
+        }
+        .prose p {
+            margin-bottom: 1.25rem;
+            line-height: 1.75;
+            color: #334155;
+        }
+        .prose ul, .prose ol {
+            margin-bottom: 1.25rem;
+            padding-left: 1.5rem;
+        }
+        .prose li {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col font-sans antialiased text-brand-text">
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-200/60">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-3 group">
+                <img src="/logo.svg" alt="li'l Mappo logo" class="w-8 h-8 transition-transform group-hover:scale-105" />
+                <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-brand-blue to-brand-purple bg-clip-text text-transparent">
+                    li'l Mappo
+                </span>
+                <span class="text-xs bg-brand-light text-brand-blue px-2 py-0.5 rounded-full font-semibold border border-brand-blue/20">Blog</span>
+            </a>
+            <div class="flex items-center gap-4">
+                <a href="/blog/" class="text-sm font-medium text-brand-muted hover:text-brand-blue transition-colors">← All Articles</a>
+                <a href="https://app.lilmappo.tech" class="bg-brand-blue hover:bg-blue-700 text-white px-4 py-2 rounded-full font-bold text-sm shadow-md transition-all flex items-center gap-1.5">
+                    <span>Open Studio</span>
+                    <i class="ph ph-arrow-right text-sm"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow py-10 md:py-16">
+        <article class="max-w-4xl mx-auto px-4 sm:px-6">
+            <!-- Article Header -->
+            <header class="mb-10 text-center">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-4 border border-emerald-200">
+                    <i class="ph-bold ph-compass"></i> Travel Vlogs & Outdoor Workflow Guide
+                </div>
+                <h1 class="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight mb-6">
+                    How to Turn GPX Tracks into Cinematic 3D Map Animations for Travel Vlogs & YouTube
+                </h1>
+                <div class="flex items-center justify-center gap-4 text-xs sm:text-sm text-brand-muted font-medium">
+                    <span>Published: August 2026</span>
+                    <span>•</span>
+                    <span>Author: Outdoor Content Strategy Team</span>
+                    <span>•</span>
+                    <span>6 Min Read</span>
+                </div>
+            </header>
+
+            <!-- Introduction Box -->
+            <div class="bg-white border border-gray-200/80 rounded-2xl p-6 mb-10 shadow-soft">
+                <p class="text-base md:text-lg text-slate-700 leading-relaxed m-0">
+                    Whether you are documenting a high-altitude hike through the Swiss Alps, a bikepacking tour across Japan, or a road trip along Route 66, high-production travel vlogs rely heavily on <strong>animated map sequences</strong> to ground viewers in geographic context.
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed mt-3 m-0">
+                    In this practical step-by-step tutorial, you'll learn how to take raw GPX activity files from <strong>Strava, Garmin, or AllTrails</strong> and convert them into 4K 60FPS 3D map flyovers using <strong>li'l Mappo Studio</strong>—completely free inside your web browser.
+                </p>
+            </div>
+
+            <!-- Steps Section -->
+            <div class="prose max-w-none text-base md:text-lg">
+                <h2>Step 1: Exporting Your GPX or KML Track File</h2>
+                <p>
+                    Every GPS device and outdoor activity app allows exporting recorded paths in standard spatial formats:
+                </p>
+                <ul>
+                    <li><strong>Strava:</strong> Open your activity page → Click the three dots (<code>...</code>) icon → Select <em>Export GPX</em>.</li>
+                    <li><strong>Garmin Connect:</strong> Open activity → Click the gear icon → Select <em>Export to GPX</em>.</li>
+                    <li><strong>AllTrails / Komoot:</strong> Click <em>Download Route</em> → Choose <code>GPX Track</code>.</li>
+                </ul>
+
+                <h2>Step 2: Importing & Parsing Route Geometry in li'l Mappo</h2>
+                <p>
+                    Open <a href="https://app.lilmappo.tech" target="_blank" class="text-brand-blue font-bold">app.lilmappo.tech</a>. You do not need to register or sign in.
+                </p>
+                <ol>
+                    <li>Click <strong>Import GPX / KML</strong> in the left sidebar or drag your file directly onto the map canvas.</li>
+                    <li>li'l Mappo uses Turf.js to parse latitude, longitude, and elevation coordinate arrays in real time.</li>
+                    <li>Customize line aesthetics: Adjust stroke weight, line color (e.g., vibrant neon cyan or warm amber), glow radius, and tail fade parameters.</li>
+                </ol>
+
+                <h2>Step 3: Choreographing 3D Terrain & AutoCam Motion</h2>
+                <p>
+                    A flat 2D map overhead shot can feel static. To create an immersive cinematic experience:
+                </p>
+                <ul>
+                    <li><strong>Enable 3D Terrain:</strong> Toggle Mapbox Terrain RGB to render real-world elevation contour meshes.</li>
+                    <li><strong>Adjust Pitch & Bearing:</strong> Tilt the camera to 60° pitch and rotate bearing to reveal mountain peaks and valleys.</li>
+                    <li><strong>Activate AutoCam:</strong> Enable the <em>Follow Route</em> toggle on your timeline. This locks camera coordinates to your moving GPX path while allowing custom offset distances and camera lead angles.</li>
+                </ul>
+
+                <h2>Step 4: Adding 3D Callout Cards for Waypoints</h2>
+                <p>
+                    Enhance your narrative by annotating key locations along the route:
+                </p>
+                <p>
+                    Use the <strong>Pick on Map</strong> crosshair tool to select summit peaks, campsite stops, or city checkpoints. Attach 3D callout cards with custom titles (e.g., <em>"Basecamp — Altitude 3,400m"</em>) and photos. Callout cards dynamically tilt and anchor to terrain coordinates as the camera glides across the landscape.
+                </p>
+
+                <h2>Step 5: Exporting Frame-Perfect 4K MP4 Video</h2>
+                <p>
+                    Once your timeline keyframes and path speeds are set:
+                </p>
+                <ol>
+                    <li>Click the <strong>Render & Export</strong> button in the bottom control panel.</li>
+                    <li>Choose your output target (e.g., 1080p for Instagram Reels or 4K 60FPS for YouTube).</li>
+                    <li>li'l Mappo executes hardware-accelerated WebCodecs encoding on your GPU, building frame-by-frame MP4 files without any cloud queues or watermarks.</li>
+                </ol>
+
+                <h2>Pro Tips for Cinematic Travel Map Videos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+                    <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-4 text-sm">
+                        <strong class="text-brand-blue font-bold block mb-1">Use Easing Curves</strong>
+                        <p class="text-slate-700 m-0">Apply Cubic or Sine easing to camera keyframes to prevent abrupt start/stop transitions.</p>
+                    </div>
+                    <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-4 text-sm">
+                        <strong class="text-brand-blue font-bold block mb-1">Match Sunlight Presets</strong>
+                        <p class="text-slate-700 m-0">Adjust lighting angle to golden hour (dawn/dusk) for dramatics shadows across 3D mountain ridges.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call to Action Footer -->
+            <div class="mt-12 pt-8 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                    <h4 class="font-extrabold text-lg text-gray-900">Try your own GPX File Now</h4>
+                    <p class="text-sm text-brand-muted">Animate your Strava or Garmin tracks in seconds.</p>
+                </div>
+                <a href="https://app.lilmappo.tech" class="bg-brand-blue hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-full text-sm shadow-md transition-all">
+                    Open li'l Mappo Studio →
+                </a>
+            </div>
+        </article>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200/80 py-8">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between text-xs md:text-sm text-brand-muted font-medium gap-4">
+            <p>© 2026 li'l Mappo. Free and Open Source.</p>
+            <div class="flex flex-wrap justify-center gap-4 md:gap-6">
+                <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank" class="hover:text-brand-blue transition-colors">GitHub</a>
+                <a href="https://github.com/LazySeaHorse/lil-mappo#readme" target="_blank" class="hover:text-brand-blue transition-colors">Documentation</a>
+                <a href="/terms.html" class="hover:text-brand-blue transition-colors">Terms</a>
+                <a href="/privacy.html" class="hover:text-brand-blue transition-colors">Privacy</a>
+                <a href="/blog/" class="hover:text-brand-blue font-bold transition-colors">Blog</a>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>

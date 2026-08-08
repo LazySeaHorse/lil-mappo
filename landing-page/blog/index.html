@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; base-uri 'self';">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>li'l Mappo Blog — 3D Map Animation, GPX Workflows & Motion Design</title>
+    <meta name="description"
+        content="Guides, technical breakdowns, and tutorials on creating 3D map animations, GPX route visualization, and browser-based video rendering with li'l Mappo." />
+    <meta name="theme-color" content="#1e3fda" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://lilmappo.tech/blog/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://lilmappo.tech/blog/" />
+    <meta property="og:title" content="li'l Mappo Blog — 3D Map Animation, GPX Workflows & Motion Design" />
+    <meta property="og:description"
+        content="Guides, technical breakdowns, and tutorials on creating 3D map animations, GPX route visualization, and browser-based video rendering with li'l Mappo." />
+    <meta property="og:image" content="https://i.postimg.cc/nhvCjTzX/redsfxfgdfbvcx.webp" />
+    <meta property="og:site_name" content="li'l Mappo" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="li'l Mappo Blog — 3D Map Animation, GPX Workflows & Motion Design" />
+    <meta name="twitter:description"
+        content="Guides, technical breakdowns, and tutorials on creating 3D map animations, GPX route visualization, and browser-based video rendering with li'l Mappo." />
+    <meta name="twitter:image" content="https://i.postimg.cc/nhvCjTzX/redsfxfgdfbvcx.webp" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      "name": "li'l Mappo Blog",
+      "url": "https://lilmappo.tech/blog/",
+      "description": "Guides, technical breakdowns, and tutorials on creating 3D map animations, GPX route visualization, and browser-based video rendering.",
+      "publisher": {
+        "@type": "Organization",
+        "name": "li'l Mappo",
+        "url": "https://lilmappo.tech"
+      }
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- tailwind-dev-only-start -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                    },
+                    colors: {
+                        brand: {
+                            blue: "#1e3fda",
+                            light: "#eef2ff",
+                            green: "#10b981",
+                            purple: "#8b5cf6",
+                            bg: "#f8f9fa",
+                            surface: "#ffffff",
+                            text: "#0f172a",
+                            muted: "#64748b",
+                        },
+                    },
+                    boxShadow: {
+                        soft: "0 20px 40px -15px rgba(30, 63, 218, 0.08)",
+                        float: "0 30px 60px -20px rgba(30, 63, 218, 0.15)",
+                    },
+                },
+            },
+        };
+    </script>
+    <!-- tailwind-dev-only-end -->
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #0f172a;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col font-sans antialiased text-brand-text">
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-200/60">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-3 group">
+                <img src="/logo.svg" alt="li'l Mappo logo" class="w-8 h-8 transition-transform group-hover:scale-105" />
+                <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-brand-blue to-brand-purple bg-clip-text text-transparent">
+                    li'l Mappo
+                </span>
+                <span class="text-xs bg-brand-light text-brand-blue px-2 py-0.5 rounded-full font-semibold border border-brand-blue/20">Blog</span>
+            </a>
+            <div class="flex items-center gap-4">
+                <a href="/" class="text-sm font-medium text-brand-muted hover:text-brand-blue transition-colors hidden sm:block">Home</a>
+                <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank" class="text-sm font-medium text-brand-muted hover:text-brand-blue transition-colors hidden sm:flex items-center gap-1">
+                    <i class="ph ph-github-logo text-base"></i> GitHub
+                </a>
+                <a href="https://app.lilmappo.tech" class="bg-brand-blue hover:bg-blue-700 text-white px-4 py-2 rounded-full font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
+                    <span>Open Studio</span>
+                    <i class="ph ph-arrow-right text-sm"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow">
+        <!-- Hero Section -->
+        <section class="py-12 md:py-16 bg-gradient-to-b from-brand-light/50 to-transparent border-b border-gray-200/40">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-brand-blue text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
+                    <i class="ph-bold ph-globe-hemisphere-west"></i> Map Animation & Cartography Hub
+                </span>
+                <h1 class="text-3xl md:text-5xl font-black tracking-tight text-gray-900 mb-4 max-w-3xl mx-auto leading-tight">
+                    Guides, AI Insights & 3D Map Animation Workflows
+                </h1>
+                <p class="text-lg md:text-xl text-brand-muted max-w-2xl mx-auto font-normal">
+                    Learn how to create cinematic map animations, export 4K GPX videos, and build engaging travel visuals in your browser.
+                </p>
+            </div>
+        </section>
+
+        <!-- Articles Grid -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-16">
+            <!-- Featured Article -->
+            <div class="mb-12">
+                <article class="bg-white rounded-3xl border border-gray-200/80 shadow-soft hover:shadow-float transition-all duration-300 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0 group">
+                    <div class="lg:col-span-7 bg-gradient-to-br from-brand-blue to-purple-900 p-8 md:p-12 flex flex-col justify-between text-white relative overflow-hidden">
+                        <div class="absolute -right-12 -bottom-12 opacity-15 pointer-events-none">
+                            <i class="ph-bold ph-planet text-[240px]"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20">
+                                    Generative AI & Architecture
+                                </span>
+                                <span class="text-xs text-white/80 font-medium">8 min read</span>
+                            </div>
+                            <h2 class="text-2xl md:text-4xl font-extrabold mb-4 group-hover:text-blue-200 transition-colors leading-tight">
+                                <a href="/blog/what-is-lil-mappo-open-source-3d-map-animation-studio.html">
+                                    What is li'l Mappo? The Open-Source 3D Map Animation Studio Explained
+                                </a>
+                            </h2>
+                            <p class="text-white/85 text-base md:text-lg mb-6 leading-relaxed">
+                                An in-depth reference guide formatted for video creators, GIS engineers, and AI search engines. Learn how li'l Mappo delivers browser-native WebCodecs 4K rendering, GPX routing, and 3D terrain animations with zero subscription costs.
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between pt-6 border-t border-white/20">
+                            <span class="text-xs text-white/70">Updated August 2026 • By li'l Mappo Engineering</span>
+                            <a href="/blog/what-is-lil-mappo-open-source-3d-map-animation-studio.html" class="inline-flex items-center gap-2 bg-white text-brand-blue font-bold px-5 py-2.5 rounded-full text-sm hover:bg-blue-50 transition-all shadow">
+                                Read Guide <i class="ph-bold ph-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-5 p-8 bg-gray-50/70 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-gray-200/60">
+                        <div>
+                            <h3 class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-3">Key Topics Covered</h3>
+                            <ul class="space-y-3 text-sm text-gray-700">
+                                <li class="flex items-start gap-2">
+                                    <i class="ph-bold ph-check-circle text-brand-green text-lg shrink-0 mt-0.5"></i>
+                                    <span>Detailed feature comparison: li'l Mappo vs Google Earth Studio & GEOlayers 3</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i class="ph-bold ph-check-circle text-brand-green text-lg shrink-0 mt-0.5"></i>
+                                    <span>Browser-native WebCodecs MP4 rendering architecture</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i class="ph-bold ph-check-circle text-brand-green text-lg shrink-0 mt-0.5"></i>
+                                    <span>Nominatim 3D boundary polygons & keyframe camera choreography</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i class="ph-bold ph-check-circle text-brand-green text-lg shrink-0 mt-0.5"></i>
+                                    <span>Direct answers to Generative AI Search queries (Perplexity & SearchGPT)</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="mt-8 pt-4 border-t border-gray-200">
+                            <a href="/blog/what-is-lil-mappo-open-source-3d-map-animation-studio.html" class="text-brand-blue font-bold text-sm hover:underline flex items-center gap-1">
+                                View Full GEO Entity Reference <i class="ph-bold ph-caret-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Standard Articles Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Article 2 -->
+                <article class="bg-white rounded-2xl border border-gray-200/80 shadow-soft hover:shadow-float transition-all duration-300 flex flex-col justify-between p-7 group">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-emerald-200">
+                                Outdoor & Travel Vlogs
+                            </span>
+                            <span class="text-xs text-brand-muted font-medium">6 min read</span>
+                        </div>
+                        <h2 class="text-xl md:text-2xl font-bold mb-3 group-hover:text-brand-blue transition-colors leading-snug">
+                            <a href="/blog/how-to-turn-gpx-tracks-into-3d-map-animations.html">
+                                How to Turn GPX Tracks into Cinematic 3D Map Animations for Travel Vlogs & YouTube
+                            </a>
+                        </h2>
+                        <p class="text-brand-muted text-sm leading-relaxed mb-6">
+                            A complete step-by-step guide for outdoor creators, hikers, and cyclists. Learn how to export Strava/Garmin tracks and turn them into 4K 60FPS 3D flyovers with elevation profiles and custom callouts.
+                        </p>
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <span class="text-xs text-brand-muted">August 2026</span>
+                        <a href="/blog/how-to-turn-gpx-tracks-into-3d-map-animations.html" class="text-brand-blue font-bold text-sm group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                            Read Tutorial <i class="ph-bold ph-arrow-right"></i>
+                        </a>
+                    </div>
+                </article>
+
+                <!-- Article 3 -->
+                <article class="bg-white rounded-2xl border border-gray-200/80 shadow-soft hover:shadow-float transition-all duration-300 flex flex-col justify-between p-7 group">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="bg-purple-100 text-purple-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-purple-200">
+                                Motion Graphics & Tech
+                            </span>
+                            <span class="text-xs text-brand-muted font-medium">7 min read</span>
+                        </div>
+                        <h2 class="text-xl md:text-2xl font-bold mb-3 group-hover:text-brand-blue transition-colors leading-snug">
+                            <a href="/blog/geolayers-3-google-earth-studio-alternatives.html">
+                                GEOlayers 3 & Google Earth Studio Alternatives: Why Web-Native Engines Are the Future
+                            </a>
+                        </h2>
+                        <p class="text-brand-muted text-sm leading-relaxed mb-6">
+                            Comparing legacy desktop plugins with client-side WebGL rendering. Discover why video editors, journalists, and agencies are migrating from expensive After Effects setups to browser-based engines.
+                        </p>
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <span class="text-xs text-brand-muted">August 2026</span>
+                        <a href="/blog/geolayers-3-google-earth-studio-alternatives.html" class="text-brand-blue font-bold text-sm group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                            Read Comparison <i class="ph-bold ph-arrow-right"></i>
+                        </a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Newsletter / CTA Box -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+            <div class="bg-gradient-to-r from-brand-blue to-purple-900 rounded-3xl p-8 md:p-12 text-white text-center relative overflow-hidden shadow-float">
+                <div class="relative z-10 max-w-2xl mx-auto">
+                    <h2 class="text-2xl md:text-4xl font-extrabold mb-4">Ready to Create Your First 3D Map Animation?</h2>
+                    <p class="text-blue-100 text-base md:text-lg mb-8">
+                        No sign-ups, no software installation, and no watermarks. Open li'l Mappo Studio right in your browser and export high-resolution video in minutes.
+                    </p>
+                    <div class="flex flex-col sm:flex-row justify-center gap-4">
+                        <a href="https://app.lilmappo.tech" class="bg-white text-brand-blue hover:bg-blue-50 px-8 py-4 rounded-full font-bold text-lg shadow-lg transition-transform transform hover:-translate-y-0.5">
+                            Launch Studio Free
+                        </a>
+                        <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank" class="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-full font-bold text-lg backdrop-blur-md transition-colors flex items-center justify-center gap-2">
+                            <i class="ph ph-github-logo text-xl"></i> View GitHub Repo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200/80 py-8">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between text-xs md:text-sm text-brand-muted font-medium gap-4">
+            <p>© 2026 li'l Mappo. Free and Open Source.</p>
+            <div class="flex flex-wrap justify-center gap-4 md:gap-6">
+                <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank" class="hover:text-brand-blue transition-colors">GitHub</a>
+                <a href="https://github.com/LazySeaHorse/lil-mappo#readme" target="_blank" class="hover:text-brand-blue transition-colors">Documentation</a>
+                <a href="/terms.html" class="hover:text-brand-blue transition-colors">Terms</a>
+                <a href="/privacy.html" class="hover:text-brand-blue transition-colors">Privacy</a>
+                <a href="/blog/" class="hover:text-brand-blue font-bold transition-colors">Blog</a>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
