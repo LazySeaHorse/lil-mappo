@@ -1,4 +1,5 @@
 import { getEffectiveMapboxToken } from '@/config/mapbox';
+import { truncateCoordinates } from '@/engine/geoUtils';
 
 export interface DirectionsResult {
   geometry: GeoJSON.LineString;
@@ -26,7 +27,7 @@ export async function getDirections(
 
     const route = data.routes[0];
     return {
-      geometry: route.geometry,
+      geometry: truncateCoordinates(route.geometry, 4),
       distance: route.distance,
       duration: route.duration,
     };
@@ -35,3 +36,4 @@ export async function getDirections(
     throw error;
   }
 }
+

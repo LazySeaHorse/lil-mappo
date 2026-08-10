@@ -1,3 +1,5 @@
+import { optimizeGeometry } from '@/engine/geoUtils';
+
 export interface NominatimResult {
   display_name: string;
   type: string;
@@ -17,6 +19,7 @@ export async function searchBoundary(query: string): Promise<NominatimResult[]> 
     .map((f: any) => ({
       display_name: f.properties?.display_name || query,
       type: f.properties?.type || 'unknown',
-      geojson: f.geometry,
+      geojson: optimizeGeometry(f.geometry, { simplify: true, tolerance: 0.0005, precision: 4 }),
     }));
 }
+

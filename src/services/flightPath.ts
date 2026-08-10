@@ -1,5 +1,6 @@
 import { greatCircle } from '@turf/great-circle';
 import { point } from '@turf/helpers';
+import { truncateCoordinates } from '@/engine/geoUtils';
 
 /**
  * Generates a 3D Great Circle arc between two points.
@@ -25,8 +26,11 @@ export function calculateFlightArc(
     return [c[0], c[1], altitude] as [number, number, number];
   });
 
-  return {
+  const rawLine: GeoJSON.LineString = {
     type: 'LineString',
     coordinates: coordsWithAlt as any
   };
+
+  return truncateCoordinates(rawLine, 4);
 }
+
