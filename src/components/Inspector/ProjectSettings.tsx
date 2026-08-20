@@ -12,7 +12,7 @@ import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
-import { RotateCw, Monitor, Smartphone, Lock, ArrowRight } from 'lucide-react';
+import { RotateCw, Monitor, Smartphone, Lock, ArrowRight, Settings2 } from 'lucide-react';
 import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
@@ -54,8 +54,9 @@ export function ProjectSettings() {
   const { openCreditsModal } = useAuthStore();
 
   return (
-    <PanelWrapper title="Project Settings">
+    <PanelWrapper title="Project Settings" icon={<Settings2 size={15} />}>
       <SegmentedControl
+
         options={[
           { value: 'general', label: 'General' },
           { value: 'map', label: 'Map' },

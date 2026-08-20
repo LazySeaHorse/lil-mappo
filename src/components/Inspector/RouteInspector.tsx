@@ -4,12 +4,28 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem, EasingName, AutoCamConfig } from '@/store/types';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Field, SwitchField } from '@/components/ui/field';
-import { Clapperboard } from 'lucide-react';
-import { ColorPicker } from '@/components/ui/color-picker';
-import { InputText, InputNumber, SliderField, EasingSelect } from './InspectorShared';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { ProBadge } from '@/components/ui/pro-badge';
+import { useSubscription } from '@/hooks/useSubscription';
+import { 
+  EditableTitle, 
+  SliderRow, 
+  ColorRow, 
+  SwitchRow, 
+  TimingControls, 
+  VisualCardSelect 
+} from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { 
+  Navigation, 
+  Clapperboard, 
+  CircleDot, 
+  Flame, 
+  Spline, 
+  Car, 
+  Plane, 
+  Circle 
+} from 'lucide-react';
 
 const AUTO_CAM_DEFAULTS: AutoCamConfig = {
   enabled: true,
@@ -25,15 +41,35 @@ const AUTO_CAM_DEFAULTS: AutoCamConfig = {
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
-  const deleteItem = useProjectStore((s) => s.removeItem);
-  const selectItem = useProjectStore((s) => s.selectItem);
+  const { data: sub } = useSubscription();
+  const isPro = sub && (sub.tier === 'wanderer' || sub.tier === 'cartographer' || sub.tier === 'pioneer');
 
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch as any);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
 
+  const calc = item.calculation || {
+    mode: 'car',
+    startPoint: [0, 0],
+    endPoint: [0, 0],
+  };
+
+  const updateVehicle = (patch: Partial<NonNullable<RouteItem['calculation']>['vehicle']>) => {
+    const currentVehicle = calc.vehicle || {
+      enabled: false,
+      type: 'dot' as const,
+      modelId: '',
+      scale: 1.0,
+    };
+    updateItem(item.id, { 
+      calculation: { 
+        ...calc, 
+        vehicle: { ...currentVehicle, ...patch } 
+      } 
+    } as any);
+  };
+
   const handleAutoCamToggle = (enabled: boolean) => {
     if (enabled) {
-      // Require geometry
       let coordCount = 0;
       for (const f of item.geojson.features) {
         if (f.geometry.type === 'LineString') coordCount += (f.geometry.coordinates as any[]).length;
@@ -44,7 +80,6 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         return;
       }
 
-      // Check for overlap with other enabled auto-cam routes
       const allItems = useProjectStore.getState().items;
       const overlapping = Object.values(allItems).find(
         (other) =>
@@ -60,7 +95,6 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         return;
       }
 
-      // Preserve prior settings if they exist, otherwise use defaults
       u({ autoCam: { ...AUTO_CAM_DEFAULTS, ...(item.autoCam ?? {}), enabled: true } });
     } else {
       u({ autoCam: item.autoCam ? { ...item.autoCam, enabled: false } : undefined });
@@ -68,110 +102,227 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   };
 
   const animType = item.style.animationType || 'draw';
-  const footer = <ItemActions id={item.id} kind="route" />;
+  const footer = <ItemActions id={item.id} kind="route" customLabel="Delete Route" />;
+
+  const lineStyleValue = 
+    !item.style.dashPattern ? 'solid' :
+    item.style.dashPattern[0] === 2 ? 'dotted' : 'dashed';
+
+  const animOptions = [
+    { value: 'draw', label: 'Draw', icon: <Spline size={13} /> },
+    { value: 'navigation', label: 'Progress', icon: <CircleDot size={13} /> },
+    { value: 'comet', label: 'Meteor', icon: <Flame size={13} /> },
+  ] as const;
 
   return (
-    <PanelWrapper title={`Route: ${item.name}`} footer={footer}>
-      <Field label="Name"><InputText value={item.name} onChange={(v) => u({ name: v })} /></Field>
+    <PanelWrapper 
+      title="Route" 
+      icon={<Navigation size={15} />}
+      footer={footer}
+    >
+      <EditableTitle 
+        value={item.name} 
+        onChange={(v) => u({ name: v })} 
+        placeholder="Route name..."
+      />
 
-      <Accordion type="multiple" defaultValue={['path', 'style', 'timing', 'autocam']} className="w-full mt-4">
+      <Accordion type="multiple" defaultValue={['path', 'appearance', 'animation', 'camera']} className="w-full">
         
-        <InspectorSection value="path" title="Path Data">
-          <div className="px-1 mt-1 mb-2">
-            <RoutePlanner item={item} />
-          </div>
+        <InspectorSection value="path" title="Path">
+          <RoutePlanner item={item} />
         </InspectorSection>
 
-        <InspectorSection value="style" title="Style">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-3">Route Look</label>
-          <Field label="Animation Type">
-            <Select value={animType} onValueChange={(v) => us({ animationType: v as RouteItem['style']['animationType'] })}>
-              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draw">Animated Path</SelectItem>
-                <SelectItem value="navigation">Reveal Progress</SelectItem>
-                <SelectItem value="comet">Meteor Trail</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field label="Color"><ColorPicker value={item.style.color} onChange={(v) => us({ color: v })} /></Field>
-          <SliderField label="Width" value={item.style.width} onChange={(v) => us({ width: v })} min={1} max={12} step={1} />
-
-          {animType !== 'comet' && (
-            <Field label="Dash Pattern">
-              <Select value={item.style.dashPattern ? (item.style.dashPattern[0] === 2 ? 'dotted' : 'dashed') : 'solid'} onValueChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}>
-                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="solid">Solid</SelectItem>
-                  <SelectItem value="dashed">Dashed</SelectItem>
-                  <SelectItem value="dotted">Dotted</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
-
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mt-6 mb-3">Trail Effects</label>
-          {animType !== 'comet' && (
-            <SwitchField checked={item.style.glow} onChange={(v) => us({ glow: v })} label="Glow" />
-          )}
-
-          {animType === 'comet' && (
-            <SliderField
-              label="Trail Length"
-              value={item.style.cometTrailLength ?? 0.2}
-              onChange={(v) => us({ cometTrailLength: v })}
-              min={0.05}
-              max={0.8}
-              step={0.05}
+        <InspectorSection value="appearance" title="Appearance">
+          <div className="flex flex-col gap-3">
+            <ColorRow 
+              label="Color" 
+              value={item.style.color} 
+              onChange={(v) => us({ color: v })} 
             />
-          )}
 
-          {animType === 'draw' && (
-            <>
-              <SwitchField checked={item.style.trailFade} onChange={(v) => us({ trailFade: v })} label="Trail Fade" />
-              {item.style.trailFade && <SliderField label="Fade Length" value={item.style.trailFadeLength} onChange={(v) => us({ trailFadeLength: v })} min={0.05} max={1} />}
-            </>
-          )}
-        </InspectorSection>
+            <SliderRow 
+              label="Width" 
+              value={item.style.width} 
+              onChange={(v) => us({ width: v })} 
+              min={1} 
+              max={15} 
+              step={1} 
+              unit="px"
+            />
 
-        <InspectorSection value="timing" title="Timing">
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <Field label="Start Time"><InputNumber value={item.startTime} onChange={(v) => u({ startTime: v })} min={0} step={0.1} /></Field>
-            <Field label="End Time"><InputNumber value={item.endTime} onChange={(v) => u({ endTime: v })} min={0} step={0.1} /></Field>
+            <div className="flex flex-col gap-1.5 pt-0.5">
+              <span className="text-xs font-medium text-muted-foreground">Line style</span>
+              <VisualCardSelect
+                options={[
+                  { 
+                    value: 'solid', 
+                    label: 'Solid', 
+                    icon: <div className="w-5 h-[2.5px] bg-current rounded-full my-0.5" /> 
+                  },
+                  { 
+                    value: 'dashed', 
+                    label: 'Dashed', 
+                    icon: <div className="w-5 border-t-[2.5px] border-dashed border-current my-0.5" /> 
+                  },
+                  { 
+                    value: 'dotted', 
+                    label: 'Dotted', 
+                    icon: <div className="w-5 border-t-[2.5px] border-dotted border-current my-0.5" /> 
+                  },
+                ] as any}
+                value={lineStyleValue}
+                onChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}
+                columns={3}
+              />
+            </div>
+
+            <SwitchRow 
+              label="Glow" 
+              checked={item.style.glow} 
+              onChange={(v) => us({ glow: v })} 
+            />
           </div>
-          <EasingSelect value={item.easing} onChange={(v) => u({ easing: v })} />
-          
-          {animType === 'draw' && (
-            <Field label="Exit Animation">
-              <Select 
-                value={item.exitAnimation || 'none'} 
-                onValueChange={(v) => u({ exitAnimation: v as any })}
-              >
-                <SelectTrigger className="h-8 text-sm w-full mt-2"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Persist on Map</SelectItem>
-                  <SelectItem value="reverse">Erase Backwards</SelectItem>
-                  <SelectItem value="fade">Fade Out</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
         </InspectorSection>
-        <InspectorSection value="autocam" title="Auto Camera">
-          <SwitchField
-            checked={item.autoCam?.enabled ?? false}
-            onChange={handleAutoCamToggle}
-            label="Follow this route automatically"
-          />
-          {item.autoCam?.enabled && (
-            <p className="text-[11px] text-primary mt-2 flex items-center gap-1.5">
-              <Clapperboard size={11} />
-              Click the blue block in the Camera track to edit camera settings.
-            </p>
-          )}
+
+        <InspectorSection value="animation" title="Animation">
+          <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Style</span>
+              <VisualCardSelect
+                options={animOptions as any}
+                value={animType}
+                onChange={(v) => us({ animationType: v as any })}
+                columns={3}
+              />
+            </div>
+
+            {/* Travel Marker */}
+            <div className="flex flex-col gap-3 pt-1 border-t border-border/30">
+              <SwitchRow
+                label="Travel marker"
+                checked={calc.vehicle?.enabled || false}
+                onChange={(v) => updateVehicle({ enabled: v })}
+              />
+
+              {calc.vehicle?.enabled && (
+                <div className="flex flex-col gap-3 pl-0.5">
+                  <div className="flex flex-col gap-1.5 pt-0.5">
+                    <span className="text-xs font-medium text-muted-foreground">Marker type</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { type: 'dot', label: 'Dot', icon: <Circle size={14} />, pro: false },
+                        { type: 'car', label: 'Car', icon: <Car size={14} />, pro: true },
+                        { type: 'plane', label: 'Plane', icon: <Plane size={14} />, pro: true },
+                      ] as const).map(({ type, label, icon, pro }) => {
+                        const locked = pro && !isPro;
+                        const active = (calc.vehicle?.type || 'dot') === type;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            disabled={locked}
+                            onClick={() => !locked && updateVehicle({ type })}
+                            className={`relative flex flex-col items-center justify-center gap-1.5 p-2 py-3 min-h-[58px] rounded-xl border text-center transition-all cursor-pointer select-none
+                              ${active ? 'bg-primary/10 border-primary text-primary font-bold shadow-xs ring-1 ring-primary/20' : 'bg-secondary/40 hover:bg-secondary/70 border-border/40 text-muted-foreground hover:text-foreground'}
+                              ${locked ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
+                          >
+                            <div className={`flex items-center justify-center transition-colors ${active ? 'text-primary' : 'text-muted-foreground/80'}`}>
+                              {icon}
+                            </div>
+                            <span className="text-[10px] font-semibold leading-tight text-center w-full block">{label}</span>
+                            {locked && (
+                              <span className="absolute top-1 right-1 text-[8px] bg-primary/20 text-primary px-1 py-0.2 rounded font-black tracking-wider uppercase">
+                                PRO
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <SliderRow 
+                    label="Size" 
+                    value={calc.vehicle?.scale || 1} 
+                    onChange={(v) => updateVehicle({ scale: v })} 
+                    min={0.2} 
+                    max={4} 
+                    step={0.1} 
+                    formatValue={(v) => `${v.toFixed(1)}x`}
+                  />
+                </div>
+              )}
+            </div>
+
+            {animType === 'comet' && (
+              <SliderRow
+                label="Trail Length"
+                value={item.style.cometTrailLength ?? 0.2}
+                onChange={(v) => us({ cometTrailLength: v })}
+                min={0.05}
+                max={0.8}
+                step={0.05}
+                formatValue={(v) => v.toFixed(2)}
+              />
+            )}
+
+            {animType === 'draw' && (
+              <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
+                <SwitchRow 
+                  label="Trail Fade" 
+                  checked={item.style.trailFade} 
+                  onChange={(v) => us({ trailFade: v })} 
+                />
+                {item.style.trailFade && (
+                  <SliderRow 
+                    label="Fade Length" 
+                    value={item.style.trailFadeLength} 
+                    onChange={(v) => us({ trailFadeLength: v })} 
+                    min={0.05} 
+                    max={1} 
+                    step={0.05} 
+                    formatValue={(v) => v.toFixed(2)}
+                  />
+                )}
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-border/30">
+              <TimingControls
+                startTime={item.startTime}
+                endTime={item.endTime}
+                onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
+                easing={item.easing}
+                onChangeEasing={(v) => u({ easing: v })}
+                exitAnimation={item.exitAnimation}
+                onChangeExitAnimation={(v) => u({ exitAnimation: v })}
+                showExitAnimation={animType === 'draw'}
+              />
+            </div>
+          </div>
         </InspectorSection>
+
+        <InspectorSection value="camera" title="Camera">
+          <div className="flex flex-col gap-2">
+            <SwitchRow
+              label="Follow this route"
+              sublabel="Keeps the route or vehicle in frame while it moves."
+              checked={item.autoCam?.enabled ?? false}
+              onChange={handleAutoCamToggle}
+            />
+            {item.autoCam?.enabled && (
+              <div className="mt-1.5 p-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
+                <Clapperboard size={13} className="text-primary shrink-0" />
+                <p className="text-[11px] text-primary font-medium leading-tight">
+                  Click the blue block in the Camera track to edit camera settings.
+                </p>
+              </div>
+            )}
+          </div>
+        </InspectorSection>
+
       </Accordion>
     </PanelWrapper>
   );
 }
+

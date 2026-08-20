@@ -18,27 +18,45 @@ import {
   PANEL_MARGIN
 } from '@/constants/layout';
 import { IconButton } from '@/components/ui/icon-button';
+import { cn } from '@/lib/utils';
 
-export function InspectorSection({ value, title, children }: { value: string; title: string; children: React.ReactNode }) {
+export function InspectorSection({ 
+  value, 
+  title, 
+  children,
+  className,
+}: { 
+  value: string; 
+  title: string; 
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <AccordionItem value={value} className="border-b-0 bg-secondary/55 rounded-lg px-3 mb-3">
-      <AccordionTrigger className="hover:no-underline py-3 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70 hover:text-foreground">
-        {title}
+    <AccordionItem 
+      value={value} 
+      className={cn(
+        "border border-border/40 bg-secondary/25 hover:bg-secondary/35 rounded-xl px-3.5 mb-2.5 transition-colors overflow-hidden data-[state=open]:bg-secondary/35",
+        className
+      )}
+    >
+      <AccordionTrigger className="hover:no-underline py-2.5 text-xs font-semibold tracking-tight text-foreground/90 hover:text-foreground">
+        <span>{title}</span>
       </AccordionTrigger>
-      <AccordionContent className="pb-3 flex flex-col">
+      <AccordionContent className="pt-1 pb-3.5 flex flex-col gap-3">
         {children}
       </AccordionContent>
     </AccordionItem>
   );
 }
 
-
 export function ItemActions({
   id,
-  kind
+  kind,
+  customLabel,
 }: {
   id: string;
-  kind: 'route' | 'boundary' | 'callout' | 'camera-kf'
+  kind: 'route' | 'boundary' | 'callout' | 'camera-kf';
+  customLabel?: string;
 }) {
   const { removeItem, selectItem, removeCameraKeyframe, selectKeyframe, duplicateItem } = useProjectStore();
 
@@ -55,14 +73,19 @@ export function ItemActions({
     }
   };
 
+  const kindLabel = 
+    kind === 'route' ? 'Route' :
+    kind === 'boundary' ? 'Boundary' :
+    kind === 'callout' ? 'Callout' : 'Keyframe';
+
   return (
-    <div className="flex flex-col gap-2 w-full mt-4">
+    <div className="flex flex-col gap-2 w-full">
       {canDuplicate && (
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           onClick={() => duplicateItem(id)}
-          className="w-full h-8 flex items-center justify-center gap-1.5 text-xs bg-secondary/50 hover:bg-secondary border border-border/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold bg-background/40 hover:bg-secondary/80 border-border/50 transition-all hover:scale-[1.01] active:scale-[0.99]"
         >
           <Copy size={13} /> Duplicate
         </Button>
@@ -71,15 +94,25 @@ export function ItemActions({
         variant="destructive"
         size="sm"
         onClick={handleDelete}
-        className="w-full h-8 flex items-center justify-center gap-1.5 text-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
+        className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-white transition-all hover:scale-[1.01] active:scale-[0.99]"
       >
-        <Trash2 size={13} /> Delete {isCameraKF ? 'Keyframe' : kind.charAt(0).toUpperCase() + kind.slice(1)}
+        <Trash2 size={13} /> {customLabel || `Delete ${kindLabel}`}
       </Button>
     </div>
   );
 }
 
-export function PanelWrapper({ title, children, footer }: { title: string; children: React.ReactNode; footer?: React.ReactNode }) {
+export function PanelWrapper({ 
+  title, 
+  icon,
+  children, 
+  footer 
+}: { 
+  title: string; 
+  icon?: React.ReactNode;
+  children: React.ReactNode; 
+  footer?: React.ReactNode 
+}) {
   const { isMobile, isTablet } = useResponsive();
   const { isInspectorOpen, setIsInspectorOpen } = useProjectStore();
   const [snap, setSnap] = React.useState<number | string | null>(0.7);
@@ -94,15 +127,16 @@ export function PanelWrapper({ title, children, footer }: { title: string; child
         setActiveSnapPoint={setSnap}
       >
         <DrawerContent className="h-[96vh] max-h-none p-0 outline-none border-0 bg-white dark:bg-slate-950 rounded-t-[32px] shadow-2xl pointer-events-auto">
-          <DrawerHeader className="px-6 pb-2 pt-6 border-b border-border/10 shrink-0">
+          <DrawerHeader className="px-6 pb-2 pt-6 border-b border-border/10 shrink-0 flex items-center gap-2">
+            {icon && <span className="text-primary">{icon}</span>}
             <DrawerTitle className="text-lg font-bold tracking-tight">{title}</DrawerTitle>
             <DrawerDescription className="hidden">Adjust settings for {title}</DrawerDescription>
           </DrawerHeader>
           <div className="flex-1 overflow-y-auto w-full relative mt-2 scroll-smooth px-2" vaul-drawer-scrollable="">
-            <div className="p-4 pb-48 flex flex-col gap-1">
+            <div className="p-4 pb-48 flex flex-col gap-3">
               {children}
               {footer && (
-                <div className="mt-12 pt-8 border-t border-border/10 px-4">
+                <div className="mt-8 pt-4 border-t border-border/20 px-2">
                   {footer}
                 </div>
               )}
@@ -124,14 +158,18 @@ export function PanelWrapper({ title, children, footer }: { title: string; child
 
   return (
     <div
-      className={`absolute bg-background/75 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-2xl shadow-xl !overflow-visible pointer-events-auto flex flex-col transition-all duration-300`}
+      className="absolute bg-background/85 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col transition-all duration-300 z-30"
       style={{ ...widthStyles, ...positionStyles }}
     >
-      <div className="p-4 py-3 border-b border-white/10 dark:border-white/5 shrink-0 bg-background/50 flex items-center justify-between">
-        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+      <div className="p-3.5 px-4 border-b border-border/40 shrink-0 bg-background/50 backdrop-blur-md flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          {icon && <span className="text-primary shrink-0">{icon}</span>}
+          <h2 className="text-xs font-bold tracking-tight text-foreground truncate">{title}</h2>
+        </div>
         <IconButton
           variant="ghost"
           size="xs"
+          className="rounded-lg hover:bg-secondary/80 text-muted-foreground hover:text-foreground"
           onClick={() => setIsInspectorOpen(false)}
         >
           <X size={14} />
@@ -141,13 +179,14 @@ export function PanelWrapper({ title, children, footer }: { title: string; child
         <div className="p-4 flex flex-col gap-1">
           {children}
         </div>
-        <ScrollBar orientation="vertical" className="z-40 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <ScrollBar orientation="vertical" className="z-40 w-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </ScrollArea>
       {footer && (
-        <div className="p-4 border-t border-white/10 dark:border-white/5 shrink-0 bg-background/50">
+        <div className="p-3.5 px-4 border-t border-border/40 shrink-0 bg-background/50 backdrop-blur-md">
           {footer}
         </div>
       )}
     </div>
   );
 }
+

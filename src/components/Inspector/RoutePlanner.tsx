@@ -1,40 +1,46 @@
 import { useState, useEffect } from 'react';
-import type { SearchBoxSuggestion } from '@mapbox/search-js-core';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Car, Circle, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X } from 'lucide-react';
+import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X, CheckCircle2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RouteItem } from '@/store/types';
-
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { ProBadge } from '@/components/ui/pro-badge';
-import { useSubscription } from '@/hooks/useSubscription';
 
 interface InspectorSearchFieldProps {
   label: string;
+  dotColor: string;
   value: [number, number];
   onSelect: (lngLat: [number, number]) => void;
-  color: string;
+  pointType: 'start' | 'end';
+  item: RouteItem;
 }
 
-const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearchFieldProps) => {
-  const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, handleClose, clear } = useLocationSearch({
+const InspectorSearchField = ({ 
+  value, 
+  onSelect, 
+  dotColor, 
+  label,
+  pointType,
+  item 
+}: InspectorSearchFieldProps) => {
+  const { editingRoutePoint, setEditingRoutePoint, setEditingItemId } = useProjectStore();
+  const isPicking = editingRoutePoint === pointType;
+
+  const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, clear } = useLocationSearch({
     onSelect: (lngLat) => onSelect(lngLat),
     parseCoordinates: true,
   });
 
   // Sync internal query when value (coordinates) changes from map click
   useEffect(() => {
-    if (value[0] !== 0) {
+    if (value[0] !== 0 || value[1] !== 0) {
       setQuery(`${value[0].toFixed(4)}, ${value[1].toFixed(4)}`);
     } else {
       setQuery('');
@@ -43,51 +49,69 @@ const InspectorSearchField = ({ value, onSelect, color, label }: InspectorSearch
 
   return (
     <div className="relative group w-full">
-      <div className="flex items-center gap-3">
-        <div className={`w-7 h-7 rounded-full ${color} flex items-center justify-center shrink-0 border shadow-sm`}>
-          <div className="w-1.5 h-1.5 rounded-full bg-current" />
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 shrink-0 w-14">
+          <div className={`w-2.5 h-2.5 rounded-full ${dotColor} shadow-xs shrink-0`} />
+          <span className="text-xs font-semibold text-foreground/90">{label}</span>
         </div>
+
         <div className="relative flex-1">
           <Input
-            placeholder={label}
+            placeholder="Search address or coords..."
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-            }}
+            onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 performSearch(query);
               }
             }}
-            className="h-8 text-[11px] font-mono pl-3 pr-8 bg-background/50 border-border/50 rounded-full focus-visible:ring-1 focus-visible:ring-primary/20"
+            className="h-8 text-xs font-mono pl-3 pr-8 bg-background/50 border-border/50 rounded-xl focus-visible:ring-1 focus-visible:ring-primary/20"
           />
           {query && (
             <button
+              type="button"
               onClick={clear}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted/50"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-full hover:bg-muted/50"
             >
-              <X size={10} />
+              <X size={11} />
             </button>
           )}
-          {loading && <div className="absolute right-8 top-1/2 -translate-y-1/2"><Loader2 className="w-3.5 h-3.5 animate-spin opacity-40 text-primary" /></div>}
+          {loading && (
+            <div className="absolute right-7 top-1/2 -translate-y-1/2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin opacity-50 text-primary" />
+            </div>
+          )}
         </div>
+
+        <IconButton 
+          variant={isPicking ? 'default' : 'outline'}
+          size="xs"
+          className={`rounded-lg h-8 w-8 shrink-0 transition-all ${isPicking ? 'bg-primary text-primary-foreground shadow-sm' : 'border-border/50 bg-background/50'}`}
+          onClick={() => {
+            setEditingRoutePoint(isPicking ? null : pointType);
+            setEditingItemId(isPicking ? null : item.id);
+          }}
+          title={isPicking ? "Click on map to place point" : "Pick point on map"}
+        >
+          <Crosshair size={13} className={isPicking ? 'animate-pulse text-white' : 'text-muted-foreground'} />
+        </IconButton>
       </div>
 
       {isOpen && suggestions.length > 0 && (
-        <Card className="absolute left-0 z-[110] mt-1 w-fit min-w-[200px] max-w-[400px] shadow-2xl bg-background border border-border shadow-primary/10 overflow-hidden rounded-lg animate-in fade-in zoom-in-95 duration-200">
-          <ScrollArea className="max-h-60 w-full overflow-x-hidden">
+        <Card className="absolute left-0 z-[110] mt-1 w-full max-h-60 shadow-2xl bg-background border border-border shadow-primary/10 overflow-hidden rounded-xl animate-in fade-in zoom-in-95 duration-200">
+          <ScrollArea className="max-h-56 w-full overflow-x-hidden">
             <div className="p-1">
               {suggestions.map((s) => (
                 <button
                   key={s.mapbox_id}
-                  className="w-full text-left px-3 py-2 text-[10px] hover:bg-secondary rounded border-b border-border last:border-0 whitespace-nowrap group/res"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-secondary rounded-lg border-b border-border/30 last:border-0 whitespace-nowrap group/res transition-colors flex items-center gap-2"
                   onClick={() => handleSelect(s)}
                 >
-                  <MapPin size={10} className="text-muted-foreground group-hover/res:text-primary transition-colors inline mr-2 shrink-0" />
-                  <span>{s.name}</span>
+                  <MapPin size={12} className="text-muted-foreground group-hover/res:text-primary transition-colors shrink-0" />
+                  <span className="font-medium text-foreground truncate">{s.name}</span>
                   {s.place_formatted && (
-                    <span className="text-muted-foreground ml-1">{s.place_formatted}</span>
+                    <span className="text-[11px] text-muted-foreground truncate">{s.place_formatted}</span>
                   )}
                 </button>
               ))}
@@ -104,35 +128,18 @@ interface RoutePlannerProps {
 }
 
 export const RoutePlanner = ({ item }: RoutePlannerProps) => {
-  const { updateItem, editingRoutePoint, setEditingRoutePoint, setEditingItemId, setPreviewRoute } = useProjectStore();
+  const { updateItem, setPreviewRoute } = useProjectStore();
   const [loading, setLoading] = useState(false);
-
-  const { data: sub } = useSubscription();
-  const isPro = sub && (sub.tier === 'wanderer' || sub.tier === 'cartographer' || sub.tier === 'pioneer');
+  const [hasCalculated, setHasCalculated] = useState(false);
 
   const calc = item.calculation || {
-    mode: 'manual',
+    mode: 'car',
     startPoint: [0, 0],
     endPoint: [0, 0],
   };
 
   const handleModeChange = (mode: 'car' | 'flight' | 'manual') => {
     updateItem(item.id, { calculation: { ...calc, mode } } as any);
-  };
-
-  const updateVehicle = (patch: Partial<NonNullable<RouteItem['calculation']>['vehicle']>) => {
-    const currentVehicle = calc.vehicle || {
-      enabled: false,
-      type: 'dot' as const,
-      modelId: '',
-      scale: 1.0,
-    };
-    updateItem(item.id, { 
-      calculation: { 
-        ...calc, 
-        vehicle: { ...currentVehicle, ...patch } 
-      } 
-    } as any);
   };
 
   const calculateRoute = async (saveToItem: boolean) => {
@@ -159,8 +166,9 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
 
       if (saveToItem) {
         updateItem(item.id, { geojson: featureCollection } as any);
-        toast.success('Route saved');
+        toast.success('Route applied');
         setPreviewRoute(null);
+        setHasCalculated(true);
       } else {
         setPreviewRoute(featureCollection);
         toast.success('Preview ready');
@@ -182,143 +190,80 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     setPreviewRoute(null);
   };
 
+  const hasCoordinates = 
+    item.geojson && 
+    item.geojson.features && 
+    item.geojson.features.length > 0;
+
   return (
-    <div className="space-y-6 pt-2">
+    <div className="flex flex-col gap-3.5">
       <SegmentedControl
         shape="pill"
         options={[
-          { value: 'manual', label: 'Manual', icon: <MapPin size={13} /> },
-          { value: 'car', label: 'Car', icon: <Car size={13} /> },
+          { value: 'manual', label: 'Manual' },
+          { value: 'car', label: 'Drive', icon: <Car size={13} /> },
           { value: 'flight', label: 'Flight', icon: <Plane size={13} /> },
         ]}
-        value={calc.mode || 'manual'}
+        value={calc.mode || 'car'}
         onValueChange={handleModeChange}
+        className="h-8"
       />
 
       {calc.mode !== 'manual' && (
-        <div className="space-y-4">
-          <div className="space-y-3 relative">
-            {/* Start Point */}
-            <div className="flex items-center gap-2">
-              <InspectorSearchField 
-                label="Search or Coordinates..."
-                value={calc.startPoint}
-                onSelect={setStart}
-                color="bg-green-500/10 text-green-500 border-green-500/20"
-              />
-              <IconButton 
-                variant={editingRoutePoint === 'start' ? 'default' : 'ghost'}
-                size="sm"
-                className="rounded-full"
-                onClick={() => {
-                  const active = editingRoutePoint === 'start';
-                  setEditingRoutePoint(active ? null : 'start');
-                  setEditingItemId(active ? null : item.id);
-                }}
-              >
-                <Crosshair size={14} className={editingRoutePoint === 'start' ? 'animate-pulse text-white' : ''} />
-              </IconButton>
-            </div>
+        <div className="flex flex-col gap-2.5">
+          {/* Start Point */}
+          <InspectorSearchField 
+            label="Start"
+            pointType="start"
+            item={item}
+            value={calc.startPoint}
+            onSelect={setStart}
+            dotColor="bg-emerald-500"
+          />
 
-            {/* End Point */}
-            <div className="flex items-center gap-2">
-              <InspectorSearchField 
-                label="Search or Coordinates..."
-                value={calc.endPoint}
-                onSelect={setEnd}
-                color="bg-red-500/10 text-red-500 border-red-500/20"
-              />
-              <IconButton 
-                variant={editingRoutePoint === 'end' ? 'default' : 'ghost'}
-                size="sm"
-                className="rounded-full"
-                onClick={() => {
-                  const active = editingRoutePoint === 'end';
-                  setEditingRoutePoint(active ? null : 'end');
-                  setEditingItemId(active ? null : item.id);
-                }}
-              >
-                <Crosshair size={14} className={editingRoutePoint === 'end' ? 'animate-pulse text-white' : ''} />
-              </IconButton>
-            </div>
-          </div>
+          {/* End Point */}
+          <InspectorSearchField 
+            label="End"
+            pointType="end"
+            item={item}
+            value={calc.endPoint}
+            onSelect={setEnd}
+            dotColor="bg-rose-500"
+          />
 
-          <div className="grid grid-cols-2 gap-2">
+          {/* Status banner if route exists */}
+          {hasCoordinates && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
+              <CheckCircle2 size={12} className="shrink-0" />
+              <span>Route found</span>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-2.5 pt-1">
             <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => calculateRoute(false)}
-              disabled={loading}
-              className="h-8 rounded-full text-xs font-medium border-border/50 hover:bg-secondary/50 group transition-all active:scale-95"
-            >
-              {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} className="text-muted-foreground group-hover:text-foreground transition-colors" />}
-              Preview Path
-            </Button>
-            
-            <Button 
+              type="button"
               onClick={() => calculateRoute(true)} 
               disabled={loading} 
-              className="h-8 rounded-full text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-95"
+              className="w-full h-10 py-2.5 px-4 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
             >
-              Update Route
+              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply Route'}
+            </Button>
+
+            <Button 
+              type="button"
+              variant="outline" 
+              onClick={() => calculateRoute(false)}
+              disabled={loading}
+              className="w-full h-10 py-2.5 px-4 rounded-xl text-xs font-semibold border border-border/60 bg-background/60 hover:bg-secondary/80 text-foreground shadow-2xs hover:shadow-xs transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Eye size={15} className="text-muted-foreground" />
+              <span>Preview on map</span>
             </Button>
           </div>
         </div>
       )}
-
-      {/* Vehicle Settings — Independent of Mode */}
-      <div className="pt-4 border-t border-border/10 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Vehicle</span>
-          <Switch
-            checked={calc.vehicle?.enabled || false}
-            onCheckedChange={(v) => updateVehicle({ enabled: v })}
-          />
-        </div>
-
-        {calc.vehicle?.enabled && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-1.5">
-              {([
-                { type: 'dot', label: 'Dot', icon: <Circle size={12} />, pro: false },
-                { type: 'car', label: 'Car', icon: <Car size={12} />, pro: true },
-                { type: 'plane', label: 'Plane', icon: <Plane size={12} />, pro: true },
-              ] as const).map(({ type, label, icon, pro }) => {
-                const locked = pro && !isPro;
-                const active = (calc.vehicle?.type || 'dot') === type;
-                return (
-                  <button
-                    key={type}
-                    disabled={locked}
-                    onClick={() => !locked && updateVehicle({ type })}
-                    className={`relative flex flex-col items-center justify-center gap-1 h-12 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all border
-                      ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary border-transparent'}
-                      ${locked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    {icon}
-                    {label}
-                    {locked && <ProBadge className="absolute -top-1.5 -right-1" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-                <span>Scale</span>
-                <span>{calc.vehicle?.scale?.toFixed(1) || '1.0'}x</span>
-              </div>
-              <Slider
-                value={[calc.vehicle?.scale || 1]}
-                onValueChange={([v]) => updateVehicle({ scale: v })}
-                min={0.1}
-                max={5}
-                step={0.1}
-              />
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 };
+
