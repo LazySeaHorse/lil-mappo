@@ -45,6 +45,7 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
 
       <Accordion type="multiple" defaultValue={['cam']} className="w-full">
         <InspectorSection value="cam" title="Camera Settings">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
                 <span className="text-xs font-medium text-muted-foreground">Longitude</span>
