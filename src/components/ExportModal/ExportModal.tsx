@@ -1,13 +1,13 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapRef } from '@/hooks/useMapRef';
 import { useCredits } from '@/hooks/useCredits';
 import { useSubscription } from '@/hooks/useSubscription';
-import { runExport } from '@/services/videoExport';
+import { getLocalExportCapability, runExport, type LocalExportCapability } from '@/services/videoExport';
 import { saveAs } from 'file-saver';
-import { X, Download, Clapperboard, AlertTriangle, Cloud, Lock, Monitor, Smartphone, ArrowRight } from 'lucide-react';
+import { X, Download, Clapperboard, AlertTriangle, CheckCircle2, Cloud, Lock, Monitor, Smartphone, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,7 +81,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [cloudSubmitted, setCloudSubmitted] = useState(false);
 
-  const webCodecsSupported = typeof VideoEncoder !== 'undefined';
+  const [localExportCapability, setLocalExportCapability] = useState<LocalExportCapability | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const [w, h] = resolution;
@@ -90,6 +90,29 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   const credits = calculateRenderCredits(exportResolution, exportDuration, exportFps);
   const totalCredits = (creditBalance?.monthly_credits ?? 0) + (creditBalance?.purchased_credits ?? 0);
   const canAfford = totalCredits >= credits;
+  const resOrder: ExportResolution[] = ['480p', '720p', '1080p', '1440p', '2160p'];
+  const effectiveExportResolution = resOrder.indexOf(exportResolution) > resOrder.indexOf(limits.maxResolution)
+    ? limits.maxResolution
+    : exportResolution;
+  const effectiveExportFps: 30 | 60 = exportFps > limits.maxFps ? limits.maxFps : exportFps;
+  const [effectiveWidth, effectiveHeight] = getExportDimensions(effectiveExportResolution, aspectRatio, isVertical);
+
+  // Probe the effective export settings up front so people see device/browser
+  // limitations before starting a potentially long local render.
+  useEffect(() => {
+    let cancelled = false;
+
+    setLocalExportCapability(null);
+    getLocalExportCapability(effectiveWidth, effectiveHeight, effectiveExportFps)
+      .then((capability) => {
+        if (!cancelled) setLocalExportCapability(capability);
+      })
+      .catch(() => {
+        if (!cancelled) setLocalExportCapability({ status: 'limited' });
+      });
+
+    return () => { cancelled = true; };
+  }, [effectiveExportFps, effectiveHeight, effectiveWidth]);
 
   const buildRenderConfig = useCallback((): RenderConfig => ({
     resolution,
@@ -363,11 +386,23 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             <div><span className="block font-semibold text-foreground">MP4</span>Format</div>
           </div>
 
-          {/* Unsupported browser warning */}
-          {!webCodecsSupported && (
+          {/* Local export capability */}
+          {localExportCapability?.status === 'ready' && (
+            <div className="flex items-start gap-2 text-xs text-primary bg-primary/10 rounded-lg p-3">
+              <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
+              <span>This browser is ready for local MP4 export at {effectiveWidth} × {effectiveHeight}, {effectiveExportFps} FPS.</span>
+            </div>
+          )}
+          {localExportCapability?.status === 'limited' && (
+            <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-lg p-3">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>This browser did not confirm H.264 support for {effectiveWidth} × {effectiveHeight} at {effectiveExportFps} FPS. Local export may fail; try a lower resolution or 30 FPS.</span>
+            </div>
+          )}
+          {localExportCapability?.status === 'unsupported' && (
             <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded-lg p-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>Local export requires WebCodecs (Chrome 94+ or Edge 94+). This browser cannot export video.</span>
+              <span>Local MP4 export is not supported in this browser. Use a current Chrome or Edge desktop browser.</span>
             </div>
           )}
 
@@ -434,7 +469,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           ) : (
             <Button
               onClick={handleExport}
-              disabled={cloudSubmitted || !webCodecsSupported}
+              disabled={cloudSubmitted || !localExportCapability || localExportCapability.status === 'unsupported'}
               className="flex-1 h-11 text-sm font-bold flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all active:scale-[0.99] shadow-lg shadow-primary/10"
             >
               {progress === 100 ? <><Download size={16} /> Again</> : <><Clapperboard size={16} /> Local Export</>}
