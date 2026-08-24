@@ -47,10 +47,10 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   };
 
   const animationOptions = [
-    { value: 'none', label: 'No animation', icon: <Ban size={13} /> },
-    { value: 'fade', label: 'Fade in', icon: <Layers size={13} /> },
-    { value: 'draw', label: 'Draw outline', icon: <PenLine size={13} /> },
-    { value: 'trace', label: 'Move highlight', icon: <Sparkles size={13} /> },
+    { value: 'none', label: 'Off', icon: <Ban size={13} /> },
+    { value: 'fade', label: 'Fade-in', icon: <Layers size={13} /> },
+    { value: 'draw', label: 'Outline', icon: <PenLine size={13} /> },
+    { value: 'trace', label: 'Trace', icon: <Sparkles size={13} /> },
   ] as const;
 
   return (

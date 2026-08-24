@@ -355,8 +355,8 @@ export function TimingControls({
           <div className="flex-1 max-w-[200px]">
             <SegmentedControl
               options={[
-                { value: 'none', label: 'Keep visible' },
-                { value: 'reverse', label: 'Remove' },
+                { value: 'none', label: 'Show' },
+                { value: 'reverse', label: 'Hide' },
                 { value: 'fade', label: 'Fade out' },
               ]}
               value={exitAnimation || 'none'}
