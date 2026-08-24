@@ -15,6 +15,7 @@ interface SegmentedControlProps<T extends string> {
   /** Deprecated optional shape preserved for API compatibility, standardized to concentric geometry */
   shape?: "pill" | "rounded";
   className?: string;
+  disabled?: boolean;
 }
 
 function SegmentedControl<T extends string>({
@@ -22,11 +23,13 @@ function SegmentedControl<T extends string>({
   value,
   onValueChange,
   className,
+  disabled,
 }: SegmentedControlProps<T>) {
   return (
     <ToggleGroupPrimitive.Root
       type="single"
       value={value}
+      disabled={disabled}
       onValueChange={(v) => { if (v) onValueChange(v as T); }}
       data-slot="segmented-control"
       className={cn(

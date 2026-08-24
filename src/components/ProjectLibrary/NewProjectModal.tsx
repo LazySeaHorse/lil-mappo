@@ -93,8 +93,8 @@ export function NewProjectModal() {
               <Field label="Orientation">
                 <SegmentedControl
                   options={[
-                    { value: 'landscape', label: <div className="flex items-center gap-2"><Monitor size={14}/> Landscape</div> },
-                    { value: 'portrait', label: <div className="flex items-center gap-2"><Smartphone size={14}/> Portrait</div> },
+                    { value: 'landscape', label: 'Landscape', icon: <Monitor size={14} /> },
+                    { value: 'portrait', label: 'Portrait', icon: <Smartphone size={14} /> },
                   ]}
                   value={isVertical ? 'portrait' : 'landscape'}
                   onValueChange={(v) => setIsVertical(v === 'portrait')}

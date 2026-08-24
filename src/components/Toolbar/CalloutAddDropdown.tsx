@@ -15,8 +15,18 @@ import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import type { SegmentedControlOption } from '@/components/ui/segmented-control';
 import { SectionLabel, Field } from '@/components/ui/field';
 import { StatusPill } from '@/components/ui/pro-badge';
+
+type CalloutVariant = CalloutItem['style']['variant'];
+
+const CALLOUT_VARIANT_OPTIONS: SegmentedControlOption<CalloutVariant>[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'modern', label: 'Modern' },
+  { value: 'news', label: 'News' },
+  { value: 'topo', label: 'Topo' },
+];
 
 export const CalloutAddDropdown = ({ 
   isOpen, 
@@ -34,7 +44,7 @@ export const CalloutAddDropdown = ({
   const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
   const [locationName, setLocationName] = useState('');
   const [title, setTitle] = useState('New Callout');
-  const [variant, setVariant] = useState<CalloutItem['style']['variant']>('topo');
+  const [variant, setVariant] = useState<CalloutVariant>('topo');
   const [linkTitle, setLinkTitle] = useState(true);
 
   // Sync internal state from store drafts (map picks)
@@ -186,13 +196,8 @@ export const CalloutAddDropdown = ({
 
       <div className="space-y-3">
         <SectionLabel>Design variant</SectionLabel>
-        <SegmentedControl
-          options={[
-            { value: 'default', label: 'Default' },
-            { value: 'modern', label: 'Modern' },
-            { value: 'news', label: 'News' },
-            { value: 'topo', label: 'Topo' },
-          ]}
+        <SegmentedControl<CalloutVariant>
+          options={CALLOUT_VARIANT_OPTIONS}
           value={variant}
           onValueChange={setVariant}
         />
