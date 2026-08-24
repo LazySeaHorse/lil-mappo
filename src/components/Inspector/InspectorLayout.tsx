@@ -39,7 +39,7 @@ export function InspectorSection({
         className
       )}
     >
-      <AccordionTrigger className="hover:no-underline py-2.5 text-xs font-semibold tracking-tight text-foreground/90 hover:text-foreground">
+      <AccordionTrigger className="hover:no-underline py-2.5 text-xs font-medium tracking-tight text-foreground/90 hover:text-foreground">
         <span>{title}</span>
       </AccordionTrigger>
       <AccordionContent className="pt-1 pb-3.5 flex flex-col gap-3">
@@ -85,7 +85,7 @@ export function ItemActions({
           variant="outline"
           size="sm"
           onClick={() => duplicateItem(id)}
-          className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold bg-background/40 hover:bg-secondary/80 border-border/50 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          className="w-full h-9 rounded-lg flex items-center justify-center gap-2 text-xs font-medium bg-background/40 hover:bg-secondary/80 border-border/50 transition-all"
         >
           <Copy size={13} /> Duplicate
         </Button>
@@ -94,7 +94,7 @@ export function ItemActions({
         variant="destructive"
         size="sm"
         onClick={handleDelete}
-        className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-white transition-all hover:scale-[1.01] active:scale-[0.99]"
+        className="w-full h-9 rounded-lg flex items-center justify-center gap-2 text-xs font-medium bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-white transition-all"
       >
         <Trash2 size={13} /> {customLabel || `Delete ${kindLabel}`}
       </Button>
@@ -126,10 +126,10 @@ export function PanelWrapper({
         activeSnapPoint={snap}
         setActiveSnapPoint={setSnap}
       >
-        <DrawerContent className="h-[96vh] max-h-none p-0 outline-none border-0 bg-white dark:bg-slate-950 rounded-t-[32px] shadow-2xl pointer-events-auto">
+        <DrawerContent className="h-[96vh] max-h-none p-0 outline-none border-0 bg-white dark:bg-slate-950 rounded-t-2xl shadow-2xl pointer-events-auto">
           <DrawerHeader className="px-6 pb-2 pt-6 border-b border-border/10 shrink-0 flex items-center gap-2">
             {icon && <span className="text-primary">{icon}</span>}
-            <DrawerTitle className="text-lg font-bold tracking-tight">{title}</DrawerTitle>
+            <DrawerTitle className="text-lg font-medium tracking-tight">{title}</DrawerTitle>
             <DrawerDescription className="hidden">Adjust settings for {title}</DrawerDescription>
           </DrawerHeader>
           <div className="flex-1 overflow-y-auto w-full relative mt-2 scroll-smooth px-2" vaul-drawer-scrollable="">
@@ -164,7 +164,7 @@ export function PanelWrapper({
       <div className="p-3.5 px-4 border-b border-border/40 shrink-0 bg-background/50 backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           {icon && <span className="text-primary shrink-0">{icon}</span>}
-          <h2 className="text-xs font-bold tracking-tight text-foreground truncate">{title}</h2>
+          <h2 className="text-xs font-medium tracking-tight text-foreground truncate">{title}</h2>
         </div>
         <IconButton
           variant="ghost"

@@ -28,12 +28,12 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     try {
       const res = await searchBoundary(query);
       if (res.length === 0) {
-        toast.error('No boundary polygon found for this place.');
+        toast.error('Cannot find a boundary for this place.');
       } else {
         setResults(res);
       }
     } catch (e) {
-      toast.error('Boundary lookup failed.');
+      toast.error('Cannot search boundaries.');
     } finally {
       setLoading(false);
       onSearchingChange?.(false);
@@ -51,8 +51,8 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
             if (results.length > 0) setResults([]);
           }} 
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()} 
-          className="h-9 text-sm bg-secondary/30 border-transparent focus:border-border pr-10" 
-          placeholder="e.g. Central Park, Germany..." 
+          className="h-9 text-sm bg-secondary/30 border-border/40 focus:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset pr-10"
+          placeholder="Search for a place or region"
         />
         <IconButton 
           onClick={handleSearch} 
@@ -69,7 +69,7 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
       {results.length > 0 && (
         <div className="border border-border/50 rounded-xl bg-background/50 backdrop-blur shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="p-2 border-b border-border/50 bg-secondary/20 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Search Results</span>
+            <span className="text-xs font-medium text-foreground/80">Search results</span>
             <Button variant="ghost" size="sm" onClick={() => setResults([])} className="h-5 text-[10px] font-medium text-muted-foreground hover:text-foreground">Clear</Button>
           </div>
           <div className="max-h-[160px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

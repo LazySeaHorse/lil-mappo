@@ -57,7 +57,7 @@ function MapLoadBlockedScreen({
 }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm z-50 gap-6 p-6 text-center">
-      <div className="p-4 bg-primary/10 rounded-3xl border border-primary/20 shadow-lg">
+      <div className="p-4 bg-primary/10 rounded-2xl border border-primary/20 shadow-lg">
         {reason === 'monthly_exhausted' ? (
           <Calendar className="w-10 h-10 text-primary" />
         ) : reason === 'quota_error' ? (
@@ -70,9 +70,9 @@ function MapLoadBlockedScreen({
       {reason === 'guest_limit' && (
         <>
           <div className="space-y-2 max-w-sm">
-            <h2 className="text-xl font-black tracking-tight">Sign in to continue</h2>
+            <h2 className="text-xl font-medium tracking-tight">Sign in to continue</h2>
           </div>
-          <Button className="rounded-xl px-8 h-11 font-semibold" onClick={onSignIn}>
+          <Button className="rounded-lg px-8 h-11 font-medium" onClick={onSignIn}>
             Sign in / Create account
           </Button>
         </>
@@ -81,14 +81,14 @@ function MapLoadBlockedScreen({
       {reason === 'daily_throttled' && (
         <>
           <div className="space-y-2 max-w-sm">
-            <h2 className="text-xl font-black tracking-tight">Daily limit reached</h2>
+            <h2 className="text-xl font-medium tracking-tight">Daily limit reached</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               You've used your 3 map loads for today. Come back tomorrow, or upgrade
               to Wanderer for unlimited loads.
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-xl px-6 h-10 font-semibold" onClick={onSignIn}>
+            <Button variant="outline" className="rounded-lg px-6 h-10 font-medium" onClick={onSignIn}>
               Upgrade
             </Button>
           </div>
@@ -98,14 +98,14 @@ function MapLoadBlockedScreen({
       {reason === 'monthly_exhausted' && (
         <>
           <div className="space-y-2 max-w-sm">
-            <h2 className="text-xl font-black tracking-tight">Monthly limit reached</h2>
+            <h2 className="text-xl font-medium tracking-tight">Monthly limit reached</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Unusual activity was detected on your account. You can add your own
               Mapbox key (BYOK), upgrade to Wanderer, or wait until the 1st of next month.
             </p>
           </div>
           <div className="flex gap-3">
-            <Button className="rounded-xl px-6 h-10 font-semibold" onClick={onSignIn}>
+            <Button className="rounded-lg px-6 h-10 font-medium" onClick={onSignIn}>
               Upgrade
             </Button>
             <BYOKQuickEntry />
@@ -116,14 +116,14 @@ function MapLoadBlockedScreen({
       {reason === 'quota_error' && (
         <>
           <div className="space-y-2 max-w-sm">
-            <h2 className="text-xl font-black tracking-tight">Something went wrong</h2>
+            <h2 className="text-xl font-medium tracking-tight">Something went wrong</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Couldn't reach the server. Please check your connection and try again.
             </p>
           </div>
           <Button
             variant="outline"
-            className="rounded-xl px-6 h-10 font-semibold"
+            className="rounded-lg px-6 h-10 font-medium"
             onClick={() => window.location.reload()}
           >
             Retry
@@ -162,11 +162,11 @@ function BYOKQuickEntry() {
           placeholder="pk.eyJ1Ijo… (your Mapbox key)"
           value={token}
           onChange={(e) => { setToken(e.target.value); setError(''); }}
-          className="h-10 rounded-xl bg-secondary/50 border border-border/50 text-xs font-mono px-3 w-56 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/40"
+          className="h-10 rounded-lg bg-secondary/50 border border-border/50 text-xs font-mono px-3 w-56 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/40"
         />
         <Button
           variant="outline"
-          className="rounded-xl px-4 h-10 font-semibold text-xs"
+          className="rounded-lg px-4 h-10 font-medium text-xs"
           onClick={handleSave}
           disabled={!token.trim() || saved}
         >

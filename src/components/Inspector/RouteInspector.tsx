@@ -76,7 +76,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry.coordinates as any[])) coordCount += l.length;
       }
       if (coordCount < 2) {
-        toast.error('Add a route path before enabling Auto Camera.');
+        toast.error('Add a route before you enable Auto camera.');
         return;
       }
 
@@ -91,7 +91,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       ) as RouteItem | undefined;
 
       if (overlapping) {
-        toast.error(`"${overlapping.name}" already has Auto Camera on in this time range.`);
+        toast.error(`Auto camera is already enabled for "${overlapping.name}" during this time range.`);
         return;
       }
 
@@ -111,7 +111,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   const animOptions = [
     { value: 'draw', label: 'Draw', icon: <Spline size={13} /> },
     { value: 'navigation', label: 'Progress', icon: <CircleDot size={13} /> },
-    { value: 'comet', label: 'Meteor', icon: <Flame size={13} /> },
+    { value: 'comet', label: 'Moving trail', icon: <Flame size={13} /> },
   ] as const;
 
   return (
@@ -123,7 +123,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       <EditableTitle 
         value={item.name} 
         onChange={(v) => u({ name: v })} 
-        placeholder="Route name..."
+        placeholder="Route name"
       />
 
       <Accordion type="multiple" defaultValue={['path', 'appearance', 'animation', 'camera']} className="w-full">
@@ -199,7 +199,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             {/* Travel Marker */}
             <div className="flex flex-col gap-3 pt-1 border-t border-border/30">
               <SwitchRow
-                label="Travel marker"
+                label="Route marker"
                 checked={calc.vehicle?.enabled || false}
                 onChange={(v) => updateVehicle({ enabled: v })}
               />
@@ -222,16 +222,16 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                             type="button"
                             disabled={locked}
                             onClick={() => !locked && updateVehicle({ type })}
-                            className={`relative flex flex-col items-center justify-center gap-1.5 p-2 py-3 min-h-[58px] rounded-xl border text-center transition-all cursor-pointer select-none
-                              ${active ? 'bg-primary/10 border-primary text-primary font-bold shadow-xs ring-1 ring-primary/20' : 'bg-secondary/40 hover:bg-secondary/70 border-border/40 text-muted-foreground hover:text-foreground'}
+                            className={`relative flex flex-col items-center justify-center gap-1.5 p-2 py-3 min-h-[58px] rounded-lg border text-center transition-all cursor-pointer select-none
+                              ${active ? 'bg-primary/10 border-primary text-primary font-medium shadow-sm ring-1 ring-primary/20' : 'bg-secondary/40 hover:bg-secondary/70 border-border/40 text-muted-foreground hover:text-foreground'}
                               ${locked ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
                           >
                             <div className={`flex items-center justify-center transition-colors ${active ? 'text-primary' : 'text-muted-foreground/80'}`}>
                               {icon}
                             </div>
-                            <span className="text-[10px] font-semibold leading-tight text-center w-full block">{label}</span>
+                            <span className="text-[10px] font-medium leading-tight text-center w-full block">{label}</span>
                             {locked && (
-                              <span className="absolute top-1 right-1 text-[8px] bg-primary/20 text-primary px-1 py-0.2 rounded font-black tracking-wider uppercase">
+                              <span className="absolute top-1 right-1 text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase">
                                 PRO
                               </span>
                             )}
@@ -256,7 +256,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
 
             {animType === 'comet' && (
               <SliderRow
-                label="Trail Length"
+                label="Trail length"
                 value={item.style.cometTrailLength ?? 0.2}
                 onChange={(v) => us({ cometTrailLength: v })}
                 min={0.05}
@@ -269,13 +269,13 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             {animType === 'draw' && (
               <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
                 <SwitchRow 
-                  label="Trail Fade" 
+                  label="Fade trail"
                   checked={item.style.trailFade} 
                   onChange={(v) => us({ trailFade: v })} 
                 />
                 {item.style.trailFade && (
                   <SliderRow 
-                    label="Fade Length" 
+                    label="Fade length"
                     value={item.style.trailFadeLength} 
                     onChange={(v) => us({ trailFadeLength: v })} 
                     min={0.05} 
@@ -305,8 +305,8 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         <InspectorSection value="camera" title="Camera">
           <div className="flex flex-col gap-2">
             <SwitchRow
-              label="Follow this route"
-              sublabel="Keeps the route or vehicle in frame while it moves."
+              label="Follow route"
+              sublabel="Keeps the route or marker in view during playback."
               checked={item.autoCam?.enabled ?? false}
               onChange={handleAutoCamToggle}
             />
@@ -325,4 +325,3 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     </PanelWrapper>
   );
 }
-

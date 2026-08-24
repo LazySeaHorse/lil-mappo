@@ -10,6 +10,7 @@ interface AutoCamBlock {
 }
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { IconButton } from '@/components/ui/icon-button';
+import { Slider } from '@/components/ui/slider';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   RIGHT_RESERVED_DESKTOP,
@@ -272,7 +273,7 @@ export default function TimelinePanel() {
         {/* Desktop: Label + Time / Mobile: Transport Controls */}
         {!isMobile ? (
           <div className="flex flex-col gap-0.5 shrink-0">
-            <span className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground leading-none">
+            <span className="font-medium text-xs text-foreground/80 leading-none">
               Timeline
             </span>
             <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
@@ -308,7 +309,7 @@ export default function TimelinePanel() {
         )}
 
         {/* Right: zoom controls */}
-        <div className="ml-auto flex items-center gap-1 shrink-0">
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
           <IconButton
             variant="ghost" size="xs"
             onClick={() => setPixelsPerSecond(p => Math.max(10, p - 15))}
@@ -316,15 +317,17 @@ export default function TimelinePanel() {
           >
             <Minus />
           </IconButton>
-          <input
-            type="range"
-            min={10}
-            max={300}
-            value={pixelsPerSecond}
-            onChange={e => setPixelsPerSecond(Number(e.target.value))}
-            className="w-20 h-1 accent-primary cursor-pointer"
-            title={`Zoom: ${Math.round(pixelsPerSecond)}px/s`}
-          />
+          <div className="w-20 px-1">
+            <Slider
+              min={10}
+              max={300}
+              step={1}
+              value={[pixelsPerSecond]}
+              onValueChange={([v]) => setPixelsPerSecond(v)}
+              className="cursor-pointer"
+              title={`Zoom: ${Math.round(pixelsPerSecond)}px/s`}
+            />
+          </div>
           <IconButton
             variant="ghost" size="xs"
             onClick={() => setPixelsPerSecond(p => Math.min(300, p + 15))}

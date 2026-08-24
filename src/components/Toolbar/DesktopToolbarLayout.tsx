@@ -54,9 +54,9 @@ function TabletLayerDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 bg-background/95 p-3 space-y-4 rounded-2xl shadow-2xl border-border/50">
         <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">Map Style</label>
+          <label className="text-xs font-medium text-foreground/80 px-1">Map Style</label>
           <Select value={mapStyle} onValueChange={setMapStyle}>
-            <SelectTrigger className="h-9 text-xs w-full focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background/50 rounded-xl">
+            <SelectTrigger className="h-9 text-xs w-full focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background/50 rounded-lg">
               <SelectValue placeholder="Map Style" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border/50 shadow-2xl">
@@ -69,7 +69,7 @@ function TabletLayerDropdown({
           <DropdownToggle icon={<Building2 size={14} />} label="Buildings" active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying && !isScrubbing} disabled={mapStyle === 'satellite'} />
         </div>
         <div className="h-px bg-border/50 mx-1 border-dotted border-b" />
-        <DropdownMenuItem onClick={onProjectSettings} className="gap-2 cursor-pointer h-9 text-xs rounded-xl">
+        <DropdownMenuItem onClick={onProjectSettings} className="gap-2 cursor-pointer h-9 text-xs rounded-lg">
           <Settings2 size={14} /> Full Map Settings
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -113,7 +113,7 @@ function DropdownToggle({ icon, label, active, onClick, loading, disabled }: { i
       size="sm"
       onClick={(e) => { if (!disabled) { e.preventDefault(); e.stopPropagation(); onClick(); } }}
       disabled={disabled}
-      className={`h-9 flex flex-1 items-center justify-start gap-2 text-[11px] font-medium px-2 rounded-xl transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/20' : disabled ? '' : 'text-muted-foreground'}`}
+      className={`h-9 flex flex-1 items-center justify-start gap-2 text-[11px] font-medium px-2 rounded-lg transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/20' : disabled ? '' : 'text-muted-foreground'}`}
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : icon}
       <span>{label}</span>
@@ -141,7 +141,7 @@ export function DesktopToolbarLayout({
     <>
       <div className="flex items-center gap-2 mr-2 pl-1 shrink-0">
         <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-7 h-7 drop-shadow-sm" alt="li'l Mappo Logo" />
-        {!isTablet && <span className="font-bold text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>}
+        {!isTablet && <span className="font-medium text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>}
       </div>
 
       {renderAvatarMenu()}

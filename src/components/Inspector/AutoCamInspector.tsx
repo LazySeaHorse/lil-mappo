@@ -3,9 +3,9 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem, AutoCamConfig } from '@/store/types';
 import { Accordion } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { SliderRow, EasingSelect } from './InspectorShared';
+import { SliderRow } from './InspectorShared';
 import { PanelWrapper, InspectorSection } from './InspectorLayout';
-import { Video, VideoOff, Compass, Activity, Car, ArrowUpToLine, ZoomIn, Eye, Sparkles } from 'lucide-react';
+import { Video, VideoOff, Compass, Activity, Car, ArrowUpToLine, ZoomIn, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function AutoCamInspector({ item }: { item: RouteItem }) {
@@ -27,15 +27,15 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
       variant="outline"
       size="sm"
       onClick={handleDisable}
-      className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold bg-background/40 hover:bg-secondary/80 border-border/50 transition-all hover:scale-[1.01] active:scale-[0.99]"
+      className="w-full h-9 rounded-lg flex items-center justify-center gap-2 text-xs font-medium bg-background/40 hover:bg-secondary/80 border-border/50 transition-all"
     >
-      <VideoOff size={13} /> Turn off Auto Camera
+      <VideoOff size={13} /> Disable auto camera
     </Button>
   );
 
   return (
     <PanelWrapper 
-      title="Auto Camera" 
+      title="Auto camera"
       icon={<Video size={15} />}
       footer={footer}
     >
@@ -46,7 +46,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
           type="button"
           onClick={() => u({ mode: 'cinematic' })}
           className={cn(
-            "relative flex flex-col items-center p-3 rounded-2xl border text-center transition-all cursor-pointer select-none",
+            "relative flex flex-col items-center p-3 rounded-xl border text-center transition-all cursor-pointer select-none",
             config.mode === 'cinematic'
               ? "bg-primary/10 border-primary text-foreground shadow-sm ring-1 ring-primary/20"
               : "bg-secondary/30 hover:bg-secondary/60 border-border/40 text-muted-foreground hover:text-foreground"
@@ -63,27 +63,27 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
           </div>
 
           {/* Mini Illustration for Cinematic */}
-          <div className="w-full h-16 rounded-xl bg-secondary/40 flex items-center justify-center overflow-hidden mb-2 relative">
+          <div className="w-full h-16 rounded-lg bg-secondary/40 flex items-center justify-center overflow-hidden mb-2 relative">
             <svg viewBox="0 0 100 60" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
               {/* Background gradient/horizon */}
               <path d="M0 35 Q 50 25 100 35 L 100 60 L 0 60 Z" fill="hsl(var(--primary) / 0.15)" />
               {/* Trees */}
               <circle cx="20" cy="30" r="8" fill="hsl(var(--item-route) / 0.5)" />
               <circle cx="80" cy="32" r="7" fill="hsl(var(--item-route) / 0.5)" />
-              <rect x="18" y="36" width="4" height="6" fill="#8B5A2B" opacity="0.6" />
-              <rect x="78" y="37" width="4" height="5" fill="#8B5A2B" opacity="0.6" />
+              <rect x="18" y="36" width="4" height="6" fill="hsl(var(--muted-foreground))" opacity="0.4" />
+              <rect x="78" y="37" width="4" height="5" fill="hsl(var(--muted-foreground))" opacity="0.4" />
               {/* Perspective Road */}
               <path d="M45 28 L 55 28 L 85 60 L 15 60 Z" fill="hsl(var(--primary) / 0.7)" />
-              <path d="M49 30 L 51 30 L 53 60 L 47 60 Z" fill="#ffffff" opacity="0.7" />
+              <path d="M49 30 L 51 30 L 53 60 L 47 60 Z" fill="hsl(var(--primary-foreground))" opacity="0.8" />
               {/* Little Car */}
-              <rect x="42" y="44" width="16" height="10" rx="3" fill="#2563EB" stroke="#ffffff" strokeWidth="1" />
-              <rect x="45" y="46" width="10" height="4" rx="1" fill="#93C5FD" />
+              <rect x="42" y="44" width="16" height="10" rx="3" fill="hsl(var(--primary))" stroke="hsl(var(--primary-foreground))" strokeWidth="1" />
+              <rect x="45" y="46" width="10" height="4" rx="1" fill="hsl(var(--primary-foreground) / 0.7)" />
             </svg>
           </div>
 
-          <span className="text-xs font-bold text-foreground">Cinematic</span>
+          <span className="text-xs font-medium text-foreground">Follow view</span>
           <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-            Beautiful, cinematic follow shots
+            Follow the route with a moving camera.
           </span>
         </button>
 
@@ -92,7 +92,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
           type="button"
           onClick={() => u({ mode: 'navigation' })}
           className={cn(
-            "relative flex flex-col items-center p-3 rounded-2xl border text-center transition-all cursor-pointer select-none",
+            "relative flex flex-col items-center p-3 rounded-xl border text-center transition-all cursor-pointer select-none",
             config.mode === 'navigation'
               ? "bg-primary/10 border-primary text-foreground shadow-sm ring-1 ring-primary/20"
               : "bg-secondary/30 hover:bg-secondary/60 border-border/40 text-muted-foreground hover:text-foreground"
@@ -109,23 +109,23 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
           </div>
 
           {/* Mini Illustration for Navigation */}
-          <div className="w-full h-16 rounded-xl bg-secondary/40 flex items-center justify-center overflow-hidden mb-2 relative">
+          <div className="w-full h-16 rounded-lg bg-secondary/40 flex items-center justify-center overflow-hidden mb-2 relative">
             <svg viewBox="0 0 100 60" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
               {/* Map grid lines */}
               <path d="M10 20 L 90 20 M10 40 L 90 40 M30 10 L 30 50 M70 10 L 70 50" stroke="hsl(var(--border))" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
               {/* Map Route line with turn */}
               <path d="M20 45 L 50 45 Q 65 45 65 30 L 65 15" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinecap="round" />
               {/* Route dot */}
-              <circle cx="20" cy="45" r="4" fill="#ffffff" stroke="hsl(var(--primary))" strokeWidth="2" />
+              <circle cx="20" cy="45" r="4" fill="hsl(var(--background))" stroke="hsl(var(--primary))" strokeWidth="2" />
               {/* Navigation pointer arrow */}
-              <circle cx="65" cy="15" r="8" fill="#2563EB" />
-              <path d="M65 10 L 69 18 L 65 16 L 61 18 Z" fill="#ffffff" />
+              <circle cx="65" cy="15" r="8" fill="hsl(var(--primary))" />
+              <path d="M65 10 L 69 18 L 65 16 L 61 18 Z" fill="hsl(var(--primary-foreground))" />
             </svg>
           </div>
 
-          <span className="text-xs font-bold text-foreground">Navigation</span>
+          <span className="text-xs font-medium text-foreground">Navigation view</span>
           <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-            Clean, clear navigation view
+            Keep the route ahead in the map view.
           </span>
         </button>
       </div>
@@ -134,7 +134,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
         <InspectorSection value="camera" title="Camera">
           <div className="flex flex-col gap-3">
             <SliderRow
-              label="Camera angle"
+              label="Camera pitch"
               icon={<Compass size={13} />}
               value={config.pitch}
               onChange={(v) => u({ pitch: v })}
@@ -144,7 +144,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
               unit="°"
             />
             <SliderRow
-              label="Smoothness"
+              label="Camera smoothing"
               icon={<Activity size={13} />}
               value={config.smoothing}
               onChange={(v) => u({ smoothing: v })}
@@ -153,16 +153,11 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
               step={0.05}
               formatValue={(v) => `${Math.round(v * 100)}%`}
             />
-            <EasingSelect 
-              value={config.easing} 
-              onChange={(v) => u({ easing: v })} 
-              icon={<Sparkles size={13} />}
-            />
           </div>
         </InspectorSection>
 
         {config.mode === 'cinematic' && (
-          <InspectorSection value="framing" title="Cinematic framing">
+          <InspectorSection value="framing" title="Follow view">
             <div className="flex flex-col gap-3">
               <SliderRow
                 label="Follow distance"
@@ -189,7 +184,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
         )}
 
         {config.mode === 'navigation' && (
-          <InspectorSection value="framing" title="Navigation framing">
+          <InspectorSection value="framing" title="Navigation view">
             <div className="flex flex-col gap-3">
               <SliderRow
                 label="Zoom"
@@ -218,4 +213,3 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
     </PanelWrapper>
   );
 }
-

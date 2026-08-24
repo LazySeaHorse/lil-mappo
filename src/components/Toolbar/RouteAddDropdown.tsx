@@ -5,8 +5,9 @@ import { calculateFlightArc } from '@/services/flightPath';
 import { Button } from '@/components/ui/button';
 import { 
   Car, Footprints, Plane, Search, Loader2,
-  Navigation, Upload, Plus, Check
+  Navigation, Upload, Plus, Check, Compass
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import { RouteItem } from '@/store/types';
@@ -136,7 +137,7 @@ export const RouteAddDropdown = ({
       size="sm"
       title="Plan Route"
     >
-      <Navigation size={18} className={isOpen ? 'animate-pulse' : ''} />
+      <Navigation size={18} />
     </IconButton>
   );
 
@@ -165,18 +166,18 @@ export const RouteAddDropdown = ({
           variant="secondary" 
           size="sm" 
           onClick={calculate}
-          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold bg-secondary/50 hover:bg-secondary border border-border/50 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium bg-secondary/50 hover:bg-secondary border border-border/50 rounded-lg transition-all"
         >
-          {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview Path
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview path
         </Button>
       ) : (
         <Button 
           variant="default"
           size="sm" 
           onClick={handleAdd}
-          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold rounded-xl shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
         >
-          <Plus size={16} /> Insert Route
+          <Plus size={16} /> Insert route
         </Button>
       )}
 
@@ -200,9 +201,9 @@ export const RouteAddDropdown = ({
       footer={footer}
     >
       <div className="space-y-4">
-        <SectionLabel>Route Points</SectionLabel>
+        <SectionLabel>Route points</SectionLabel>
         <SearchField 
-          label="Start Location..."
+          label="Start location..."
           value={start}
           name={startName}
           onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
@@ -214,7 +215,7 @@ export const RouteAddDropdown = ({
         <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
 
         <SearchField 
-          label="End Location..."
+          label="End location..."
           value={end}
           name={endName}
           onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
@@ -224,12 +225,21 @@ export const RouteAddDropdown = ({
         />
       </div>
 
+      {!previewRoute && start[0] === 0 && end[0] === 0 && (
+        <EmptyState
+          variant="dropdown"
+          icon={Compass}
+          title="Plan your journey"
+          description="Select start and end points or click on the map to calculate a route."
+        />
+      )}
+
       {previewRoute && (
         <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 animate-in fade-in slide-in-from-bottom-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Check size={14} className="text-primary" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Path Validated</span>
+              <span className="text-xs font-medium text-foreground/80">Path validated</span>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setPreviewRoute(null)} className="h-6 text-[10px]">Clear</Button>
           </div>

@@ -54,7 +54,7 @@ export function ProjectSettings() {
   const { openCreditsModal } = useAuthStore();
 
   return (
-    <PanelWrapper title="Project Settings" icon={<Settings2 size={15} />}>
+    <PanelWrapper title="Project settings" icon={<Settings2 size={15} />}>
       <SegmentedControl
 
         options={[
@@ -78,7 +78,7 @@ export function ProjectSettings() {
                 max={limits.maxDuration}
               />
             </Field>
-            <Field label="FPS">
+            <Field label="Frame rate">
               <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -88,7 +88,7 @@ export function ProjectSettings() {
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Aspect Ratio">
+            <Field label="Aspect ratio">
               <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -133,32 +133,32 @@ export function ProjectSettings() {
           {limits.limited && (
             <div className="mt-4 p-3 bg-primary/5 rounded-xl border border-primary/10 space-y-2">
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                <span className="font-bold text-primary">Free plan:</span> Limited to 720p, 30fps and 30s.
+                <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
               </p>
               <button
                 onClick={openCreditsModal}
-                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
               >
-                Upgrade to a paid plan (or BYOK) to unlock <ArrowRight size={10} />
+                Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />
               </button>
             </div>
           )}
         </>
       ) : (
         <Accordion type="multiple" defaultValue={['env', 'labels', '3d']} className="w-full">
-          <InspectorSection value="env" title="Environment">
+          <InspectorSection value="env" title="Map">
             <Field label="Projection">
               <Select value={projection} onValueChange={(v) => setProjection(v as any)}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="globe">Globe</SelectItem>
-                  <SelectItem value="mercator">Mercator (Flat)</SelectItem>
+                  <SelectItem value="mercator">Mercator</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
 
             {capabilities.timeOfDayPreset && (
-              <Field label="Lighting Preset">
+              <Field label="Lighting">
                 <Select value={lightPreset} onValueChange={(v) => setLightPreset(v as any)}>
                   <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -171,12 +171,12 @@ export function ProjectSettings() {
               </Field>
             )}
 
-            <SliderField label="Terrain Exaggeration" value={terrainExaggeration} onChange={setTerrainExaggeration} min={1} max={3} step={0.1} />
+            <SliderField label="Terrain exaggeration" value={terrainExaggeration} onChange={setTerrainExaggeration} min={1} max={3} step={0.1} />
           </InspectorSection>
 
           <InspectorSection value="atmos" title="Atmosphere">
-            <SliderField label="Star Intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
-            <Field label="Fog Color">
+            <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
+            <Field label="Fog color">
               <div className="flex gap-2 items-center">
                 <ColorPicker
                   value={fogColor || (
@@ -190,8 +190,8 @@ export function ProjectSettings() {
                   onClick={() => setAtmosphere({ fogColor: null })}
                   variant="outline"
                   size="sm"
-                  className="px-3 h-8 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  title="Reset to Style Default"
+                  className="px-3 h-8 text-xs font-medium transition-all"
+                  title="Reset to map style"
                 >
                   Reset
                 </Button>
@@ -208,7 +208,7 @@ export function ProjectSettings() {
                   size="sm"
                   className="flex-1 text-xs h-8"
                 >
-                  All On
+                  Enable all
                 </Button>
                 <Button
                   onClick={() => setAllLabelsVisibility(false)}
@@ -216,7 +216,7 @@ export function ProjectSettings() {
                   size="sm"
                   className="flex-1 text-xs h-8"
                 >
-                  All Off
+                  Disable all
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -233,7 +233,7 @@ export function ProjectSettings() {
           )}
 
           {(capabilities.landmarks3d || capabilities.trees3d || capabilities.facades3d) && (
-            <InspectorSection value="3d" title="3D Details">
+            <InspectorSection value="3d" title="3D features">
               {capabilities.landmarks3d && <SwitchField checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />}
               {capabilities.trees3d && <SwitchField checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />}
               {capabilities.facades3d && <SwitchField checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />}

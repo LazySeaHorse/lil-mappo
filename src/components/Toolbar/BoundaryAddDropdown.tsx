@@ -2,8 +2,9 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { Button } from '@/components/ui/button';
 import {
-  Hexagon, Plus, Check, Search
+  Hexagon, Plus, Check, Search, MapPin
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import { BoundaryItem } from '@/store/types';
@@ -88,7 +89,7 @@ export const BoundaryAddDropdown = ({
       size="sm"
       title="Add Boundary"
     >
-      <Hexagon size={18} className={isOpen ? 'animate-pulse' : ''} />
+      <Hexagon size={18} />
     </IconButton>
   );
 
@@ -111,9 +112,9 @@ export const BoundaryAddDropdown = ({
       size="sm" 
       onClick={handleAdd}
       disabled={!previewBoundary}
-      className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold rounded-xl shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+      className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
     >
-      <Plus size={13} /> Insert Boundary
+      <Plus size={13} /> Insert boundary
     </Button>
   );
 
@@ -126,34 +127,36 @@ export const BoundaryAddDropdown = ({
       footer={footer}
     >
       {!previewBoundary ? (
-        <div className="py-12 flex flex-col items-center justify-center text-center opacity-40">
-          <Search size={32} className="mb-2 stroke-[1.5px]" />
-          <p className="text-[11px] font-medium leading-relaxed uppercase tracking-wider">Search for a location to<br />preview its boundary</p>
-        </div>
+        <EmptyState
+          variant="dropdown"
+          icon={MapPin}
+          title="No location selected"
+          description="Search for a country, city, or region to preview its boundary."
+        />
       ) : (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div>
-              <SectionLabel>Selected Place</SectionLabel>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
+            <SectionLabel>Selected place</SectionLabel>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
               <div className="flex items-center gap-2 overflow-hidden">
                 <Check size={14} className="text-primary shrink-0" />
-                <span className="text-xs font-bold truncate">{draftBoundaryName}</span>
+                <span className="text-xs font-medium truncate">{draftBoundaryName}</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-[10px] font-bold text-muted-foreground hover:text-foreground">Change</Button>
+              <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-[10px] font-medium text-muted-foreground hover:text-foreground">Change</Button>
             </div>
           </div>
 
           <div className="space-y-4">
-            <SectionLabel>Visual Appearance</SectionLabel>
-              <div className="space-y-4 px-1">
-              <Field label="Atmospheric Color">
+            <SectionLabel>Visual appearance</SectionLabel>
+            <div className="space-y-4 px-1">
+              <Field label="Atmospheric color">
                 <ColorPicker 
                   value={previewBoundaryStyle!.strokeColor} 
                   onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v, glowColor: v })} 
                 />
               </Field>
               
-              <Field label="Entrance Animation">
+              <Field label="Entrance animation">
                 <Select 
                   value={previewBoundaryStyle!.animationStyle || 'draw'} 
                   onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: v as any })} 

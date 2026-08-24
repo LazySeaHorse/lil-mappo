@@ -35,7 +35,7 @@ export function ToolbarButton({
       variant={accent ? "default" : "ghost"}
       size="sm"
       onClick={onClick}
-      className={`h-8 px-2.5 flex flex-row items-center gap-1.5 text-xs focus-visible:ring-0 rounded-lg transition-all ${accent ? 'shadow-lg shadow-primary/20' : ''}`}
+      className={`h-8 px-2.5 flex flex-row items-center gap-1.5 text-xs rounded-lg transition-all ${accent ? 'shadow-lg shadow-primary/20' : ''}`}
       title={label}
     >
       {icon}
@@ -76,7 +76,7 @@ export function ToolbarToggle({
       onPressedChange={() => !disabled && onClick()}
       size="sm"
       disabled={disabled}
-      className={`h-8 px-2.5 flex items-center gap-1.5 text-xs focus-visible:ring-0 rounded-lg data-[state=on]:bg-primary/10 data-[state=on]:text-primary transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`h-8 px-2.5 flex items-center gap-1.5 text-xs rounded-lg data-[state=on]:bg-primary/10 data-[state=on]:text-primary transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={label}
     >
       {loading ? <Loader2 size={16} className="animate-spin" /> : icon}

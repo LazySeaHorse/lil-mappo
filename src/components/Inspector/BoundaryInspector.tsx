@@ -14,7 +14,7 @@ import {
   VisualCardSelect 
 } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
-import { CheckCircle2, Shield, Ban, Layers, PenLine, Sparkles, Loader2 } from 'lucide-react';
+import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 
 export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   const { updateItem } = useProjectStore();
@@ -28,7 +28,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       resolveStatus: 'resolved',
       placeName: r.display_name.split(',')[0]
     } as any);
-    toast.success('Boundary resolved');
+    toast.success('Boundary updated.');
   };
 
   const footer = <ItemActions id={item.id} kind="boundary" customLabel="Delete Boundary" />;
@@ -47,10 +47,10 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   };
 
   const animationOptions = [
-    { value: 'none', label: 'None', icon: <Ban size={13} /> },
-    { value: 'fade', label: 'Fade', icon: <Layers size={13} /> },
-    { value: 'draw', label: 'Draw', icon: <PenLine size={13} /> },
-    { value: 'trace', label: 'Trace', icon: <Sparkles size={13} /> },
+    { value: 'none', label: 'No animation', icon: <Ban size={13} /> },
+    { value: 'fade', label: 'Fade in', icon: <Layers size={13} /> },
+    { value: 'draw', label: 'Draw outline', icon: <PenLine size={13} /> },
+    { value: 'trace', label: 'Move highlight', icon: <Sparkles size={13} /> },
   ] as const;
 
   return (
@@ -62,32 +62,18 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       <EditableTitle 
         value={item.placeName} 
         onChange={(v) => u({ placeName: v })} 
-        placeholder="Region name..."
+        placeholder="Boundary name"
       />
 
       <Accordion type="multiple" defaultValue={['region', 'appearance', 'animation', 'timing']} className="w-full">
         
-        <InspectorSection value="region" title="Region">
+        <InspectorSection value="region" title="Search area">
           <div className="flex flex-col gap-2.5">
             <BoundarySearch
               initialValue={item.placeName}
               onSelect={handleSelect}
               onSearchingChange={(loading) => u({ resolveStatus: loading ? 'loading' : 'idle' } as any)}
             />
-            
-            <div className="pt-0.5">
-              {item.resolveStatus === 'resolved' || item.geojson ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
-                  <CheckCircle2 size={12} />
-                  <span>Boundary ready</span>
-                </div>
-              ) : item.resolveStatus === 'loading' ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] font-medium">
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>Searching region...</span>
-                </div>
-              ) : null}
-            </div>
           </div>
         </InspectorSection>
 
@@ -100,7 +86,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             />
             
             <SliderRow 
-              label="Width" 
+              label="Line width"
               value={item.style.strokeWidth} 
               onChange={(v) => us({ strokeWidth: v })} 
               min={1} 
@@ -167,4 +153,3 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
     </PanelWrapper>
   );
 }
-

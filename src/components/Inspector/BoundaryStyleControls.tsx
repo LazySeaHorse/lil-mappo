@@ -13,7 +13,7 @@ interface BoundaryStyleControlsProps {
 export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControlsProps) {
   return (
     <div className="space-y-4">
-      <Field label="Stroke Color">
+      <Field label="Stroke color">
         <ColorPicker 
           value={style.strokeColor} 
           onChange={(v) => onChange({ strokeColor: v })} 
@@ -21,7 +21,7 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
       </Field>
       
       <SliderField 
-        label="Stroke Width" 
+        label="Stroke width"
         value={style.strokeWidth} 
         onChange={(v) => onChange({ strokeWidth: v })} 
         min={1} 
@@ -36,7 +36,7 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
       />
       
       <SliderField 
-        label="Fill Opacity" 
+        label="Fill opacity"
         value={style.fillOpacity} 
         onChange={(v) => onChange({ fillOpacity: v })} 
         min={0} 
@@ -47,12 +47,12 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
       <SwitchField 
         checked={style.animateStroke} 
         onChange={(v) => onChange({ animateStroke: v })} 
-        label="Animate Stroke" 
+        label="Animate outline"
       />
       
       {style.animateStroke && (
         <div className="space-y-3 mt-2 pl-2 border-l-2 border-primary/20">
-          <Field label="Animation Style">
+          <Field label="Animation style">
             <Select 
               value={style.animationStyle || 'draw'} 
               onValueChange={(v) => onChange({ animationStyle: v as any })} 
@@ -61,16 +61,16 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fade">Fade In</SelectItem>
-                <SelectItem value="draw">Animated Perimeter</SelectItem>
-                <SelectItem value="trace">Moving Highlight</SelectItem>
+                <SelectItem value="fade">Fade in</SelectItem>
+                <SelectItem value="draw">Draw outline</SelectItem>
+                <SelectItem value="trace">Move highlight</SelectItem>
               </SelectContent>
             </Select>
           </Field>
           
           {style.animationStyle === 'trace' && (
             <SliderField 
-              label="Trace Length" 
+              label="Highlight length"
               value={style.traceLength || 0.1} 
               onChange={(v) => onChange({ traceLength: v })} 
               min={0.01} 

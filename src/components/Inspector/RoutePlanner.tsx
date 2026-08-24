@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X, CheckCircle2, Eye } from 'lucide-react';
+import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RouteItem } from '@/store/types';
 import { IconButton } from '@/components/ui/icon-button';
@@ -41,7 +41,7 @@ const InspectorSearchField = ({
   // Sync internal query when value (coordinates) changes from map click
   useEffect(() => {
     if (value[0] !== 0 || value[1] !== 0) {
-      setQuery(`${value[0].toFixed(4)}, ${value[1].toFixed(4)}`);
+      setQuery(`${value[0].toFixed(5)}, ${value[1].toFixed(5)}`);
     } else {
       setQuery('');
     }
@@ -51,13 +51,13 @@ const InspectorSearchField = ({
     <div className="relative group w-full">
       <div className="flex items-center gap-2.5">
         <div className="flex items-center gap-1.5 shrink-0 w-14">
-          <div className={`w-2.5 h-2.5 rounded-full ${dotColor} shadow-xs shrink-0`} />
-          <span className="text-xs font-semibold text-foreground/90">{label}</span>
+          <div className={`w-2.5 h-2.5 rounded-full ${dotColor} shadow-sm shrink-0`} />
+          <span className="text-xs font-medium text-foreground/90">{label}</span>
         </div>
 
         <div className="relative flex-1">
           <Input
-            placeholder="Search address or coords..."
+            placeholder="Search address or coordinates"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -66,7 +66,7 @@ const InspectorSearchField = ({
                 performSearch(query);
               }
             }}
-            className="h-8 text-xs font-mono pl-3 pr-8 bg-background/50 border-border/50 rounded-xl focus-visible:ring-1 focus-visible:ring-primary/20"
+            className="h-8 text-xs font-mono pl-3 pr-8 bg-background/50 border-border/50 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset"
           />
           {query && (
             <button
@@ -92,7 +92,7 @@ const InspectorSearchField = ({
             setEditingRoutePoint(isPicking ? null : pointType);
             setEditingItemId(isPicking ? null : item.id);
           }}
-          title={isPicking ? "Click on map to place point" : "Pick point on map"}
+          title={isPicking ? "Select a point on the map" : "Select point on map"}
         >
           <Crosshair size={13} className={isPicking ? 'animate-pulse text-white' : 'text-muted-foreground'} />
         </IconButton>
@@ -145,7 +145,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const calculateRoute = async (saveToItem: boolean) => {
     if (calc.mode === 'manual') return;
     if (!calc.startPoint || !calc.endPoint || (calc.startPoint[0] === 0 && calc.startPoint[1] === 0)) {
-       toast.error('Set start and end points');
+        toast.error('Set start and end points.');
        return;
     }
 
@@ -166,15 +166,15 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
 
       if (saveToItem) {
         updateItem(item.id, { geojson: featureCollection } as any);
-        toast.success('Route applied');
+        toast.success('Route updated.');
         setPreviewRoute(null);
         setHasCalculated(true);
       } else {
         setPreviewRoute(featureCollection);
-        toast.success('Preview ready');
+        toast.success('Route preview is ready.');
       }
     } catch (err: any) {
-      toast.error('Calculation failed');
+      toast.error('Cannot calculate route.');
     } finally {
       setLoading(false);
     }
@@ -190,15 +190,9 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     setPreviewRoute(null);
   };
 
-  const hasCoordinates = 
-    item.geojson && 
-    item.geojson.features && 
-    item.geojson.features.length > 0;
-
   return (
     <div className="flex flex-col gap-3.5">
       <SegmentedControl
-        shape="pill"
         options={[
           { value: 'manual', label: 'Manual' },
           { value: 'car', label: 'Drive', icon: <Car size={13} /> },
@@ -231,23 +225,15 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
             dotColor="bg-rose-500"
           />
 
-          {/* Status banner if route exists */}
-          {hasCoordinates && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
-              <CheckCircle2 size={12} className="shrink-0" />
-              <span>Route found</span>
-            </div>
-          )}
-
           {/* Action Buttons */}
           <div className="flex flex-col gap-2.5 pt-1">
             <Button 
               type="button"
               onClick={() => calculateRoute(true)} 
               disabled={loading} 
-              className="w-full h-10 py-2.5 px-4 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply Route'}
+              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply route'}
             </Button>
 
             <Button 
@@ -255,10 +241,10 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
               variant="outline" 
               onClick={() => calculateRoute(false)}
               disabled={loading}
-              className="w-full h-10 py-2.5 px-4 rounded-xl text-xs font-semibold border border-border/60 bg-background/60 hover:bg-secondary/80 text-foreground shadow-2xs hover:shadow-xs transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Eye size={15} className="text-muted-foreground" />
-              <span>Preview on map</span>
+              <span>Preview route</span>
             </Button>
           </div>
         </div>
@@ -266,4 +252,3 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     </div>
   );
 };
-

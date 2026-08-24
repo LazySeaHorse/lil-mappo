@@ -77,13 +77,13 @@ export const CalloutAddDropdown = ({
         exitDuration: 0.3,
       },
       style: {
-        bgColor: '#ffffff',
-        textColor: '#ffffff',
+        bgColor: '#0f172a',
+        textColor: '#f8fafc',
         accentColor: '#3b82f6',
         borderRadius: 8,
         shadow: true,
         maxWidth: 240,
-        fontFamily: 'Inter',
+        fontFamily: 'Outfit',
         variant,
         showMetadata: true,
       },
@@ -108,7 +108,7 @@ export const CalloutAddDropdown = ({
       size="sm"
       title="Add Callout"
     >
-      <Flag size={18} className={isOpen ? 'animate-pulse' : ''} />
+      <Flag size={18} />
     </IconButton>
   );
 
@@ -126,9 +126,9 @@ export const CalloutAddDropdown = ({
       size="sm" 
       onClick={handleAdd}
       disabled={lngLat[0] === 0}
-      className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold rounded-xl shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+      className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
     >
-      <Plus size={16} /> Create Callout
+      <Plus size={16} /> Create callout
     </Button>
   );
 
@@ -141,7 +141,7 @@ export const CalloutAddDropdown = ({
       footer={footer}
     >
       <div className="space-y-4">
-        <SectionLabel>Target Location</SectionLabel>
+        <SectionLabel>Target location</SectionLabel>
         <SearchField 
           label="Search location..."
           value={lngLat}
@@ -154,7 +154,7 @@ export const CalloutAddDropdown = ({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <SectionLabel className="mb-0 px-0">Label Title</SectionLabel>
+          <SectionLabel className="mb-0 px-0">Label title</SectionLabel>
           <div className="flex items-center gap-2">
             <StatusPill>{linkTitle ? 'Linked' : 'Manual'}</StatusPill>
             <Switch 
@@ -185,7 +185,7 @@ export const CalloutAddDropdown = ({
       </div>
 
       <div className="space-y-3">
-        <SectionLabel>Design Variant</SectionLabel>
+        <SectionLabel>Design variant</SectionLabel>
         <SegmentedControl
           options={[
             { value: 'default', label: 'Default' },
