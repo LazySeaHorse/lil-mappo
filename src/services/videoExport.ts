@@ -24,9 +24,6 @@ export interface ExportOptions {
   startTime?: number;
   endTime?: number;
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void;
-  onComplete: (blob: Blob) => void;
-  onError: (err: string) => void;
-  onFormatDecided?: (format: 'mp4') => void;
   abortSignal: AbortSignal;
   showWatermark: boolean;
 }
@@ -36,6 +33,7 @@ interface EncoderState {
   compCtx: CanvasRenderingContext2D;
   muxer: any;
   videoEncoder: VideoEncoder;
+  getEncoderError: () => Error | null;
 }
 
 export type LocalExportCapability =
@@ -121,7 +119,6 @@ async function initEncoder(
   width: number,
   height: number,
   fps: number,
-  onError: (err: string) => void,
 ): Promise<EncoderState> {
   const compCanvas = document.createElement('canvas');
   compCanvas.width = width;
@@ -141,10 +138,13 @@ async function initEncoder(
   });
 
   let videoEncoder: VideoEncoder;
+  let encoderError: Error | null = null;
   try {
     videoEncoder = new VideoEncoder({
       output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
-      error: (e: Error) => onError(`VideoEncoder error: ${e.message}`),
+      error: (e: Error) => {
+        encoderError = new Error(`VideoEncoder error: ${e.message}`);
+      },
     });
     videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
   } catch (e: any) {
@@ -156,7 +156,13 @@ async function initEncoder(
     );
   }
 
-  return { compCanvas, compCtx, muxer, videoEncoder };
+  return {
+    compCanvas,
+    compCtx,
+    muxer,
+    videoEncoder,
+    getEncoderError: () => encoderError,
+  };
 }
 
 // ─── Tile cache pre-warm ───────────────────────────────────────────────────────
@@ -274,13 +280,12 @@ async function captureFrame(
 
 async function finalizeExport(
   state: Pick<EncoderState, 'videoEncoder' | 'muxer'>,
-  onComplete: (blob: Blob) => void,
-) {
+): Promise<Blob> {
   const { videoEncoder, muxer } = state;
   await videoEncoder.flush();
   videoEncoder.close();
   muxer.finalize();
-  onComplete(new Blob([muxer.target.buffer], { type: 'video/mp4' }));
+  return new Blob([muxer.target.buffer], { type: 'video/mp4' });
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -288,8 +293,8 @@ async function finalizeExport(
 export async function runExport(
   mapRef: React.MutableRefObject<any>,
   options: ExportOptions,
-) {
-  const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, onComplete, onError, onFormatDecided, abortSignal } = options;
+): Promise<Blob> {
+  const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, abortSignal } = options;
   const [width, height] = renderConfig.resolution;
   const { fps } = renderConfig;
 
@@ -301,18 +306,14 @@ export async function runExport(
   const startFrame = Math.floor(startTime * fps);
   const totalFrames = Math.ceil(effectiveDuration * fps);
 
-  let encoderState: EncoderState;
-  try {
-    encoderState = await initEncoder(width, height, fps, onError);
-  } catch (e: any) {
-    onError(e.message || 'Export failed: could not initialize video encoder');
-    return;
-  }
-  onFormatDecided?.('mp4');
+  const encoderState = await initEncoder(width, height, fps);
   const { compCanvas, compCtx } = encoderState;
 
   const map = mapRef.current?.getMap?.();
-  if (!map) { onError('Map not available'); return; }
+  if (!map) {
+    encoderState.videoEncoder.close();
+    throw new Error('Map not available');
+  }
 
   // Zoom offset: compensates for the viewport size change during export so the
   // rendered framing matches what was designed at preview resolution.
@@ -321,7 +322,7 @@ export async function runExport(
   const zoomOffset = Math.log2(width / previewWidth);
 
   try {
-    await withMapResized(map, width, height, async () => {
+    return await withMapResized(map, width, height, async () => {
       // Wait for map ready
       await Promise.race([
         new Promise<void>((resolve) => map.once('idle', resolve)),
@@ -331,24 +332,28 @@ export async function runExport(
 
       // Phase 1: pre-warm tile cache
       await prewarmTileCache(map, getRouteCoords, getRoutes, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
+      if (abortSignal.aborted) throw new DOMException('Export cancelled', 'AbortError');
 
       // Phase 2: capture frames
       for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
         if (abortSignal.aborted) {
-          encoderState.videoEncoder.close();
-          return;
+          throw new DOMException('Export cancelled', 'AbortError');
         }
 
         const currentTime = (startFrame + frameIndex) / fps;
         const clampedTime = Math.min(currentTime, duration);
 
         await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, getRoutes, options.showWatermark, zoomOffset);
+        const encoderError = encoderState.getEncoderError();
+        if (encoderError) throw encoderError;
         onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
       }
 
-      await finalizeExport(encoderState, onComplete);
+      return finalizeExport(encoderState);
     });
-  } catch (e: any) {
-    onError(e.message || 'Export failed');
+  } finally {
+    if (encoderState.videoEncoder.state !== 'closed') {
+      encoderState.videoEncoder.close();
+    }
   }
 }

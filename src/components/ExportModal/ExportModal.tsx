@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -18,15 +18,17 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ProBadge } from '@/components/ui/pro-badge';
 import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
-import {
-  getExportDimensions,
-  calculateRenderCredits,
-} from '@/types/render';
+import { calculateRenderCredits } from '@/types/render';
 import { getExportLimits, shouldShowWatermark } from '@/lib/cloudAccess';
+import { resolveExportPlan } from './exportPlan';
 
 interface ExportModalProps {
   open: boolean;
   onClose: () => void;
+}
+
+function getErrorMessage(error: unknown, fallback = 'Export failed'): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export default function ExportModal({ open, onClose }: ExportModalProps) {
@@ -75,7 +77,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   const { data: creditBalance } = useCredits();
   const mapRef = useMapRef();
 
-  // Clamp initial values to limits so state is always valid on open
+  // Initialize the editable draft from the limits currently in effect.
   const [exportFps, setExportFps] = useState<30 | 60>(
     fps > limits.maxFps ? limits.maxFps : fps
   );
@@ -91,37 +93,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   const [localExportCapability, setLocalExportCapability] = useState<LocalExportCapability | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const [w, h] = resolution;
-  const exportDuration = Math.max(0, endTime - startTime);
-  const totalFrames = Math.ceil(exportDuration * exportFps);
-  const credits = calculateRenderCredits(exportResolution, exportDuration, exportFps);
-  const totalCredits = (creditBalance?.monthly_credits ?? 0) + (creditBalance?.purchased_credits ?? 0);
-  const canAfford = totalCredits >= credits;
-  const resOrder: ExportResolution[] = ['480p', '720p', '1080p', '1440p', '2160p'];
-  const effectiveExportResolution = resOrder.indexOf(exportResolution) > resOrder.indexOf(limits.maxResolution)
-    ? limits.maxResolution
-    : exportResolution;
-  const effectiveExportFps: 30 | 60 = exportFps > limits.maxFps ? limits.maxFps : exportFps;
-  const [effectiveWidth, effectiveHeight] = getExportDimensions(effectiveExportResolution, aspectRatio, isVertical);
-
-  // Probe the effective export settings up front so people see device/browser
-  // limitations before starting a potentially long local render.
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-
-    getLocalExportCapability(effectiveWidth, effectiveHeight, effectiveExportFps)
-      .then((capability) => {
-        if (!cancelled) setLocalExportCapability(capability);
-      })
-      .catch(() => {
-        if (!cancelled) setLocalExportCapability({ status: 'limited' });
-      });
-
-    return () => { cancelled = true; };
-  }, [open, effectiveExportFps, effectiveHeight, effectiveWidth]);
-
-  const buildRenderConfig = useCallback((): RenderConfig => ({
+  const requestedRenderConfig: RenderConfig = {
     resolution,
     fps: exportFps,
     aspectRatio,
@@ -134,9 +106,42 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     show3dLandmarks,
     show3dTrees,
     show3dFacades,
-  }), [resolution, exportFps, aspectRatio, exportResolution, isVertical, mapStyle, terrainEnabled, buildingsEnabled, labelVisibility, show3dLandmarks, show3dTrees, show3dFacades]);
+  };
+  const exportPlan = resolveExportPlan(
+    requestedRenderConfig,
+    { startTime, endTime },
+    limits,
+  );
+  const { renderConfig: effectiveRenderConfig } = exportPlan;
+  const [effectiveWidth, effectiveHeight] = effectiveRenderConfig.resolution;
+  const exportDuration = Math.max(0, exportPlan.endTime - exportPlan.startTime);
+  const totalFrames = Math.ceil(exportDuration * effectiveRenderConfig.fps);
+  const credits = calculateRenderCredits(
+    effectiveRenderConfig.exportResolution,
+    exportDuration,
+    effectiveRenderConfig.fps,
+  );
+  const totalCredits = (creditBalance?.monthly_credits ?? 0) + (creditBalance?.purchased_credits ?? 0);
+  const canAfford = totalCredits >= credits;
 
-  const handleExport = useCallback(async () => {
+  // Probe the effective export settings up front so people see device/browser
+  // limitations before starting a potentially long local render.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+
+    getLocalExportCapability(effectiveWidth, effectiveHeight, effectiveRenderConfig.fps)
+      .then((capability) => {
+        if (!cancelled) setLocalExportCapability(capability);
+      })
+      .catch(() => {
+        if (!cancelled) setLocalExportCapability({ status: 'limited' });
+      });
+
+    return () => { cancelled = true; };
+  }, [open, effectiveRenderConfig.fps, effectiveHeight, effectiveWidth]);
+
+  async function handleExport() {
     // Guests without BYOK must sign in before exporting
     if (!session && limits.limited) {
       openAuthModal();
@@ -145,58 +150,39 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     useProjectStore.getState().setIsExporting(true);
     setProgress(0);
     setError(null);
-    abortRef.current = new AbortController();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     const showWatermark = shouldShowWatermark(subscription);
     useProjectStore.getState().setIsPlaying(false);
     useProjectStore.getState().setHideUI(true);
 
     try {
-      // Silently clamp to the user's tier limits before encoding starts.
-      // This handles store values that were tampered via DevTools, or projects
-      // originally made on a higher tier the user has since downgraded from.
-      const rc = buildRenderConfig();
-      const resOrder: ExportResolution[] = ['480p', '720p', '1080p', '1440p', '2160p'];
-      const safeRes: ExportResolution =
-        resOrder.indexOf(rc.exportResolution) > resOrder.indexOf(limits.maxResolution)
-          ? limits.maxResolution
-          : rc.exportResolution;
-      const safeFps: 30 | 60 = rc.fps > limits.maxFps ? limits.maxFps : rc.fps;
-      const safeEndTime = Math.min(endTime, limits.maxDuration);
-      const safeResolution = getExportDimensions(safeRes, rc.aspectRatio, rc.isVertical);
-
-      await runExport(mapRef, {
-        renderConfig: { ...rc, exportResolution: safeRes, fps: safeFps, resolution: safeResolution },
-        startTime,
-        endTime: safeEndTime,
+      const blob = await runExport(mapRef, {
+        ...exportPlan,
         showWatermark,
         onProgress: (pct, p) => { setProgress(pct); setPhase(p); },
-        onComplete: (blob) => {
-          const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.mp4`;
-          saveAs(blob, fileName);
-          useProjectStore.getState().setIsExporting(false);
-          setProgress(100);
-          useProjectStore.getState().setHideUI(false);
-        },
-        onError: (err) => {
-          setError(err);
-          useProjectStore.getState().setIsExporting(false);
-          useProjectStore.getState().setHideUI(false);
-        },
-        abortSignal: abortRef.current.signal,
+        abortSignal: controller.signal,
       });
-    } catch (e: any) {
-      setError(e.message || 'Export failed');
+
+      const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.mp4`;
+      saveAs(blob, fileName);
+      setProgress(100);
+    } catch (error: unknown) {
+      if (controller.signal.aborted) {
+        setProgress(0);
+      } else {
+        setError(getErrorMessage(error));
+      }
+    } finally {
+      abortRef.current = null;
       useProjectStore.getState().setIsExporting(false);
       useProjectStore.getState().setHideUI(false);
     }
-  }, [mapRef, buildRenderConfig, name, startTime, endTime]);
+  }
 
   const handleCancel = () => {
     abortRef.current?.abort();
-    useProjectStore.getState().setIsExporting(false);
-    setProgress(0);
-    useProjectStore.getState().setHideUI(false);
   };
 
   const handleCloudRender = async () => {
@@ -206,7 +192,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     setCloudSubmitted(false);
 
     const store = useProjectStore.getState();
-    const renderConfig = buildRenderConfig();
+    const renderConfig = effectiveRenderConfig;
 
     // Snapshot persisted project fields only
     const projectData = {
@@ -226,15 +212,20 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ projectData, renderConfig, startTime, endTime }),
+        body: JSON.stringify({
+          projectData,
+          renderConfig,
+          startTime: exportPlan.startTime,
+          endTime: exportPlan.endTime,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Server error ${res.status}`);
       }
       setCloudSubmitted(true);
-    } catch (e: any) {
-      setError(e.message || 'Failed to submit cloud render');
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to submit cloud render'));
     }
   };
 
@@ -270,8 +261,8 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
             <Field label="Orientation">
               <SegmentedControl
                 options={[
-                  { value: 'landscape', label: <Monitor size={14} /> },
-                  { value: 'portrait', label: <Smartphone size={14} /> },
+                  { value: 'landscape', label: 'Landscape', icon: <Monitor size={14} /> },
+                  { value: 'portrait', label: 'Portrait', icon: <Smartphone size={14} /> },
                 ]}
                 value={isVertical ? 'portrait' : 'landscape'}
                 onValueChange={(v) => setIsVertical(v === 'portrait')}
@@ -289,7 +280,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
               </span>
             }>
               <Select
-                value={exportResolution}
+                value={effectiveRenderConfig.exportResolution}
                 onValueChange={(v) => setExportResolution(v as ExportResolution)}
                 disabled={isExporting || cloudSubmitted}
               >
@@ -307,7 +298,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
               </span>
             }>
               <Select
-                value={exportFps.toString()}
+                value={effectiveRenderConfig.fps.toString()}
                 onValueChange={(v) => setExportFps(Number(v) as 30 | 60)}
                 disabled={isExporting || cloudSubmitted}
               >
@@ -324,7 +315,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
               <Input
                 type="number"
                 min={0}
-                max={endTime}
+                max={exportPlan.endTime}
                 step={0.1}
                 value={startTime}
                 onChange={(e) => setStartTime(Number(e.target.value))}
@@ -343,7 +334,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
                 min={startTime}
                 max={Math.min(duration, limits.maxDuration)}
                 step={0.1}
-                value={endTime}
+                value={exportPlan.endTime}
                 onChange={(e) => setEndTime(Math.min(Number(e.target.value), limits.maxDuration))}
                 disabled={isExporting || cloudSubmitted}
                 className="h-9 text-sm"
@@ -385,7 +376,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           {/* Info row */}
           <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-xl p-3">
             <div><span className="block font-medium text-foreground">{exportDuration.toFixed(1)}s</span>Duration</div>
-            <div><span className="block font-medium text-foreground whitespace-nowrap">{w} × {h}</span>Dimensions</div>
+            <div><span className="block font-medium text-foreground whitespace-nowrap">{effectiveWidth} × {effectiveHeight}</span>Dimensions</div>
             <div><span className="block font-medium text-foreground">{totalFrames}</span>Total frames</div>
             <div><span className="block font-medium text-foreground">MP4</span>Format</div>
           </div>
@@ -394,13 +385,13 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           {localExportCapability?.status === 'ready' && (
             <div className="flex items-start gap-2 text-xs text-primary bg-primary/10 rounded-xl p-3">
               <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
-              <span>Local export is available at {effectiveWidth} × {effectiveHeight}, {effectiveExportFps} FPS.</span>
+              <span>Local export is available at {effectiveWidth} × {effectiveHeight}, {effectiveRenderConfig.fps} FPS.</span>
             </div>
           )}
           {localExportCapability?.status === 'limited' && (
             <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-xl p-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>This browser may not support H.264 at {effectiveWidth} × {effectiveHeight}, {effectiveExportFps} FPS. Try a lower resolution or 30 FPS.</span>
+              <span>This browser may not support H.264 at {effectiveWidth} × {effectiveHeight}, {effectiveRenderConfig.fps} FPS. Try a lower resolution or 30 FPS.</span>
             </div>
           )}
           {localExportCapability?.status === 'unsupported' && (

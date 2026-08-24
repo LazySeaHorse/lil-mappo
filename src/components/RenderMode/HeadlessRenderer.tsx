@@ -6,6 +6,7 @@ import { runExport } from '@/services/videoExport';
 import MapViewport from '@/components/MapViewport/MapViewport';
 import type { RenderConfig } from '@/types/render';
 import type { Project } from '@/store/types';
+import { MAPBOX_TOKEN } from '@/config/mapbox';
 
 interface HeadlessRendererProps {
   jobId: string;
@@ -30,6 +31,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
   const [jobData, setJobData] = useState<{
     projectData: Project;
     renderConfig: RenderConfig;
+    showWatermark: boolean;
     startTime: number;
     endTime: number;
   } | null>(null);
@@ -61,6 +63,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
         setJobData({
           projectData: data.projectData,
           renderConfig: config,
+          showWatermark: data.showWatermark,
           startTime: data.startTime,
           endTime: data.endTime,
         });
@@ -99,36 +102,33 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
     async function render() {
       setStatus('Rendering...');
       try {
-        await runExport(mapRef, {
+        const blob = await runExport(mapRef, {
           renderConfig: jobData!.renderConfig,
           startTime: jobData!.startTime,
           endTime: jobData!.endTime,
           onProgress: (pct, phase) => {
             setStatus(`${phase === 'prewarm' ? 'Warming cache' : 'Rendering'}: ${pct}%`);
           },
-          onComplete: (blob) => {
-            // Trigger a browser download so Playwright can intercept and save
-            // the file to disk. The Modal Python worker uploads it to DO Spaces
-            // via boto3 and calls /api/render-complete — this avoids DNS
-            // resolution failures for external hostnames inside the container.
-            setStatus('Done!');
-            const objectUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = objectUrl;
-            a.download = `render-${jobId}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(objectUrl);
-            (window as any).__renderResult = { success: true };
-          },
-          onError: async (err) => {
-            setStatus(`Error: ${err}`);
-            await signalFailure(err);
-          },
           abortSignal: abortController.signal,
+          showWatermark: jobData!.showWatermark,
         });
+
+        // Trigger a browser download so Playwright can intercept and save
+        // the file to disk. The Modal Python worker uploads it to DO Spaces
+        // via boto3 and calls /api/render-complete — this avoids DNS
+        // resolution failures for external hostnames inside the container.
+        setStatus('Done!');
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = `render-${jobId}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objectUrl);
+        (window as any).__renderResult = { success: true };
       } catch (e: any) {
+        setStatus(`Error: ${e.message}`);
         await signalFailure(e.message);
       }
     }
@@ -165,6 +165,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
           <MapViewport
             mapRef={mapRef}
             onMapReady={() => setMapReady(true)}
+            mapboxToken={MAPBOX_TOKEN}
           />
         )}
       </div>
