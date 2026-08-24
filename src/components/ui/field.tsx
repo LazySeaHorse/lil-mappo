@@ -32,7 +32,7 @@ function SectionLabel({ children, className }: { children: React.ReactNode; clas
   return (
     <h3
       className={cn(
-        "text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70 mb-2.5 px-1",
+        "text-xs font-medium text-foreground/80 mb-2 px-1",
         className,
       )}
     >

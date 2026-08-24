@@ -26,8 +26,8 @@ function PanelHeader({
           {icon}
         </div>
         <div>
-          <h3 className="text-sm font-bold tracking-tight">{title}</h3>
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+          <h3 className="text-sm font-medium tracking-tight">{title}</h3>
+          <p className="text-xs text-muted-foreground font-normal">
             {subtitle}
           </p>
         </div>

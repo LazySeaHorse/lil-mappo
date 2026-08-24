@@ -12,7 +12,7 @@ interface SegmentedControlProps<T extends string> {
   options: SegmentedControlOption<T>[];
   value: T;
   onValueChange: (value: T) => void;
-  /** "pill" = rounded-full (RoutePlanner), "rounded" = rounded-lg (RouteAddDropdown, ProjectSettings) */
+  /** Deprecated optional shape preserved for API compatibility, standardized to concentric geometry */
   shape?: "pill" | "rounded";
   className?: string;
 }
@@ -21,11 +21,8 @@ function SegmentedControl<T extends string>({
   options,
   value,
   onValueChange,
-  shape = "rounded",
   className,
 }: SegmentedControlProps<T>) {
-  const isRound = shape === "pill";
-
   return (
     <ToggleGroupPrimitive.Root
       type="single"
@@ -33,8 +30,7 @@ function SegmentedControl<T extends string>({
       onValueChange={(v) => { if (v) onValueChange(v as T); }}
       data-slot="segmented-control"
       className={cn(
-        "flex p-1 text-xs font-medium relative",
-        isRound ? "bg-secondary/50 rounded-full h-10" : "bg-secondary/50 rounded-lg",
+        "flex p-1 text-xs font-medium relative bg-secondary/50 rounded-xl",
         className,
       )}
     >
@@ -43,13 +39,10 @@ function SegmentedControl<T extends string>({
           key={opt.value}
           value={opt.value}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 transition-all z-10 text-muted-foreground",
-            isRound
-              ? "rounded-full text-[10px] font-bold"
-              : "py-1.5 rounded-md",
+            "flex-1 flex items-center justify-center gap-1.5 transition-all z-10 text-muted-foreground py-1.5 rounded-lg text-xs font-medium select-none",
             value === opt.value
-              ? "text-foreground"
-              : "hover:text-foreground/70",
+              ? "text-foreground font-medium"
+              : "hover:text-foreground/80",
           )}
         >
           {opt.icon}
@@ -58,10 +51,7 @@ function SegmentedControl<T extends string>({
       ))}
       {/* Animated sliding indicator */}
       <div
-        className={cn(
-          "absolute top-1 bottom-1 bg-background shadow-sm transition-all duration-200 ease-out z-0",
-          isRound ? "rounded-full" : "rounded-md",
-        )}
+        className="absolute top-1 bottom-1 bg-background shadow-sm rounded-lg transition-all duration-200 ease-out z-0"
         style={{
           width: `calc(${100 / options.length}% - 4px)`,
           left: `calc(${(options.findIndex((o) => o.value === value) * 100) / options.length}% + 2px)`,

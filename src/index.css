@@ -1,5 +1,5 @@
 @import 'mapbox-gl/dist/mapbox-gl.css';
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -25,8 +25,8 @@
     --muted: 210 20% 90%;
     --muted-foreground: 215 14% 46%;
 
-    --accent: 215 100% 40%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 20% 94%;
+    --accent-foreground: 215 25% 15%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -35,7 +35,7 @@
     --input: 214 20% 85%;
     --ring: 215 100% 40%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;
 
     /* MapStudio custom tokens */
     --toolbar-bg: 0 0% 100%;
@@ -83,7 +83,7 @@
     --muted: 240 4% 16%;
     --muted-foreground: 240 5% 65%;
 
-    --accent: 215 100% 60%;
+    --accent: 240 4% 16%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 60%;
@@ -177,5 +177,4 @@ html:not(.hide-ui-active) .mapboxgl-ctrl-attrib {
 @keyframes callout-scale-down { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.5); } }
 @keyframes callout-slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes callout-slide-down { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
-
 

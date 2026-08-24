@@ -45,7 +45,7 @@ const DrawerContent = React.forwardRef<
       data-slot="drawer-content"
       className={cn(
         "group/drawer-content bg-background fixed z-50 flex h-auto flex-col",
-        "data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:rounded-t-lg data-[vaul-drawer-direction=bottom]:border-t",
+        "data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:rounded-t-2xl data-[vaul-drawer-direction=bottom]:border-t",
         className
       )}
       {...props}
@@ -88,7 +88,7 @@ const DrawerTitle = React.forwardRef<
   <DrawerPrimitive.Title
     ref={ref}
     data-slot="drawer-title"
-    className={cn("text-foreground font-semibold", className)}
+    className={cn("text-foreground font-medium", className)}
     {...props}
   />
 ));
