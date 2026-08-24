@@ -126,8 +126,8 @@ export default function TimelineViewport({
               item={item}
               pixelsPerSecond={pixelsPerSecond}
               isSelected={selectedItemId === item.id}
-              selectedKeyframeId={selectedKeyframeId}
-              onSelect={() => onSelectItem(item.id)}
+              selectedKeyframeId={item.kind === 'camera' ? selectedKeyframeId : null}
+              onSelectItem={onSelectItem}
               onSelectKeyframe={onSelectKeyframe}
               autoCamBlocks={item.kind === 'camera' ? autoCamBlocks : undefined}
               onSelectAutoCam={onSelectAutoCam}

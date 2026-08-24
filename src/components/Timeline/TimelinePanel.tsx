@@ -1,11 +1,13 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
+import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 import TimelineHeader from './TimelineHeader';
 import TimelineViewport from './TimelineViewport';
 import type { AutoCamBlock } from './TimelineTrackRow';
 import { useResponsive } from '@/hooks/useResponsive';
-import { formatTimelineTime } from './timelineTime';
+import { useTimelineKeyboardShortcuts } from './useTimelineKeyboardShortcuts';
+import { useTimelinePlayheadSync } from './useTimelinePlayheadSync';
 import {
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
@@ -20,23 +22,33 @@ export default function TimelinePanel() {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(PIXELS_PER_SECOND_DEFAULT);
   const [isResizing, setIsResizing] = useState(false);
 
-  // --- Imperative playhead refs (no re-renders during playback) ---
-  const rulerDiamondRef = useRef<HTMLDivElement>(null);
-  const trackLineRef = useRef<HTMLDivElement>(null);
-  const timeDisplayRef = useRef<HTMLSpanElement>(null);
-
-  // Pixels-per-second is needed inside the subscription; use a ref to avoid stale closure
-  const ppsRef = useRef(pixelsPerSecond);
-  useEffect(() => { ppsRef.current = pixelsPerSecond; }, [pixelsPerSecond]);
-
-  // Remove playheadTime from the destructure — subscribe imperatively below
   const {
     duration, setPlayheadTime, items, itemOrder,
     selectedItemId, selectItem, selectKeyframe, selectedKeyframeId,
     isInspectorOpen, timelineHeight, setTimelineHeight,
     isPlaying, setIsPlaying, fps, removeItem, setIsScrubbing,
     setSelectedAutoCamRouteId,
-  } = useProjectStore();
+  } = useProjectStore(useShallow((state) => ({
+    duration: state.duration,
+    setPlayheadTime: state.setPlayheadTime,
+    items: state.items,
+    itemOrder: state.itemOrder,
+    selectedItemId: state.selectedItemId,
+    selectItem: state.selectItem,
+    selectKeyframe: state.selectKeyframe,
+    selectedKeyframeId: state.selectedKeyframeId,
+    isInspectorOpen: state.isInspectorOpen,
+    timelineHeight: state.timelineHeight,
+    setTimelineHeight: state.setTimelineHeight,
+    isPlaying: state.isPlaying,
+    setIsPlaying: state.setIsPlaying,
+    fps: state.fps,
+    removeItem: state.removeItem,
+    setIsScrubbing: state.setIsScrubbing,
+    setSelectedAutoCamRouteId: state.setSelectedAutoCamRouteId,
+  })));
+
+  const { rulerDiamondRef, timeDisplayRef, trackLineRef } = useTimelinePlayheadSync(pixelsPerSecond);
 
   const [displayHeight, setDisplayHeight] = useState(timelineHeight);
 
@@ -47,45 +59,20 @@ export default function TimelinePanel() {
 
   const { isMobile, isTablet } = useResponsive();
 
-  const orderedItems = itemOrder.map((id) => items[id]).filter(Boolean);
+  const orderedItems = useMemo(
+    () => itemOrder.map((id) => items[id]).filter(Boolean),
+    [itemOrder, items],
+  );
   const maxContentHeight = HEADER_HEIGHT + 40 + (orderedItems.length * 40) + 16;
 
-  const autoCamBlocks: AutoCamBlock[] = orderedItems
-    .filter((i): i is RouteItem => i.kind === 'route' && !!(i as RouteItem).autoCam?.enabled)
-    .map((r) => ({
-      routeId: r.id,
-      routeName: r.name,
-      startTime: r.startTime,
-      endTime: r.endTime,
-    }));
-
-  // --- Imperative playhead subscription: zero React re-renders during playback ---
-  useEffect(() => {
-    const unsub = useProjectStore.subscribe((state) => {
-      const x = state.playheadTime * ppsRef.current;
-
-      if (rulerDiamondRef.current) {
-        rulerDiamondRef.current.style.left = `${x}px`;
-      }
-      if (trackLineRef.current) {
-        // Track line left is x + 160 (the label column width)
-        trackLineRef.current.style.left = `${x + 160}px`;
-      }
-      if (timeDisplayRef.current) {
-        timeDisplayRef.current.textContent = formatTimelineTime(state.playheadTime);
-      }
-    });
-    return unsub;
-  }, []); // mount-once
-
-  // When pps changes, re-sync positions immediately from current store state
-  useEffect(() => {
-    const { playheadTime } = useProjectStore.getState();
-    const x = playheadTime * pixelsPerSecond;
-    if (rulerDiamondRef.current) rulerDiamondRef.current.style.left = `${x}px`;
-    if (trackLineRef.current) trackLineRef.current.style.left = `${x + 160}px`;
-    if (timeDisplayRef.current) timeDisplayRef.current.textContent = formatTimelineTime(playheadTime);
-  }, [pixelsPerSecond]);
+  const autoCamBlocks: AutoCamBlock[] = useMemo(() => orderedItems
+    .filter((item): item is RouteItem => item.kind === 'route' && !!item.autoCam?.enabled)
+    .map((route) => ({
+      routeId: route.id,
+      routeName: route.name,
+      startTime: route.startTime,
+      endTime: route.endTime,
+    })), [orderedItems]);
 
   // Use pointer capture so the ScrollArea can't steal the drag mid-way
   const handleResizeDrag = useCallback((e: React.PointerEvent) => {
@@ -128,49 +115,20 @@ export default function TimelinePanel() {
     setPixelsPerSecond(Math.max(10, Math.min(300, availableWidth / duration)));
   }, [duration]);
 
-  // Global Keyboard Shortcuts — read playheadTime imperatively to avoid re-render cascade
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const isTyping =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable;
+  useTimelineKeyboardShortcuts({
+    duration,
+    fps,
+    isPlaying,
+    selectedItemId,
+    removeItem,
+    setIsPlaying,
+    setPlayheadTime,
+  });
 
-      if (isTyping) return;
-
-      switch (e.code) {
-        case 'Space':
-          e.preventDefault();
-          setIsPlaying(!isPlaying);
-          break;
-        case 'Delete':
-        case 'Backspace':
-          if (selectedItemId && selectedItemId !== CAMERA_TRACK_ID) {
-            removeItem(selectedItemId);
-          }
-          break;
-        case 'BracketLeft':
-          setPlayheadTime(0);
-          break;
-        case 'BracketRight':
-          setPlayheadTime(duration);
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          // Read imperatively — avoids including playheadTime in deps (which causes re-render cascade)
-          setPlayheadTime(useProjectStore.getState().playheadTime - (1 / fps));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          setPlayheadTime(useProjectStore.getState().playheadTime + (1 / fps));
-          break;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-    // playheadTime intentionally omitted — read via getState() to avoid re-render storm
-  }, [isPlaying, setIsPlaying, selectedItemId, removeItem, setPlayheadTime, duration, fps]);
+  const handleSelectAutoCam = useCallback((routeId: string) => {
+    selectItem(routeId);
+    setSelectedAutoCamRouteId(routeId);
+  }, [selectItem, setSelectedAutoCamRouteId]);
 
   const clampedHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(displayHeight, maxContentHeight));
 
@@ -229,10 +187,7 @@ export default function TimelinePanel() {
         timeDisplayRef={timeDisplayRef}
         trackLineRef={trackLineRef}
         onSelectItem={selectItem}
-        onSelectAutoCam={(routeId) => {
-          selectItem(routeId);
-          setSelectedAutoCamRouteId(routeId);
-        }}
+        onSelectAutoCam={handleSelectAutoCam}
         onSelectKeyframe={selectKeyframe}
       />
     </div>

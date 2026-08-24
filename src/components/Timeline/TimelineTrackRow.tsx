@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -23,7 +23,7 @@ interface TimelineTrackRowProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   selectedKeyframeId: string | null;
-  onSelect: () => void;
+  onSelectItem: (itemId: string) => void;
   onSelectKeyframe: (id: string | null) => void;
   autoCamBlocks?: AutoCamBlock[];
   onSelectAutoCam?: (routeId: string) => void;
@@ -34,13 +34,14 @@ const TimelineTrackRow = React.memo(({
   pixelsPerSecond,
   isSelected,
   selectedKeyframeId,
-  onSelect,
+  onSelectItem,
   onSelectKeyframe,
   autoCamBlocks,
   onSelectAutoCam,
 }: TimelineTrackRowProps) => {
   const isCameraEnabled = useProjectStore((state) => state.isCameraEnabled);
   const setIsCameraEnabled = useProjectStore((state) => state.setIsCameraEnabled);
+  const handleSelect = useCallback(() => onSelectItem(item.id), [item.id, onSelectItem]);
 
   const colorClass = item.kind === 'route'
     ? 'bg-item-route'
@@ -61,7 +62,7 @@ const TimelineTrackRow = React.memo(({
   const handleKeyframeMouseDown = (event: React.MouseEvent, keyframeId: string, initialTime: number) => {
     event.stopPropagation();
     event.preventDefault();
-    onSelect();
+    handleSelect();
     onSelectKeyframe(keyframeId);
 
     const startX = event.clientX;
@@ -88,7 +89,7 @@ const TimelineTrackRow = React.memo(({
   return (
     <div
       className={`flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
-      onClick={onSelect}
+      onClick={handleSelect}
     >
       <div className={`w-[160px] shrink-0 sticky left-0 z-10 flex items-center px-4 gap-2.5 border-r border-border/50 bg-background/90 backdrop-blur-sm transition-colors ${isSelected ? 'border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'}`}>
         <div className={`w-2 h-2 rounded-full ${colorClass} shadow-sm`} />
@@ -119,7 +120,7 @@ const TimelineTrackRow = React.memo(({
             pixelsPerSecond={pixelsPerSecond}
             selectedKeyframeId={selectedKeyframeId}
             autoCamBlocks={autoCamBlocks}
-            onSelect={onSelect}
+            onSelect={handleSelect}
             onSelectKeyframe={onSelectKeyframe}
             onSelectAutoCam={onSelectAutoCam}
             onKeyframeMouseDown={handleKeyframeMouseDown}
@@ -129,7 +130,7 @@ const TimelineTrackRow = React.memo(({
             item={item as RouteItem | BoundaryItem | CalloutItem}
             pixelsPerSecond={pixelsPerSecond}
             colorClass={colorClass}
-            onSelect={onSelect}
+            onSelect={handleSelect}
           />
         )}
       </div>
