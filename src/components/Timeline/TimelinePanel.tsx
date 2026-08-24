@@ -1,12 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { TimelineItem, CameraItem, RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
-import {
-  constrainEndTrim,
-  constrainMove,
-  constrainStartTrim,
-  getOtherAutoCamRanges,
-} from './timelineConstraints';
+import TimelineItemBar from './TimelineItemBar';
 
 interface AutoCamBlock {
   routeId: string;
@@ -32,7 +27,6 @@ import {
 const RULER_HEIGHT = 40;
 const HEADER_HEIGHT = 48;
 const MIN_PANEL_HEIGHT = 120; // header + ruler + some visible content
-const MIN_TIMELINE_ITEM_DURATION = 0.2;
 const PIXELS_PER_SECOND_DEFAULT = 60;
 
 function formatTime(s: number): string {
@@ -652,109 +646,6 @@ const TrackRow = React.memo(({
             onSelect={onSelect}
           />
         )}
-      </div>
-    </div>
-  );
-});
-
-const TimelineItemBar = React.memo(({
-  item,
-  pixelsPerSecond,
-  colorClass,
-  onSelect,
-}: {
-  item: RouteItem | BoundaryItem | CalloutItem;
-  pixelsPerSecond: number;
-  colorClass: string;
-  onSelect: () => void;
-}) => {
-  const updateItem = useProjectStore((s) => s.updateItem);
-  const duration = useProjectStore((s) => s.duration);
-
-  const handleMouseDown = (e: React.MouseEvent, type: 'start' | 'end' | 'move') => {
-    e.stopPropagation();
-    e.preventDefault();
-    onSelect();
-
-    const startX = e.clientX;
-    const initialStart = item.startTime;
-    const initialEnd = item.endTime;
-    const itemDuration = Math.max(0.1, initialEnd - initialStart);
-    const currentItem = useProjectStore.getState().items[item.id];
-    const isAutoCamConstrained = currentItem?.kind === 'route' && currentItem.autoCam?.enabled;
-    const blockedRanges = isAutoCamConstrained
-      ? getOtherAutoCamRanges(Object.values(useProjectStore.getState().items), item.id)
-      : [];
-
-    const handleMove = (ev: MouseEvent) => {
-      const deltaX = ev.clientX - startX;
-      const deltaTime = deltaX / pixelsPerSecond;
-
-      if (type === 'start') {
-        const newStart = Math.max(0, Math.min(initialEnd - MIN_TIMELINE_ITEM_DURATION, initialStart + deltaTime));
-        const constrainedStart = isAutoCamConstrained
-          ? constrainStartTrim(newStart, initialEnd, blockedRanges, MIN_TIMELINE_ITEM_DURATION)
-          : newStart;
-        if (constrainedStart !== null) updateItem(item.id, { startTime: constrainedStart });
-      } else if (type === 'end') {
-        const newEnd = Math.max(initialStart + MIN_TIMELINE_ITEM_DURATION, Math.min(duration, initialEnd + deltaTime));
-        const constrainedEnd = isAutoCamConstrained
-          ? constrainEndTrim(initialStart, newEnd, blockedRanges, MIN_TIMELINE_ITEM_DURATION, duration)
-          : newEnd;
-        if (constrainedEnd !== null) updateItem(item.id, { endTime: constrainedEnd });
-      } else if (type === 'move') {
-        const newStart = Math.max(0, Math.min(duration - itemDuration, initialStart + deltaTime));
-        const constrainedRange = isAutoCamConstrained
-          ? constrainMove(newStart, itemDuration, blockedRanges, duration)
-          : { startTime: newStart, endTime: newStart + itemDuration };
-        if (!constrainedRange) return;
-        updateItem(item.id, {
-          startTime: constrainedRange.startTime,
-          endTime: constrainedRange.endTime,
-        });
-      }
-    };
-
-    const handleUp = () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      document.body.classList.remove('cursor-grabbing', 'cursor-ew-resize');
-    };
-
-    document.body.classList.add(type === 'move' ? 'cursor-grabbing' : 'cursor-ew-resize');
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  };
-
-  const startX = item.startTime * pixelsPerSecond;
-  const endX = item.endTime * pixelsPerSecond;
-  const width = endX - startX;
-
-  return (
-    <div
-      data-testid={`timeline-item-${item.id}`}
-      className={`absolute top-2 bottom-2 ${colorClass} bg-opacity-40 backdrop-blur-[2px] rounded-md border border-white/20 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] group flex items-stretch hover:shadow-md transition-shadow`}
-      style={{ left: startX, width: Math.max(width, 4) }}
-      onMouseDown={(e) => handleMouseDown(e, 'move')}
-    >
-      <div className={`absolute inset-0 ${colorClass} opacity-20 rounded-md pointer-events-none mix-blend-overlay`} />
-
-      <div
-        data-testid={`timeline-item-${item.id}-start-handle`}
-        className="w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
-        onMouseDown={(e) => handleMouseDown(e, 'start')}
-      >
-        <div className="w-1 h-3.5 rounded-full bg-white/80 shadow-sm" />
-      </div>
-
-      <div className="flex-1 cursor-grab active:cursor-grabbing z-10" />
-
-      <div
-        data-testid={`timeline-item-${item.id}-end-handle`}
-        className="w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
-        onMouseDown={(e) => handleMouseDown(e, 'end')}
-      >
-        <div className="w-1 h-3.5 rounded-full bg-white/80 shadow-sm" />
       </div>
     </div>
   );
