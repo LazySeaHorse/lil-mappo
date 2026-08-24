@@ -1,6 +1,12 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { TimelineItem, CameraItem, RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
+import {
+  constrainEndTrim,
+  constrainMove,
+  constrainStartTrim,
+  getOtherAutoCamRanges,
+} from './timelineConstraints';
 
 interface AutoCamBlock {
   routeId: string;
@@ -26,6 +32,7 @@ import {
 const RULER_HEIGHT = 40;
 const HEADER_HEIGHT = 48;
 const MIN_PANEL_HEIGHT = 120; // header + ruler + some visible content
+const MIN_TIMELINE_ITEM_DURATION = 0.2;
 const PIXELS_PER_SECOND_DEFAULT = 60;
 
 function formatTime(s: number): string {
@@ -38,7 +45,6 @@ function formatTime(s: number): string {
 export default function TimelinePanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(PIXELS_PER_SECOND_DEFAULT);
-  const [draggingPlayhead, setDraggingPlayhead] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
   // --- Imperative playhead refs (no re-renders during playback) ---
@@ -150,7 +156,6 @@ export default function TimelinePanel() {
 
   const handleRulerScrub = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setDraggingPlayhead(true);
     setIsPlaying(false);
     setIsScrubbing(true);
 
@@ -159,7 +164,7 @@ export default function TimelinePanel() {
     const updateTimeFromMouse = (clientX: number) => {
       const rect = rulerZone.getBoundingClientRect();
       const x = clientX - rect.left;
-      setPlayheadTime(timeFromX(Math.max(0, x)));
+      setPlayheadTime(timeFromX(x));
     };
 
     updateTimeFromMouse(e.clientX);
@@ -167,7 +172,6 @@ export default function TimelinePanel() {
     const handleMove = (ev: MouseEvent) => updateTimeFromMouse(ev.clientX);
 
     const handleUp = () => {
-      setDraggingPlayhead(false);
       setIsScrubbing(false);
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
@@ -175,7 +179,7 @@ export default function TimelinePanel() {
 
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
-  }, [timeFromX, setPlayheadTime]);
+  }, [timeFromX, setPlayheadTime, setIsPlaying, setIsScrubbing]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -251,6 +255,7 @@ export default function TimelinePanel() {
   return (
     <div
       ref={containerRef}
+      data-testid="timeline-panel"
       className={`absolute ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} bg-background/85 border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
       style={{
         height: clampedHeight,
@@ -361,6 +366,7 @@ export default function TimelinePanel() {
             </div>
 
             <div
+              data-testid="timeline-ruler"
               className="flex-1 relative h-full cursor-text"
               onMouseDown={handleRulerScrub}
             >
@@ -584,7 +590,8 @@ const TrackRow = React.memo(({
                 <React.Fragment key={block.routeId}>
                   {/* Block background */}
                   <div
-                    className="absolute top-2 bottom-2 bg-primary/10 border-t border-b border-primary/20 cursor-pointer z-5"
+                    data-testid={`timeline-auto-cam-${block.routeId}`}
+                    className="absolute top-2 bottom-2 bg-primary/10 border-t border-b border-primary/20 cursor-pointer z-[5]"
                     style={{ left: startX, width: blockWidth }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -619,6 +626,7 @@ const TrackRow = React.memo(({
               return (
                 <div
                   key={kf.id}
+                  data-testid={`timeline-keyframe-${kf.id}`}
                   className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-transform z-10
                     ${isDisabled ? 'opacity-35 grayscale' : selectedKeyframeId === kf.id ? 'scale-125 z-20' : 'hover:scale-110'} active:scale-95`}
                   style={{ left: x }}
@@ -638,7 +646,7 @@ const TrackRow = React.memo(({
           </>
         ) : (
           <TimelineItemBar
-            item={item as any}
+            item={item as RouteItem | BoundaryItem | CalloutItem}
             pixelsPerSecond={pixelsPerSecond}
             colorClass={colorClass}
             onSelect={onSelect}
@@ -672,66 +680,37 @@ const TimelineItemBar = React.memo(({
     const initialStart = item.startTime;
     const initialEnd = item.endTime;
     const itemDuration = Math.max(0.1, initialEnd - initialStart);
-
-    // Clamp a proposed [proposedStart, proposedEnd] range so it doesn't overlap
-    // any other route that has autoCam enabled. Only applies when this route also
-    // has autoCam enabled (two non-auto-cam routes can freely overlap).
-    const clampAutoCamOverlap = (proposedStart: number, proposedEnd: number): [number, number] => {
-      const currentItem = useProjectStore.getState().items[item.id] as RouteItem | undefined;
-      if (!currentItem?.autoCam?.enabled) return [proposedStart, proposedEnd];
-
-      const allItems = useProjectStore.getState().items;
-      const others = Object.values(allItems).filter(
-        (other) =>
-          other.id !== item.id &&
-          other.kind === 'route' &&
-          (other as RouteItem).autoCam?.enabled,
-      ) as RouteItem[];
-
-      let s = proposedStart;
-      let e2 = proposedEnd;
-      for (const other of others) {
-        if (s < other.endTime && e2 > other.startTime) {
-          // Overlap detected — push whichever direction is smaller movement
-          const pushRight = other.endTime;
-          const pushLeft = other.startTime - (e2 - s);
-          if (Math.abs(pushRight - s) <= Math.abs(pushLeft - s)) {
-            s = pushRight;
-          } else {
-            s = Math.max(0, pushLeft);
-          }
-          e2 = s + (e2 - proposedStart + proposedStart - s + (proposedEnd - proposedStart));
-          e2 = s + (proposedEnd - proposedStart);
-        }
-      }
-      // Clamp to timeline
-      if (s < 0) { e2 -= s; s = 0; }
-      const d = useProjectStore.getState().duration;
-      if (e2 > d) { s -= (e2 - d); e2 = d; s = Math.max(0, s); }
-      return [s, e2];
-    };
+    const currentItem = useProjectStore.getState().items[item.id];
+    const isAutoCamConstrained = currentItem?.kind === 'route' && currentItem.autoCam?.enabled;
+    const blockedRanges = isAutoCamConstrained
+      ? getOtherAutoCamRanges(Object.values(useProjectStore.getState().items), item.id)
+      : [];
 
     const handleMove = (ev: MouseEvent) => {
       const deltaX = ev.clientX - startX;
       const deltaTime = deltaX / pixelsPerSecond;
 
       if (type === 'start') {
-        let newStart = Math.max(0, Math.min(initialEnd - 0.2, initialStart + deltaTime));
-        const [clampedStart] = clampAutoCamOverlap(newStart, initialEnd);
-        updateItem(item.id, { startTime: clampedStart });
+        const newStart = Math.max(0, Math.min(initialEnd - MIN_TIMELINE_ITEM_DURATION, initialStart + deltaTime));
+        const constrainedStart = isAutoCamConstrained
+          ? constrainStartTrim(newStart, initialEnd, blockedRanges, MIN_TIMELINE_ITEM_DURATION)
+          : newStart;
+        if (constrainedStart !== null) updateItem(item.id, { startTime: constrainedStart });
       } else if (type === 'end') {
-        let newEnd = Math.max(initialStart + 0.2, Math.min(duration, initialEnd + deltaTime));
-        const [, clampedEnd] = clampAutoCamOverlap(initialStart, newEnd);
-        updateItem(item.id, { endTime: clampedEnd });
+        const newEnd = Math.max(initialStart + MIN_TIMELINE_ITEM_DURATION, Math.min(duration, initialEnd + deltaTime));
+        const constrainedEnd = isAutoCamConstrained
+          ? constrainEndTrim(initialStart, newEnd, blockedRanges, MIN_TIMELINE_ITEM_DURATION, duration)
+          : newEnd;
+        if (constrainedEnd !== null) updateItem(item.id, { endTime: constrainedEnd });
       } else if (type === 'move') {
-        let newStart = initialStart + deltaTime;
-        if (newStart < 0) newStart = 0;
-        if (newStart + itemDuration > duration) newStart = duration - itemDuration;
-
-        const [clampedStart, clampedEnd] = clampAutoCamOverlap(newStart, newStart + itemDuration);
+        const newStart = Math.max(0, Math.min(duration - itemDuration, initialStart + deltaTime));
+        const constrainedRange = isAutoCamConstrained
+          ? constrainMove(newStart, itemDuration, blockedRanges, duration)
+          : { startTime: newStart, endTime: newStart + itemDuration };
+        if (!constrainedRange) return;
         updateItem(item.id, {
-          startTime: clampedStart,
-          endTime: clampedEnd,
+          startTime: constrainedRange.startTime,
+          endTime: constrainedRange.endTime,
         });
       }
     };
@@ -753,6 +732,7 @@ const TimelineItemBar = React.memo(({
 
   return (
     <div
+      data-testid={`timeline-item-${item.id}`}
       className={`absolute top-2 bottom-2 ${colorClass} bg-opacity-40 backdrop-blur-[2px] rounded-md border border-white/20 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] group flex items-stretch hover:shadow-md transition-shadow`}
       style={{ left: startX, width: Math.max(width, 4) }}
       onMouseDown={(e) => handleMouseDown(e, 'move')}
@@ -760,6 +740,7 @@ const TimelineItemBar = React.memo(({
       <div className={`absolute inset-0 ${colorClass} opacity-20 rounded-md pointer-events-none mix-blend-overlay`} />
 
       <div
+        data-testid={`timeline-item-${item.id}-start-handle`}
         className="w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
         onMouseDown={(e) => handleMouseDown(e, 'start')}
       >
@@ -769,6 +750,7 @@ const TimelineItemBar = React.memo(({
       <div className="flex-1 cursor-grab active:cursor-grabbing z-10" />
 
       <div
+        data-testid={`timeline-item-${item.id}-end-handle`}
         className="w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
         onMouseDown={(e) => handleMouseDown(e, 'end')}
       >
