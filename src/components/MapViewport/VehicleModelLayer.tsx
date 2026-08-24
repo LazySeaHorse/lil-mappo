@@ -35,9 +35,9 @@ export const VehicleModelLayer = ({ routeId, vehicle, color, mapRef }: VehicleMo
     const map = mapRef.current?.getMap();
     if (!map || vehicle.type === 'dot') return;
     const url = MODELS[vehicle.type as 'car' | 'plane'];
-    // @ts-ignore — Mapbox v3 specific API
+    // @ts-expect-error — Mapbox v3 specific model API
     if (map.addModel && !map.hasModel(vehicle.type)) {
-      // @ts-ignore
+      // @ts-expect-error — Mapbox v3 specific model API
       map.addModel(vehicle.type, url);
     }
   }, [mapRef, vehicle.type]);

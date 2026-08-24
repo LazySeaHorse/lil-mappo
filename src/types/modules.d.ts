@@ -20,12 +20,12 @@ declare module 'react-map-gl/mapbox' {
     };
     style?: React.CSSProperties;
     mapStyle?: string;
-    onClick?: (e: any) => void;
+    onClick?: (e: unknown) => void;
     onLoad?: () => void;
     interactive?: boolean;
-    projection?: any;
+    projection?: string | Record<string, unknown>;
     children?: React.ReactNode;
-    [key: string]: any;
+    [key: string]: unknown;
   }
 
   const Map: React.ForwardRefExoticComponent<MapProps & React.RefAttributes<MapRef>>;
@@ -34,17 +34,17 @@ declare module 'react-map-gl/mapbox' {
   export const Source: React.FC<{
     id: string;
     type: string;
-    data?: any;
+    data?: GeoJSON.GeoJSON | string | unknown;
     children?: React.ReactNode;
-    [key: string]: any;
+    [key: string]: unknown;
   }>;
 
   export const Layer: React.FC<{
     id: string;
     type: string;
-    paint?: Record<string, any>;
-    layout?: Record<string, any>;
-    [key: string]: any;
+    paint?: Record<string, unknown>;
+    layout?: Record<string, unknown>;
+    [key: string]: unknown;
   }>;
 
   export const Marker: React.FC<{
@@ -52,7 +52,7 @@ declare module 'react-map-gl/mapbox' {
     latitude: number;
     anchor?: string;
     children?: React.ReactNode;
-    [key: string]: any;
+    [key: string]: unknown;
   }>;
 
   export function useMap(): { current?: MapRef };
