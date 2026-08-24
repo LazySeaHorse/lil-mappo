@@ -105,6 +105,17 @@
     <!-- tailwind-dev-only-end -->
 
     <style>
+        .nav-safe-top {
+            top: 1rem;
+            top: max(1rem, env(safe-area-inset-top, 1rem));
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
         body {
             background-color: #f8f9fa;
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
@@ -145,27 +156,28 @@
 
 <body class="min-h-screen flex flex-col font-sans antialiased text-brand-text">
     <!-- Header Navigation -->
-    <header class="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-200/60">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-            <a href="../" class="flex items-center gap-3 group">
-                <img src="../logo.svg" alt="li'l Mappo logo" class="w-8 h-8 transition-transform group-hover:scale-105" />
-                <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-brand-blue to-brand-purple bg-clip-text text-transparent">
-                    li'l Mappo
-                </span>
-                <span class="text-xs bg-brand-light text-brand-blue px-2 py-0.5 rounded-full font-semibold border border-brand-blue/20">Blog</span>
+    <nav class="fixed nav-safe-top md:top-6 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
+        <div class="glass-panel flex items-center justify-between px-4 md:px-6 py-3 rounded-full w-full max-w-5xl shadow-soft">
+            <a href="../"
+                class="flex items-center gap-2 font-bold text-lg md:text-xl tracking-tight text-brand-blue hover:opacity-80 transition-opacity">
+                <i class="ph-fill ph-map-trifold text-xl md:text-2xl"></i>
+                <span>li'l Mappo</span>
             </a>
-            <div class="flex items-center gap-4">
-                <a href="./" class="text-sm font-medium text-brand-muted hover:text-brand-blue transition-colors">← All Articles</a>
-                <a href="https://app.lilmappo.tech" class="bg-brand-blue hover:bg-blue-700 text-white px-4 py-2 rounded-full font-bold text-sm shadow-md transition-all flex items-center gap-1.5">
-                    <span>Open Studio</span>
-                    <i class="ph ph-arrow-right text-sm"></i>
+            <div class="flex items-center gap-2 md:gap-3">
+                <a href="https://github.com/LazySeaHorse/lil-mappo" target="_blank"
+                    class="hidden sm:flex items-center gap-1.5 text-sm font-bold bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-full transition-colors">
+                    <i class="ph-bold ph-github-logo"></i> FOSS
+                </a>
+                <a href="https://app.lilmappo.tech"
+                    class="flex items-center gap-2 text-sm font-bold bg-brand-blue text-white px-4 md:px-5 py-2 rounded-full hover:bg-blue-700 hover:shadow-lg transition-all transform hover:-translate-y-0.5">
+                    Launch <span class="hidden sm:inline">Editor</span>
                 </a>
             </div>
         </div>
-    </header>
+    </nav>
 
     <!-- Main Content -->
-    <main class="flex-grow py-10 md:py-16">
+    <main class="flex-grow pt-28 pb-10 md:pt-36 md:pb-16">
         <article class="max-w-4xl mx-auto px-4 sm:px-6">
             <!-- Article Header -->
             <header class="mb-10 text-center">
