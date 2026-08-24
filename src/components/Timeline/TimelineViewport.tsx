@@ -81,6 +81,7 @@ export default function TimelineViewport({
   return (
     <ScrollArea className="flex-1 w-full relative group min-h-0">
       <div
+        data-testid="timeline-viewport-content"
         className="flex flex-col relative min-w-max pb-4"
         style={{ width: duration * pixelsPerSecond + TRACK_LABEL_WIDTH + 20 }}
         onWheel={handleWheel}
@@ -103,6 +104,7 @@ export default function TimelineViewport({
             <TimelineRuler duration={duration} pixelsPerSecond={pixelsPerSecond} />
             <div
               ref={rulerDiamondRef}
+              data-testid="timeline-ruler-playhead"
               className="absolute bottom-0 -translate-x-[5px] pointer-events-none transition-none z-10 drop-shadow-md"
               style={{ left: initialPlayheadX }}
             >
@@ -116,6 +118,7 @@ export default function TimelineViewport({
         <div className="flex flex-col relative grow min-h-[100px] isolate">
           <div
             ref={trackLineRef}
+            data-testid="timeline-track-playhead"
             className="absolute top-0 bottom-0 w-px bg-primary z-20 pointer-events-none transition-none"
             style={{ left: initialPlayheadX + TRACK_LABEL_WIDTH }}
           />

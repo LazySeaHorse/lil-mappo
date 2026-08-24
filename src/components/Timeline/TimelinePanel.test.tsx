@@ -4,8 +4,12 @@ import TimelinePanel from './TimelinePanel';
 import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 
+const responsive = vi.hoisted(() => ({
+  current: { isMobile: false, isTablet: false },
+}));
+
 vi.mock('@/hooks/useResponsive', () => ({
-  useResponsive: () => ({ isMobile: false, isTablet: false }),
+  useResponsive: () => responsive.current,
 }));
 
 const initialStore = useProjectStore.getState();
@@ -74,6 +78,7 @@ function renderTimeline(...routes: RouteItem[]) {
     playheadTime: 0,
     isPlaying: false,
     isScrubbing: false,
+    isCameraEnabled: true,
     isInspectorOpen: false,
     selectedItemId: null,
     selectedKeyframeId: null,
@@ -95,6 +100,7 @@ function drag(testId: string, deltaX: number) {
 }
 
 beforeEach(() => {
+  responsive.current = { isMobile: false, isTablet: false };
   act(() => useProjectStore.setState(initialStore, true));
 });
 
@@ -134,6 +140,35 @@ describe('TimelinePanel', () => {
     expect(useProjectStore.getState().isScrubbing).toBe(false);
   });
 
+  it('synchronizes playhead elements when time and zoom change', () => {
+    renderTimeline();
+
+    act(() => useProjectStore.getState().setPlayheadTime(2));
+    expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '120px' });
+    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '280px' });
+
+    fireEvent.click(screen.getByTitle('Zoom In'));
+    expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '150px' });
+    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '310px' });
+
+    fireEvent.wheel(screen.getByTestId('timeline-viewport-content'), {
+      ctrlKey: true,
+      deltaY: -20,
+    });
+    expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '170px' });
+  });
+
+  it('fits the timeline to the available panel width', () => {
+    renderTimeline();
+    const panel = screen.getByTestId('timeline-panel');
+    Object.defineProperty(panel, 'offsetWidth', { configurable: true, value: 1184 });
+
+    act(() => useProjectStore.getState().setPlayheadTime(2));
+    fireEvent.click(screen.getByTitle('Fit to Timeline'));
+
+    expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '200px' });
+  });
+
   it('supports transport shortcuts and protects the camera track from deletion', () => {
     renderTimeline(route('selected', 1, 3));
 
@@ -150,6 +185,32 @@ describe('TimelinePanel', () => {
     act(() => useProjectStore.getState().selectItem('selected'));
     fireEvent.keyDown(window, { code: 'Delete' });
     expect(useProjectStore.getState().items.selected).toBeUndefined();
+  });
+
+  it('selects an auto-camera route from its camera-track overlay', () => {
+    renderTimeline(route('automatic', 2, 5, true));
+
+    fireEvent.click(screen.getByTestId('timeline-auto-cam-automatic'));
+
+    expect(useProjectStore.getState().selectedItemId).toBe('automatic');
+    expect(useProjectStore.getState().selectedAutoCamRouteId).toBe('automatic');
+  });
+
+  it('toggles camera visibility from the camera track', () => {
+    renderTimeline();
+
+    fireEvent.click(screen.getByTitle('Hide Camera'));
+    expect(useProjectStore.getState().isCameraEnabled).toBe(false);
+    expect(screen.getByTitle('Show Camera')).toBeInTheDocument();
+  });
+
+  it('renders transport controls and timecode in the mobile layout', () => {
+    responsive.current = { isMobile: true, isTablet: false };
+    renderTimeline();
+
+    expect(screen.getByTitle('Play / Pause (Space)')).toBeInTheDocument();
+    expect(screen.getByText('00:00.00')).toBeInTheDocument();
+    expect(screen.getByText('/ 00:10.00')).toBeInTheDocument();
   });
 
   it('moves an ordinary item without applying auto-camera constraints', () => {

@@ -103,6 +103,7 @@ const TimelineTrackRow = React.memo(({
             size="xs"
             className="h-6 w-6 opacity-0 group-hover:opacity-100 data-[enabled=false]:opacity-100 hover:text-primary transition-all"
             data-enabled={isCameraEnabled}
+            title={isCameraEnabled ? 'Hide Camera' : 'Show Camera'}
             onClick={(event) => {
               event.stopPropagation();
               setIsCameraEnabled(!isCameraEnabled);
