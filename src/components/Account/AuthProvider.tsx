@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     invalidate();
     const delayed = setTimeout(invalidate, 3000);
 
-    toast.success("Payment received! Your subscription is activating…", {
+    toast.success("Payment received. Activating subscription.", {
       duration: 6000,
     });
 

@@ -61,11 +61,11 @@ export function AuthModal() {
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 backdrop-blur-3xl border-border/40 shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
             <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="p-2 bg-primary/10 rounded-2xl shadow-inner border border-primary/20">
+              <div className="p-2 bg-primary/10 rounded-xl shadow-inner border border-primary/20">
                 <img
                   src={`${import.meta.env.BASE_URL}logo.svg`}
                   className="w-8 h-8 drop-shadow-sm"
@@ -73,13 +73,13 @@ export function AuthModal() {
                 />
               </div>
             </div>
-            <DialogTitle className="text-2xl font-black tracking-tight text-center">
-              {isSignup ? "Create Account" : "Sign In"}
+            <DialogTitle className="text-2xl font-medium tracking-tight text-center">
+              {isSignup ? "Create account" : "Sign in"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
               {isSignup
-                ? "Create your account to complete your purchase."
-                : "Welcome back. Sign in to access your account."}
+                ? "Create an account to continue to payment."
+                : "Sign in to continue."}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -179,15 +179,15 @@ function AuthModalBody({
           <Mail size={24} className="text-primary" />
         </div>
         <div className="text-center">
-          <p className="font-semibold text-sm">Confirm your email</p>
+          <p className="font-medium text-sm">Confirm your email</p>
           <p className="text-muted-foreground text-xs mt-1 max-w-[260px]">
             We sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{email}</span>. Once
-            confirmed, your purchase will proceed automatically.
+            <span className="font-medium text-foreground">{email}</span>. Open
+            the link to confirm your email. Then return to this page.
           </p>
         </div>
         <Button variant="ghost" size="sm" className="text-xs" onClick={handleReset}>
-          Use a different email
+          Use another email
         </Button>
       </div>
     );
@@ -202,8 +202,8 @@ function AuthModalBody({
         <Button
           variant="outline"
           disabled
-          className="h-10 text-sm font-medium gap-2 rounded-xl border-border/50 opacity-40 cursor-not-allowed"
-          title="Coming soon"
+          className="h-10 text-sm font-medium gap-2 rounded-lg border-border/50 opacity-40 cursor-not-allowed"
+          title="Not available yet"
         >
           <GoogleIcon />
           Google
@@ -211,8 +211,8 @@ function AuthModalBody({
         <Button
           variant="outline"
           disabled
-          className="h-10 text-sm font-medium gap-2 rounded-xl border-border/50 opacity-40 cursor-not-allowed"
-          title="Coming soon"
+          className="h-10 text-sm font-medium gap-2 rounded-lg border-border/50 opacity-40 cursor-not-allowed"
+          title="Not available yet"
         >
           <AppleIcon />
           Apple
@@ -224,9 +224,9 @@ function AuthModalBody({
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border/50" />
         </div>
-        <div className="relative flex justify-center text-[10px] uppercase">
-          <span className="bg-background px-3 text-muted-foreground font-medium tracking-wider">
-            or continue with email
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-background px-3 text-muted-foreground font-normal">
+            Use email
           </span>
         </div>
       </div>
@@ -238,7 +238,7 @@ function AuthModalBody({
           placeholder="you@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-10 rounded-xl bg-secondary/30 border-border/50 text-sm placeholder:text-muted-foreground/50"
+          className="h-10 rounded-lg bg-secondary/30 border-border/50 text-sm placeholder:text-muted-foreground/50"
           autoFocus
         />
 
@@ -248,7 +248,7 @@ function AuthModalBody({
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-10 rounded-xl bg-secondary/30 border-border/50 text-sm pr-10 placeholder:text-muted-foreground/50"
+            className="h-10 rounded-lg bg-secondary/30 border-border/50 text-sm pr-10 placeholder:text-muted-foreground/50"
           />
           <button
             type="button"
@@ -263,17 +263,17 @@ function AuthModalBody({
         <Button
           type="submit"
           disabled={isSubmitting || !canSubmit}
-          className="h-10 rounded-xl text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]"
+          className="h-10 rounded-lg text-sm font-medium transition-all"
         >
           {isSubmitting ? (
             <>
               <Loader2 size={16} className="animate-spin mr-2" />
-              {isSignup ? "Creating account…" : "Signing in…"}
+              {isSignup ? "Creating account" : "Signing in"}
             </>
           ) : isSignup ? (
-            "Create Account"
+            "Create account"
           ) : (
-            "Sign In"
+            "Sign in"
           )}
         </Button>
       </form>
@@ -286,7 +286,7 @@ function AuthModalBody({
           <button
             type="button"
             onClick={onSwitchToSignin}
-            className="text-[11px] text-primary hover:text-primary/80 font-semibold transition-colors"
+            className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
           >
             Sign in
           </button>
@@ -299,16 +299,16 @@ function AuthModalBody({
           <button
             type="button"
             onClick={onSwitchToSignup}
-            className="text-[11px] text-primary hover:text-primary/80 font-semibold transition-colors"
+            className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
           >
-            Create one
+            Create account
           </button>
         </div>
       )}
 
       <div className="mt-2 text-center">
         <p className="text-[10px] text-muted-foreground/50">
-          Need help? Contact <a href="mailto:support@lilmappo.tech" className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2">support@lilmappo.tech</a>
+          Need help? Email <a href="mailto:support@lilmappo.tech" className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2">support@lilmappo.tech</a>
         </p>
       </div>
     </div>

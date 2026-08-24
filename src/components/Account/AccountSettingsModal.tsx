@@ -42,7 +42,7 @@ export function AccountSettingsModal() {
       open={showSettingsModal}
       onOpenChange={(open) => !open && closeSettingsModal()}
     >
-      <DialogContent className="sm:max-w-[720px] rounded-3xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[720px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
         {showSettingsModal && <AccountSettingsModalBody />}
       </DialogContent>
     </Dialog>
@@ -75,7 +75,7 @@ function AccountSettingsModalBody() {
 
     if (trimmed) {
       if (isAppOwnKey(trimmed)) {
-        setTokenError("This key isn't valid for BYOK — please use your own Mapbox access token.");
+        setTokenError("This is the app token. Enter your own Mapbox access token.");
         return;
       }
       secureLocalStorage.setItem(BYOK_STORAGE_KEY, trimmed);
@@ -134,11 +134,11 @@ function AccountSettingsModalBody() {
     <div className="flex flex-col">
       <div className="p-6 pb-2 bg-gradient-to-b from-secondary/30 to-transparent">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+          <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
             <User className="text-primary h-5 w-5" /> Settings
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-sm mt-1">
-            Account preferences and advanced integrations.
+            Manage your account and Mapbox access token.
           </DialogDescription>
         </DialogHeader>
       </div>
@@ -157,7 +157,7 @@ function AccountSettingsModalBody() {
           ) : (
             <div className="bg-secondary/30 rounded-xl p-4 flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
-                Sign in to unlock cloud features.
+                Sign in to use cloud projects.
               </p>
               <Button
                 size="sm"
@@ -168,7 +168,7 @@ function AccountSettingsModalBody() {
                   openAuthModal();
                 }}
               >
-                Sign In
+                Sign in
               </Button>
             </div>
           )}
@@ -181,7 +181,7 @@ function AccountSettingsModalBody() {
             <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold">
+                  <p className="text-sm font-medium">
                     {tierLabel ?? "No plan"}
                   </p>
                   {(subscription?.status === "cancelled" || subscription?.status === "cancelling") && renewalDate ? (
@@ -222,24 +222,20 @@ function AccountSettingsModalBody() {
         <section>
           <SectionHeading
             icon={<Key size={14} />}
-            label="Mapbox API Key (BYOK)"
+            label="Mapbox access token"
           />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Paste your own Mapbox access token to lift the 30s timeline limit and
-              export quality cap. Your token is stored
-              locally and{" "}
-              <span className="font-medium text-foreground">
-                never sent to our servers
-              </span>
-              .{" "}
+              Use your own Mapbox access token to remove free-plan export limits.
+              The app stores the token on this device. It is{" "}
+              <span className="font-medium text-foreground">not sent to our servers</span>.{" "}
               <a
                 href="https://mapbox.com/"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-0.5 text-primary hover:underline"
               >
-                You can get one for free at mapbox.com <ExternalLink size={10} />
+                Get a token from mapbox.com <ExternalLink size={10} />
               </a>
             </p>
             <div className="flex gap-2">
@@ -257,14 +253,14 @@ function AccountSettingsModalBody() {
               <Button
                 size="sm"
                 variant={tokenSaved ? "default" : "outline"}
-                className="h-9 rounded-lg px-3 text-xs font-semibold shrink-0 min-w-[64px] transition-all"
+                className="h-9 rounded-lg px-3 text-xs font-medium shrink-0 min-w-[64px] transition-all"
                 onClick={handleSaveToken}
                 disabled={tokenSaved}
               >
                 {tokenSaved ? (
                   <>
                     <Check size={14} className="mr-1" />
-                    Reloading…
+                    Reloading
                   </>
                 ) : (
                   "Save"
@@ -348,8 +344,8 @@ function ManageView({
           <ChevronLeft size={18} />
         </button>
         <div>
-          <DialogTitle className="text-xl font-black tracking-tight">
-            Manage Subscription
+          <DialogTitle className="text-xl font-medium tracking-tight">
+            Manage plan
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-xs mt-0.5">
             {tierLabel ?? "No active plan"}
@@ -362,13 +358,13 @@ function ManageView({
         {/* ── Status card ── */}
         <div className="bg-secondary/30 rounded-xl p-4 space-y-2.5">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70">
+            <p className="text-xs font-medium text-foreground/80">
               Status
             </p>
             <span
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isCancelled
+              className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${isCancelled
                 ? "bg-amber-500/10 text-amber-500"
-                : "bg-green-500/10 text-green-500"
+                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                 }`}
             >
               {subscription?.status === "cancelled"
@@ -397,30 +393,30 @@ function ManageView({
           <SectionHeading icon={<Coins size={14} />} label="Credits" />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-black tabular-nums">
+              <span className="text-3xl font-medium tabular-nums">
                 {totalCredits.toLocaleString()}
               </span>
               <span className="text-sm text-muted-foreground font-medium">
-                total credits
+                credits available
               </span>
             </div>
-            <p className="text-[11px] font-bold text-primary flex items-center gap-1 -mt-1 mb-1">
-              <Timer size={11} /> ~{(totalCredits / 8).toLocaleString()} mins of 1080p
+            <p className="text-[11px] font-medium text-primary flex items-center gap-1 -mt-1 mb-1">
+              <Timer size={11} /> About {(totalCredits / 8).toLocaleString()} minutes at 1080p
             </p>
             <div className="flex flex-wrap gap-2">
               {(credits?.monthly_credits ?? 0) > 0 && (
-                <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                  <Clock size={10} /> {credits!.monthly_credits.toLocaleString()} monthly
+                <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Clock size={10} /> {credits!.monthly_credits.toLocaleString()} monthly credits
                 </span>
               )}
               {(credits?.purchased_credits ?? 0) > 0 && (
-                <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                  <Zap size={10} /> {credits!.purchased_credits.toLocaleString()} purchased (never expire)
+                <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Zap size={10} /> {credits!.purchased_credits.toLocaleString()} purchased credits
                 </span>
               )}
               {totalCredits === 0 && (
                 <span className="text-xs text-muted-foreground">
-                  No credits available
+                  No credits
                 </span>
               )}
             </div>
@@ -442,11 +438,11 @@ function ManageView({
             <SectionHeading icon={<Sparkles size={14} />} label="Plans" />
             <Button
               variant="outline"
-              className="w-full rounded-xl gap-2 h-11 text-xs font-semibold bg-secondary/20 hover:bg-secondary/40 border-border/40"
+              className="w-full rounded-lg gap-2 h-11 text-xs font-medium bg-secondary/20 hover:bg-secondary/40 border-border/40"
               onClick={onOpenCredits}
             >
               <Crown size={14} className="text-primary" />
-              Upgrade or Change Plan
+              Change plan
             </Button>
           </div>
         )}
@@ -456,7 +452,7 @@ function ManageView({
           <div>
             <SectionHeading
               icon={<AlertTriangle size={14} />}
-              label="Cancel Subscription"
+              label="Cancel subscription"
             />
             {confirmCancel ? (
               <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 space-y-3">
@@ -466,14 +462,14 @@ function ManageView({
                     className="text-destructive shrink-0 mt-0.5"
                   />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold">Are you sure?</p>
+                    <p className="text-sm font-medium">Cancel plan?</p>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      You'll keep access until{" "}
+                      You can use the plan until{" "}
                       <span className="font-medium text-foreground">
                         {renewalDate ?? "the end of your billing period"}
                       </span>
-                      . After that, cloud saves will be locked — your existing
-                      saves stay safe, but you won't be able to create new ones.
+                      . After that date, you cannot create cloud projects. Existing
+                      cloud projects remain available.
                     </p>
                   </div>
                 </div>
@@ -488,10 +484,10 @@ function ManageView({
                     {cancelling ? (
                       <>
                         <Loader2 size={12} className="animate-spin mr-1.5" />
-                        Cancelling…
+                        Cancelling
                       </>
                     ) : (
-                      "Yes, cancel"
+                      "Cancel plan"
                     )}
                   </Button>
                   <Button
@@ -501,15 +497,14 @@ function ManageView({
                     onClick={() => setConfirmCancel(false)}
                     disabled={cancelling}
                   >
-                    Never mind
+                    Keep plan
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="bg-secondary/20 rounded-xl p-4 flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Cancel your subscription at the end of the current billing
-                  period.
+                  The plan ends at the end of the current billing period.
                 </p>
                 <Button
                   size="sm"
@@ -529,10 +524,9 @@ function ManageView({
           <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-2.5">
             <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Your subscription is cancelled. You have full access until{" "}
-              <span className="font-medium text-foreground">{renewalDate}</span>
-              . Existing cloud saves will remain after that date, but no new
-              cloud saves can be created.
+              Your plan ends on <span className="font-medium text-foreground">{renewalDate}</span>.
+              After that date, you cannot create cloud projects. Existing cloud
+              projects remain available.
             </p>
           </div>
         )}
@@ -555,7 +549,7 @@ function SectionHeading({
       <span className="text-muted-foreground/60 p-1.5 bg-secondary/50 rounded-md border border-border/30 shadow-sm">
         {icon}
       </span>
-      <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80">
+      <h3 className="text-xs font-medium text-foreground/80">
         {label}
       </h3>
     </div>

@@ -55,26 +55,19 @@ function TierCard({
     >
       {comingSoon && (
         <div className="absolute -top-3 inset-x-0 flex justify-center">
-          <span className="bg-muted text-muted-foreground text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
-            soon™
-          </span>
-        </div>
-      )}
-      {!comingSoon && highlight && (
-        <div className="absolute -top-3 inset-x-0 flex justify-center">
-          <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
-            Popular
+          <span className="bg-muted text-muted-foreground text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
+            Not available yet
           </span>
         </div>
       )}
       <div className="mb-4">
         <h4
-          className={`font-bold text-lg tracking-tight ${highlight ? "text-primary" : ""}`}
+          className={`font-medium text-lg tracking-tight ${highlight ? "text-primary" : ""}`}
         >
           {name}
         </h4>
         <div className="mt-1 flex items-baseline gap-1">
-          <span className="text-xl font-black">{price}</span>
+          <span className="text-xl font-medium">{price}</span>
         </div>
       </div>
 
@@ -87,8 +80,8 @@ function TierCard({
         </div>
         <div className="flex items-start gap-2">
           <Timer size={14} className="mt-0.5 shrink-0 text-primary" />
-          <span className="text-xs font-bold text-primary leading-tight">
-            {(creditsCount / 8).toLocaleString()} mins of 1080p
+          <span className="text-xs font-medium text-primary leading-tight">
+            About {(creditsCount / 8).toLocaleString()} minutes at 1080p
           </span>
         </div>
         <div className="flex items-start gap-2">
@@ -107,11 +100,11 @@ function TierCard({
 
       <Button
         variant={highlight && !comingSoon ? "default" : "secondary"}
-        className={`w-full h-8 text-xs rounded-lg font-semibold ${highlight && !comingSoon ? "shadow-md" : ""}`}
+        className={`w-full h-8 text-xs rounded-lg font-medium ${highlight && !comingSoon ? "shadow-md" : ""}`}
         disabled={isCurrent || comingSoon}
         onClick={handleClick}
       >
-        {isCurrent ? "Current Plan" : comingSoon ? "Coming soon" : "Subscribe"}
+        {isCurrent ? "Current plan" : comingSoon ? "Not available yet" : "Subscribe"}
       </Button>
     </div>
   );
@@ -124,9 +117,9 @@ function NomadBadge() {
     <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5 mb-2">
       <Package size={14} className="text-amber-500 shrink-0 mt-0.5" />
       <p className="text-xs text-muted-foreground leading-relaxed">
-        You're on the <span className="font-semibold text-foreground">Nomad</span>{" "}
-        tier — granted automatically when you purchase a credit pack. Subscribe
-        below to unlock monthly credits and parallel renders.
+        You receive <span className="font-medium text-foreground">Nomad</span>{" "}
+        status when you buy a credit pack. Choose a monthly plan for monthly
+        credits and parallel cloud renders.
       </p>
     </div>
   );
@@ -162,7 +155,7 @@ export function SubscriptionTiers({
           price={PLAN_CONFIG.wanderer.price}
           creditsCount={PLAN_CONFIG.wanderer.monthlyCredits}
           parallel={`No parallel cloud renders`}
-          saves="Unlimited cloud saves"
+          saves="Unlimited cloud projects"
           planSlug="wanderer"
           isCurrent={highlightCurrent && tierSlug === "wanderer"}
           onCheckout={handleCheckout}
@@ -175,7 +168,7 @@ export function SubscriptionTiers({
           price={PLAN_CONFIG.cartographer.price}
           creditsCount={PLAN_CONFIG.cartographer.monthlyCredits}
           parallel={`${PLAN_CONFIG.cartographer.parallelRenders} parallel renders`}
-          saves="Unlimited cloud saves"
+          saves="Unlimited cloud projects"
           planSlug="cartographer"
           highlight
           comingSoon
@@ -187,7 +180,7 @@ export function SubscriptionTiers({
           price={PLAN_CONFIG.pioneer.price}
           creditsCount={PLAN_CONFIG.pioneer.monthlyCredits}
           parallel={`${PLAN_CONFIG.pioneer.parallelRenders} parallel renders`}
-          saves="Unlimited cloud saves"
+          saves="Unlimited cloud projects"
           planSlug="pioneer"
           comingSoon
           isCurrent={highlightCurrent && tierSlug === "pioneer"}

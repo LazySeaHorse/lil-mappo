@@ -54,7 +54,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
         >
           <Avatar className="h-6 w-6 border border-border/50">
             {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName || user.email} />}
-            <AvatarFallback className="text-[10px] font-bold bg-primary/10 text-primary">
+            <AvatarFallback className="text-[10px] font-medium bg-primary/10 text-primary">
               {initials || <UserCircle size={14} className="text-muted-foreground" />}
             </AvatarFallback>
           </Avatar>
@@ -69,7 +69,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
         className="w-56 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl"
       >
         {/* ─── Project Section ─── */}
-        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/60 px-3 pt-2.5 pb-1">
+        <DropdownMenuLabel className="text-xs font-medium text-foreground/80 px-3 pt-2.5 pb-1">
           Project
         </DropdownMenuLabel>
         <DropdownMenuGroup>
@@ -81,7 +81,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onLibrary} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
-            <Library size={14} /> My Projects...
+            <Library size={14} /> Projects
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
@@ -104,7 +104,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
 
         {/* ─── Account Section ─── */}
         <DropdownMenuSeparator className="bg-border/50 mx-1" />
-        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/60 px-3 pt-2 pb-1">
+        <DropdownMenuLabel className="text-xs font-medium text-foreground/80 px-3 pt-2 pb-1">
           Account
         </DropdownMenuLabel>
         <DropdownMenuGroup>
@@ -118,7 +118,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
               Re-enable once GPU acceleration is working in the Modal render worker.
           {user && (
             <DropdownMenuItem onClick={openRendersModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
-              <Clapperboard size={14} /> My Renders
+              <Clapperboard size={14} /> Cloud renders
             </DropdownMenuItem>
           )}
           */}

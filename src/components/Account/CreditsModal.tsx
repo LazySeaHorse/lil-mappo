@@ -34,14 +34,14 @@ export function CreditsModal() {
       open={showCreditsModal}
       onOpenChange={(open) => !open && closeCreditsModal()}
     >
-      <DialogContent className="sm:max-w-[600px] rounded-3xl bg-background/95 border-border/30 shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[600px] rounded-2xl bg-background/95 border-border/30 shadow-2xl p-0 overflow-hidden">
         <div className="p-6 pb-2">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-              <Sparkles className="text-primary h-5 w-5" /> Credits & Plans
+            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
+              <Sparkles className="text-primary h-5 w-5" /> Plans and credits
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm">
-              Manage your render credits and subscription limits.
+            Manage plans and buy credits for cloud renders.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -82,7 +82,7 @@ function CreditsModalBody() {
         <Button
           variant="outline"
           size="sm"
-          className="rounded-xl text-xs px-4"
+          className="rounded-lg text-xs px-4"
           onClick={() => refetch()}
         >
           <RefreshCcw size={13} className="mr-1.5" /> Retry Connection
@@ -98,25 +98,25 @@ function CreditsModalBody() {
             Re-enable the second TabsTrigger and TabsContent below once cloud
             rendering (and therefore credits) is live and working. Also restore
             grid-cols-2 on TabsList. */}
-        <TabsList className="grid w-full grid-cols-2 mb-6 bg-secondary/50 p-1 rounded-2xl">
-          <TabsTrigger value="plans" className="rounded-xl text-sm font-medium">
+        <TabsList className="grid w-full grid-cols-2 mb-6 bg-secondary/50 p-1 rounded-xl">
+          <TabsTrigger value="plans" className="rounded-lg text-sm font-medium">
             Subscriptions
           </TabsTrigger>
-          <TabsTrigger value="topup" className="rounded-xl text-sm font-medium">
-            Top Up Credits
+          <TabsTrigger value="topup" className="rounded-lg text-sm font-medium">
+            Buy credits
           </TabsTrigger>
         </TabsList>
 
         {/* ── Plans tab ── */}
         <TabsContent value="plans" className="space-y-6 mt-0 outline-none">
           {user && (
-            <div className="bg-gradient-to-br from-secondary/40 to-background rounded-2xl border border-border/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="bg-gradient-to-br from-secondary/40 to-background rounded-xl border border-border/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Available Balance
+                <p className="text-xs font-medium text-foreground/80">
+                  Available credits
                 </p>
                 <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-3xl font-black tabular-nums">
+                  <span className="text-3xl font-medium tabular-nums">
                     {(
                       (credits?.monthly_credits ?? 0) +
                       (credits?.purchased_credits ?? 0)
@@ -130,14 +130,14 @@ function CreditsModalBody() {
               <div className="flex flex-row sm:flex-col gap-1 items-center sm:items-end flex-wrap">
                 {credits?.monthly_credits !== undefined &&
                   credits.monthly_credits > 0 && (
-                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                      <Clock size={10} /> {credits.monthly_credits} Monthly
+                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <Clock size={10} /> {credits.monthly_credits} monthly credits
                     </span>
                   )}
                 {credits?.purchased_credits !== undefined &&
                   credits.purchased_credits > 0 && (
-                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                      <Zap size={10} /> {credits.purchased_credits} Purchased
+                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <Zap size={10} /> {credits.purchased_credits} purchased credits
                     </span>
                   )}
               </div>
@@ -156,37 +156,37 @@ function CreditsModalBody() {
             Unwrap and disable Button below once cloud rendering is live. */}
         <TabsContent value="topup" className="space-y-4 mt-0 outline-none">
             {/* Benefit callout — always visible */}
-            <div className="bg-secondary/30 rounded-2xl border border-border/40 p-4 space-y-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-                What you get
+            <div className="bg-secondary/30 rounded-xl border border-border/40 p-4 space-y-2.5">
+              <p className="text-xs font-medium text-foreground/80">
+                Credit pack includes
               </p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Timer size={13} className="text-primary shrink-0" />
-                  <span>Unlocks the 30-second timeline limit on all exports</span>
+                  <span>Exports up to 30 seconds</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Cloud size={13} className="text-primary shrink-0" />
-                  <span>Free cloud saves while your credit balance is positive</span>
+                  <span>Cloud projects while you have credits</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <InfinityIcon size={13} className="text-primary shrink-0" />
-                  <span>Credits never expire</span>
+                  <span>Credits do not expire</span>
                 </div>
               </div>
             </div>
 
             {/* Slider + checkout — visible to everyone */}
-            <div className="bg-gradient-to-tr from-secondary/30 via-secondary/10 to-transparent rounded-2xl border border-border/50 p-6 shadow-inner">
+            <div className="bg-gradient-to-tr from-secondary/30 via-secondary/10 to-transparent rounded-xl border border-border/50 p-6 shadow-inner">
               <div className="flex justify-between items-end mb-8">
                 <div>
-                  <h3 className="text-lg font-bold">Pay as you go</h3>
+                  <h3 className="text-lg font-medium">Buy credits</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Purchase credits that never expire.
+                    Choose the number of credits to buy.
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-3xl font-black text-primary">
+                  <span className="text-3xl font-medium text-primary">
                     ${purchaseAmount}
                   </span>
                 </div>
@@ -201,7 +201,7 @@ function CreditsModalBody() {
                   onValueChange={(val) => setPurchaseAmount(val[0])}
                   className="cursor-grab active:cursor-grabbing py-2"
                 />
-                <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground px-1">
+                <div className="flex justify-between items-center text-xs font-medium text-muted-foreground px-1">
                   <span>${minAmount}</span>
                   <span>${maxAmount}</span>
                 </div>
@@ -213,25 +213,25 @@ function CreditsModalBody() {
                     <Coins size={20} className="text-amber-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">You will receive</p>
-                    <p className="text-2xl font-black tracking-tight tabular-nums mt-0.5">
+                    <p className="text-sm font-medium">Credits received</p>
+                    <p className="text-2xl font-medium tracking-tight tabular-nums mt-0.5">
                       {creditsToGet.toLocaleString()}{" "}
                       <span className="text-sm font-medium text-muted-foreground ml-1">
                         credits
                       </span>
                     </p>
-                    <p className="text-[11px] font-bold text-primary flex items-center gap-1 mt-1">
-                      <Timer size={11} /> ~{minutesToGet.toLocaleString()} mins of 1080p
+                    <p className="text-[11px] font-medium text-primary flex items-center gap-1 mt-1">
+                      <Timer size={11} /> About {minutesToGet.toLocaleString()} minutes at 1080p
                     </p>
                   </div>
                 </div>
                 <Button
-                  className="h-11 w-full sm:w-auto px-8 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 opacity-50 cursor-not-allowed"
+                  className="h-11 w-full sm:w-auto px-8 rounded-lg font-medium shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 opacity-50 cursor-not-allowed"
                   onClick={() => startCheckout("topup", purchaseAmount)}
                   disabled
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
-                  {user ? "Checkout" : "Get Started"}
+                  {user ? "Checkout" : "Sign in to buy"}
                 </Button>
               </div>
 
@@ -247,17 +247,17 @@ function CreditsModalBody() {
               <div className="bg-secondary/20 rounded-xl border border-border/30 p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Coins size={13} className="text-amber-500 shrink-0" />
-                  <span>Current balance</span>
+                  <span>Credits available</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {(credits?.monthly_credits ?? 0) > 0 && (
-                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                      <Clock size={10} /> {credits!.monthly_credits} Monthly
+                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+                      <Clock size={10} /> {credits!.monthly_credits} monthly credits
                     </span>
                   )}
                   {(credits?.purchased_credits ?? 0) > 0 && (
-                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                      <Zap size={10} /> {credits!.purchased_credits} Purchased
+                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+                      <Zap size={10} /> {credits!.purchased_credits} purchased credits
                     </span>
                   )}
                 </div>
@@ -268,7 +268,7 @@ function CreditsModalBody() {
 
       <div className="mt-6 pt-4 border-t border-border/20 text-center">
         <p className="text-[11px] text-muted-foreground/60">
-          Questions about your credits or plan? Reach out to <a href="mailto:support@lilmappo.tech" className="text-primary hover:underline font-medium">support@lilmappo.tech</a>
+          For credit or plan support, email <a href="mailto:support@lilmappo.tech" className="text-primary hover:underline font-medium">support@lilmappo.tech</a>
         </p>
       </div>
     </div>
