@@ -5,7 +5,8 @@ export type EasingName =
   | 'linear'
   | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad'
   | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic'
-  | 'easeInOutSine';
+  | 'easeInOutSine'
+  | 'bounce';
 
 export interface AutoCamConfig {
   enabled: boolean;
@@ -16,7 +17,7 @@ export interface AutoCamConfig {
   height: number;
   zoom: number;
   lookAhead: number;
-  easing: EasingName;
+  easing?: EasingName;
 }
 
 export interface RouteItem {

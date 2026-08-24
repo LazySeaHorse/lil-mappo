@@ -274,7 +274,7 @@ export function getCameraAtTime(
       const blockDuration = blockEnd - blockStart;
       const BLEND = Math.min(0.5, blockDuration / 2);
       const progress = blockDuration > 0 ? (time - blockStart) / blockDuration : 0;
-      const easedProgress = applyEasing(config.easing, Math.max(0, Math.min(1, progress)));
+      const easedProgress = applyEasing(activeRoute.easing ?? 'easeInOutSine', Math.max(0, Math.min(1, progress)));
 
       const fullAutoCam =
         config.mode === 'cinematic'
