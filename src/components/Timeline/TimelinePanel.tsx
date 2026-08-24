@@ -1,32 +1,20 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
+import TimelineHeader from './TimelineHeader';
 import TimelineTrackRow, { type AutoCamBlock } from './TimelineTrackRow';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { IconButton } from '@/components/ui/icon-button';
-import { Slider } from '@/components/ui/slider';
 import { useResponsive } from '@/hooks/useResponsive';
+import { formatTimelineTime } from './timelineTime';
 import {
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
   PANEL_MARGIN
 } from '@/constants/layout';
-import {
-  SkipBack, SkipForward, ChevronLeft, ChevronRight,
-  Play, Pause, Minus, Plus, Maximize2
-} from 'lucide-react';
-
 const RULER_HEIGHT = 40;
 const HEADER_HEIGHT = 48;
 const MIN_PANEL_HEIGHT = 120; // header + ruler + some visible content
 const PIXELS_PER_SECOND_DEFAULT = 60;
-
-function formatTime(s: number): string {
-  const min = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  const ms = Math.floor((s % 1) * 100);
-  return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-}
 
 export default function TimelinePanel() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -87,7 +75,7 @@ export default function TimelinePanel() {
         trackLineRef.current.style.left = `${x + 160}px`;
       }
       if (timeDisplayRef.current) {
-        timeDisplayRef.current.textContent = `${formatTime(state.playheadTime)}`;
+        timeDisplayRef.current.textContent = formatTimelineTime(state.playheadTime);
       }
     });
     return unsub;
@@ -99,7 +87,7 @@ export default function TimelinePanel() {
     const x = playheadTime * pixelsPerSecond;
     if (rulerDiamondRef.current) rulerDiamondRef.current.style.left = `${x}px`;
     if (trackLineRef.current) trackLineRef.current.style.left = `${x + 160}px`;
-    if (timeDisplayRef.current) timeDisplayRef.current.textContent = `${formatTime(playheadTime)}`;
+    if (timeDisplayRef.current) timeDisplayRef.current.textContent = formatTimelineTime(playheadTime);
   }, [pixelsPerSecond]);
 
   const timeFromX = useCallback((x: number) => {
@@ -256,85 +244,18 @@ export default function TimelinePanel() {
         onPointerDown={handleResizeDrag}
       />
 
-      {/* Header: Timeline label (left) · Transport controls (center) · Zoom controls (right) */}
-      <div
-        className="border-b border-border/50 flex items-center px-3 shrink-0 bg-background/40 rounded-t-2xl relative"
-        style={{ height: HEADER_HEIGHT }}
-      >
-        {/* Desktop: Label + Time / Mobile: Transport Controls */}
-        {!isMobile ? (
-          <div className="flex flex-col gap-0.5 shrink-0">
-            <span className="font-medium text-xs text-foreground/80 leading-none">
-              Timeline
-            </span>
-            <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
-              <span ref={timeDisplayRef}>{formatTime(useProjectStore.getState().playheadTime)}</span>
-              <span className="opacity-50"> / {formatTime(duration)}</span>
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-0.5">
-            <TransportControls 
-              setPlayheadTime={setPlayheadTime}
-              isPlaying={isPlaying}
-              setIsPlaying={setIsPlaying}
-              duration={duration}
-              fps={fps}
-            />
-          </div>
-        )}
-
-        {/* Desktop: Center transport controls absolutely */}
-        {!isMobile && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="flex items-center gap-0.5 pointer-events-auto">
-              <TransportControls 
-                setPlayheadTime={setPlayheadTime}
-                isPlaying={isPlaying}
-                setIsPlaying={setIsPlaying}
-                duration={duration}
-                fps={fps}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Right: zoom controls */}
-        <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          <IconButton
-            variant="ghost" size="xs"
-            onClick={() => setPixelsPerSecond(p => Math.max(10, p - 15))}
-            title="Zoom Out"
-          >
-            <Minus />
-          </IconButton>
-          <div className="w-20 px-1">
-            <Slider
-              min={10}
-              max={300}
-              step={1}
-              value={[pixelsPerSecond]}
-              onValueChange={([v]) => setPixelsPerSecond(v)}
-              className="cursor-pointer"
-              title={`Zoom: ${Math.round(pixelsPerSecond)}px/s`}
-            />
-          </div>
-          <IconButton
-            variant="ghost" size="xs"
-            onClick={() => setPixelsPerSecond(p => Math.min(300, p + 15))}
-            title="Zoom In"
-          >
-            <Plus />
-          </IconButton>
-          <IconButton
-            variant="ghost" size="xs"
-            onClick={handleFitToTimeline}
-            title="Fit to Timeline"
-          >
-            <Maximize2 />
-          </IconButton>
-        </div>
-      </div>
+      <TimelineHeader
+        duration={duration}
+        fps={fps}
+        isMobile={isMobile}
+        isPlaying={isPlaying}
+        pixelsPerSecond={pixelsPerSecond}
+        setIsPlaying={setIsPlaying}
+        setPixelsPerSecond={setPixelsPerSecond}
+        setPlayheadTime={setPlayheadTime}
+        timeDisplayRef={timeDisplayRef}
+        onFitToTimeline={handleFitToTimeline}
+      />
 
       <ScrollArea className="flex-1 w-full relative group min-h-0">
         <div className="flex flex-col relative min-w-max pb-4" style={{ width: totalWidth + 160 + 20 }} onWheel={handleWheel}>
@@ -345,8 +266,8 @@ export default function TimelinePanel() {
             <div className="w-[160px] h-full bg-background/90 border-r border-border/50 shrink-0 sticky left-0 z-30 pointer-events-none flex items-center px-4">
               {isMobile && (
                 <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
-                  <span ref={timeDisplayRef}>{formatTime(useProjectStore.getState().playheadTime)}</span>
-                  <span className="opacity-50"> / {formatTime(duration)}</span>
+                  <span ref={timeDisplayRef}>{formatTimelineTime(useProjectStore.getState().playheadTime)}</span>
+                  <span className="opacity-50"> / {formatTimelineTime(duration)}</span>
                 </span>
               )}
             </div>
@@ -422,59 +343,3 @@ export default function TimelinePanel() {
     </div>
   );
 }
-
-function TransportControls({ 
-  setPlayheadTime, 
-  isPlaying, 
-  setIsPlaying, 
-  duration, 
-  fps 
-}: { 
-  setPlayheadTime: (t: number) => void; 
-  isPlaying: boolean; 
-  setIsPlaying: (p: boolean) => void;
-  duration: number;
-  fps: number;
-}) {
-  return (
-    <>
-      <IconButton
-        variant="ghost" size="xs"
-        onClick={() => setPlayheadTime(0)}
-        title="Jump to Start ([)"
-      >
-        <SkipBack />
-      </IconButton>
-      <IconButton
-        variant="ghost" size="xs"
-        onClick={() => setPlayheadTime(Math.max(0, useProjectStore.getState().playheadTime - 1 / fps))}
-        title="Step Back (←)"
-      >
-        <ChevronLeft />
-      </IconButton>
-      <IconButton
-        variant="ghost" size="xs"
-        onClick={() => setIsPlaying(!isPlaying)}
-        title="Play / Pause (Space)"
-        className={isPlaying ? 'text-primary' : ''}
-      >
-        {isPlaying ? <Pause /> : <Play />}
-      </IconButton>
-      <IconButton
-        variant="ghost" size="xs"
-        onClick={() => setPlayheadTime(Math.min(duration, useProjectStore.getState().playheadTime + 1 / fps))}
-        title="Step Forward (→)"
-      >
-        <ChevronRight />
-      </IconButton>
-      <IconButton
-        variant="ghost" size="xs"
-        onClick={() => setPlayheadTime(duration)}
-        title="Jump to End (])"
-      >
-        <SkipForward />
-      </IconButton>
-    </>
-  );
-}
-
