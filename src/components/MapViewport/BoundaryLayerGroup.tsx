@@ -6,6 +6,7 @@ import type { BoundaryItem } from '@/store/types';
 import { getNormalizedProgress } from '@/engine/easings';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
+import { resolveBoundaryFillColor } from './layerStyleContracts';
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 const EXIT_DURATION = 0.5; // seconds for exit animation after endTime
@@ -34,7 +35,7 @@ export function BoundaryLayerGroup({
   const updateFnRef = useRef<(state: ReturnType<typeof useProjectStore.getState>) => void>(() => {});
 
   // Paint property cache: avoids calling setPaintProperty with unchanged values at 60 fps.
-  const lastPaintRef = useRef({ strokeColor: '', strokeWidth: -1, glowVisible: false });
+  const lastPaintRef = useRef({ fillColor: '', strokeColor: '', strokeWidth: -1, glowVisible: false });
 
   // Geometry cache: fill and static-stroke geometry only need setData when b.geojson changes.
   const lastGeojsonRef = useRef<GeoJSON.Geometry | null>(null);
@@ -51,7 +52,7 @@ export function BoundaryLayerGroup({
     const strokeLayerId = `boundary-stroke-layer-${boundary.id}`;
 
     // Reset caches when layers are recreated (style reload or resolve status change)
-    lastPaintRef.current = { fillColor: '', strokeColor: '', strokeWidth: -1 };
+    lastPaintRef.current = { fillColor: '', strokeColor: '', strokeWidth: -1, glowVisible: false };
     lastGeojsonRef.current = null;
 
     if (!map.getSource(fillSourceId)) {
@@ -64,7 +65,7 @@ export function BoundaryLayerGroup({
         type: 'fill',
         source: fillSourceId,
         paint: {
-          'fill-color': b.style.strokeColor,
+          'fill-color': resolveBoundaryFillColor(b.style),
           'fill-opacity': 0,
         },
       });
@@ -139,8 +140,16 @@ export function BoundaryLayerGroup({
       const lp = lastPaintRef.current;
       const glowVisible = style.glow && !isReverseExit;
 
+      const fillColor = resolveBoundaryFillColor(style);
+      if (lp.fillColor !== fillColor) {
+        try {
+          m.setPaintProperty(fillLayerId, 'fill-color', fillColor);
+        } catch (error) {
+          console.warn(`Could not update fill color for boundary ${b.id}`, error);
+        }
+        lp.fillColor = fillColor;
+      }
       if (lp.strokeColor !== style.strokeColor) {
-        try { m.setPaintProperty(fillLayerId, 'fill-color', style.strokeColor); } catch (_) {}
         try { m.setPaintProperty(strokeLayerId, 'line-color', style.strokeColor); } catch (_) {}
         try { m.setPaintProperty(glowLayerId, 'line-color', style.strokeColor); } catch (_) {}
         lp.strokeColor = style.strokeColor;

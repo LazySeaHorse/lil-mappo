@@ -152,7 +152,7 @@ export const BoundaryAddDropdown = ({
               <Field label="Atmospheric color">
                 <ColorPicker 
                   value={previewBoundaryStyle!.strokeColor} 
-                  onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v, glowColor: v })} 
+                  onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
                 />
               </Field>
               

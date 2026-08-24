@@ -19,6 +19,13 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
           onChange={(v) => onChange({ strokeColor: v })} 
         />
       </Field>
+
+      <Field label="Fill color">
+        <ColorPicker
+          value={style.fillColor ?? style.strokeColor}
+          onChange={(v) => onChange({ fillColor: v })}
+        />
+      </Field>
       
       <SliderField 
         label="Stroke width"

@@ -181,6 +181,25 @@ export function RouteInspector({ item }: { item: RouteItem }) {
               checked={item.style.glow} 
               onChange={(v) => us({ glow: v })} 
             />
+
+            {item.style.glow && (
+              <>
+                <ColorRow
+                  label="Glow color"
+                  value={item.style.glowColor}
+                  onChange={(v) => us({ glowColor: v })}
+                />
+                <SliderRow
+                  label="Glow width"
+                  value={item.style.glowWidth}
+                  onChange={(v) => us({ glowWidth: v })}
+                  min={2}
+                  max={40}
+                  step={1}
+                  unit="px"
+                />
+              </>
+            )}
           </div>
         </InspectorSection>
 

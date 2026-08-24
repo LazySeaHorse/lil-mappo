@@ -1,4 +1,3 @@
-import type { MapStyleKey } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 
 export type EasingName =
@@ -20,6 +19,46 @@ export interface AutoCamConfig {
   easing?: EasingName;
 }
 
+export type RouteMode = 'car' | 'walk' | 'flight' | 'manual';
+
+export interface RouteVehicleConfig {
+  enabled: boolean;
+  type: 'car' | 'plane' | 'dot';
+  modelId: string;
+  scale: number;
+}
+
+export interface RouteCalculation {
+  startPoint: [number, number];
+  endPoint: [number, number];
+  mode: RouteMode;
+  vehicle?: RouteVehicleConfig;
+}
+
+export interface RouteStyle {
+  color: string;
+  width: number;
+  glow: boolean;
+  glowColor: string;
+  glowWidth: number;
+  trailFade: boolean;
+  trailFadeLength: number;
+  dashPattern: number[] | null;
+  animationType?: 'draw' | 'navigation' | 'comet';
+  cometTrailLength?: number;
+}
+
+export interface BoundaryStyle {
+  strokeColor: string;
+  fillColor: string;
+  strokeWidth: number;
+  glow: boolean;
+  fillOpacity: number;
+  animateStroke: boolean;
+  animationStyle: 'fade' | 'draw' | 'trace';
+  traceLength: number;
+}
+
 export interface RouteItem {
   kind: 'route';
   id: string;
@@ -28,30 +67,10 @@ export interface RouteItem {
   startTime: number;
   endTime: number;
   autoCam?: AutoCamConfig;
-  style: {
-    color: string;
-    width: number;
-    glow: boolean;
-    glowWidth: number;
-    trailFade: boolean;
-    trailFadeLength: number;
-    dashPattern: number[] | null;
-    animationType?: 'draw' | 'navigation' | 'comet';
-    cometTrailLength?: number;
-  };
+  style: RouteStyle;
   easing: EasingName;
   exitAnimation?: 'none' | 'reverse' | 'fade';
-  calculation?: {
-    startPoint: [number, number];
-    endPoint: [number, number];
-    mode: 'car' | 'flight' | 'manual';
-    vehicle?: {
-      enabled: boolean;
-      type: 'car' | 'plane' | 'dot';
-      modelId: string;
-      scale: number;
-    };
-  };
+  calculation?: RouteCalculation;
 }
 
 export interface BoundaryItem {
@@ -62,15 +81,7 @@ export interface BoundaryItem {
   resolveStatus: 'idle' | 'loading' | 'resolved' | 'error';
   startTime: number;
   endTime: number;
-  style: {
-    strokeColor: string;
-    strokeWidth: number;
-    glow: boolean;
-    fillOpacity: number;
-    animateStroke: boolean;
-    animationStyle: 'fade' | 'draw' | 'trace';
-    traceLength: number;
-  };
+  style: BoundaryStyle;
   easing: EasingName;
   exitAnimation?: 'none' | 'reverse' | 'fade';
 }

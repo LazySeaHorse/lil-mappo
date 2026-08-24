@@ -66,6 +66,7 @@ interface ProjectStore extends Project {
   setPlayheadTime: (t: number) => void;
   setIsPlaying: (playing: boolean) => void;
   setIsScrubbing: (v: boolean) => void;
+  setIsCameraEnabled: (v: boolean) => void;
 
   // Project settings
   setDuration: (d: number) => void;
@@ -422,6 +423,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     draftBoundaryName: name,
     previewBoundaryStyle: get().previewBoundaryStyle || {
       strokeColor: '#a855f7',
+      fillColor: '#a855f7',
       strokeWidth: 5,
       glow: true,
       fillOpacity: 0.1,

@@ -7,6 +7,7 @@ import { getNormalizedProgress } from '@/engine/easings';
 import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
 import { calculateBearing, calculatePitch } from '@/engine/geoUtils';
 import { VehicleModelLayer } from './VehicleModelLayer';
+import { resolveRoutePaint } from './layerStyleContracts';
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 const EXIT_DURATION = 0.5; // seconds for exit animation after endTime
@@ -92,13 +93,14 @@ export function RouteLayerGroup({
     if (!map.getSource(cometId)) map.addSource(cometId, { type: 'geojson', data: EMPTY_FC, lineMetrics: true } as any);
 
     if (!map.getLayer(mainLayerId)) {
+      const paint = resolveRoutePaint(routeRef.current);
       map.addLayer({
         id: mainLayerId,
         type: 'line',
         source: mainId,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': routeRef.current.calculation?.mode === 'flight' ? '#f59e0b' : routeRef.current.style.color,
+          'line-color': paint.lineColor,
           'line-width': routeRef.current.style.width,
           'line-opacity': 1,
         },
@@ -109,7 +111,7 @@ export function RouteLayerGroup({
     // Adding/removing inside the animation callback causes per-frame layer churn.
     if (!map.getLayer(glowLayerId)) {
       const r0 = routeRef.current;
-      const glowColor0 = r0.calculation?.mode === 'flight' ? '#fbbf24' : (r0.style.glowColor || r0.style.color);
+      const paint = resolveRoutePaint(r0);
       map.addLayer(
         {
           id: glowLayerId,
@@ -117,10 +119,10 @@ export function RouteLayerGroup({
           source: glowId,
           layout: { 'line-cap': 'round', 'line-join': 'round', 'visibility': 'none' },
           paint: {
-            'line-color': glowColor0,
-            'line-width': r0.style.width * 3,
+            'line-color': paint.glowColor,
+            'line-width': paint.glowWidth,
             'line-opacity': 0.35,
-            'line-blur': r0.style.width * 2,
+            'line-blur': paint.glowBlur,
           },
         },
         mainLayerId,
@@ -156,9 +158,9 @@ export function RouteLayerGroup({
       const mainSource = m.getSource(mainId) as GeoJSONSource | undefined;
       if (!mainSource || c.length < 2) return;
 
-      const isFlight = r.calculation?.mode === 'flight';
-      const routeColor = isFlight ? '#f59e0b' : r.style.color;
-      const glowColor = isFlight ? '#fbbf24' : r.style.glowColor;
+      const paint = resolveRoutePaint(r);
+      const routeColor = paint.lineColor;
+      const glowColor = paint.glowColor;
       const progress = getNormalizedProgress(state.playheadTime, r.startTime, r.endTime, r.easing);
       const animType = r.style.animationType || 'draw';
       const lp = lastPaintRef.current;
@@ -265,9 +267,9 @@ export function RouteLayerGroup({
       const glowVisible = r.style.glow && animType !== 'comet';
       try { m.setLayoutProperty(glowLayerId, 'visibility', glowVisible ? 'visible' : 'none'); } catch (_) {}
       if (glowVisible && glowSource) {
-        if (lp.glowColor !== routeColor) {
-          try { m.setPaintProperty(glowLayerId, 'line-color', routeColor); } catch (_) {}
-          lp.glowColor = routeColor;
+        if (lp.glowColor !== glowColor) {
+          try { m.setPaintProperty(glowLayerId, 'line-color', glowColor); } catch (_) {}
+          lp.glowColor = glowColor;
         }
         let glowOpacity = 0.35;
         if (state.playheadTime > r.endTime && r.exitAnimation === 'fade') {
@@ -275,11 +277,11 @@ export function RouteLayerGroup({
           glowOpacity *= (1 - fadeT);
         }
         try { m.setPaintProperty(glowLayerId, 'line-opacity', glowOpacity); } catch (_) {}
-        if (lp.glowWidth !== r.style.width) {
+        if (lp.glowWidth !== paint.glowWidth) {
           try {
-            m.setPaintProperty(glowLayerId, 'line-width', r.style.width * 3);
-            m.setPaintProperty(glowLayerId, 'line-blur', r.style.width * 2);
-            lp.glowWidth = r.style.width;
+            m.setPaintProperty(glowLayerId, 'line-width', paint.glowWidth);
+            m.setPaintProperty(glowLayerId, 'line-blur', paint.glowBlur);
+            lp.glowWidth = paint.glowWidth;
           } catch (_) {}
         }
         const gt0 = lp.mainTrimStart;

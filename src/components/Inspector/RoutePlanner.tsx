@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import type { RouteItem } from '@/store/types';
+import type { RouteItem, RouteMode } from '@/store/types';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 
@@ -138,7 +138,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     endPoint: [0, 0],
   };
 
-  const handleModeChange = (mode: 'car' | 'flight' | 'manual') => {
+  const handleModeChange = (mode: RouteMode) => {
     updateItem(item.id, { calculation: { ...calc, mode } } as any);
   };
 
@@ -196,6 +196,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
         options={[
           { value: 'manual', label: 'Manual' },
           { value: 'car', label: 'Drive', icon: <Car size={13} /> },
+          { value: 'walk', label: 'Walk', icon: <Footprints size={13} /> },
           { value: 'flight', label: 'Flight', icon: <Plane size={13} /> },
         ]}
         value={calc.mode || 'car'}

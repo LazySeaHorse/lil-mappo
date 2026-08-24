@@ -1,4 +1,4 @@
-import type { CalloutItem, Item } from '@/store/types';
+import type { CalloutItem, TimelineItem } from '@/store/types';
 import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout';
 
 /**
@@ -10,7 +10,7 @@ export function compositeFrame(
   compCtx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  items: Record<string, Item>,
+  items: Record<string, TimelineItem>,
   itemOrder: string[],
   playheadTime: number,
   showWatermark: boolean,

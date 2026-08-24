@@ -1,6 +1,7 @@
 import React from 'react';
 import { Source, Layer } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
+import { resolveBoundaryFillColor } from './layerStyleContracts';
 
 export function PreviewBoundaryLayer() {
   const { previewBoundary, previewBoundaryStyle } = useProjectStore();
@@ -25,7 +26,7 @@ export function PreviewBoundaryLayer() {
           id="preview-boundary-fill-layer"
           type="fill"
           paint={{
-            'fill-color': previewBoundaryStyle.fillColor,
+            'fill-color': resolveBoundaryFillColor(previewBoundaryStyle),
             'fill-opacity': previewBoundaryStyle.fillOpacity,
           }}
         />

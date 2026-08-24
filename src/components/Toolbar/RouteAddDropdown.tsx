@@ -10,14 +10,23 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
-import { RouteItem } from '@/store/types';
+import type { RouteItem, RouteMode } from '@/store/types';
 import { SearchField } from '../Search/SearchField';
 
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import type { SegmentedControlOption } from '@/components/ui/segmented-control';
 import { SectionLabel } from '@/components/ui/field';
+
+type PlannedRouteMode = Exclude<RouteMode, 'manual'>;
+
+const PLANNED_ROUTE_MODE_OPTIONS: SegmentedControlOption<PlannedRouteMode>[] = [
+  { value: 'car', label: 'Car', icon: <Car size={12} /> },
+  { value: 'walk', label: 'Walk', icon: <Footprints size={12} /> },
+  { value: 'flight', label: 'Flight', icon: <Plane size={12} /> },
+];
 
 export const RouteAddDropdown = ({ 
   onImportClick, 
@@ -34,7 +43,7 @@ export const RouteAddDropdown = ({
     draftStart, setDraftStart, draftEnd, setDraftEnd
   } = useProjectStore();
   
-  const [mode, setMode] = useState<'car' | 'walk' | 'flight'>('car');
+  const [mode, setMode] = useState<PlannedRouteMode>('car');
   const [start, setStart] = useState<[number, number]>([0, 0]);
   const [startName, setStartName] = useState('');
   const [end, setEnd] = useState<[number, number]>([0, 0]);
@@ -147,12 +156,8 @@ export const RouteAddDropdown = ({
       title="Plan Route" 
       subtitle="Choose travel mode & points"
     >
-      <SegmentedControl
-        options={[
-          { value: 'car', label: 'Car', icon: <Car size={12} /> },
-          { value: 'walk', label: 'Walk', icon: <Footprints size={12} /> },
-          { value: 'flight', label: 'Flight', icon: <Plane size={12} /> },
-        ]}
+      <SegmentedControl<PlannedRouteMode>
+        options={PLANNED_ROUTE_MODE_OPTIONS}
         value={mode}
         onValueChange={setMode}
       />
