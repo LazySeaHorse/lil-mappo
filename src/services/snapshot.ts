@@ -1,3 +1,4 @@
+import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { compositeFrame, withMapResized } from './mapCapture';
 import { saveAs } from 'file-saver';
@@ -10,7 +11,7 @@ import { toast } from 'sonner';
  * waits for tiles to settle, composites callouts, then downloads as PNG.
  * Uses current playhead position (not interpolated camera).
  */
-export async function takeSnapshot(mapRef: React.MutableRefObject<any>, showWatermark: boolean) {
+export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>, showWatermark: boolean) {
   const map = mapRef.current?.getMap?.();
   if (!map) {
     toast.error('Snapshot failed: Map not initialized');
@@ -58,8 +59,9 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<any>, showWate
         }, 'image/png');
       });
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Snapshot error:', err);
-    toast.error(`Snapshot failed: ${err.message}`, { id });
+    const message = err instanceof Error ? err.message : String(err);
+    toast.error(`Snapshot failed: ${message}`, { id });
   }
 }

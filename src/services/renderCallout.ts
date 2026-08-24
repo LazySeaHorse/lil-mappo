@@ -22,8 +22,8 @@ export function computeCalloutAnimation(callout: CalloutItem, playheadTime: numb
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const cr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
-  if (typeof (ctx as any).roundRect === 'function') {
-    (ctx as any).roundRect(x, y, w, h, cr);
+  if ('roundRect' in ctx && typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, cr);
   } else {
     ctx.moveTo(x + cr, y);
     ctx.lineTo(x + w - cr, y);

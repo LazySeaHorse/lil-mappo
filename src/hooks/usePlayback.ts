@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
+import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
 import type { CameraItem } from '@/store/types';
 
-export function usePlayback(mapRef: React.RefObject<any>) {
+export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.MutableRefObject<MapRef | null>) {
   const rafRef = useRef<number>(0);
   const startWallRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);

@@ -1,3 +1,4 @@
+import type { Map as MapboxMap } from 'mapbox-gl';
 import type { CalloutItem, TimelineItem } from '@/store/types';
 import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout';
 
@@ -6,7 +7,7 @@ import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout'
  * Shared by the video export pipeline and the snapshot tool.
  */
 export function compositeFrame(
-  map: any,
+  map: MapboxMap,
   compCtx: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -91,7 +92,7 @@ mapboxLogo.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5v
  * runs fn(), then restores original styles — always, even on error.
  */
 export async function withMapResized<T>(
-  map: any,
+  map: MapboxMap,
   width: number,
   height: number,
   fn: () => Promise<T>,

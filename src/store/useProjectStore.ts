@@ -277,7 +277,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     isVertical: v,
     resolution: getExportDimensions(s.exportResolution, s.aspectRatio, v),
   })),
-  setMapStyle: (s) => set({ mapStyle: s as any, terrainEnabled: false, buildingsEnabled: false, terrainLoading: false, buildingsLoading: false, detectedCapabilities: null }),
+  setMapStyle: (s) => set({ mapStyle: s, terrainEnabled: false, buildingsEnabled: false, terrainLoading: false, buildingsLoading: false, detectedCapabilities: null }),
   setProjection: (v) => set({ projection: v }),
   setLightPreset: (v) => set({ lightPreset: v }),
   setAtmosphere: (updates) => set((s) => ({ ...s, ...updates })),
@@ -293,9 +293,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
     return { labelVisibility: newVisibility };
   }),
-  set3dDetails: (key, visible) => set((s) => {
-    const map = { landmarks: 'show3dLandmarks', trees: 'show3dTrees', facades: 'show3dFacades' };
-    return { [map[key]]: visible } as any;
+  set3dDetails: (key, visible) => set(() => {
+    if (key === 'landmarks') return { show3dLandmarks: visible };
+    if (key === 'trees') return { show3dTrees: visible };
+    return { show3dFacades: visible };
   }),
   setTerrainEnabled: (v) => set({ terrainEnabled: v, terrainLoading: v }),
   setBuildingsEnabled: (v) => set({ buildingsEnabled: v }),
@@ -318,7 +319,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setTimelineHeight: (v) => set({ timelineHeight: v }),
 
   applyRenderConfig: (config) => set({
-    mapStyle: config.mapStyle as any,
+    mapStyle: config.mapStyle,
     terrainEnabled: config.terrainEnabled,
     buildingsEnabled: config.buildingsEnabled,
     labelVisibility: config.labelVisibility,

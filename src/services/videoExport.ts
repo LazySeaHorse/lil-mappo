@@ -1,3 +1,5 @@
+import type { Map as MapboxMap } from 'mapbox-gl';
+import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
@@ -31,7 +33,7 @@ export interface ExportOptions {
 interface EncoderState {
   compCanvas: HTMLCanvasElement;
   compCtx: CanvasRenderingContext2D;
-  muxer: any;
+  muxer: Muxer<ArrayBufferTarget>;
   videoEncoder: VideoEncoder;
   getEncoderError: () => Error | null;
 }
@@ -141,18 +143,19 @@ async function initEncoder(
   let encoderError: Error | null = null;
   try {
     videoEncoder = new VideoEncoder({
-      output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
       error: (e: Error) => {
         encoderError = new Error(`VideoEncoder error: ${e.message}`);
       },
     });
     videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('[videoExport] VideoEncoder.configure() failed:', e);
+    const message = e instanceof Error ? e.message : String(e);
     throw new Error(
       `H.264 encoding failed on this device (codec: ${codec}). ` +
       `Your browser supports WebCodecs but rejected the encoder config. ` +
-      `Try a lower resolution or use a different browser. Details: ${e?.message ?? e}`
+      `Try a lower resolution or use a different browser. Details: ${message}`
     );
   }
 
@@ -168,7 +171,7 @@ async function initEncoder(
 // ─── Tile cache pre-warm ───────────────────────────────────────────────────────
 
 async function prewarmTileCache(
-  map: any,
+  map: MapboxMap,
   getRouteCoords: (id: string) => number[][] | null,
   getRoutes: () => RouteItem[],
   totalDuration: number,
@@ -211,7 +214,7 @@ async function prewarmTileCache(
 // ─── Single frame capture ─────────────────────────────────────────────────────
 
 async function captureFrame(
-  map: any,
+  map: MapboxMap,
   compCanvas: HTMLCanvasElement,
   compCtx: CanvasRenderingContext2D,
   encoder: Pick<EncoderState, 'videoEncoder'>,
@@ -238,7 +241,7 @@ async function captureFrame(
   }
 
   // Sync map engine and trigger repaint
-  const syncEngine = (map as any)._syncRef?.current;
+  const syncEngine = (map as unknown as { _syncRef?: { current?: () => void } })._syncRef?.current;
   if (syncEngine) syncEngine();
   map.triggerRepaint();
 
@@ -251,10 +254,10 @@ async function captureFrame(
   ]);
 
   // Back-pressure: don't let the encoder queue grow unbounded
-  if ((videoEncoder as any).encodeQueueSize > 8) {
+  if (videoEncoder.encodeQueueSize > 8) {
     await new Promise<void>((resolve) => {
       const drain = () => {
-        if ((videoEncoder as any).encodeQueueSize <= 4) {
+        if (videoEncoder.encodeQueueSize <= 4) {
           resolve();
         } else {
           requestAnimationFrame(drain);
@@ -291,7 +294,7 @@ async function finalizeExport(
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 export async function runExport(
-  mapRef: React.MutableRefObject<any>,
+  mapRef: React.MutableRefObject<MapRef | null>,
   options: ExportOptions,
 ): Promise<Blob> {
   const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, abortSignal } = options;

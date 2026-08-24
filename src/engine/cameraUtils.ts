@@ -3,7 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 import type { CameraOutput } from './cameraInterpolation';
 
-export function applyCamera(map: any, cam: CameraOutput, zoomOffset = 0): void {
+export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0): void {
   if (cam.type === 'freeCam') {
     const opts = new mapboxgl.FreeCameraOptions();
     opts.position = mapboxgl.MercatorCoordinate.fromLngLat(
@@ -22,8 +22,8 @@ export function getRouteCoords(routeId: string): number[][] | null {
   if (!route) return null;
   const coords: number[][] = [];
   for (const f of route.geojson.features) {
-    if (f.geometry.type === 'LineString') coords.push(...(f.geometry as any).coordinates);
-    else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as any).coordinates) coords.push(...l);
+    if (f.geometry.type === 'LineString') coords.push(...(f.geometry as GeoJSON.LineString).coordinates);
+    else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as GeoJSON.MultiLineString).coordinates) coords.push(...l);
   }
   return coords.length >= 2 ? coords : null;
 }

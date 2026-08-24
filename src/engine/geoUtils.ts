@@ -88,12 +88,13 @@ export function truncateCoordinate(coord: number[], precision = 4): number[] {
 export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, precision = 4): T {
   if (!geometry || !geometry.type) return geometry;
 
-  const truncateCoords = (coords: any): any => {
+  type NestedCoordinates = number[] | NestedCoordinates[];
+  const truncateCoords = (coords: NestedCoordinates): NestedCoordinates => {
     if (!Array.isArray(coords)) return coords;
     if (typeof coords[0] === 'number') {
       return truncateCoordinate(coords as number[], precision);
     }
-    return coords.map(truncateCoords);
+    return (coords as NestedCoordinates[]).map(truncateCoords);
   };
 
   if (geometry.type === 'GeometryCollection') {
@@ -106,7 +107,7 @@ export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, pre
 
   return {
     ...geometry,
-    coordinates: truncateCoords((geometry as any).coordinates),
+    coordinates: truncateCoords((geometry as unknown as { coordinates: NestedCoordinates }).coordinates),
   };
 }
 

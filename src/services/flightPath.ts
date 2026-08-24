@@ -28,7 +28,7 @@ export function calculateFlightArc(
 
   const rawLine: GeoJSON.LineString = {
     type: 'LineString',
-    coordinates: coordsWithAlt as any
+    coordinates: coordsWithAlt as GeoJSON.Position[],
   };
 
   return truncateCoordinates(rawLine, 4);
