@@ -16,6 +16,7 @@ interface SearchFieldProps {
   name: string;
   onSelect: (lngLat: [number, number], name: string) => void;
   color?: string;
+  showDot?: boolean;
   isPicking: boolean;
   onStartPick: () => void;
   className?: string;
@@ -27,6 +28,7 @@ export const SearchField = ({
   name,
   onSelect: onSelectProp,
   color = "bg-primary/10 text-primary border-primary/20",
+  showDot = true,
   isPicking,
   onStartPick,
   className = "",
@@ -71,9 +73,11 @@ export const SearchField = ({
       <Popover open={isOpen && suggestions.length > 0} onOpenChange={(o) => !o && handleClose()}>
         <PopoverAnchor asChild>
           <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${color} shadow-sm transition-all group-focus-within:scale-110`}>
-              <div className="w-1.5 h-1.5 rounded-full bg-current" />
-            </div>
+            {showDot && (
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${color} shadow-sm transition-all group-focus-within:scale-110`}>
+                <div className="w-1.5 h-1.5 rounded-full bg-current" />
+              </div>
+            )}
             <div className="relative flex-1">
               <Input
                 placeholder={isPicking ? "Click on map..." : (placeholder || label)}
@@ -89,7 +93,7 @@ export const SearchField = ({
                   }
                 }}
                 disabled={isPicking}
-                className={`h-8 text-sm pl-2 pr-7 bg-secondary/20 border-transparent focus:border-border/50 rounded-md transition-all focus-visible:ring-1 focus-visible:ring-primary/20 ${isPicking ? 'placeholder:text-primary animate-pulse' : ''}`}
+                className={`h-8 text-sm pl-2 pr-7 bg-secondary/20 border-transparent focus:border-border/50 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-primary/20 ${isPicking ? 'placeholder:text-primary animate-pulse' : ''}`}
               />
               {query && !isPicking && (
                 <button
@@ -104,7 +108,7 @@ export const SearchField = ({
             <IconButton
               variant="ghost"
               size="sm"
-              className={`h-8 w-8 shrink-0 rounded-md transition-all ${isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`h-8 w-8 shrink-0 rounded-lg transition-all ${isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={onStartPick}
               title="Pick on Map"
             >

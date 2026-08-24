@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +14,8 @@ import {
   ColorRow, 
   SwitchRow, 
   TimingControls, 
-  VisualCardSelect 
+  VisualCardSelect,
+  CoordinatesRows
 } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 
@@ -44,21 +46,22 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
       <EditableTitle 
         value={item.title} 
         onChange={(v) => u({ title: v, linkTitleToLocation: false })} 
-        placeholder="Callout Title"
+        placeholder="Callout title"
       />
 
       <Accordion type="multiple" defaultValue={['location', 'appearance', 'connector', 'position', 'timing']} className="w-full">
         
-        <InspectorSection value="location" title="Location & Content">
+        <InspectorSection value="location" title="Location and content">
           <div className="flex flex-col gap-2.5">
             <SearchField
-              label="Search places or coordinates..."
+              label="Search for a place or enter coordinates"
               value={item.lngLat}
               name=""
               onSelect={(coords, name) => {
                 const patch: Partial<CalloutItem> = { lngLat: coords };
                 if (item.linkTitleToLocation) patch.title = name;
                 u(patch);
+                toast.success('Callout location updated.');
               }}
               isPicking={editingRoutePoint === 'callout'}
               onStartPick={() => {
@@ -66,6 +69,7 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
                 setEditingRoutePoint(active ? null : 'callout');
                 setEditingItemId(active ? null : item.id);
               }}
+              showDot={false}
               className="px-0"
               color={item.linkTitleToLocation ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/50 text-muted-foreground border-border/50"}
             />
@@ -109,21 +113,21 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
 
             {item.style.variant !== 'topo' && (
               <ColorRow
-                label="Background"
+                label="Background color"
                 value={item.style.bgColor}
                 onChange={(v) => us({ bgColor: v })}
               />
             )}
 
             <ColorRow
-              label="Text"
+              label="Text color"
               value={item.style.textColor}
               onChange={(v) => us({ textColor: v })}
             />
 
             {(item.style.variant === 'modern' || item.style.variant === 'news' || item.style.variant === 'topo') && (
               <ColorRow
-                label="Accent"
+                label="Accent color"
                 value={item.style.accentColor}
                 onChange={(v) => us({ accentColor: v })}
               />
@@ -143,7 +147,7 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
 
             {item.style.variant === 'topo' && (
               <SwitchRow
-                label="Show GPS Metadata"
+                label="Show coordinates"
                 checked={!!item.style.showMetadata}
                 onChange={(v) => us({ showMetadata: v })}
               />
@@ -151,7 +155,7 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
           </div>
         </InspectorSection>
 
-        <InspectorSection value="connector" title="Connector">
+        <InspectorSection value="connector" title="Anchor line">
           <div className="flex flex-col gap-2.5">
             <SwitchRow
               label="Show anchor line"
@@ -174,14 +178,10 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
               type="button"
               onClick={() => setMoveModeActive(!isMoveModeActive)}
               variant={isMoveModeActive ? "default" : "outline"}
-              className={`w-full h-11 py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
-                isMoveModeActive 
-                  ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20" 
-                  : "bg-background/60 hover:bg-secondary/80 border-border/60 text-foreground shadow-2xs hover:shadow-xs"
-              }`}
+              className="w-full h-11 py-2.5 px-4 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow"
             >
               {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
-              <span>{isMoveModeActive ? 'Done Positioning' : 'Move on map'}</span>
+              <span>{isMoveModeActive ? 'Finish positioning' : 'Position on map'}</span>
             </Button>
 
             <SliderRow
@@ -194,28 +194,11 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
               unit="m"
             />
 
-            <div className="flex flex-col gap-2 pt-1">
-              <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
-                <span className="text-xs font-medium text-muted-foreground">Longitude</span>
-                <input
-                  type="number"
-                  value={isNaN(item.lngLat[0]) ? '' : item.lngLat[0]}
-                  onChange={(e) => u({ lngLat: [Number(e.target.value), item.lngLat[1]], linkTitleToLocation: false })}
-                  step={0.0001}
-                  className="h-8 text-xs font-mono text-right w-28 bg-background/60 border border-border/40 rounded-lg px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
-                <span className="text-xs font-medium text-muted-foreground">Latitude</span>
-                <input
-                  type="number"
-                  value={isNaN(item.lngLat[1]) ? '' : item.lngLat[1]}
-                  onChange={(e) => u({ lngLat: [item.lngLat[0], Number(e.target.value)], linkTitleToLocation: false })}
-                  step={0.0001}
-                  className="h-8 text-xs font-mono text-right w-28 bg-background/60 border border-border/40 rounded-lg px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
-                />
-              </div>
-            </div>
+            <CoordinatesRows
+              lngLat={item.lngLat}
+              onChange={(coords) => u({ lngLat: coords, linkTitleToLocation: false })}
+              className="pt-1"
+            />
           </div>
         </InspectorSection>
 
@@ -231,5 +214,4 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
     </PanelWrapper>
   );
 }
-
 

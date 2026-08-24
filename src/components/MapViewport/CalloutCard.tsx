@@ -112,7 +112,7 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
           >
             {callout.style.showMetadata && (
               <div style={{ color: accentColor, fontSize: '9px', marginBottom: '4px', letterSpacing: '0.05em', fontWeight: 700 }}>
-                {callout.lngLat[1].toFixed(4)}° N, {callout.lngLat[0].toFixed(4)}° W
+                {callout.lngLat[1].toFixed(5)}° N, {callout.lngLat[0].toFixed(5)}° W
               </div>
             )}
             <div style={{ fontWeight: 700, fontSize: '14px', textTransform: 'uppercase' }}>{callout.title}</div>
@@ -133,13 +133,13 @@ export default function CalloutCard({ callout, phase, progress, altitudeOffset =
             style={{
               ...commonStyles,
               backgroundColor: callout.style.bgColor,
-              borderRadius: '0px',
+              borderRadius: typeof callout.style.borderRadius === 'number' ? `${callout.style.borderRadius}px` : '8px',
               maxWidth: `${callout.style.maxWidth}px`,
               border: '1px solid rgba(255,255,255,0.2)',
             }}
             className="px-3 py-2 text-sm"
           >
-            <div className="font-semibold text-sm leading-tight whitespace-nowrap">{callout.title}</div>
+            <div className="font-medium text-sm leading-tight whitespace-nowrap">{callout.title}</div>
           </div>
         );
     }

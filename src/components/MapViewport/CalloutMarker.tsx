@@ -76,7 +76,7 @@ export function CalloutMarker({
           </svg>
           {/* Coordinates tooltip */}
           <div className="absolute top-10 whitespace-nowrap bg-background/90 text-[10px] px-1.5 py-0.5 rounded border border-border shadow-sm font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-            {callout.lngLat[1].toFixed(4)}, {callout.lngLat[0].toFixed(4)}
+            {callout.lngLat[1].toFixed(5)}, {callout.lngLat[0].toFixed(5)}
           </div>
         </div>
       </Marker>

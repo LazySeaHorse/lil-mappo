@@ -77,7 +77,7 @@ export function resolveClickTarget(e: any, editingPoint: string): { lngLat: [num
     };
   }
   const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-  return { lngLat, name: `${lngLat[0].toFixed(4)}, ${lngLat[1].toFixed(4)}` };
+  return { lngLat, name: `${lngLat[0].toFixed(5)}, ${lngLat[1].toFixed(5)}` };
 }
 
 /**

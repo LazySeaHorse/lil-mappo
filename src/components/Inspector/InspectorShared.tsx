@@ -29,7 +29,7 @@ export function EditableTitle({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-9 px-3.5 pr-8 text-xs font-semibold bg-background/60 hover:bg-background/80 focus:bg-background border-border/50 rounded-xl transition-all shadow-xs placeholder:text-muted-foreground/60"
+        className="h-9 px-3.5 pr-8 text-xs font-medium bg-background/60 hover:bg-background/80 focus:bg-background border-border/50 rounded-lg transition-all shadow-sm placeholder:text-muted-foreground/60"
       />
       <Pencil size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
     </div>
@@ -60,16 +60,52 @@ export function InputNumber({
   max?: number; 
   step?: number 
 }) {
+  const displayVal = isNaN(value) ? '' : (typeof value === 'number' ? Number(value.toFixed(2)) : value);
   return (
     <Input
       type="number"
-      value={isNaN(value) ? '' : value}
+      value={displayVal}
       onChange={(e) => onChange(Number(e.target.value))}
       min={min}
       max={max}
       step={step}
       className="h-8 text-xs font-mono"
     />
+  );
+}
+
+export function CoordinatesRows({
+  lngLat,
+  onChange,
+  className,
+}: {
+  lngLat: [number, number];
+  onChange: (lngLat: [number, number]) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
+        <span className="text-xs font-medium text-muted-foreground">Longitude</span>
+        <input
+          type="number"
+          value={isNaN(lngLat[0]) ? '' : Number(Number(lngLat[0]).toFixed(5))}
+          onChange={(e) => onChange([Number(e.target.value), lngLat[1]])}
+          step={0.00001}
+          className="h-8 text-xs font-mono text-right w-28 bg-background/60 border border-border/40 rounded-lg px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 focus-visible:ring-inset"
+        />
+      </div>
+      <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
+        <span className="text-xs font-medium text-muted-foreground">Latitude</span>
+        <input
+          type="number"
+          value={isNaN(lngLat[1]) ? '' : Number(Number(lngLat[1]).toFixed(5))}
+          onChange={(e) => onChange([lngLat[0], Number(e.target.value)])}
+          step={0.00001}
+          className="h-8 text-xs font-mono text-right w-28 bg-background/60 border border-border/40 rounded-lg px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 focus-visible:ring-inset"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -193,13 +229,20 @@ export function SliderField({
 }
 
 const EASING_OPTIONS: { value: EasingName; label: string }[] = [
-  { value: 'easeInOutSine', label: 'Smooth' },
   { value: 'linear', label: 'Linear' },
-  { value: 'easeInQuad', label: 'Ease In' },
-  { value: 'easeOutQuad', label: 'Ease Out' },
-  { value: 'easeInOutQuad', label: 'Ease In-Out' },
-  { value: 'easeInOutCubic', label: 'Cubic' },
+  { value: 'easeInOutSine', label: 'Slow start and end' },
+  { value: 'easeInQuad', label: 'Slow start' },
+  { value: 'easeOutQuad', label: 'Slow end' },
+  { value: 'bounce', label: 'Bounce' },
 ];
+
+const normalizeEasing = (val?: EasingName): EasingName => {
+  if (!val) return 'easeInOutSine';
+  if (val === 'easeInOutCubic' || val === 'easeInOutQuad') return 'easeInOutSine';
+  if (val === 'easeInCubic') return 'easeInQuad';
+  if (val === 'easeOutCubic') return 'easeOutQuad';
+  return val;
+};
 
 export function EasingSelect({ 
   value, 
@@ -212,7 +255,7 @@ export function EasingSelect({
   label?: string;
   icon?: React.ReactNode;
 }) {
-  const currentVal = value || 'easeInOutSine';
+  const currentVal = normalizeEasing(value);
   return (
     <div className="flex items-center justify-between gap-3 text-xs py-0.5">
       <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 flex items-center gap-1.5">
@@ -256,7 +299,7 @@ export function TimingControls({
   onChangeExitAnimation?: (v: 'none' | 'reverse' | 'fade') => void;
   showExitAnimation?: boolean;
 }) {
-  const duration = Math.max(0.1, +(endTime - startTime).toFixed(2));
+  const duration = Math.max(0.01, +(endTime - startTime).toFixed(2));
 
   const handleStartChange = (newStart: number) => {
     const s = Math.max(0, newStart);
@@ -264,7 +307,7 @@ export function TimingControls({
   };
 
   const handleDurationChange = (newDur: number) => {
-    const d = Math.max(0.1, newDur);
+    const d = Math.max(0.01, newDur);
     onChangeTime(startTime, +(startTime + d).toFixed(2));
   };
 
@@ -272,14 +315,14 @@ export function TimingControls({
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
-          <span className="text-xs font-medium text-muted-foreground">Starts</span>
+          <span className="text-xs font-medium text-muted-foreground">Start time</span>
           <div className="relative flex items-center w-28">
             <Input
               type="number"
-              value={isNaN(startTime) ? '' : startTime}
+              value={isNaN(startTime) ? '' : Number(startTime.toFixed(2))}
               onChange={(e) => handleStartChange(Number(e.target.value))}
               min={0}
-              step={0.1}
+              step={0.01}
               className="h-8 text-xs font-mono text-right pr-6 bg-background/60 border-border/40 rounded-lg"
             />
             <Clock size={12} className="absolute right-2 text-muted-foreground/60 pointer-events-none" />
@@ -291,10 +334,10 @@ export function TimingControls({
           <div className="relative flex items-center w-28">
             <Input
               type="number"
-              value={isNaN(duration) ? '' : duration}
+              value={isNaN(duration) ? '' : Number(duration.toFixed(2))}
               onChange={(e) => handleDurationChange(Number(e.target.value))}
-              min={0.1}
-              step={0.1}
+              min={0.01}
+              step={0.01}
               className="h-8 text-xs font-mono text-right pr-6 bg-background/60 border-border/40 rounded-lg"
             />
             <span className="absolute right-2 text-xs font-mono text-muted-foreground/60 pointer-events-none">s</span>
@@ -308,13 +351,13 @@ export function TimingControls({
 
       {showExitAnimation && onChangeExitAnimation && (
         <div className="flex items-center justify-between gap-2 pt-1 text-xs">
-          <span className="text-xs font-medium text-muted-foreground shrink-0">When ends</span>
+          <span className="text-xs font-medium text-muted-foreground shrink-0">After end</span>
           <div className="flex-1 max-w-[200px]">
             <SegmentedControl
               options={[
-                { value: 'none', label: 'Stay' },
-                { value: 'reverse', label: 'Erase' },
-                { value: 'fade', label: 'Fade' },
+                { value: 'none', label: 'Keep visible' },
+                { value: 'reverse', label: 'Remove' },
+                { value: 'fade', label: 'Fade out' },
               ]}
               value={exitAnimation || 'none'}
               onValueChange={onChangeExitAnimation}
@@ -364,7 +407,7 @@ export function VisualCardSelect<T extends string>({
             className={cn(
               "relative flex flex-col items-center justify-center gap-1.5 p-2 py-3 min-h-[58px] rounded-xl border text-center transition-all cursor-pointer select-none",
               isSelected
-                ? "bg-primary/10 border-primary text-primary font-bold shadow-xs ring-1 ring-primary/20"
+                ? "bg-primary/10 border-primary text-primary font-medium shadow-sm ring-1 ring-primary/20"
                 : "bg-secondary/40 hover:bg-secondary/70 border-border/40 text-muted-foreground hover:text-foreground",
               opt.disabled && "opacity-40 cursor-not-allowed pointer-events-none"
             )}
@@ -377,9 +420,9 @@ export function VisualCardSelect<T extends string>({
                 {opt.icon}
               </div>
             )}
-            <span className="text-[10px] font-semibold leading-tight text-center w-full block whitespace-normal break-words">{opt.label}</span>
+            <span className="text-[10px] font-medium leading-tight text-center w-full block whitespace-normal break-words">{opt.label}</span>
             {opt.badge && (
-              <span className="absolute top-1 right-1 text-[8px] bg-primary/20 text-primary px-1 py-0.2 rounded font-black tracking-wider uppercase">
+              <span className="absolute top-1 right-1 text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase">
                 {opt.badge}
               </span>
             )}
@@ -389,5 +432,3 @@ export function VisualCardSelect<T extends string>({
     </div>
   );
 }
-
-
