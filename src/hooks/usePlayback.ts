@@ -21,8 +21,8 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
       const routes = getRoutes();
       const cam = getCameraAtTime(camItem.keyframes, time, getRouteCoords, routes);
       if (cam) {
-        const map = mapRef.current.getMap?.() || mapRef.current;
-        if (map?.jumpTo) applyCamera(map, cam);
+        const map = mapRef.current?.getMap();
+        if (map) applyCamera(map, cam);
       }
     };
 

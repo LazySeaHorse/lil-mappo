@@ -197,7 +197,7 @@ async function prewarmTileCache(
 
     // Wait for map to settle, max 2s
     await Promise.race([
-      new Promise<void>((resolve) => map.once('idle', resolve)),
+      new Promise<void>((resolve) => map.once('idle', () => resolve())),
       new Promise<void>((resolve) => setTimeout(resolve, 2000)),
     ]);
 
@@ -328,7 +328,7 @@ export async function runExport(
     return await withMapResized(map, width, height, async () => {
       // Wait for map ready
       await Promise.race([
-        new Promise<void>((resolve) => map.once('idle', resolve)),
+        new Promise<void>((resolve) => map.once('idle', () => resolve())),
         new Promise<void>((resolve) => setTimeout(resolve, 3000)),
       ]);
       await document.fonts.ready;

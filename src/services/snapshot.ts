@@ -34,7 +34,7 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
 
       toast.loading('Rendering high-res tiles...', { id });
       await Promise.race([
-        new Promise<void>((resolve) => map.once('idle', resolve)),
+        new Promise<void>((resolve) => map.once('idle', () => resolve())),
         new Promise<void>((resolve) => setTimeout(resolve, 3000)),
       ]);
       await document.fonts.ready;
