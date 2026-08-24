@@ -13,10 +13,10 @@ import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/store/useProjectStore';
 import { AspectRatio, ExportResolution } from '@/types/render';
-import { nanoid } from 'nanoid';
 import { Plus, Smartphone, Monitor, Sparkles } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { createProject } from '@/store/projectDocument';
 
 export function NewProjectModal() {
   const showNewProjectModal = useProjectStore((s) => s.showNewProjectModal);
@@ -32,22 +32,15 @@ export function NewProjectModal() {
   const close = () => setShowNewProjectModal(false);
 
   const handleCreate = () => {
-    const newId = nanoid();
-    
-    const projectPartial: any = {
-      id: newId,
+    const project = createProject({
       name: projectName.trim() || 'Untitled Project',
       fps,
       aspectRatio,
       exportResolution,
       isVertical,
-    };
+    });
 
-    if (isVertical) {
-      projectPartial.resolution = [1080, 1920];
-    }
-
-    loadFullProject(projectPartial);
+    loadFullProject(project);
     toast.success('New project created');
     close();
   };

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { Project, TimelineItem, CameraKeyframe, RouteItem, BoundaryItem, CalloutItem, CameraItem, EasingName } from './types';
+import { CAMERA_TRACK_ID, createProject, parseProjectDocument } from './projectDocument';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import { MAP_STYLES } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
@@ -124,7 +125,7 @@ interface ProjectStore extends Project {
   applyRenderConfig: (config: RenderConfig) => void;
 
   // Project loading
-  loadFullProject: (project: Project) => void;
+  loadFullProject: (project: unknown) => void;
 
   // View state for search proximity
   setMapCenter: (v: [number, number]) => void;
@@ -136,33 +137,8 @@ interface ProjectStore extends Project {
   setDetectedCapabilities: (caps: MapStyleCapabilities | null) => void;
 }
 
-const CAMERA_ID = 'camera-track';
-
-const initialCamera: CameraItem = {
-  kind: 'camera',
-  id: CAMERA_ID,
-  keyframes: [],
-};
-
-
-const defaultProject: Project = {
-  id: nanoid(),
-  name: 'Untitled Project',
-  duration: 30,
-  fps: 30,
-  resolution: [1280, 720],
-  aspectRatio: '16:9' as AspectRatio,
-  exportResolution: '720p' as ExportResolution,
-  isVertical: false,
-  projection: 'globe',
-  lightPreset: 'day',
-  starIntensity: 0.6,
-  fogColor: null,
-  terrainExaggeration: 1.5,
-  items: { [CAMERA_ID]: initialCamera },
-  itemOrder: [CAMERA_ID],
-  mapCenter: [0, 0],
-};
+const CAMERA_ID = CAMERA_TRACK_ID;
+const defaultProject = createProject();
 
 // Eagerly initialize standard style capabilities
 const STANDARD_STYLE_CAPABILITIES: MapStyleCapabilities = {
@@ -351,7 +327,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     show3dFacades: config.show3dFacades,
   }),
 
-  loadFullProject: (project) => set({
+  loadFullProject: (input) => {
+    const project = parseProjectDocument(input);
+    set({
     ...defaultProject,
     ...project,
     // Reset transient UI state to defaults
@@ -386,10 +364,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     draftStart: null,
     draftEnd: null,
     draftCallout: null,
+    previewRoute: null,
     previewBoundary: null,
     previewBoundaryStyle: null,
     draftBoundaryName: '',
-  }),
+    isCameraEnabled: true,
+    isExporting: false,
+  });
+  },
 
   duplicateItem: (id) => set((s) => {
     const original = s.items[id];
@@ -444,4 +426,4 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   }),
 }));
 
-export const CAMERA_TRACK_ID = CAMERA_ID;
+export { CAMERA_TRACK_ID } from './projectDocument';
