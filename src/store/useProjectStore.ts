@@ -7,7 +7,7 @@ import { MAP_STYLES } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
 import { getExportDimensions } from '@/types/render';
 
-interface ProjectStore extends Project {
+export interface TransientProjectState {
   // Transient UI state (not persisted)
   mapStyle: string;
   labelVisibility: Record<string, boolean>;
@@ -46,7 +46,9 @@ interface ProjectStore extends Project {
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
   draftBoundaryName: string;
+}
 
+interface ProjectStore extends Project, TransientProjectState {
   // Item CRUD
   addItem: (item: TimelineItem) => void;
   removeItem: (id: string) => void;
@@ -159,46 +161,48 @@ const STANDARD_STYLE_CAPABILITIES: MapStyleCapabilities = {
   colorCustomization: false,
 };
 
+/** Fresh transient editor state shared by initial creation and project loads. */
+export function createTransientState(): TransientProjectState {
+  return {
+    mapStyle: 'standard',
+    labelVisibility: {},
+    playheadTime: 0,
+    isPlaying: false,
+    isScrubbing: false,
+    isInspectorOpen: false,
+    timelineHeight: 256,
+    terrainLoading: false,
+    buildingsLoading: false,
+    isCameraEnabled: true,
+    detectedCapabilities: STANDARD_STYLE_CAPABILITIES,
+    terrainEnabled: false,
+    buildingsEnabled: false,
+    show3dLandmarks: true,
+    show3dTrees: true,
+    show3dFacades: true,
+    selectedItemId: null,
+    selectedKeyframeId: null,
+    selectedAutoCamRouteId: null,
+    isMoveModeActive: false,
+    hideUI: false,
+    isExporting: false,
+    showNewProjectModal: false,
+    projectSettingsTab: 'general',
+    editingRoutePoint: null,
+    editingItemId: null,
+    draftStart: null,
+    draftEnd: null,
+    draftCallout: null,
+    previewRoute: null,
+    previewBoundary: null,
+    previewBoundaryStyle: null,
+    draftBoundaryName: '',
+  };
+}
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   ...defaultProject,
-  // Transient UI state (not persisted)
-  mapStyle: 'standard',
-  labelVisibility: {},
-  playheadTime: 0,
-  isPlaying: false,
-  isScrubbing: false,
-  isInspectorOpen: false,
-  timelineHeight: 256,
-  terrainLoading: false,
-  buildingsLoading: false,
-  isCameraEnabled: true,
-  detectedCapabilities: STANDARD_STYLE_CAPABILITIES,
-  // Transient feature toggles (not persisted)
-  terrainEnabled: false,
-  buildingsEnabled: false,
-  show3dLandmarks: true,
-  show3dTrees: true,
-  show3dFacades: true,
-  // Transient selection state (not persisted)
-  selectedItemId: null,
-  selectedKeyframeId: null,
-  selectedAutoCamRouteId: null,
-  // Transient UI modes (not persisted)
-  isMoveModeActive: false,
-  hideUI: false,
-  isExporting: false,
-  showNewProjectModal: false,
-  projectSettingsTab: 'general' as 'general' | 'map',
-  // Transient drafting/picking state (not persisted)
-  editingRoutePoint: null,
-  editingItemId: null,
-  draftStart: null,
-  draftEnd: null,
-  draftCallout: null,
-  previewRoute: null,
-  previewBoundary: null,
-  previewBoundaryStyle: null,
-  draftBoundaryName: '',
+  ...createTransientState(),
 
   addItem: (item) => set((s) => ({
     items: { ...s.items, [item.id]: item },
@@ -331,47 +335,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadFullProject: (input) => {
     const project = parseProjectDocument(input);
     set({
-    ...defaultProject,
-    ...project,
-    // Reset transient UI state to defaults
-    mapStyle: 'standard',
-    labelVisibility: {},
-    playheadTime: 0,
-    isPlaying: false,
-    isScrubbing: false,
-    isInspectorOpen: true,
-    timelineHeight: 256,
-    terrainLoading: false,
-    buildingsLoading: false,
-    detectedCapabilities: null,
-    // Reset transient feature toggles
-    terrainEnabled: false,
-    buildingsEnabled: false,
-    show3dLandmarks: true,
-    show3dTrees: true,
-    show3dFacades: true,
-    // Reset transient selection state
-    selectedItemId: null,
-    selectedKeyframeId: null,
-    selectedAutoCamRouteId: null,
-    // Reset transient UI modes
-    isMoveModeActive: false,
-    hideUI: false,
-    showNewProjectModal: false,
-    projectSettingsTab: 'general',
-    // Reset transient drafting/picking state
-    editingRoutePoint: null,
-    editingItemId: null,
-    draftStart: null,
-    draftEnd: null,
-    draftCallout: null,
-    previewRoute: null,
-    previewBoundary: null,
-    previewBoundaryStyle: null,
-    draftBoundaryName: '',
-    isCameraEnabled: true,
-    isExporting: false,
-  });
+      ...project,
+      ...createTransientState(),
+      // Loading opens the inspector and forces capability re-detection.
+      isInspectorOpen: true,
+      detectedCapabilities: null,
+    });
   },
 
   duplicateItem: (id) => set((s) => {
