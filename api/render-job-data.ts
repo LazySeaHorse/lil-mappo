@@ -31,10 +31,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (error || !job) return res.status(404).json({ error: 'Job not found or secret invalid' });
 
+  const renderConfig = job.render_config as Record<string, unknown>;
+
   return res.status(200).json({
     projectData: job.project_data,
-    renderConfig: job.render_config,
+    renderConfig,
+    // Old queued jobs may predate the entitlement snapshot. Defaulting to a
+    // watermark is the safe behavior for those jobs.
+    showWatermark: renderConfig.showWatermark !== false,
     startTime: 0,
-    endTime: job.duration_sec ?? (job.render_config as any)?.duration ?? 30,
+    endTime: job.duration_sec ?? (typeof renderConfig.duration === 'number' ? renderConfig.duration : 30),
   });
 }

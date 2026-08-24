@@ -24,6 +24,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
+  // Watermark entitlement is determined by the server. Never trust a client
+  // flag here: the stored render config is later consumed by headless Chrome.
+  const { data: subscription, error: subscriptionError } = await supabase
+    .from('subscriptions')
+    .select('tier, status')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (subscriptionError) {
+    return res.status(500).json({ error: 'Could not verify render entitlement' });
+  }
+
+  const showWatermark = !(
+    subscription?.tier === 'wanderer' &&
+    (subscription.status === 'active' || subscription.status === 'cancelling')
+  );
+
   // ── 2. Parse body ─────────────────────────────────────────────────────────────
   const { projectData, renderConfig, startTime = 0, endTime } = (req.body ?? {}) as {
     projectData: Record<string, unknown>;
@@ -33,6 +50,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   if (!projectData || !renderConfig) return res.status(400).json({ error: 'Missing projectData or renderConfig' });
+
+  const trustedRenderConfig = { ...renderConfig, showWatermark };
 
   const durationSec = (endTime ?? (projectData.duration as number ?? 30)) - startTime;
 
@@ -71,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     p_aspect_ratio: renderConfig.aspectRatio,
     p_resolution_preset: renderConfig.exportResolution,
     p_is_vertical: renderConfig.isVertical,
-    p_render_config: renderConfig,
+    p_render_config: trustedRenderConfig,
     p_project_data: projectData,
     p_render_secret_hash: renderSecretHash,
     p_monthly_credits_charged: monthly_charged,
