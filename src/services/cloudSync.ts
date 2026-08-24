@@ -1,14 +1,10 @@
 import {
   listCloudProjects,
-  loadProjectFromCloud,
-  saveProjectToCloud,
 } from './cloudProjectLibrary';
 import {
   listSavedProjects,
-  loadProjectFromLibrary,
-  saveProjectToLibrary,
-  updateCloudSyncMeta,
 } from './projectLibrary';
+import { projectLibraryCoordinator } from './projectLibraryCoordinator';
 
 export interface SyncResult {
   /** True if the sync was aborted due to a network / connectivity error. */
@@ -36,6 +32,8 @@ export interface SyncResult {
  */
 export async function syncProjects(canSave: boolean): Promise<SyncResult> {
   try {
+    const deletionErrors = await projectLibraryCoordinator.retryPendingDeletions();
+    if (deletionErrors.length > 0) throw deletionErrors[0];
     const [cloudList, localList] = await Promise.all([
       listCloudProjects(),
       listSavedProjects(),
@@ -61,11 +59,7 @@ export async function syncProjects(canSave: boolean): Promise<SyncResult> {
         local && local.updatedAt > cloudProject.updatedAt;
 
       if (needsDownload && !localIsNewer) {
-        const full = await loadProjectFromCloud(cloudProject.id);
-        await saveProjectToLibrary(full, {
-          cloudSyncedAt: cloudProject.updatedAt,
-          pendingSync: false,
-        });
+        await projectLibraryCoordinator.downloadCloudProject(cloudProject);
         downloaded++;
       }
     }
@@ -84,12 +78,13 @@ export async function syncProjects(canSave: boolean): Promise<SyncResult> {
         const cloudProject = cloudById.get(localProject.id);
         if (cloudProject && cloudProject.updatedAt > localProject.updatedAt) continue;
 
-        const full = await loadProjectFromLibrary(localProject.id);
-        await saveProjectToCloud(full);
-        await updateCloudSyncMeta(localProject.id, {
-          cloudSyncedAt: localProject.updatedAt,
-          pendingSync: false,
-        });
+        const result = await projectLibraryCoordinator.uploadLocalProject(
+          localProject.id,
+          localProject.updatedAt
+        );
+        if (result.status === 'cloud-failed' || result.status === 'local-failed') {
+          throw result.error;
+        }
         uploaded++;
       }
     }

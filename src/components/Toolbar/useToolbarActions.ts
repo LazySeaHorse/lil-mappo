@@ -4,8 +4,7 @@ import { nanoid } from 'nanoid';
 import { importRouteFile } from '@/services/fileImport';
 import type { RouteItem } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
-import { saveProjectToLibrary, updateCloudSyncMeta } from '@/services/projectLibrary';
-import { saveProjectToCloud } from '@/services/cloudProjectLibrary';
+import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
 import { isFreeUser, hasByok } from '@/lib/cloudAccess';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -61,8 +60,10 @@ export function useToolbarActions() {
         setBuildingsEnabled(false);
         selectItem(item.id);
         const pointCount = geojson.features.reduce((sum, f) => {
-          if (f.geometry.type === 'LineString') return sum + (f.geometry as any).coordinates.length;
-          if (f.geometry.type === 'MultiLineString') return sum + (f.geometry as any).coordinates.flat().length;
+          if (f.geometry.type === 'LineString') return sum + f.geometry.coordinates.length;
+          if (f.geometry.type === 'MultiLineString') {
+            return sum + f.geometry.coordinates.reduce((count, line) => count + line.length, 0);
+          }
           return sum;
         }, 0);
         toast.success(`Imported "${name}" (${pointCount} points)`);
@@ -116,27 +117,23 @@ export function useToolbarActions() {
     // Free users always save locally; Wanderer subscribers also push to cloud.
     const cloudEnabled = !isFreeUser(subscription);
 
-    try {
-      if (cloudEnabled) {
-        // 1. Save locally first with pendingSync = true (cleared on cloud success)
-        await saveProjectToLibrary(plainData, { pendingSync: true });
-
-        // 2. Attempt cloud push
-        try {
-          await saveProjectToCloud(plainData);
-          const now = Date.now();
-          await updateCloudSyncMeta(plainData.id, { cloudSyncedAt: now, pendingSync: false });
-          toast.success('Saved');
-        } catch {
-          // Network or cloud error — local copy is safe, sync pending
-          toast.success("Saved locally — you're offline");
-        }
-      } else {
-        await saveProjectToLibrary(plainData);
+    const result = await projectLibraryCoordinator.saveProject(plainData, cloudEnabled);
+    switch (result.status) {
+      case 'saved-locally':
         toast.success('Saved to library');
-      }
-    } catch {
-      toast.error('Failed to save');
+        break;
+      case 'uploaded':
+        toast.success('Saved');
+        break;
+      case 'cloud-failed':
+        toast.success('Saved locally — cloud sync is pending');
+        break;
+      case 'metadata-repair-needed':
+        toast.success('Saved to cloud — sync status will be repaired');
+        break;
+      case 'local-failed':
+        toast.error('Failed to save');
+        break;
     }
   };
 

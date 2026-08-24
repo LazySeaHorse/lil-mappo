@@ -1,29 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  X, Library, Trash2, Clock, Cloud, CloudUpload, RefreshCw, CloudOff, Lock, FolderArchive,
+  Library, Trash2, Clock, Cloud, CloudUpload, RefreshCw, CloudOff, Lock, FolderArchive,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { loadProjectFromLibrary } from '@/services/projectLibrary';
+import { CloudProjectLimitError } from '@/services/cloudProjectLibrary';
 import {
-  SavedProjectInfo,
-  listSavedProjects,
-  loadProjectFromLibrary,
-  deleteProjectFromLibrary,
-  saveProjectToLibrary,
-  updateCloudSyncMeta,
-} from '@/services/projectLibrary';
-import {
-  CloudProjectInfo,
-  listCloudProjects,
-  loadProjectFromCloud,
-  deleteProjectFromCloud,
-  saveProjectToCloud,
-} from '@/services/cloudProjectLibrary';
+  projectLibraryCoordinator,
+  type LibraryProject,
+  type CloudWriteResult,
+} from '@/services/projectLibraryCoordinator';
 import { syncProjects } from '@/services/cloudSync';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { canCloudSave, isFreeUser, FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
-import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { IconButton } from '@/components/ui/icon-button';
@@ -44,54 +35,13 @@ interface ProjectLibraryModalProps {
   onClose: () => void;
 }
 
-/** A unified view entry covering both local and cloud-only projects. */
-interface DisplayProject {
-  id: string;
-  name: string;
-  updatedAt: number;
-  /** Where to load the full data from. */
-  source: 'local' | 'cloud-only';
-  /** True if the project has ever been pushed to cloud. */
-  isCloudBacked: boolean;
-  /** True if local changes haven't been pushed to cloud yet. */
-  pendingSync: boolean;
-}
-
-function mergeProjects(
-  local: SavedProjectInfo[],
-  cloud: CloudProjectInfo[]
-): DisplayProject[] {
-  const localById = new Map(local.map((p) => [p.id, p]));
-  const result: DisplayProject[] = local.map((p) => ({
-    id: p.id,
-    name: p.name,
-    updatedAt: p.updatedAt,
-    source: 'local' as const,
-    isCloudBacked: p.cloudSyncedAt !== null,
-    pendingSync: p.pendingSync,
-  }));
-
-  // Append cloud-only entries (exist in cloud but not in local)
-  for (const cp of cloud) {
-    if (!localById.has(cp.id)) {
-      result.push({
-        id: cp.id,
-        name: cp.name,
-        updatedAt: cp.updatedAt,
-        source: 'cloud-only' as const,
-        isCloudBacked: true,
-        pendingSync: false,
-      });
-    }
-  }
-
-  return result.sort((a, b) => b.updatedAt - a.updatedAt);
-}
+type DisplayProject = LibraryProject;
 
 export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryModalProps) {
   const [projects, setProjects] = useState<DisplayProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   // When free user hits the 3-save limit and tries to upload, show this picker
   const [pendingUploadProject, setPendingUploadProject] = useState<DisplayProject | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<DisplayProject | null>(null);
@@ -100,8 +50,8 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
   const setShowNewProjectModal = useProjectStore((s) => s.setShowNewProjectModal);
   const { data: subscription } = useSubscription();
 
-  // Cloud save count = projects that are cloud-backed (source cloud-only or isCloudBacked)
-  const cloudSaveCount = projects.filter((p) => p.isCloudBacked || p.source === 'cloud-only').length;
+  // Presence comes from the cloud listing, not potentially stale local metadata.
+  const cloudSaveCount = projects.filter((p) => p.cloud !== null).length;
   const cloudEnabled = canCloudSave(subscription, cloudSaveCount);
   // Wanderer gets auto-sync; free users manage uploads manually
   const autoSyncEnabled = !isFreeUser(subscription);
@@ -109,11 +59,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
   const refreshList = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [localList, cloudList] = await Promise.all([
-        listSavedProjects(),
-        user ? listCloudProjects().catch(() => []) : Promise.resolve([]),
-      ]);
-      setProjects(mergeProjects(localList, cloudList));
+      setProjects(await projectLibraryCoordinator.listProjects(!!user));
     } catch {
       toast.error('Failed to load project library');
     } finally {
@@ -149,74 +95,61 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
 
   /** Upload a local project to cloud (free users, manual). */
   const handleUploadToCloud = async (project: DisplayProject) => {
+    if (isMutating) return;
     if (!cloudEnabled) {
       setPendingUploadProject(project);
       return;
     }
 
+    setIsMutating(true);
     try {
-      const full = await loadProjectFromLibrary(project.id);
-      await saveProjectToCloud(full);
-      const now = Date.now();
-      await updateCloudSyncMeta(project.id, { cloudSyncedAt: now, pendingSync: false });
-      toast.success('Uploaded to cloud');
+      const result = await projectLibraryCoordinator.uploadLocalProject(
+        project.id,
+        project.local?.updatedAt
+      );
+      if (result.status === 'cloud-failed' && result.error instanceof CloudProjectLimitError) {
+        setPendingUploadProject(project);
+        toast.info('Cloud project limit reached. Remove a cloud copy to continue.');
+      } else {
+        showUploadResult(result);
+      }
       await refreshList();
-    } catch {
-      toast.error('Cannot upload. Check your connection.');
+    } finally {
+      setIsMutating(false);
     }
   };
 
   /** After user deletes a cloud project to free a slot, retry the upload. */
   const handleDeleteAndRetryUpload = async (cloudProjectToDelete: DisplayProject) => {
+    const uploadProject = pendingUploadProject;
+    if (!uploadProject || isMutating) return;
+    setIsMutating(true);
     try {
-      if (cloudProjectToDelete.source === 'local') {
-        await deleteProjectFromLibrary(cloudProjectToDelete.id);
-        await deleteProjectFromCloud(cloudProjectToDelete.id).catch(() => {});
-      } else {
-        await deleteProjectFromCloud(cloudProjectToDelete.id);
+      const result = await projectLibraryCoordinator.replaceCloudProject(
+        cloudProjectToDelete.id,
+        uploadProject.id
+      );
+
+      if (result.removal.status === 'cloud-failed') {
+        toast.error('Could not free the cloud slot. The local project was preserved.');
+      } else if (result.upload) {
+        if (result.upload.status === 'uploaded' || result.upload.status === 'metadata-repair-needed') {
+          setPendingUploadProject(null);
+        }
+        showUploadResult(result.upload, `Removed "${cloudProjectToDelete.name}" from cloud and uploaded`);
       }
-      toast.success(`Deleted "${cloudProjectToDelete.name}"`);
-    } catch {
-      toast.error('Delete failed');
-      return;
-    }
 
-    // Refresh the list so cloudSaveCount updates, then upload
-    await refreshList();
-    setPendingUploadProject(null);
-
-    if (!pendingUploadProject) return;
-    try {
-      const full = await loadProjectFromLibrary(pendingUploadProject.id);
-      await saveProjectToCloud(full);
-      const now = Date.now();
-      await updateCloudSyncMeta(pendingUploadProject.id, { cloudSyncedAt: now, pendingSync: false });
-      toast.success('Uploaded to cloud');
       await refreshList();
-    } catch {
-      toast.error('Cannot upload. Check your connection.');
+    } finally {
+      setIsMutating(false);
     }
   };
 
   const handleLoad = async (project: DisplayProject) => {
     try {
-      if (project.source === 'cloud-only') {
-        const full = await loadProjectFromCloud(project.id);
-
-        if (cloudEnabled) {
-          // Save locally with same ID, marked as synced
-          await saveProjectToLibrary(full, {
-            cloudSyncedAt: project.updatedAt,
-            pendingSync: false,
-          });
-          useProjectStore.getState().loadFullProject(full);
-        } else {
-          // No cloud access — fork to a new local ID so the cloud copy stays frozen
-          const forked = { ...full, id: nanoid() };
-          await saveProjectToLibrary(forked, { cloudSyncedAt: null, pendingSync: false });
-          useProjectStore.getState().loadFullProject(forked);
-          toast.info('Loaded as a local project. Cloud projects are unavailable.');
-        }
+      if (!project.local && project.cloud) {
+        const full = await projectLibraryCoordinator.downloadCloudProject(project.cloud);
+        useProjectStore.getState().loadFullProject(full);
       } else {
         const full = await loadProjectFromLibrary(project.id);
         useProjectStore.getState().loadFullProject(full);
@@ -234,29 +167,27 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
   };
 
   const handleConfirmDelete = async () => {
-    if (!projectToDelete) return;
+    if (!projectToDelete || isMutating) return;
     const project = projectToDelete;
-    const label = project.source === 'cloud-only' ? 'cloud project' : 'project';
+    const label = project.local ? 'project' : 'cloud project';
     setProjectToDelete(null);
 
+    setIsMutating(true);
     try {
-      if (project.source === 'local') {
-        await deleteProjectFromLibrary(project.id);
-        // If cloud-backed and user has access, also remove from cloud
-        if (project.isCloudBacked && cloudEnabled) {
-          await deleteProjectFromCloud(project.id).catch(() => {
-            // Non-fatal — local is deleted; cloud will be cleaned on next sync
-          });
-        }
+      const result = await projectLibraryCoordinator.deleteProjectEverywhere(
+        project.id,
+        project.cloud !== null
+      );
+      if (result.status === 'deleted') {
+        toast.success(`Deleted ${label}: ${project.name}`);
+      } else if (result.status === 'pending-retry') {
+        toast.error('Deletion is pending and will retry. The project will not be synced.');
       } else {
-        // cloud-only
-        await deleteProjectFromCloud(project.id);
+        toast.error('Failed to record project deletion');
       }
-
-      toast.success(`Deleted ${label}: ${project.name}`);
       await refreshList();
-    } catch {
-      toast.error('Failed to delete project');
+    } finally {
+      setIsMutating(false);
     }
   };
 
@@ -305,8 +236,9 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
                 <ProjectRow
                   key={p.id}
                   project={p}
-                  showUpload={!!user && !autoSyncEnabled && p.source === 'local' && !p.isCloudBacked}
+                  showUpload={!!user && !autoSyncEnabled && p.local !== null && p.cloud === null}
                   uploadDisabledReason={!cloudEnabled ? `Cloud project limit reached (${cloudSaveCount}/${FREE_CLOUD_SAVE_LIMIT})` : undefined}
+                  disabled={isMutating}
                   onLoad={() => handleLoad(p)}
                   onDelete={() => handleDelete(p)}
                   onUpload={() => handleUploadToCloud(p)}
@@ -363,13 +295,13 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
             <div className="px-5 py-4 border-b border-border">
               <h3 className="text-sm font-medium">Cloud project limit reached</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                You used all {FREE_CLOUD_SAVE_LIMIT} cloud project slots. Delete a cloud
-                project. Then upload this project.
+                You used all {FREE_CLOUD_SAVE_LIMIT} cloud project slots. Remove one cloud
+                copy, then upload this project. Its local copy will be kept.
               </p>
             </div>
             <div className="px-5 py-4 max-h-64 overflow-y-auto flex flex-col gap-2">
               {projects
-                .filter((p) => p.isCloudBacked || p.source === 'cloud-only')
+                .filter((p) => p.cloud !== null)
                 .map((p) => (
                   <div
                     key={p.id}
@@ -386,8 +318,9 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
                       variant="destructive"
                       className="h-7 px-3 text-xs shrink-0 ml-3"
                       onClick={() => handleDeleteAndRetryUpload(p)}
+                      disabled={isMutating}
                     >
-                      Delete and upload
+                      Remove and upload
                     </Button>
                   </div>
                 ))}
@@ -419,6 +352,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
             <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
+              disabled={isMutating}
               className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
@@ -436,6 +370,7 @@ function ProjectRow({
   project,
   showUpload,
   uploadDisabledReason,
+  disabled,
   onLoad,
   onDelete,
   onUpload,
@@ -443,6 +378,7 @@ function ProjectRow({
   project: DisplayProject;
   showUpload?: boolean;
   uploadDisabledReason?: string;
+  disabled?: boolean;
   onLoad: () => void;
   onDelete: () => void;
   onUpload?: () => void;
@@ -468,6 +404,7 @@ function ProjectRow({
             variant="ghost"
             size="sm"
             onClick={onUpload}
+            disabled={disabled}
             title={uploadDisabledReason ?? 'Upload to cloud'}
             className={uploadDisabledReason ? 'text-muted-foreground/40' : 'text-primary/70 hover:text-primary'}
           >
@@ -476,12 +413,13 @@ function ProjectRow({
         )}
         <Button
           onClick={onLoad}
+          disabled={disabled}
           size="sm"
           className="h-8 px-3 text-xs font-medium transition-all"
         >
           Load
         </Button>
-        <IconButton variant="destructive" size="sm" onClick={onDelete} title="Delete project">
+        <IconButton variant="destructive" size="sm" onClick={onDelete} disabled={disabled} title="Delete project">
           <Trash2 size={14} />
         </IconButton>
       </div>
@@ -490,7 +428,7 @@ function ProjectRow({
 }
 
 function CloudStatusBadge({ project }: { project: DisplayProject }) {
-  if (project.source === 'cloud-only') {
+  if (!project.local && project.cloud) {
     return (
       <span title="Cloud project (not saved locally yet)">
         <Cloud size={12} className="text-primary shrink-0" />
@@ -498,7 +436,7 @@ function CloudStatusBadge({ project }: { project: DisplayProject }) {
     );
   }
 
-  if (project.pendingSync) {
+  if (project.syncState === 'pending-upload') {
     return (
       <span title="Changes pending cloud sync">
         <CloudUpload size={12} className="text-amber-400 shrink-0" />
@@ -506,7 +444,7 @@ function CloudStatusBadge({ project }: { project: DisplayProject }) {
     );
   }
 
-  if (project.isCloudBacked) {
+  if (project.cloud) {
     return (
       <span title="Backed up to cloud">
         <Cloud size={12} className="text-primary/60 shrink-0" />
@@ -515,4 +453,21 @@ function CloudStatusBadge({ project }: { project: DisplayProject }) {
   }
 
   return null;
+}
+
+function showUploadResult(result: CloudWriteResult, successMessage = 'Uploaded to cloud') {
+  switch (result.status) {
+    case 'uploaded':
+      toast.success(successMessage);
+      break;
+    case 'metadata-repair-needed':
+      toast.success(`${successMessage} — sync status will be repaired`);
+      break;
+    case 'cloud-failed':
+      toast.error('Cloud upload failed. The local project is preserved and pending sync.');
+      break;
+    case 'local-failed':
+      toast.error('Cannot upload because the local project could not be read.');
+      break;
+  }
 }

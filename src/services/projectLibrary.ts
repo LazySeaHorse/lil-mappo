@@ -2,7 +2,8 @@ import { Project } from '@/store/types';
 
 const DB_NAME = 'LilMapLibraryDB';
 const STORE_NAME = 'projects';
-const DB_VERSION = 1;
+const DELETION_STORE_NAME = 'project_deletions';
+const DB_VERSION = 2;
 
 export interface SavedProjectInfo {
   id: string;
@@ -12,6 +13,20 @@ export interface SavedProjectInfo {
   cloudSyncedAt: number | null;
   /** True when local changes haven't been pushed to cloud yet. */
   pendingSync: boolean;
+}
+
+export interface ProjectDeletion {
+  id: string;
+  createdAt: number;
+  /** False once the remote delete has committed (or no cloud copy existed). */
+  cloudPending: boolean;
+}
+
+export interface SaveProjectOptions {
+  cloudSyncedAt?: number | null;
+  pendingSync?: boolean;
+  /** Preserve a timestamp shared with the cloud write or download. */
+  updatedAt?: number;
 }
 
 /** Shape of a record as stored in IndexedDB (project data + library metadata). */
@@ -39,6 +54,9 @@ function getDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains(DELETION_STORE_NAME)) {
+        db.createObjectStore(DELETION_STORE_NAME, { keyPath: 'id' });
+      }
     };
   });
 }
@@ -59,18 +77,19 @@ async function getStoredRecord(db: IDBDatabase, id: string): Promise<StoredRecor
  *
  * Preserves existing cloudSyncedAt from the stored record unless
  * syncMeta.cloudSyncedAt is explicitly provided.
- * Always stamps a fresh updatedAt.
+ * Stamps a fresh updatedAt unless the caller supplies a timestamp shared with
+ * a cloud operation.
  */
 export async function saveProjectToLibrary(
   project: Project,
-  syncMeta?: { cloudSyncedAt?: number | null; pendingSync?: boolean }
-): Promise<void> {
+  syncMeta?: SaveProjectOptions
+): Promise<SavedProjectInfo> {
   const db = await getDB();
   const existing = await getStoredRecord(db, project.id);
 
   const projectToSave: StoredRecord = {
     ...project,
-    updatedAt: Date.now(),
+    updatedAt: syncMeta?.updatedAt ?? Date.now(),
     cloudSyncedAt:
       syncMeta?.cloudSyncedAt !== undefined
         ? syncMeta.cloudSyncedAt
@@ -81,13 +100,21 @@ export async function saveProjectToLibrary(
         : (existing?.pendingSync ?? false),
   };
 
-  return new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(projectToSave);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(new Error('Failed to save project'));
   });
+
+  return {
+    id: projectToSave.id,
+    name: projectToSave.name,
+    updatedAt: projectToSave.updatedAt,
+    cloudSyncedAt: projectToSave.cloudSyncedAt,
+    pendingSync: projectToSave.pendingSync,
+  };
 }
 
 /**
@@ -178,5 +205,69 @@ export async function deleteProjectFromLibrary(id: string): Promise<void> {
 
     request.onsuccess = () => resolve();
     request.onerror = () => reject(new Error('Failed to delete project'));
+  });
+}
+
+/** Persist deletion intent before touching either storage backend. */
+export async function beginProjectDeletion(id: string, cloudPending: boolean): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(DELETION_STORE_NAME, 'readwrite');
+    const request = transaction.objectStore(DELETION_STORE_NAME).put({
+      id,
+      createdAt: Date.now(),
+      cloudPending,
+    });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(new Error('Failed to record project deletion'));
+  });
+}
+
+/** Record that the remote half committed before finalizing the local transaction. */
+export async function markProjectDeletionCloudComplete(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(DELETION_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(DELETION_STORE_NAME);
+    const getRequest = store.get(id);
+    getRequest.onsuccess = () => {
+      const existing = getRequest.result as ProjectDeletion | undefined;
+      if (!existing) return;
+      store.put({ ...existing, cloudPending: false });
+    };
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(new Error('Failed to update project deletion'));
+    transaction.onabort = () => reject(new Error('Failed to update project deletion'));
+  });
+}
+
+/**
+ * Delete the local project and its completed outbox entry atomically. If this
+ * transaction fails, the tombstone remains and the operation can be retried.
+ */
+export async function finalizeProjectDeletion(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_NAME, DELETION_STORE_NAME], 'readwrite');
+    transaction.objectStore(STORE_NAME).delete(id);
+    transaction.objectStore(DELETION_STORE_NAME).delete(id);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(new Error('Failed to finalize project deletion'));
+    transaction.onabort = () => reject(new Error('Failed to finalize project deletion'));
+  });
+}
+
+export async function listProjectDeletions(): Promise<ProjectDeletion[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(DELETION_STORE_NAME, 'readonly')
+      .objectStore(DELETION_STORE_NAME)
+      .getAll();
+    request.onsuccess = () => resolve((request.result ?? []).map((deletion) => ({
+      ...deletion,
+      // Treat an interrupted record without a stage as requiring the safe remote retry.
+      cloudPending: deletion.cloudPending ?? true,
+    })));
+    request.onerror = () => reject(new Error('Failed to list project deletions'));
   });
 }

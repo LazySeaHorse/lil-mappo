@@ -9,6 +9,13 @@ export interface CloudProjectInfo {
   updatedAt: number;
 }
 
+export class CloudProjectLimitError extends Error {
+  constructor(public readonly limit: number) {
+    super(`Cloud save limit reached (free accounts can save up to ${limit} projects)`);
+    this.name = 'CloudProjectLimitError';
+  }
+}
+
 /**
  * Upserts a project to Supabase cloud_projects.
  * Inserts on first save; updates on subsequent saves.
@@ -17,7 +24,10 @@ export interface CloudProjectInfo {
  * so the free-tier 3-save limit is enforced atomically (advisory lock prevents
  * concurrent inserts from racing past the COUNT check).
  */
-export async function saveProjectToCloud(project: Project): Promise<void> {
+export async function saveProjectToCloud(
+  project: Project,
+  updatedAt = Date.now()
+): Promise<{ updatedAt: number }> {
   const userId = useAuthStore.getState().user?.id;
   if (!userId) throw new Error('Not authenticated');
 
@@ -26,15 +36,16 @@ export async function saveProjectToCloud(project: Project): Promise<void> {
     p_user_id: userId,
     p_name: project.name,
     p_data: project as unknown as Record<string, unknown>,
-    p_updated_at: new Date().toISOString(),
+    p_updated_at: new Date(updatedAt).toISOString(),
   });
 
   if (error) throw error;
 
   const result = data as { error?: string; limit?: number } | null;
   if (result?.error === 'limit_exceeded') {
-    throw new Error(`Cloud save limit reached (free accounts can save up to ${result.limit ?? 3} projects)`);
+    throw new CloudProjectLimitError(result.limit ?? 3);
   }
+  return { updatedAt };
 }
 
 /**
