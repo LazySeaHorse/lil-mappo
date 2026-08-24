@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
-  ChevronDown, Coins, Settings2, Clapperboard, LogIn, LogOut, UserCircle, Lock,
+  ChevronDown, Settings2, Clapperboard, LogIn, LogOut, UserCircle, Lock,
 } from 'lucide-react';
 
 interface AvatarMenuProps {
@@ -27,7 +27,7 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
-  const { user, openAuthModal, openSettingsModal, openCreditsModal, openRendersModal, signOut } = useAuthStore();
+  const { user, openAuthModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
   const { selectItem, setProjectSettingsTab } = useProjectStore();
   const actions = useToolbarActions();
   const isLocked = !user && !hasByok();
@@ -108,9 +108,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
           Account
         </DropdownMenuLabel>
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={openCreditsModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
-            <Coins size={14} /> Credits
-          </DropdownMenuItem>
+          {/* Credits return here when cloud rendering is re-enabled. */}
           <DropdownMenuItem onClick={openSettingsModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Settings2 size={14} /> Settings
           </DropdownMenuItem>

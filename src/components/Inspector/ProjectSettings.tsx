@@ -51,7 +51,7 @@ export function ProjectSettings() {
   const capabilities = useMapStyleCapabilities();
   const { data: subscription } = useSubscription();
   const limits = getExportLimits(subscription);
-  const { openCreditsModal } = useAuthStore();
+  const { openUpgradeModal } = useAuthStore();
 
   return (
     <PanelWrapper title="Project settings" icon={<Settings2 size={15} />}>
@@ -136,7 +136,7 @@ export function ProjectSettings() {
                 <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
               </p>
               <button
-                onClick={openCreditsModal}
+                onClick={openUpgradeModal}
                 className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
               >
                 Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />

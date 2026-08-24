@@ -46,6 +46,7 @@ interface AuthStore {
   authModalMode: "signin" | "signup";
   showSettingsModal: boolean;
   showCreditsModal: boolean;
+  showUpgradeModal: boolean;
   showRendersModal: boolean;
 
   // Actions
@@ -61,6 +62,8 @@ interface AuthStore {
   closeSettingsModal: () => void;
   openCreditsModal: () => void;
   closeCreditsModal: () => void;
+  openUpgradeModal: () => void;
+  closeUpgradeModal: () => void;
   openRendersModal: () => void;
   closeRendersModal: () => void;
 
@@ -91,6 +94,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   authModalMode: "signin",
   showSettingsModal: false,
   showCreditsModal: false,
+  showUpgradeModal: false,
   showRendersModal: false,
 
   setUser: (user) => set({ user }),
@@ -104,6 +108,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   closeSettingsModal: () => set({ showSettingsModal: false }),
   openCreditsModal: () => set({ showCreditsModal: true }),
   closeCreditsModal: () => set({ showCreditsModal: false }),
+  openUpgradeModal: () => set({ showUpgradeModal: true }),
+  closeUpgradeModal: () => set({ showUpgradeModal: false }),
   openRendersModal: () => set({ showRendersModal: true }),
   closeRendersModal: () => set({ showRendersModal: false }),
 

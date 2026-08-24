@@ -59,8 +59,14 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     }))
   );
 
-  const { session, user, openAuthModal, openCreditsModal } = useAuthStore(
-    useShallow((s) => ({ session: s.session, user: s.user, openAuthModal: s.openAuthModal, openCreditsModal: s.openCreditsModal }))
+  const { session, user, openAuthModal, openCreditsModal, openUpgradeModal } = useAuthStore(
+    useShallow((s) => ({
+      session: s.session,
+      user: s.user,
+      openAuthModal: s.openAuthModal,
+      openCreditsModal: s.openCreditsModal,
+      openUpgradeModal: s.openUpgradeModal,
+    }))
   );
 
   const { data: subscription } = useSubscription();
@@ -366,7 +372,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
                     <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
                   </p>
                   <button
-                    onClick={openCreditsModal}
+                    onClick={openUpgradeModal}
                     className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
                   >
                     Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />

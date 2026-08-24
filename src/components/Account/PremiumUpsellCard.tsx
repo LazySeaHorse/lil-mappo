@@ -15,9 +15,9 @@ export function PremiumUpsellCard({ onClick }: PremiumUpsellCardProps) {
         <Crown size={24} className="text-primary" />
       </div>
       <div>
-        <p className="text-base font-medium tracking-tight">More render capacity</p>
+        <p className="text-base font-medium tracking-tight">Upgrade to Wanderer</p>
         <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-          View plans and credit options for cloud rendering and cloud projects.
+          Get unlimited cloud projects, higher-quality exports, and no watermark.
         </p>
       </div>
     </button>

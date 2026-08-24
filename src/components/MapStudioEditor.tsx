@@ -28,6 +28,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { AuthModal } from "@/components/Account/AuthModal";
 import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal";
 import { CreditsModal } from "@/components/Account/CreditsModal";
+import { UpgradeModal } from "@/components/Account/UpgradeModal";
 import { RendersModal } from "@/components/Account/RendersModal";
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
@@ -185,6 +186,7 @@ export default function MapStudioEditor() {
         <AuthModal />
         <AccountSettingsModal />
         <CreditsModal />
+        <UpgradeModal />
         <RendersModal />
       </div>
     </MapRefContext.Provider>

@@ -54,7 +54,7 @@ export function AccountSettingsModal() {
 type View = "main" | "manage";
 
 function AccountSettingsModalBody() {
-  const { user, closeSettingsModal, openAuthModal, session, startCheckout, openCreditsModal } =
+  const { user, closeSettingsModal, openAuthModal, session, startCheckout, openUpgradeModal } =
     useAuthStore();
   const { data: subscription, isLoading: subLoading, refetch: refetchSub } =
     useSubscription();
@@ -121,9 +121,9 @@ function AccountSettingsModalBody() {
         accessToken={session?.access_token ?? null}
         onBack={() => setView("main")}
         onRefetch={() => refetchSub()}
-        onOpenCredits={() => {
+        onOpenUpgrade={() => {
           closeSettingsModal();
-          openCreditsModal();
+          openUpgradeModal();
         }}
       />
     );
@@ -212,7 +212,7 @@ function AccountSettingsModalBody() {
             <PremiumUpsellCard
               onClick={() => {
                 closeSettingsModal();
-                openCreditsModal();
+                openUpgradeModal();
               }}
             />
           )}
@@ -304,7 +304,7 @@ function ManageView({
   accessToken,
   onBack,
   onRefetch,
-  onUpgrade,
+  onOpenUpgrade,
 }: {
   subscription: Subscription | null;
   credits: CreditBalance | null;
@@ -314,7 +314,7 @@ function ManageView({
   accessToken: string | null;
   onBack: () => void;
   onRefetch: () => void;
-  onOpenCredits: () => void;
+  onOpenUpgrade: () => void;
 }) {
   const { cancelling, confirmCancel, setConfirmCancel, justCancelled, handleCancel } =
     useCancelSubscription({ accessToken, renewalDate, onSuccess: onRefetch });
@@ -439,7 +439,7 @@ function ManageView({
             <Button
               variant="outline"
               className="w-full rounded-lg gap-2 h-11 text-xs font-medium bg-secondary/20 hover:bg-secondary/40 border-border/40"
-              onClick={onOpenCredits}
+              onClick={onOpenUpgrade}
             >
               <Crown size={14} className="text-primary" />
               Change plan
