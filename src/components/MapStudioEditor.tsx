@@ -177,10 +177,8 @@ export default function MapStudioEditor() {
           />
         )}
 
-        {showExport && <ExportModal onClose={() => setShowExport(false)} />}
-        {showLibrary && (
-          <ProjectLibraryModal onClose={() => setShowLibrary(false)} />
-        )}
+        <ExportModal open={showExport} onClose={() => setShowExport(false)} />
+        <ProjectLibraryModal open={showLibrary} onClose={() => setShowLibrary(false)} />
 
         {/* Account Modals */}
         <NewProjectModal />

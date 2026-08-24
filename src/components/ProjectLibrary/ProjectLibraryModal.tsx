@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  X, Library, Trash2, Clock, Cloud, CloudUpload, RefreshCw, CloudOff, Lock,
+  X, Library, Trash2, Clock, Cloud, CloudUpload, RefreshCw, CloudOff, Lock, FolderArchive,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   SavedProjectInfo,
   listSavedProjects,
@@ -27,8 +28,19 @@ import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { IconButton } from '@/components/ui/icon-button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ProjectLibraryModalProps {
+  open: boolean;
   onClose: () => void;
 }
 
@@ -76,14 +88,16 @@ function mergeProjects(
   return result.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProps) {
+export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryModalProps) {
   const [projects, setProjects] = useState<DisplayProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   // When free user hits the 3-save limit and tries to upload, show this picker
   const [pendingUploadProject, setPendingUploadProject] = useState<DisplayProject | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<DisplayProject | null>(null);
 
   const user = useAuthStore((s) => s.user);
+  const setShowNewProjectModal = useProjectStore((s) => s.setShowNewProjectModal);
   const { data: subscription } = useSubscription();
 
   // Cloud save count = projects that are cloud-backed (source cloud-only or isCloudBacked)
@@ -108,8 +122,10 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
   }, [user]);
 
   useEffect(() => {
-    refreshList();
-  }, [refreshList]);
+    if (open) {
+      refreshList();
+    }
+  }, [open, refreshList]);
 
   const handleRefresh = async () => {
     if (!user) {
@@ -121,7 +137,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
     try {
       const result = await syncProjects(autoSyncEnabled);
       if (result.offline) {
-        toast.error("Couldn't sync — you're offline");
+        toast.error("Cannot sync. You are offline.");
       }
     } catch {
       toast.error('Sync failed');
@@ -133,9 +149,6 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
 
   /** Upload a local project to cloud (free users, manual). */
   const handleUploadToCloud = async (project: DisplayProject) => {
-    if (!user) return;
-
-    // At limit: open the "delete to free a slot" dialog
     if (!cloudEnabled) {
       setPendingUploadProject(project);
       return;
@@ -149,11 +162,11 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
       toast.success('Uploaded to cloud');
       await refreshList();
     } catch {
-      toast.error('Upload failed — check your connection');
+      toast.error('Cannot upload. Check your connection.');
     }
   };
 
-  /** After user deletes a cloud project to free a slot, retry the pending upload. */
+  /** After user deletes a cloud project to free a slot, retry the upload. */
   const handleDeleteAndRetryUpload = async (cloudProjectToDelete: DisplayProject) => {
     try {
       if (cloudProjectToDelete.source === 'local') {
@@ -181,7 +194,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
       toast.success('Uploaded to cloud');
       await refreshList();
     } catch {
-      toast.error('Upload failed — check your connection');
+      toast.error('Cannot upload. Check your connection.');
     }
   };
 
@@ -202,7 +215,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
           const forked = { ...full, id: nanoid() };
           await saveProjectToLibrary(forked, { cloudSyncedAt: null, pendingSync: false });
           useProjectStore.getState().loadFullProject(forked);
-          toast.info('Loaded as a local copy — cloud saves unavailable');
+          toast.info('Loaded as a local project. Cloud projects are unavailable.');
         }
       } else {
         const full = await loadProjectFromLibrary(project.id);
@@ -216,9 +229,15 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
     }
   };
 
-  const handleDelete = async (project: DisplayProject) => {
+  const handleDelete = (project: DisplayProject) => {
+    setProjectToDelete(project);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!projectToDelete) return;
+    const project = projectToDelete;
     const label = project.source === 'cloud-only' ? 'cloud project' : 'project';
-    if (!window.confirm(`Delete "${project.name}"? This cannot be undone.`)) return;
+    setProjectToDelete(null);
 
     try {
       if (project.source === 'local') {
@@ -243,49 +262,43 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
 
   return (
     <>
-    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent flex justify-between items-start">
-          <DialogHeader className="text-left flex-1">
-            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-              <Library className="text-primary h-6 w-6" /> My Projects
+        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
+              <Library className="text-primary h-6 w-6" /> Projects
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm mt-1">
-              Manage your local and cloud-saved projects.
+              Open, delete, and upload projects.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center pt-1 mr-6">
-            <IconButton
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isSyncing || isLoading}
-              title="Sync and refresh"
-            >
-              <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-            </IconButton>
-          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 pb-2 max-h-[60vh]">
           {isLoading ? (
             <div className="flex items-center justify-center p-8 text-muted-foreground">
-              <span className="text-sm">Loading library…</span>
+              <span className="text-sm">Loading projects</span>
             </div>
           ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground gap-4 border border-dashed border-border rounded-lg bg-secondary/10">
-              <img
-                src={`${import.meta.env.BASE_URL}logo.svg`}
-                className="w-16 h-16 opacity-20 grayscale brightness-125"
-                alt="li'l Mappo Logo"
-              />
-              <div>
-                <p className="text-sm font-medium text-foreground">Your library is empty</p>
-                <p className="text-xs mt-1">Save a project from the toolbar to see it here.</p>
-              </div>
-            </div>
+            <EmptyState
+              icon={FolderArchive}
+              title="No projects"
+              description="Save the current project or create a new project."
+              action={
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setShowNewProjectModal(true);
+                    onClose();
+                  }}
+                >
+                  Create project
+                </Button>
+              }
+            />
           ) : (
             <div className="flex flex-col gap-2">
               {projects.map((p) => (
@@ -293,7 +306,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
                   key={p.id}
                   project={p}
                   showUpload={!!user && !autoSyncEnabled && p.source === 'local' && !p.isCloudBacked}
-                  uploadDisabledReason={!cloudEnabled ? `Cloud save limit reached (${cloudSaveCount}/${FREE_CLOUD_SAVE_LIMIT})` : undefined}
+                  uploadDisabledReason={!cloudEnabled ? `Cloud project limit reached (${cloudSaveCount}/${FREE_CLOUD_SAVE_LIMIT})` : undefined}
                   onLoad={() => handleLoad(p)}
                   onDelete={() => handleDelete(p)}
                   onUpload={() => handleUploadToCloud(p)}
@@ -305,31 +318,37 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-secondary/10 shrink-0">
-          {user && autoSyncEnabled ? (
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Cloud size={12} className="text-primary/70" />
-              Cloud sync active
-            </div>
-          ) : user ? (
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-amber-400' : 'text-primary/70'} />
-              <span>
-                {cloudSaveCount}/{FREE_CLOUD_SAVE_LIMIT} cloud saves used
-              </span>
-              {cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT && (
-                <Lock size={10} className="text-amber-400" />
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <CloudOff size={12} />
-              Sign in for cloud saves
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <IconButton
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isSyncing || isLoading}
+              title="Sync and refresh"
+            >
+              <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+            </IconButton>
+            {user && !autoSyncEnabled ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-amber-400' : 'text-primary/70'} />
+                <span>
+                  {cloudSaveCount}/{FREE_CLOUD_SAVE_LIMIT} cloud projects used
+                </span>
+                {cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT && (
+                  <Lock size={10} className="text-amber-400" />
+                )}
+              </div>
+            ) : !user ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <CloudOff size={12} />
+                Sign in to use cloud projects
+              </div>
+            ) : null}
+          </div>
           <Button
             onClick={onClose}
             variant="outline"
-            className="h-10 px-6 rounded-xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="h-10 px-6 rounded-lg text-sm font-medium transition-all"
           >
             Close
           </Button>
@@ -340,12 +359,12 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
       {/* Delete-to-free-slot dialog */}
       {pendingUploadProject && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60">
-          <div className="bg-background border border-border rounded-xl shadow-2xl w-[420px] overflow-hidden">
+          <div className="bg-background border border-border rounded-2xl shadow-2xl w-[420px] overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
-              <h3 className="text-sm font-semibold">Cloud save limit reached</h3>
+              <h3 className="text-sm font-medium">Cloud project limit reached</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                You've used all {FREE_CLOUD_SAVE_LIMIT} cloud save slots. Delete an existing
-                cloud save to free a slot, then retry the upload.
+                You used all {FREE_CLOUD_SAVE_LIMIT} cloud project slots. Delete a cloud
+                project. Then upload this project.
               </p>
             </div>
             <div className="px-5 py-4 max-h-64 overflow-y-auto flex flex-col gap-2">
@@ -354,7 +373,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
                 .map((p) => (
                   <div
                     key={p.id}
-                    className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-destructive/40 hover:bg-destructive/5 transition-all"
+                    className="flex items-center justify-between p-3 border border-border rounded-xl hover:border-destructive/40 hover:bg-destructive/5 transition-all"
                   >
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm font-medium truncate">{p.name || 'Untitled'}</span>
@@ -368,7 +387,7 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
                       className="h-7 px-3 text-xs shrink-0 ml-3"
                       onClick={() => handleDeleteAndRetryUpload(p)}
                     >
-                      Delete &amp; use slot
+                      Delete and upload
                     </Button>
                   </div>
                 ))}
@@ -386,6 +405,27 @@ export default function ProjectLibraryModal({ onClose }: ProjectLibraryModalProp
           </div>
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <AlertDialogContent className="max-w-[420px] rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <span className="font-medium text-foreground">"{projectToDelete?.name || 'Untitled project'}"</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -408,7 +448,7 @@ function ProjectRow({
   onUpload?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-primary/30 hover:bg-secondary/30 transition-all group">
+    <div className="flex items-center justify-between p-3 border border-border rounded-xl hover:border-primary/30 hover:bg-secondary/30 transition-all group">
       <div className="flex flex-col overflow-hidden mr-4 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm font-medium text-foreground truncate">
@@ -437,7 +477,7 @@ function ProjectRow({
         <Button
           onClick={onLoad}
           size="sm"
-          className="h-8 px-3 text-xs font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="h-8 px-3 text-xs font-medium transition-all"
         >
           Load
         </Button>

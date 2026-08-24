@@ -25,10 +25,11 @@ import {
 import { getExportLimits, shouldShowWatermark } from '@/lib/cloudAccess';
 
 interface ExportModalProps {
+  open: boolean;
   onClose: () => void;
 }
 
-export default function ExportModal({ onClose }: ExportModalProps) {
+export default function ExportModal({ open, onClose }: ExportModalProps) {
   const {
     fps, duration, name, isExporting,
     aspectRatio, exportResolution, isVertical, resolution,
@@ -100,9 +101,9 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   // Probe the effective export settings up front so people see device/browser
   // limitations before starting a potentially long local render.
   useEffect(() => {
+    if (!open) return;
     let cancelled = false;
 
-    setLocalExportCapability(null);
     getLocalExportCapability(effectiveWidth, effectiveHeight, effectiveExportFps)
       .then((capability) => {
         if (!cancelled) setLocalExportCapability(capability);
@@ -112,7 +113,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
       });
 
     return () => { cancelled = true; };
-  }, [effectiveExportFps, effectiveHeight, effectiveWidth]);
+  }, [open, effectiveExportFps, effectiveHeight, effectiveWidth]);
 
   const buildRenderConfig = useCallback((): RenderConfig => ({
     resolution,
@@ -232,23 +233,23 @@ export default function ExportModal({ onClose }: ExportModalProps) {
   };
 
   return (
-    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[540px] rounded-3xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-              <Clapperboard className="text-primary h-6 w-6" /> Export Video
+            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
+              <Clapperboard className="text-primary h-6 w-6" /> Export
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm mt-1">
-              Configure and render your animation locally or in the cloud.
+              Set the video format and export range.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Aspect Ratio">
+            <Field label="Aspect ratio">
               <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)} disabled={isExporting || cloudSubmitted}>
                 <SelectTrigger className="h-9 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -295,7 +296,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
 
             <Field label={
               <span className="flex items-center gap-1">
-                Frame Rate
+                Frame rate
                 {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
               </span>
             }>
@@ -313,7 +314,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start Time (s)">
+            <Field label="Start time (s)">
               <Input
                 type="number"
                 min={0}
@@ -327,7 +328,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             </Field>
             <Field label={
               <span className="flex items-center gap-1">
-                End Time (s)
+                End time (s)
                 {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
               </span>
             }>
@@ -351,27 +352,24 @@ export default function ExportModal({ onClose }: ExportModalProps) {
               }`}>
               {isExporting ? (
                 <div className="space-y-1">
-                  <p className="text-[11px] font-bold text-destructive flex items-center gap-1.5">
+                  <p className="text-[11px] font-medium text-destructive flex items-center gap-1.5">
                     <AlertTriangle size={12} />
-                    IMPORTANT: KEEP TAB OPEN
+                    Keep this tab open
                   </p>
                   <p className="text-[11px] leading-relaxed text-destructive/80">
-                    Keep this tab active. Don’t minimize the browser or rendering will fail.
-                  </p>
-                  <p className="text-[10px] text-destructive/50 italic leading-none">
-                    Cloud renders don't have this issue.
+                    Keep this tab active during export. Do not minimize the browser.
                   </p>
                 </div>
               ) : (
                 <>
                   <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    <span className="font-bold text-primary">Free plan:</span> Limited to 720p, 30fps and 30s.
+                    <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
                   </p>
                   <button
                     onClick={openCreditsModal}
-                    className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                    className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
                   >
-                    Upgrade to a paid plan (or BYOK) to unlock <ArrowRight size={10} />
+                    Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />
                   </button>
                 </>
               )}
@@ -379,30 +377,30 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           )}
 
           {/* Info row */}
-          <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">
-            <div><span className="block font-semibold text-foreground">{exportDuration.toFixed(1)}s</span>Duration</div>
-            <div><span className="block font-semibold text-foreground whitespace-nowrap">{w} × {h}</span>Dimensions</div>
-            <div><span className="block font-semibold text-foreground">{totalFrames}</span>Total frames</div>
-            <div><span className="block font-semibold text-foreground">MP4</span>Format</div>
+          <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-xl p-3">
+            <div><span className="block font-medium text-foreground">{exportDuration.toFixed(1)}s</span>Duration</div>
+            <div><span className="block font-medium text-foreground whitespace-nowrap">{w} × {h}</span>Dimensions</div>
+            <div><span className="block font-medium text-foreground">{totalFrames}</span>Total frames</div>
+            <div><span className="block font-medium text-foreground">MP4</span>Format</div>
           </div>
 
           {/* Local export capability */}
           {localExportCapability?.status === 'ready' && (
-            <div className="flex items-start gap-2 text-xs text-primary bg-primary/10 rounded-lg p-3">
+            <div className="flex items-start gap-2 text-xs text-primary bg-primary/10 rounded-xl p-3">
               <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
-              <span>This browser is ready for local MP4 export at {effectiveWidth} × {effectiveHeight}, {effectiveExportFps} FPS.</span>
+              <span>Local export is available at {effectiveWidth} × {effectiveHeight}, {effectiveExportFps} FPS.</span>
             </div>
           )}
           {localExportCapability?.status === 'limited' && (
-            <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-lg p-3">
+            <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-xl p-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>This browser did not confirm H.264 support for {effectiveWidth} × {effectiveHeight} at {effectiveExportFps} FPS. Local export may fail; try a lower resolution or 30 FPS.</span>
+              <span>This browser may not support H.264 at {effectiveWidth} × {effectiveHeight}, {effectiveExportFps} FPS. Try a lower resolution or 30 FPS.</span>
             </div>
           )}
           {localExportCapability?.status === 'unsupported' && (
-            <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded-lg p-3">
+            <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded-xl p-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>Local MP4 export is not supported in this browser. Use a current Chrome or Edge desktop browser.</span>
+              <span>This browser does not support local MP4 export. Use a current desktop version of Chrome or Edge.</span>
             </div>
           )}
 
@@ -410,7 +408,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           {isExporting && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-foreground">{phase === 'prewarm' ? 'Warming tile cache...' : 'Rendering frames...'}</span>
+                <span className="text-xs font-medium text-foreground">{phase === 'prewarm' ? 'Preparing map tiles' : 'Exporting frames'}</span>
                 <span className="text-xs font-mono text-muted-foreground">{progress}%</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -420,19 +418,19 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           )}
 
           {/* Error */}
-          {error && <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-3">{error}</div>}
+          {error && <div className="text-xs text-destructive bg-destructive/10 rounded-xl p-3">{error}</div>}
 
           {/* Success Local */}
           {!isExporting && progress === 100 && !error && (
-            <div className="text-xs text-primary bg-primary/10 rounded-lg p-3 flex items-center gap-2">
-              <Download size={14} /> Export complete! The file has been downloaded.
+            <div className="text-xs text-primary bg-primary/10 rounded-xl p-3 flex items-center gap-2">
+              <Download size={14} /> Export complete. The file was downloaded.
             </div>
           )}
 
           {/* Success Cloud */}
           {cloudSubmitted && !error && (
-            <div className="text-xs text-primary bg-primary/10 rounded-lg p-3 flex items-center gap-2">
-              <Cloud size={14} /> Render queued! Check My Renders for progress and download.
+            <div className="text-xs text-primary bg-primary/10 rounded-xl p-3 flex items-center gap-2">
+              <Cloud size={14} /> Cloud render queued. Open Cloud renders to check progress and download the file.
             </div>
           )}
         </div>
@@ -444,7 +442,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           <Button
             variant="outline"
             onClick={handleCloudRender}
-            className={`flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-2 transition-all outline-offset-[-1px] border-dashed ${isExporting || cloudSubmitted ? 'opacity-50 cursor-not-allowed grayscale' : 'hover:border-primary/50'}`}
+            className={`flex-1 h-11 text-sm font-medium flex items-center justify-center gap-2 transition-all outline-offset-[-1px] border-dashed ${isExporting || cloudSubmitted ? 'opacity-50 cursor-not-allowed grayscale' : 'hover:border-primary/50'}`}
             disabled={isExporting || cloudSubmitted}
           >
             <Cloud size={16} className={isExporting || cloudSubmitted ? 'text-muted-foreground' : 'text-primary'} />
@@ -455,24 +453,24 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           <Button
             variant="outline"
             disabled
-            className="flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-2 opacity-40 border-dashed cursor-not-allowed"
+            className="flex-1 h-11 text-sm font-medium flex items-center justify-center gap-2 opacity-40 border-dashed cursor-not-allowed"
           >
             <Cloud size={16} className="text-muted-foreground" />
-            <span className="font-medium whitespace-nowrap">Cloud Render</span>
-            <span className="text-[10px] text-muted-foreground font-normal">soon™</span>
+            <span className="font-medium whitespace-nowrap">Cloud render</span>
+            <span className="text-[10px] text-muted-foreground font-normal">Not available yet</span>
           </Button>
 
           {isExporting ? (
-            <Button onClick={handleCancel} variant="outline" className="flex-1 h-11 text-sm font-semibold border-destructive/30 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/50 transition-all">
+            <Button onClick={handleCancel} variant="outline" className="flex-1 h-11 text-sm font-medium border-destructive/30 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/50 transition-all">
               Cancel
             </Button>
           ) : (
             <Button
               onClick={handleExport}
               disabled={cloudSubmitted || !localExportCapability || localExportCapability.status === 'unsupported'}
-              className="flex-1 h-11 text-sm font-bold flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all active:scale-[0.99] shadow-lg shadow-primary/10"
+              className="flex-1 h-11 text-sm font-medium flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all shadow-lg shadow-primary/10"
             >
-              {progress === 100 ? <><Download size={16} /> Again</> : <><Clapperboard size={16} /> Local Export</>}
+              {progress === 100 ? <><Download size={16} /> Export again</> : <><Clapperboard size={16} /> Export locally</>}
             </Button>
           )}
         </div>
