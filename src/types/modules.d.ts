@@ -77,8 +77,3 @@ declare module '@turf/distance' {
   import { Feature, Point } from '@turf/helpers';
   export default function distance(from: Feature<Point>, to: Feature<Point>, options?: { units?: string }): number;
 }
-
-declare module '@turf/simplify' {
-  import { Feature, FeatureCollection } from '@turf/helpers';
-  export default function simplify<T extends Feature | FeatureCollection>(geojson: T, options?: { tolerance?: number; highQuality?: boolean }): T;
-}

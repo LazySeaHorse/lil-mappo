@@ -129,7 +129,7 @@ export function optimizeGeometry<T extends GeoJSON.Geometry>(
   if (doSimplify && (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon' || geometry.type === 'LineString' || geometry.type === 'MultiLineString')) {
     try {
       // Lazy import or static import of turf simplify
-      result = simplify(geometry as any, { tolerance, highQuality: false, mutate: false }) as unknown as GeoJSON.Geometry;
+      result = simplify(geometry, { tolerance, highQuality: false, mutate: false });
     } catch (e) {
       console.warn('Geometry simplification failed, falling back to unsimplified geometry:', e);
       result = geometry;
@@ -138,4 +138,3 @@ export function optimizeGeometry<T extends GeoJSON.Geometry>(
 
   return truncateCoordinates(result as T, precision);
 }
-
