@@ -103,8 +103,8 @@ export function ProjectSettings() {
             <Field label="Orientation">
               <SegmentedControl
                 options={[
-                  { value: 'landscape', label: 'Landscape', icon: <Monitor size={14} /> },
-                  { value: 'portrait', label: 'Portrait', icon: <Smartphone size={14} /> },
+                  { value: 'landscape', icon: <Monitor size={14} />, title: 'Landscape', 'aria-label': 'Landscape' },
+                  { value: 'portrait', icon: <Smartphone size={14} />, title: 'Portrait', 'aria-label': 'Portrait' },
                 ]}
                 value={isVertical ? 'portrait' : 'landscape'}
                 onValueChange={(v) => setIsVertical(v === 'portrait')}

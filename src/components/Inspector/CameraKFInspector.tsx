@@ -1,14 +1,13 @@
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { CameraItem, RouteItem } from '@/store/types';
+import type { CameraItem } from '@/store/types';
 import { Accordion } from "@/components/ui/accordion";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SliderRow, EasingSelect, InputNumber, CoordinatesRows } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
-import { Video, Compass, ZoomIn, Eye, RotateCw, Sparkles } from 'lucide-react';
+import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
 
 export function CameraKFInspector({ item }: { item: CameraItem }) {
-  const { selectedKeyframeId, updateCameraKeyframe, items } = useProjectStore();
+  const { selectedKeyframeId, updateCameraKeyframe } = useProjectStore();
 
   const kf = item.keyframes.find((k) => k.id === selectedKeyframeId);
 
@@ -26,9 +25,6 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
   }
 
   const u = (updates: Partial<typeof kf>) => updateCameraKeyframe(kf.id, updates);
-
-  // Get available routes for follow route dropdown
-  const routes = Object.values(items).filter((i) => i.kind === 'route') as RouteItem[];
 
   return (
     <PanelWrapper 
@@ -89,26 +85,6 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
               onChange={(v) => u({ easing: v })} 
               icon={<Sparkles size={13} />}
             />
-
-            {routes.length > 0 && (
-              <div className="flex items-center justify-between gap-3 text-xs py-0.5">
-                <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 flex items-center gap-1.5">
-                  <Eye size={13} className="text-muted-foreground/70" />
-                  <span>Follow route</span>
-                </span>
-                <div className="flex-1">
-                  <Select value={kf.followRoute || 'none'} onValueChange={(v) => u({ followRoute: v === 'none' ? null : v })}>
-                    <SelectTrigger className="h-8 text-xs bg-background/50 border-border/50 rounded-lg w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none" className="text-xs">No route</SelectItem>
-                      {routes.map((r) => <SelectItem key={r.id} value={r.id} className="text-xs">{r.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
           </div>
         </InspectorSection>
       </Accordion>
