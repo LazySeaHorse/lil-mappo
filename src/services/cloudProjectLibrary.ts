@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Project } from '@/store/types';
 import { useAuthStore } from '@/store/useAuthStore';
+import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 
 export interface CloudProjectInfo {
   id: string;
@@ -31,11 +32,12 @@ export async function saveProjectToCloud(
   const userId = useAuthStore.getState().user?.id;
   if (!userId) throw new Error('Not authenticated');
 
+  const document = toProjectDocument(project);
   const { data, error } = await supabase.rpc('upsert_cloud_project', {
-    p_project_id: project.id,
+    p_project_id: document.id,
     p_user_id: userId,
-    p_name: project.name,
-    p_data: project as unknown as Record<string, unknown>,
+    p_name: document.name,
+    p_data: document as unknown as Record<string, unknown>,
     p_updated_at: new Date(updatedAt).toISOString(),
   });
 
@@ -77,7 +79,7 @@ export async function loadProjectFromCloud(id: string): Promise<Project> {
     .single();
 
   if (error) throw error;
-  return data.data as unknown as Project;
+  return parseProjectDocument(data.data);
 }
 
 /**

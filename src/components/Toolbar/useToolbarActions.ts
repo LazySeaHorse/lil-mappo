@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { nanoid } from 'nanoid';
 import { importRouteFile } from '@/services/fileImport';
 import type { RouteItem } from '@/store/types';
+import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
 import { isFreeUser, hasByok } from '@/lib/cloudAccess';
@@ -84,13 +85,9 @@ export function useToolbarActions() {
     if (!file) return;
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text);
-      if (parsed.id && parsed.items) {
-        projectState.loadFullProject(parsed);
-        toast.success('Project imported successfully');
-      } else {
-        throw new Error('Invalid project file');
-      }
+      const project = parseProjectDocument(JSON.parse(text));
+      projectState.loadFullProject(project);
+      toast.success('Project imported successfully');
     } catch {
       toast.error('Failed to parse project file');
     }
@@ -102,7 +99,7 @@ export function useToolbarActions() {
       openAuthModal();
       return;
     }
-    const data = JSON.stringify(projectState, null, 2);
+    const data = JSON.stringify(toProjectDocument(projectState), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.lilmap`;
     saveAs(blob, fileName);
@@ -113,11 +110,11 @@ export function useToolbarActions() {
       openAuthModal();
       return;
     }
-    const plainData = JSON.parse(JSON.stringify(projectState));
+    const project = toProjectDocument(projectState);
     // Free users always save locally; Wanderer subscribers also push to cloud.
     const cloudEnabled = !isFreeUser(subscription);
 
-    const result = await projectLibraryCoordinator.saveProject(plainData, cloudEnabled);
+    const result = await projectLibraryCoordinator.saveProject(project, cloudEnabled);
     switch (result.status) {
       case 'saved-locally':
         toast.success('Saved to library');

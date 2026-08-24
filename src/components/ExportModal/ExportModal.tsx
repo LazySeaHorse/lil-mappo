@@ -21,6 +21,7 @@ import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render
 import { calculateRenderCredits } from '@/types/render';
 import { getExportLimits, shouldShowWatermark } from '@/lib/cloudAccess';
 import { resolveExportPlan } from './exportPlan';
+import { toProjectDocument } from '@/store/projectDocument';
 
 interface ExportModalProps {
   open: boolean;
@@ -194,16 +195,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     const store = useProjectStore.getState();
     const renderConfig = effectiveRenderConfig;
 
-    // Snapshot persisted project fields only
-    const projectData = {
-      id: store.id, name: store.name, duration: store.duration, fps: store.fps,
-      resolution: store.resolution, aspectRatio: store.aspectRatio,
-      exportResolution: store.exportResolution, isVertical: store.isVertical,
-      projection: store.projection, lightPreset: store.lightPreset,
-      starIntensity: store.starIntensity, fogColor: store.fogColor,
-      terrainExaggeration: store.terrainExaggeration,
-      items: store.items, itemOrder: store.itemOrder, mapCenter: store.mapCenter,
-    };
+    const projectData = toProjectDocument(store);
 
     try {
       const res = await fetch('/api/render-dispatch', {

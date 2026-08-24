@@ -6,6 +6,7 @@ import { runExport } from '@/services/videoExport';
 import MapViewport from '@/components/MapViewport/MapViewport';
 import type { RenderConfig } from '@/types/render';
 import type { Project } from '@/store/types';
+import { parseProjectDocument } from '@/store/projectDocument';
 import { MAPBOX_TOKEN } from '@/config/mapbox';
 
 interface HeadlessRendererProps {
@@ -51,7 +52,8 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
         if (cancelled) return;
 
         // Hydrate project into store
-        useProjectStore.getState().loadFullProject(data.projectData as Project);
+        const projectData = parseProjectDocument(data.projectData);
+        useProjectStore.getState().loadFullProject(projectData);
 
         // Apply transient map visual state (call setMapStyle first so it resets
         // terrain/buildings, then applyRenderConfig to restore them)
@@ -61,7 +63,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
         useProjectStore.getState().setIsExporting(true);
 
         setJobData({
-          projectData: data.projectData,
+          projectData,
           renderConfig: config,
           showWatermark: data.showWatermark,
           startTime: data.startTime,

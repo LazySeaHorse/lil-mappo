@@ -1,4 +1,5 @@
 import { Project } from '@/store/types';
+import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 
 const DB_NAME = 'LilMapLibraryDB';
 const STORE_NAME = 'projects';
@@ -86,9 +87,10 @@ export async function saveProjectToLibrary(
 ): Promise<SavedProjectInfo> {
   const db = await getDB();
   const existing = await getStoredRecord(db, project.id);
+  const document = toProjectDocument(project);
 
   const projectToSave: StoredRecord = {
-    ...project,
+    ...document,
     updatedAt: syncMeta?.updatedAt ?? Date.now(),
     cloudSyncedAt:
       syncMeta?.cloudSyncedAt !== undefined
@@ -184,7 +186,7 @@ export async function loadProjectFromLibrary(id: string): Promise<Project> {
     request.onsuccess = () => {
       if (request.result) {
         const { updatedAt, cloudSyncedAt, pendingSync, ...projectState } = request.result;
-        resolve(projectState as Project);
+        resolve(parseProjectDocument(projectState));
       } else {
         reject(new Error('Project not found'));
       }
