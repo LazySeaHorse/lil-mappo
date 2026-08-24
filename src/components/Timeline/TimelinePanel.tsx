@@ -1,14 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import type { TimelineItem, CameraItem, RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
-import TimelineItemBar from './TimelineItemBar';
-
-interface AutoCamBlock {
-  routeId: string;
-  routeName: string;
-  startTime: number;
-  endTime: number;
-}
+import type { RouteItem } from '@/store/types';
+import TimelineTrackRow, { type AutoCamBlock } from './TimelineTrackRow';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { IconButton } from '@/components/ui/icon-button';
 import { Slider } from '@/components/ui/slider';
@@ -20,8 +13,7 @@ import {
 } from '@/constants/layout';
 import {
   SkipBack, SkipForward, ChevronLeft, ChevronRight,
-  Play, Pause, Minus, Plus, Maximize2,
-  Eye, EyeOff
+  Play, Pause, Minus, Plus, Maximize2
 } from 'lucide-react';
 
 const RULER_HEIGHT = 40;
@@ -406,7 +398,7 @@ export default function TimelinePanel() {
             />
 
             {orderedItems.map((item) => (
-              <TrackRow
+              <TimelineTrackRow
                 key={item.id}
                 item={item}
                 pixelsPerSecond={pixelsPerSecond}
@@ -486,167 +478,3 @@ function TransportControls({
   );
 }
 
-
-const TrackRow = React.memo(({
-  item,
-  pixelsPerSecond,
-  isSelected,
-  selectedKeyframeId,
-  onSelect,
-  onSelectKeyframe,
-  autoCamBlocks,
-  onSelectAutoCam,
-}: {
-  item: TimelineItem;
-  pixelsPerSecond: number;
-  isSelected: boolean;
-  selectedKeyframeId: string | null;
-  onSelect: () => void;
-  onSelectKeyframe: (id: string | null) => void;
-  autoCamBlocks?: AutoCamBlock[];
-  onSelectAutoCam?: (routeId: string) => void;
-}) => {
-  const isCameraEnabled = useProjectStore((s) => s.isCameraEnabled);
-  const setIsCameraEnabled = useProjectStore((s) => s.setIsCameraEnabled);
-
-  const colorClass = item.kind === 'route' ? 'bg-item-route' : item.kind === 'boundary' ? 'bg-item-boundary' : item.kind === 'callout' ? 'bg-item-callout' : 'bg-item-camera';
-
-  const label = item.kind === 'camera'
-    ? 'Camera'
-    : item.kind === 'route'
-      ? (item as RouteItem).name
-      : item.kind === 'boundary'
-        ? (item as BoundaryItem).placeName || 'Boundary'
-        : (item as CalloutItem).title;
-
-  const handleKeyframeMouseDown = (e: React.MouseEvent, kfId: string, initialTime: number) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onSelect();
-    onSelectKeyframe(kfId);
-
-    const startX = e.clientX;
-    const updateKeyframe = useProjectStore.getState().updateCameraKeyframe;
-    const duration = useProjectStore.getState().duration;
-
-    const handleMove = (ev: MouseEvent) => {
-      const deltaX = ev.clientX - startX;
-      const deltaTime = deltaX / pixelsPerSecond;
-      const newTime = Math.max(0, Math.min(duration, initialTime + deltaTime));
-      updateKeyframe(kfId, { time: newTime });
-    };
-
-    const handleUp = () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      document.body.style.cursor = '';
-    };
-
-    document.body.style.cursor = 'ew-resize';
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  };
-
-  return (
-    <div
-      className={`flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
-      onClick={onSelect}
-    >
-      <div className={`w-[160px] shrink-0 sticky left-0 z-10 flex items-center px-4 gap-2.5 border-r border-border/50 bg-background/90 backdrop-blur-sm transition-colors ${isSelected ? 'border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'}`}>
-        <div className={`w-2 h-2 rounded-full ${colorClass} shadow-sm`} />
-        <span className={`text-xs truncate font-medium flex-1 ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>{label}</span>
-        
-        {item.kind === 'camera' && (
-          <IconButton 
-            variant="ghost" 
-            size="xs" 
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 data-[enabled=false]:opacity-100 hover:text-primary transition-all"
-            data-enabled={isCameraEnabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsCameraEnabled(!isCameraEnabled);
-            }}
-          >
-            {isCameraEnabled ? <Eye size={12} /> : <EyeOff size={12} className="text-destructive" />}
-          </IconButton>
-        )}
-      </div>
-
-      <div className="flex-1 relative">
-        {item.kind === 'camera' ? (
-          <>
-            {/* Auto-cam blocks: light-blue overlay + fake boundary diamonds */}
-            {autoCamBlocks?.map((block) => {
-              const startX = block.startTime * pixelsPerSecond;
-              const endX = block.endTime * pixelsPerSecond;
-              const blockWidth = Math.max(0, endX - startX);
-              return (
-                <React.Fragment key={block.routeId}>
-                  {/* Block background */}
-                  <div
-                    data-testid={`timeline-auto-cam-${block.routeId}`}
-                    className="absolute top-2 bottom-2 bg-primary/10 border-t border-b border-primary/20 cursor-pointer z-[5]"
-                    style={{ left: startX, width: blockWidth }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectAutoCam?.(block.routeId);
-                    }}
-                    title={`Auto Cam: ${block.routeName}`}
-                  />
-                  {/* Start diamond (fake, non-interactive) */}
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none"
-                    style={{ left: startX }}
-                  >
-                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-background border border-primary shadow-sm" />
-                  </div>
-                  {/* End diamond (fake, non-interactive) */}
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none"
-                    style={{ left: endX }}
-                  >
-                    <div className="w-3.5 h-3.5 rotate-45 rounded-[2px] bg-background border border-primary shadow-sm" />
-                  </div>
-                </React.Fragment>
-              );
-            })}
-
-            {/* Real keyframe diamonds — greyed if inside an auto-cam block */}
-            {(item as CameraItem).keyframes.map((kf) => {
-              const x = kf.time * pixelsPerSecond;
-              const isDisabled = autoCamBlocks?.some(
-                (b) => kf.time >= b.startTime && kf.time <= b.endTime,
-              ) ?? false;
-              return (
-                <div
-                  key={kf.id}
-                  data-testid={`timeline-keyframe-${kf.id}`}
-                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-transform z-10
-                    ${isDisabled ? 'opacity-35 grayscale' : selectedKeyframeId === kf.id ? 'scale-125 z-20' : 'hover:scale-110'} active:scale-95`}
-                  style={{ left: x }}
-                  onMouseDown={(e) => handleKeyframeMouseDown(e, kf.id, kf.time)}
-                  onClick={(e) => { e.stopPropagation(); onSelect(); onSelectKeyframe(kf.id); }}
-                >
-                  <div
-                    className={`w-3.5 h-3.5 rotate-45 rounded-[2px] shadow-sm border ${
-                      selectedKeyframeId === kf.id && !isDisabled
-                        ? 'bg-primary border-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background'
-                        : 'bg-background border-primary'
-                    }`}
-                  />
-                </div>
-              );
-            })}
-          </>
-        ) : (
-          <TimelineItemBar
-            item={item as RouteItem | BoundaryItem | CalloutItem}
-            pixelsPerSecond={pixelsPerSecond}
-            colorClass={colorClass}
-            onSelect={onSelect}
-          />
-        )}
-      </div>
-    </div>
-  );
-});
