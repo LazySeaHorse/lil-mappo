@@ -100,8 +100,26 @@ describe('project document persistence boundary', () => {
     }
   });
 
-  it('accepts legacy unversioned projects and normalizes legacy boundary color', () => {
+  it('migrates legacy route and boundary colors before validating v1', () => {
     const project = createProject({ id: 'legacy-project' });
+    const legacyRoute = {
+      kind: 'route' as const,
+      id: 'route-1',
+      name: 'Legacy route',
+      geojson: { type: 'FeatureCollection' as const, features: [] },
+      startTime: 0,
+      endTime: 5,
+      style: {
+        color: '#abcdef',
+        width: 4,
+        glow: true,
+        glowWidth: 12,
+        trailFade: false,
+        trailFadeLength: 0.3,
+        dashPattern: null,
+      },
+      easing: 'linear' as const,
+    };
     const legacyBoundary = {
       kind: 'boundary' as const,
       id: 'boundary-1',
@@ -124,16 +142,34 @@ describe('project document persistence boundary', () => {
     const { schemaVersion: _, ...legacy } = toProjectDocument(project);
     const legacyDocument = {
       ...legacy,
-      items: { ...legacy.items, [legacyBoundary.id]: legacyBoundary },
-      itemOrder: [...legacy.itemOrder, legacyBoundary.id],
+      items: {
+        ...legacy.items,
+        [legacyRoute.id]: legacyRoute,
+        [legacyBoundary.id]: legacyBoundary,
+      },
+      itemOrder: [...legacy.itemOrder, legacyRoute.id, legacyBoundary.id],
+      playheadTime: 12,
     };
 
     const parsed = parseProjectDocument(legacyDocument);
+    const route = parsed.items[legacyRoute.id];
     const boundary = parsed.items[legacyBoundary.id];
+    expect(route.kind).toBe('route');
+    if (route.kind === 'route') {
+      expect(route.style.glowColor).toBe('#abcdef');
+    }
     expect(boundary.kind).toBe('boundary');
     if (boundary.kind === 'boundary') {
       expect(boundary.style.fillColor).toBe('#123456');
     }
+    expect(parsed).not.toHaveProperty('playheadTime');
+    expect(toProjectDocument(parsed).schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
+  });
+
+  it('rejects project files from newer unsupported schema versions', () => {
+    const document = toProjectDocument(createProject());
+    expect(() => parseProjectDocument({ ...document, schemaVersion: 999 }))
+      .toThrow('newer than supported version');
   });
 
   it('rejects malformed project data instead of partially hydrating the store', () => {
