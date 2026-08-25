@@ -6,12 +6,18 @@ import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
 import { compositeFrame, withMapResized } from './mapCapture';
 import type { RenderConfig } from '@/types/render';
-import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
+import {
+  BufferTarget,
+  EncodedPacket,
+  EncodedVideoPacketSource,
+  Mp4OutputFormat,
+  Output,
+} from 'mediabunny';
 
 /**
  * Non-realtime offline export engine.
  * Steps through each frame at 1/fps, renders the map, composites callouts via
- * canvas 2D, then encodes with WebCodecs (H.264) + mp4-muxer.
+ * canvas 2D, then encodes with WebCodecs (H.264) + Mediabunny.
  *
  * Requires WebCodecs (Chrome 94+). If H.264 init fails, onError is called with
  * a clear message instead of silently producing a broken WebM file.
@@ -33,8 +39,10 @@ export interface ExportOptions {
 interface EncoderState {
   compCanvas: HTMLCanvasElement;
   compCtx: CanvasRenderingContext2D;
-  muxer: Muxer<ArrayBufferTarget>;
+  output: Output<Mp4OutputFormat, BufferTarget>;
+  videoSource: EncodedVideoPacketSource;
   videoEncoder: VideoEncoder;
+  waitForMuxer: () => Promise<void>;
   getEncoderError: () => Error | null;
 }
 
@@ -132,24 +140,38 @@ async function initEncoder(
   }
 
   const codec = await selectH264Codec(width, height, fps);
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target,
-    video: { codec: 'avc', width, height },
-    fastStart: 'in-memory',
+  const output = new Output({
+    target: new BufferTarget(),
+    format: new Mp4OutputFormat({ fastStart: 'in-memory' }),
   });
+  const videoSource = new EncodedVideoPacketSource('avc');
+  output.addVideoTrack(videoSource, { frameRate: fps });
+  await output.start();
 
   let videoEncoder: VideoEncoder;
   let encoderError: Error | null = null;
+  let packetWriteChain = Promise.resolve();
   try {
     videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      output: (chunk, meta) => {
+        packetWriteChain = packetWriteChain.then(async () => {
+          if (encoderError) return;
+
+          try {
+            await videoSource.add(EncodedPacket.fromEncodedChunk(chunk), meta);
+          } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            encoderError = new Error(`MP4 muxer error: ${message}`);
+          }
+        });
+      },
       error: (e: Error) => {
         encoderError = new Error(`VideoEncoder error: ${e.message}`);
       },
     });
     videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
   } catch (e: unknown) {
+    await output.cancel();
     console.error('[videoExport] VideoEncoder.configure() failed:', e);
     const message = e instanceof Error ? e.message : String(e);
     throw new Error(
@@ -162,8 +184,10 @@ async function initEncoder(
   return {
     compCanvas,
     compCtx,
-    muxer,
+    output,
+    videoSource,
     videoEncoder,
+    waitForMuxer: () => packetWriteChain,
     getEncoderError: () => encoderError,
   };
 }
@@ -217,7 +241,7 @@ async function captureFrame(
   map: MapboxMap,
   compCanvas: HTMLCanvasElement,
   compCtx: CanvasRenderingContext2D,
-  encoder: Pick<EncoderState, 'videoEncoder'>,
+  encoder: Pick<EncoderState, 'videoEncoder' | 'waitForMuxer'>,
   frameIndex: number,
   fps: number,
   clampedTime: number,
@@ -267,6 +291,11 @@ async function captureFrame(
     });
   }
 
+  // Mediabunny's packet source is asynchronous. Waiting for the previous
+  // packet here preserves packet order and propagates muxer back-pressure
+  // before another frame is submitted to WebCodecs.
+  await encoder.waitForMuxer();
+
   // Composite: map canvas + callouts
   compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime, showWatermark);
 
@@ -282,13 +311,21 @@ async function captureFrame(
 // ─── Finalize ─────────────────────────────────────────────────────────────────
 
 async function finalizeExport(
-  state: Pick<EncoderState, 'videoEncoder' | 'muxer'>,
+  state: Pick<EncoderState, 'videoEncoder' | 'output' | 'videoSource' | 'waitForMuxer' | 'getEncoderError'>,
 ): Promise<Blob> {
-  const { videoEncoder, muxer } = state;
+  const { videoEncoder, output, videoSource } = state;
   await videoEncoder.flush();
+  await state.waitForMuxer();
+  const encoderError = state.getEncoderError();
+  if (encoderError) throw encoderError;
+
+  videoSource.close();
   videoEncoder.close();
-  muxer.finalize();
-  return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+  await output.finalize();
+
+  const buffer = output.target.buffer;
+  if (!buffer) throw new Error('MP4 muxer finalized without producing output');
+  return new Blob([buffer], { type: 'video/mp4' });
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -315,6 +352,7 @@ export async function runExport(
   const map = mapRef.current?.getMap?.();
   if (!map) {
     encoderState.videoEncoder.close();
+    await encoderState.output.cancel();
     throw new Error('Map not available');
   }
 
@@ -357,6 +395,9 @@ export async function runExport(
   } finally {
     if (encoderState.videoEncoder.state !== 'closed') {
       encoderState.videoEncoder.close();
+    }
+    if (encoderState.output.state === 'pending' || encoderState.output.state === 'started') {
+      await encoderState.output.cancel();
     }
   }
 }
