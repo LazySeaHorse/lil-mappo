@@ -14,7 +14,7 @@ interface LayerDefinition {
 
 class MapboxStyleDouble {
   readonly layers = new Map<string, LayerDefinition>();
-  readonly sources = new Map<string, { setData: ReturnType<typeof vi.fn> }>();
+  readonly sources = new Map<string, { type: 'geojson'; setData: ReturnType<typeof vi.fn> }>();
 
   readonly setPaintProperty = vi.fn();
   readonly setLayoutProperty = vi.fn();
@@ -36,7 +36,7 @@ class MapboxStyleDouble {
   }
 
   addSource(id: string) {
-    this.sources.set(id, { setData: vi.fn() });
+    this.sources.set(id, { type: 'geojson', setData: vi.fn() });
   }
 
   removeSource(id: string) {
