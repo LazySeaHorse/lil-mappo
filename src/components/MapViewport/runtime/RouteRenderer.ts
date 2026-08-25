@@ -8,7 +8,6 @@ import type {
 import { getNormalizedProgress } from '@/engine/easings';
 import { calculateBearing, calculatePitch } from '@/engine/geoUtils';
 import { getAnimatedLine, getLineSegment } from '@/engine/lineAnimation';
-import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
 import { resolveRoutePaint } from '../layerStyleContracts';
 import {
@@ -17,8 +16,6 @@ import {
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
-
-type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 const EXIT_DURATION = 0.5;
@@ -111,7 +108,6 @@ export class RouteRenderer {
   private coordinates: number[][];
   private readonly ids: RouteResourceIds;
   private paint = createPaintCache();
-  private unsubscribe: (() => void) | undefined;
   private disposed = false;
 
   constructor(private readonly map: MapboxMap, route: RouteItem) {
@@ -126,10 +122,6 @@ export class RouteRenderer {
     this.ensureRouteResources();
     this.ensureVehicleResources();
     this.uploadGeometry();
-    this.unsubscribe = useProjectStore.subscribe((state, previous) => {
-      if (state.playheadTime !== previous.playheadTime) this.render(state);
-    });
-    this.render(useProjectStore.getState());
   }
 
   setRoute(route: RouteItem): void {
@@ -142,10 +134,9 @@ export class RouteRenderer {
       this.uploadGeometry();
     }
     if (vehicleChanged) this.ensureVehicleResources();
-    this.render(useProjectStore.getState());
   }
 
-  render = (state: ProjectState): void => {
+  render = (playheadTime: number): void => {
     if (this.disposed) return;
     const route = this.route;
     const coordinates = this.coordinates;
@@ -154,7 +145,7 @@ export class RouteRenderer {
 
     const resolvedPaint = resolveRoutePaint(route);
     const routeColor = resolvedPaint.lineColor;
-    const progress = getNormalizedProgress(state.playheadTime, route.startTime, route.endTime, route.easing);
+    const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
     const animationType = route.style.animationType ?? 'draw';
 
     if (this.paint.lastAnimationType === 'comet' && animationType !== 'comet') {
@@ -176,8 +167,8 @@ export class RouteRenderer {
       this.setPaint(this.ids.cometLayer, 'line-width', route.style.width, 'cometWidth', route.style.width);
     } else {
       this.setLayout(this.ids.mainLayer, 'visibility', 'visible', 'mainVisible', true);
-      const [trimStart, trimEnd] = this.resolveTrim(state.playheadTime, progress, animationType);
-      const opacity = this.resolveOpacity(state.playheadTime);
+      const [trimStart, trimEnd] = this.resolveTrim(playheadTime, progress, animationType);
+      const opacity = this.resolveOpacity(playheadTime);
       this.setPaint(this.ids.mainLayer, 'line-color', routeColor, 'mainColor', routeColor);
       this.setPaint(this.ids.mainLayer, 'line-opacity', opacity, 'mainOpacity', opacity);
       this.setPaint(this.ids.mainLayer, 'line-width', route.style.width, 'mainWidth', route.style.width);
@@ -195,7 +186,7 @@ export class RouteRenderer {
     const glowVisible = route.style.glow && animationType !== 'comet';
     this.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
     if (glowVisible) {
-      const glowOpacity = 0.35 * this.resolveOpacity(state.playheadTime);
+      const glowOpacity = 0.35 * this.resolveOpacity(playheadTime);
       this.setPaint(this.ids.glowLayer, 'line-color', resolvedPaint.glowColor, 'glowColor', resolvedPaint.glowColor);
       this.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
       if (this.paint.glowWidth !== resolvedPaint.glowWidth) {
@@ -214,13 +205,12 @@ export class RouteRenderer {
       }
     }
 
-    this.renderVehicle(state.playheadTime, progress);
+    this.renderVehicle(playheadTime, progress);
   };
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.unsubscribe?.();
     [this.ids.vehicleLayer, this.ids.glowLayer, this.ids.cometLayer, this.ids.mainLayer]
       .forEach((id) => removeLayerIfPresent(this.map, id));
     [this.ids.vehicleSource, this.ids.glowSource, this.ids.cometSource, this.ids.mainSource]

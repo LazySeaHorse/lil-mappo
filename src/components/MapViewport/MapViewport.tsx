@@ -1,21 +1,19 @@
 import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import MapGL, { Layer } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
+import type { MapLayerMouseEvent } from 'mapbox-gl';
 import { MAP_STYLES } from '@/config/mapbox';
 
 import { useProjectStore } from '@/store/useProjectStore';
-import type { RouteItem, BoundaryItem, CalloutItem } from '@/store/types';
+import type { CalloutItem } from '@/store/types';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 import { resolveClickTarget, applyPickResult } from './mapUtils';
-import { RouteLayerGroup } from './RouteLayerGroup';
-import { BoundaryLayerGroup } from './BoundaryLayerGroup';
 import { CalloutMarker } from './CalloutMarker';
-import { useMapSync } from './hooks/useMapSync';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
-import { waitForMapRender } from './runtime/MapSceneRuntime';
+import { MapSceneController } from './runtime/MapSceneController';
 import { useCalloutAnimationState } from './hooks/useCalloutAnimationState';
 import { useCalloutAltitudeOffsets } from './hooks/useCalloutAltitudeOffsets';
 
@@ -73,7 +71,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToke
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const updateItem = useProjectStore((s) => s.updateItem);
   const setMapCenter = useProjectStore((s) => s.setMapCenter);
-  const isExporting = useProjectStore((s) => s.isExporting);
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
 
@@ -97,7 +94,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToke
     onMapReady?.();
   }, [onMapReady]);
 
-  const handleMapClick = useCallback((e: any) => {
+  const handleMapClick = useCallback((e: MapLayerMouseEvent) => {
     const s = useProjectStore.getState();
     const selectedId = s.selectedItemId;
     const editingPoint = s.editingRoutePoint;
@@ -105,8 +102,8 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToke
     if (!editingPoint) {
       if (selectedId) {
         const item = s.items[selectedId];
-        if (item?.kind === 'callout' && (item as CalloutItem).lngLat[0] === 0 && (item as CalloutItem).lngLat[1] === 0) {
-          updateItem(selectedId, { lngLat: [e.lngLat.lng, e.lngLat.lat] } as any);
+        if (item?.kind === 'callout' && item.lngLat[0] === 0 && item.lngLat[1] === 0) {
+          updateItem(selectedId, { lngLat: [e.lngLat.lng, e.lngLat.lat] });
         }
       }
       return;
@@ -121,36 +118,27 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToke
     toast.success(`${label} point set`);
   }, [updateItem]);
 
-  // --- Imperative Sync Engine ---
-  const { syncRef } = useMapSync(mapRef, mapReady, styleLoaded, setStyleLoaded);
-
   useEffect(() => {
     if (!mapReady) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
 
-    const runtime = {
-      getMap: () => map,
-      sync: () => syncRef.current(),
-      waitUntilRendered: (timeoutMs?: number) => waitForMapRender(map, timeoutMs),
-    };
+    const runtime = new MapSceneController(map, setStyleLoaded);
     runtimeRef.current = runtime;
+    runtime.mount();
 
     return () => {
+      runtime.dispose();
       if (runtimeRef.current === runtime) runtimeRef.current = null;
     };
-  }, [mapReady, mapRef, runtimeRef, syncRef]);
+  }, [mapReady, mapRef, runtimeRef]);
 
-  const routes: RouteItem[] = [];
-  const boundaries: BoundaryItem[] = [];
   const callouts: CalloutItem[] = [];
 
   for (const id of itemOrder) {
     const item = items[id];
     if (!item) continue;
-    if (item.kind === 'route') routes.push(item);
-    else if (item.kind === 'boundary') boundaries.push(item);
-    else if (item.kind === 'callout') callouts.push(item);
+    if (item.kind === 'callout') callouts.push(item);
   }
 
   // Debounced map center update to prevent store churn during continuous panning
@@ -205,13 +193,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToke
             <PreviewRouteLayer />
             <PreviewBoundaryLayer />
 
-            {/* Project Items — imperative managers, render null themselves */}
-            {routes.map((route) => (
-              <RouteLayerGroup key={route.id} route={route} mapRef={mapRef} styleLoaded={styleLoaded} />
-            ))}
-            {boundaries.map((boundary) => (
-              <BoundaryLayerGroup key={boundary.id} boundary={boundary} mapRef={mapRef} styleLoaded={styleLoaded} />
-            ))}
           </>
         )}
 

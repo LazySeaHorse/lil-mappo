@@ -2,7 +2,6 @@ import type { LayoutSpecification, Map as MapboxMap, PaintSpecification } from '
 import { getNormalizedProgress } from '@/engine/easings';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
-import { useProjectStore } from '@/store/useProjectStore';
 import type { BoundaryItem } from '@/store/types';
 import { resolveBoundaryFillColor } from '../layerStyleContracts';
 import {
@@ -11,8 +10,6 @@ import {
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
-
-type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 const EXIT_DURATION = 0.5;
@@ -62,7 +59,6 @@ export class BoundaryRenderer {
   private readonly ids: BoundaryResourceIds;
   private paint = createPaintCache();
   private lastGeometry: GeoJSON.Geometry | null = null;
-  private unsubscribe: (() => void) | undefined;
   private disposed = false;
 
   constructor(private readonly map: MapboxMap, boundary: BoundaryItem) {
@@ -75,19 +71,14 @@ export class BoundaryRenderer {
     this.paint = createPaintCache();
     this.lastGeometry = null;
     this.ensureResources();
-    this.unsubscribe = useProjectStore.subscribe((state, previous) => {
-      if (state.playheadTime !== previous.playheadTime) this.render(state);
-    });
-    this.render(useProjectStore.getState());
   }
 
   setBoundary(boundary: BoundaryItem): void {
     if (boundary.id !== this.boundary.id) throw new Error('BoundaryRenderer cannot change boundary ids');
     this.boundary = boundary;
-    this.render(useProjectStore.getState());
   }
 
-  render = (state: ProjectState): void => {
+  render = (playheadTime: number): void => {
     if (this.disposed) return;
     const boundary = this.boundary;
     const geometry = boundary.geojson;
@@ -97,9 +88,9 @@ export class BoundaryRenderer {
     if (!fillSource || !strokeSource) return;
 
     const style = boundary.style;
-    const progress = getNormalizedProgress(state.playheadTime, boundary.startTime, boundary.endTime, boundary.easing);
-    const isExiting = boundary.exitAnimation !== 'none' && state.playheadTime > boundary.endTime;
-    const exitProgress = isExiting ? Math.min((state.playheadTime - boundary.endTime) / EXIT_DURATION, 1) : 0;
+    const progress = getNormalizedProgress(playheadTime, boundary.startTime, boundary.endTime, boundary.easing);
+    const isExiting = boundary.exitAnimation !== 'none' && playheadTime > boundary.endTime;
+    const exitProgress = isExiting ? Math.min((playheadTime - boundary.endTime) / EXIT_DURATION, 1) : 0;
     const reverseProgress = 1 - exitProgress;
     const fadeExit = boundary.exitAnimation === 'fade' && isExiting;
     const reverseExit = boundary.exitAnimation === 'reverse' && isExiting;
@@ -161,7 +152,6 @@ export class BoundaryRenderer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.unsubscribe?.();
     [this.ids.glowLayer, this.ids.strokeLayer, this.ids.fillLayer]
       .forEach((id) => removeLayerIfPresent(this.map, id));
     [this.ids.strokeSource, this.ids.fillSource]

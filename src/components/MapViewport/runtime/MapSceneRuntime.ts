@@ -3,6 +3,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 export interface MapSceneRuntime {
   getMap(): MapboxMap;
   sync(): void;
+  renderAt(time: number): void;
   waitUntilRendered(timeoutMs?: number): Promise<void>;
 }
 

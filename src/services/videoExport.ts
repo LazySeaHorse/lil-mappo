@@ -292,6 +292,7 @@ async function captureFrame(
 
   // Sync map engine and trigger repaint
   runtime.sync();
+  runtime.renderAt(clampedTime);
   map.triggerRepaint();
 
   // Wait for map idle, then one animation frame to flush compositing

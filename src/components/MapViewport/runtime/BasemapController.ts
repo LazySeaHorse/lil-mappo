@@ -74,6 +74,7 @@ export class BasemapController {
   constructor(
     private readonly map: MapboxMap,
     private readonly setStyleLoaded: (loaded: boolean) => void,
+    private readonly onStyleLoad?: () => void,
   ) {}
 
   mount(): void {
@@ -100,7 +101,7 @@ export class BasemapController {
       if (state.isPlaying !== previous.isPlaying) applyInteractivity(state.isPlaying);
     });
 
-    this.reconcile();
+    if (this.map.isStyleLoaded()) this.handleStyleLoad();
   }
 
   reconcile = (): void => {
@@ -237,6 +238,7 @@ export class BasemapController {
     state.setDetectedCapabilities(detectRuntimeCapabilities(this.map, state.mapStyle));
     this.setStyleLoaded(true);
     this.reconcile();
+    this.onStyleLoad?.();
   };
 
   private readonly handleStyleImportData = () => this.reconcile();

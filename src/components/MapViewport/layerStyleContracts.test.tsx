@@ -1,10 +1,8 @@
-import type { MutableRefObject } from 'react';
-import { render } from '@testing-library/react';
-import type { MapRef } from 'react-map-gl/mapbox';
+import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import type { BoundaryItem, RouteItem } from '@/store/types';
-import { BoundaryLayerGroup } from './BoundaryLayerGroup';
-import { RouteLayerGroup } from './RouteLayerGroup';
+import { BoundaryRenderer } from './runtime/BoundaryRenderer';
+import { RouteRenderer } from './runtime/RouteRenderer';
 
 interface LayerDefinition {
   id: string;
@@ -44,10 +42,8 @@ class MapboxStyleDouble {
   }
 }
 
-function createMapRef(map: MapboxStyleDouble): MutableRefObject<MapRef | null> {
-  return {
-    current: { getMap: () => map } as unknown as MapRef,
-  };
+function asMap(map: MapboxStyleDouble): MapboxMap {
+  return map as unknown as MapboxMap;
 }
 
 const route: RouteItem = {
@@ -110,9 +106,9 @@ const boundary: BoundaryItem = {
 describe('Mapbox layer style contracts', () => {
   it('initializes a flight route from its configured line and glow style', () => {
     const map = new MapboxStyleDouble();
-    const view = render(
-      <RouteLayerGroup route={route} mapRef={createMapRef(map)} styleLoaded />,
-    );
+    const renderer = new RouteRenderer(asMap(map), route);
+    renderer.mount();
+    renderer.render(0);
 
     expect(map.layers.get('route-layer-flight-route')?.paint).toMatchObject({
       'line-color': '#123456',
@@ -124,7 +120,7 @@ describe('Mapbox layer style contracts', () => {
       'line-blur': 9,
     });
 
-    view.unmount();
+    renderer.dispose();
   });
 
   it('owns vehicle resources as part of the route lifecycle', () => {
@@ -136,9 +132,9 @@ describe('Mapbox layer style contracts', () => {
         vehicle: { enabled: true, type: 'dot', modelId: 'dot', scale: 1 },
       },
     };
-    const view = render(
-      <RouteLayerGroup route={routeWithVehicle} mapRef={createMapRef(map)} styleLoaded />,
-    );
+    const renderer = new RouteRenderer(asMap(map), routeWithVehicle);
+    renderer.mount();
+    renderer.render(0);
 
     expect(map.layers.get('vehicle-layer-flight-route')).toMatchObject({
       type: 'circle',
@@ -146,7 +142,7 @@ describe('Mapbox layer style contracts', () => {
     });
     expect(map.sources.has('vehicle-source-flight-route')).toBe(true);
 
-    view.unmount();
+    renderer.dispose();
 
     expect(map.layers.has('vehicle-layer-flight-route')).toBe(false);
     expect(map.sources.has('vehicle-source-flight-route')).toBe(false);
@@ -154,22 +150,16 @@ describe('Mapbox layer style contracts', () => {
 
   it('initializes and updates a boundary using its independent fill color', () => {
     const map = new MapboxStyleDouble();
-    const mapRef = createMapRef(map);
-    const view = render(
-      <BoundaryLayerGroup boundary={boundary} mapRef={mapRef} styleLoaded />,
-    );
+    const renderer = new BoundaryRenderer(asMap(map), boundary);
+    renderer.mount();
+    renderer.render(0);
 
     expect(map.layers.get('boundary-fill-layer-styled-boundary')?.paint).toMatchObject({
       'fill-color': '#eeeeee',
     });
 
-    view.rerender(
-      <BoundaryLayerGroup
-        boundary={{ ...boundary, style: { ...boundary.style, fillColor: '#fedcba' } }}
-        mapRef={mapRef}
-        styleLoaded
-      />,
-    );
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, fillColor: '#fedcba' } });
+    renderer.render(0);
 
     expect(map.setPaintProperty).toHaveBeenCalledWith(
       'boundary-fill-layer-styled-boundary',
@@ -177,6 +167,6 @@ describe('Mapbox layer style contracts', () => {
       '#fedcba',
     );
 
-    view.unmount();
+    renderer.dispose();
   });
 });
