@@ -127,6 +127,31 @@ describe('Mapbox layer style contracts', () => {
     view.unmount();
   });
 
+  it('owns vehicle resources as part of the route lifecycle', () => {
+    const map = new MapboxStyleDouble();
+    const routeWithVehicle: RouteItem = {
+      ...route,
+      calculation: {
+        ...route.calculation!,
+        vehicle: { enabled: true, type: 'dot', modelId: 'dot', scale: 1 },
+      },
+    };
+    const view = render(
+      <RouteLayerGroup route={routeWithVehicle} mapRef={createMapRef(map)} styleLoaded />,
+    );
+
+    expect(map.layers.get('vehicle-layer-flight-route')).toMatchObject({
+      type: 'circle',
+      source: 'vehicle-source-flight-route',
+    });
+    expect(map.sources.has('vehicle-source-flight-route')).toBe(true);
+
+    view.unmount();
+
+    expect(map.layers.has('vehicle-layer-flight-route')).toBe(false);
+    expect(map.sources.has('vehicle-source-flight-route')).toBe(false);
+  });
+
   it('initializes and updates a boundary using its independent fill color', () => {
     const map = new MapboxStyleDouble();
     const mapRef = createMapRef(map);
