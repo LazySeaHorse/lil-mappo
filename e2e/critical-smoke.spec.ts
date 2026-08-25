@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 const TEST_STYLE = {
   version: 8,
@@ -204,4 +205,32 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
   await expect(page.getByRole("dialog", { name: "Sign in" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Sign in" })).not.toBeVisible();
+});
+
+test("9. local export produces an MP4 download", async ({ page }) => {
+  test.setTimeout(120_000);
+  await openEditor(page);
+
+  const supportsWebCodecs = await page.evaluate(() => typeof VideoEncoder !== "undefined");
+  test.skip(!supportsWebCodecs, "The test browser does not provide WebCodecs");
+
+  await unlockLocalProjects(page);
+  await page.getByTitle("Export").click();
+
+  const exportDialog = page.getByRole("dialog", { name: "Export" });
+  await expect(exportDialog).toBeVisible();
+  await exportDialog.locator('input[type="number"]').nth(1).fill("0.1");
+
+  const exportButton = exportDialog.getByRole("button", { name: "Export locally" });
+  await expect(exportButton).toBeEnabled();
+
+  const downloadPromise = page.waitForEvent("download");
+  await exportButton.click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+
+  const file = await readFile(downloadPath!);
+  expect(file.byteLength).toBeGreaterThan(1_000);
+  expect(file.subarray(4, 8).toString("ascii")).toBe("ftyp");
 });
