@@ -200,29 +200,54 @@ const legacyStyleItemSchema = z.object({
   style: z.record(z.unknown()),
 }).passthrough();
 
+const legacyCalloutItemSchema = z.object({
+  kind: z.literal('callout'),
+}).passthrough();
+
 type ProjectMigration = (input: unknown) => unknown;
 
 /** Migrates pre-versioned, whole-store exports to the first durable format. */
 const migrateProjectV0ToV1: ProjectMigration = (input) => {
   const document = legacyDocumentEnvelopeSchema.parse(input);
   const items = Object.fromEntries(Object.entries(document.items).map(([id, value]) => {
-    const result = legacyStyleItemSchema.safeParse(value);
-    if (!result.success) return [id, value];
+    const styledItemResult = legacyStyleItemSchema.safeParse(value);
+    if (styledItemResult.success) {
+      const item = styledItemResult.data;
+      if (item.kind === 'route') {
+        return [id, {
+          ...item,
+          style: {
+            ...item.style,
+            glowColor: item.style.glowColor === undefined
+              ? item.style.color
+              : item.style.glowColor,
+          },
+        }];
+      }
 
-    const item = result.data;
-    if (item.kind === 'route' && item.style.glowColor === undefined) {
       return [id, {
         ...item,
-        style: { ...item.style, glowColor: item.style.color },
+        style: {
+          ...item.style,
+          fillColor: item.style.fillColor === undefined
+            ? item.style.strokeColor
+            : item.style.fillColor,
+          traceLength: item.style.traceLength === undefined ? 0.1 : item.style.traceLength,
+        },
       }];
     }
-    if (item.kind === 'boundary' && item.style.fillColor === undefined) {
+
+    const calloutResult = legacyCalloutItemSchema.safeParse(value);
+    if (calloutResult.success) {
       return [id, {
-        ...item,
-        style: { ...item.style, fillColor: item.style.strokeColor },
+        ...calloutResult.data,
+        linkTitleToLocation: calloutResult.data.linkTitleToLocation === undefined
+          ? false
+          : calloutResult.data.linkTitleToLocation,
       }];
     }
-    return [id, item];
+
+    return [id, value];
   }));
 
   return { ...document, schemaVersion: 1, items };

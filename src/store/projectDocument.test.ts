@@ -100,7 +100,7 @@ describe('project document persistence boundary', () => {
     }
   });
 
-  it('migrates legacy route and boundary colors before validating v1', () => {
+  it('migrates legacy item defaults before validating v1', () => {
     const project = createProject({ id: 'legacy-project' });
     const legacyRoute = {
       kind: 'route' as const,
@@ -135,9 +135,39 @@ describe('project document persistence boundary', () => {
         fillOpacity: 0.2,
         animateStroke: true,
         animationStyle: 'draw' as const,
-        traceLength: 0.1,
       },
       easing: 'linear' as const,
+    };
+    const legacyCallout = {
+      kind: 'callout' as const,
+      id: 'callout-1',
+      title: 'Legacy callout',
+      subtitle: '',
+      imageUrl: null,
+      lngLat: [0, 0] as [number, number],
+      anchor: 'bottom' as const,
+      startTime: 0,
+      endTime: 5,
+      animation: {
+        enter: 'fadeIn' as const,
+        exit: 'fadeOut' as const,
+        enterDuration: 0.3,
+        exitDuration: 0.3,
+      },
+      style: {
+        bgColor: '#ffffff',
+        textColor: '#000000',
+        accentColor: '#abcdef',
+        borderRadius: 8,
+        shadow: true,
+        maxWidth: 320,
+        fontFamily: 'Inter',
+        variant: 'default' as const,
+        showMetadata: false,
+      },
+      altitude: 0,
+      poleVisible: false,
+      poleColor: '#ffffff',
     };
     const { schemaVersion: _, ...legacy } = toProjectDocument(project);
     const legacyDocument = {
@@ -146,14 +176,16 @@ describe('project document persistence boundary', () => {
         ...legacy.items,
         [legacyRoute.id]: legacyRoute,
         [legacyBoundary.id]: legacyBoundary,
+        [legacyCallout.id]: legacyCallout,
       },
-      itemOrder: [...legacy.itemOrder, legacyRoute.id, legacyBoundary.id],
+      itemOrder: [...legacy.itemOrder, legacyRoute.id, legacyBoundary.id, legacyCallout.id],
       playheadTime: 12,
     };
 
     const parsed = parseProjectDocument(legacyDocument);
     const route = parsed.items[legacyRoute.id];
     const boundary = parsed.items[legacyBoundary.id];
+    const callout = parsed.items[legacyCallout.id];
     expect(route.kind).toBe('route');
     if (route.kind === 'route') {
       expect(route.style.glowColor).toBe('#abcdef');
@@ -161,6 +193,11 @@ describe('project document persistence boundary', () => {
     expect(boundary.kind).toBe('boundary');
     if (boundary.kind === 'boundary') {
       expect(boundary.style.fillColor).toBe('#123456');
+      expect(boundary.style.traceLength).toBe(0.1);
+    }
+    expect(callout.kind).toBe('callout');
+    if (callout.kind === 'callout') {
+      expect(callout.linkTitleToLocation).toBe(false);
     }
     expect(parsed).not.toHaveProperty('playheadTime');
     expect(toProjectDocument(parsed).schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
