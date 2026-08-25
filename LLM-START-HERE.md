@@ -24,7 +24,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Persistence**: IndexedDB (local projects) + Supabase PostgreSQL (user data)
 - **Auth**: Supabase Auth (email, Google OAuth, GitHub OAuth)
 - **Data Fetching**: React Query v5
-- **Video Export**: `mp4-muxer` + WebCodecs API + pure Canvas 2D (no DOM parsing)
+- **Video Export**: Mediabunny + WebCodecs API + pure Canvas 2D (no DOM parsing)
 - **Geospatial**: Turf.js libraries (`@turf/along`, `@turf/great-circle`, etc.)
 - **Search**: `@mapbox/search-js-core` (SearchBox API with session-based pricing)
 - **Payments**: Dodo Payments (hosted checkout, webhooks for provisioning)
@@ -340,16 +340,16 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - Users in unsupported browsers are directed to Cloud Render instead.
 - Removed `recordedChunks`, `mediaRecorder`, and `mediaStream` from `EncoderState`.
 
-**Problem 3: Dynamic Import of mp4-muxer Failed at Runtime** — The original code used `await import('mp4-muxer')` inside `initEncoder()`. Browsers cannot resolve bare module specifiers at runtime — this is the bundler's job, and it only works for static imports. The dynamic import failed silently, the catch block swallowed the error, and the code fell through to MediaRecorder every single time, regardless of codec support.
+**Problem 3: Dynamic Import of the MP4 Muxer Failed at Runtime** — The original code used `await import('mp4-muxer')` inside `initEncoder()`. Browsers cannot resolve bare module specifiers at runtime — this is the bundler's job, and it only works for static imports. The dynamic import failed silently, the catch block swallowed the error, and the code fell through to MediaRecorder every single time, regardless of codec support.
 
 **Impact**: This was the PRIMARY root cause of all WebM output. Even if H.264 would have worked, the muxer wasn't loading.
 
 **Solution**:
-- Changed to static import at module top: `import { Muxer, ArrayBufferTarget } from 'mp4-muxer'`
-- Vite now bundles mp4-muxer at build time, eliminating runtime resolution entirely.
+- Changed to a static muxer import at module top so Vite bundles it at build time, eliminating runtime resolution entirely.
+- The deprecated `mp4-muxer` package was subsequently migrated to Mediabunny's `Output`, `Mp4OutputFormat`, `BufferTarget`, and `EncodedVideoPacketSource` APIs.
 
 **Key Changes**:
-- `src/services/videoExport.ts`: 9-candidate codec probe, removed MediaRecorder path, static mp4-muxer import, errors now throw instead of silently falling back.
+- `src/services/videoExport.ts`: 9-candidate codec probe, removed MediaRecorder path, static Mediabunny import, errors now throw instead of silently falling back.
 - `src/components/ExportModal/ExportModal.tsx`: Export button disabled if `typeof VideoEncoder === 'undefined'`; error message is clear and actionable.
 - Removed `onFormatDecided` callback (now always MP4 or error, never WebM).
 

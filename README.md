@@ -31,7 +31,7 @@ A technical, browser-based tool for creating cinematic map animations and export
 - **Zen Mode**: Focus-oriented, UI-free environment with floating controls.
 
 ### 5. High-Quality Video Export
-- **Frame-Perfect Encoding**: Non-real-time export process using the WebCodecs API and `mp4-muxer`.
+- **Frame-Perfect Encoding**: Non-real-time export process using the WebCodecs API and Mediabunny.
 - **Customizable Output**: Export at various resolutions (up to 4K) and frame rates (30/60 FPS).
 - **Composite Rendering**: Orchestrated capture of Mapbox canvas and DOM overlays (markers/callouts).
 
@@ -42,7 +42,7 @@ A technical, browser-based tool for creating cinematic map animations and export
 - **Map Engine**: Mapbox GL JS v3 (via `react-map-gl/mapbox`)
 - **Geospatial Processing**: Turf.js (`@turf/along`, `@turf/length`, `@turf/distance`, `@turf/great-circle`)
 - **Animations**: Custom `requestAnimationFrame` loop with interpolated state and easing functions.
-- **Video Export**: WebCodecs API, `mp4-muxer`, pure Canvas 2D (for callout rendering).
+- **Video Export**: WebCodecs API, Mediabunny, pure Canvas 2D (for callout rendering).
 - **UI Components**: Tier 1 & 2 standardized component library built on shadcn/ui v0.9+ (Radix UI) and Tailwind CSS.
 - **Icons**: Lucide React.
 - **Persistence**: IndexedDB (local project library).
