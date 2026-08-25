@@ -7,12 +7,13 @@ import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
 import { compositeFrame, withMapResized } from './mapCapture';
 import type { RenderConfig } from '@/types/render';
 import {
-  BufferTarget,
   EncodedPacket,
   EncodedVideoPacketSource,
   Mp4OutputFormat,
   Output,
+  type Target,
 } from 'mediabunny';
+import { createVideoExportTarget, type VideoExportTarget } from './videoExportTarget';
 
 /**
  * Non-realtime offline export engine.
@@ -39,7 +40,8 @@ export interface ExportOptions {
 interface EncoderState {
   compCanvas: HTMLCanvasElement;
   compCtx: CanvasRenderingContext2D;
-  output: Output<Mp4OutputFormat, BufferTarget>;
+  output: Output<Mp4OutputFormat, Target>;
+  exportTarget: VideoExportTarget;
   videoSource: EncodedVideoPacketSource;
   videoEncoder: VideoEncoder;
   waitForMuxer: () => Promise<void>;
@@ -50,6 +52,13 @@ export type LocalExportCapability =
   | { status: 'ready'; codec: string }
   | { status: 'limited' }
   | { status: 'unsupported' };
+
+function describeMuxerError(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+    return 'Browser storage ran out of space while writing the video. Free some disk space and try again.';
+  }
+  return error instanceof Error ? error.message : String(error);
+}
 
 // ─── Codec level probe ────────────────────────────────────────────────────────
 
@@ -129,6 +138,7 @@ async function initEncoder(
   width: number,
   height: number,
   fps: number,
+  maximumPacketCount: number,
 ): Promise<EncoderState> {
   const compCanvas = document.createElement('canvas');
   compCanvas.width = width;
@@ -140,13 +150,23 @@ async function initEncoder(
   }
 
   const codec = await selectH264Codec(width, height, fps);
+  const exportTarget = await createVideoExportTarget();
   const output = new Output({
-    target: new BufferTarget(),
-    format: new Mp4OutputFormat({ fastStart: 'in-memory' }),
+    target: exportTarget.target,
+    // Reserve the MP4 metadata area up front. Unlike `in-memory`, this writes
+    // encoded packets continuously and still produces a conventional fast-start
+    // MP4. The exporter knows its exact maximum frame count in advance.
+    format: new Mp4OutputFormat({ fastStart: 'reserve' }),
   });
   const videoSource = new EncodedVideoPacketSource('avc');
-  output.addVideoTrack(videoSource, { frameRate: fps });
-  await output.start();
+  output.addVideoTrack(videoSource, { frameRate: fps, maximumPacketCount });
+  try {
+    await output.start();
+  } catch (error) {
+    await output.cancel().catch(() => undefined);
+    await exportTarget.discard();
+    throw error;
+  }
 
   let videoEncoder: VideoEncoder;
   let encoderError: Error | null = null;
@@ -160,8 +180,7 @@ async function initEncoder(
           try {
             await videoSource.add(EncodedPacket.fromEncodedChunk(chunk), meta);
           } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : String(error);
-            encoderError = new Error(`MP4 muxer error: ${message}`);
+            encoderError = new Error(`MP4 muxer error: ${describeMuxerError(error)}`);
           }
         });
       },
@@ -171,7 +190,11 @@ async function initEncoder(
     });
     videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
   } catch (e: unknown) {
-    await output.cancel();
+    try {
+      await output.cancel();
+    } finally {
+      await exportTarget.discard();
+    }
     console.error('[videoExport] VideoEncoder.configure() failed:', e);
     const message = e instanceof Error ? e.message : String(e);
     throw new Error(
@@ -185,6 +208,7 @@ async function initEncoder(
     compCanvas,
     compCtx,
     output,
+    exportTarget,
     videoSource,
     videoEncoder,
     waitForMuxer: () => packetWriteChain,
@@ -311,7 +335,7 @@ async function captureFrame(
 // ─── Finalize ─────────────────────────────────────────────────────────────────
 
 async function finalizeExport(
-  state: Pick<EncoderState, 'videoEncoder' | 'output' | 'videoSource' | 'waitForMuxer' | 'getEncoderError'>,
+  state: Pick<EncoderState, 'videoEncoder' | 'output' | 'exportTarget' | 'videoSource' | 'waitForMuxer' | 'getEncoderError'>,
 ): Promise<Blob> {
   const { videoEncoder, output, videoSource } = state;
   await videoEncoder.flush();
@@ -322,10 +346,7 @@ async function finalizeExport(
   videoSource.close();
   videoEncoder.close();
   await output.finalize();
-
-  const buffer = output.target.buffer;
-  if (!buffer) throw new Error('MP4 muxer finalized without producing output');
-  return new Blob([buffer], { type: 'video/mp4' });
+  return state.exportTarget.getBlob();
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -346,13 +367,22 @@ export async function runExport(
   const startFrame = Math.floor(startTime * fps);
   const totalFrames = Math.ceil(effectiveDuration * fps);
 
-  const encoderState = await initEncoder(width, height, fps);
+  // The inclusive loop below submits totalFrames + 1 frames. WebCodecs emits
+  // one encoded video packet per submitted frame, which gives the MP4 muxer an
+  // exact upper bound for its reserved metadata area.
+  const maximumPacketCount = totalFrames + 1;
+  const encoderState = await initEncoder(width, height, fps, maximumPacketCount);
   const { compCanvas, compCtx } = encoderState;
+  let completed = false;
 
   const map = mapRef.current?.getMap?.();
   if (!map) {
     encoderState.videoEncoder.close();
-    await encoderState.output.cancel();
+    try {
+      await encoderState.output.cancel();
+    } finally {
+      await encoderState.exportTarget.discard();
+    }
     throw new Error('Map not available');
   }
 
@@ -390,14 +420,27 @@ export async function runExport(
         onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
       }
 
-      return finalizeExport(encoderState);
+      const result = await finalizeExport(encoderState);
+      completed = true;
+      return result;
     });
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      throw new Error(describeMuxerError(error));
+    }
+    throw error;
   } finally {
     if (encoderState.videoEncoder.state !== 'closed') {
       encoderState.videoEncoder.close();
     }
-    if (encoderState.output.state === 'pending' || encoderState.output.state === 'started') {
-      await encoderState.output.cancel();
+    try {
+      if (encoderState.output.state === 'pending' || encoderState.output.state === 'started') {
+        await encoderState.output.cancel();
+      }
+    } finally {
+      if (!completed) {
+        await encoderState.exportTarget.discard();
+      }
     }
   }
 }
