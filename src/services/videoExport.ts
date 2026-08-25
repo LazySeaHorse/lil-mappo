@@ -1,5 +1,6 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
-import type { MapRef } from 'react-map-gl/mapbox';
+import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
+import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
@@ -262,6 +263,7 @@ async function prewarmTileCache(
 // ─── Single frame capture ─────────────────────────────────────────────────────
 
 async function captureFrame(
+  runtime: MapSceneRuntime,
   map: MapboxMap,
   compCanvas: HTMLCanvasElement,
   compCtx: CanvasRenderingContext2D,
@@ -289,17 +291,11 @@ async function captureFrame(
   }
 
   // Sync map engine and trigger repaint
-  const syncEngine = (map as unknown as { _syncRef?: { current?: () => void } })._syncRef?.current;
-  if (syncEngine) syncEngine();
+  runtime.sync();
   map.triggerRepaint();
 
   // Wait for map idle, then one animation frame to flush compositing
-  await Promise.race([
-    new Promise<void>((resolve) =>
-      map.once('idle', () => requestAnimationFrame(() => resolve()))
-    ),
-    new Promise<void>((resolve) => setTimeout(resolve, 5000)), // safety timeout
-  ]);
+  await runtime.waitUntilRendered();
 
   // Back-pressure: don't let the encoder queue grow unbounded
   if (videoEncoder.encodeQueueSize > 8) {
@@ -352,7 +348,7 @@ async function finalizeExport(
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 export async function runExport(
-  mapRef: React.MutableRefObject<MapRef | null>,
+  runtimeRef: MapSceneRuntimeRef,
   options: ExportOptions,
 ): Promise<Blob> {
   const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, abortSignal } = options;
@@ -375,16 +371,17 @@ export async function runExport(
   const { compCanvas, compCtx } = encoderState;
   let completed = false;
 
-  const map = mapRef.current?.getMap?.();
-  if (!map) {
+  const runtime = runtimeRef.current;
+  if (!runtime) {
     encoderState.videoEncoder.close();
     try {
       await encoderState.output.cancel();
     } finally {
       await encoderState.exportTarget.discard();
     }
-    throw new Error('Map not available');
+    throw new Error('Map runtime not available');
   }
+  const map = runtime.getMap();
 
   // Zoom offset: compensates for the viewport size change during export so the
   // rendered framing matches what was designed at preview resolution.
@@ -414,7 +411,7 @@ export async function runExport(
         const currentTime = (startFrame + frameIndex) / fps;
         const clampedTime = Math.min(currentTime, duration);
 
-        await captureFrame(map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, getRoutes, options.showWatermark, zoomOffset);
+        await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, getRoutes, options.showWatermark, zoomOffset);
         const encoderError = encoderState.getEncoderError();
         if (encoderError) throw encoderError;
         onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');

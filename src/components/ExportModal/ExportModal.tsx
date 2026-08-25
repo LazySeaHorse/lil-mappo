@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useMapRef } from '@/hooks/useMapRef';
+import { useMapRuntime } from '@/hooks/useMapRuntime';
 import { useCredits } from '@/hooks/useCredits';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getLocalExportCapability, runExport, type LocalExportCapability } from '@/services/videoExport';
@@ -76,7 +76,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   const limits = getExportLimits(subscription);
 
   const { data: creditBalance } = useCredits();
-  const mapRef = useMapRef();
+  const runtimeRef = useMapRuntime();
 
   // Initialize the editable draft from the limits currently in effect.
   const [exportFps, setExportFps] = useState<30 | 60>(
@@ -159,7 +159,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     useProjectStore.getState().setHideUI(true);
 
     try {
-      const blob = await runExport(mapRef, {
+      const blob = await runExport(runtimeRef, {
         ...exportPlan,
         showWatermark,
         onProgress: (pct, p) => { setProgress(pct); setPhase(p); },

@@ -244,7 +244,6 @@ export function useMapSync(
     map.on('sourcedata', handleSourceData);
     map.on('idle', handleIdle);
 
-    (map as any)._syncRef = syncRef;
     syncRef.current();
 
     const allHandlers = [
@@ -262,7 +261,6 @@ export function useMapSync(
 
     return () => {
       unsubInteractive();
-      delete (map as any)._syncRef;
       map.off('style.load', handleStyleLoad);
       map.off('styleimportdata', handleStyleImportData);
       map.off('sourcedataloading', handleSourceDataLoading);

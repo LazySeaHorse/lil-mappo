@@ -14,6 +14,8 @@ import { RouteLayerGroup } from './RouteLayerGroup';
 import { BoundaryLayerGroup } from './BoundaryLayerGroup';
 import { CalloutMarker } from './CalloutMarker';
 import { useMapSync } from './hooks/useMapSync';
+import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
+import { waitForMapRender } from './runtime/MapSceneRuntime';
 import { useCalloutAnimationState } from './hooks/useCalloutAnimationState';
 import { useCalloutAltitudeOffsets } from './hooks/useCalloutAltitudeOffsets';
 
@@ -59,11 +61,12 @@ function CalloutMarkerList({ callouts, selectedCalloutId, mapRef }: CalloutMarke
 
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
+  runtimeRef: MapSceneRuntimeRef;
   onMapReady?: () => void;
   mapboxToken: string;
 }
 
-export default function MapViewport({ mapRef, onMapReady, mapboxToken }: MapViewportProps) {
+export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToken }: MapViewportProps) {
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const items = useProjectStore((s) => s.items);
   const itemOrder = useProjectStore((s) => s.itemOrder);
@@ -119,7 +122,24 @@ export default function MapViewport({ mapRef, onMapReady, mapboxToken }: MapView
   }, [updateItem]);
 
   // --- Imperative Sync Engine ---
-  useMapSync(mapRef, mapReady, styleLoaded, setStyleLoaded);
+  const { syncRef } = useMapSync(mapRef, mapReady, styleLoaded, setStyleLoaded);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const runtime = {
+      getMap: () => map,
+      sync: () => syncRef.current(),
+      waitUntilRendered: (timeoutMs?: number) => waitForMapRender(map, timeoutMs),
+    };
+    runtimeRef.current = runtime;
+
+    return () => {
+      if (runtimeRef.current === runtime) runtimeRef.current = null;
+    };
+  }, [mapReady, mapRef, runtimeRef, syncRef]);
 
   const routes: RouteItem[] = [];
   const boundaries: BoundaryItem[] = [];

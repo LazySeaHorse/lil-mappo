@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';
+import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { useProjectStore } from '@/store/useProjectStore';
 import { runExport } from '@/services/videoExport';
 import MapViewport from '@/components/MapViewport/MapViewport';
@@ -28,6 +29,7 @@ interface HeadlessRendererProps {
  */
 export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
   const mapRef = useRef<MapRef | null>(null);
+  const runtimeRef: MapSceneRuntimeRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [jobData, setJobData] = useState<{
     projectData: Project;
@@ -104,7 +106,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
     async function render() {
       setStatus('Rendering...');
       try {
-        const blob = await runExport(mapRef, {
+        const blob = await runExport(runtimeRef, {
           renderConfig: jobData!.renderConfig,
           startTime: jobData!.startTime,
           endTime: jobData!.endTime,
@@ -166,6 +168,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
         {jobData && (
           <MapViewport
             mapRef={mapRef}
+            runtimeRef={runtimeRef}
             onMapReady={() => setMapReady(true)}
             mapboxToken={MAPBOX_TOKEN}
           />

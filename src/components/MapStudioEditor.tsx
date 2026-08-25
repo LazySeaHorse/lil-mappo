@@ -10,6 +10,7 @@ import ProjectLibraryModal from "@/components/ProjectLibrary/ProjectLibraryModal
 import { NewProjectModal } from "@/components/ProjectLibrary/NewProjectModal";
 import { usePlayback } from "@/hooks/usePlayback";
 import { MapRefContext } from "@/hooks/useMapRef";
+import { MapRuntimeContext, type MapSceneRuntimeRef } from "@/hooks/useMapRuntime";
 import FontLoader from "@/components/FontLoader";
 import { useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
@@ -90,6 +91,7 @@ function ZenModeControls({
 
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
+  const runtimeRef: MapSceneRuntimeRef = useRef(null);
   const [showExport, setShowExport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const { isMobile, isTablet } = useResponsive();
@@ -142,13 +144,14 @@ export default function MapStudioEditor() {
 
   return (
     <MapRefContext.Provider value={mapRef}>
-      <FontLoader />
-      <Sonner style={sonnerStyle as React.CSSProperties} />
-      <div className="h-dvh w-screen relative overflow-hidden bg-background">
+      <MapRuntimeContext.Provider value={runtimeRef}>
+        <FontLoader />
+        <Sonner style={sonnerStyle as React.CSSProperties} />
+        <div className="h-dvh w-screen relative overflow-hidden bg-background">
         {/* Map Background Layer — wrapped in gate to prevent loads over quota */}
         <div className="absolute inset-0 z-0">
           <MapLoadGate gate={mapLoadGate}>
-            <MapViewport mapRef={mapRef} onMapReady={mapLoadGate.onMapLoaded} mapboxToken={mapLoadGate.mapboxToken} />
+            <MapViewport mapRef={mapRef} runtimeRef={runtimeRef} onMapReady={mapLoadGate.onMapLoaded} mapboxToken={mapLoadGate.mapboxToken} />
           </MapLoadGate>
         </div>
 
@@ -188,7 +191,8 @@ export default function MapStudioEditor() {
         <CreditsModal />
         <UpgradeModal />
         <RendersModal />
-      </div>
+        </div>
+      </MapRuntimeContext.Provider>
     </MapRefContext.Provider>
   );
 }
