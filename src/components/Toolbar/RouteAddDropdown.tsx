@@ -145,6 +145,7 @@ export const RouteAddDropdown = ({
       variant={isOpen ? "toolbar-active" : "toolbar"}
       size="sm"
       title="Plan Route"
+      data-walkthrough="add-route"
     >
       <Navigation size={18} />
     </IconButton>

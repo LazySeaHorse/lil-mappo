@@ -117,6 +117,7 @@ export const CalloutAddDropdown = ({
       variant={isOpen ? "toolbar-active" : "toolbar"}
       size="sm"
       title="Add Callout"
+      data-walkthrough="add-callout"
     >
       <Flag size={18} />
     </IconButton>

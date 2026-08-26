@@ -155,7 +155,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToke
   const selectedCalloutId = selectedItemId && items[selectedItemId]?.kind === 'callout' ? selectedItemId : null;
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" data-walkthrough="map-viewport">
       <MapGL
         ref={mapRef}
         mapboxAccessToken={mapboxToken}

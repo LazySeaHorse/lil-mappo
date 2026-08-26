@@ -151,7 +151,7 @@ export function DesktopToolbarLayout({
         <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
         <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
         <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-        <ToolbarButton icon={<Video size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
+        <ToolbarButton icon={<Video size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
       </div>
 
       <Divider />

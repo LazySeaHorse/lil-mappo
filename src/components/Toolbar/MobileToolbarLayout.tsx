@@ -50,7 +50,7 @@ export function MobileToolbarLayout({
           <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-6 h-6 mr-1" alt="Logo" />
           {renderAvatarMenu()}
           <Divider />
-          <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('add')} title="Add New Track">
+          <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('add')} title="Add New Track" data-walkthrough="add-menu">
             <Plus size={20} />
           </IconButton>
           <Divider />
@@ -70,7 +70,7 @@ export function MobileToolbarLayout({
             <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
             <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
             <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-            <ToolbarButton icon={<Video size={18} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} />
+            <ToolbarButton icon={<Video size={18} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
             <IconButton variant="toolbar" size="sm" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />
             </IconButton>

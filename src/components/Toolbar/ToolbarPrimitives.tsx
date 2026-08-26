@@ -7,13 +7,14 @@ import { SelectItem } from '@/components/ui/select';
 import { MAP_STYLES } from '@/config/mapbox';
 
 export function ToolbarButton({
-  icon, label, onClick, accent, hideLabel,
+  icon, label, onClick, accent, hideLabel, walkthroughTarget,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   accent?: boolean;
   hideLabel?: boolean;
+  walkthroughTarget?: string;
 }) {
   // Icon-only mode → use IconButton
   if (hideLabel) {
@@ -23,6 +24,7 @@ export function ToolbarButton({
         size="sm"
         onClick={onClick}
         title={label}
+        data-walkthrough={walkthroughTarget}
       >
         {icon}
       </IconButton>
@@ -37,6 +39,7 @@ export function ToolbarButton({
       onClick={onClick}
       className={`h-8 px-2.5 flex flex-row items-center gap-1.5 text-xs rounded-lg transition-all ${accent ? 'shadow-lg shadow-primary/20' : ''}`}
       title={label}
+      data-walkthrough={walkthroughTarget}
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>

@@ -88,6 +88,7 @@ export const BoundaryAddDropdown = ({
       variant={isOpen ? "toolbar-active" : "toolbar"}
       size="sm"
       title="Add Boundary"
+      data-walkthrough="add-boundary"
     >
       <Hexagon size={18} />
     </IconButton>
