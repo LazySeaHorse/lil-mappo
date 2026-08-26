@@ -38,11 +38,33 @@ async function stubExternalServices(page: Page) {
   );
 }
 
-async function openEditor(page: Page) {
+async function openEditor(page: Page, options: { dismissWalkthrough?: boolean } = {}) {
   await stubExternalServices(page);
   await page.goto("/");
   await expect(page.getByText("Timeline", { exact: true })).toBeVisible();
   await expect(page.locator(".mapboxgl-canvas")).toBeVisible();
+
+  if (options.dismissWalkthrough !== false) {
+    const invitation = page.getByRole("alertdialog", { name: "Want a quick walkthrough?" });
+    await expect(invitation).toBeVisible();
+    await invitation.getByRole("button", { name: "No thanks" }).click();
+  }
+}
+
+async function dragMap(
+  page: Page,
+  button: "left" | "right" = "left",
+  from = { x: 620, y: 300 },
+  to = { x: 720, y: 360 },
+) {
+  const canvas = page.locator(".mapboxgl-canvas");
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error("Map canvas has no bounding box");
+
+  await page.mouse.move(bounds.x + from.x, bounds.y + from.y);
+  await page.mouse.down({ button });
+  await page.mouse.move(bounds.x + to.x, bounds.y + to.y, { steps: 8 });
+  await page.mouse.up({ button });
 }
 
 async function pickMapPoint(page: Page, pickerIndex = 0, position = { x: 720, y: 350 }) {
@@ -89,6 +111,36 @@ test("2. map and editor load", async ({ page }) => {
   await expect(page.locator(".mapboxgl-canvas")).toHaveCount(1);
   await expect(page.getByText("Camera", { exact: true })).toBeVisible();
   await expect(page.getByTitle("Plan Route")).toBeEnabled();
+});
+
+test("2a. quick walkthrough is opt-in and advances through real actions", async ({ page }) => {
+  await openEditor(page, { dismissWalkthrough: false });
+
+  const invitation = page.getByRole("alertdialog", { name: "Want a quick walkthrough?" });
+  await expect(invitation).toBeVisible();
+  await invitation.getByRole("button", { name: "Show me around" }).click();
+
+  await expect(page.getByText("Get comfortable with the map")).toBeVisible();
+  await dragMap(page);
+  await dragMap(page, "right", { x: 700, y: 320 }, { x: 790, y: 390 });
+  await page.mouse.wheel(0, -400);
+
+  await expect(page.getByText("Save this view")).toBeVisible();
+  await page.getByTitle("Camera KF").click();
+  await expect(page.getByText("Choose the next view")).toBeVisible();
+
+  await dragMap(page, "left", { x: 600, y: 330 }, { x: 690, y: 300 });
+  await expect(page.getByText("Save the new view")).toBeVisible();
+  await page.getByTitle("Camera KF").click();
+
+  await expect(page.getByText("Add a route", { exact: true })).toBeVisible();
+  await page.getByTitle("Plan Route").click();
+  await expect(page.getByText("Highlight a place")).toBeVisible();
+  await page.getByTitle("Add Boundary").click();
+  await expect(page.getByText("Add a callout", { exact: true })).toBeVisible();
+  await page.getByTitle("Add Callout").click();
+
+  await expect(page.getByText("Walkthrough complete. Your map is ready to build on.")).toBeVisible();
 });
 
 test("3. a route can be created and appears in the inspector and timeline", async ({ page }) => {
