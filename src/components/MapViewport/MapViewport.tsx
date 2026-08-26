@@ -16,6 +16,7 @@ import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
 import { useCalloutAnimationState } from './hooks/useCalloutAnimationState';
 import { useCalloutAltitudeOffsets } from './hooks/useCalloutAltitudeOffsets';
+import type { MapGesture } from '@/components/Onboarding/walkthroughState';
 
 interface CalloutMarkerListProps {
   callouts: CalloutItem[];
@@ -61,10 +62,11 @@ interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
   runtimeRef: MapSceneRuntimeRef;
   onMapReady?: () => void;
+  onMapGesture?: (gesture: MapGesture) => void;
   mapboxToken: string;
 }
 
-export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToken }: MapViewportProps) {
+export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGesture, mapboxToken }: MapViewportProps) {
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const items = useProjectStore((s) => s.items);
   const itemOrder = useProjectStore((s) => s.itemOrder);
@@ -165,6 +167,10 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, mapboxToke
         onClick={handleMapClick}
         onLoad={handleMapLoad}
         onMove={(evt) => debouncedSetMapCenter(evt.viewState.longitude, evt.viewState.latitude)}
+        onDragEnd={() => onMapGesture?.('pan')}
+        onRotateEnd={() => onMapGesture?.('orbit')}
+        onPitchEnd={() => onMapGesture?.('orbit')}
+        onZoomEnd={() => onMapGesture?.('zoom')}
         interactiveLayerIds={["search-results-circles"]}
         preserveDrawingBuffer={true}
       >

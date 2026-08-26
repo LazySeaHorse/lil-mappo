@@ -13,19 +13,21 @@ import { Button } from '@/components/ui/button';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
   ChevronDown, Settings2, Clapperboard, LogIn, LogOut, UserCircle, Lock,
+  Compass,
 } from 'lucide-react';
 
 interface AvatarMenuProps {
   onLibrary: () => void;
   /** Ref-triggered click for the hidden project import input */
   onImportProjectClick: () => void;
+  onWalkthrough: () => void;
 }
 
 /**
  * Avatar trigger + dropdown that replaces the old "Project" button.
  * Contains both Project actions and Account actions.
  */
-export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps) {
+export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
   const { user, openAuthModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
   const { selectItem, setProjectSettingsTab } = useProjectStore();
@@ -99,6 +101,9 @@ export function AvatarMenu({ onLibrary, onImportProjectClick }: AvatarMenuProps)
             className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg"
           >
             <Settings size={14} /> Project Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onWalkthrough} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+            <Compass size={14} /> Quick Walkthrough
           </DropdownMenuItem>
         </DropdownMenuGroup>
 

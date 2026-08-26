@@ -31,6 +31,7 @@ import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal"
 import { CreditsModal } from "@/components/Account/CreditsModal";
 import { UpgradeModal } from "@/components/Account/UpgradeModal";
 import { RendersModal } from "@/components/Account/RendersModal";
+import QuickWalkthrough, { type QuickWalkthroughHandle } from "@/components/Onboarding/QuickWalkthrough";
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
   // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
@@ -92,8 +93,10 @@ function ZenModeControls({
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
   const runtimeRef: MapSceneRuntimeRef = useRef(null);
+  const walkthroughRef = useRef<QuickWalkthroughHandle>(null);
   const [showExport, setShowExport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [isMapReady, setIsMapReady] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   usePlayback(mapRef);
   const mapLoadGate = useMapLoadGate();
@@ -151,7 +154,16 @@ export default function MapStudioEditor() {
         {/* Map Background Layer — wrapped in gate to prevent loads over quota */}
         <div className="absolute inset-0 z-0">
           <MapLoadGate gate={mapLoadGate}>
-            <MapViewport mapRef={mapRef} runtimeRef={runtimeRef} onMapReady={mapLoadGate.onMapLoaded} mapboxToken={mapLoadGate.mapboxToken} />
+            <MapViewport
+              mapRef={mapRef}
+              runtimeRef={runtimeRef}
+              onMapReady={() => {
+                setIsMapReady(true);
+                mapLoadGate.onMapLoaded();
+              }}
+              onMapGesture={(gesture) => walkthroughRef.current?.recordMapGesture(gesture)}
+              mapboxToken={mapLoadGate.mapboxToken}
+            />
           </MapLoadGate>
         </div>
 
@@ -165,6 +177,7 @@ export default function MapStudioEditor() {
               if (isLocked) openAuthModal();
               else setShowLibrary(true);
             }}
+            onWalkthrough={() => walkthroughRef.current?.start()}
           />
           <InspectorPanel />
           <TimelinePanel />
@@ -191,6 +204,7 @@ export default function MapStudioEditor() {
         <CreditsModal />
         <UpgradeModal />
         <RendersModal />
+        <QuickWalkthrough ref={walkthroughRef} isMapReady={isMapReady} isMobile={isMobile} />
         </div>
       </MapRuntimeContext.Provider>
     </MapRefContext.Provider>

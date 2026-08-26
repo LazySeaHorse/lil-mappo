@@ -15,9 +15,10 @@ import { AvatarMenu } from '@/components/Account/AvatarMenu';
 interface ToolbarProps {
   onExport: () => void;
   onLibrary: () => void;
+  onWalkthrough: () => void;
 }
 
-export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
+export default function Toolbar({ onExport, onLibrary, onWalkthrough }: ToolbarProps) {
   const routeInputRef = useRef<HTMLInputElement>(null);
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [mobileMode, setMobileMode] = useState<'default' | 'add' | 'layers'>('default');
@@ -54,6 +55,7 @@ export default function Toolbar({ onExport, onLibrary }: ToolbarProps) {
     <AvatarMenu
       onLibrary={onLibrary}
       onImportProjectClick={() => projectInputRef.current?.click()}
+      onWalkthrough={onWalkthrough}
     />
   );
 
