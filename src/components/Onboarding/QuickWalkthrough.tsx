@@ -68,7 +68,7 @@ interface QuickWalkthroughProps {
 
 type VisibleWalkthroughStage = Exclude<
   WalkthroughStage,
-  'complete' | 'watch-animation' | 'route-editor' | 'boundary-editor' | 'callout-editor'
+  'complete' | 'route-editor' | 'boundary-editor' | 'callout-editor'
 >;
 
 function GestureStatus({
@@ -110,14 +110,11 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     const [walkthrough, setWalkthrough] = useState(() =>
       createWalkthroughState(isMobile, 0, usesLayerMenu),
     );
-    const cameraKeyframes = useProjectStore((state) => {
+    const cameraKeyframeCount = useProjectStore((state) => {
       const camera = state.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-      return camera?.keyframes ?? [];
+      return camera?.keyframes.length ?? 0;
     });
-    const cameraKeyframeCount = cameraKeyframes.length;
-    const lastCameraKeyframeTime = cameraKeyframes.at(-1)?.time ?? 0;
     const playheadTime = useProjectStore((state) => state.playheadTime);
-    const isPlaying = useProjectStore((state) => state.isPlaying);
     const selectedKeyframeId = useProjectStore((state) => state.selectedKeyframeId);
     const mapStyle = useProjectStore((state) => state.mapStyle);
     const projectSettingsTab = useProjectStore((state) => state.projectSettingsTab);
@@ -129,6 +126,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
     const start = useCallback(() => {
       setShowInvitation(false);
+      useProjectStore.getState().setIsInspectorOpen(false);
       setWalkthrough(createWalkthroughState(isMobile, cameraKeyframeCount, usesLayerMenu));
       setIsRunning(true);
       storeStatus('started');
@@ -210,37 +208,9 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
     useEffect(() => {
       if (!isRunning || walkthrough.stage !== 'move-playhead') return;
-      if (isMobile) useProjectStore.getState().setIsInspectorOpen(false);
+      useProjectStore.getState().setIsInspectorOpen(false);
       send({ type: 'playhead-time-changed', time: playheadTime });
-    }, [isMobile, isRunning, playheadTime, send, walkthrough.stage]);
-
-    useEffect(() => {
-      if (!isRunning || walkthrough.stage !== 'play-animation') return;
-
-      const store = useProjectStore.getState();
-      store.setIsPlaying(false);
-      store.setPlayheadTime(0);
-      store.selectKeyframe(null);
-      store.setIsInspectorOpen(false);
-    }, [isRunning, walkthrough.stage]);
-
-    useEffect(() => {
-      if (!isRunning) return;
-
-      if (walkthrough.stage === 'play-animation' && isPlaying) {
-        send({ type: 'playback-started' });
-        return;
-      }
-
-      if (walkthrough.stage !== 'watch-animation') return;
-
-      if (isPlaying && playheadTime >= lastCameraKeyframeTime - 0.03) {
-        useProjectStore.getState().setIsPlaying(false);
-        send({ type: 'playback-finished' });
-      } else if (!isPlaying) {
-        send({ type: 'playback-paused' });
-      }
-    }, [isPlaying, isRunning, lastCameraKeyframeTime, playheadTime, send, walkthrough.stage]);
+    }, [isRunning, playheadTime, send, walkthrough.stage]);
 
     useEffect(() => {
       if (!isRunning || walkthrough.stage !== 'select-keyframe') {
@@ -397,8 +367,10 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         'play-animation': {
           target: '[data-walkthrough="timeline-play"]',
           title: 'Play your camera move',
-          content: 'Press Play to preview the animation between your two saved views.',
+          content: 'Use Play to preview the animation between your saved views. You can try it now or continue.',
           placement: 'top',
+          buttons: ['skip', 'primary'],
+          locale: { next: 'Next' },
         },
         'select-keyframe': {
           target: '[data-walkthrough="timeline-keyframe"]',
@@ -501,7 +473,6 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
     const stepIndex = Math.max(0, stages.indexOf(walkthrough.stage));
     const isUsingAddTool = walkthrough.stage.endsWith('-editor');
-    const isWatchingAnimation = walkthrough.stage === 'watch-animation';
     const isUsingStylePopup = isMapStyleOpen || (
       isTablet &&
       isMapToolsOpen &&
@@ -518,11 +489,15 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       }
 
       if (
-        (walkthrough.stage === 'inspect-keyframe' || walkthrough.stage === 'terrain-buildings') &&
+        (walkthrough.stage === 'play-animation' ||
+          walkthrough.stage === 'inspect-keyframe' ||
+          walkthrough.stage === 'terrain-buildings') &&
         event.action === ACTIONS.NEXT &&
         event.origin === ORIGIN.BUTTON_PRIMARY
       ) {
-        if (walkthrough.stage === 'inspect-keyframe') {
+        if (walkthrough.stage === 'play-animation') {
+          send({ type: 'play-preview-acknowledged' });
+        } else if (walkthrough.stage === 'inspect-keyframe') {
           send({ type: 'inspector-acknowledged' });
         } else {
           send({ type: 'terrain-intro-acknowledged', currentStyle: mapStyle });
@@ -551,7 +526,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         </AlertDialog>
 
         <Joyride
-          run={isRunning && !isUsingAddTool && !isWatchingAnimation && !isUsingStylePopup}
+          run={isRunning && !isUsingAddTool && !isUsingStylePopup}
           stepIndex={stepIndex}
           steps={steps}
           continuous

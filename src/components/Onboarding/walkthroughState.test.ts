@@ -80,25 +80,13 @@ describe('quick walkthrough progression', () => {
 
     const inspecting = reduce(
       secondSaved,
-      { type: 'playback-started' },
-      { type: 'playback-finished' },
+      { type: 'play-preview-acknowledged' },
       { type: 'keyframe-selected' },
     );
     expect(inspecting.stage).toBe('inspect-keyframe');
     expect(
       walkthroughReducer(inspecting, { type: 'inspector-acknowledged' }).stage,
     ).toBe('route');
-  });
-
-  it('asks the user to restart if playback is paused before the camera move ends', () => {
-    const watching = {
-      ...createWalkthroughState(false, 0),
-      stage: 'watch-animation' as const,
-    };
-
-    expect(walkthroughReducer(watching, { type: 'playback-paused' }).stage).toBe(
-      'play-animation',
-    );
   });
 
   it('continues from add tools through map styling, settings, and export', () => {

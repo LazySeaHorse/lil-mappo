@@ -9,7 +9,6 @@ export type WalkthroughStage =
   | 'move-playhead'
   | 'second-keyframe'
   | 'play-animation'
-  | 'watch-animation'
   | 'select-keyframe'
   | 'inspect-keyframe'
   | 'route'
@@ -33,9 +32,7 @@ export type WalkthroughEvent =
   | { type: 'keyframe-count-changed'; count: number; playheadTime: number }
   | { type: 'exploration-time-elapsed' }
   | { type: 'playhead-time-changed'; time: number }
-  | { type: 'playback-started' }
-  | { type: 'playback-paused' }
-  | { type: 'playback-finished' }
+  | { type: 'play-preview-acknowledged' }
   | { type: 'keyframe-selected' }
   | { type: 'inspector-acknowledged' }
   | { type: 'map-tools-opened' }
@@ -125,15 +122,7 @@ export function walkthroughReducer(
     return { ...state, stage: 'play-animation' };
   }
 
-  if (state.stage === 'play-animation' && event.type === 'playback-started') {
-    return { ...state, stage: 'watch-animation' };
-  }
-
-  if (state.stage === 'watch-animation' && event.type === 'playback-paused') {
-    return { ...state, stage: 'play-animation' };
-  }
-
-  if (state.stage === 'watch-animation' && event.type === 'playback-finished') {
+  if (state.stage === 'play-animation' && event.type === 'play-preview-acknowledged') {
     return { ...state, stage: 'select-keyframe' };
   }
 

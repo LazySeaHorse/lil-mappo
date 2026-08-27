@@ -143,8 +143,9 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
   await page.getByTitle("Camera KF").click();
 
   await expect(page.getByText("Play your camera move")).toBeVisible();
-  await page.locator('[data-walkthrough="timeline-play"]').click();
-  await expect(page.getByText("Inspect a keyframe")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-walkthrough="timeline-play"]')).toHaveAttribute("title", "Play / Pause (Space)");
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Inspect a keyframe")).toBeVisible();
   await page.locator('[data-walkthrough="timeline-keyframe"]').first().click();
   await expect(page.getByText("Fine-tune this keyframe")).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
