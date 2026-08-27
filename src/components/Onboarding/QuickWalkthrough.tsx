@@ -4,9 +4,10 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Joyride, STATUS, type EventData, type Step } from 'react-joyride';
+import { ACTIONS, Joyride, ORIGIN, STATUS, type EventData, type Step } from 'react-joyride';
 import { Check, Circle, Compass } from 'lucide-react';
 import {
   AlertDialog,
@@ -63,7 +64,7 @@ interface QuickWalkthroughProps {
 
 type VisibleWalkthroughStage = Exclude<
   WalkthroughStage,
-  'complete' | 'route-editor' | 'boundary-editor' | 'callout-editor'
+  'complete' | 'watch-animation' | 'route-editor' | 'boundary-editor' | 'callout-editor'
 >;
 
 function GestureStatus({
@@ -100,11 +101,16 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     const [isRunning, setIsRunning] = useState(false);
     const [exploreSecondsRemaining, setExploreSecondsRemaining] = useState(5);
     const [walkthrough, setWalkthrough] = useState(() => createWalkthroughState(isMobile, 0));
-    const cameraKeyframeCount = useProjectStore((state) => {
+    const cameraKeyframes = useProjectStore((state) => {
       const camera = state.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-      return camera?.keyframes.length ?? 0;
+      return camera?.keyframes ?? [];
     });
+    const cameraKeyframeCount = cameraKeyframes.length;
+    const lastCameraKeyframeTime = cameraKeyframes.at(-1)?.time ?? 0;
     const playheadTime = useProjectStore((state) => state.playheadTime);
+    const isPlaying = useProjectStore((state) => state.isPlaying);
+    const selectedKeyframeId = useProjectStore((state) => state.selectedKeyframeId);
+    const clearedSelectionForPrompt = useRef(false);
 
     const send = useCallback((event: WalkthroughEvent) => {
       setWalkthrough((current) => walkthroughReducer(current, event));
@@ -170,6 +176,51 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     }, [isMobile, isRunning, playheadTime, send, walkthrough.stage]);
 
     useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'play-animation') return;
+
+      const store = useProjectStore.getState();
+      store.setIsPlaying(false);
+      store.setPlayheadTime(0);
+      store.selectKeyframe(null);
+      store.setIsInspectorOpen(false);
+    }, [isRunning, walkthrough.stage]);
+
+    useEffect(() => {
+      if (!isRunning) return;
+
+      if (walkthrough.stage === 'play-animation' && isPlaying) {
+        send({ type: 'playback-started' });
+        return;
+      }
+
+      if (walkthrough.stage !== 'watch-animation') return;
+
+      if (isPlaying && playheadTime >= lastCameraKeyframeTime - 0.03) {
+        useProjectStore.getState().setIsPlaying(false);
+        send({ type: 'playback-finished' });
+      } else if (!isPlaying) {
+        send({ type: 'playback-paused' });
+      }
+    }, [isPlaying, isRunning, lastCameraKeyframeTime, playheadTime, send, walkthrough.stage]);
+
+    useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'select-keyframe') {
+        clearedSelectionForPrompt.current = false;
+        return;
+      }
+
+      if (!clearedSelectionForPrompt.current) {
+        clearedSelectionForPrompt.current = true;
+        const store = useProjectStore.getState();
+        store.selectKeyframe(null);
+        store.setIsInspectorOpen(false);
+        return;
+      }
+
+      if (selectedKeyframeId) send({ type: 'keyframe-selected' });
+    }, [isRunning, selectedKeyframeId, send, walkthrough.stage]);
+
+    useEffect(() => {
       if (!isRunning) return;
 
       const handleClick = (event: MouseEvent) => {
@@ -198,6 +249,9 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       'move-again',
       'move-playhead',
       'second-keyframe',
+      'play-animation',
+      'select-keyframe',
+      'inspect-keyframe',
       'route',
       'boundary',
       'callout',
@@ -272,6 +326,29 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           content: 'Add another keyframe. The camera animates between your saved views.',
           placement: 'bottom',
         },
+        'play-animation': {
+          target: '[data-walkthrough="timeline-play"]',
+          title: 'Play your camera move',
+          content: 'Press Play to preview the animation between your two saved views.',
+          placement: 'top',
+        },
+        'select-keyframe': {
+          target: '[data-walkthrough="timeline-keyframe"]',
+          spotlightTarget: '[data-walkthrough="timeline-panel"]',
+          title: 'Inspect a keyframe',
+          content: 'Click a keyframe in the timeline to open its settings.',
+          placement: 'top',
+          spotlightPadding: 0,
+          skipScroll: true,
+        },
+        'inspect-keyframe': {
+          target: '[data-walkthrough="inspector-panel"]',
+          title: 'Fine-tune this keyframe',
+          content: 'Use the inspector to adjust its timing, position, zoom, angle, and easing.',
+          placement: isMobile ? 'top' : 'left-start',
+          buttons: ['skip', 'primary'],
+          locale: { next: 'Continue' },
+        },
         route: {
           target: '[data-walkthrough="add-route"]',
           title: 'Add a route',
@@ -294,7 +371,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
       return stages.map((stage) => ({
         ...byStage[stage],
-        buttons: ['skip'],
+        buttons: byStage[stage].buttons ?? ['skip'],
         skipBeacon: true,
         blockTargetInteraction: false,
         disableFocusTrap: true,
@@ -305,12 +382,23 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
     const stepIndex = Math.max(0, stages.indexOf(walkthrough.stage));
     const isUsingAddTool = walkthrough.stage.endsWith('-editor');
+    const isWatchingAnimation = walkthrough.stage === 'watch-animation';
 
     const handleTourEvent = useCallback((event: EventData) => {
-      if (event.status !== STATUS.SKIPPED) return;
-      setIsRunning(false);
-      storeStatus('dismissed');
-    }, []);
+      if (event.status === STATUS.SKIPPED) {
+        setIsRunning(false);
+        storeStatus('dismissed');
+        return;
+      }
+
+      if (
+        walkthrough.stage === 'inspect-keyframe' &&
+        event.action === ACTIONS.NEXT &&
+        event.origin === ORIGIN.BUTTON_PRIMARY
+      ) {
+        send({ type: 'inspector-acknowledged' });
+      }
+    }, [send, walkthrough.stage]);
 
     return (
       <>
@@ -333,7 +421,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         </AlertDialog>
 
         <Joyride
-          run={isRunning && !isUsingAddTool}
+          run={isRunning && !isUsingAddTool && !isWatchingAnimation}
           stepIndex={stepIndex}
           steps={steps}
           continuous

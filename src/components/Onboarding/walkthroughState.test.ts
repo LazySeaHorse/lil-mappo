@@ -71,13 +71,34 @@ describe('quick walkthrough progression', () => {
 
     const moved = walkthroughReducer(explored, { type: 'playhead-time-changed', time: 5 });
     expect(moved.stage).toBe('second-keyframe');
+    const secondSaved = walkthroughReducer(moved, {
+      type: 'keyframe-count-changed',
+      count: 5,
+      playheadTime: 5,
+    });
+    expect(secondSaved.stage).toBe('play-animation');
+
+    const inspecting = reduce(
+      secondSaved,
+      { type: 'playback-started' },
+      { type: 'playback-finished' },
+      { type: 'keyframe-selected' },
+    );
+    expect(inspecting.stage).toBe('inspect-keyframe');
     expect(
-      walkthroughReducer(moved, {
-        type: 'keyframe-count-changed',
-        count: 5,
-        playheadTime: 5,
-      }).stage,
+      walkthroughReducer(inspecting, { type: 'inspector-acknowledged' }).stage,
     ).toBe('route');
+  });
+
+  it('asks the user to restart if playback is paused before the camera move ends', () => {
+    const watching = {
+      ...createWalkthroughState(false, 0),
+      stage: 'watch-animation' as const,
+    };
+
+    expect(walkthroughReducer(watching, { type: 'playback-paused' }).stage).toBe(
+      'play-animation',
+    );
   });
 
   it('finishes after the add-tool controls have been introduced', () => {

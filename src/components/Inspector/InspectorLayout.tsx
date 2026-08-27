@@ -126,7 +126,10 @@ export function PanelWrapper({
         activeSnapPoint={snap}
         setActiveSnapPoint={setSnap}
       >
-        <DrawerContent className="h-[96vh] max-h-none p-0 outline-none border-0 bg-white dark:bg-slate-950 rounded-t-2xl shadow-2xl pointer-events-auto">
+        <DrawerContent
+          data-walkthrough="inspector-panel"
+          className="h-[96vh] max-h-none p-0 outline-none border-0 bg-white dark:bg-slate-950 rounded-t-2xl shadow-2xl pointer-events-auto"
+        >
           <DrawerHeader className="px-6 pb-2 pt-6 border-b border-border/10 shrink-0 flex items-center gap-2">
             {icon && <span className="text-primary">{icon}</span>}
             <DrawerTitle className="text-lg font-medium tracking-tight">{title}</DrawerTitle>
@@ -158,6 +161,7 @@ export function PanelWrapper({
 
   return (
     <div
+      data-walkthrough="inspector-panel"
       className="absolute bg-background/85 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col transition-all duration-300 z-30"
       style={{ ...widthStyles, ...positionStyles }}
     >
@@ -189,4 +193,3 @@ export function PanelWrapper({
     </div>
   );
 }
-

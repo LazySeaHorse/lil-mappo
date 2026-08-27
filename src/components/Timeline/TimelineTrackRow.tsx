@@ -192,6 +192,7 @@ function CameraTrackContent({
         return (
           <div
             key={keyframe.id}
+            data-walkthrough="timeline-keyframe"
             data-testid={`timeline-keyframe-${keyframe.id}`}
             className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-transform z-10
               ${isDisabled ? 'opacity-35 grayscale' : selectedKeyframeId === keyframe.id ? 'scale-125 z-20' : 'hover:scale-110'} active:scale-95`}

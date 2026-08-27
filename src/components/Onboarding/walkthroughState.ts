@@ -8,6 +8,10 @@ export type WalkthroughStage =
   | 'move-again'
   | 'move-playhead'
   | 'second-keyframe'
+  | 'play-animation'
+  | 'watch-animation'
+  | 'select-keyframe'
+  | 'inspect-keyframe'
   | 'route'
   | 'route-editor'
   | 'boundary'
@@ -22,6 +26,11 @@ export type WalkthroughEvent =
   | { type: 'keyframe-count-changed'; count: number; playheadTime: number }
   | { type: 'exploration-time-elapsed' }
   | { type: 'playhead-time-changed'; time: number }
+  | { type: 'playback-started' }
+  | { type: 'playback-paused' }
+  | { type: 'playback-finished' }
+  | { type: 'keyframe-selected' }
+  | { type: 'inspector-acknowledged' }
   | { type: 'add-tool-opened'; tool: WalkthroughAddTool }
   | { type: 'add-tool-closed'; tool: WalkthroughAddTool };
 
@@ -95,6 +104,26 @@ export function walkthroughReducer(
     event.type === 'keyframe-count-changed' &&
     event.count > state.initialKeyframeCount + 1
   ) {
+    return { ...state, stage: 'play-animation' };
+  }
+
+  if (state.stage === 'play-animation' && event.type === 'playback-started') {
+    return { ...state, stage: 'watch-animation' };
+  }
+
+  if (state.stage === 'watch-animation' && event.type === 'playback-paused') {
+    return { ...state, stage: 'play-animation' };
+  }
+
+  if (state.stage === 'watch-animation' && event.type === 'playback-finished') {
+    return { ...state, stage: 'select-keyframe' };
+  }
+
+  if (state.stage === 'select-keyframe' && event.type === 'keyframe-selected') {
+    return { ...state, stage: 'inspect-keyframe' };
+  }
+
+  if (state.stage === 'inspect-keyframe' && event.type === 'inspector-acknowledged') {
     return { ...state, stage: 'route' };
   }
 

@@ -142,6 +142,7 @@ function TransportControls({
         <SkipBack />
       </IconButton>
       <IconButton
+        data-walkthrough="timeline-play"
         variant="ghost"
         size="xs"
         onClick={() => setPlayheadTime(Math.max(0, useProjectStore.getState().playheadTime - 1 / fps))}
