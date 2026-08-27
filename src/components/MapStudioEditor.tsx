@@ -172,13 +172,18 @@ export default function MapStudioEditor() {
           className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${hideUI ? "opacity-0 invisible" : "opacity-100 visible"}`}
         >
           <Toolbar
-            onExport={() => setShowExport(true)}
+            onExport={() => {
+              setShowExport(true);
+              walkthroughRef.current?.recordExportOpened();
+            }}
             onLibrary={() => {
               if (isLocked) openAuthModal();
               else setShowLibrary(true);
             }}
             onWalkthrough={() => walkthroughRef.current?.start()}
             onAddToolOpenChange={(tool, open) => walkthroughRef.current?.recordAddToolOpenChange(tool, open)}
+            onMapStyleOpenChange={(open) => walkthroughRef.current?.recordMapStyleOpenChange(open)}
+            onMapToolsOpenChange={(open) => walkthroughRef.current?.recordMapToolsOpenChange(open)}
           />
           <InspectorPanel />
           <TimelinePanel />
@@ -205,7 +210,12 @@ export default function MapStudioEditor() {
         <CreditsModal />
         <UpgradeModal />
         <RendersModal />
-        <QuickWalkthrough ref={walkthroughRef} isMapReady={isMapReady} isMobile={isMobile} />
+        <QuickWalkthrough
+          ref={walkthroughRef}
+          isMapReady={isMapReady}
+          isMobile={isMobile}
+          isTablet={isTablet}
+        />
         </div>
       </MapRuntimeContext.Provider>
     </MapRefContext.Provider>

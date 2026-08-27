@@ -59,7 +59,7 @@ export function ProjectSettings() {
 
         options={[
           { value: 'general', label: 'General' },
-          { value: 'map', label: 'Map' },
+          { value: 'map', label: 'Map', walkthroughTarget: 'project-settings-map-tab' },
         ]}
         value={projectSettingsTab}
         onValueChange={setProjectSettingsTab}

@@ -17,10 +17,19 @@ interface ToolbarProps {
   onExport: () => void;
   onLibrary: () => void;
   onWalkthrough: () => void;
-  onAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => void;
+  onAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => boolean | undefined;
+  onMapStyleOpenChange: (open: boolean) => void;
+  onMapToolsOpenChange: (open: boolean) => void;
 }
 
-export default function Toolbar({ onExport, onLibrary, onWalkthrough, onAddToolOpenChange }: ToolbarProps) {
+export default function Toolbar({
+  onExport,
+  onLibrary,
+  onWalkthrough,
+  onAddToolOpenChange,
+  onMapStyleOpenChange,
+  onMapToolsOpenChange,
+}: ToolbarProps) {
   const routeInputRef = useRef<HTMLInputElement>(null);
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [mobileMode, setMobileMode] = useState<'default' | 'add' | 'layers'>('default');
@@ -30,7 +39,10 @@ export default function Toolbar({ onExport, onLibrary, onWalkthrough, onAddToolO
   useEffect(() => {
     const previous = previousActiveDropdown.current;
     if (previous === activeDropdown) return;
-    if (previous) onAddToolOpenChange(previous, false);
+    if (previous) {
+      const wasWalkthroughActive = onAddToolOpenChange(previous, false);
+      if (wasWalkthroughActive && previous === 'callout') setMobileMode('default');
+    }
     if (activeDropdown) onAddToolOpenChange(activeDropdown, true);
     previousActiveDropdown.current = activeDropdown;
   }, [activeDropdown, onAddToolOpenChange]);
@@ -76,6 +88,13 @@ export default function Toolbar({ onExport, onLibrary, onWalkthrough, onAddToolO
     buildingsEnabled, setBuildingsEnabled,
     terrainLoading, buildingsLoading,
     isScrubbing,
+    onMapStyleOpenChange,
+    onMapToolsOpenChange,
+  };
+
+  const openProjectSettings = () => {
+    setProjectSettingsTab('general');
+    selectItem(null);
   };
 
   return (
@@ -97,6 +116,10 @@ export default function Toolbar({ onExport, onLibrary, onWalkthrough, onAddToolO
           onHideUI={() => setHideUI(true)}
           renderAvatarMenu={renderAvatarMenu}
           handleAddCameraKF={actions.handleAddCameraKF}
+          onProjectSettings={() => {
+            setMobileMode('default');
+            openProjectSettings();
+          }}
           isPlaying2={isPlaying}
           {...layerProps}
         />
@@ -109,7 +132,7 @@ export default function Toolbar({ onExport, onLibrary, onWalkthrough, onAddToolO
           onExport={onExport}
           onImportClick={() => routeInputRef.current?.click()}
           onHideUI={() => setHideUI(true)}
-          onProjectSettings={() => { setProjectSettingsTab('map'); selectItem(null); }}
+          onProjectSettings={openProjectSettings}
           renderAvatarMenu={renderAvatarMenu}
           handleAddCameraKF={actions.handleAddCameraKF}
           {...layerProps}

@@ -8,6 +8,7 @@ interface SegmentedControlOption<T extends string> {
   icon?: React.ReactNode;
   title?: string;
   'aria-label'?: string;
+  walkthroughTarget?: string;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -45,6 +46,7 @@ function SegmentedControl<T extends string>({
           value={opt.value}
           title={opt.title ?? opt.label ?? opt.value}
           aria-label={opt['aria-label'] ?? opt.label ?? opt.value}
+          data-walkthrough={opt.walkthroughTarget}
           className={cn(
             "flex-1 flex items-center justify-center gap-1.5 transition-all z-10 text-muted-foreground py-1.5 rounded-lg text-xs font-medium select-none",
             value === opt.value

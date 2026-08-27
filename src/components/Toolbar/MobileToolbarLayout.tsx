@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff } from 'lucide-react';
+import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { CalloutAddDropdown } from './CalloutAddDropdown';
@@ -29,6 +29,8 @@ interface MobileToolbarLayoutProps {
   isPlaying2: boolean;
   isScrubbing: boolean;
   handleAddCameraKF: () => void;
+  onProjectSettings: () => void;
+  onMapStyleOpenChange: (open: boolean) => void;
 }
 
 export function MobileToolbarLayout({
@@ -42,6 +44,7 @@ export function MobileToolbarLayout({
   terrainLoading, buildingsLoading,
   isPlaying2, isScrubbing,
   handleAddCameraKF,
+  onProjectSettings, onMapStyleOpenChange,
 }: MobileToolbarLayoutProps) {
   return (
     <div className="w-full flex items-center h-full relative overflow-hidden">
@@ -54,11 +57,11 @@ export function MobileToolbarLayout({
             <Plus size={20} />
           </IconButton>
           <Divider />
-          <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('layers')}>
+          <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('layers')} title="Map Display" data-walkthrough="map-tools">
             <Layers2 size={20} />
           </IconButton>
           <div className="flex-1" />
-          <ToolbarButton icon={<Clapperboard size={18} />} label="Export" hideLabel onClick={onExport} />
+          <ToolbarButton icon={<Clapperboard size={18} />} label="Export" hideLabel onClick={onExport} walkthroughTarget="render" />
           <div className="w-1" />
           <ToolbarButton icon={<EyeOff size={18} />} label="Hide UI" hideLabel onClick={onHideUI} />
         </div>
@@ -82,8 +85,8 @@ export function MobileToolbarLayout({
         <div className="flex items-center w-full animate-in slide-in-from-right-4 duration-300 fill-mode-both">
           <div className="flex items-center gap-2 w-full justify-between px-2">
             <div className="flex items-center gap-1 px-1 flex-1">
-              <Select value={mapStyle} onValueChange={setMapStyle}>
-                <SelectTrigger className="h-8 text-xs flex-1 focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
+              <Select value={mapStyle} onValueChange={setMapStyle} onOpenChange={onMapStyleOpenChange}>
+                <SelectTrigger data-walkthrough="map-style" className="h-8 text-xs flex-1 focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
                   <SelectValue placeholder="Map Style" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-border/50 shadow-2xl">
@@ -91,7 +94,8 @@ export function MobileToolbarLayout({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-1">
+            <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
+            <div data-walkthrough="map-3d" className="flex items-center gap-1">
               <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying2 && !isScrubbing} />
               <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying2 && !isScrubbing} disabled={mapStyle === 'satellite'} />
             </div>

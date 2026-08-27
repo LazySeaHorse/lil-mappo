@@ -162,6 +162,22 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
   await expect(page.getByText("Place a 3D label on the map")).toBeVisible();
   await page.keyboard.press("Escape");
 
+  await expect(page.getByText("Explore the map in 3D")).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Try another map style")).toBeVisible();
+  await page.locator('[data-walkthrough="map-style"]').click();
+  await page.getByRole("option", { name: "Dark" }).click();
+  await expect(page.getByText("Return to Standard")).toBeVisible();
+  await page.locator('[data-walkthrough="map-style"]').click();
+  await page.getByRole("option", { name: "Standard" }).click();
+
+  await expect(page.getByText("Open Map Settings", { exact: true })).toBeVisible();
+  await page.locator('[data-walkthrough="map-settings"]').click();
+  await expect(page.getByText("Open the Map tab")).toBeVisible();
+  await page.locator('[data-walkthrough="project-settings-map-tab"]').click();
+  await expect(page.getByText("Ready to render")).toBeVisible();
+  await page.locator('[data-walkthrough="render"]').click();
+  await expect(page.getByRole("dialog", { name: "Export" })).toBeVisible();
   await expect(page.getByText("Walkthrough complete. Your map is ready to build on.")).toBeVisible();
 });
 

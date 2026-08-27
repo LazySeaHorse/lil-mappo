@@ -54,12 +54,16 @@ function storeStatus(status: StoredWalkthroughStatus) {
 export interface QuickWalkthroughHandle {
   start: () => void;
   recordMapGesture: (gesture: MapGesture) => void;
-  recordAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => void;
+  recordAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => boolean;
+  recordMapStyleOpenChange: (open: boolean) => void;
+  recordMapToolsOpenChange: (open: boolean) => void;
+  recordExportOpened: () => void;
 }
 
 interface QuickWalkthroughProps {
   isMapReady: boolean;
   isMobile: boolean;
+  isTablet: boolean;
 }
 
 type VisibleWalkthroughStage = Exclude<
@@ -96,11 +100,16 @@ function GestureStatus({
 }
 
 const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProps>(
-  function QuickWalkthrough({ isMapReady, isMobile }, ref) {
+  function QuickWalkthrough({ isMapReady, isMobile, isTablet }, ref) {
     const [showInvitation, setShowInvitation] = useState(false);
     const [isRunning, setIsRunning] = useState(false);
     const [exploreSecondsRemaining, setExploreSecondsRemaining] = useState(5);
-    const [walkthrough, setWalkthrough] = useState(() => createWalkthroughState(isMobile, 0));
+    const [isMapStyleOpen, setIsMapStyleOpen] = useState(false);
+    const [isMapToolsOpen, setIsMapToolsOpen] = useState(false);
+    const usesLayerMenu = isMobile || isTablet;
+    const [walkthrough, setWalkthrough] = useState(() =>
+      createWalkthroughState(isMobile, 0, usesLayerMenu),
+    );
     const cameraKeyframes = useProjectStore((state) => {
       const camera = state.items[CAMERA_TRACK_ID] as CameraItem | undefined;
       return camera?.keyframes ?? [];
@@ -110,6 +119,8 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     const playheadTime = useProjectStore((state) => state.playheadTime);
     const isPlaying = useProjectStore((state) => state.isPlaying);
     const selectedKeyframeId = useProjectStore((state) => state.selectedKeyframeId);
+    const mapStyle = useProjectStore((state) => state.mapStyle);
+    const projectSettingsTab = useProjectStore((state) => state.projectSettingsTab);
     const clearedSelectionForPrompt = useRef(false);
 
     const send = useCallback((event: WalkthroughEvent) => {
@@ -118,24 +129,52 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
     const start = useCallback(() => {
       setShowInvitation(false);
-      setWalkthrough(createWalkthroughState(isMobile, cameraKeyframeCount));
+      setWalkthrough(createWalkthroughState(isMobile, cameraKeyframeCount, usesLayerMenu));
       setIsRunning(true);
       storeStatus('started');
-    }, [cameraKeyframeCount, isMobile]);
+    }, [cameraKeyframeCount, isMobile, usesLayerMenu]);
 
     const recordMapGesture = useCallback((gesture: MapGesture) => {
       if (isRunning) send({ type: 'map-gesture', gesture });
     }, [isRunning, send]);
 
     const recordAddToolOpenChange = useCallback((tool: WalkthroughAddTool, open: boolean) => {
-      if (!isRunning) return;
+      if (!isRunning) return false;
       send({ type: open ? 'add-tool-opened' : 'add-tool-closed', tool });
+      return true;
+    }, [isRunning, send]);
+
+    const recordMapStyleOpenChange = useCallback((open: boolean) => {
+      setIsMapStyleOpen(open);
+    }, []);
+
+    const recordMapToolsOpenChange = useCallback((open: boolean) => {
+      setIsMapToolsOpen(open);
+      if (isRunning && open) send({ type: 'map-tools-opened' });
+    }, [isRunning, send]);
+
+    const recordExportOpened = useCallback(() => {
+      if (isRunning) send({ type: 'export-opened' });
     }, [isRunning, send]);
 
     useImperativeHandle(
       ref,
-      () => ({ start, recordMapGesture, recordAddToolOpenChange }),
-      [recordAddToolOpenChange, recordMapGesture, start],
+      () => ({
+        start,
+        recordMapGesture,
+        recordAddToolOpenChange,
+        recordMapStyleOpenChange,
+        recordMapToolsOpenChange,
+        recordExportOpened,
+      }),
+      [
+        recordAddToolOpenChange,
+        recordExportOpened,
+        recordMapGesture,
+        recordMapStyleOpenChange,
+        recordMapToolsOpenChange,
+        start,
+      ],
     );
 
     useEffect(() => {
@@ -221,6 +260,26 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     }, [isRunning, selectedKeyframeId, send, walkthrough.stage]);
 
     useEffect(() => {
+      if (
+        !isRunning ||
+        (walkthrough.stage !== 'change-map-style' &&
+          walkthrough.stage !== 'return-standard-style')
+      ) return;
+
+      send({ type: 'map-style-changed', style: mapStyle });
+    }, [isRunning, mapStyle, send, walkthrough.stage]);
+
+    useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'map-settings-tab') return;
+      send({ type: 'project-settings-tab-changed', tab: projectSettingsTab });
+    }, [isRunning, projectSettingsTab, send, walkthrough.stage]);
+
+    useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'render') return;
+      useProjectStore.getState().setIsInspectorOpen(false);
+    }, [isRunning, walkthrough.stage]);
+
+    useEffect(() => {
       if (!isRunning) return;
 
       const handleClick = (event: MouseEvent) => {
@@ -228,6 +287,8 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         if (!target) return;
 
         if (target.closest('[data-walkthrough="add-menu"]')) send({ type: 'add-menu-opened' });
+        if (target.closest('[data-walkthrough="map-tools"]')) send({ type: 'map-tools-opened' });
+        if (target.closest('[data-walkthrough="map-settings"]')) send({ type: 'map-settings-opened' });
       };
 
       document.addEventListener('click', handleClick);
@@ -255,7 +316,14 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       'route',
       'boundary',
       'callout',
-    ], [isMobile]);
+      ...(usesLayerMenu ? ['open-map-tools' as const] : []),
+      'terrain-buildings',
+      'change-map-style',
+      'return-standard-style',
+      'map-settings',
+      'map-settings-tab',
+      'render',
+    ], [isMobile, usesLayerMenu]);
 
     const steps = useMemo<Step[]>(() => {
       const mapControlCopy = isMobile
@@ -367,6 +435,57 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           content: 'Place a label on the map to explain why a location matters.',
           placement: 'bottom',
         },
+        'open-map-tools': {
+          target: '[data-walkthrough="map-tools"]',
+          title: 'Open the map controls',
+          content: 'Open Map Display to see the map style and 3D controls.',
+          placement: 'bottom',
+        },
+        'terrain-buildings': {
+          target: '[data-walkthrough="map-3d"]',
+          title: 'Explore the map in 3D',
+          content: 'Terrain adds elevation and Buildings adds 3D structures. You can enable either whenever it suits the scene.',
+          placement: 'bottom',
+          buttons: ['skip', 'primary'],
+          locale: { next: 'Next' },
+        },
+        'change-map-style': {
+          target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-style"]',
+          title: 'Try another map style',
+          content: isTablet
+            ? 'Open Map Display and choose a style other than Standard.'
+            : 'Open the style menu and choose a style other than Standard.',
+          placement: 'bottom',
+        },
+        'return-standard-style': {
+          target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-style"]',
+          title: 'Return to Standard',
+          content: isTablet
+            ? 'Use Map Display to switch the style back to Standard.'
+            : 'Switch the map style back to Standard.',
+          placement: 'bottom',
+        },
+        'map-settings': {
+          target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-settings"]',
+          title: 'Open Map Settings',
+          content: isTablet
+            ? 'Open Map Display, then choose Full Map Settings.'
+            : 'Open Map Settings for the project-wide display controls.',
+          placement: 'bottom',
+        },
+        'map-settings-tab': {
+          target: '[data-walkthrough="project-settings-map-tab"]',
+          spotlightTarget: '[data-walkthrough="inspector-panel"]',
+          title: 'Open the Map tab',
+          content: 'This is where you can adjust projection, lighting, terrain, atmosphere, labels, and 3D details.',
+          placement: isMobile ? 'top' : 'left-start',
+        },
+        render: {
+          target: '[data-walkthrough="render"]',
+          title: 'Ready to render',
+          content: 'Open Export when you are ready to render the finished animation. You do not need to start a render now.',
+          placement: 'bottom-end',
+        },
       };
 
       return stages.map((stage) => ({
@@ -378,11 +497,18 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         overlayClickAction: false,
         targetWaitTimeout: 1500,
       }));
-    }, [exploreSecondsRemaining, isMobile, stages, walkthrough.gestures]);
+    }, [exploreSecondsRemaining, isMobile, isTablet, stages, walkthrough.gestures]);
 
     const stepIndex = Math.max(0, stages.indexOf(walkthrough.stage));
     const isUsingAddTool = walkthrough.stage.endsWith('-editor');
     const isWatchingAnimation = walkthrough.stage === 'watch-animation';
+    const isUsingStylePopup = isMapStyleOpen || (
+      isTablet &&
+      isMapToolsOpen &&
+      (walkthrough.stage === 'change-map-style' ||
+        walkthrough.stage === 'return-standard-style' ||
+        walkthrough.stage === 'map-settings')
+    );
 
     const handleTourEvent = useCallback((event: EventData) => {
       if (event.status === STATUS.SKIPPED) {
@@ -392,13 +518,17 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       }
 
       if (
-        walkthrough.stage === 'inspect-keyframe' &&
+        (walkthrough.stage === 'inspect-keyframe' || walkthrough.stage === 'terrain-buildings') &&
         event.action === ACTIONS.NEXT &&
         event.origin === ORIGIN.BUTTON_PRIMARY
       ) {
-        send({ type: 'inspector-acknowledged' });
+        if (walkthrough.stage === 'inspect-keyframe') {
+          send({ type: 'inspector-acknowledged' });
+        } else {
+          send({ type: 'terrain-intro-acknowledged', currentStyle: mapStyle });
+        }
       }
-    }, [send, walkthrough.stage]);
+    }, [mapStyle, send, walkthrough.stage]);
 
     return (
       <>
@@ -421,7 +551,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         </AlertDialog>
 
         <Joyride
-          run={isRunning && !isUsingAddTool && !isWatchingAnimation}
+          run={isRunning && !isUsingAddTool && !isWatchingAnimation && !isUsingStylePopup}
           stepIndex={stepIndex}
           steps={steps}
           continuous
