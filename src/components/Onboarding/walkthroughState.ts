@@ -18,6 +18,13 @@ export type WalkthroughStage =
   | 'boundary-editor'
   | 'callout'
   | 'callout-editor'
+  | 'open-map-tools'
+  | 'terrain-buildings'
+  | 'change-map-style'
+  | 'return-standard-style'
+  | 'map-settings'
+  | 'map-settings-tab'
+  | 'render'
   | 'complete';
 
 export type WalkthroughEvent =
@@ -31,26 +38,37 @@ export type WalkthroughEvent =
   | { type: 'playback-finished' }
   | { type: 'keyframe-selected' }
   | { type: 'inspector-acknowledged' }
+  | { type: 'map-tools-opened' }
+  | { type: 'terrain-intro-acknowledged'; currentStyle: string }
+  | { type: 'map-style-changed'; style: string }
+  | { type: 'map-settings-opened' }
+  | { type: 'project-settings-tab-changed'; tab: 'general' | 'map' }
+  | { type: 'export-opened' }
   | { type: 'add-tool-opened'; tool: WalkthroughAddTool }
   | { type: 'add-tool-closed'; tool: WalkthroughAddTool };
 
 export interface WalkthroughState {
   stage: WalkthroughStage;
   isMobile: boolean;
+  usesLayerMenu: boolean;
   initialKeyframeCount: number;
   firstKeyframeTime: number | null;
+  styleBeforeChange: string | null;
   gestures: Record<MapGesture, boolean>;
 }
 
 export function createWalkthroughState(
   isMobile: boolean,
   initialKeyframeCount: number,
+  usesLayerMenu = isMobile,
 ): WalkthroughState {
   return {
     stage: 'map-controls',
     isMobile,
+    usesLayerMenu,
     initialKeyframeCount,
     firstKeyframeTime: null,
+    styleBeforeChange: null,
     gestures: { pan: false, orbit: false, zoom: false },
   };
 }
@@ -148,6 +166,51 @@ export function walkthroughReducer(
   }
 
   if (state.stage === 'callout-editor' && event.type === 'add-tool-closed' && event.tool === 'callout') {
+    return { ...state, stage: state.usesLayerMenu ? 'open-map-tools' : 'terrain-buildings' };
+  }
+
+  if (state.stage === 'open-map-tools' && event.type === 'map-tools-opened') {
+    return { ...state, stage: 'terrain-buildings' };
+  }
+
+  if (state.stage === 'terrain-buildings' && event.type === 'terrain-intro-acknowledged') {
+    return {
+      ...state,
+      styleBeforeChange: event.currentStyle,
+      stage: 'change-map-style',
+    };
+  }
+
+  if (
+    state.stage === 'change-map-style' &&
+    event.type === 'map-style-changed' &&
+    state.styleBeforeChange !== null &&
+    event.style !== state.styleBeforeChange
+  ) {
+    return { ...state, stage: 'return-standard-style' };
+  }
+
+  if (
+    state.stage === 'return-standard-style' &&
+    event.type === 'map-style-changed' &&
+    event.style === 'standard'
+  ) {
+    return { ...state, stage: 'map-settings' };
+  }
+
+  if (state.stage === 'map-settings' && event.type === 'map-settings-opened') {
+    return { ...state, stage: 'map-settings-tab' };
+  }
+
+  if (
+    state.stage === 'map-settings-tab' &&
+    event.type === 'project-settings-tab-changed' &&
+    event.tab === 'map'
+  ) {
+    return { ...state, stage: 'render' };
+  }
+
+  if (state.stage === 'render' && event.type === 'export-opened') {
     return { ...state, stage: 'complete' };
   }
 

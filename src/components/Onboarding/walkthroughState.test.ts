@@ -101,13 +101,13 @@ describe('quick walkthrough progression', () => {
     );
   });
 
-  it('finishes after the add-tool controls have been introduced', () => {
+  it('continues from add tools through map styling, settings, and export', () => {
     const initial = {
       ...createWalkthroughState(false, 0),
       stage: 'route' as const,
     };
 
-    const complete = reduce(
+    const mapTools = reduce(
       initial,
       { type: 'add-tool-opened', tool: 'route' },
       { type: 'add-tool-closed', tool: 'route' },
@@ -117,6 +117,34 @@ describe('quick walkthrough progression', () => {
       { type: 'add-tool-closed', tool: 'callout' },
     );
 
+    expect(mapTools.stage).toBe('terrain-buildings');
+
+    const complete = reduce(
+      mapTools,
+      { type: 'terrain-intro-acknowledged', currentStyle: 'standard' },
+      { type: 'map-style-changed', style: 'dark' },
+      { type: 'map-style-changed', style: 'standard' },
+      { type: 'map-settings-opened' },
+      { type: 'project-settings-tab-changed', tab: 'map' },
+      { type: 'export-opened' },
+    );
+
     expect(complete.stage).toBe('complete');
+  });
+
+  it('opens compact layer controls before introducing terrain and buildings', () => {
+    const calloutEditor = {
+      ...createWalkthroughState(false, 0, true),
+      stage: 'callout-editor' as const,
+    };
+
+    const closed = walkthroughReducer(calloutEditor, {
+      type: 'add-tool-closed',
+      tool: 'callout',
+    });
+    expect(closed.stage).toBe('open-map-tools');
+    expect(walkthroughReducer(closed, { type: 'map-tools-opened' }).stage).toBe(
+      'terrain-buildings',
+    );
   });
 });
