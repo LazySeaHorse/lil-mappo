@@ -169,8 +169,8 @@ function WalkthroughTooltip({
               variant="ghost"
               size="xs"
               className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-              title={skipProps.title || 'Skip tour'}
-              aria-label={skipProps['aria-label'] || 'Skip tour'}
+              title="Skip tour"
+              aria-label="Skip tour"
               data-action={skipProps['data-action']}
               onClick={skipProps.onClick}
             >
@@ -217,8 +217,8 @@ function WalkthroughTooltip({
                 className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                 data-action={skipProps['data-action']}
                 onClick={skipProps.onClick}
-                aria-label={skipProps['aria-label']}
-                title={skipProps.title}
+                aria-label="Skip tour"
+                title="Skip tour"
               >
                 Skip tour
               </Button>
@@ -231,8 +231,8 @@ function WalkthroughTooltip({
                 className="h-8 px-3 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-sm gap-1.5"
                 data-action={primaryProps['data-action']}
                 onClick={primaryProps.onClick}
-                aria-label={primaryProps['aria-label']}
-                title={primaryProps.title}
+                aria-label={primaryProps['aria-label'] || nextLabel}
+                title={primaryProps.title || nextLabel}
               >
                 <span>{nextLabel}</span>
                 <ArrowRight size={12} className="shrink-0" />
@@ -719,6 +719,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           steps={steps}
           continuous
           tooltipComponent={WalkthroughTooltip}
+          locale={{ skip: 'Skip tour' }}
           onEvent={handleTourEvent}
           floatingOptions={{
             hideArrow: true,
