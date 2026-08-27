@@ -130,15 +130,30 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
   await expect(page.getByText("Choose the next view")).toBeVisible();
 
   await dragMap(page, "left", { x: 600, y: 330 }, { x: 690, y: 300 });
+  await expect(page.getByText("Move forward in time")).toBeVisible({ timeout: 7_000 });
+  const timelineRuler = page.getByTestId("timeline-ruler");
+  const rulerBounds = await timelineRuler.boundingBox();
+  if (!rulerBounds) throw new Error("Timeline ruler has no bounding box");
+  await page.mouse.move(rulerBounds.x + 20, rulerBounds.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(rulerBounds.x + 240, rulerBounds.y + 20, { steps: 8 });
+  await page.mouse.up();
+
   await expect(page.getByText("Save the new view")).toBeVisible();
   await page.getByTitle("Camera KF").click();
 
   await expect(page.getByText("Add a route", { exact: true })).toBeVisible();
   await page.getByTitle("Plan Route").click();
+  await expect(page.getByText("Choose travel mode & points")).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(page.getByText("Highlight a place")).toBeVisible();
   await page.getByTitle("Add Boundary").click();
+  await expect(page.getByText("Search regions & nations")).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(page.getByText("Add a callout", { exact: true })).toBeVisible();
   await page.getByTitle("Add Callout").click();
+  await expect(page.getByText("Place a 3D label on the map")).toBeVisible();
+  await page.keyboard.press("Escape");
 
   await expect(page.getByText("Walkthrough complete. Your map is ready to build on.")).toBeVisible();
 });

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -11,18 +11,29 @@ import { useToolbarActions } from './useToolbarActions';
 import { MobileToolbarLayout } from './MobileToolbarLayout';
 import { DesktopToolbarLayout } from './DesktopToolbarLayout';
 import { AvatarMenu } from '@/components/Account/AvatarMenu';
+import type { WalkthroughAddTool } from '@/components/Onboarding/walkthroughState';
 
 interface ToolbarProps {
   onExport: () => void;
   onLibrary: () => void;
   onWalkthrough: () => void;
+  onAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => void;
 }
 
-export default function Toolbar({ onExport, onLibrary, onWalkthrough }: ToolbarProps) {
+export default function Toolbar({ onExport, onLibrary, onWalkthrough, onAddToolOpenChange }: ToolbarProps) {
   const routeInputRef = useRef<HTMLInputElement>(null);
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [mobileMode, setMobileMode] = useState<'default' | 'add' | 'layers'>('default');
   const [activeDropdown, setActiveDropdown] = useState<'route' | 'callout' | 'boundary' | null>(null);
+  const previousActiveDropdown = useRef<typeof activeDropdown>(null);
+
+  useEffect(() => {
+    const previous = previousActiveDropdown.current;
+    if (previous === activeDropdown) return;
+    if (previous) onAddToolOpenChange(previous, false);
+    if (activeDropdown) onAddToolOpenChange(activeDropdown, true);
+    previousActiveDropdown.current = activeDropdown;
+  }, [activeDropdown, onAddToolOpenChange]);
 
   const {
     isPlaying, mapStyle, setMapStyle,

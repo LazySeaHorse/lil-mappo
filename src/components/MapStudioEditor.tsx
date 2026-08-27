@@ -178,6 +178,7 @@ export default function MapStudioEditor() {
               else setShowLibrary(true);
             }}
             onWalkthrough={() => walkthroughRef.current?.start()}
+            onAddToolOpenChange={(tool, open) => walkthroughRef.current?.recordAddToolOpenChange(tool, open)}
           />
           <InspectorPanel />
           <TimelinePanel />

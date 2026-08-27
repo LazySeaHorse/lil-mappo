@@ -25,6 +25,7 @@ import {
   createWalkthroughState,
   walkthroughReducer,
   type MapGesture,
+  type WalkthroughAddTool,
   type WalkthroughEvent,
   type WalkthroughStage,
 } from './walkthroughState';
@@ -52,6 +53,7 @@ function storeStatus(status: StoredWalkthroughStatus) {
 export interface QuickWalkthroughHandle {
   start: () => void;
   recordMapGesture: (gesture: MapGesture) => void;
+  recordAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => void;
 }
 
 interface QuickWalkthroughProps {
@@ -59,17 +61,35 @@ interface QuickWalkthroughProps {
   isMobile: boolean;
 }
 
-function GestureStatus({ complete, children }: { complete: boolean; children: React.ReactNode }) {
+type VisibleWalkthroughStage = Exclude<
+  WalkthroughStage,
+  'complete' | 'route-editor' | 'boundary-editor' | 'callout-editor'
+>;
+
+function GestureStatus({
+  complete,
+  children,
+  subtext,
+}: {
+  complete: boolean;
+  children: React.ReactNode;
+  subtext?: React.ReactNode;
+}) {
   const Icon = complete ? Check : Circle;
 
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex items-start gap-2 text-sm">
       <Icon
         size={15}
-        className={complete ? 'text-primary' : 'text-muted-foreground/60'}
+        className={`mt-0.5 shrink-0 ${complete ? 'text-primary' : 'text-muted-foreground/60'}`}
         aria-hidden="true"
       />
-      <span className={complete ? 'text-foreground' : 'text-muted-foreground'}>{children}</span>
+      <div>
+        <div className={complete ? 'text-foreground' : 'text-muted-foreground'}>{children}</div>
+        {subtext && (
+          <div className="mt-0.5 text-xs text-muted-foreground/75">{subtext}</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -78,11 +98,13 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
   function QuickWalkthrough({ isMapReady, isMobile }, ref) {
     const [showInvitation, setShowInvitation] = useState(false);
     const [isRunning, setIsRunning] = useState(false);
+    const [exploreSecondsRemaining, setExploreSecondsRemaining] = useState(5);
     const [walkthrough, setWalkthrough] = useState(() => createWalkthroughState(isMobile, 0));
     const cameraKeyframeCount = useProjectStore((state) => {
       const camera = state.items[CAMERA_TRACK_ID] as CameraItem | undefined;
       return camera?.keyframes.length ?? 0;
     });
+    const playheadTime = useProjectStore((state) => state.playheadTime);
 
     const send = useCallback((event: WalkthroughEvent) => {
       setWalkthrough((current) => walkthroughReducer(current, event));
@@ -99,7 +121,16 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       if (isRunning) send({ type: 'map-gesture', gesture });
     }, [isRunning, send]);
 
-    useImperativeHandle(ref, () => ({ start, recordMapGesture }), [recordMapGesture, start]);
+    const recordAddToolOpenChange = useCallback((tool: WalkthroughAddTool, open: boolean) => {
+      if (!isRunning) return;
+      send({ type: open ? 'add-tool-opened' : 'add-tool-closed', tool });
+    }, [isRunning, send]);
+
+    useImperativeHandle(
+      ref,
+      () => ({ start, recordMapGesture, recordAddToolOpenChange }),
+      [recordAddToolOpenChange, recordMapGesture, start],
+    );
 
     useEffect(() => {
       if (!isMapReady || readStoredStatus()) return;
@@ -110,8 +141,33 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
     useEffect(() => {
       if (!isRunning) return;
-      send({ type: 'keyframe-count-changed', count: cameraKeyframeCount });
-    }, [cameraKeyframeCount, isRunning, send]);
+      send({ type: 'keyframe-count-changed', count: cameraKeyframeCount, playheadTime });
+    }, [cameraKeyframeCount, isRunning, playheadTime, send]);
+
+    useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'move-again') return;
+
+      setExploreSecondsRemaining(5);
+      const startedAt = Date.now();
+      const countdown = window.setInterval(() => {
+        const elapsedSeconds = (Date.now() - startedAt) / 1000;
+        setExploreSecondsRemaining(Math.max(0, Math.ceil(5 - elapsedSeconds)));
+      }, 200);
+      const finishExploring = window.setTimeout(() => {
+        send({ type: 'exploration-time-elapsed' });
+      }, 5000);
+
+      return () => {
+        window.clearInterval(countdown);
+        window.clearTimeout(finishExploring);
+      };
+    }, [isRunning, send, walkthrough.stage]);
+
+    useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'move-playhead') return;
+      if (isMobile) useProjectStore.getState().setIsInspectorOpen(false);
+      send({ type: 'playhead-time-changed', time: playheadTime });
+    }, [isMobile, isRunning, playheadTime, send, walkthrough.stage]);
 
     useEffect(() => {
       if (!isRunning) return;
@@ -120,15 +176,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         const target = event.target instanceof Element ? event.target : null;
         if (!target) return;
 
-        if (target.closest('[data-walkthrough="add-menu"]')) {
-          send({ type: 'add-menu-opened' });
-        } else if (target.closest('[data-walkthrough="add-route"]')) {
-          send({ type: 'route-opened' });
-        } else if (target.closest('[data-walkthrough="add-boundary"]')) {
-          send({ type: 'boundary-opened' });
-        } else if (target.closest('[data-walkthrough="add-callout"]')) {
-          send({ type: 'callout-opened' });
-        }
+        if (target.closest('[data-walkthrough="add-menu"]')) send({ type: 'add-menu-opened' });
       };
 
       document.addEventListener('click', handleClick);
@@ -143,11 +191,12 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       toast.success('Walkthrough complete. Your map is ready to build on.');
     }, [isRunning, walkthrough.stage]);
 
-    const stages = useMemo<WalkthroughStage[]>(() => [
+    const stages = useMemo<VisibleWalkthroughStage[]>(() => [
       'map-controls',
       ...(isMobile ? ['open-add-menu' as const] : []),
       'first-keyframe',
       'move-again',
+      'move-playhead',
       'second-keyframe',
       'route',
       'boundary',
@@ -167,7 +216,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
             zoom: 'Scroll to zoom in and out',
           };
 
-      const byStage: Record<Exclude<WalkthroughStage, 'complete'>, Step> = {
+      const byStage: Record<VisibleWalkthroughStage, Step> = {
         'map-controls': {
           target: '[data-walkthrough="map-coachmark-anchor"]',
           spotlightTarget: '[data-walkthrough="map-viewport"]',
@@ -178,7 +227,12 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           content: (
             <div className="space-y-2.5 text-left">
               <GestureStatus complete={walkthrough.gestures.pan}>{mapControlCopy.pan}</GestureStatus>
-              <GestureStatus complete={walkthrough.gestures.orbit}>{mapControlCopy.orbit}</GestureStatus>
+              <GestureStatus
+                complete={walkthrough.gestures.orbit}
+                subtext={isMobile ? undefined : 'Or hold Ctrl and drag with the primary mouse button.'}
+              >
+                {mapControlCopy.orbit}
+              </GestureStatus>
               <GestureStatus complete={walkthrough.gestures.zoom}>{mapControlCopy.zoom}</GestureStatus>
             </div>
           ),
@@ -199,10 +253,18 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           target: '[data-walkthrough="map-coachmark-anchor"]',
           spotlightTarget: '[data-walkthrough="map-viewport"]',
           title: 'Choose the next view',
-          content: 'Move the map to a different position for the end of your camera move.',
+          content: `Move around and choose a different camera angle. Continuing in ${exploreSecondsRemaining} seconds.`,
           placement: 'right-start',
           spotlightPadding: 0,
           floatingOptions: { hideArrow: true, flipOptions: false },
+        },
+        'move-playhead': {
+          target: '[data-walkthrough="timeline-panel"]',
+          title: 'Move forward in time',
+          content: 'Drag the playhead on the timeline to where you want the second view to appear.',
+          placement: 'top-start',
+          spotlightPadding: 0,
+          skipScroll: true,
         },
         'second-keyframe': {
           target: '[data-walkthrough="camera-keyframe"]',
@@ -231,7 +293,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       };
 
       return stages.map((stage) => ({
-        ...byStage[stage as Exclude<WalkthroughStage, 'complete'>],
+        ...byStage[stage],
         buttons: ['skip'],
         skipBeacon: true,
         blockTargetInteraction: false,
@@ -239,9 +301,10 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         overlayClickAction: false,
         targetWaitTimeout: 1500,
       }));
-    }, [isMobile, stages, walkthrough.gestures]);
+    }, [exploreSecondsRemaining, isMobile, stages, walkthrough.gestures]);
 
     const stepIndex = Math.max(0, stages.indexOf(walkthrough.stage));
+    const isUsingAddTool = walkthrough.stage.endsWith('-editor');
 
     const handleTourEvent = useCallback((event: EventData) => {
       if (event.status !== STATUS.SKIPPED) return;
@@ -270,7 +333,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         </AlertDialog>
 
         <Joyride
-          run={isRunning}
+          run={isRunning && !isUsingAddTool}
           stepIndex={stepIndex}
           steps={steps}
           continuous

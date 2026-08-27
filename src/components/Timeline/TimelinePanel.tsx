@@ -144,6 +144,7 @@ export default function TimelinePanel() {
     <div
       ref={containerRef}
       data-testid="timeline-panel"
+      data-walkthrough="timeline-panel"
       className={`absolute ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} bg-background/85 border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
       style={{
         height: clampedHeight,
