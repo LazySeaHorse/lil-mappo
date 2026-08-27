@@ -7,8 +7,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { ACTIONS, Joyride, ORIGIN, STATUS, type EventData, type Step } from 'react-joyride';
-import { Check, Circle, Compass } from 'lucide-react';
+import { ACTIONS, Joyride, ORIGIN, STATUS, type EventData, type Step, type TooltipRenderProps } from 'react-joyride';
+import { ArrowRight, Check, Circle, Compass, Sparkles, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { IconButton } from '@/components/ui/icon-button';
 import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
 import { toast } from 'sonner';
@@ -83,17 +86,160 @@ function GestureStatus({
   const Icon = complete ? Check : Circle;
 
   return (
-    <div className="flex items-start gap-2 text-sm">
-      <Icon
-        size={15}
-        className={`mt-0.5 shrink-0 ${complete ? 'text-primary' : 'text-muted-foreground/60'}`}
-        aria-hidden="true"
-      />
-      <div>
-        <div className={complete ? 'text-foreground' : 'text-muted-foreground'}>{children}</div>
+    <div
+      className={`flex items-start gap-2.5 p-2 rounded-xl transition-all ${
+        complete
+          ? 'bg-primary/10 border border-primary/20'
+          : 'bg-secondary/30 border border-border/30'
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded-full shrink-0 transition-colors ${
+          complete ? 'bg-primary text-primary-foreground' : 'text-muted-foreground/60'
+        }`}
+      >
+        <Icon
+          size={11}
+          className={complete ? 'text-primary-foreground stroke-[2.5]' : 'text-muted-foreground/60'}
+          aria-hidden="true"
+        />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div
+          className={`text-xs leading-tight transition-colors ${
+            complete ? 'text-foreground font-medium' : 'text-muted-foreground'
+          }`}
+        >
+          {children}
+        </div>
         {subtext && (
-          <div className="mt-0.5 text-xs text-muted-foreground/75">{subtext}</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground/75 leading-tight">{subtext}</div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function WalkthroughTooltip({
+  index,
+  size,
+  step,
+  isLastStep,
+  primaryProps,
+  skipProps,
+  tooltipProps,
+}: TooltipRenderProps) {
+  const showPrimary = step.buttons?.includes('primary');
+  const showSkip = step.buttons?.includes('skip');
+  const progressPercent = Math.round(((index + 1) / size) * 100);
+  const nextLabel =
+    typeof step.locale?.next === 'string'
+      ? step.locale.next
+      : isLastStep
+      ? (typeof step.locale?.last === 'string' ? step.locale.last : 'Finish')
+      : 'Next';
+
+  return (
+    <div
+      {...tooltipProps}
+      className="w-[calc(100vw-24px)] max-w-sm sm:max-w-md rounded-2xl bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/20 overflow-hidden transition-all text-foreground select-none pointer-events-auto"
+      style={{ fontFamily: "'Outfit', sans-serif" }}
+    >
+      {/* Top progress indicator bar */}
+      <div className="h-1 w-full bg-secondary/60 relative overflow-hidden">
+        <div
+          className="h-full bg-primary transition-all duration-300 ease-out"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
+      <div className="p-4 sm:p-5 flex flex-col gap-3">
+        {/* Header: Step Counter Badge & Close/Skip Button */}
+        <div className="flex items-center justify-between gap-2">
+          <Badge
+            variant="secondary"
+            className="font-mono-time text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-secondary/70 border border-border/40 text-muted-foreground font-medium"
+          >
+            Step {index + 1} of {size}
+          </Badge>
+
+          {showSkip && (
+            <IconButton
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              title={skipProps.title || 'Skip tour'}
+              aria-label={skipProps['aria-label'] || 'Skip tour'}
+              data-action={skipProps['data-action']}
+              onClick={skipProps.onClick}
+            >
+              <X size={13} />
+            </IconButton>
+          )}
+        </div>
+
+        {/* Title */}
+        {step.title && (
+          <h3 className="text-sm sm:text-base font-semibold tracking-tight text-foreground leading-snug">
+            {step.title}
+          </h3>
+        )}
+
+        {/* Content */}
+        {step.content && (
+          <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            {step.content}
+          </div>
+        )}
+
+        {/* Footer actions */}
+        <div className="pt-2 mt-0.5 border-t border-border/30 flex items-center justify-between gap-2">
+          <div>
+            {!showPrimary ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/15">
+                <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+                Action required
+              </span>
+            ) : (
+              <span className="text-[11px] text-muted-foreground/75 font-mono-time">
+                {progressPercent}% completed
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {showSkip && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                data-action={skipProps['data-action']}
+                onClick={skipProps.onClick}
+                aria-label={skipProps['aria-label']}
+                title={skipProps.title}
+              >
+                Skip tour
+              </Button>
+            )}
+
+            {showPrimary && (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-3 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-sm gap-1.5"
+                data-action={primaryProps['data-action']}
+                onClick={primaryProps.onClick}
+                aria-label={primaryProps['aria-label']}
+                title={primaryProps.title}
+              >
+                <span>{nextLabel}</span>
+                <ArrowRight size={12} className="shrink-0" />
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -317,7 +463,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           spotlightPadding: 0,
           floatingOptions: { hideArrow: true, flipOptions: false },
           content: (
-            <div className="space-y-2.5 text-left">
+            <div className="space-y-2 text-left mt-1">
               <GestureStatus complete={walkthrough.gestures.pan}>{mapControlCopy.pan}</GestureStatus>
               <GestureStatus
                 complete={walkthrough.gestures.orbit}
@@ -514,19 +660,55 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     return (
       <>
         <AlertDialog open={showInvitation} onOpenChange={setShowInvitation}>
-          <AlertDialogContent className="sm:max-w-md">
-            <AlertDialogHeader>
-              <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Compass size={20} aria-hidden="true" />
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-[440px] rounded-2xl bg-background/95 backdrop-blur-xl border-border/40 shadow-2xl p-0 overflow-hidden">
+            <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
+              <AlertDialogHeader>
+                <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-sm">
+                  <Compass size={22} aria-hidden="true" />
+                </div>
+                <AlertDialogTitle className="text-xl sm:text-2xl font-medium tracking-tight">
+                  Start the quick tour?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground text-sm leading-relaxed mt-1">
+                  Learn how to navigate the map and create your first video animation. This tour takes 90 seconds.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+            </div>
+
+            <div className="px-6 pb-5 space-y-2">
+              <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/25 border border-border/30 text-xs text-foreground/90">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                  <Sparkles size={13} />
+                </span>
+                <span>Interactive map controls & gestures</span>
               </div>
-              <AlertDialogTitle>Start the quick tour?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Learn how to navigate the map and create your first video animation. This tour takes 90 seconds.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => storeStatus('dismissed')}>Not now</AlertDialogCancel>
-              <AlertDialogAction onClick={start}>Start tour</AlertDialogAction>
+              <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/25 border border-border/30 text-xs text-foreground/90">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                  <Check size={13} />
+                </span>
+                <span>Camera keyframes & timeline playback</span>
+              </div>
+              <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/25 border border-border/30 text-xs text-foreground/90">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                  <Check size={13} />
+                </span>
+                <span>Routes, callouts, 3D styles & video export</span>
+              </div>
+            </div>
+
+            <AlertDialogFooter className="p-4 sm:p-5 bg-secondary/10 border-t border-border/40 flex items-center justify-end gap-2.5">
+              <AlertDialogCancel
+                onClick={() => storeStatus('dismissed')}
+                className="h-9 px-4 text-xs font-medium rounded-lg border-border/50 bg-background/50 hover:bg-secondary/80"
+              >
+                Not now
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={start}
+                className="h-9 px-4 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+              >
+                Start tour
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -536,27 +718,41 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           stepIndex={stepIndex}
           steps={steps}
           continuous
+          tooltipComponent={WalkthroughTooltip}
           onEvent={handleTourEvent}
+          floatingOptions={{
+            hideArrow: true,
+            flipOptions: {
+              padding: 16,
+            },
+            shiftOptions: {
+              padding: 16,
+            },
+          }}
           options={{
-            backgroundColor: 'hsl(var(--background))',
+            backgroundColor: 'transparent',
             textColor: 'hsl(var(--foreground))',
             primaryColor: 'hsl(var(--primary))',
-            arrowColor: 'hsl(var(--background))',
-            overlayColor: 'rgba(0, 0, 0, 0.58)',
+            arrowColor: 'transparent',
+            overlayColor: 'rgba(0, 0, 0, 0.65)',
             spotlightPadding: 6,
-            spotlightRadius: 10,
+            spotlightRadius: 12,
             zIndex: 120,
           }}
           styles={{
             tooltip: {
-              border: '1px solid hsl(var(--border))',
-              borderRadius: 16,
-              boxShadow: '0 18px 48px rgba(0, 0, 0, 0.24)',
-              fontFamily: 'Outfit, sans-serif',
+              padding: 0,
+              backgroundColor: 'transparent',
+              boxShadow: 'none',
             },
-            tooltipTitle: { fontSize: 16, fontWeight: 600 },
-            tooltipContent: { fontSize: 14, lineHeight: 1.5 },
-            buttonSkip: { color: 'hsl(var(--muted-foreground))', fontSize: 13 },
+            tooltipContainer: {
+              padding: 0,
+              backgroundColor: 'transparent',
+              textAlign: 'left',
+            },
+            floater: {
+              filter: 'none',
+            },
           }}
         />
       </>
@@ -565,3 +761,4 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 );
 
 export default QuickWalkthrough;
+
