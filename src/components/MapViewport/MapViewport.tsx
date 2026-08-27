@@ -158,6 +158,11 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
 
   return (
     <div className="w-full h-full relative" data-walkthrough="map-viewport">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-4 top-20 h-px w-px"
+        data-walkthrough="map-coachmark-anchor"
+      />
       <MapGL
         ref={mapRef}
         mapboxAccessToken={mapboxToken}

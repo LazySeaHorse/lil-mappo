@@ -169,9 +169,12 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
       const byStage: Record<Exclude<WalkthroughStage, 'complete'>, Step> = {
         'map-controls': {
-          target: '[data-walkthrough="map-viewport"]',
+          target: '[data-walkthrough="map-coachmark-anchor"]',
+          spotlightTarget: '[data-walkthrough="map-viewport"]',
           title: 'Get comfortable with the map',
-          placement: 'center',
+          placement: 'right-start',
+          spotlightPadding: 0,
+          floatingOptions: { hideArrow: true, flipOptions: false },
           content: (
             <div className="space-y-2.5 text-left">
               <GestureStatus complete={walkthrough.gestures.pan}>{mapControlCopy.pan}</GestureStatus>
@@ -193,10 +196,13 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           placement: 'bottom',
         },
         'move-again': {
-          target: '[data-walkthrough="map-viewport"]',
+          target: '[data-walkthrough="map-coachmark-anchor"]',
+          spotlightTarget: '[data-walkthrough="map-viewport"]',
           title: 'Choose the next view',
           content: 'Move the map to a different position for the end of your camera move.',
-          placement: 'center',
+          placement: 'right-start',
+          spotlightPadding: 0,
+          floatingOptions: { hideArrow: true, flipOptions: false },
         },
         'second-keyframe': {
           target: '[data-walkthrough="camera-keyframe"]',
