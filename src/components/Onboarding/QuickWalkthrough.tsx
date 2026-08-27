@@ -68,7 +68,7 @@ interface QuickWalkthroughProps {
 
 type VisibleWalkthroughStage = Exclude<
   WalkthroughStage,
-  'complete' | 'route-editor' | 'boundary-editor' | 'callout-editor'
+  'complete' | 'prepare-render' | 'route-editor' | 'boundary-editor' | 'callout-editor'
 >;
 
 function GestureStatus({
@@ -103,7 +103,6 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
   function QuickWalkthrough({ isMapReady, isMobile, isTablet }, ref) {
     const [showInvitation, setShowInvitation] = useState(false);
     const [isRunning, setIsRunning] = useState(false);
-    const [exploreSecondsRemaining, setExploreSecondsRemaining] = useState(5);
     const [isMapStyleOpen, setIsMapStyleOpen] = useState(false);
     const [isMapToolsOpen, setIsMapToolsOpen] = useState(false);
     const usesLayerMenu = isMobile || isTablet;
@@ -188,29 +187,25 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     }, [cameraKeyframeCount, isRunning, playheadTime, send]);
 
     useEffect(() => {
-      if (!isRunning || walkthrough.stage !== 'move-again') return;
-
-      setExploreSecondsRemaining(5);
-      const startedAt = Date.now();
-      const countdown = window.setInterval(() => {
-        const elapsedSeconds = (Date.now() - startedAt) / 1000;
-        setExploreSecondsRemaining(Math.max(0, Math.ceil(5 - elapsedSeconds)));
-      }, 200);
-      const finishExploring = window.setTimeout(() => {
-        send({ type: 'exploration-time-elapsed' });
-      }, 5000);
-
-      return () => {
-        window.clearInterval(countdown);
-        window.clearTimeout(finishExploring);
-      };
-    }, [isRunning, send, walkthrough.stage]);
-
-    useEffect(() => {
       if (!isRunning || walkthrough.stage !== 'move-playhead') return;
       useProjectStore.getState().setIsInspectorOpen(false);
       send({ type: 'playhead-time-changed', time: playheadTime });
     }, [isRunning, playheadTime, send, walkthrough.stage]);
+
+    useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'second-keyframe') return;
+
+      const target = document.querySelector<HTMLElement>('[data-walkthrough="camera-keyframe"]');
+      target?.classList.add('animate-pulse', 'ring-2', 'ring-primary/60');
+      return () => {
+        target?.classList.remove('animate-pulse', 'ring-2', 'ring-primary/60');
+      };
+    }, [isRunning, walkthrough.stage]);
+
+    useEffect(() => {
+      if (!isRunning || walkthrough.stage !== 'play-animation') return;
+      useProjectStore.getState().setPlayheadTime(0);
+    }, [isRunning, walkthrough.stage]);
 
     useEffect(() => {
       if (!isRunning || walkthrough.stage !== 'select-keyframe') {
@@ -245,9 +240,14 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     }, [isRunning, projectSettingsTab, send, walkthrough.stage]);
 
     useEffect(() => {
-      if (!isRunning || walkthrough.stage !== 'render') return;
+      if (!isRunning || walkthrough.stage !== 'prepare-render') return;
       useProjectStore.getState().setIsInspectorOpen(false);
-    }, [isRunning, walkthrough.stage]);
+
+      const layoutDelay = window.setTimeout(() => {
+        send({ type: 'render-layout-ready' });
+      }, 350);
+      return () => window.clearTimeout(layoutDelay);
+    }, [isRunning, send, walkthrough.stage]);
 
     useEffect(() => {
       if (!isRunning) return;
@@ -277,7 +277,6 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       'map-controls',
       ...(isMobile ? ['open-add-menu' as const] : []),
       'first-keyframe',
-      'move-again',
       'move-playhead',
       'second-keyframe',
       'play-animation',
@@ -292,6 +291,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       'return-standard-style',
       'map-settings',
       'map-settings-tab',
+      'map-settings-overview',
       'render',
     ], [isMobile, usesLayerMenu]);
 
@@ -341,15 +341,6 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           content: 'Add a camera keyframe to remember the current position and angle.',
           placement: 'bottom',
         },
-        'move-again': {
-          target: '[data-walkthrough="map-coachmark-anchor"]',
-          spotlightTarget: '[data-walkthrough="map-viewport"]',
-          title: 'Choose the next view',
-          content: `Move around and choose a different camera angle. Continuing in ${exploreSecondsRemaining} seconds.`,
-          placement: 'right-start',
-          spotlightPadding: 0,
-          floatingOptions: { hideArrow: true, flipOptions: false },
-        },
         'move-playhead': {
           target: '[data-walkthrough="timeline-panel"]',
           title: 'Move forward in time',
@@ -360,14 +351,15 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         },
         'second-keyframe': {
           target: '[data-walkthrough="camera-keyframe"]',
-          title: 'Save the new view',
-          content: 'Add another keyframe. The camera animates between your saved views.',
+          title: 'Add another keyframe',
+          content: 'Move around freely. When you are happy with the next view, click here to add another keyframe.',
           placement: 'bottom',
+          hideOverlay: true,
         },
         'play-animation': {
           target: '[data-walkthrough="timeline-play"]',
           title: 'Play your camera move',
-          content: 'Use Play to preview the animation between your saved views. You can try it now or continue.',
+          content: 'Set the playhead and press Play to view the animation between your saved views.',
           placement: 'top',
           buttons: ['skip', 'primary'],
           locale: { next: 'Next' },
@@ -449,8 +441,16 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
           target: '[data-walkthrough="project-settings-map-tab"]',
           spotlightTarget: '[data-walkthrough="inspector-panel"]',
           title: 'Open the Map tab',
-          content: 'This is where you can adjust projection, lighting, terrain, atmosphere, labels, and 3D details.',
+          content: 'Select Map to see the project-wide map controls.',
           placement: isMobile ? 'top' : 'left-start',
+        },
+        'map-settings-overview': {
+          target: '[data-walkthrough="inspector-panel"]',
+          title: 'Map settings in one place',
+          content: 'Use this tab to adjust projection, lighting, terrain, atmosphere, labels, and 3D details.',
+          placement: isMobile ? 'top' : 'left-start',
+          buttons: ['skip', 'primary'],
+          locale: { next: 'Next' },
         },
         render: {
           target: '[data-walkthrough="render"]',
@@ -469,9 +469,11 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         overlayClickAction: false,
         targetWaitTimeout: 1500,
       }));
-    }, [exploreSecondsRemaining, isMobile, isTablet, stages, walkthrough.gestures]);
+    }, [isMobile, isTablet, stages, walkthrough.gestures]);
 
-    const stepIndex = Math.max(0, stages.indexOf(walkthrough.stage));
+    const visibleStepIndex = stages.indexOf(walkthrough.stage as VisibleWalkthroughStage);
+    const hasVisibleStep = visibleStepIndex >= 0;
+    const stepIndex = Math.max(0, visibleStepIndex);
     const isUsingAddTool = walkthrough.stage.endsWith('-editor');
     const isUsingStylePopup = isMapStyleOpen || (
       isTablet &&
@@ -491,14 +493,18 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
       if (
         (walkthrough.stage === 'play-animation' ||
           walkthrough.stage === 'inspect-keyframe' ||
+          walkthrough.stage === 'map-settings-overview' ||
           walkthrough.stage === 'terrain-buildings') &&
         event.action === ACTIONS.NEXT &&
         event.origin === ORIGIN.BUTTON_PRIMARY
       ) {
         if (walkthrough.stage === 'play-animation') {
+          useProjectStore.getState().setIsPlaying(false);
           send({ type: 'play-preview-acknowledged' });
         } else if (walkthrough.stage === 'inspect-keyframe') {
           send({ type: 'inspector-acknowledged' });
+        } else if (walkthrough.stage === 'map-settings-overview') {
+          send({ type: 'map-settings-overview-acknowledged' });
         } else {
           send({ type: 'terrain-intro-acknowledged', currentStyle: mapStyle });
         }
@@ -526,7 +532,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         </AlertDialog>
 
         <Joyride
-          run={isRunning && !isUsingAddTool && !isUsingStylePopup}
+          run={isRunning && hasVisibleStep && !isUsingAddTool && !isUsingStylePopup}
           stepIndex={stepIndex}
           steps={steps}
           continuous

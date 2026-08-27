@@ -127,10 +127,8 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
 
   await expect(page.getByText("Save this view")).toBeVisible();
   await page.getByTitle("Camera KF").click();
-  await expect(page.getByText("Choose the next view")).toBeVisible();
 
-  await dragMap(page, "left", { x: 600, y: 330 }, { x: 690, y: 300 });
-  await expect(page.getByText("Move forward in time")).toBeVisible({ timeout: 7_000 });
+  await expect(page.getByText("Move forward in time")).toBeVisible();
   const timelineRuler = page.getByTestId("timeline-ruler");
   const rulerBounds = await timelineRuler.boundingBox();
   if (!rulerBounds) throw new Error("Timeline ruler has no bounding box");
@@ -139,12 +137,18 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
   await page.mouse.move(rulerBounds.x + 240, rulerBounds.y + 20, { steps: 8 });
   await page.mouse.up();
 
-  await expect(page.getByText("Save the new view")).toBeVisible();
+  await expect(page.getByText("Add another keyframe")).toBeVisible();
+  await dragMap(page, "left", { x: 600, y: 330 }, { x: 690, y: 300 });
+  await expect(page.getByTitle("Camera KF")).toHaveClass(/animate-pulse/);
   await page.getByTitle("Camera KF").click();
 
   await expect(page.getByText("Play your camera move")).toBeVisible();
+  await expect(page.getByTestId("timeline-ruler-playhead")).toHaveCSS("left", "0px");
   await expect(page.locator('[data-walkthrough="timeline-play"]')).toHaveAttribute("title", "Play / Pause (Space)");
+  await page.locator('[data-walkthrough="timeline-play"]').click();
+  await expect(page.locator('[data-walkthrough="timeline-play"]')).toHaveClass(/text-primary/);
   await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.locator('[data-walkthrough="timeline-play"]')).not.toHaveClass(/text-primary/);
   await expect(page.getByText("Inspect a keyframe")).toBeVisible();
   await page.locator('[data-walkthrough="timeline-keyframe"]').first().click();
   await expect(page.getByText("Fine-tune this keyframe")).toBeVisible();
@@ -176,6 +180,8 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
   await page.locator('[data-walkthrough="map-settings"]').click();
   await expect(page.getByText("Open the Map tab")).toBeVisible();
   await page.locator('[data-walkthrough="project-settings-map-tab"]').click();
+  await expect(page.getByText("Map settings in one place")).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
   await expect(page.getByText("Ready to render")).toBeVisible();
   await page.locator('[data-walkthrough="render"]').click();
   await expect(page.getByRole("dialog", { name: "Export" })).toBeVisible();

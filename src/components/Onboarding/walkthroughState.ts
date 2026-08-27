@@ -5,7 +5,6 @@ export type WalkthroughStage =
   | 'map-controls'
   | 'open-add-menu'
   | 'first-keyframe'
-  | 'move-again'
   | 'move-playhead'
   | 'second-keyframe'
   | 'play-animation'
@@ -23,6 +22,8 @@ export type WalkthroughStage =
   | 'return-standard-style'
   | 'map-settings'
   | 'map-settings-tab'
+  | 'map-settings-overview'
+  | 'prepare-render'
   | 'render'
   | 'complete';
 
@@ -30,7 +31,6 @@ export type WalkthroughEvent =
   | { type: 'map-gesture'; gesture: MapGesture }
   | { type: 'add-menu-opened' }
   | { type: 'keyframe-count-changed'; count: number; playheadTime: number }
-  | { type: 'exploration-time-elapsed' }
   | { type: 'playhead-time-changed'; time: number }
   | { type: 'play-preview-acknowledged' }
   | { type: 'keyframe-selected' }
@@ -40,6 +40,8 @@ export type WalkthroughEvent =
   | { type: 'map-style-changed'; style: string }
   | { type: 'map-settings-opened' }
   | { type: 'project-settings-tab-changed'; tab: 'general' | 'map' }
+  | { type: 'map-settings-overview-acknowledged' }
+  | { type: 'render-layout-ready' }
   | { type: 'export-opened' }
   | { type: 'add-tool-opened'; tool: WalkthroughAddTool }
   | { type: 'add-tool-closed'; tool: WalkthroughAddTool };
@@ -98,11 +100,7 @@ export function walkthroughReducer(
     event.type === 'keyframe-count-changed' &&
     event.count > state.initialKeyframeCount
   ) {
-    return { ...state, firstKeyframeTime: event.playheadTime, stage: 'move-again' };
-  }
-
-  if (state.stage === 'move-again' && event.type === 'exploration-time-elapsed') {
-    return { ...state, stage: 'move-playhead' };
+    return { ...state, firstKeyframeTime: event.playheadTime, stage: 'move-playhead' };
   }
 
   if (
@@ -196,6 +194,17 @@ export function walkthroughReducer(
     event.type === 'project-settings-tab-changed' &&
     event.tab === 'map'
   ) {
+    return { ...state, stage: 'map-settings-overview' };
+  }
+
+  if (
+    state.stage === 'map-settings-overview' &&
+    event.type === 'map-settings-overview-acknowledged'
+  ) {
+    return { ...state, stage: 'prepare-render' };
+  }
+
+  if (state.stage === 'prepare-render' && event.type === 'render-layout-ready') {
     return { ...state, stage: 'render' };
   }
 

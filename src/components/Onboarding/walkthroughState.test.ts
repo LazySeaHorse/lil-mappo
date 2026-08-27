@@ -41,7 +41,7 @@ describe('quick walkthrough progression', () => {
     ).toBe('first-keyframe');
   });
 
-  it('allows exploration, then requires the playhead to move before the second keyframe', () => {
+  it('requires moving the playhead, then allows exploration before the second keyframe', () => {
     const ready = reduce(
       createWalkthroughState(false, 3),
       gesture('pan'),
@@ -54,22 +54,20 @@ describe('quick walkthrough progression', () => {
       playheadTime: 0,
     });
 
-    expect(firstSaved.stage).toBe('move-again');
+    expect(firstSaved.stage).toBe('move-playhead');
     expect(
       walkthroughReducer(firstSaved, {
         type: 'keyframe-count-changed',
         count: 5,
         playheadTime: 0,
       }).stage,
-    ).toBe('move-again');
-
-    const explored = walkthroughReducer(firstSaved, { type: 'exploration-time-elapsed' });
-    expect(explored.stage).toBe('move-playhead');
-    expect(
-      walkthroughReducer(explored, { type: 'playhead-time-changed', time: 0.05 }).stage,
     ).toBe('move-playhead');
 
-    const moved = walkthroughReducer(explored, { type: 'playhead-time-changed', time: 5 });
+    expect(
+      walkthroughReducer(firstSaved, { type: 'playhead-time-changed', time: 0.05 }).stage,
+    ).toBe('move-playhead');
+
+    const moved = walkthroughReducer(firstSaved, { type: 'playhead-time-changed', time: 5 });
     expect(moved.stage).toBe('second-keyframe');
     const secondSaved = walkthroughReducer(moved, {
       type: 'keyframe-count-changed',
@@ -114,6 +112,8 @@ describe('quick walkthrough progression', () => {
       { type: 'map-style-changed', style: 'standard' },
       { type: 'map-settings-opened' },
       { type: 'project-settings-tab-changed', tab: 'map' },
+      { type: 'map-settings-overview-acknowledged' },
+      { type: 'render-layout-ready' },
       { type: 'export-opened' },
     );
 
