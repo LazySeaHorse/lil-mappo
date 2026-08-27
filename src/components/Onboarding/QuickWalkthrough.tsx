@@ -270,7 +270,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
 
       setIsRunning(false);
       storeStatus('completed');
-      toast.success('Walkthrough complete. Your map is ready to build on.');
+      toast.success('Tour complete. You can now create your map animation.');
     }, [isRunning, walkthrough.stage]);
 
     const stages = useMemo<VisibleWalkthroughStage[]>(() => [
@@ -298,21 +298,21 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
     const steps = useMemo<Step[]>(() => {
       const mapControlCopy = isMobile
         ? {
-            pan: 'Drag with one finger to move',
-            orbit: 'Drag with two fingers to look around',
-            zoom: 'Pinch to zoom in and out',
+            pan: 'Drag with one finger to pan',
+            orbit: 'Drag with two fingers to tilt and rotate',
+            zoom: 'Pinch with two fingers to zoom',
           }
         : {
-            pan: 'Drag with the main mouse button to move',
-            orbit: 'Drag with the secondary mouse button to look around',
-            zoom: 'Scroll to zoom in and out',
+            pan: 'Left-click and drag to move the map',
+            orbit: 'Right-click and drag to tilt and rotate',
+            zoom: 'Scroll the mouse wheel to zoom',
           };
 
       const byStage: Record<VisibleWalkthroughStage, Step> = {
         'map-controls': {
           target: '[data-walkthrough="map-coachmark-anchor"]',
           spotlightTarget: '[data-walkthrough="map-viewport"]',
-          title: 'Get comfortable with the map',
+          title: 'Learn the map controls',
           placement: 'right-start',
           spotlightPadding: 0,
           floatingOptions: { hideArrow: true, flipOptions: false },
@@ -321,7 +321,7 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
               <GestureStatus complete={walkthrough.gestures.pan}>{mapControlCopy.pan}</GestureStatus>
               <GestureStatus
                 complete={walkthrough.gestures.orbit}
-                subtext={isMobile ? undefined : 'Or hold Ctrl and drag with the primary mouse button.'}
+                subtext={isMobile ? undefined : 'You can also hold Ctrl and left-drag.'}
               >
                 {mapControlCopy.orbit}
               </GestureStatus>
@@ -331,35 +331,35 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         },
         'open-add-menu': {
           target: '[data-walkthrough="add-menu"]',
-          title: 'Open the add tools',
-          content: 'Tap here to find camera keyframes, routes, boundaries, and callouts.',
+          title: 'Open the Add menu',
+          content: 'Tap here to add camera views, routes, boundaries, and location pins.',
           placement: 'bottom-start',
         },
         'first-keyframe': {
           target: '[data-walkthrough="camera-keyframe"]',
-          title: 'Save this view',
-          content: 'Add a camera keyframe to remember the current position and angle.',
+          title: 'Save your first view',
+          content: 'Click the camera button to save this position as your starting keyframe.',
           placement: 'bottom',
         },
         'move-playhead': {
           target: '[data-walkthrough="timeline-panel"]',
-          title: 'Move forward in time',
-          content: 'Drag the playhead on the timeline to where you want the second view to appear.',
+          title: 'Move forward on the timeline',
+          content: 'Drag the blue playhead marker to the right to set the time for your next view.',
           placement: 'top-start',
           spotlightPadding: 0,
           skipScroll: true,
         },
         'second-keyframe': {
           target: '[data-walkthrough="camera-keyframe"]',
-          title: 'Add another keyframe',
-          content: 'Move around freely. When you are happy with the next view, click here to add another keyframe.',
+          title: 'Save your second view',
+          content: 'Move the map to a new location. Then click the camera button again to save your second keyframe.',
           placement: 'bottom',
           hideOverlay: true,
         },
         'play-animation': {
           target: '[data-walkthrough="timeline-play"]',
-          title: 'Play your camera move',
-          content: 'Set the playhead and press Play to view the animation between your saved views.',
+          title: 'Preview your animation',
+          content: 'Click the Play button to watch the camera move smoothly between your two saved views.',
           placement: 'top',
           buttons: ['skip', 'primary'],
           locale: { next: 'Next' },
@@ -367,95 +367,95 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
         'select-keyframe': {
           target: '[data-walkthrough="timeline-keyframe"]',
           spotlightTarget: '[data-walkthrough="timeline-panel"]',
-          title: 'Inspect a keyframe',
-          content: 'Click a keyframe in the timeline to open its settings.',
+          title: 'Select a keyframe',
+          content: 'Click any keyframe marker on the timeline to open its settings panel.',
           placement: 'top',
           spotlightPadding: 0,
           skipScroll: true,
         },
         'inspect-keyframe': {
           target: '[data-walkthrough="inspector-panel"]',
-          title: 'Fine-tune this keyframe',
-          content: 'Use the inspector to adjust its timing, position, zoom, angle, and easing.',
+          title: 'Adjust keyframe settings',
+          content: 'Use the side panel to adjust time, camera angle, zoom level, and animation speed.',
           placement: isMobile ? 'top' : 'left-start',
           buttons: ['skip', 'primary'],
           locale: { next: 'Continue' },
         },
         route: {
           target: '[data-walkthrough="add-route"]',
-          title: 'Add a route',
-          content: 'Plan a drive, walk, or flight, or import a GPX or KML file.',
+          title: 'Add a travel route',
+          content: 'Draw a driving, walking, or flight path on the map. You can also import GPX and KML files.',
           placement: 'bottom',
         },
         boundary: {
           target: '[data-walkthrough="add-boundary"]',
-          title: 'Highlight a place',
-          content: 'Add a country, region, or custom boundary to the map.',
+          title: 'Highlight a boundary',
+          content: 'Search and highlight any country, state, or custom region on the map.',
           placement: 'bottom',
         },
         callout: {
           target: '[data-walkthrough="add-callout"]',
-          title: 'Add a callout',
-          content: 'Place a label on the map to explain why a location matters.',
+          title: 'Add a location label',
+          content: 'Place an animated 3D pin and label to highlight an important location.',
           placement: 'bottom',
         },
         'open-map-tools': {
           target: '[data-walkthrough="map-tools"]',
-          title: 'Open the map controls',
-          content: 'Open Map Display to see the map style and 3D controls.',
+          title: 'Open Map Display',
+          content: 'Tap the Map Display button to view style and 3D landscape options.',
           placement: 'bottom',
         },
         'terrain-buildings': {
           target: '[data-walkthrough="map-3d"]',
-          title: 'Explore the map in 3D',
-          content: 'Terrain adds elevation and Buildings adds 3D structures. You can enable either whenever it suits the scene.',
+          title: 'Enable 3D terrain and buildings',
+          content: 'Turn on Terrain for realistic hills and mountains. Turn on Buildings to show 3D city structures.',
           placement: 'bottom',
           buttons: ['skip', 'primary'],
           locale: { next: 'Next' },
         },
         'change-map-style': {
           target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-style"]',
-          title: 'Try another map style',
+          title: 'Change the map style',
           content: isTablet
-            ? 'Open Map Display and choose a style other than Standard.'
-            : 'Open the style menu and choose a style other than Standard.',
+            ? 'Open Map Display. Select another style, such as Satellite or Dark.'
+            : 'Open the style menu. Select another style, such as Satellite or Dark.',
           placement: 'bottom',
         },
         'return-standard-style': {
           target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-style"]',
-          title: 'Return to Standard',
+          title: 'Reset to Standard style',
           content: isTablet
-            ? 'Use Map Display to switch the style back to Standard.'
-            : 'Switch the map style back to Standard.',
+            ? 'Open Map Display again. Select the Standard style.'
+            : 'Open the style menu again. Select the Standard style.',
           placement: 'bottom',
         },
         'map-settings': {
           target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-settings"]',
-          title: 'Open Map Settings',
+          title: 'Open Project Settings',
           content: isTablet
             ? 'Open Map Display, then choose Full Map Settings.'
-            : 'Open Map Settings for the project-wide display controls.',
+            : 'Click Settings to configure global project and map options.',
           placement: 'bottom',
         },
         'map-settings-tab': {
           target: '[data-walkthrough="project-settings-map-tab"]',
           spotlightTarget: '[data-walkthrough="inspector-panel"]',
-          title: 'Open the Map tab',
-          content: 'Select Map to see the project-wide map controls.',
+          title: 'Select the Map tab',
+          content: 'Click the Map tab to view environment and visual settings.',
           placement: isMobile ? 'top' : 'left-start',
         },
         'map-settings-overview': {
           target: '[data-walkthrough="inspector-panel"]',
-          title: 'Map settings in one place',
-          content: 'Use this tab to adjust projection, lighting, terrain, atmosphere, labels, and 3D details.',
+          title: 'Customize the map environment',
+          content: 'Use this tab to adjust map projection, sun lighting, sky atmosphere, and place labels.',
           placement: isMobile ? 'top' : 'left-start',
           buttons: ['skip', 'primary'],
           locale: { next: 'Next' },
         },
         render: {
           target: '[data-walkthrough="render"]',
-          title: 'Ready to render',
-          content: 'Open Export when you are ready to render the finished animation. You do not need to start a render now.',
+          title: 'Export your video',
+          content: 'Click Export when you want to download your finished video. You do not need to export now.',
           placement: 'bottom-end',
         },
       };
@@ -519,14 +519,14 @@ const QuickWalkthrough = forwardRef<QuickWalkthroughHandle, QuickWalkthroughProp
               <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Compass size={20} aria-hidden="true" />
               </div>
-              <AlertDialogTitle>Want a quick walkthrough?</AlertDialogTitle>
+              <AlertDialogTitle>Start the quick tour?</AlertDialogTitle>
               <AlertDialogDescription>
-                Learn the map controls and create your first camera move. It takes about 90 seconds.
+                Learn how to navigate the map and create your first video animation. This tour takes 90 seconds.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => storeStatus('dismissed')}>No thanks</AlertDialogCancel>
-              <AlertDialogAction onClick={start}>Show me around</AlertDialogAction>
+              <AlertDialogCancel onClick={() => storeStatus('dismissed')}>Not now</AlertDialogCancel>
+              <AlertDialogAction onClick={start}>Start tour</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
