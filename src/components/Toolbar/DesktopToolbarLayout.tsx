@@ -13,6 +13,7 @@ import { CalloutAddDropdown } from './CalloutAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
+import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 
 interface DesktopToolbarLayoutProps {
   isTablet: boolean;
@@ -136,6 +137,8 @@ export function DesktopToolbarLayout({
   terrainLoading, buildingsLoading, isScrubbing,
   onMapStyleOpenChange, onMapToolsOpenChange,
 }: DesktopToolbarLayoutProps) {
+  const isCameraPulsing = useWalkthroughStore((s) => s.isRunning && s.walkthrough.stage === 'second-keyframe');
+
   const layerProps = {
     mapStyle, setMapStyle, terrainEnabled, setTerrainEnabled,
     buildingsEnabled, setBuildingsEnabled, terrainLoading, buildingsLoading,
@@ -156,7 +159,7 @@ export function DesktopToolbarLayout({
         <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
         <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
         <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-        <ToolbarButton icon={<Video size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
+        <ToolbarButton icon={<Video size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" isPulsing={isCameraPulsing} />
       </div>
 
       <Divider />

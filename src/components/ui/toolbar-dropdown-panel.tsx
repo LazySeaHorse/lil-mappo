@@ -60,6 +60,11 @@ function ToolbarDropdownPanel({
         collisionPadding={16}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            onOpenChange(false);
+          }
+        }}
         className={cn(
           "w-[calc(100vw-32px)] md:w-[320px] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]",
           className,

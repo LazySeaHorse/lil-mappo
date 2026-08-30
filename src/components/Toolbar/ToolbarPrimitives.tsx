@@ -6,8 +6,10 @@ import { Toggle } from '@/components/ui/toggle';
 import { SelectItem } from '@/components/ui/select';
 import { MAP_STYLES } from '@/config/mapbox';
 
+import { cn } from '@/lib/utils';
+
 export function ToolbarButton({
-  icon, label, onClick, accent, hideLabel, walkthroughTarget,
+  icon, label, onClick, accent, hideLabel, walkthroughTarget, isPulsing, className,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -15,7 +17,11 @@ export function ToolbarButton({
   accent?: boolean;
   hideLabel?: boolean;
   walkthroughTarget?: string;
+  isPulsing?: boolean;
+  className?: string;
 }) {
+  const pulseClass = isPulsing ? 'animate-pulse ring-2 ring-primary/60' : '';
+
   // Icon-only mode → use IconButton
   if (hideLabel) {
     return (
@@ -25,6 +31,7 @@ export function ToolbarButton({
         onClick={onClick}
         title={label}
         data-walkthrough={walkthroughTarget}
+        className={cn(pulseClass, className)}
       >
         {icon}
       </IconButton>
@@ -37,7 +44,11 @@ export function ToolbarButton({
       variant={accent ? "default" : "ghost"}
       size="sm"
       onClick={onClick}
-      className={`h-8 px-2.5 flex flex-row items-center gap-1.5 text-xs rounded-lg transition-all ${accent ? 'shadow-lg shadow-primary/20' : ''}`}
+      className={cn(
+        `h-8 px-2.5 flex flex-row items-center gap-1.5 text-xs rounded-lg transition-all ${accent ? 'shadow-lg shadow-primary/20' : ''}`,
+        pulseClass,
+        className
+      )}
       title={label}
       data-walkthrough={walkthroughTarget}
     >

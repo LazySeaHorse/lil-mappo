@@ -13,7 +13,7 @@ import { MapRefContext } from "@/hooks/useMapRef";
 import { MapRuntimeContext, type MapSceneRuntimeRef } from "@/hooks/useMapRuntime";
 import FontLoader from "@/components/FontLoader";
 import { useEffect } from "react";
-import { useProjectStore } from "@/store/useProjectStore";
+import { useProjectStore, CAMERA_TRACK_ID } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
 import { isFreeUser, hasByok, shouldShowWatermark } from "@/lib/cloudAccess";
@@ -31,7 +31,9 @@ import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal"
 import { CreditsModal } from "@/components/Account/CreditsModal";
 import { UpgradeModal } from "@/components/Account/UpgradeModal";
 import { RendersModal } from "@/components/Account/RendersModal";
-import QuickWalkthrough, { type QuickWalkthroughHandle } from "@/components/Onboarding/QuickWalkthrough";
+import type { CameraItem } from "@/store/types";
+import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
+import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
   // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
@@ -93,7 +95,6 @@ function ZenModeControls({
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
   const runtimeRef: MapSceneRuntimeRef = useRef(null);
-  const walkthroughRef = useRef<QuickWalkthroughHandle>(null);
   const [showExport, setShowExport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -161,7 +162,7 @@ export default function MapStudioEditor() {
                 setIsMapReady(true);
                 mapLoadGate.onMapLoaded();
               }}
-              onMapGesture={(gesture) => walkthroughRef.current?.recordMapGesture(gesture)}
+              onMapGesture={(gesture) => useWalkthroughStore.getState().recordMapGesture(gesture)}
               mapboxToken={mapLoadGate.mapboxToken}
             />
           </MapLoadGate>
@@ -174,16 +175,19 @@ export default function MapStudioEditor() {
           <Toolbar
             onExport={() => {
               setShowExport(true);
-              walkthroughRef.current?.recordExportOpened();
+              useWalkthroughStore.getState().recordExportOpened();
             }}
             onLibrary={() => {
               if (isLocked) openAuthModal();
               else setShowLibrary(true);
             }}
-            onWalkthrough={() => walkthroughRef.current?.start()}
-            onAddToolOpenChange={(tool, open) => walkthroughRef.current?.recordAddToolOpenChange(tool, open)}
-            onMapStyleOpenChange={(open) => walkthroughRef.current?.recordMapStyleOpenChange(open)}
-            onMapToolsOpenChange={(open) => walkthroughRef.current?.recordMapToolsOpenChange(open)}
+            onWalkthrough={() => {
+              const cameraCount = (useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem | undefined)?.keyframes.length ?? 0;
+              useWalkthroughStore.getState().start(isMobile, cameraCount, isMobile || isTablet);
+            }}
+            onAddToolOpenChange={(tool, open) => useWalkthroughStore.getState().recordAddToolOpenChange(tool, open)}
+            onMapStyleOpenChange={(open) => useWalkthroughStore.getState().recordMapStyleOpenChange(open)}
+            onMapToolsOpenChange={(open) => useWalkthroughStore.getState().recordMapToolsOpenChange(open)}
           />
           <InspectorPanel />
           <TimelinePanel />
@@ -211,7 +215,6 @@ export default function MapStudioEditor() {
         <UpgradeModal />
         <RendersModal />
         <QuickWalkthrough
-          ref={walkthroughRef}
           isMapReady={isMapReady}
           isMobile={isMobile}
           isTablet={isTablet}

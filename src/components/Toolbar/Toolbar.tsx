@@ -12,6 +12,7 @@ import { MobileToolbarLayout } from './MobileToolbarLayout';
 import { DesktopToolbarLayout } from './DesktopToolbarLayout';
 import { AvatarMenu } from '@/components/Account/AvatarMenu';
 import type { WalkthroughAddTool } from '@/components/Onboarding/walkthroughState';
+import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 
 interface ToolbarProps {
   onExport: () => void;
@@ -95,6 +96,7 @@ export default function Toolbar({
   const openProjectSettings = () => {
     setProjectSettingsTab('general');
     selectItem(null);
+    useWalkthroughStore.getState().send({ type: 'map-settings-opened' });
   };
 
   return (
