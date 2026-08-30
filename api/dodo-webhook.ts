@@ -14,7 +14,7 @@ export const config = { api: { bodyParser: false } };
 type PlanConfig = { tier: string; monthlyCredits: number; parallelRenders: number };
 type Plans = Record<string, PlanConfig>;
 
-function buildPlanFromProduct(): Plans {
+export function buildPlanFromProduct(): Plans {
   const entries: Array<[string | undefined, PlanConfig]> = [
     [process.env.DODO_PRODUCT_WANDERER,     { tier: "wanderer",     monthlyCredits: 100,  parallelRenders: 1 }],
     [process.env.DODO_PRODUCT_CARTOGRAPHER, { tier: "cartographer", monthlyCredits: 500,  parallelRenders: 2 }],
@@ -59,11 +59,15 @@ interface PaymentEventData {
   metadata?: Record<string, string | undefined> | null;
 }
 
+interface DunningEventData {
+  subscription_id: string;
+}
+
 // ─── Event handlers ───────────────────────────────────────────────────────────
 // Each handler throws on DB failure (→ 500, Dodo retries) and returns normally
 // on success or soft-skip (missing metadata, unknown product, etc. → 200).
 
-async function handleSubscriptionActive(
+export async function handleSubscriptionActive(
   sub: SubEventData,
   supabase: SupabaseClient,
   plans: Plans
@@ -153,7 +157,7 @@ async function handleSubscriptionActive(
   console.log("[dodo-webhook] Provisioned subscription for user", uid, "→", plan.tier);
 }
 
-async function handlePaymentSucceeded(
+export async function handlePaymentSucceeded(
   payment: PaymentEventData,
   supabase: SupabaseClient
 ): Promise<void> {
@@ -205,7 +209,7 @@ async function handlePaymentSucceeded(
   console.log("[dodo-webhook] Added", credits, "purchased credits to user", uid);
 }
 
-async function handleSubscriptionRenewed(
+export async function handleSubscriptionRenewed(
   sub: SubEventData,
   supabase: SupabaseClient,
   plans: Plans
@@ -253,7 +257,7 @@ async function handleSubscriptionRenewed(
   console.log("[dodo-webhook] Renewed subscription", sub.subscription_id);
 }
 
-async function handleSubscriptionCancelled(
+export async function handleSubscriptionCancelled(
   sub: SubEventData,
   supabase: SupabaseClient
 ): Promise<void> {
@@ -272,7 +276,7 @@ async function handleSubscriptionCancelled(
   console.log("[dodo-webhook] Scheduled cancellation for subscription", sub.subscription_id);
 }
 
-async function handleSubscriptionExpired(
+export async function handleSubscriptionExpired(
   sub: SubEventData,
   supabase: SupabaseClient
 ): Promise<void> {
@@ -305,6 +309,73 @@ async function handleSubscriptionExpired(
     "[dodo-webhook] Expired", expiringSub.tier,
     "→ free tier (subscription row deleted) for user", expiringSub.user_id
   );
+}
+
+export async function handleSubscriptionUnavailable(
+  sub: SubEventData,
+  supabase: SupabaseClient,
+  status: "on_hold" | "failed"
+): Promise<void> {
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({ status })
+    .eq("dodo_subscription_id", sub.subscription_id);
+
+  if (error) {
+    console.error(`[dodo-webhook] Failed to mark subscription ${status}:`, error);
+    throw new Error(`DB error marking subscription ${status}`);
+  }
+}
+
+export async function handleDunningRecovered(
+  event: DunningEventData,
+  supabase: SupabaseClient
+): Promise<void> {
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({ status: "active" })
+    .eq("dodo_subscription_id", event.subscription_id);
+
+  if (error) {
+    console.error("[dodo-webhook] Failed to restore recovered subscription:", error);
+    throw new Error("DB error restoring recovered subscription");
+  }
+}
+
+export async function dispatchWebhookEvent(
+  event: { type: string; data: unknown },
+  supabase: SupabaseClient,
+  plans: Plans
+): Promise<void> {
+  switch (event.type) {
+    case "subscription.active":
+      await handleSubscriptionActive(event.data as SubEventData, supabase, plans);
+      break;
+    case "payment.succeeded":
+      await handlePaymentSucceeded(event.data as PaymentEventData, supabase);
+      break;
+    case "subscription.renewed":
+      await handleSubscriptionRenewed(event.data as SubEventData, supabase, plans);
+      break;
+    case "subscription.cancelled":
+      await handleSubscriptionCancelled(event.data as SubEventData, supabase);
+      break;
+    case "subscription.expired":
+      await handleSubscriptionExpired(event.data as SubEventData, supabase);
+      break;
+    case "subscription.on_hold":
+      await handleSubscriptionUnavailable(event.data as SubEventData, supabase, "on_hold");
+      break;
+    case "subscription.failed":
+      await handleSubscriptionUnavailable(event.data as SubEventData, supabase, "failed");
+      break;
+    case "dunning.recovered":
+      await handleDunningRecovered(event.data as DunningEventData, supabase);
+      break;
+    default:
+      // Payment failures and other informational events must not grant access.
+      break;
+  }
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
@@ -364,26 +435,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── 4. Dispatch ───────────────────────────────────────────────────────────
 
   try {
-    switch (event.type) {
-      case "subscription.active":
-        await handleSubscriptionActive(event.data as SubEventData, supabase, PLAN_FROM_PRODUCT);
-        break;
-      case "payment.succeeded":
-        await handlePaymentSucceeded(event.data as PaymentEventData, supabase);
-        break;
-      case "subscription.renewed":
-        await handleSubscriptionRenewed(event.data as SubEventData, supabase, PLAN_FROM_PRODUCT);
-        break;
-      case "subscription.cancelled":
-        await handleSubscriptionCancelled(event.data as SubEventData, supabase);
-        break;
-      case "subscription.expired":
-        await handleSubscriptionExpired(event.data as SubEventData, supabase);
-        break;
-      default:
-        // Acknowledge unhandled event types silently — Dodo sends many events
-        break;
-    }
+    await dispatchWebhookEvent(event, supabase, PLAN_FROM_PRODUCT);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal handler error";
     console.error("[dodo-webhook] Handler error for event", event.type, ":", err);

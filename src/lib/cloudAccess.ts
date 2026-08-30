@@ -7,11 +7,16 @@ import { BYOK_STORAGE_KEY, isAppOwnKey } from '@/config/mapbox';
 
 /** Returns true if the user has an active (or still-in-cancelling-period) Wanderer subscription. */
 function isWanderer(subscription: Subscription | null | undefined): boolean {
-  return (
-    !!subscription &&
-    subscription.tier === 'wanderer' &&
-    (subscription.status === 'active' || subscription.status === 'cancelling')
-  );
+  if (!subscription || subscription.tier !== 'wanderer') return false;
+  if (subscription.status === 'active') return true;
+  if (subscription.status !== 'cancelling') return false;
+
+  // A missed/delayed expiration webhook must not leave cancelled accounts with
+  // paid client-side features forever. DATE values are compared as UTC calendar
+  // dates and remain entitled through the stated renewal/cancellation date.
+  if (!subscription.renewal_date) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return subscription.renewal_date >= today;
 }
 
 /** Returns true if the user has no active subscription (free tier). */

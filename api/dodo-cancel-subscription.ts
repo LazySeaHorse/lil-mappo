@@ -75,10 +75,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── 4. Mark as cancelling in Supabase ────────────────────────────────────
   // "cancelling" means: scheduled for cancellation at renewal_date, but still
-  // fully active until then. The subscription.cancelled webhook transitions
-  // this to "cancelled" at period end, then subscription.expired downgrades
-  // to nomad with grace credits. This gives the UI immediate feedback while
-  // preserving access.
+  // fully active until then. The subscription.cancelled webhook keeps this
+  // state, and subscription.expired deletes the row at period end. The client
+  // also checks renewal_date so a delayed expiry webhook cannot extend access.
 
   const { error: updateError } = await supabaseAdmin
     .from("subscriptions")
