@@ -133,13 +133,13 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const [hasCalculated, setHasCalculated] = useState(false);
 
   const calc = item.calculation || {
-    mode: 'car',
-    startPoint: [0, 0],
-    endPoint: [0, 0],
+    mode: 'car' as const,
+    startPoint: [0, 0] as [number, number],
+    endPoint: [0, 0] as [number, number],
   };
 
   const handleModeChange = (mode: RouteMode) => {
-    updateItem(item.id, { calculation: { ...calc, mode } } as any);
+    updateItem(item.id, { calculation: { ...calc, mode } });
   };
 
   const calculateRoute = async (saveToItem: boolean) => {
@@ -165,7 +165,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
       };
 
       if (saveToItem) {
-        updateItem(item.id, { geojson: featureCollection } as any);
+        updateItem(item.id, { geojson: featureCollection });
         toast.success('Route updated.');
         setPreviewRoute(null);
         setHasCalculated(true);
@@ -173,7 +173,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
         setPreviewRoute(featureCollection);
         toast.success('Route preview is ready.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Cannot calculate route.');
     } finally {
       setLoading(false);
@@ -181,12 +181,12 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   };
 
   const setStart = (lngLat: [number, number]) => {
-    updateItem(item.id, { calculation: { ...calc, startPoint: lngLat } } as any);
+    updateItem(item.id, { calculation: { ...calc, startPoint: lngLat } });
     setPreviewRoute(null);
   };
 
   const setEnd = (lngLat: [number, number]) => {
-    updateItem(item.id, { calculation: { ...calc, endPoint: lngLat } } as any);
+    updateItem(item.id, { calculation: { ...calc, endPoint: lngLat } });
     setPreviewRoute(null);
   };
 

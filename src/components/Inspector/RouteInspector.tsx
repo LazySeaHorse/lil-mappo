@@ -1,6 +1,6 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { useProjectStore } from '@/store/useProjectStore';
+import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
 import type { RouteItem, EasingName, AutoCamConfig } from '@/store/types';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
@@ -43,13 +43,13 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   const { data: sub } = useSubscription();
   const isPro = sub && (sub.tier === 'wanderer' || sub.tier === 'cartographer' || sub.tier === 'pioneer');
 
-  const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch as any);
+  const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
 
   const calc = item.calculation || {
-    mode: 'car',
-    startPoint: [0, 0],
-    endPoint: [0, 0],
+    mode: 'car' as const,
+    startPoint: [0, 0] as [number, number],
+    endPoint: [0, 0] as [number, number],
   };
 
   const updateVehicle = (patch: Partial<NonNullable<RouteItem['calculation']>['vehicle']>) => {
@@ -59,20 +59,22 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       modelId: '',
       scale: 1.0,
     };
-    updateItem(item.id, { 
+    u({ 
       calculation: { 
         ...calc, 
         vehicle: { ...currentVehicle, ...patch } 
       } 
-    } as any);
+    });
   };
 
   const handleAutoCamToggle = (enabled: boolean) => {
     if (enabled) {
       let coordCount = 0;
       for (const f of item.geojson.features) {
-        if (f.geometry.type === 'LineString') coordCount += (f.geometry.coordinates as any[]).length;
-        else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry.coordinates as any[])) coordCount += l.length;
+        if (f.geometry.type === 'LineString') coordCount += f.geometry.coordinates.length;
+        else if (f.geometry.type === 'MultiLineString') {
+          for (const l of f.geometry.coordinates) coordCount += l.length;
+        }
       }
       if (coordCount < 2) {
         toast.error('Add a route before you enable Auto camera.');
@@ -81,13 +83,13 @@ export function RouteInspector({ item }: { item: RouteItem }) {
 
       const allItems = useProjectStore.getState().items;
       const overlapping = Object.values(allItems).find(
-        (other) =>
+        (other): other is RouteItem =>
+          isRouteItem(other) &&
           other.id !== item.id &&
-          other.kind === 'route' &&
-          (other as RouteItem).autoCam?.enabled &&
-          (other as RouteItem).startTime < item.endTime &&
-          (other as RouteItem).endTime > item.startTime,
-      ) as RouteItem | undefined;
+          Boolean(other.autoCam?.enabled) &&
+          other.startTime < item.endTime &&
+          other.endTime > item.startTime,
+      );
 
       if (overlapping) {
         toast.error(`Auto camera is already enabled for "${overlapping.name}" during this time range.`);

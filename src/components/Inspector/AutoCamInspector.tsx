@@ -15,10 +15,10 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
   const config = item.autoCam!;
 
   const u = (patch: Partial<AutoCamConfig>) =>
-    updateItem(item.id, { autoCam: { ...config, ...patch } } as any);
+    updateItem(item.id, { autoCam: { ...config, ...patch } });
 
   const handleDisable = () => {
-    updateItem(item.id, { autoCam: { ...config, enabled: false } } as any);
+    updateItem(item.id, { autoCam: { ...config, enabled: false } });
     setSelectedAutoCamRouteId(null);
   };
 

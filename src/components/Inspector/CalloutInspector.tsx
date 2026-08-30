@@ -25,7 +25,7 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
     editingRoutePoint, setEditingRoutePoint, setEditingItemId
   } = useProjectStore();
 
-  const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates as any);
+  const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates);
   const us = (updates: Partial<CalloutItem['style']>) => u({ style: { ...item.style, ...updates } });
 
   const footer = <ItemActions id={item.id} kind="callout" customLabel="Delete Callout" />;

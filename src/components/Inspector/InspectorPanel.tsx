@@ -27,10 +27,10 @@ export default function InspectorPanel() {
 
   switch (item.kind) {
     case "route":
-      if (selectedAutoCamRouteId === selectedItemId && (item as RouteItem).autoCam?.enabled) {
-        return <AutoCamInspector item={item as RouteItem} />;
+      if (selectedAutoCamRouteId === selectedItemId && item.autoCam?.enabled) {
+        return <AutoCamInspector item={item} />;
       }
-      return <RouteInspector item={item as RouteItem} />;
+      return <RouteInspector item={item} />;
     case "boundary":
       return <BoundaryInspector item={item} />;
     case "callout":

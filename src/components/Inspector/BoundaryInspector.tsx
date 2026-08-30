@@ -20,15 +20,15 @@ import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   const { updateItem } = useProjectStore();
 
-  const u = (updates: Partial<BoundaryItem>) => updateItem(item.id, updates as any);
+  const u = (updates: Partial<BoundaryItem>) => updateItem(item.id, updates);
   const us = (updates: Partial<BoundaryItem['style']>) => u({ style: { ...item.style, ...updates } });
 
   const handleSelect = (r: NominatimResult) => {
     u({
       geojson: r.geojson,
       resolveStatus: 'resolved',
-      placeName: r.display_name.split(',')[0]
-    } as any);
+      placeName: r.display_name.split(',')[0],
+    });
     toast.success('Boundary updated.');
   };
 
@@ -43,7 +43,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
     if (mode === 'none') {
       us({ animateStroke: false });
     } else {
-      us({ animateStroke: true, animationStyle: mode as any });
+      us({ animateStroke: true, animationStyle: mode as BoundaryItem['style']['animationStyle'] });
     }
   };
 
@@ -73,7 +73,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             <BoundarySearch
               initialValue={item.placeName}
               onSelect={handleSelect}
-              onSearchingChange={(loading) => u({ resolveStatus: loading ? 'loading' : 'idle' } as any)}
+              onSearchingChange={(loading) => u({ resolveStatus: loading ? 'loading' : 'idle' })}
             />
           </div>
         </InspectorSection>
