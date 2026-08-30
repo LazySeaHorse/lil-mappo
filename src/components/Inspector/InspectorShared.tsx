@@ -89,6 +89,7 @@ export function CoordinatesRows({
         <span className="text-xs font-medium text-muted-foreground">Longitude</span>
         <input
           type="number"
+          aria-label="Longitude"
           value={isNaN(lngLat[0]) ? '' : Number(Number(lngLat[0]).toFixed(5))}
           onChange={(e) => onChange([Number(e.target.value), lngLat[1]])}
           step={0.00001}
@@ -99,6 +100,7 @@ export function CoordinatesRows({
         <span className="text-xs font-medium text-muted-foreground">Latitude</span>
         <input
           type="number"
+          aria-label="Latitude"
           value={isNaN(lngLat[1]) ? '' : Number(Number(lngLat[1]).toFixed(5))}
           onChange={(e) => onChange([lngLat[0], Number(e.target.value)])}
           step={0.00001}
@@ -228,7 +230,101 @@ export function SliderField({
   );
 }
 
-const EASING_OPTIONS: { value: EasingName; label: string }[] = [
+export const formatPercent = (v: number) => `${Math.round(v * 100)} %`;
+export const formatDegrees = (v: number) => `${(v ?? 0).toFixed(1)}°`;
+export const formatMultiplier = (v: number) => `${v.toFixed(1)}x`;
+export const formatDecimals = (decimals = 2) => (v: number) => v.toFixed(decimals);
+
+export function NumberRow({
+  label,
+  icon,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  unit,
+  className,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40", className)}>
+      <span className="text-xs font-medium text-muted-foreground shrink-0 flex items-center gap-1.5">
+        {icon && <span className="text-muted-foreground/70 shrink-0">{icon}</span>}
+        <span>{label}</span>
+      </span>
+      <div className="relative flex items-center w-28">
+        <InputNumber
+          value={value}
+          onChange={onChange}
+          min={min}
+          max={max}
+          step={step}
+        />
+        {unit && (
+          <span className="absolute right-2 text-xs font-mono text-muted-foreground/60 pointer-events-none">
+            {unit}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function SelectRow<T extends string>({
+  label,
+  icon,
+  value,
+  onChange,
+  options,
+  renderOption,
+  className,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string; style?: React.CSSProperties }[];
+  renderOption?: (option: { value: T; label: string; style?: React.CSSProperties }) => React.ReactNode;
+  className?: string;
+}) {
+  const selected = options.find((o) => o.value === value);
+  return (
+    <div className={cn("flex items-center justify-between gap-3 text-xs py-0.5", className)}>
+      <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 flex items-center gap-1.5 truncate">
+        {icon && <span className="text-muted-foreground/70 shrink-0">{icon}</span>}
+        <span className="truncate">{label}</span>
+      </span>
+      <div className="flex-1">
+        <Select value={value} onValueChange={(v) => onChange(v as T)}>
+          <SelectTrigger className="h-8 text-xs bg-background/50 border-border/50 rounded-lg w-full">
+            <SelectValue>
+              {selected && renderOption ? renderOption(selected) : selected?.label ?? value}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">
+                {renderOption ? renderOption(o) : <span style={o.style}>{o.label}</span>}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+export const EASING_OPTIONS: { value: EasingName; label: string }[] = [
   { value: 'linear', label: 'Linear' },
   { value: 'easeInOutSine', label: 'Slow start and end' },
   { value: 'easeInQuad', label: 'Slow start' },
@@ -236,7 +332,7 @@ const EASING_OPTIONS: { value: EasingName; label: string }[] = [
   { value: 'bounce', label: 'Bounce' },
 ];
 
-const normalizeEasing = (val?: EasingName): EasingName => {
+export const normalizeEasing = (val?: EasingName): EasingName => {
   if (!val) return 'easeInOutSine';
   if (val === 'easeInOutCubic' || val === 'easeInOutQuad') return 'easeInOutSine';
   if (val === 'easeInCubic') return 'easeInQuad';
@@ -319,6 +415,7 @@ export function TimingControls({
           <div className="relative flex items-center w-28">
             <Input
               type="number"
+              aria-label="Start time"
               value={isNaN(startTime) ? '' : Number(startTime.toFixed(2))}
               onChange={(e) => handleStartChange(Number(e.target.value))}
               min={0}
@@ -334,6 +431,7 @@ export function TimingControls({
           <div className="relative flex items-center w-28">
             <Input
               type="number"
+              aria-label="Duration"
               value={isNaN(duration) ? '' : Number(duration.toFixed(2))}
               onChange={(e) => handleDurationChange(Number(e.target.value))}
               min={0.01}
