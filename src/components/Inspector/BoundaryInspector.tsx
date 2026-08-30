@@ -11,7 +11,8 @@ import {
   ColorRow, 
   SwitchRow, 
   TimingControls, 
-  VisualCardSelect 
+  VisualCardSelect,
+  formatPercent 
 } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
@@ -108,7 +109,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
               min={0} 
               max={1} 
               step={0.01} 
-              formatValue={(v) => `${Math.round(v * 100)} %`}
+              formatValue={formatPercent}
             />
           </div>
         </InspectorSection>

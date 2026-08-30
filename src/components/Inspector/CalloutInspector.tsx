@@ -2,7 +2,6 @@ import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Accordion } from "@/components/ui/accordion";
 import { Check, Crosshair, MapPin, Square, Bookmark, Flag, Mountain } from 'lucide-react';
@@ -13,6 +12,7 @@ import {
   SliderRow, 
   ColorRow, 
   SwitchRow, 
+  SelectRow,
   TimingControls, 
   VisualCardSelect,
   CoordinatesRows
@@ -91,25 +91,13 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
               columns={4}
             />
 
-            <div className="flex items-center justify-between gap-3 text-xs py-0.5">
-              <span className="text-xs font-medium text-muted-foreground shrink-0 w-28">Font</span>
-              <div className="flex-1">
-                <Select value={item.style.fontFamily} onValueChange={(v) => us({ fontFamily: v })}>
-                  <SelectTrigger className="h-8 text-xs bg-background/50 border-border/50 rounded-lg w-full">
-                    <span style={{ fontFamily: item.style.fontFamily }}>
-                      <SelectValue />
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MAP_FONTS.map(f => (
-                      <SelectItem key={f} value={f} className="text-xs">
-                        <span style={{ fontFamily: f }}>{f}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <SelectRow
+              label="Font"
+              value={item.style.fontFamily}
+              onChange={(v) => us({ fontFamily: v })}
+              options={MAP_FONTS.map((f) => ({ value: f, label: f, style: { fontFamily: f } }))}
+              renderOption={(o) => <span style={{ fontFamily: o.value }}>{o.label}</span>}
+            />
 
             {item.style.variant !== 'topo' && (
               <ColorRow

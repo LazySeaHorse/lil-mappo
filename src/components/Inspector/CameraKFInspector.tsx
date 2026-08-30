@@ -2,7 +2,7 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
 import { Accordion } from "@/components/ui/accordion";
-import { SliderRow, EasingSelect, InputNumber, CoordinatesRows } from './InspectorShared';
+import { SliderRow, EasingSelect, CoordinatesRows, NumberRow, formatDegrees } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
 
@@ -32,12 +32,15 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
       icon={<Video size={15} />}
       footer={footer}
     >
-      <div className="flex items-center justify-between gap-3 p-2 bg-secondary/30 rounded-xl border border-border/40 mb-3">
-        <span className="text-xs font-medium text-muted-foreground">Time</span>
-        <div className="w-24">
-          <InputNumber value={kf.time} onChange={(v) => u({ time: v })} min={0} step={0.01} />
-        </div>
-      </div>
+      <NumberRow
+        label="Time"
+        value={kf.time}
+        onChange={(v) => u({ time: v })}
+        min={0}
+        step={0.01}
+        unit="s"
+        className="mb-3"
+      />
 
       <Accordion type="multiple" defaultValue={['cam']} className="w-full">
         <InspectorSection value="cam" title="Camera">
@@ -66,7 +69,7 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
               min={0}
               max={85}
               step={0.1}
-              formatValue={(v) => `${(v ?? 0).toFixed(1)}°`}
+              formatValue={formatDegrees}
             />
 
             <SliderRow
@@ -77,7 +80,7 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
               min={0}
               max={360}
               step={0.1}
-              formatValue={(v) => `${(v ?? 0).toFixed(1)}°`}
+              formatValue={formatDegrees}
             />
 
             <EasingSelect 

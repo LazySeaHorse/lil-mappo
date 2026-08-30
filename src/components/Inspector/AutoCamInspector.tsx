@@ -3,7 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem, AutoCamConfig } from '@/store/types';
 import { Accordion } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { SliderRow } from './InspectorShared';
+import { SliderRow, formatPercent } from './InspectorShared';
 import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { Video, VideoOff, Compass, Activity, Car, ArrowUpToLine, ZoomIn, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -151,7 +151,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
               min={0}
               max={1}
               step={0.05}
-              formatValue={(v) => `${Math.round(v * 100)}%`}
+              formatValue={formatPercent}
             />
           </div>
         </InspectorSection>

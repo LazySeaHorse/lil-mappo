@@ -4,8 +4,6 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem, EasingName, AutoCamConfig } from '@/store/types';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
-import { SegmentedControl } from '@/components/ui/segmented-control';
-import { ProBadge } from '@/components/ui/pro-badge';
 import { useSubscription } from '@/hooks/useSubscription';
 import { 
   EditableTitle, 
@@ -13,7 +11,8 @@ import {
   ColorRow, 
   SwitchRow, 
   TimingControls, 
-  VisualCardSelect 
+  VisualCardSelect,
+  formatMultiplier 
 } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { 
@@ -227,37 +226,16 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                 <div className="flex flex-col gap-3 pl-0.5">
                   <div className="flex flex-col gap-1.5 pt-0.5">
                     <span className="text-xs font-medium text-muted-foreground">Marker type</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { type: 'dot', label: 'Dot', icon: <Circle size={14} />, pro: false },
-                        { type: 'car', label: 'Car', icon: <Car size={14} />, pro: true },
-                        { type: 'plane', label: 'Plane', icon: <Plane size={14} />, pro: true },
-                      ] as const).map(({ type, label, icon, pro }) => {
-                        const locked = pro && !isPro;
-                        const active = (calc.vehicle?.type || 'dot') === type;
-                        return (
-                          <button
-                            key={type}
-                            type="button"
-                            disabled={locked}
-                            onClick={() => !locked && updateVehicle({ type })}
-                            className={`relative flex flex-col items-center justify-center gap-1.5 p-2 py-3 min-h-[58px] rounded-lg border text-center transition-all cursor-pointer select-none
-                              ${active ? 'bg-primary/10 border-primary text-primary font-medium shadow-sm ring-1 ring-primary/20' : 'bg-secondary/40 hover:bg-secondary/70 border-border/40 text-muted-foreground hover:text-foreground'}
-                              ${locked ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
-                          >
-                            <div className={`flex items-center justify-center transition-colors ${active ? 'text-primary' : 'text-muted-foreground/80'}`}>
-                              {icon}
-                            </div>
-                            <span className="text-[10px] font-medium leading-tight text-center w-full block">{label}</span>
-                            {locked && (
-                              <span className="absolute top-1 right-1 text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase">
-                                PRO
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <VisualCardSelect
+                      options={[
+                        { value: 'dot', label: 'Dot', icon: <Circle size={14} /> },
+                        { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, disabled: !isPro },
+                        { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, disabled: !isPro },
+                      ]}
+                      value={calc.vehicle?.type || 'dot'}
+                      onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
+                      columns={3}
+                    />
                   </div>
 
                   <SliderRow 
@@ -267,7 +245,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                     min={0.2} 
                     max={4} 
                     step={0.1} 
-                    formatValue={(v) => `${v.toFixed(1)}x`}
+                    formatValue={formatMultiplier}
                   />
                 </div>
               )}
