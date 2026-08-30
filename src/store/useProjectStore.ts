@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import { createProject } from './projectDocument';
 import type { ProjectStore } from './slices/types';
 import { createTransientState } from './slices/mapEnvironmentSlice';
@@ -11,16 +12,18 @@ import { createEditorUiSlice } from './slices/editorUiSlice';
 
 const defaultProject = createProject();
 
-export const useProjectStore = create<ProjectStore>((set, get, store) => ({
-  ...defaultProject,
-  ...createTransientState(),
-  ...createItemsSlice(set, get, store),
-  ...createCameraSlice(set, get, store),
-  ...createPlaybackSlice(set, get, store),
-  ...createProjectSettingsSlice(set, get, store),
-  ...createMapEnvironmentSlice(set, get, store),
-  ...createEditorUiSlice(set, get, store),
-}));
+export const useProjectStore = create<ProjectStore>()(
+  subscribeWithSelector((set, get, store) => ({
+    ...defaultProject,
+    ...createTransientState(),
+    ...createItemsSlice(set, get, store),
+    ...createCameraSlice(set, get, store),
+    ...createPlaybackSlice(set, get, store),
+    ...createProjectSettingsSlice(set, get, store),
+    ...createMapEnvironmentSlice(set, get, store),
+    ...createEditorUiSlice(set, get, store),
+  }))
+);
 
 export { CAMERA_TRACK_ID } from './projectDocument';
 export { createTransientState, STANDARD_STYLE_CAPABILITIES } from './slices/mapEnvironmentSlice';
