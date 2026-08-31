@@ -1,35 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Clapperboard } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useShallow } from 'zustand/react/shallow';
 import { useMapRuntime } from '@/hooks/useMapRuntime';
-import { useCredits } from '@/hooks/useCredits';
 import { useSubscription } from '@/hooks/useSubscription';
-import { getLocalExportCapability, runExport, type LocalExportCapability } from '@/services/videoExport';
-import { saveAs } from 'file-saver';
-import { X, Download, Clapperboard, AlertTriangle, CheckCircle2, Cloud, Lock, Monitor, Smartphone, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Field } from '@/components/ui/field';
-import { IconButton } from '@/components/ui/icon-button';
-import { SegmentedControl } from '@/components/ui/segmented-control';
-import { ProBadge } from '@/components/ui/pro-badge';
-import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
-import { calculateRenderCredits } from '@/types/render';
 import { getExportLimits, shouldShowWatermark } from '@/lib/cloudAccess';
 import { resolveExportPlan } from './exportPlan';
-import { toProjectDocument } from '@/store/projectDocument';
+import { useLocalExportCapability } from './hooks/useLocalExportCapability';
+import { useVideoExportExecution } from './hooks/useVideoExportExecution';
+import { ExportSettingsForm } from './components/ExportSettingsForm';
+import { ExportStatusAlerts } from './components/ExportStatusAlerts';
+import { ExportModalFooter } from './components/ExportModalFooter';
 
 interface ExportModalProps {
   open: boolean;
   onClose: () => void;
-}
-
-function getErrorMessage(error: unknown, fallback = 'Export failed'): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 export default function ExportModal({ open, onClose }: ExportModalProps) {
@@ -62,23 +50,19 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     }))
   );
 
-  const { session, user, openAuthModal, openCreditsModal, openUpgradeModal } = useAuthStore(
+  const { session, openAuthModal, openUpgradeModal } = useAuthStore(
     useShallow((s) => ({
       session: s.session,
-      user: s.user,
       openAuthModal: s.openAuthModal,
-      openCreditsModal: s.openCreditsModal,
       openUpgradeModal: s.openUpgradeModal,
     }))
   );
 
   const { data: subscription } = useSubscription();
   const limits = getExportLimits(subscription);
-
-  const { data: creditBalance } = useCredits();
   const runtimeRef = useMapRuntime();
 
-  // Initialize the editable draft from the limits currently in effect.
+  // Initialize editable draft from limits
   const [exportFps, setExportFps] = useState<30 | 60>(
     fps > limits.maxFps ? limits.maxFps : fps
   );
@@ -86,13 +70,6 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   const [endTime, setEndTime] = useState<number>(
     Math.min(duration, limits.maxDuration)
   );
-  const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<'prewarm' | 'capture'>('capture');
-  const [error, setError] = useState<string | null>(null);
-  const [cloudSubmitted, setCloudSubmitted] = useState(false);
-
-  const [localExportCapability, setLocalExportCapability] = useState<LocalExportCapability | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   const requestedRenderConfig: RenderConfig = {
     resolution,
@@ -108,118 +85,45 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     show3dTrees,
     show3dFacades,
   };
+
   const exportPlan = resolveExportPlan(
     requestedRenderConfig,
     { startTime, endTime },
-    limits,
+    limits
   );
+
   const { renderConfig: effectiveRenderConfig } = exportPlan;
   const [effectiveWidth, effectiveHeight] = effectiveRenderConfig.resolution;
   const exportDuration = Math.max(0, exportPlan.endTime - exportPlan.startTime);
   const totalFrames = Math.ceil(exportDuration * effectiveRenderConfig.fps);
-  const credits = calculateRenderCredits(
-    effectiveRenderConfig.exportResolution,
-    exportDuration,
+
+  // Hook 1: Device / browser codec capability detection
+  const localExportCapability = useLocalExportCapability(
+    effectiveWidth,
+    effectiveHeight,
     effectiveRenderConfig.fps,
+    open
   );
-  const totalCredits = (creditBalance?.monthly_credits ?? 0) + (creditBalance?.purchased_credits ?? 0);
-  const canAfford = totalCredits >= credits;
 
-  // Probe the effective export settings up front so people see device/browser
-  // limitations before starting a potentially long local render.
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
+  // Hook 2: Video export lifecycle
+  const showWatermark = shouldShowWatermark(subscription);
+  const isLimitedGuest = !session && limits.limited;
+  const {
+    progress,
+    phase,
+    error,
+    startExport,
+    cancelExport,
+  } = useVideoExportExecution(
+    runtimeRef,
+    exportPlan,
+    showWatermark,
+    name,
+    openAuthModal,
+    isLimitedGuest
+  );
 
-    getLocalExportCapability(effectiveWidth, effectiveHeight, effectiveRenderConfig.fps)
-      .then((capability) => {
-        if (!cancelled) setLocalExportCapability(capability);
-      })
-      .catch(() => {
-        if (!cancelled) setLocalExportCapability({ status: 'limited' });
-      });
-
-    return () => { cancelled = true; };
-  }, [open, effectiveRenderConfig.fps, effectiveHeight, effectiveWidth]);
-
-  async function handleExport() {
-    // Guests without BYOK must sign in before exporting
-    if (!session && limits.limited) {
-      openAuthModal();
-      return;
-    }
-    useProjectStore.getState().setIsExporting(true);
-    setProgress(0);
-    setError(null);
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const showWatermark = shouldShowWatermark(subscription);
-    useProjectStore.getState().setIsPlaying(false);
-    useProjectStore.getState().setHideUI(true);
-
-    try {
-      const blob = await runExport(runtimeRef, {
-        ...exportPlan,
-        showWatermark,
-        onProgress: (pct, p) => { setProgress(pct); setPhase(p); },
-        abortSignal: controller.signal,
-      });
-
-      const fileName = `${name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export'}.mp4`;
-      saveAs(blob, fileName);
-      setProgress(100);
-    } catch (error: unknown) {
-      if (controller.signal.aborted) {
-        setProgress(0);
-      } else {
-        setError(getErrorMessage(error));
-      }
-    } finally {
-      abortRef.current = null;
-      useProjectStore.getState().setIsExporting(false);
-      useProjectStore.getState().setHideUI(false);
-    }
-  }
-
-  const handleCancel = () => {
-    abortRef.current?.abort();
-  };
-
-  const handleCloudRender = async () => {
-    if (!session) { openAuthModal(); return; }
-    if (!canAfford) { openCreditsModal(); return; }
-    setError(null);
-    setCloudSubmitted(false);
-
-    const store = useProjectStore.getState();
-    const renderConfig = effectiveRenderConfig;
-
-    const projectData = toProjectDocument(store);
-
-    try {
-      const res = await fetch('/api/render-dispatch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          projectData,
-          renderConfig,
-          startTime: exportPlan.startTime,
-          endTime: exportPlan.endTime,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Server error ${res.status}`);
-      }
-      setCloudSubmitted(true);
-    } catch (error: unknown) {
-      setError(getErrorMessage(error, 'Failed to submit cloud render'));
-    }
-  };
+  const isFormDisabled = isExporting;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -236,233 +140,50 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           </DialogHeader>
         </div>
 
+        {/* Body */}
         <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Aspect ratio">
-              <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)} disabled={isExporting || cloudSubmitted}>
-                <SelectTrigger className="h-9 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="16:9">16:9</SelectItem>
-                  <SelectItem value="21:9">21:9</SelectItem>
-                  <SelectItem value="4:3">4:3</SelectItem>
-                  <SelectItem value="1:1">1:1</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
+          <ExportSettingsForm
+            aspectRatio={aspectRatio}
+            isVertical={isVertical}
+            exportPlan={exportPlan}
+            limits={limits}
+            startTime={startTime}
+            duration={duration}
+            disabled={isFormDisabled}
+            onAspectRatioChange={setAspectRatio}
+            onOrientationChange={setIsVertical}
+            onResolutionChange={setExportResolution}
+            onFpsChange={setExportFps}
+            onStartTimeChange={setStartTime}
+            onEndTimeChange={setEndTime}
+          />
 
-            <Field label="Orientation">
-              <SegmentedControl
-                options={[
-                  { value: 'landscape', label: 'Landscape', icon: <Monitor size={14} /> },
-                  { value: 'portrait', label: 'Portrait', icon: <Smartphone size={14} /> },
-                ]}
-                value={isVertical ? 'portrait' : 'landscape'}
-                onValueChange={(v) => setIsVertical(v === 'portrait')}
-                className="h-9 w-full"
-                disabled={isExporting || cloudSubmitted}
-              />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={
-              <span className="flex items-center gap-1">
-                Resolution
-                {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
-              </span>
-            }>
-              <Select
-                value={effectiveRenderConfig.exportResolution}
-                onValueChange={(v) => setExportResolution(v as ExportResolution)}
-                disabled={isExporting || cloudSubmitted}
-              >
-                <SelectTrigger className="h-9 text-sm flex-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <ResolutionSelectItems limits={limits} />
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field label={
-              <span className="flex items-center gap-1">
-                Frame rate
-                {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
-              </span>
-            }>
-              <Select
-                value={effectiveRenderConfig.fps.toString()}
-                onValueChange={(v) => setExportFps(Number(v) as 30 | 60)}
-                disabled={isExporting || cloudSubmitted}
-              >
-                <SelectTrigger className="h-9 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <FpsSelectItems limits={limits} showUnit />
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Start time (s)">
-              <Input
-                type="number"
-                min={0}
-                max={exportPlan.endTime}
-                step={0.1}
-                value={startTime}
-                onChange={(e) => setStartTime(Number(e.target.value))}
-                disabled={isExporting || cloudSubmitted}
-                className="h-9 text-sm"
-              />
-            </Field>
-            <Field label={
-              <span className="flex items-center gap-1">
-                End time (s)
-                {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
-              </span>
-            }>
-              <Input
-                type="number"
-                min={startTime}
-                max={Math.min(duration, limits.maxDuration)}
-                step={0.1}
-                value={exportPlan.endTime}
-                onChange={(e) => setEndTime(Math.min(Number(e.target.value), limits.maxDuration))}
-                disabled={isExporting || cloudSubmitted}
-                className="h-9 text-sm"
-              />
-            </Field>
-          </div>
-
-          {(limits.limited || isExporting) && (
-            <div className={`p-3 rounded-xl border space-y-2 ${isExporting
-                ? 'bg-destructive/10 border-destructive/20'
-                : 'bg-primary/5 border-primary/10'
-              }`}>
-              {isExporting ? (
-                <div className="space-y-1">
-                  <p className="text-[11px] font-medium text-destructive flex items-center gap-1.5">
-                    <AlertTriangle size={12} />
-                    Keep this tab open
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-destructive/80">
-                    Keep this tab active during export. Do not minimize the browser.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
-                  </p>
-                  <button
-                    onClick={openUpgradeModal}
-                    className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
-                  >
-                    Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Info row */}
-          <div className="flex gap-4 text-xs text-muted-foreground bg-secondary/50 rounded-xl p-3">
-            <div><span className="block font-medium text-foreground">{exportDuration.toFixed(1)}s</span>Duration</div>
-            <div><span className="block font-medium text-foreground whitespace-nowrap">{effectiveWidth} × {effectiveHeight}</span>Dimensions</div>
-            <div><span className="block font-medium text-foreground">{totalFrames}</span>Total frames</div>
-            <div><span className="block font-medium text-foreground">MP4</span>Format</div>
-          </div>
-
-          {/* Local export capability */}
-          {localExportCapability?.status === 'ready' && (
-            <div className="flex items-start gap-2 text-xs text-primary bg-primary/10 rounded-xl p-3">
-              <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
-              <span>Local export is available at {effectiveWidth} × {effectiveHeight}, {effectiveRenderConfig.fps} FPS.</span>
-            </div>
-          )}
-          {localExportCapability?.status === 'limited' && (
-            <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-xl p-3">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>This browser may not support H.264 at {effectiveWidth} × {effectiveHeight}, {effectiveRenderConfig.fps} FPS. Try a lower resolution or 30 FPS.</span>
-            </div>
-          )}
-          {localExportCapability?.status === 'unsupported' && (
-            <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded-xl p-3">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>This browser does not support local MP4 export. Use a current desktop version of Chrome or Edge.</span>
-            </div>
-          )}
-
-          {/* Progress bar */}
-          {isExporting && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-foreground">{phase === 'prewarm' ? 'Preparing map tiles' : 'Exporting frames'}</span>
-                <span className="text-xs font-mono text-muted-foreground">{progress}%</span>
-              </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && <div className="text-xs text-destructive bg-destructive/10 rounded-xl p-3">{error}</div>}
-
-          {/* Success Local */}
-          {!isExporting && progress === 100 && !error && (
-            <div className="text-xs text-primary bg-primary/10 rounded-xl p-3 flex items-center gap-2">
-              <Download size={14} /> Export complete. The file was downloaded.
-            </div>
-          )}
-
-          {/* Success Cloud */}
-          {cloudSubmitted && !error && (
-            <div className="text-xs text-primary bg-primary/10 rounded-xl p-3 flex items-center gap-2">
-              <Cloud size={14} /> Cloud render queued. Open Cloud renders to check progress and download the file.
-            </div>
-          )}
+          <ExportStatusAlerts
+            limits={limits}
+            isExporting={isExporting}
+            exportDuration={exportDuration}
+            effectiveWidth={effectiveWidth}
+            effectiveHeight={effectiveHeight}
+            effectiveFps={effectiveRenderConfig.fps}
+            totalFrames={totalFrames}
+            localExportCapability={localExportCapability}
+            phase={phase}
+            progress={progress}
+            error={error}
+            cloudSubmitted={false}
+            onOpenUpgrade={openUpgradeModal}
+          />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-5 py-5 border-t border-border bg-secondary/10">
-          {/* CLOUD RENDERING TEMPORARILY DISABLED — not dead code.
-              Re-enable once GPU acceleration is working in the Modal render worker.
-          <Button
-            variant="outline"
-            onClick={handleCloudRender}
-            className={`flex-1 h-11 text-sm font-medium flex items-center justify-center gap-2 transition-all outline-offset-[-1px] border-dashed ${isExporting || cloudSubmitted ? 'opacity-50 cursor-not-allowed grayscale' : 'hover:border-primary/50'}`}
-            disabled={isExporting || cloudSubmitted}
-          >
-            <Cloud size={16} className={isExporting || cloudSubmitted ? 'text-muted-foreground' : 'text-primary'} />
-            <span className="shrink-0 font-medium whitespace-nowrap">Cloud Render &middot; {credits} cr</span>
-            <ProBadge />
-          </Button>
-          */}
-          <Button
-            variant="outline"
-            disabled
-            className="flex-1 h-11 text-sm font-medium flex items-center justify-center gap-2 opacity-40 border-dashed cursor-not-allowed"
-          >
-            <Cloud size={16} className="text-muted-foreground" />
-            <span className="font-medium whitespace-nowrap">Cloud render</span>
-            <span className="text-[10px] text-muted-foreground font-normal">Not available yet</span>
-          </Button>
-
-          {isExporting ? (
-            <Button onClick={handleCancel} variant="outline" className="flex-1 h-11 text-sm font-medium border-destructive/30 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/50 transition-all">
-              Cancel
-            </Button>
-          ) : (
-            <Button
-              onClick={handleExport}
-              disabled={cloudSubmitted || !localExportCapability || localExportCapability.status === 'unsupported'}
-              className="flex-1 h-11 text-sm font-medium flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all shadow-lg shadow-primary/10"
-            >
-              {progress === 100 ? <><Download size={16} /> Export again</> : <><Clapperboard size={16} /> Export locally</>}
-            </Button>
-          )}
-        </div>
+        <ExportModalFooter
+          isExporting={isExporting}
+          cloudSubmitted={false}
+          progress={progress}
+          localExportCapability={localExportCapability}
+          onExport={startExport}
+          onCancel={cancelExport}
+        />
       </DialogContent>
     </Dialog>
   );
