@@ -22,6 +22,20 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+if (typeof window !== "undefined" && !window.PointerEvent) {
+  class PointerEventStub extends MouseEvent {
+    pointerId: number;
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 0;
+    }
+  }
+  // @ts-expect-error test stub for jsdom
+  window.PointerEvent = PointerEventStub;
+  // @ts-expect-error test stub for jsdom
+  global.PointerEvent = PointerEventStub;
+}
+
 if (typeof Element !== 'undefined') {
   if (!Element.prototype.setPointerCapture) {
     Element.prototype.setPointerCapture = () => {};
