@@ -74,39 +74,56 @@ export default function TimelinePanel() {
       endTime: route.endTime,
     })), [orderedItems]);
 
-  // Use pointer capture so the ScrollArea can't steal the drag mid-way
-  const handleResizeDrag = useCallback((e: React.PointerEvent) => {
+  const resizeDragRef = useRef<{
+    startY: number;
+    startHeight: number;
+    latestHeight: number;
+  } | null>(null);
+
+  const handleResizePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const el = e.currentTarget as HTMLElement;
-    el.setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
 
-    const startY = e.clientY;
-    const startHeight = containerRef.current?.offsetHeight ?? displayHeight;
+    const startHeight = containerRef.current?.offsetHeight || displayHeight;
     setIsResizing(true);
-
-    let latestHeight = startHeight;
-
-    const onMove = (ev: PointerEvent) => {
-      const deltaY = ev.clientY - startY;
-      const upperLimit = Math.min(window.innerHeight - 150, maxContentHeight);
-      const newHeight = Math.floor(Math.max(MIN_PANEL_HEIGHT, Math.min(upperLimit, startHeight - deltaY)));
-      latestHeight = newHeight;
-      setDisplayHeight(newHeight);
+    resizeDragRef.current = {
+      startY: e.clientY,
+      startHeight,
+      latestHeight: startHeight,
     };
+  }, [displayHeight]);
 
-    const onUp = () => {
-      el.releasePointerCapture(e.pointerId);
+  const handleResizePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = resizeDragRef.current;
+    if (!drag) return;
+    const deltaY = e.clientY - drag.startY;
+    const availableWindowHeight = window.innerHeight > 0 ? window.innerHeight : 900;
+    const upperLimit = Math.min(availableWindowHeight - 150, maxContentHeight);
+    const newHeight = Math.floor(Math.max(MIN_PANEL_HEIGHT, Math.min(upperLimit, drag.startHeight - deltaY)));
+    drag.latestHeight = newHeight;
+    setDisplayHeight(newHeight);
+  }, [maxContentHeight]);
+
+  const handleResizePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = resizeDragRef.current;
+    if (drag) {
       setIsResizing(false);
-      setTimelineHeight(latestHeight);
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerup', onUp);
-      document.body.style.cursor = '';
-    };
+      setTimelineHeight(drag.latestHeight);
+      resizeDragRef.current = null;
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    }
+  }, [setTimelineHeight]);
 
-    document.body.style.cursor = 'row-resize';
-    el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerup', onUp);
-  }, [setTimelineHeight, maxContentHeight, displayHeight]);
+  const handleResizeLostPointerCapture = useCallback(() => {
+    const drag = resizeDragRef.current;
+    if (drag) {
+      setIsResizing(false);
+      setTimelineHeight(drag.latestHeight);
+      resizeDragRef.current = null;
+    }
+  }, [setTimelineHeight]);
 
   const handleFitToTimeline = useCallback(() => {
     if (!containerRef.current || duration <= 0) return;
@@ -155,8 +172,13 @@ export default function TimelinePanel() {
     >
       {/* Top Resize Handle */}
       <div
-        className="absolute top-0 left-0 right-0 h-2 cursor-row-resize z-50 hover:bg-primary/20 transition-colors"
-        onPointerDown={handleResizeDrag}
+        data-testid="timeline-resize-handle"
+        className="absolute top-0 left-0 right-0 h-2 cursor-row-resize z-50 hover:bg-primary/20 transition-colors touch-none"
+        onPointerDown={handleResizePointerDown}
+        onPointerMove={handleResizePointerMove}
+        onPointerUp={handleResizePointerUp}
+        onPointerCancel={handleResizePointerUp}
+        onLostPointerCapture={handleResizeLostPointerCapture}
       />
 
       <TimelineHeader

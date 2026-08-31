@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type MouseEvent, type RefObject, type SetStateAction, type WheelEvent } from 'react';
+import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction, type WheelEvent } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { TimelineItem } from '@/store/types';
@@ -49,27 +49,44 @@ export default function TimelineViewport({
 }: TimelineViewportProps) {
   const initialPlayheadX = useProjectStore.getState().playheadTime * pixelsPerSecond;
 
-  const handleRulerScrub = useCallback((event: MouseEvent<HTMLDivElement>) => {
+  const isScrubbingRef = useRef(false);
+
+  const handleRulerPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsPlaying(false);
     setIsScrubbing(true);
+    isScrubbingRef.current = true;
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
 
     const ruler = event.currentTarget;
-    const updateTime = (clientX: number) => {
-      const x = clientX - ruler.getBoundingClientRect().left;
-      setPlayheadTime(Math.max(0, Math.min(duration, x / pixelsPerSecond)));
-    };
-    const handleMove = (moveEvent: globalThis.MouseEvent) => updateTime(moveEvent.clientX);
-    const handleUp = () => {
-      setIsScrubbing(false);
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
-
-    updateTime(event.clientX);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
+    const x = event.clientX - ruler.getBoundingClientRect().left;
+    setPlayheadTime(Math.max(0, Math.min(duration, x / pixelsPerSecond)));
   }, [duration, pixelsPerSecond, setIsPlaying, setIsScrubbing, setPlayheadTime]);
+
+  const handleRulerPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbingRef.current) return;
+    const ruler = event.currentTarget;
+    const x = event.clientX - ruler.getBoundingClientRect().left;
+    setPlayheadTime(Math.max(0, Math.min(duration, x / pixelsPerSecond)));
+  }, [duration, pixelsPerSecond, setPlayheadTime]);
+
+  const handleRulerPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (isScrubbingRef.current) {
+      isScrubbingRef.current = false;
+      setIsScrubbing(false);
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    }
+  }, [setIsScrubbing]);
+
+  const handleRulerLostPointerCapture = useCallback(() => {
+    if (isScrubbingRef.current) {
+      isScrubbingRef.current = false;
+      setIsScrubbing(false);
+    }
+  }, [setIsScrubbing]);
 
   const handleWheel = useCallback((event: WheelEvent) => {
     if (!event.ctrlKey && !event.metaKey) return;
@@ -98,8 +115,12 @@ export default function TimelineViewport({
 
           <div
             data-testid="timeline-ruler"
-            className="flex-1 relative h-full cursor-text"
-            onMouseDown={handleRulerScrub}
+            className="flex-1 relative h-full cursor-text touch-none select-none"
+            onPointerDown={handleRulerPointerDown}
+            onPointerMove={handleRulerPointerMove}
+            onPointerUp={handleRulerPointerUp}
+            onPointerCancel={handleRulerPointerUp}
+            onLostPointerCapture={handleRulerLostPointerCapture}
           >
             <TimelineRuler duration={duration} pixelsPerSecond={pixelsPerSecond} />
             <div
