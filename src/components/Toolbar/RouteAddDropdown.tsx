@@ -39,8 +39,7 @@ export const RouteAddDropdown = ({
 }) => {
   const { 
     addItem, selectItem, playheadTime, previewRoute, setPreviewRoute,
-    editingRoutePoint, setEditingRoutePoint,
-    draftStart, setDraftStart, draftEnd, setDraftEnd
+    activePicker, startPicking, stopPicking
   } = useProjectStore();
   
   const [mode, setMode] = useState<PlannedRouteMode>('car');
@@ -50,22 +49,48 @@ export const RouteAddDropdown = ({
   const [endName, setEndName] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Sync internal state from store drafts (map picks)
-  useEffect(() => {
-    if (draftStart) {
-      setStart(draftStart.lngLat);
-      setStartName(draftStart.name);
-      setDraftStart(null); // consume it
-    }
-  }, [draftStart, setDraftStart]);
+  const isPickingStart = activePicker?.id === 'route-start';
+  const isPickingEnd = activePicker?.id === 'route-end';
 
-  useEffect(() => {
-    if (draftEnd) {
-      setEnd(draftEnd.lngLat);
-      setEndName(draftEnd.name);
-      setDraftEnd(null); // consume it
+  const handleTogglePickStart = () => {
+    if (isPickingStart) {
+      stopPicking();
+    } else {
+      startPicking({
+        id: 'route-start',
+        prompt: 'Start',
+        onPick: (result) => {
+          setStart(result.lngLat);
+          setStartName(result.name);
+        },
+      });
     }
-  }, [draftEnd, setDraftEnd]);
+  };
+
+  const handleTogglePickEnd = () => {
+    if (isPickingEnd) {
+      stopPicking();
+    } else {
+      startPicking({
+        id: 'route-end',
+        prompt: 'End',
+        onPick: (result) => {
+          setEnd(result.lngLat);
+          setEndName(result.name);
+        },
+      });
+    }
+  };
+
+  // Clean up picker if this component unmounts while picking
+  useEffect(() => {
+    return () => {
+      const currentId = useProjectStore.getState().activePicker?.id;
+      if (currentId === 'route-start' || currentId === 'route-end') {
+        useProjectStore.getState().stopPicking();
+      }
+    };
+  }, []);
 
   const calculate = async () => {
     if (start[0] === 0 || end[0] === 0) {
@@ -214,8 +239,8 @@ export const RouteAddDropdown = ({
           name={startName}
           onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
           color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-          isPicking={editingRoutePoint === 'start'}
-          onStartPick={() => setEditingRoutePoint(editingRoutePoint === 'start' ? null : 'start')}
+          isPicking={isPickingStart}
+          onStartPick={handleTogglePickStart}
         />
         
         <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
@@ -226,8 +251,8 @@ export const RouteAddDropdown = ({
           name={endName}
           onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
           color="bg-rose-500/10 text-rose-500 border-rose-500/20"
-          isPicking={editingRoutePoint === 'end'}
-          onStartPick={() => setEditingRoutePoint(editingRoutePoint === 'end' ? null : 'end')}
+          isPicking={isPickingEnd}
+          onStartPick={handleTogglePickEnd}
         />
       </div>
 

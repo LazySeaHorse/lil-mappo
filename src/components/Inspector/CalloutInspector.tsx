@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
@@ -22,8 +22,35 @@ import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 export function CalloutInspector({ item }: { item: CalloutItem }) {
   const {
     updateItem, isMoveModeActive, setMoveModeActive,
-    editingRoutePoint, setEditingRoutePoint, setEditingItemId
+    activePicker, startPicking, stopPicking
   } = useProjectStore();
+
+  const pickerId = `callout-${item.id}`;
+  const isPicking = activePicker?.id === pickerId;
+
+  const handleTogglePick = () => {
+    if (isPicking) {
+      stopPicking();
+    } else {
+      startPicking({
+        id: pickerId,
+        prompt: 'Callout',
+        onPick: (result) => {
+          const patch: Partial<CalloutItem> = { lngLat: result.lngLat };
+          if (item.linkTitleToLocation) patch.title = result.name;
+          u(patch);
+        },
+      });
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (useProjectStore.getState().activePicker?.id === pickerId) {
+        useProjectStore.getState().stopPicking();
+      }
+    };
+  }, [pickerId]);
 
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates);
   const us = (updates: Partial<CalloutItem['style']>) => u({ style: { ...item.style, ...updates } });
@@ -63,12 +90,8 @@ export function CalloutInspector({ item }: { item: CalloutItem }) {
                 u(patch);
                 toast.success('Callout location updated.');
               }}
-              isPicking={editingRoutePoint === 'callout'}
-              onStartPick={() => {
-                const active = editingRoutePoint === 'callout';
-                setEditingRoutePoint(active ? null : 'callout');
-                setEditingItemId(active ? null : item.id);
-              }}
+              isPicking={isPicking}
+              onStartPick={handleTogglePick}
               showDot={false}
               className="px-0"
               color={item.linkTitleToLocation ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/50 text-muted-foreground border-border/50"}

@@ -37,8 +37,7 @@ export const CalloutAddDropdown = ({
 }) => {
   const { 
     addItem, selectItem, playheadTime, 
-    editingRoutePoint, setEditingRoutePoint,
-    draftCallout, setDraftCallout
+    activePicker, startPicking, stopPicking
   } = useProjectStore();
   
   const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
@@ -47,15 +46,32 @@ export const CalloutAddDropdown = ({
   const [variant, setVariant] = useState<CalloutVariant>('topo');
   const [linkTitle, setLinkTitle] = useState(true);
 
-  // Sync internal state from store drafts (map picks)
-  useEffect(() => {
-    if (draftCallout) {
-      setLngLat(draftCallout.lngLat);
-      setLocationName(draftCallout.name);
-      if (linkTitle) setTitle(draftCallout.name);
-      setDraftCallout(null); // consume it
+  const isPicking = activePicker?.id === 'callout-new';
+
+  const handleTogglePick = () => {
+    if (isPicking) {
+      stopPicking();
+    } else {
+      startPicking({
+        id: 'callout-new',
+        prompt: 'Callout',
+        onPick: (result) => {
+          setLngLat(result.lngLat);
+          setLocationName(result.name);
+          if (linkTitle) setTitle(result.name);
+        },
+      });
     }
-  }, [draftCallout, setDraftCallout, linkTitle]);
+  };
+
+  // Clean up picker if this component unmounts while picking
+  useEffect(() => {
+    return () => {
+      if (useProjectStore.getState().activePicker?.id === 'callout-new') {
+        useProjectStore.getState().stopPicking();
+      }
+    };
+  }, []);
 
   const handleSelect = (coords: [number, number], name: string) => {
     setLngLat(coords);
@@ -158,8 +174,8 @@ export const CalloutAddDropdown = ({
           value={lngLat}
           name={locationName}
           onSelect={handleSelect}
-          isPicking={editingRoutePoint === 'callout'}
-          onStartPick={() => setEditingRoutePoint(editingRoutePoint === 'callout' ? null : 'callout')}
+          isPicking={isPicking}
+          onStartPick={handleTogglePick}
         />
       </div>
 

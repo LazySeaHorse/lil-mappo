@@ -30,8 +30,31 @@ const InspectorSearchField = ({
   pointType,
   item 
 }: InspectorSearchFieldProps) => {
-  const { editingRoutePoint, setEditingRoutePoint, setEditingItemId } = useProjectStore();
-  const isPicking = editingRoutePoint === pointType;
+  const { activePicker, startPicking, stopPicking } = useProjectStore();
+  const pickerId = `route-${item.id}-${pointType}`;
+  const isPicking = activePicker?.id === pickerId;
+
+  const handleTogglePick = () => {
+    if (isPicking) {
+      stopPicking();
+    } else {
+      startPicking({
+        id: pickerId,
+        prompt: pointType === 'start' ? 'Start' : 'End',
+        onPick: (result) => {
+          onSelect(result.lngLat);
+        },
+      });
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (useProjectStore.getState().activePicker?.id === pickerId) {
+        useProjectStore.getState().stopPicking();
+      }
+    };
+  }, [pickerId]);
 
   const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, clear } = useLocationSearch({
     onSelect: (lngLat) => onSelect(lngLat),
@@ -88,10 +111,7 @@ const InspectorSearchField = ({
           variant={isPicking ? 'default' : 'outline'}
           size="xs"
           className={`rounded-lg h-8 w-8 shrink-0 transition-all ${isPicking ? 'bg-primary text-primary-foreground shadow-sm' : 'border-border/50 bg-background/50'}`}
-          onClick={() => {
-            setEditingRoutePoint(isPicking ? null : pointType);
-            setEditingItemId(isPicking ? null : item.id);
-          }}
+          onClick={handleTogglePick}
           title={isPicking ? "Select a point on the map" : "Select point on map"}
         >
           <Crosshair size={13} className={isPicking ? 'animate-pulse text-white' : 'text-muted-foreground'} />
