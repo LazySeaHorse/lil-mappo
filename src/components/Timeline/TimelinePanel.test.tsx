@@ -94,9 +94,9 @@ function renderTimeline(...routes: RouteItem[]) {
 
 function drag(testId: string, deltaX: number) {
   const target = screen.getByTestId(testId);
-  fireEvent.mouseDown(target, { clientX: 100 });
-  fireEvent.mouseMove(window, { clientX: 100 + deltaX });
-  fireEvent.mouseUp(window);
+  fireEvent.pointerDown(target, { clientX: 100, pointerId: 1 });
+  fireEvent.pointerMove(target, { clientX: 100 + deltaX, pointerId: 1 });
+  fireEvent.pointerUp(target, { pointerId: 1 });
 }
 
 beforeEach(() => {
@@ -130,13 +130,13 @@ describe('TimelinePanel', () => {
       toJSON: () => ({}),
     });
 
-    fireEvent.mouseDown(ruler, { clientX: 400 });
+    fireEvent.pointerDown(ruler, { clientX: 400, pointerId: 1 });
     expect(useProjectStore.getState().playheadTime).toBe(5);
     expect(useProjectStore.getState().isScrubbing).toBe(true);
 
-    fireEvent.mouseMove(window, { clientX: 1000 });
+    fireEvent.pointerMove(ruler, { clientX: 700, pointerId: 1 });
     expect(useProjectStore.getState().playheadTime).toBe(10);
-    fireEvent.mouseUp(window);
+    fireEvent.pointerUp(ruler, { pointerId: 1 });
     expect(useProjectStore.getState().isScrubbing).toBe(false);
   });
 
@@ -276,5 +276,51 @@ describe('TimelinePanel', () => {
     drag('timeline-keyframe-keyframe', -1000);
     const cameraItem = useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem;
     expect(cameraItem.keyframes[0].time).toBe(0);
+  });
+
+  it('does not attach window event listeners or mutate body cursor classes during drag', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    renderTimeline(route('moving', 1, 3));
+
+    const item = screen.getByTestId('timeline-item-moving');
+    fireEvent.pointerDown(item, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(item, { clientX: 160, pointerId: 1 });
+    fireEvent.pointerUp(item, { pointerId: 1 });
+
+    const mouseMoveCalls = addEventListenerSpy.mock.calls.filter(([type]) => type === 'mousemove');
+    const mouseUpCalls = addEventListenerSpy.mock.calls.filter(([type]) => type === 'mouseup');
+
+    expect(mouseMoveCalls).toHaveLength(0);
+    expect(mouseUpCalls).toHaveLength(0);
+    expect(document.body.classList.contains('cursor-grabbing')).toBe(false);
+    expect(document.body.classList.contains('cursor-ew-resize')).toBe(false);
+    expect(document.body.style.cursor).toBe('');
+
+    addEventListenerSpy.mockRestore();
+  });
+
+  it('safely handles unmounting mid-drag without leaving dangling body mutations', () => {
+    const { unmount } = renderTimeline(route('moving', 1, 3));
+    const item = screen.getByTestId('timeline-item-moving');
+
+    fireEvent.pointerDown(item, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(item, { clientX: 160, pointerId: 1 });
+
+    unmount();
+
+    expect(document.body.classList.contains('cursor-grabbing')).toBe(false);
+    expect(document.body.classList.contains('cursor-ew-resize')).toBe(false);
+    expect(document.body.style.cursor).toBe('');
+  });
+
+  it('resizes timeline panel height via pointer events', () => {
+    renderTimeline(route('item', 1, 3));
+    const resizeHandle = screen.getByTestId('timeline-resize-handle');
+
+    fireEvent.pointerDown(resizeHandle, { clientY: 500, pointerId: 1 });
+    fireEvent.pointerMove(resizeHandle, { clientY: 450, pointerId: 1 });
+    fireEvent.pointerUp(resizeHandle, { pointerId: 1 });
+
+    expect(useProjectStore.getState().timelineHeight).toBeGreaterThanOrEqual(120);
   });
 });
