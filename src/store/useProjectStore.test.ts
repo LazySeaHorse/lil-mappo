@@ -175,5 +175,30 @@ describe('useProjectStore modular slices', () => {
       expect(useProjectStore.getState().draftBoundaryName).toBe('');
       expect(useProjectStore.getState().previewBoundary).toBeNull();
     });
+
+    it('manages active picker sessions without leaking state', () => {
+      const store = useProjectStore.getState();
+      expect(store.activePicker).toBeNull();
+
+      const onPick = vi.fn();
+      store.startPicking({
+        id: 'test-picker',
+        prompt: 'Pick a test point',
+        onPick,
+      });
+
+      const active = useProjectStore.getState().activePicker;
+      expect(active).toBeDefined();
+      expect(active?.id).toBe('test-picker');
+      expect(active?.prompt).toBe('Pick a test point');
+
+      // Invoking callback works directly
+      active?.onPick({ lngLat: [12.34, 56.78], name: 'Test Place' });
+      expect(onPick).toHaveBeenCalledWith({ lngLat: [12.34, 56.78], name: 'Test Place' });
+
+      // Stopping picker clears session cleanly
+      store.stopPicking();
+      expect(useProjectStore.getState().activePicker).toBeNull();
+    });
   });
 });

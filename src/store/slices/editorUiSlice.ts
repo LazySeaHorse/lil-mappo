@@ -25,11 +25,8 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
   setTimelineHeight: (v) => set({ timelineHeight: v }),
   setMapCenter: (v) => set({ mapCenter: v }),
 
-  setEditingRoutePoint: (p) => set({ editingRoutePoint: p }),
-  setDraftStart: (v) => set({ draftStart: v }),
-  setDraftEnd: (v) => set({ draftEnd: v }),
-  setDraftCallout: (v) => set({ draftCallout: v }),
-  setEditingItemId: (id) => set({ editingItemId: id }),
+  startPicking: (session) => set({ activePicker: session }),
+  stopPicking: () => set({ activePicker: null }),
   setPreviewRoute: (v) => set({ previewRoute: v }),
 
   setPreviewBoundary: (geojson, name) =>

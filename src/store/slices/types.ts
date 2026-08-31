@@ -8,8 +8,19 @@ import type {
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
 
+export interface PickResult {
+  lngLat: [number, number];
+  name: string;
+}
+
+export interface PickSession {
+  id: string;
+  prompt?: string;
+  onPick: (result: PickResult) => void;
+}
+
 export interface TransientProjectState {
-  // Transient UI state (not persisted)
+  // Transient map runtime state (not persisted)
   mapStyle: string;
   labelVisibility: Record<string, boolean>;
   playheadTime: number;
@@ -37,12 +48,8 @@ export interface TransientProjectState {
   isExporting: boolean;
   showNewProjectModal: boolean;
   projectSettingsTab: 'general' | 'map';
-  // Transient drafting/picking state (not persisted)
-  editingRoutePoint: 'start' | 'end' | 'callout' | null;
-  editingItemId: string | null;
-  draftStart: { lngLat: [number, number]; name: string } | null;
-  draftEnd: { lngLat: [number, number]; name: string } | null;
-  draftCallout: { lngLat: [number, number]; name: string } | null;
+  // Transient picking state (not persisted)
+  activePicker: PickSession | null;
   previewRoute: GeoJSON.FeatureCollection | null;
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
@@ -78,15 +85,17 @@ export interface ProjectSettingsSlice {
   setExportResolution: (v: ExportResolution) => void;
   setIsVertical: (v: boolean) => void;
   setProjection: (v: 'globe' | 'mercator') => void;
-  setLightPreset: (v: 'day' | 'night' | 'dusk' | 'dawn') => void;
-  setAtmosphere: (updates: { starIntensity?: number; fogColor?: string | null }) => void;
+  setLightPreset: (v: Project['lightPreset']) => void;
+  setStarIntensity: (v: number) => void;
+  setFogColor: (v: string) => void;
   setTerrainExaggeration: (v: number) => void;
-  setProjectName: (n: string) => void;
-  loadFullProject: (project: unknown) => void;
+  setCustomMapStyle: (url?: string, label?: string) => void;
+  resetProjectSettings: () => void;
 }
 
 export interface MapEnvironmentSlice {
   setMapStyle: (s: string) => void;
+  toggleLabelGroup: (groupId: string) => void;
   setLabelGroupVisibility: (groupId: string, visible: boolean) => void;
   setAllLabelsVisibility: (visible: boolean) => void;
   set3dDetails: (key: 'landmarks' | 'trees' | 'facades', visible: boolean) => void;
@@ -110,11 +119,8 @@ export interface EditorUiSlice {
   setIsInspectorOpen: (v: boolean) => void;
   setTimelineHeight: (v: number) => void;
   setMapCenter: (v: [number, number]) => void;
-  setEditingRoutePoint: (p: 'start' | 'end' | 'callout' | null) => void;
-  setDraftStart: (v: { lngLat: [number, number]; name: string } | null) => void;
-  setDraftEnd: (v: { lngLat: [number, number]; name: string } | null) => void;
-  setDraftCallout: (v: { lngLat: [number, number]; name: string } | null) => void;
-  setEditingItemId: (id: string | null) => void;
+  startPicking: (session: PickSession) => void;
+  stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
   setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
