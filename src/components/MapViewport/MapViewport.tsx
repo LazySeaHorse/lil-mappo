@@ -10,7 +10,7 @@ import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
-import { resolveClickTarget, applyPickResult } from './mapUtils';
+import { resolveClickTarget } from './mapUtils';
 import { CalloutMarker } from './CalloutMarker';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
@@ -98,26 +98,24 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
 
   const handleMapClick = useCallback((e: MapLayerMouseEvent) => {
     const s = useProjectStore.getState();
-    const selectedId = s.selectedItemId;
-    const editingPoint = s.editingRoutePoint;
+    const activePicker = s.activePicker;
 
-    if (!editingPoint) {
-      if (selectedId) {
-        const item = s.items[selectedId];
-        if (item?.kind === 'callout' && item.lngLat[0] === 0 && item.lngLat[1] === 0) {
-          updateItem(selectedId, { lngLat: [e.lngLat.lng, e.lngLat.lat] });
-        }
-      }
+    if (activePicker) {
+      const target = resolveClickTarget(e, activePicker.prompt || 'Point');
+      activePicker.onPick(target);
+      s.stopPicking();
+      const label = activePicker.prompt || 'Point';
+      toast.success(`${label} point set`);
       return;
     }
 
-    const target = resolveClickTarget(e, editingPoint);
-    applyPickResult(s, editingPoint, target, updateItem);
-
-    s.setEditingRoutePoint(null);
-    s.setEditingItemId(null);
-    const label = editingPoint === 'callout' ? 'Callout' : (editingPoint === 'start' ? 'Start' : 'End');
-    toast.success(`${label} point set`);
+    const selectedId = s.selectedItemId;
+    if (selectedId) {
+      const item = s.items[selectedId];
+      if (item?.kind === 'callout' && item.lngLat[0] === 0 && item.lngLat[1] === 0) {
+        updateItem(selectedId, { lngLat: [e.lngLat.lng, e.lngLat.lat] });
+      }
+    }
   }, [updateItem]);
 
   useEffect(() => {

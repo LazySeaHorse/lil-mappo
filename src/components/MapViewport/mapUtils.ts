@@ -1,7 +1,5 @@
-import { useProjectStore } from '@/store/useProjectStore';
-import type { RouteItem, CalloutItem } from '@/store/types';
 import type { MapStyleCapabilities } from '@/config/mapbox';
-import { toast } from 'sonner';
+import type { PickResult } from '@/store/slices/types';
 
 /**
  * Detects capabilities for any Mapbox style by scanning the loaded style's label layer IDs.
@@ -68,49 +66,14 @@ export function detectRuntimeCapabilities(map: any, mapStyle: string): MapStyleC
 /**
  * Resolves a map click to either a search result feature or raw coordinates.
  */
-export function resolveClickTarget(e: any, editingPoint: string): { lngLat: [number, number]; name: string } {
+export function resolveClickTarget(e: any, fallbackName = 'Point'): PickResult {
   const searchFeature = e.features?.find((f: any) => f.layer.id === 'search-results-circles');
   if (searchFeature) {
     return {
       lngLat: searchFeature.geometry.coordinates as [number, number],
-      name: searchFeature.properties.name?.split(',')[0] || (editingPoint === 'start' ? 'Start' : 'End'),
+      name: searchFeature.properties.name?.split(',')[0] || fallbackName,
     };
   }
   const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
   return { lngLat, name: `${lngLat[0].toFixed(5)}, ${lngLat[1].toFixed(5)}` };
-}
-
-/**
- * Applies the result of a map pick to either a draft or an existing item.
- */
-export function applyPickResult(
-  s: ReturnType<typeof useProjectStore.getState>,
-  editingPoint: string,
-  target: { lngLat: [number, number]; name: string },
-  updateItem: (id: string, patch: any) => void,
-) {
-  const { lngLat, name } = target;
-
-  if (editingPoint === 'callout') {
-    const editingId = s.editingItemId;
-    if (editingId) {
-      const item = s.items[editingId] as CalloutItem;
-      if (item) {
-        const updates: Partial<CalloutItem> = { lngLat };
-        if (item.linkTitleToLocation) updates.title = name;
-        updateItem(editingId, updates as any);
-      }
-    } else {
-      s.setDraftCallout({ lngLat, name });
-    }
-  } else if (s.editingItemId) {
-    const routeItem = s.items[s.editingItemId] as RouteItem;
-    if (routeItem) {
-      const calc = routeItem.calculation || { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] };
-      updateItem(s.editingItemId, { calculation: { ...calc, [editingPoint === 'start' ? 'startPoint' : 'endPoint']: lngLat } } as any);
-    }
-  } else {
-    if (editingPoint === 'start') s.setDraftStart({ lngLat, name });
-    else s.setDraftEnd({ lngLat, name });
-  }
 }
