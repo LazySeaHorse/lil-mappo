@@ -24,7 +24,7 @@ import webhookHandler, {
   dispatchWebhookEvent,
   handleSubscriptionActive,
   handleSubscriptionExpired,
-} from "./dodo-webhook";
+} from "../dodo-webhook.js";
 
 const PLANS = {
   "prod-wanderer": { tier: "wanderer", monthlyCredits: 100, parallelRenders: 1 },

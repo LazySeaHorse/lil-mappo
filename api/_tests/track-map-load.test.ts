@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import { hasActiveMapEntitlement } from "./track-map-load";
+import { hasActiveMapEntitlement } from "../track-map-load.js";
 
 describe("server-side subscription entitlement", () => {
   it("allows active Wanderer subscriptions", () => {

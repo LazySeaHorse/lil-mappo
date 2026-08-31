@@ -63,8 +63,9 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     const kf1: CameraKeyframe = {
       id: 'kf-1',
       time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0 },
+      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
       easing: 'linear',
+      followRoute: null,
     };
     useProjectStore.getState().addCameraKeyframe(kf1);
 
@@ -84,8 +85,9 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     useProjectStore.getState().addCameraKeyframe({
       id: 'kf-1',
       time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0 },
+      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
       easing: 'linear',
+      followRoute: null,
     });
     expect(useWalkthroughStore.getState().walkthrough.stage).toBe('move-playhead');
 
@@ -101,8 +103,9 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     useProjectStore.getState().addCameraKeyframe({
       id: 'kf-2',
       time: 3,
-      camera: { center: [10, 10], zoom: 12, pitch: 30, bearing: 45 },
+      camera: { center: [10, 10], zoom: 12, pitch: 30, bearing: 45, altitude: null },
       easing: 'easeInOutCubic',
+      followRoute: null,
     });
 
     // Entering play-animation resets playheadTime to 0
@@ -121,15 +124,17 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     useProjectStore.getState().addCameraKeyframe({
       id: 'kf-1',
       time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0 },
+      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
       easing: 'linear',
+      followRoute: null,
     });
     useProjectStore.getState().setPlayheadTime(3);
     useProjectStore.getState().addCameraKeyframe({
       id: 'kf-2',
       time: 3,
-      camera: { center: [10, 10], zoom: 12, pitch: 30, bearing: 45 },
+      camera: { center: [10, 10], zoom: 12, pitch: 30, bearing: 45, altitude: null },
       easing: 'easeInOutCubic',
+      followRoute: null,
     });
 
     // Currently in play-animation
@@ -229,8 +234,9 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     useProjectStore.getState().addCameraKeyframe({
       id: 'kf-test',
       time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0 },
+      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
       easing: 'linear',
+      followRoute: null,
     });
 
     expect(useWalkthroughStore.getState().isRunning).toBe(false);

@@ -15,7 +15,7 @@ vi.mock("dodopayments", () => ({
   },
 }));
 
-import handler from "./dodo-create-session";
+import handler from "../dodo-create-session.js";
 
 function request(body: Record<string, unknown>, token = "valid-token") {
   return {

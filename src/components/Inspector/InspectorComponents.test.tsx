@@ -108,8 +108,8 @@ describe('Inspector Components Integration', () => {
       kind: 'boundary',
       placeName: 'California',
       geojson: {
-        type: 'FeatureCollection',
-        features: [],
+        type: 'Polygon',
+        coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]],
       },
       startTime: 0,
       endTime: 4,
@@ -122,6 +122,8 @@ describe('Inspector Components Integration', () => {
         glow: true,
         fillOpacity: 0.5,
         animateStroke: false,
+        animationStyle: 'trace',
+        traceLength: 0.2,
       },
     };
 
@@ -146,20 +148,32 @@ describe('Inspector Components Integration', () => {
       id: 'callout-1',
       kind: 'callout',
       title: 'Golden Gate Bridge',
+      subtitle: '',
+      imageUrl: null,
       lngLat: [-122.4783, 37.8199],
+      anchor: 'bottom',
       altitude: 100,
       poleVisible: true,
       poleColor: '#ffffff',
       startTime: 2,
       endTime: 6,
       linkTitleToLocation: false,
+      animation: {
+        enter: 'fadeIn',
+        exit: 'fadeOut',
+        enterDuration: 0.5,
+        exitDuration: 0.5,
+      },
       style: {
         variant: 'modern',
         fontFamily: 'Inter',
         bgColor: '#1e1e1e',
         textColor: '#ffffff',
         accentColor: '#3b82f6',
+        borderRadius: 8,
+        shadow: true,
         maxWidth: 200,
+        showMetadata: false,
       },
     };
 

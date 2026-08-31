@@ -15,7 +15,7 @@ vi.mock("dodopayments", () => ({
   },
 }));
 
-import handler from "./dodo-cancel-subscription";
+import handler from "../dodo-cancel-subscription.js";
 
 function request() {
   return {

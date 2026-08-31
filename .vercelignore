@@ -1,0 +1,14 @@
+# Exclude tests and test artifacts from Vercel build & deployments
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+*.spec.ts
+*.spec.tsx
+*.spec.js
+*.spec.jsx
+**/__tests__/**
+**/_tests/**
+e2e/
+test-results/
+playwright-report/

@@ -70,15 +70,17 @@ describe('useProjectStore modular slices', () => {
       const kf1: CameraKeyframe = {
         id: 'kf-1',
         time: 5,
-        camera: { center: [10, 20], zoom: 12, pitch: 30, bearing: 0 },
+        camera: { center: [10, 20], zoom: 12, pitch: 30, bearing: 0, altitude: null },
         easing: 'easeInOutCubic',
+        followRoute: null,
       };
 
       const kf2: CameraKeyframe = {
         id: 'kf-2',
         time: 1,
-        camera: { center: [10, 20], zoom: 10, pitch: 0, bearing: 0 },
+        camera: { center: [10, 20], zoom: 10, pitch: 0, bearing: 0, altitude: null },
         easing: 'linear',
+        followRoute: null,
       };
 
       store.addCameraKeyframe(kf1);
