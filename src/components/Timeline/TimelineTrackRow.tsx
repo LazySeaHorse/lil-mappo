@@ -59,31 +59,53 @@ const TimelineTrackRow = React.memo(({
         ? item.placeName || 'Boundary'
         : item.title;
 
-  const handleKeyframeMouseDown = (event: React.MouseEvent, keyframeId: string, initialTime: number) => {
+  const keyframeDragRef = React.useRef<{
+    startX: number;
+    initialTime: number;
+    keyframeId: string;
+  } | null>(null);
+
+  const handleKeyframePointerDown = (
+    event: React.PointerEvent<HTMLDivElement>,
+    keyframeId: string,
+    initialTime: number,
+  ) => {
     event.stopPropagation();
     event.preventDefault();
     handleSelect();
     onSelectKeyframe(keyframeId);
 
-    const startX = event.clientX;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+
+    keyframeDragRef.current = {
+      startX: event.clientX,
+      initialTime,
+      keyframeId,
+    };
+  };
+
+  const handleKeyframePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = keyframeDragRef.current;
+    if (!drag) return;
+
     const updateKeyframe = useProjectStore.getState().updateCameraKeyframe;
     const duration = useProjectStore.getState().duration;
+    const deltaTime = (event.clientX - drag.startX) / pixelsPerSecond;
+    const newTime = Math.max(0, Math.min(duration, drag.initialTime + deltaTime));
+    updateKeyframe(drag.keyframeId, { time: newTime });
+  };
 
-    const handleMove = (moveEvent: MouseEvent) => {
-      const deltaTime = (moveEvent.clientX - startX) / pixelsPerSecond;
-      const newTime = Math.max(0, Math.min(duration, initialTime + deltaTime));
-      updateKeyframe(keyframeId, { time: newTime });
-    };
+  const handleKeyframePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (keyframeDragRef.current) {
+      keyframeDragRef.current = null;
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    }
+  };
 
-    const handleUp = () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      document.body.style.cursor = '';
-    };
-
-    document.body.style.cursor = 'ew-resize';
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
+  const handleKeyframeLostPointerCapture = () => {
+    keyframeDragRef.current = null;
   };
 
   return (
@@ -124,7 +146,10 @@ const TimelineTrackRow = React.memo(({
             onSelect={handleSelect}
             onSelectKeyframe={onSelectKeyframe}
             onSelectAutoCam={onSelectAutoCam}
-            onKeyframeMouseDown={handleKeyframeMouseDown}
+            onKeyframePointerDown={handleKeyframePointerDown}
+            onKeyframePointerMove={handleKeyframePointerMove}
+            onKeyframePointerUp={handleKeyframePointerUp}
+            onKeyframeLostPointerCapture={handleKeyframeLostPointerCapture}
           />
         ) : (
           <TimelineItemBar
@@ -147,7 +172,10 @@ interface CameraTrackContentProps {
   onSelect: () => void;
   onSelectKeyframe: (id: string | null) => void;
   onSelectAutoCam?: (routeId: string) => void;
-  onKeyframeMouseDown: (event: React.MouseEvent, keyframeId: string, initialTime: number) => void;
+  onKeyframePointerDown: (event: React.PointerEvent<HTMLDivElement>, keyframeId: string, initialTime: number) => void;
+  onKeyframePointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onKeyframePointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onKeyframeLostPointerCapture: () => void;
 }
 
 function CameraTrackContent({
@@ -158,7 +186,10 @@ function CameraTrackContent({
   onSelect,
   onSelectKeyframe,
   onSelectAutoCam,
-  onKeyframeMouseDown,
+  onKeyframePointerDown,
+  onKeyframePointerMove,
+  onKeyframePointerUp,
+  onKeyframeLostPointerCapture,
 }: CameraTrackContentProps) {
   return (
     <>
@@ -194,10 +225,14 @@ function CameraTrackContent({
             key={keyframe.id}
             data-walkthrough="timeline-keyframe"
             data-testid={`timeline-keyframe-${keyframe.id}`}
-            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-transform z-10
-              ${isDisabled ? 'opacity-35 grayscale' : selectedKeyframeId === keyframe.id ? 'scale-125 z-20' : 'hover:scale-110'} active:scale-95`}
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-ew-resize transition-transform z-10 select-none touch-none
+              ${isDisabled ? 'opacity-35 grayscale pointer-events-none' : selectedKeyframeId === keyframe.id ? 'scale-125 z-20' : 'hover:scale-110'} active:scale-95`}
             style={{ left: keyframe.time * pixelsPerSecond }}
-            onMouseDown={(event) => onKeyframeMouseDown(event, keyframe.id, keyframe.time)}
+            onPointerDown={(event) => !isDisabled && onKeyframePointerDown(event, keyframe.id, keyframe.time)}
+            onPointerMove={onKeyframePointerMove}
+            onPointerUp={onKeyframePointerUp}
+            onPointerCancel={onKeyframePointerUp}
+            onLostPointerCapture={onKeyframeLostPointerCapture}
             onClick={(event) => {
               event.stopPropagation();
               onSelect();
@@ -205,7 +240,7 @@ function CameraTrackContent({
             }}
           >
             <div
-              className={`w-3.5 h-3.5 rotate-45 rounded-[2px] shadow-sm border ${
+              className={`w-3.5 h-3.5 rotate-45 rounded-[2px] shadow-sm border pointer-events-none ${
                 selectedKeyframeId === keyframe.id && !isDisabled
                   ? 'bg-primary border-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background'
                   : 'bg-background border-primary'
