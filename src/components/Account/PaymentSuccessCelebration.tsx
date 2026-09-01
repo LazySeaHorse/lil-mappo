@@ -38,7 +38,7 @@ export function PaymentSuccessCelebration({
 
   return (
     <div
-      className="fixed inset-0 z-[200] isolate overflow-hidden bg-[#07090d] text-slate-50"
+      className="fixed inset-0 z-[200] isolate overflow-hidden bg-slate-950/70 text-slate-50 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="payment-success-title"

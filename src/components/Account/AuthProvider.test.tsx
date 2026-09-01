@@ -58,6 +58,7 @@ describe('AuthProvider checkout return', () => {
     );
 
     expect(screen.getByRole('heading', { name: "You're a Wanderer now." })).toBeVisible();
+    expect(screen.getByRole('dialog')).toHaveClass('bg-slate-950/70', 'backdrop-blur-[2px]');
     expect(screen.getByText('Map editor')).toBeInTheDocument();
     await waitFor(() => {
       expect(window.location.search).toBe('?campaign=preview');
