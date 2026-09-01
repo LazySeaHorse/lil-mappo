@@ -14,6 +14,7 @@ import {
 } from "@/services/checkout";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "sonner";
+import { flushWorkingProjectDraft } from "@/services/workingProjectDraft";
 
 export interface AuthUser {
   id: string;
@@ -101,8 +102,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setSession: (session) => set({ session }),
   setIsLoading: (v) => set({ isLoading: v }),
 
-  openAuthModal: () => set({ showAuthModal: true, authModalMode: "signin" }),
-  openSignupModal: () => set({ showAuthModal: true, authModalMode: "signup" }),
+  openAuthModal: () => {
+    void flushWorkingProjectDraft().catch(() => {
+      // Autosave retries on its regular interval if storage is temporarily unavailable.
+    });
+    set({ showAuthModal: true, authModalMode: "signin" });
+  },
+  openSignupModal: () => {
+    void flushWorkingProjectDraft().catch(() => {
+      // Autosave retries on its regular interval if storage is temporarily unavailable.
+    });
+    set({ showAuthModal: true, authModalMode: "signup" });
+  },
   closeAuthModal: () => set({ showAuthModal: false }),
   openSettingsModal: () => set({ showSettingsModal: true }),
   closeSettingsModal: () => set({ showSettingsModal: false }),

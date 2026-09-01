@@ -34,6 +34,8 @@ import { RendersModal } from "@/components/Account/RendersModal";
 import type { CameraItem } from "@/store/types";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
+import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
+import type { Subscription } from "@/lib/database.types";
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
   // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
@@ -63,7 +65,7 @@ function ZenModeControls({
   onShowUI: () => void;
   onTogglePlay: () => void;
   mapRef: React.MutableRefObject<MapRef | null>;
-  subscription: any;
+  subscription: Subscription | null | undefined;
 }) {
   return (
     <div
@@ -99,6 +101,7 @@ export default function MapStudioEditor() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const { isMobile, isTablet } = useResponsive();
+  const isWorkingDraftReady = useWorkingProjectDraft();
   usePlayback(mapRef);
   const mapLoadGate = useMapLoadGate();
   const { user, openAuthModal } = useAuthStore();
@@ -145,6 +148,10 @@ export default function MapStudioEditor() {
   }, [hideUI]);
 
   const sonnerStyle = useSonnerPosition({ isMobile });
+
+  if (!isWorkingDraftReady) {
+    return <div className="h-dvh w-screen bg-background" />;
+  }
 
   return (
     <MapRefContext.Provider value={mapRef}>
