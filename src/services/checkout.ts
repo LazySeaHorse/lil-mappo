@@ -78,6 +78,7 @@ export function clearPendingPlan(): void {
 // =============================================================================
 
 const PENDING_TOPUP_KEY = "mappo_pending_topup";
+const CHECKOUT_RETURN_PLAN_KEY = "mappo_checkout_return_plan";
 
 export function storePendingTopup(amount: number): void {
   secureLocalStorage.setItem(PENDING_TOPUP_KEY, amount);
@@ -91,6 +92,22 @@ export function getPendingTopup(): number | null {
 
 export function clearPendingTopup(): void {
   secureLocalStorage.removeItem(PENDING_TOPUP_KEY);
+}
+
+export function getCheckoutReturnPlan(): PlanSlug | null {
+  const raw = secureLocalStorage.getItem(CHECKOUT_RETURN_PLAN_KEY);
+  return raw === "wanderer" || raw === "cartographer" || raw === "pioneer" || raw === "topup"
+    ? raw
+    : null;
+}
+
+export function clearCheckoutReturnPlan(): void {
+  secureLocalStorage.removeItem(CHECKOUT_RETURN_PLAN_KEY);
+}
+
+export function isSuccessfulCheckoutReturn(params: URLSearchParams): boolean {
+  if (params.get("checkout") === "success") return true;
+  return params.get("status") === "active" && !!params.get("subscription_id");
 }
 
 // =============================================================================
@@ -153,6 +170,10 @@ export async function initiateDodoCheckout(
     throw new Error("Invalid response from checkout service.");
   }
 
+  // Dodo may replace our return URL's query string with its own status fields.
+  // Keep the purchased plan locally so the return experience can distinguish a
+  // subscription from a credit top-up without trusting display-only URL params.
+  secureLocalStorage.setItem(CHECKOUT_RETURN_PLAN_KEY, plan);
   window.location.href = checkout_url;
 
   // TypeScript: we declared the return type as `never` because once we set
