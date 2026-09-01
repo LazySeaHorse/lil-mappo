@@ -188,6 +188,15 @@
   animation: payment-success-content-enter 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.payment-success-overlay {
+  opacity: 1;
+  transition: opacity 450ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.payment-success-overlay-exiting {
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .payment-success-confetti {
     display: none;
@@ -195,6 +204,10 @@
 
   .payment-success-content {
     animation: none;
+  }
+
+  .payment-success-overlay {
+    transition: none;
   }
 }
 

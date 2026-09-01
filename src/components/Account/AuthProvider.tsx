@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "sonner";
@@ -49,6 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [showCelebration, setShowCelebration] = useState(
     () => !!checkoutReturn?.plan && !checkoutReturn.isTopup,
   );
+  const handleCelebrationComplete = useCallback(() => {
+    setShowCelebration(false);
+  }, []);
 
   // ── Auth listener ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -104,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {showCelebration && planName && (
         <PaymentSuccessCelebration
           planName={planName}
-          onContinue={() => setShowCelebration(false)}
+          onComplete={handleCelebrationComplete}
         />
       )}
     </>
