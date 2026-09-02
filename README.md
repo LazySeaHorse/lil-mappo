@@ -52,3 +52,35 @@ A technical, browser-based tool for creating cinematic map animations and export
 ## Architecture
 
 The application operates as a **state-driven animation engine**. A central Zustand store manages all timeline elements (Routes, Boundaries, Callouts, Camera Keyframes) and the global `playheadTime`.
+
+## Local Supabase
+
+The repository includes a Docker-backed local Supabase configuration. It applies every file in
+`supabase/migrations/` and seeds two synthetic accounts; it never requires production credentials
+or customer data. The start script creates a dedicated Docker network that binds published ports
+to `127.0.0.1`, so the development services are not exposed publicly from a VPS.
+
+```bash
+npm run db:local:start
+npm run db:local:reset
+npm run db:local:status
+```
+
+Copy `.env.local.example` to `.env.local` and replace its local keys with the values printed by
+`npm run db:local:status`. Vite gives `.env.local` precedence over `.env`, keeping local app and
+browser sessions away from production Supabase.
+
+Local services:
+
+- API: `http://127.0.0.1:54321`
+- Studio: `http://127.0.0.1:54323`
+- Mailpit: `http://127.0.0.1:54324`
+
+Synthetic logins (password for both: `local-test-password`):
+
+- `local-free@gmail.com`
+- `local-wanderer@gmail.com`
+
+Use only the `db:local:*` scripts for development and tests. Commands using `supabase link`,
+`supabase db push`, or `--linked` target hosted projects and are intentionally not part of this
+workflow.
