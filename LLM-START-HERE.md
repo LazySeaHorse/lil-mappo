@@ -31,6 +31,14 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **UI Components**: Tier 1 (primitives) + Tier 2 (composites) built on shadcn/ui v0.9+
 - **Quotas & Limits**: Custom enforcement for map loads, cloud saves, and export quality based on user tier and BYOK status.
 
+### 2.1 Tests in Hosted Workspaces
+
+- Run unit, component, and API tests with `npm test`; run browser smoke tests with `npm run test:ui`.
+- **Do not install Chromium before checking the global Playwright cache.** Hosted workspaces already provide browser bundles in `~/.cache/ms-playwright` and may also expose bundles in `/tmp/lilmappo-playwright`.
+- `playwright.config.ts` automatically selects the closest complete installed Chromium revision. Some shared locations can contain a bare `chrome` executable without required runtime files such as `icudtl.dat`; those incomplete bundles must not be used.
+- Override discovery with `PLAYWRIGHT_SHARED_BROWSERS_PATH=/path/to/cache`, or select an exact executable with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chrome`.
+- This VPS has no usable WebGL/GPU stack. The general Playwright smoke flows run, but the local MP4 export test cannot complete here and should be validated in a browser environment with WebGL and working WebCodecs/H.264 support.
+
 ---
 
 ## 3. Core Architecture
