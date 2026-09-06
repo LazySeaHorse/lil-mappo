@@ -100,12 +100,26 @@ describe('MapSceneController', () => {
       controller.mount();
       expect(double.layers.has('route-layer-scene-route')).toBe(true);
 
-      double.setPaintProperty.mockClear();
+      const sceneSource = double.sources.get('route-scene-route');
+      expect(sceneSource).toBeDefined();
+      sceneSource!.setData.mockClear();
+
       useProjectStore.getState().setPlayheadTime(2.5);
-      expect(double.setPaintProperty).toHaveBeenCalledWith(
-        'route-layer-scene-route',
-        'line-trim-offset',
-        [0.5, 1],
+      expect(sceneSource!.setData).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'FeatureCollection',
+          features: [
+            expect.objectContaining({
+              geometry: expect.objectContaining({
+                type: 'LineString',
+                coordinates: [
+                  [0, 0],
+                  [0.5, 0.5],
+                ],
+              }),
+            }),
+          ],
+        }),
       );
 
       double.layers.clear();
