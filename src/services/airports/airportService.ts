@@ -60,7 +60,9 @@ export function getAirportByCode(code: string): Airport | undefined {
 }
 
 export function searchAirportsSync(query: string, limit = 20): Airport[] {
-  if (!cachedAirports) return [];
+  if (!cachedAirports) {
+    initAirportsSync();
+  }
 
   const trimmed = query.trim();
   if (!trimmed) {
