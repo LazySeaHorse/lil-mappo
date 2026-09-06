@@ -35,11 +35,12 @@ describe('ProjectLibrary Sub-components', () => {
     local: {
       id: 'proj-1',
       name: 'My Road Trip',
-      createdAt: 1700000000000,
       updatedAt: 1700000000000,
+      cloudSyncedAt: null,
+      pendingSync: false,
     },
     cloud: null,
-    syncState: 'in-sync',
+    syncState: 'local-only',
   };
 
   it('renders CloudStatusBadge correctly for different sync states', () => {
@@ -52,12 +53,10 @@ describe('ProjectLibrary Sub-components', () => {
       ...baseProject,
       cloud: {
         id: 'proj-1',
-        user_id: 'user-1',
         name: 'My Road Trip',
-        created_at: '2026-08-31',
-        updated_at: '2026-08-31',
-        document: {} as any,
+        updatedAt: 1700000000000,
       },
+      syncState: 'synced',
     };
     const { container: cloudContainer } = render(<CloudStatusBadge project={cloudProject} />);
     expect(cloudContainer.querySelector('svg')).toBeDefined();
@@ -109,12 +108,10 @@ describe('ProjectLibrary Sub-components', () => {
       name: 'Existing Cloud Map',
       cloud: {
         id: 'cloud-proj',
-        user_id: 'user-1',
         name: 'Existing Cloud Map',
-        created_at: '2026-08-31',
-        updated_at: '2026-08-31',
-        document: {} as any,
+        updatedAt: 1700000000000,
       },
+      syncState: 'synced',
     };
 
     render(
@@ -176,10 +173,10 @@ describe('ProjectLibrary Sub-components', () => {
   });
 
   it('shows appropriate toast for showUploadResult outcomes', () => {
-    showUploadResult({ status: 'uploaded', project: {} as any });
+    showUploadResult({ status: 'uploaded', syncedAt: 1700000000000 });
     expect(toast.success).toHaveBeenCalledWith('Uploaded to cloud');
 
-    showUploadResult({ status: 'cloud-failed', error: new Error('Network error') });
+    showUploadResult({ status: 'cloud-failed', localPreserved: true, error: new Error('Network error') });
     expect(toast.error).toHaveBeenCalledWith('Cloud upload failed. The local project is preserved and pending sync.');
 
     showUploadResult({ status: 'local-failed', error: new Error('Read error') });
