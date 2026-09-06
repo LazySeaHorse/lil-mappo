@@ -16,10 +16,13 @@ export function getLineSegment(fullCoords: number[][], startT: number, endT: num
   const t1 = Math.max(0, Math.min(1, startT));
   const t2 = Math.max(0, Math.min(1, endT));
 
-  if (t1 >= t2) return [];
+  if (t1 > t2) return [];
 
   const line = lineString(fullCoords);
   const totalLength = length(line, { units: 'kilometers' });
+  if (totalLength === 0) {
+    return [fullCoords[0], fullCoords[0]];
+  }
   const startDist = t1 * totalLength;
   const endDist = t2 * totalLength;
 
@@ -59,6 +62,16 @@ export function getLineSegment(fullCoords: number[][], startT: number, endT: num
     }
     accumulated += segLen;
   }
+
+  if (result.length === 0) {
+    const coord = t1 >= 1 ? fullCoords[fullCoords.length - 1] : fullCoords[0];
+    return [coord, coord];
+  }
+
+  if (result.length === 1) {
+    return [result[0], result[0]];
+  }
+
   return result;
 }
 
