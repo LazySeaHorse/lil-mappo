@@ -142,9 +142,9 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
     const finalItem = useProjectStore.getState().items['route-test-1'] as RouteItem;
     expect(finalItem.geojson.features.length).toBe(1);
     expect(finalItem.geojson.features[0].geometry.type).toBe('LineString');
-    // Turf great circle has 100 coordinates with 3D altitude
+    // Turf great circle has 100 coordinates on globe surface without Z elevation
     const coords = (finalItem.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(coords.length).toBeGreaterThan(10);
-    expect(coords[0].length).toBe(3); // [lng, lat, altitude]
+    expect(coords[0].length).toBe(2); // [lng, lat] without Z elevation
   });
 });

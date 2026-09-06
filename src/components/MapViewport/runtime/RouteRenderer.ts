@@ -157,10 +157,26 @@ export class RouteRenderer {
       this.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
       const trailLength = route.style.cometTrailLength ?? 0.2;
       const trail = getLineSegment(coordinates, Math.max(0, progress - trailLength), progress);
+      const segments: number[][][] = [];
+      if (trail.length >= 2) {
+        let seg: number[][] = [trail[0]];
+        for (let i = 1; i < trail.length; i++) {
+          if (Math.abs(trail[i][0] - trail[i - 1][0]) > 180) {
+            segments.push(seg);
+            seg = [];
+          }
+          seg.push(trail[i]);
+        }
+        segments.push(seg);
+      }
+      const geom: GeoJSON.Geometry = segments.length > 1
+        ? { type: 'MultiLineString', coordinates: segments }
+        : { type: 'LineString', coordinates: trail };
+
       getGeoJSONSource(this.map, this.ids.cometSource)?.setData(trail.length >= 2
         ? {
             type: 'FeatureCollection',
-            features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: trail } }],
+            features: [{ type: 'Feature', properties: {}, geometry: geom }],
           }
         : EMPTY_FC);
       this.setPaint(this.ids.cometLayer, 'line-gradient', gradient(routeColor), 'cometColor', routeColor);
@@ -332,10 +348,7 @@ export class RouteRenderer {
 
   private uploadGeometry(): void {
     const data: GeoJSON.FeatureCollection = this.coordinates.length >= 2
-      ? {
-          type: 'FeatureCollection',
-          features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: this.coordinates } }],
-        }
+      ? this.route.geojson
       : EMPTY_FC;
     getGeoJSONSource(this.map, this.ids.mainSource)?.setData(data);
     getGeoJSONSource(this.map, this.ids.glowSource)?.setData(data);
@@ -392,7 +405,7 @@ export class RouteRenderer {
       const pitch = calculatePitch(previous, current);
       this.mutate('setPaintProperty:model-transform', this.ids.vehicleLayer, () => {
         this.map.setPaintProperty(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing]);
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-translation', [0, 0, current[2] || 0]);
+        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-translation', [0, 0, 0]);
       });
     }
   }

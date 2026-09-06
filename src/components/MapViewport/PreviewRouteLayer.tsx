@@ -51,15 +51,28 @@ export const PreviewRouteLayer = () => {
     const animCoords = getAnimatedLine(allCoords, progress);
     if (animCoords.length < 2) return null;
 
+    const segments: number[][][] = [];
+    let currentSegment: number[][] = [animCoords[0]];
+    for (let i = 1; i < animCoords.length; i++) {
+      if (Math.abs(animCoords[i][0] - animCoords[i - 1][0]) > 180) {
+        segments.push(currentSegment);
+        currentSegment = [];
+      }
+      currentSegment.push(animCoords[i]);
+    }
+    segments.push(currentSegment);
+
+    const geometry: GeoJSON.LineString | GeoJSON.MultiLineString =
+      segments.length > 1
+        ? { type: 'MultiLineString', coordinates: segments }
+        : { type: 'LineString', coordinates: animCoords };
+
     return {
       type: 'FeatureCollection' as const,
       features: [{
         type: 'Feature' as const,
         properties: {},
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: animCoords
-        }
+        geometry,
       }]
     };
   }, [previewRoute, progress]);

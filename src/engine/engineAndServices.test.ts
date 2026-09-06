@@ -111,23 +111,57 @@ describe('geoUtils & cameraUtils', () => {
 });
 
 describe('services/flightPath', () => {
-  it('calculates 3D Great Circle arc with altitude curve', () => {
+  it('calculates Great Circle arc on globe surface without Z elevation', () => {
     const start: [number, number] = [-74.006, 40.7128]; // NYC
     const end: [number, number] = [2.3522, 48.8566]; // Paris
-    const arc = calculateFlightArc(start, end, 60000);
+    const arc = calculateFlightArc(start, end);
 
     expect(arc.type).toBe('LineString');
     expect(arc.coordinates.length).toBe(100);
 
-    // First and last points should have 0 altitude
+    // Coordinates should be 2D [lng, lat] without Z elevation
+    for (const coord of arc.coordinates) {
+      expect(coord.length).toBe(2);
+      expect(coord[2]).toBeUndefined();
+    }
+
     const first = arc.coordinates[0];
     const last = arc.coordinates[arc.coordinates.length - 1];
-    const middle = arc.coordinates[50];
 
-    expect(first[2]).toBeCloseTo(0, 0);
-    expect(last[2]).toBeCloseTo(0, 0);
-    // Peak in the middle should be close to 60000m
-    expect(middle[2]).toBeGreaterThan(50000);
+    expect(first[0]).toBeCloseTo(start[0], 2);
+    expect(first[1]).toBeCloseTo(start[1], 2);
+    expect(last[0]).toBeCloseTo(end[0], 2);
+    expect(last[1]).toBeCloseTo(end[1], 2);
+  });
+
+  it('calculates Great Circle arc across the antimeridian as MultiLineString without Z elevation', () => {
+    const sfo: [number, number] = [-122.378955, 37.621313]; // SFO
+    const hnd: [number, number] = [139.779839, 35.549393]; // HND (Tokyo)
+    const arc = calculateFlightArc(sfo, hnd);
+
+    expect(arc.type).toBe('MultiLineString');
+    expect(arc.coordinates.length).toBeGreaterThanOrEqual(2);
+
+    // Each coordinate should be a valid 2D [lng, lat] tuple of numbers without Z elevation
+    for (const segment of arc.coordinates) {
+      expect(segment.length).toBeGreaterThan(0);
+      for (const coord of segment) {
+        expect(coord.length).toBe(2);
+        expect(coord[2]).toBeUndefined();
+        expect(typeof coord[0]).toBe('number');
+        expect(typeof coord[1]).toBe('number');
+        expect(Array.isArray(coord[0])).toBe(false);
+      }
+    }
+
+    const firstSeg = arc.coordinates[0];
+    const lastSeg = arc.coordinates[arc.coordinates.length - 1];
+    expect(firstSeg[0][0]).toBeCloseTo(sfo[0], 2);
+    expect(firstSeg[0][1]).toBeCloseTo(sfo[1], 2);
+
+    const finalCoord = lastSeg[lastSeg.length - 1];
+    expect(finalCoord[0]).toBeCloseTo(hnd[0], 2);
+    expect(finalCoord[1]).toBeCloseTo(hnd[1], 2);
   });
 });
 
