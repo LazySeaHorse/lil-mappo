@@ -134,34 +134,37 @@ describe('services/flightPath', () => {
     expect(last[1]).toBeCloseTo(end[1], 2);
   });
 
-  it('calculates Great Circle arc across the antimeridian as MultiLineString without Z elevation', () => {
+  it('calculates Great Circle arc across the antimeridian as a continuous LineString without Z elevation', () => {
     const sfo: [number, number] = [-122.378955, 37.621313]; // SFO
     const hnd: [number, number] = [139.779839, 35.549393]; // HND (Tokyo)
     const arc = calculateFlightArc(sfo, hnd);
 
-    expect(arc.type).toBe('MultiLineString');
-    expect(arc.coordinates.length).toBeGreaterThanOrEqual(2);
+    expect(arc.type).toBe('LineString');
+    expect(arc.coordinates.length).toBe(100);
 
     // Each coordinate should be a valid 2D [lng, lat] tuple of numbers without Z elevation
-    for (const segment of arc.coordinates) {
-      expect(segment.length).toBeGreaterThan(0);
-      for (const coord of segment) {
-        expect(coord.length).toBe(2);
-        expect(coord[2]).toBeUndefined();
-        expect(typeof coord[0]).toBe('number');
-        expect(typeof coord[1]).toBe('number');
-        expect(Array.isArray(coord[0])).toBe(false);
-      }
+    for (const coord of arc.coordinates) {
+      expect(coord.length).toBe(2);
+      expect(coord[2]).toBeUndefined();
+      expect(typeof coord[0]).toBe('number');
+      expect(typeof coord[1]).toBe('number');
+      expect(Array.isArray(coord[0])).toBe(false);
     }
 
-    const firstSeg = arc.coordinates[0];
-    const lastSeg = arc.coordinates[arc.coordinates.length - 1];
-    expect(firstSeg[0][0]).toBeCloseTo(sfo[0], 2);
-    expect(firstSeg[0][1]).toBeCloseTo(sfo[1], 2);
+    const first = arc.coordinates[0];
+    const last = arc.coordinates[arc.coordinates.length - 1];
+    expect(first[0]).toBeCloseTo(sfo[0], 2);
+    expect(first[1]).toBeCloseTo(sfo[1], 2);
 
-    const finalCoord = lastSeg[lastSeg.length - 1];
-    expect(finalCoord[0]).toBeCloseTo(hnd[0], 2);
-    expect(finalCoord[1]).toBeCloseTo(hnd[1], 2);
+    // Unwrapped destination longitude (139.78 - 360 = -220.22)
+    expect(last[0]).toBeCloseTo(-220.22, 1);
+    expect(last[1]).toBeCloseTo(hnd[1], 2);
+
+    // Verify continuous progression across antimeridian without jumps
+    for (let i = 1; i < arc.coordinates.length; i++) {
+      const deltaLng = Math.abs(arc.coordinates[i][0] - arc.coordinates[i - 1][0]);
+      expect(deltaLng).toBeLessThan(10);
+    }
   });
 });
 
