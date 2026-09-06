@@ -55,7 +55,19 @@ app = modal.App("lil-mappo-renderer")
 
 render_image = (
     modal.Image.debian_slim(python_version="3.11")
-    .apt_install(["curl"])
+    .env(
+        {
+            "NVIDIA_DRIVER_CAPABILITIES": "all",
+            "NVIDIA_VISIBLE_DEVICES": "all",
+        }
+    )
+    .apt_install([
+        "curl",
+        "libgl1",
+        "libegl1",
+        "libglvnd0",
+        "mesa-utils",
+    ])
     .pip_install("playwright==1.44.0")
     .run_commands("playwright install chromium --with-deps")
 )
@@ -63,13 +75,14 @@ render_image = (
 
 @app.function(
     image=render_image,
+    gpu="T4",
     timeout=3600,
     memory=8192,
     cpu=4.0,
 )
 def run_render_background(job_id: str, render_secret: str, app_url: str):
     """
-    1. Boots headless Chromium (SwiftShader).
+    1. Boots headless Chromium with hardware GPU acceleration (NVIDIA ANGLE-EGL).
     2. Loads the app in render mode; HeadlessRenderer runs the export pipeline.
     3. On success HeadlessRenderer triggers a browser download of the MP4.
        Playwright intercepts it and saves to a temp file.
@@ -84,6 +97,12 @@ def run_render_background(job_id: str, render_secret: str, app_url: str):
     import urllib.request
     from playwright.sync_api import sync_playwright
 
+    # Initialize NVIDIA driver device nodes before launching browser
+    try:
+        subprocess.run(["nvidia-smi"], check=True, capture_output=True)
+    except Exception as e:
+        print(f"[render_worker] Warning: nvidia-smi initialization failed: {e}")
+
     url = f"{app_url}?render_job={job_id}&render_secret={render_secret}"
     print(f"[render_worker] Navigating to: {url}")
 
@@ -93,10 +112,15 @@ def run_render_background(job_id: str, render_secret: str, app_url: str):
     with sync_playwright() as p:
         browser = p.chromium.launch(
             args=[
+                "--headless=new",
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
-                "--use-gl=swiftshader",
+                "--ignore-gpu-blocklist",
+                "--enable-gpu-rasterization",
+                "--enable-zero-copy",
+                "--use-gl=angle",
+                "--use-angle=gl-egl",
             ],
         )
         context = browser.new_context(
