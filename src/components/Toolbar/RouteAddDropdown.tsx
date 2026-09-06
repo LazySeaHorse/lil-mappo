@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import type { RouteItem, RouteMode } from '@/store/types';
 import { SearchField } from '../Search/SearchField';
+import { AirportSearchField } from '../Search/AirportSearchField';
 
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
@@ -122,10 +123,13 @@ export const RouteAddDropdown = ({
     if (!previewRoute) return;
 
     const id = nanoid();
+    const flightName = startName && endName ? `${startName} → ${endName}` : `${startName || 'Departure'} → ${endName || 'Arrival'}`;
+    const name = mode === 'flight' ? flightName : `${startName || 'Start'} to ${endName || 'End'}`;
+
     const item: RouteItem = {
       kind: 'route',
       id,
-      name: `${startName || 'Start'} to ${endName || 'End'}`,
+      name,
       geojson: previewRoute,
       startTime: playheadTime,
       endTime: playheadTime + 5,
@@ -147,7 +151,7 @@ export const RouteAddDropdown = ({
         endPoint: end,
         vehicle: {
           enabled: true,
-          type: 'dot' as const,
+          type: mode === 'flight' ? 'plane' as const : 'dot' as const,
           modelId: '',
           scale: 1,
         }
@@ -232,28 +236,58 @@ export const RouteAddDropdown = ({
       footer={footer}
     >
       <div className="space-y-4">
-        <SectionLabel>Route points</SectionLabel>
-        <SearchField 
-          label="Start location..."
-          value={start}
-          name={startName}
-          onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
-          color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-          isPicking={isPickingStart}
-          onStartPick={handleTogglePickStart}
-        />
-        
-        <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
+        <SectionLabel>{mode === 'flight' ? 'Airport route' : 'Route points'}</SectionLabel>
+        {mode === 'flight' ? (
+          <>
+            <AirportSearchField 
+              label="Departure airport..."
+              placeholder="Departure airport or city (e.g. JFK, LHR)..."
+              value={start}
+              name={startName}
+              onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
+              color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+              isPicking={isPickingStart}
+              onStartPick={handleTogglePickStart}
+            />
+            
+            <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
 
-        <SearchField 
-          label="End location..."
-          value={end}
-          name={endName}
-          onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
-          color="bg-rose-500/10 text-rose-500 border-rose-500/20"
-          isPicking={isPickingEnd}
-          onStartPick={handleTogglePickEnd}
-        />
+            <AirportSearchField 
+              label="Arrival airport..."
+              placeholder="Arrival airport or city (e.g. DXB, CDG)..."
+              value={end}
+              name={endName}
+              onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
+              color="bg-rose-500/10 text-rose-500 border-rose-500/20"
+              isPicking={isPickingEnd}
+              onStartPick={handleTogglePickEnd}
+            />
+          </>
+        ) : (
+          <>
+            <SearchField 
+              label="Start location..."
+              value={start}
+              name={startName}
+              onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
+              color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+              isPicking={isPickingStart}
+              onStartPick={handleTogglePickStart}
+            />
+            
+            <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
+
+            <SearchField 
+              label="End location..."
+              value={end}
+              name={endName}
+              onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
+              color="bg-rose-500/10 text-rose-500 border-rose-500/20"
+              isPicking={isPickingEnd}
+              onStartPick={handleTogglePickEnd}
+            />
+          </>
+        )}
       </div>
 
       {!previewRoute && start[0] === 0 && end[0] === 0 && (

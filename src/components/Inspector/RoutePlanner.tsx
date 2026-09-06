@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import type { RouteItem, RouteMode } from '@/store/types';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { AirportSearchField } from '@/components/Search/AirportSearchField';
 
 interface InspectorSearchFieldProps {
   label: string;
@@ -148,18 +149,62 @@ interface RoutePlannerProps {
 }
 
 export const RoutePlanner = ({ item }: RoutePlannerProps) => {
-  const { updateItem, setPreviewRoute } = useProjectStore();
+  const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore();
   const [loading, setLoading] = useState(false);
   const [hasCalculated, setHasCalculated] = useState(false);
 
-  const calc = item.calculation || {
+  const storeItem = useProjectStore((s) => s.items[item.id]) as RouteItem | undefined;
+  const activeItem = storeItem ?? item;
+
+  const calc = activeItem.calculation || {
     mode: 'car' as const,
     startPoint: [0, 0] as [number, number],
     endPoint: [0, 0] as [number, number],
   };
 
+  const isPickingStart = activePicker?.id === `route-${item.id}-start`;
+  const isPickingEnd = activePicker?.id === `route-${item.id}-end`;
+
+  const handleTogglePick = (pointType: 'start' | 'end') => {
+    const pickerId = `route-${item.id}-${pointType}`;
+    if (activePicker?.id === pickerId) {
+      stopPicking();
+    } else {
+      startPicking({
+        id: pickerId,
+        prompt: pointType === 'start' ? 'Start' : 'End',
+        onPick: (result) => {
+          if (pointType === 'start') {
+            setStart(result.lngLat);
+          } else {
+            setEnd(result.lngLat);
+          }
+        },
+      });
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      const currentId = useProjectStore.getState().activePicker?.id;
+      if (currentId === `route-${item.id}-start` || currentId === `route-${item.id}-end`) {
+        useProjectStore.getState().stopPicking();
+      }
+    };
+  }, [item.id]);
+
   const handleModeChange = (mode: RouteMode) => {
-    updateItem(item.id, { calculation: { ...calc, mode } });
+    const currentVehicle = calc.vehicle || {
+      enabled: false,
+      type: 'dot' as const,
+      modelId: '',
+      scale: 1,
+    };
+    const vehicle = mode === 'flight' && currentVehicle.type === 'dot'
+      ? { ...currentVehicle, enabled: true, type: 'plane' as const }
+      : currentVehicle;
+
+    updateItem(item.id, { calculation: { ...calc, mode, vehicle } });
   };
 
   const calculateRoute = async (saveToItem: boolean) => {
@@ -226,25 +271,53 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
 
       {calc.mode !== 'manual' && (
         <div className="flex flex-col gap-2.5">
-          {/* Start Point */}
-          <InspectorSearchField 
-            label="Start"
-            pointType="start"
-            item={item}
-            value={calc.startPoint}
-            onSelect={setStart}
-            dotColor="bg-emerald-500"
-          />
+          {calc.mode === 'flight' ? (
+            <>
+              {/* Departure Airport */}
+              <AirportSearchField 
+                label="Departure"
+                placeholder="Departure airport or city (e.g. JFK)..."
+                value={calc.startPoint}
+                onSelect={setStart}
+                color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                isPicking={isPickingStart}
+                onStartPick={() => handleTogglePick('start')}
+              />
 
-          {/* End Point */}
-          <InspectorSearchField 
-            label="End"
-            pointType="end"
-            item={item}
-            value={calc.endPoint}
-            onSelect={setEnd}
-            dotColor="bg-rose-500"
-          />
+              {/* Arrival Airport */}
+              <AirportSearchField 
+                label="Arrival"
+                placeholder="Arrival airport or city (e.g. LHR)..."
+                value={calc.endPoint}
+                onSelect={setEnd}
+                color="bg-rose-500/10 text-rose-500 border-rose-500/20"
+                isPicking={isPickingEnd}
+                onStartPick={() => handleTogglePick('end')}
+              />
+            </>
+          ) : (
+            <>
+              {/* Start Point */}
+              <InspectorSearchField 
+                label="Start"
+                pointType="start"
+                item={item}
+                value={calc.startPoint}
+                onSelect={setStart}
+                dotColor="bg-emerald-500"
+              />
+
+              {/* End Point */}
+              <InspectorSearchField 
+                label="End"
+                pointType="end"
+                item={item}
+                value={calc.endPoint}
+                onSelect={setEnd}
+                dotColor="bg-rose-500"
+              />
+            </>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-2.5 pt-1">
