@@ -1,6 +1,6 @@
 import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
-import { compositeFrame, withMapResized } from './mapCapture';
+import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
@@ -29,7 +29,7 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
   const zoomOffset = Math.log2(width / previewWidth);
 
   try {
-    await withMapResized(map, width, height, async () => {
+    await withTemporaryMapViewport(map, width, height, async () => {
       // Restore equivalent framing at the new resolution.
       if (zoomOffset !== 0) map.jumpTo({ zoom: previewZoom + zoomOffset });
 

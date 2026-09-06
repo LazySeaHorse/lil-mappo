@@ -1,16 +1,16 @@
-import { useState, useRef, type RefObject } from 'react';
+import { useState, useRef } from 'react';
 import { saveAs } from 'file-saver';
 import { runExport } from '@/services/videoExport';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { ExportPlan } from '../exportPlan';
-import type { MapRuntimeHandle } from '@/components/MapViewport/runtime/MapRuntimeController';
+import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 
 function getErrorMessage(error: unknown, fallback = 'Export failed'): string {
   return error instanceof Error ? error.message : fallback;
 }
 
 export function useVideoExportExecution(
-  runtimeRef: RefObject<MapRuntimeHandle | null>,
+  runtimeRef: MapSceneRuntimeRef,
   exportPlan: ExportPlan,
   showWatermark: boolean,
   projectName: string,
@@ -28,6 +28,7 @@ export function useVideoExportExecution(
       return;
     }
 
+    const initialPlaybackState = useProjectStore.getState().isPlaying;
     useProjectStore.getState().setIsExporting(true);
     setProgress(0);
     setError(null);
@@ -35,7 +36,6 @@ export function useVideoExportExecution(
     abortRef.current = controller;
 
     useProjectStore.getState().setIsPlaying(false);
-    useProjectStore.getState().setHideUI(true);
 
     try {
       const blob = await runExport(runtimeRef, {
@@ -61,7 +61,7 @@ export function useVideoExportExecution(
     } finally {
       abortRef.current = null;
       useProjectStore.getState().setIsExporting(false);
-      useProjectStore.getState().setHideUI(false);
+      useProjectStore.getState().setIsPlaying(initialPlaybackState);
     }
   };
 

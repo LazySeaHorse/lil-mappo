@@ -88,24 +88,19 @@ const mapboxLogo = new Image();
 mapboxLogo.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4OCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDg4IDIwIj48cGF0aCBmaWxsPSIjMDAwIiBkPSJNMTEgNi4zYTIuNiAyLjYgMCAxIDAgMCA1LjIgMi42IDIuNiAwIDAgMCAwLTUuMnpNMTEgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTE5LjMgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTI3LjYgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTM1LjkgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuMWEyLjYgMi42IDAgMSAwIDAgNS4yIDIuNiAyLjYgMCAwIDAgMC01LjJ6TTQ0LjIgMTAuNGExLjUgMS41IDAgMSAxIDAtMyAxLjUgMS41IDAgMCAxIDAgM3ptOC4zLTQuM2MtLjkgMC0xLjUuNy0xLjUgMS41cy43IDEuNSAxLjUgMS41IDEuNS0uNyAxLjUtMS41LS42LTEuNS0xLjUtMS41em0tMTEuNi0uMmMtLjkgMC0xLjUuNy0xLjUgMS41cz43IDEuNSAxLjUgMS41IDEuNS0uNyAxLjUtMS41LS43LTEuNS0xLjUtMS41em0xNy41IDBjLS45IDAtMS41LjctMS41IDEuNXMuNyAxLjUgMS41IDEuNSAxLjUtLjcgMS41LTEuNS0uNy0xLjUtMS41LTEuNXptLTguOCAwaC0uNnYzLjVoLjh2LTMuNXoiLz48L3N2Zz4=';
 
 /**
- * Resizes the map container off-screen to the target capture dimensions,
- * runs fn(), then restores original styles — always, even on error.
+ * Temporarily lends the map viewport to a capture operation. Container styles
+ * and the exact free-camera state are restored after the operation, including
+ * when capture fails or is cancelled.
  */
-export async function withMapResized<T>(
+export async function withTemporaryMapViewport<T>(
   map: MapboxMap,
   width: number,
   height: number,
   fn: () => Promise<T>,
 ): Promise<T> {
   const mapContainer = map.getContainer() as HTMLElement;
-  const orig = {
-    width: mapContainer.style.width,
-    height: mapContainer.style.height,
-    position: mapContainer.style.position,
-    left: mapContainer.style.left,
-    top: mapContainer.style.top,
-    zIndex: mapContainer.style.zIndex,
-  };
+  const originalInlineStyles = mapContainer.style.cssText;
+  const originalCamera = map.getFreeCameraOptions();
 
   mapContainer.style.position = 'fixed';
   mapContainer.style.width = `${width}px`;
@@ -118,12 +113,8 @@ export async function withMapResized<T>(
   try {
     return await fn();
   } finally {
-    mapContainer.style.width = orig.width;
-    mapContainer.style.height = orig.height;
-    mapContainer.style.position = orig.position;
-    mapContainer.style.left = orig.left;
-    mapContainer.style.top = orig.top;
-    mapContainer.style.zIndex = orig.zIndex;
+    mapContainer.style.cssText = originalInlineStyles;
     map.resize();
+    map.setFreeCameraOptions(originalCamera);
   }
 }

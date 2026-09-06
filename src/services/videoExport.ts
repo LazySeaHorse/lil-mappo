@@ -5,7 +5,7 @@ import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
-import { compositeFrame, withMapResized } from './mapCapture';
+import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import type { RenderConfig } from '@/types/render';
 import {
   EncodedPacket,
@@ -16,6 +16,7 @@ import {
 } from 'mediabunny';
 import { createVideoExportTarget, type VideoExportTarget } from './videoExportTarget';
 import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
+import { withTemporaryProjectPlayhead } from './captureSession';
 
 /**
  * Non-realtime offline export engine.
@@ -393,34 +394,36 @@ export async function runExport(
   const zoomOffset = Math.log2(width / previewWidth);
 
   try {
-    return await withMapResized(map, width, height, async () => {
-      // Wait for map ready
-      await waitForMapIdle(map, { timeoutMs: 3_000, signal: abortSignal });
-      await document.fonts.ready;
+    return await withTemporaryMapViewport(map, width, height, () => (
+      withTemporaryProjectPlayhead(async () => {
+        // Wait for map ready
+        await waitForMapIdle(map, { timeoutMs: 3_000, signal: abortSignal });
+        await document.fonts.ready;
 
-      // Phase 1: pre-warm tile cache
-      await prewarmTileCache(map, getRouteCoords, getRoutes, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
-      if (abortSignal.aborted) throw new DOMException('Export cancelled', 'AbortError');
+        // Phase 1: pre-warm tile cache
+        await prewarmTileCache(map, getRouteCoords, getRoutes, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
+        if (abortSignal.aborted) throw new DOMException('Export cancelled', 'AbortError');
 
-      // Phase 2: capture frames
-      for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
-        if (abortSignal.aborted) {
-          throw new DOMException('Export cancelled', 'AbortError');
+        // Phase 2: capture frames
+        for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
+          if (abortSignal.aborted) {
+            throw new DOMException('Export cancelled', 'AbortError');
+          }
+
+          const currentTime = (startFrame + frameIndex) / fps;
+          const clampedTime = Math.min(currentTime, duration);
+
+          await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, getRoutes, options.showWatermark, zoomOffset);
+          const encoderError = encoderState.getEncoderError();
+          if (encoderError) throw encoderError;
+          onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
         }
 
-        const currentTime = (startFrame + frameIndex) / fps;
-        const clampedTime = Math.min(currentTime, duration);
-
-        await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, getRoutes, options.showWatermark, zoomOffset);
-        const encoderError = encoderState.getEncoderError();
-        if (encoderError) throw encoderError;
-        onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
-      }
-
-      const result = await finalizeExport(encoderState);
-      completed = true;
-      return result;
-    });
+        const result = await finalizeExport(encoderState);
+        completed = true;
+        return result;
+      })
+    ));
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       throw new Error(describeMuxerError(error));
