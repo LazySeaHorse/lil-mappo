@@ -29,7 +29,7 @@ export async function loadAirports(): Promise<Airport[]> {
 
   if (!loadPromise) {
     loadPromise = (async () => {
-      const rawData = (await import('@/data/airports.json')).default as RawAirportTuple[];
+      const rawData = (await import('../../data/airportsData')).default;
       const airports = rawData.map(unpackAirport);
 
       const iataMap = new Map<string, Airport>();
