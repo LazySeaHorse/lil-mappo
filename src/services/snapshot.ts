@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { compositeFrame, withMapResized } from './mapCapture';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
+import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
 
 /**
  * Captures a high-resolution snapshot of the current map view.
@@ -33,10 +34,7 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
       if (zoomOffset !== 0) map.jumpTo({ zoom: previewZoom + zoomOffset });
 
       toast.loading('Rendering high-res tiles...', { id });
-      await Promise.race([
-        new Promise<void>((resolve) => map.once('idle', () => resolve())),
-        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
-      ]);
+      await waitForMapIdle(map, { timeoutMs: 3_000 });
       await document.fonts.ready;
 
       const compCanvas = document.createElement('canvas');

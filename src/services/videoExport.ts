@@ -15,6 +15,7 @@ import {
   type Target,
 } from 'mediabunny';
 import { createVideoExportTarget, type VideoExportTarget } from './videoExportTarget';
+import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
 
 /**
  * Non-realtime offline export engine.
@@ -244,11 +245,12 @@ async function prewarmTileCache(
       if (cam) applyCamera(map, cam, zoomOffset);
     }
 
-    // Wait for map to settle, max 2s
-    await Promise.race([
-      new Promise<void>((resolve) => map.once('idle', () => resolve())),
-      new Promise<void>((resolve) => setTimeout(resolve, 2000)),
-    ]);
+    // Wait for map to settle, max 2s.
+    await waitForMapIdle(map, {
+      timeoutMs: 2_000,
+      signal: abortSignal,
+      waitForAnimationFrame: false,
+    });
 
     onProgress(Math.round(((i + 1) / STEPS) * 100), 'prewarm');
   }
@@ -393,10 +395,7 @@ export async function runExport(
   try {
     return await withMapResized(map, width, height, async () => {
       // Wait for map ready
-      await Promise.race([
-        new Promise<void>((resolve) => map.once('idle', () => resolve())),
-        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
-      ]);
+      await waitForMapIdle(map, { timeoutMs: 3_000, signal: abortSignal });
       await document.fonts.ready;
 
       // Phase 1: pre-warm tile cache
