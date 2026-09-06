@@ -482,7 +482,7 @@ export function VisualCardSelect<T extends string>({
   onChange,
   columns = 4,
 }: {
-  options: VisualCardOption<T>[];
+  options: readonly VisualCardOption<T>[];
   value: T;
   onChange: (v: T) => void;
   columns?: number;

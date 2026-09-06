@@ -12,10 +12,13 @@ import {
   SwitchRow, 
   TimingControls, 
   VisualCardSelect,
+  type VisualCardOption,
   formatPercent 
 } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
+
+type BoundaryAnimationMode = 'none' | BoundaryItem['style']['animationStyle'];
 
 export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   const { updateItem } = useProjectStore();
@@ -39,11 +42,11 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
     ? 'none' 
     : (item.style.animationStyle || 'draw');
 
-  const handleAnimModeChange = (mode: string) => {
+  const handleAnimModeChange = (mode: BoundaryAnimationMode) => {
     if (mode === 'none') {
       us({ animateStroke: false });
     } else {
-      us({ animateStroke: true, animationStyle: mode as BoundaryItem['style']['animationStyle'] });
+      us({ animateStroke: true, animationStyle: mode });
     }
   };
 
@@ -52,7 +55,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
     { value: 'fade', label: 'Fade-in', icon: <Layers size={13} /> },
     { value: 'draw', label: 'Outline', icon: <PenLine size={13} /> },
     { value: 'trace', label: 'Trace', icon: <Sparkles size={13} /> },
-  ] as const;
+  ] as const satisfies readonly VisualCardOption<BoundaryAnimationMode>[];
 
   return (
     <PanelWrapper 
@@ -117,7 +120,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
         <InspectorSection value="animation" title="Animation">
           <div className="flex flex-col gap-3">
             <VisualCardSelect
-              options={animationOptions as any}
+              options={animationOptions}
               value={activeAnimMode}
               onChange={handleAnimModeChange}
               columns={4}

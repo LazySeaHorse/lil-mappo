@@ -12,6 +12,7 @@ import {
   SwitchRow, 
   TimingControls, 
   VisualCardSelect,
+  type VisualCardOption,
   formatMultiplier 
 } from './InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
@@ -25,6 +26,9 @@ import {
   Plane, 
   Circle 
 } from 'lucide-react';
+
+type RouteLineStyle = 'solid' | 'dashed' | 'dotted';
+type RouteAnimationType = NonNullable<RouteItem['style']['animationType']>;
 
 const AUTO_CAM_DEFAULTS: AutoCamConfig = {
   enabled: true,
@@ -102,10 +106,10 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     }
   };
 
-  const animType = item.style.animationType || 'draw';
+  const animType: RouteAnimationType = item.style.animationType || 'draw';
   const footer = <ItemActions id={item.id} kind="route" customLabel="Delete Route" />;
 
-  const lineStyleValue = 
+  const lineStyleValue: RouteLineStyle =
     !item.style.dashPattern ? 'solid' :
     item.style.dashPattern[0] === 2 ? 'dotted' : 'dashed';
 
@@ -113,7 +117,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     { value: 'draw', label: 'Draw', icon: <Spline size={13} /> },
     { value: 'navigation', label: 'Progress', icon: <CircleDot size={13} /> },
     { value: 'comet', label: 'Moving trail', icon: <Flame size={13} /> },
-  ] as const;
+  ] as const satisfies readonly VisualCardOption<RouteAnimationType>[];
 
   return (
     <PanelWrapper 
@@ -170,7 +174,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                     label: 'Dotted', 
                     icon: <div className="w-5 border-t-[2.5px] border-dotted border-current my-0.5" /> 
                   },
-                ] as any}
+                ] satisfies readonly VisualCardOption<RouteLineStyle>[]}
                 value={lineStyleValue}
                 onChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}
                 columns={3}
@@ -209,9 +213,9 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">Style</span>
               <VisualCardSelect
-                options={animOptions as any}
+                options={animOptions}
                 value={animType}
-                onChange={(v) => us({ animationType: v as any })}
+                onChange={(v) => us({ animationType: v })}
                 columns={3}
               />
             </div>
