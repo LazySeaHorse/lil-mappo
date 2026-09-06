@@ -40,9 +40,9 @@ export const PreviewRouteLayer = () => {
     const allCoords: number[][] = [];
     for (const feature of previewRoute.features) {
       const geom = feature.geometry;
-      if (geom.type === 'LineString') allCoords.push(...(geom as any).coordinates);
+      if (geom.type === 'LineString') allCoords.push(...geom.coordinates);
       else if (geom.type === 'MultiLineString') {
-        for (const line of (geom as any).coordinates) allCoords.push(...line);
+        for (const line of geom.coordinates) allCoords.push(...line);
       }
     }
 

@@ -63,7 +63,7 @@ describe('Map Point Picking Architecture', () => {
         features: [
           {
             layer: { id: 'search-results-circles' },
-            geometry: { coordinates: [2.3522, 48.8566] },
+            geometry: { type: 'Point' as const, coordinates: [2.3522, 48.8566] },
             properties: { name: 'Paris, France' },
           },
         ],
