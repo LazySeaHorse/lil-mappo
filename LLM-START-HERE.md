@@ -549,11 +549,13 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **UI Validation**: `BYOKQuickEntry` (in `MapLoadGate.tsx`) and `AccountSettingsModal` both call `isAppOwnKey()` before accepting pasted tokens, providing immediate feedback.
 - **UX**: Updating or clearing the key triggers a page reload to re-initialize the Mapbox instance with the new token.
 
-### 7.4 3D Vehicles & Flight Arcs
+### 7.4 3D Vehicles, Flight Arcs & Airport Picker
 
 - **3D Vehicles**: Gated as PRO feature in Inspector (toggle + scale controls disabled for free users).
 - **Flight Arcs**: Generated via `@turf/great-circle` with parabolic altitude curve.
 - **Land Routes**: Use Mapbox Directions v5.
+- **Built-in IATA/ICAO Airport Picker**: Uses an integrated database of 7,697 global airports (`src/data/airports.json`), code-split on demand via dynamic import. Powered by `cmdk` in `AirportSearchField.tsx` with instant in-memory lookup across IATA, ICAO, city, and airport names, snapping departure and arrival coordinates to runways and automatically configuring 3D airplane models.
+
 
 ### 7.4 Map Sync Engine
 
