@@ -4,6 +4,7 @@ import { Field, SwitchField } from '@/components/ui/field';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SliderField } from './InspectorShared';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 
 interface BoundaryStyleControlsProps {
   style: BoundaryItem['style'];
@@ -62,7 +63,7 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
           <Field label="Animation style">
             <Select 
               value={style.animationStyle || 'draw'} 
-              onValueChange={(v) => onChange({ animationStyle: v as any })} 
+              onValueChange={(v) => onChange({ animationStyle: parseBoundaryAnimationStyle(v) })}
             >
               <SelectTrigger className="h-8 text-sm w-full bg-background/50">
                 <SelectValue />

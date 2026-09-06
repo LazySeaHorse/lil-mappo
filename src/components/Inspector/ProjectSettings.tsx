@@ -16,6 +16,7 @@ import { RotateCw, Monitor, Smartphone, Lock, ArrowRight, Settings2 } from 'luci
 import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
+import { parseLightPreset, parseProjection } from '@/store/domainValues';
 
 
 
@@ -148,7 +149,7 @@ export function ProjectSettings() {
         <Accordion type="multiple" defaultValue={['env', 'labels', '3d']} className="w-full">
           <InspectorSection value="env" title="Map">
             <Field label="Projection">
-              <Select value={projection} onValueChange={(v) => setProjection(v as any)}>
+              <Select value={projection} onValueChange={(v) => setProjection(parseProjection(v))}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="globe">Globe</SelectItem>
@@ -159,7 +160,7 @@ export function ProjectSettings() {
 
             {capabilities.timeOfDayPreset && (
               <Field label="Lighting">
-                <Select value={lightPreset} onValueChange={(v) => setLightPreset(v as any)}>
+                <Select value={lightPreset} onValueChange={(v) => setLightPreset(parseLightPreset(v))}>
                   <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="day">Day</SelectItem>

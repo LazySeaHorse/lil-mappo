@@ -7,7 +7,9 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
-import { BoundaryItem } from '@/store/types';
+import type { BoundaryItem } from '@/store/types';
+import type { NominatimResult } from '@/services/nominatim';
+import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
 import { useMapRef } from '@/hooks/useMapRef';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,7 +36,7 @@ export const BoundaryAddDropdown = ({
   
   const mapRef = useMapRef();
 
-  const handleSelect = (r: any) => {
+  const handleSelect = (r: NominatimResult) => {
     setPreviewBoundary(r.geojson, r.display_name.split(',')[0]);
     
     // Zoom to boundary
@@ -160,7 +162,7 @@ export const BoundaryAddDropdown = ({
               <Field label="Entrance animation">
                 <Select 
                   value={previewBoundaryStyle!.animationStyle || 'draw'} 
-                  onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: v as any })} 
+                  onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: parseBoundaryAnimationStyle(v) })}
                 >
                   <SelectTrigger className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
                     <SelectValue />
