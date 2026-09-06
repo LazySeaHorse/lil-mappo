@@ -164,6 +164,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
       <MapGL
         ref={mapRef}
         mapboxAccessToken={mapboxToken}
+        RTLTextPlugin={false}
         initialViewState={{ longitude: -73.97, latitude: 40.77, zoom: 12, pitch: 0, bearing: 0 }}
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
