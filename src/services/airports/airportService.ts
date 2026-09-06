@@ -1,9 +1,9 @@
+import airportsData from '../../data/airportsData';
 import type { Airport, RawAirportTuple } from './types';
 
 let cachedAirports: Airport[] | null = null;
 let iataIndex: Map<string, Airport> | null = null;
 let icaoIndex: Map<string, Airport> | null = null;
-let loadPromise: Promise<Airport[]> | null = null;
 
 export const POPULAR_AIRPORT_CODES = [
   'JFK', 'LHR', 'CDG', 'HND', 'DXB', 'SIN', 'AMS', 'FRA',
@@ -22,40 +22,39 @@ export function unpackAirport(tuple: RawAirportTuple): Airport {
   };
 }
 
-export async function loadAirports(): Promise<Airport[]> {
+export function initAirportsSync(): Airport[] {
   if (cachedAirports) {
     return cachedAirports;
   }
 
-  if (!loadPromise) {
-    loadPromise = (async () => {
-      const rawData = (await import('../../data/airportsData')).default;
-      const airports = rawData.map(unpackAirport);
+  const airports = airportsData.map(unpackAirport);
+  const iataMap = new Map<string, Airport>();
+  const icaoMap = new Map<string, Airport>();
 
-      const iataMap = new Map<string, Airport>();
-      const icaoMap = new Map<string, Airport>();
-
-      for (const airport of airports) {
-        if (airport.iata) {
-          iataMap.set(airport.iata.toUpperCase(), airport);
-        }
-        if (airport.icao) {
-          icaoMap.set(airport.icao.toUpperCase(), airport);
-        }
-      }
-
-      cachedAirports = airports;
-      iataIndex = iataMap;
-      icaoIndex = icaoMap;
-      return airports;
-    })();
+  for (const airport of airports) {
+    if (airport.iata) {
+      iataMap.set(airport.iata.toUpperCase(), airport);
+    }
+    if (airport.icao) {
+      icaoMap.set(airport.icao.toUpperCase(), airport);
+    }
   }
 
-  return loadPromise;
+  cachedAirports = airports;
+  iataIndex = iataMap;
+  icaoIndex = icaoMap;
+  return airports;
+}
+
+export async function loadAirports(): Promise<Airport[]> {
+  return initAirportsSync();
 }
 
 export function getAirportByCode(code: string): Airport | undefined {
-  if (!code || !iataIndex || !icaoIndex) return undefined;
+  if (!code) return undefined;
+  if (!iataIndex || !icaoIndex) {
+    initAirportsSync();
+  }
   const normalized = code.trim().toUpperCase();
   return iataIndex.get(normalized) || icaoIndex.get(normalized);
 }
@@ -127,5 +126,4 @@ export function _resetAirportCacheForTesting(): void {
   cachedAirports = null;
   iataIndex = null;
   icaoIndex = null;
-  loadPromise = null;
 }
