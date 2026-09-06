@@ -9,6 +9,7 @@ import { Pencil, Clock } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import type { EasingName } from '@/store/types';
 import { Field, SectionLabel, SwitchField } from "@/components/ui/field";
+import { EASING_OPTIONS, normalizeEasing } from './inspectorValues';
 
 // Canonical re-exports from ui/
 export { Field, SectionLabel, SwitchField };
@@ -230,11 +231,6 @@ export function SliderField({
   );
 }
 
-export const formatPercent = (v: number) => `${Math.round(v * 100)} %`;
-export const formatDegrees = (v: number) => `${(v ?? 0).toFixed(1)}°`;
-export const formatMultiplier = (v: number) => `${v.toFixed(1)}x`;
-export const formatDecimals = (decimals = 2) => (v: number) => v.toFixed(decimals);
-
 export function NumberRow({
   label,
   icon,
@@ -323,22 +319,6 @@ export function SelectRow<T extends string>({
     </div>
   );
 }
-
-export const EASING_OPTIONS: { value: EasingName; label: string }[] = [
-  { value: 'linear', label: 'Linear' },
-  { value: 'easeInOutSine', label: 'Slow start and end' },
-  { value: 'easeInQuad', label: 'Slow start' },
-  { value: 'easeOutQuad', label: 'Slow end' },
-  { value: 'bounce', label: 'Bounce' },
-];
-
-export const normalizeEasing = (val?: EasingName): EasingName => {
-  if (!val) return 'easeInOutSine';
-  if (val === 'easeInOutCubic' || val === 'easeInOutQuad') return 'easeInOutSine';
-  if (val === 'easeInCubic') return 'easeInQuad';
-  if (val === 'easeOutCubic') return 'easeOutQuad';
-  return val;
-};
 
 export function EasingSelect({ 
   value, 

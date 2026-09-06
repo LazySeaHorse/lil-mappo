@@ -12,13 +12,15 @@ import {
   CoordinatesRows,
   VisualCardSelect,
   EditableTitle,
-  normalizeEasing,
-  formatPercent,
+} from './InspectorShared';
+import {
+  EASING_OPTIONS,
+  formatDecimals,
   formatDegrees,
   formatMultiplier,
-  formatDecimals,
-  EASING_OPTIONS,
-} from './InspectorShared';
+  formatPercent,
+  normalizeEasing,
+} from './inspectorValues';
 
 describe('InspectorShared Utilities & Formatters', () => {
   it('normalizes legacy and alternative easing names to supported presets', () => {

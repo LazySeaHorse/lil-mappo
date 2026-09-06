@@ -13,8 +13,8 @@ import {
   TimingControls, 
   VisualCardSelect,
   type VisualCardOption,
-  formatPercent 
 } from './InspectorShared';
+import { formatPercent } from './inspectorValues';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 

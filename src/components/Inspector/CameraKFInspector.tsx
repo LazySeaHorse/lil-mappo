@@ -2,7 +2,8 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
 import { Accordion } from "@/components/ui/accordion";
-import { SliderRow, EasingSelect, CoordinatesRows, NumberRow, formatDegrees } from './InspectorShared';
+import { SliderRow, EasingSelect, CoordinatesRows, NumberRow } from './InspectorShared';
+import { formatDegrees } from './inspectorValues';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
 

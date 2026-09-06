@@ -13,8 +13,8 @@ import {
   TimingControls, 
   VisualCardSelect,
   type VisualCardOption,
-  formatMultiplier 
 } from './InspectorShared';
+import { formatMultiplier } from './inspectorValues';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { 
   Navigation, 
