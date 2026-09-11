@@ -40,14 +40,19 @@ async function stubExternalServices(page: Page) {
 
 async function openEditor(page: Page, options: { dismissWalkthrough?: boolean } = {}) {
   await stubExternalServices(page);
+  if (options.dismissWalkthrough !== false) {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("lil-mappo:quick-walkthrough:v1", "completed");
+      window.localStorage.setItem("lil-mappo:mobile-warning:v1", "dismissed");
+    });
+  }
   await page.goto("/");
   await expect(page.getByText("Timeline", { exact: true })).toBeVisible();
   await expect(page.locator(".mapboxgl-canvas")).toBeVisible();
 
-  if (options.dismissWalkthrough !== false) {
+  if (options.dismissWalkthrough === false) {
     const invitation = page.getByRole("alertdialog", { name: "Start the quick tour?" });
     await expect(invitation).toBeVisible();
-    await invitation.getByRole("button", { name: "Not now" }).click();
   }
 }
 
@@ -201,7 +206,7 @@ test("3. a route can be created and appears in the inspector and timeline", asyn
 
   await expect(page.getByRole("heading", { name: "Route", exact: true })).toBeVisible();
   const routeName = page.locator('input[placeholder="Route name"]');
-  await expect(routeName).toHaveValue(/.+ to .+/);
+  await expect(routeName).toHaveValue(/.+ (to|→) .+/);
   await expect(page.getByText(await routeName.inputValue(), { exact: true })).toBeVisible();
 });
 

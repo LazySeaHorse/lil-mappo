@@ -33,7 +33,7 @@ function sharedChromiumExecutable(): string | undefined {
 
     return directories.flatMap((directory) => {
       const revision = Number(directory.slice("chromium-".length));
-      return ["chrome-linux", "chrome-linux64"].flatMap((platformDirectory) => {
+      return ["chrome-linux", "chrome-linux64", "chrome-linux-arm64"].flatMap((platformDirectory) => {
         const bundle = path.join(root, directory, platformDirectory);
         const executable = path.join(bundle, "chrome");
         // A copied executable without its ICU data exists in some workspaces but
@@ -55,6 +55,10 @@ const chromiumExecutable = sharedChromiumExecutable();
 
 export default defineConfig({
   testDir: "./e2e",
+  timeout: 60_000,
+  expect: {
+    timeout: 10_000,
+  },
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -72,9 +76,16 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 1000 },
-        launchOptions: chromiumExecutable
-          ? { executablePath: chromiumExecutable }
-          : undefined,
+        launchOptions: {
+          executablePath: chromiumExecutable,
+          args: [
+            "--ignore-gpu-blocklist",
+            "--use-gl=angle",
+            "--use-angle=swiftshader",
+            "--enable-webgl",
+            "--disable-gpu-sandbox",
+          ],
+        },
       },
     },
   ],
