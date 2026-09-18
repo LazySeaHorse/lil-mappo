@@ -92,7 +92,7 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
     const stepDelayMs = Number(process.env.FUZZ_STEP_DELAY_MS) || 50;
 
     if (fuzzDurationMs > 0) {
-      test.setTimeout(fuzzDurationMs + 90_000);
+      test.setTimeout(fuzzDurationMs + 180_000);
     } else {
       test.setTimeout(Math.max(60_000, totalActions * 3000));
     }
@@ -146,15 +146,20 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
         recorder.record(action.category, `Execution caught: ${action.name}`, { error: msg });
       }
 
-      if (stepDelayMs > 0) {
-        await page.waitForTimeout(stepDelayMs);
-      }
-
       // 1. Assert no fatal unhandled page errors occurred
       if (pageErrors.length > 0) {
         const trace = recorder.formatTrace(seed, `Fatal page error: ${pageErrors[0]}`);
         console.error(trace);
         throw new Error(trace);
+      }
+
+      // Check time limit before delaying
+      if (fuzzDurationMs > 0 && Date.now() - startTime >= fuzzDurationMs) {
+        break;
+      }
+
+      if (stepDelayMs > 0) {
+        await page.waitForTimeout(stepDelayMs);
       }
 
       // 2. Assert Zustand store invariants every 5 actions
@@ -181,6 +186,24 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
       if (step % 25 === 0) {
         const elapsedSec = Math.round((Date.now() - startTime) / 1000);
         console.log(`[SMART MONKEY] Progress: ${step} actions completed (${elapsedSec}s elapsed)...`);
+      }
+    }
+
+    // Final invariant check
+    const finalStoreState = await page
+      .evaluate(() => {
+        const store = (window as unknown as { __projectStore?: { getState: () => MinimalProjectState } }).__projectStore;
+        return store?.getState();
+      })
+      .catch(() => null);
+
+    if (finalStoreState) {
+      const violations = validateStoreInvariants(finalStoreState);
+      if (violations.length > 0) {
+        const firstViolation = violations[0].message;
+        const trace = recorder.formatTrace(seed, `Store invariant violation on completion: ${firstViolation}`);
+        console.error(trace);
+        throw new Error(trace);
       }
     }
 

@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import type { SeededRandom } from './prng';
 import type { FlightRecorder } from './flightRecorder';
 
@@ -7,6 +7,29 @@ export interface SmartMonkeyAction {
   name: string;
   weight: number;
   execute: (page: Page, rng: SeededRandom, recorder: FlightRecorder) => Promise<void>;
+}
+
+/**
+ * Executes a click with a strict, short timeout so monkey actions never stall
+ * on disabled buttons or transitioning DOM elements.
+ */
+async function safeClick(locator: Locator, options: { timeout?: number; force?: boolean } = { timeout: 500 }) {
+  try {
+    await locator.click(options);
+  } catch {
+    // Expected during fuzzing when elements are disabled or detached mid-action
+  }
+}
+
+/**
+ * Executes a fill with a strict, short timeout.
+ */
+async function safeFill(locator: Locator, text: string, options: { timeout?: number } = { timeout: 500 }) {
+  try {
+    await locator.fill(text, options);
+  } catch {
+    // Expected during fuzzing if input is readonly or detached
+  }
 }
 
 export const smartMonkeyActions: SmartMonkeyAction[] = [
@@ -21,7 +44,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
       recorder.record('timeline', 'Toggle Play / Pause');
       const playBtn = page.getByTitle(/Play \/ Pause/i);
       if (await playBtn.isVisible().catch(() => false)) {
-        await playBtn.click().catch(() => {});
+        await safeClick(playBtn);
       } else {
         await page.keyboard.press('Space').catch(() => {});
       }
@@ -59,7 +82,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
       recorder.record('timeline', 'Add Camera Keyframe');
       const kfBtn = page.getByTitle('Camera KF');
       if (await kfBtn.isVisible().catch(() => false)) {
-        await kfBtn.click().catch(() => {});
+        await safeClick(kfBtn);
       }
     },
   },
@@ -72,7 +95,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
       if (tracks.length > 0) {
         const target = rng.pick(tracks);
         recorder.record('timeline', 'Click Timeline Track Item');
-        await target.click({ force: true }).catch(() => {});
+        await safeClick(target, { force: true, timeout: 500 });
       }
     },
   },
@@ -167,25 +190,25 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
 
       if (!isOpen) {
         recorder.record('drafting', 'Open Route Tool');
-        await page.getByTitle('Plan Route').click().catch(() => {});
+        await safeClick(page.getByTitle('Plan Route'));
       } else {
         const subAction = rng.pick(['pickMode', 'pickMap', 'previewOrInsert', 'close']);
         recorder.record('drafting', `Route Tool: ${subAction}`);
         if (subAction === 'pickMode') {
           const mode = rng.pick(['Flight', 'Car', 'Walk']);
-          await routeDropdown.getByRole('radio', { name: mode }).click().catch(() => {});
+          await safeClick(routeDropdown.getByRole('radio', { name: mode }));
         } else if (subAction === 'pickMap') {
           const pickButtons = await routeDropdown.getByTitle('Pick on Map').all().catch(() => []);
           if (pickButtons.length > 0) {
-            await rng.pick(pickButtons).click().catch(() => {});
+            await safeClick(rng.pick(pickButtons));
           }
         } else if (subAction === 'previewOrInsert') {
           const insertBtn = routeDropdown.getByRole('button', { name: 'Insert route' });
           if (await insertBtn.isVisible().catch(() => false)) {
-            await insertBtn.click().catch(() => {});
+            await safeClick(insertBtn);
           } else {
             const previewBtn = routeDropdown.getByRole('button', { name: 'Preview path' });
-            await previewBtn.click().catch(() => {});
+            await safeClick(previewBtn);
           }
         } else {
           await page.keyboard.press('Escape').catch(() => {});
@@ -203,21 +226,21 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
 
       if (!isOpen) {
         recorder.record('drafting', 'Open Callout Tool');
-        await page.getByTitle('Add Callout').click().catch(() => {});
+        await safeClick(page.getByTitle('Add Callout'));
       } else {
         const subAction = rng.pick(['fillTitle', 'pickMap', 'submit', 'close']);
         recorder.record('drafting', `Callout Tool: ${subAction}`);
         if (subAction === 'fillTitle') {
           const titleInput = calloutDropdown.getByPlaceholder('Callout title');
           if (await titleInput.isVisible().catch(() => false)) {
-            await titleInput.fill(rng.fuzzyString()).catch(() => {});
+            await safeFill(titleInput, rng.fuzzyString());
           }
         } else if (subAction === 'pickMap') {
           const pickBtn = calloutDropdown.getByTitle('Pick on Map');
-          await pickBtn.click().catch(() => {});
+          await safeClick(pickBtn);
         } else if (subAction === 'submit') {
           const submitBtn = calloutDropdown.getByRole('button', { name: 'Create callout' });
-          await submitBtn.click().catch(() => {});
+          await safeClick(submitBtn);
         } else {
           await page.keyboard.press('Escape').catch(() => {});
         }
@@ -234,19 +257,19 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
 
       if (!isOpen) {
         recorder.record('drafting', 'Open Boundary Tool');
-        await page.getByTitle('Add Boundary').click().catch(() => {});
+        await safeClick(page.getByTitle('Add Boundary'));
       } else {
         const subAction = rng.pick(['search', 'insert', 'close']);
         recorder.record('drafting', `Boundary Tool: ${subAction}`);
         if (subAction === 'search') {
           const searchInput = boundaryDropdown.getByPlaceholder(/Search for a place/i);
           if (await searchInput.isVisible().catch(() => false)) {
-            await searchInput.fill(rng.pick(['Testland', 'Paris', 'Tokyo', 'Berlin'])).catch(() => {});
+            await safeFill(searchInput, rng.pick(['Testland', 'Paris', 'Tokyo', 'Berlin']));
             await searchInput.press('Enter').catch(() => {});
           }
         } else if (subAction === 'insert') {
           const insertBtn = boundaryDropdown.getByRole('button', { name: 'Insert boundary' });
-          await insertBtn.click().catch(() => {});
+          await safeClick(insertBtn);
         } else {
           await page.keyboard.press('Escape').catch(() => {});
         }
@@ -273,7 +296,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
       const fuzzedValue = isNumber ? String(rng.fuzzyNumber()) : rng.fuzzyString();
 
       recorder.record('inspector', 'Fuzz Inspector Input', { value: fuzzedValue });
-      await input.fill(fuzzedValue).catch(() => {});
+      await safeFill(input, fuzzedValue);
       if (rng.boolean(0.5)) {
         await input.press('Enter').catch(() => {});
       }
@@ -288,7 +311,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
       if (switches.length > 0) {
         const sw = rng.pick(switches);
         recorder.record('inspector', 'Toggle Switch');
-        await sw.click().catch(() => {});
+        await safeClick(sw);
       }
     },
   },
@@ -316,7 +339,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
         await page.keyboard.press('Escape').catch(() => {});
       } else {
         recorder.record('modal', 'Open Export Dialog');
-        await page.getByTitle('Export').click().catch(() => {});
+        await safeClick(page.getByTitle('Export'));
       }
     },
   },
@@ -328,7 +351,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
       recorder.record('modal', 'Click Map Settings');
       const settingsBtn = page.getByTitle('Map Settings');
       if (await settingsBtn.isVisible().catch(() => false)) {
-        await settingsBtn.click().catch(() => {});
+        await safeClick(settingsBtn);
       }
     },
   },
