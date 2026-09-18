@@ -10,14 +10,15 @@ export interface DirectionsResult {
 export async function getDirections(
   start: [number, number],
   end: [number, number],
-  mode: 'car' | 'walk'
+  mode: 'car' | 'walk',
+  signal?: AbortSignal
 ): Promise<DirectionsResult> {
   const profile = mode === 'car' ? 'driving-traffic' : 'walking';
   const coords = `${start[0]},${start[1]};${end[0]},${end[1]}`;
   const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?access_token=${getEffectiveMapboxToken()}&geometries=geojson&overview=full`;
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Mapbox Directions error: ${res.status}`);
     const data = await res.json();
     
@@ -32,6 +33,9 @@ export async function getDirections(
       duration: route.duration,
     };
   } catch (error) {
+    if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      throw error;
+    }
     console.error('Directions error:', error);
     throw error;
   }

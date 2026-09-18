@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,27 +17,99 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const searchSeqRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     setQuery(initialValue);
   }, [initialValue]);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      abortControllerRef.current?.abort();
+      searchSeqRef.current++;
+    };
+  }, []);
+
+  const executeSearch = async (searchTerm: string) => {
+    const trimmed = searchTerm.trim();
+    if (!trimmed) {
+      setResults([]);
+      setLoading(false);
+      onSearchingChange?.(false);
+      return;
+    }
+
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const seq = ++searchSeqRef.current;
     setLoading(true);
     onSearchingChange?.(true);
+
     try {
-      const res = await searchBoundary(query);
+      const res = await searchBoundary(trimmed, abortController.signal);
+      if (seq !== searchSeqRef.current || abortController.signal.aborted) {
+        return;
+      }
       if (res.length === 0) {
         toast.error('Cannot find a boundary for this place.');
       } else {
         setResults(res);
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      if (seq !== searchSeqRef.current || abortController.signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
+        return;
+      }
       toast.error('Cannot search boundaries.');
     } finally {
+      if (seq === searchSeqRef.current) {
+        setLoading(false);
+        onSearchingChange?.(false);
+      }
+    }
+  };
+
+  const handleChange = (val: string) => {
+    setQuery(val);
+    if (results.length > 0) setResults([]);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (!val.trim()) {
+      abortControllerRef.current?.abort();
       setLoading(false);
       onSearchingChange?.(false);
+      return;
     }
+
+    debounceTimerRef.current = setTimeout(() => {
+      executeSearch(val);
+    }, 250);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      executeSearch(query);
+    }
+  };
+
+  const handleSearchClick = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    executeSearch(query);
   };
 
   return (
@@ -46,16 +118,13 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
         <Input 
           type="text" 
           value={query} 
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (results.length > 0) setResults([]);
-          }} 
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()} 
+          onChange={(e) => handleChange(e.target.value)} 
+          onKeyDown={handleKeyDown} 
           className="h-9 text-sm bg-secondary/30 border-border/40 focus:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset pr-10"
           placeholder="Search for a place or region"
         />
         <IconButton 
-          onClick={handleSearch} 
+          onClick={handleSearchClick} 
           disabled={loading} 
           variant="ghost" 
           size="sm" 

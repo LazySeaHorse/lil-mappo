@@ -6,9 +6,10 @@ export interface NominatimResult {
   geojson: GeoJSON.Geometry;
 }
 
-export async function searchBoundary(query: string): Promise<NominatimResult[]> {
+export async function searchBoundary(query: string, signal?: AbortSignal): Promise<NominatimResult[]> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=geojson&polygon_geojson=1&limit=5`;
   const res = await fetch(url, {
+    signal,
     headers: { 'User-Agent': 'MapStudio/1.0' },
   });
   if (!res.ok) throw new Error(`Nominatim error: ${res.status}`);

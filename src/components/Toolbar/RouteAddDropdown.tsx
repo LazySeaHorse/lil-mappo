@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
@@ -50,6 +50,35 @@ export const RouteAddDropdown = ({
   const [endName, setEndName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const calculationSeqRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStartChange = (lngLat: [number, number], name?: string) => {
+    abortControllerRef.current?.abort();
+    calculationSeqRef.current++;
+    setLoading(false);
+    setStart(lngLat);
+    setStartName(name || '');
+    setPreviewRoute(null);
+  };
+
+  const handleEndChange = (lngLat: [number, number], name?: string) => {
+    abortControllerRef.current?.abort();
+    calculationSeqRef.current++;
+    setLoading(false);
+    setEnd(lngLat);
+    setEndName(name || '');
+    setPreviewRoute(null);
+  };
+
+  const handleModeChange = (newMode: PlannedRouteMode) => {
+    abortControllerRef.current?.abort();
+    calculationSeqRef.current++;
+    setLoading(false);
+    setMode(newMode);
+    setPreviewRoute(null);
+  };
+
   const isPickingStart = activePicker?.id === 'route-start';
   const isPickingEnd = activePicker?.id === 'route-end';
 
@@ -61,8 +90,7 @@ export const RouteAddDropdown = ({
         id: 'route-start',
         prompt: 'Start',
         onPick: (result) => {
-          setStart(result.lngLat);
-          setStartName(result.name);
+          handleStartChange(result.lngLat, result.name);
         },
       });
     }
@@ -76,19 +104,37 @@ export const RouteAddDropdown = ({
         id: 'route-end',
         prompt: 'End',
         onPick: (result) => {
-          setEnd(result.lngLat);
-          setEndName(result.name);
+          handleEndChange(result.lngLat, result.name);
         },
       });
     }
   };
 
-  // Clean up picker if this component unmounts while picking
+  // Clean up picker and in-flight requests on unmount or when closed
   useEffect(() => {
-    return () => {
+    if (!isOpen) {
+      abortControllerRef.current?.abort();
+      calculationSeqRef.current++;
       const currentId = useProjectStore.getState().activePicker?.id;
       if (currentId === 'route-start' || currentId === 'route-end') {
         useProjectStore.getState().stopPicking();
+      }
+      if (useProjectStore.getState().previewRoute) {
+        useProjectStore.getState().setPreviewRoute(null);
+      }
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      calculationSeqRef.current++;
+      const currentId = useProjectStore.getState().activePicker?.id;
+      if (currentId === 'route-start' || currentId === 'route-end') {
+        useProjectStore.getState().stopPicking();
+      }
+      if (useProjectStore.getState().previewRoute) {
+        useProjectStore.getState().setPreviewRoute(null);
       }
     };
   }, []);
@@ -98,24 +144,38 @@ export const RouteAddDropdown = ({
       toast.error('Set start and end');
       return;
     }
+
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const seq = ++calculationSeqRef.current;
     setLoading(true);
     try {
       let geojson: GeoJSON.Geometry;
       if (mode === 'car' || mode === 'walk') {
-        const res = await getDirections(start, end, mode);
+        const res = await getDirections(start, end, mode, abortController.signal);
         geojson = res.geometry;
       } else {
         geojson = calculateFlightArc(start, end);
+      }
+      if (seq !== calculationSeqRef.current || abortController.signal.aborted) {
+        return;
       }
       setPreviewRoute({
         type: 'FeatureCollection',
         features: [{ type: 'Feature', geometry: geojson, properties: {} }]
       });
       toast.success('Path preview ready');
-    } catch (e) {
+    } catch (e: unknown) {
+      if (abortController.signal.aborted || seq !== calculationSeqRef.current || (e instanceof Error && e.name === 'AbortError')) {
+        return;
+      }
       toast.error('Calculation failed');
     } finally {
-      setLoading(false);
+      if (seq === calculationSeqRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -189,7 +249,7 @@ export const RouteAddDropdown = ({
       <SegmentedControl<PlannedRouteMode>
         options={PLANNED_ROUTE_MODE_OPTIONS}
         value={mode}
-        onValueChange={setMode}
+        onValueChange={handleModeChange}
       />
     </PanelHeader>
   );
@@ -201,6 +261,7 @@ export const RouteAddDropdown = ({
           variant="secondary" 
           size="sm" 
           onClick={calculate}
+          disabled={loading}
           className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium bg-secondary/50 hover:bg-secondary border border-border/50 rounded-lg transition-all"
         >
           {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview path
@@ -244,7 +305,7 @@ export const RouteAddDropdown = ({
               placeholder="Departure airport or city (e.g. JFK, LHR)..."
               value={start}
               name={startName}
-              onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
+              onSelect={handleStartChange}
               color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
               isPicking={isPickingStart}
               onStartPick={handleTogglePickStart}
@@ -257,7 +318,7 @@ export const RouteAddDropdown = ({
               placeholder="Arrival airport or city (e.g. DXB, CDG)..."
               value={end}
               name={endName}
-              onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
+              onSelect={handleEndChange}
               color="bg-rose-500/10 text-rose-500 border-rose-500/20"
               isPicking={isPickingEnd}
               onStartPick={handleTogglePickEnd}
@@ -269,7 +330,7 @@ export const RouteAddDropdown = ({
               label="Start location..."
               value={start}
               name={startName}
-              onSelect={(lngLat, name) => { setStart(lngLat); setStartName(name); }}
+              onSelect={handleStartChange}
               color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
               isPicking={isPickingStart}
               onStartPick={handleTogglePickStart}
@@ -281,7 +342,7 @@ export const RouteAddDropdown = ({
               label="End location..."
               value={end}
               name={endName}
-              onSelect={(lngLat, name) => { setEnd(lngLat); setEndName(name); }}
+              onSelect={handleEndChange}
               color="bg-rose-500/10 text-rose-500 border-rose-500/20"
               isPicking={isPickingEnd}
               onStartPick={handleTogglePickEnd}

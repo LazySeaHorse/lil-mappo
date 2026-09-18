@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
@@ -152,6 +152,8 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore();
   const [loading, setLoading] = useState(false);
   const [hasCalculated, setHasCalculated] = useState(false);
+  const calculationSeqRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const storeItem = useProjectStore((s) => s.items[item.id]) as RouteItem | undefined;
   const activeItem = storeItem ?? item;
@@ -186,6 +188,8 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
 
   useEffect(() => {
     return () => {
+      abortControllerRef.current?.abort();
+      calculationSeqRef.current++;
       const currentId = useProjectStore.getState().activePicker?.id;
       if (currentId === `route-${item.id}-start` || currentId === `route-${item.id}-end`) {
         useProjectStore.getState().stopPicking();
@@ -194,6 +198,9 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   }, [item.id]);
 
   const handleModeChange = (mode: RouteMode) => {
+    abortControllerRef.current?.abort();
+    calculationSeqRef.current++;
+    setLoading(false);
     const currentVehicle = calc.vehicle || {
       enabled: false,
       type: 'dot' as const,
@@ -214,14 +221,23 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
        return;
     }
 
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const seq = ++calculationSeqRef.current;
     setLoading(true);
     try {
       let geojson: GeoJSON.Geometry;
       if (calc.mode === 'car' || calc.mode === 'walk') {
-        const result = await getDirections(calc.startPoint, calc.endPoint, calc.mode);
+        const result = await getDirections(calc.startPoint, calc.endPoint, calc.mode, abortController.signal);
         geojson = result.geometry;
       } else {
         geojson = calculateFlightArc(calc.startPoint, calc.endPoint);
+      }
+
+      if (seq !== calculationSeqRef.current || abortController.signal.aborted) {
+        return;
       }
 
       const featureCollection: GeoJSON.FeatureCollection = {
@@ -239,18 +255,29 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
         toast.success('Route preview is ready.');
       }
     } catch (err: unknown) {
+      if (abortController.signal.aborted || seq !== calculationSeqRef.current || (err instanceof Error && err.name === 'AbortError')) {
+        return;
+      }
       toast.error('Cannot calculate route.');
     } finally {
-      setLoading(false);
+      if (seq === calculationSeqRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const setStart = (lngLat: [number, number]) => {
+    abortControllerRef.current?.abort();
+    calculationSeqRef.current++;
+    setLoading(false);
     updateItem(item.id, { calculation: { ...calc, startPoint: lngLat } });
     setPreviewRoute(null);
   };
 
   const setEnd = (lngLat: [number, number]) => {
+    abortControllerRef.current?.abort();
+    calculationSeqRef.current++;
+    setLoading(false);
     updateItem(item.id, { calculation: { ...calc, endPoint: lngLat } });
     setPreviewRoute(null);
   };
