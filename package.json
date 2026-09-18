@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:ui": "playwright test",
     "test:ui:headed": "playwright test --headed",
+    "test:fuzz": "playwright test e2e/smart-monkey.spec.ts",
     "db:local:start": "bash scripts/start-local-supabase.sh",
     "db:local:stop": "supabase stop",
     "db:local:status": "supabase status",
