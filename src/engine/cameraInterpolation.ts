@@ -39,7 +39,8 @@ function destinationPoint(lng: number, lat: number, distKm: number, bearingDeg: 
   const φ1 = (lat * Math.PI) / 180;
   const λ1 = (lng * Math.PI) / 180;
   const sinφ2 = Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ);
-  const φ2 = Math.asin(sinφ2);
+  const clampedSinφ2 = Math.max(-1, Math.min(1, sinφ2));
+  const φ2 = Math.asin(clampedSinφ2);
   const y = Math.sin(θ) * Math.sin(δ) * Math.cos(φ1);
   const x = Math.cos(δ) - Math.sin(φ1) * sinφ2;
   const λ2 = λ1 + Math.atan2(y, x);
@@ -138,16 +139,21 @@ function freeCamToJumpTo(
 ): Extract<CameraOutput, { type: 'jumpTo' }> {
   const bearing = calculateBearing([position[0], position[1]], [lookAt[0], lookAt[1]]);
   const hDistM = haversineDistM([position[0], position[1]], lookAt);
-  const pitch = Math.min(85, (Math.atan2(hDistM, position[2]) * 180) / Math.PI);
-  const latCos = Math.cos((lookAt[1] * Math.PI) / 180);
+  const alt = Math.max(1, position[2]);
+  const pitch = Math.max(0, Math.min(85, (Math.atan2(hDistM, alt) * 180) / Math.PI));
+  const latCos = Math.max(1e-6, Math.cos((lookAt[1] * Math.PI) / 180));
   const metersPerPixel = Math.max(0.1, hDistM / 400);
-  const zoom = Math.log2((156543.03 * latCos) / metersPerPixel);
+  const zoomRatio = (156543.03 * latCos) / metersPerPixel;
+  const zoom = Math.max(0, Math.min(22, zoomRatio > 0 ? Math.log2(zoomRatio) : 0));
   return {
     type: 'jumpTo',
-    center: lookAt,
-    zoom: Math.max(0, Math.min(22, zoom)),
+    center: [
+      Math.max(-180, Math.min(180, lookAt[0])),
+      Math.max(-90, Math.min(90, lookAt[1])),
+    ],
+    zoom,
     pitch,
-    bearing: (bearing + 360) % 360,
+    bearing: ((bearing % 360) + 360) % 360,
   };
 }
 
@@ -189,9 +195,38 @@ function findPrevKFBeforeBlock(
   return candidates.length > 0 ? candidates[candidates.length - 1] : null;
 }
 
-// ─── Standard keyframe interpolation (unchanged logic) ───────────────────────
+// ─── Standard keyframe interpolation ──────────────────────────────────────────
 
-function interpolateCamera(
+export function clampCameraState(state: CameraState): CameraState {
+  let zoom = state.zoom;
+  if (!Number.isFinite(zoom)) zoom = 0;
+  zoom = Math.max(0, Math.min(26, zoom));
+
+  let pitch = state.pitch;
+  if (!Number.isFinite(pitch)) pitch = 0;
+  pitch = Math.max(0, Math.min(90, pitch));
+
+  let bearing = state.bearing;
+  if (!Number.isFinite(bearing)) bearing = 0;
+  bearing = ((bearing % 360) + 360) % 360;
+  if (bearing === 360 || Object.is(bearing, -0)) bearing = 0;
+
+  let lng = state.center[0];
+  let lat = state.center[1];
+  if (!Number.isFinite(lng)) lng = 0;
+  if (!Number.isFinite(lat)) lat = 0;
+  lng = Math.max(-180, Math.min(180, lng));
+  lat = Math.max(-90, Math.min(90, lat));
+
+  return {
+    center: [lng, lat],
+    zoom,
+    pitch,
+    bearing,
+  };
+}
+
+function interpolateTwoKeyframes(
   kfA: CameraKeyframe,
   kfB: CameraKeyframe,
   t: number,
@@ -205,7 +240,7 @@ function interpolateCamera(
     if (coords && coords.length >= 2) {
       const line = lineString(coords);
       const totalLen = length(line, { units: 'kilometers' });
-      const pt = along(line, et * totalLen, { units: 'kilometers' });
+      const pt = along(line, Math.max(0, Math.min(1, et)) * totalLen, { units: 'kilometers' });
       center = pt.geometry.coordinates as [number, number];
     } else {
       center = lerpLngLat(kfA.camera.center, kfB.camera.center, et);
@@ -214,41 +249,91 @@ function interpolateCamera(
     center = lerpLngLat(kfA.camera.center, kfB.camera.center, et);
   }
 
-  return {
+  return clampCameraState({
     center,
     zoom: lerp(kfA.camera.zoom, kfB.camera.zoom, et),
     pitch: lerp(kfA.camera.pitch, kfB.camera.pitch, et),
     bearing: lerpBearing(kfA.camera.bearing, kfB.camera.bearing, et),
-  };
+  });
 }
 
-function getCameraAtTimeFromKeyframes(
+export function getCameraAtTimeFromKeyframes(
   keyframes: CameraKeyframe[],
   time: number,
   getRouteCoords?: (routeId: string) => number[][] | null,
 ): CameraState | null {
-  if (keyframes.length === 0) return null;
-  if (keyframes.length === 1) {
-    const kf = keyframes[0];
-    return { center: kf.camera.center, zoom: kf.camera.zoom, pitch: kf.camera.pitch, bearing: kf.camera.bearing };
+  if (!keyframes || keyframes.length === 0) return null;
+
+  const sorted = [...keyframes].sort((a, b) => a.time - b.time);
+
+  if (sorted.length === 1 || time <= sorted[0].time) {
+    const kf = sorted[0];
+    return clampCameraState({
+      center: kf.camera.center,
+      zoom: kf.camera.zoom,
+      pitch: kf.camera.pitch,
+      bearing: kf.camera.bearing,
+    });
   }
-  if (time <= keyframes[0].time) {
-    const kf = keyframes[0];
-    return { center: kf.camera.center, zoom: kf.camera.zoom, pitch: kf.camera.pitch, bearing: kf.camera.bearing };
+
+  if (time >= sorted[sorted.length - 1].time) {
+    const kf = sorted[sorted.length - 1];
+    return clampCameraState({
+      center: kf.camera.center,
+      zoom: kf.camera.zoom,
+      pitch: kf.camera.pitch,
+      bearing: kf.camera.bearing,
+    });
   }
-  if (time >= keyframes[keyframes.length - 1].time) {
-    const kf = keyframes[keyframes.length - 1];
-    return { center: kf.camera.center, zoom: kf.camera.zoom, pitch: kf.camera.pitch, bearing: kf.camera.bearing };
-  }
-  for (let i = 0; i < keyframes.length - 1; i++) {
-    if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
-      const tA = keyframes[i].time;
-      const tB = keyframes[i + 1].time;
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (time >= sorted[i].time && time <= sorted[i + 1].time) {
+      const tA = sorted[i].time;
+      const tB = sorted[i + 1].time;
       const t = tB > tA ? (time - tA) / (tB - tA) : 0;
-      return interpolateCamera(keyframes[i], keyframes[i + 1], t, getRouteCoords);
+      return interpolateTwoKeyframes(sorted[i], sorted[i + 1], t, getRouteCoords);
     }
   }
-  return null;
+
+  const last = sorted[sorted.length - 1];
+  return clampCameraState({
+    center: last.camera.center,
+    zoom: last.camera.zoom,
+    pitch: last.camera.pitch,
+    bearing: last.camera.bearing,
+  });
+}
+
+export function interpolateCamera(
+  keyframes: CameraKeyframe[],
+  time: number,
+  getRouteCoords?: (routeId: string) => number[][] | null,
+): CameraState;
+export function interpolateCamera(
+  kfA: CameraKeyframe,
+  kfB: CameraKeyframe,
+  t: number,
+  getRouteCoords?: (routeId: string) => number[][] | null,
+): CameraState;
+export function interpolateCamera(
+  first: CameraKeyframe | CameraKeyframe[],
+  second: CameraKeyframe | number,
+  third?: number | ((routeId: string) => number[][] | null),
+  fourth?: (routeId: string) => number[][] | null,
+): CameraState {
+  if (Array.isArray(first)) {
+    const keyframes = first;
+    const time = second as number;
+    const getRouteCoords = typeof third === 'function' ? third : undefined;
+    const result = getCameraAtTimeFromKeyframes(keyframes, time, getRouteCoords);
+    return result ?? { center: [0, 0], zoom: 3, pitch: 0, bearing: 0 };
+  } else {
+    const kfA = first;
+    const kfB = second as CameraKeyframe;
+    const t = third as number;
+    const getRouteCoords = fourth;
+    return interpolateTwoKeyframes(kfA, kfB, t, getRouteCoords);
+  }
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────

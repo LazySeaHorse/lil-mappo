@@ -28,6 +28,10 @@ export function extractLineStringsFromGeometry(geometry: GeoJSON.Geometry): numb
     for (const line of geometry.coordinates) {
       lineStrings.push(line);
     }
+  } else if (geometry.type === 'GeometryCollection') {
+    for (const g of geometry.geometries) {
+      lineStrings.push(...extractLineStringsFromGeometry(g));
+    }
   }
 
   return lineStrings;
@@ -35,8 +39,22 @@ export function extractLineStringsFromGeometry(geometry: GeoJSON.Geometry): numb
 
 /**
  * Calculates the bearing between two points in degrees.
+ * Guaranteed to return a finite number in [0, 360).
  */
 export function calculateBearing(start: number[], end: number[]): number {
+  if (
+    !start ||
+    !end ||
+    start.length < 2 ||
+    end.length < 2 ||
+    !Number.isFinite(start[0]) ||
+    !Number.isFinite(start[1]) ||
+    !Number.isFinite(end[0]) ||
+    !Number.isFinite(end[1])
+  ) {
+    return 0;
+  }
+
   const toRad = (v: number) => (v * Math.PI) / 180;
   const toDeg = (v: number) => (v * 180) / Math.PI;
 
@@ -48,21 +66,47 @@ export function calculateBearing(start: number[], end: number[]): number {
   const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
   const θ = Math.atan2(y, x);
 
-  return (toDeg(θ) + 360) % 360;
+  let bearing = (toDeg(θ) + 360) % 360;
+  if (Number.isNaN(bearing) || !Number.isFinite(bearing)) return 0;
+  bearing = ((bearing % 360) + 360) % 360;
+  if (bearing === 360 || Object.is(bearing, -0)) return 0;
+  return bearing;
 }
 
 /**
  * Calculates the pitch (tilt) between two 3D points in degrees.
+ * Guaranteed to return a finite number in [-90, 90].
  */
 export function calculatePitch(start: number[], end: number[]): number {
-  if (start[2] === undefined || end[2] === undefined) return 0;
+  if (
+    !start ||
+    !end ||
+    start[2] === undefined ||
+    end[2] === undefined ||
+    !Number.isFinite(start[2]) ||
+    !Number.isFinite(end[2]) ||
+    !Number.isFinite(start[0]) ||
+    !Number.isFinite(start[1]) ||
+    !Number.isFinite(end[0]) ||
+    !Number.isFinite(end[1])
+  ) {
+    return 0;
+  }
 
-  const d = distance(point(start.slice(0, 2)), point(end.slice(0, 2)), { units: 'meters' });
+  let d = 0;
+  try {
+    d = distance(point(start.slice(0, 2)), point(end.slice(0, 2)), { units: 'meters' });
+  } catch {
+    d = 0;
+  }
+
   const dz = end[2] - start[2];
 
-  if (d === 0) return dz > 0 ? 90 : dz < 0 ? -90 : 0;
+  if (d === 0 || !Number.isFinite(d)) return dz > 0 ? 90 : dz < 0 ? -90 : 0;
 
-  return (Math.atan2(dz, d) * 180) / Math.PI;
+  const pitch = (Math.atan2(dz, d) * 180) / Math.PI;
+  if (Number.isNaN(pitch) || !Number.isFinite(pitch)) return 0;
+  return Math.max(-90, Math.min(90, pitch));
 }
 
 /**
@@ -70,14 +114,20 @@ export function calculatePitch(start: number[], end: number[]): number {
  * Default 4 decimal places gives ~11m precision, ideal for maps while dropping unnecessary float size.
  */
 export function truncateCoordinate(coord: number[], precision = 4): number[] {
-  const factor = Math.pow(10, precision);
+  const p = Math.max(0, Math.min(15, precision));
+  const factor = Math.pow(10, p);
+  const c0 = coord[0] ?? 0;
+  const c1 = coord[1] ?? 0;
+  const r0 = Math.round(c0 * factor) / factor;
+  const r1 = Math.round(c1 * factor) / factor;
   const truncated = [
-    Math.round(coord[0] * factor) / factor,
-    Math.round(coord[1] * factor) / factor,
+    Object.is(r0, -0) ? 0 : r0,
+    Object.is(r1, -0) ? 0 : r1,
   ];
   if (coord.length > 2 && coord[2] !== undefined) {
     // Altitude rounded to 1 decimal place
-    truncated.push(Math.round(coord[2] * 10) / 10);
+    const r2 = Math.round(coord[2] * 10) / 10;
+    truncated.push(Object.is(r2, -0) ? 0 : r2);
   }
   return truncated;
 }
@@ -101,7 +151,7 @@ export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, pre
     const gc = geometry as unknown as GeoJSON.GeometryCollection;
     return {
       ...gc,
-      geometries: gc.geometries.map((g) => truncateCoordinates(g, precision)),
+      geometries: (gc.geometries || []).map((g) => truncateCoordinates(g, precision)),
     } as unknown as T;
   }
 
