@@ -85,9 +85,17 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
   });
 
   test('Smart Domain Monkey stresses UI while maintaining store & runtime invariants', async ({ page }) => {
-    const totalActions = Number(process.env.FUZZ_ACTIONS) || 50;
+    const fuzzDurationSec = Number(process.env.FUZZ_DURATION_SEC) || 0;
+    const fuzzDurationMs = fuzzDurationSec * 1000;
+    const totalActions = Number(process.env.FUZZ_ACTIONS) || (fuzzDurationMs > 0 ? Number.MAX_SAFE_INTEGER : 50);
     const seed = Number(process.env.FUZZ_SEED) || Math.floor(Math.random() * 1_000_000);
     const stepDelayMs = Number(process.env.FUZZ_STEP_DELAY_MS) || 50;
+
+    if (fuzzDurationMs > 0) {
+      test.setTimeout(fuzzDurationMs + 90_000);
+    } else {
+      test.setTimeout(Math.max(60_000, totalActions * 3000));
+    }
 
     const rng = new SeededRandom(seed);
     const recorder = new FlightRecorder(50);
@@ -118,8 +126,16 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
       weight: action.weight,
     }));
 
+    const startTime = Date.now();
+    let step = 0;
+
     // Perform chaos actions
-    for (let step = 1; step <= totalActions; step++) {
+    while (step < totalActions) {
+      if (fuzzDurationMs > 0 && Date.now() - startTime >= fuzzDurationMs) {
+        break;
+      }
+
+      step++;
       const action = rng.weightedPick(weightedOptions);
 
       try {
@@ -141,8 +157,8 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
         throw new Error(trace);
       }
 
-      // 2. Assert Zustand store invariants every 5 actions and at the final step
-      if (step % 5 === 0 || step === totalActions) {
+      // 2. Assert Zustand store invariants every 5 actions
+      if (step % 5 === 0) {
         const storeState = await page
           .evaluate(() => {
             const store = (window as unknown as { __projectStore?: { getState: () => MinimalProjectState } }).__projectStore;
@@ -160,9 +176,15 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
           }
         }
       }
+
+      // 3. Periodic progress logging
+      if (step % 25 === 0) {
+        const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+        console.log(`[SMART MONKEY] Progress: ${step} actions completed (${elapsedSec}s elapsed)...`);
+      }
     }
 
-    // Success summary
-    console.log(`\n🎉 [SMART MONKEY] Successfully completed ${totalActions} chaos actions! (Seed: ${seed})\n`);
+    const elapsedTotal = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`\n🎉 [SMART MONKEY] Successfully completed ${step} chaos actions in ${elapsedTotal}s! (Seed: ${seed})\n`);
   });
 });
