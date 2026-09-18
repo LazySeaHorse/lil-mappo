@@ -78,17 +78,20 @@ function createPaintCache(): PaintCache {
 }
 
 function coordsToFeatureCollection(coords: number[][]): GeoJSON.FeatureCollection {
-  if (coords.length < 2) return EMPTY_FC;
+  if (!coords || coords.length < 2 || !Array.isArray(coords[0])) return EMPTY_FC;
   const segments: number[][][] = [];
   let currentSegment: number[][] = [coords[0]];
   for (let i = 1; i < coords.length; i++) {
-    if (Math.abs(coords[i][0] - coords[i - 1][0]) > 180) {
+    const prev = coords[i - 1];
+    const curr = coords[i];
+    if (!prev || !curr || typeof prev[0] !== 'number' || typeof curr[0] !== 'number') continue;
+    if (Math.abs(curr[0] - prev[0]) > 180) {
       if (currentSegment.length >= 2) {
         segments.push(currentSegment);
       }
       currentSegment = [];
     }
-    currentSegment.push(coords[i]);
+    currentSegment.push(curr);
   }
   if (currentSegment.length >= 2) {
     segments.push(currentSegment);
@@ -114,10 +117,12 @@ function coordsToFeatureCollection(coords: number[][]): GeoJSON.FeatureCollectio
 function extractCoordinates(route: RouteItem): number[][] {
   const coordinates: number[][] = [];
   for (const feature of route.geojson.features) {
-    if (feature.geometry.type === 'LineString') {
+    if (feature.geometry?.type === 'LineString' && Array.isArray(feature.geometry.coordinates)) {
       coordinates.push(...feature.geometry.coordinates);
-    } else if (feature.geometry.type === 'MultiLineString') {
-      for (const line of feature.geometry.coordinates) coordinates.push(...line);
+    } else if (feature.geometry?.type === 'MultiLineString' && Array.isArray(feature.geometry.coordinates)) {
+      for (const line of feature.geometry.coordinates) {
+        if (Array.isArray(line)) coordinates.push(...line);
+      }
     }
   }
   return coordinates;
@@ -458,9 +463,11 @@ export class RouteRenderer {
     this.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 
     if (vehicle.type !== 'dot') {
+      const coord0 = this.coordinates[0] ?? [0, 0];
+      const coord1 = this.coordinates[1] ?? coord0;
       const [prevForAngle, currForAngle] =
         previous[0] === current[0] && previous[1] === current[1]
-          ? [this.coordinates[0], this.coordinates[1]]
+          ? [coord0, coord1]
           : [previous, current];
       const bearing = calculateBearing(prevForAngle, currForAngle);
       const pitch = calculatePitch(prevForAngle, currForAngle);

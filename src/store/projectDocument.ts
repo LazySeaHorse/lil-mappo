@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { getExportDimensions } from '@/types/render';
+import { sanitizeFeatureCollection } from '@/services/fileImport';
 import type { Project } from './types';
 
 export const PROJECT_SCHEMA_VERSION = 1 as const;
@@ -26,7 +27,7 @@ const featureCollectionSchema = z.custom<GeoJSON.FeatureCollection>(
     return candidate.type === 'FeatureCollection' && Array.isArray(candidate.features);
   },
   'Expected a GeoJSON FeatureCollection',
-);
+).transform(sanitizeFeatureCollection);
 
 const geometrySchema = z.custom<GeoJSON.Geometry>(
   (value) => {
@@ -169,7 +170,7 @@ const projectDocumentV1Schema = z.object({
   schemaVersion: z.literal(PROJECT_SCHEMA_VERSION),
   id: z.string().min(1),
   name: z.string(),
-  duration: z.number().positive().default(30),
+  duration: z.number().positive().finite().default(30),
   fps: z.union([z.literal(30), z.literal(60)]).default(30),
   resolution: coordinateSchema.default([1280, 720]),
   aspectRatio: z.enum(['16:9', '21:9', '4:3', '1:1']).default('16:9'),
@@ -177,14 +178,23 @@ const projectDocumentV1Schema = z.object({
   isVertical: z.boolean().default(false),
   projection: z.enum(['globe', 'mercator']).default('globe'),
   lightPreset: z.enum(['day', 'night', 'dusk', 'dawn']).default('day'),
-  starIntensity: z.number().default(0.6),
+  starIntensity: z.number().finite().default(0.6),
   fogColor: z.string().nullable().default(null),
-  terrainExaggeration: z.number().default(1.5),
+  terrainExaggeration: z.number().finite().default(1.5),
   items: z.record(timelineItemSchema),
   itemOrder: z.array(z.string()).default([]),
   mapCenter: coordinateSchema.default([0, 0]),
   customMapStyleUrl: z.string().optional(),
   customMapStyleLabel: z.string().optional(),
+}).superRefine((doc, ctx) => {
+  const camera = doc.items[CAMERA_TRACK_ID];
+  if (!camera || camera.kind !== 'camera') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Project document must contain a valid camera track with id '${CAMERA_TRACK_ID}'`,
+      path: ['items', CAMERA_TRACK_ID],
+    });
+  }
 });
 
 const versionEnvelopeSchema = z.object({
@@ -249,6 +259,10 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
 
     return [id, value];
   }));
+
+  if (!items[CAMERA_TRACK_ID]) {
+    items[CAMERA_TRACK_ID] = { kind: 'camera', id: CAMERA_TRACK_ID, keyframes: [] };
+  }
 
   return { ...document, schemaVersion: 1, items };
 };

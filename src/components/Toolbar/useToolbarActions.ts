@@ -61,9 +61,11 @@ export function useToolbarActions() {
         setBuildingsEnabled(false);
         selectItem(item.id);
         const pointCount = geojson.features.reduce((sum, f) => {
-          if (f.geometry.type === 'LineString') return sum + f.geometry.coordinates.length;
-          if (f.geometry.type === 'MultiLineString') {
-            return sum + f.geometry.coordinates.reduce((count, line) => count + line.length, 0);
+          if (f.geometry?.type === 'LineString' && Array.isArray(f.geometry.coordinates)) {
+            return sum + f.geometry.coordinates.length;
+          }
+          if (f.geometry?.type === 'MultiLineString' && Array.isArray(f.geometry.coordinates)) {
+            return sum + f.geometry.coordinates.reduce((count, line) => count + (Array.isArray(line) ? line.length : 0), 0);
           }
           return sum;
         }, 0);

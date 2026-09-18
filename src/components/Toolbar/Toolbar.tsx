@@ -104,7 +104,7 @@ export default function Toolbar({
       className={`h-14 ${finalRounded} absolute bg-background/85 backdrop-blur-xl border border-border/50 flex items-center px-4 shadow-2xl shadow-black/10 pointer-events-auto z-50 transition-all duration-300`}
       style={{ top: finalTopMargin, left: finalLeftMargin, right: finalRightMargin }}
     >
-      <input ref={routeInputRef} type="file" accept=".kml,.gpx" multiple className="hidden" onChange={actions.handleImport} />
+      <input ref={routeInputRef} type="file" accept=".kml,.gpx,.geojson,.json" multiple className="hidden" onChange={actions.handleImport} />
       <input ref={projectInputRef} type="file" accept=".lilmap,.json" className="hidden" onChange={actions.handleImportProject} />
 
       {isMobile ? (

@@ -75,9 +75,12 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     if (enabled) {
       let coordCount = 0;
       for (const f of item.geojson.features) {
-        if (f.geometry.type === 'LineString') coordCount += f.geometry.coordinates.length;
-        else if (f.geometry.type === 'MultiLineString') {
-          for (const l of f.geometry.coordinates) coordCount += l.length;
+        if (f.geometry?.type === 'LineString' && Array.isArray(f.geometry.coordinates)) {
+          coordCount += f.geometry.coordinates.length;
+        } else if (f.geometry?.type === 'MultiLineString' && Array.isArray(f.geometry.coordinates)) {
+          for (const l of f.geometry.coordinates) {
+            if (Array.isArray(l)) coordCount += l.length;
+          }
         }
       }
       if (coordCount < 2) {

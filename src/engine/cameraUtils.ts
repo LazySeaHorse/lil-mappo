@@ -22,8 +22,13 @@ export function getRouteCoords(routeId: string): number[][] | null {
   if (!route) return null;
   const coords: number[][] = [];
   for (const f of route.geojson.features) {
-    if (f.geometry.type === 'LineString') coords.push(...(f.geometry as GeoJSON.LineString).coordinates);
-    else if (f.geometry.type === 'MultiLineString') for (const l of (f.geometry as GeoJSON.MultiLineString).coordinates) coords.push(...l);
+    if (f.geometry?.type === 'LineString' && Array.isArray((f.geometry as GeoJSON.LineString).coordinates)) {
+      coords.push(...(f.geometry as GeoJSON.LineString).coordinates);
+    } else if (f.geometry?.type === 'MultiLineString' && Array.isArray((f.geometry as GeoJSON.MultiLineString).coordinates)) {
+      for (const l of (f.geometry as GeoJSON.MultiLineString).coordinates) {
+        if (Array.isArray(l)) coords.push(...l);
+      }
+    }
   }
   return coords.length >= 2 ? coords : null;
 }
