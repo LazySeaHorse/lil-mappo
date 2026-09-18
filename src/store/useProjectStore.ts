@@ -25,6 +25,10 @@ export const useProjectStore = create<ProjectStore>()(
   }))
 );
 
+if (typeof window !== 'undefined' && (import.meta.env.DEV || (window as unknown as { __E2E__?: boolean }).__E2E__)) {
+  (window as unknown as { __projectStore?: typeof useProjectStore }).__projectStore = useProjectStore;
+}
+
 export { CAMERA_TRACK_ID } from './projectDocument';
 export { createTransientState, STANDARD_STYLE_CAPABILITIES } from './slices/mapEnvironmentSlice';
 export {
