@@ -189,6 +189,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       calculationSeqRef.current++;
       const currentId = useProjectStore.getState().activePicker?.id;
       if (currentId === `route-${item.id}-start` || currentId === `route-${item.id}-end`) {

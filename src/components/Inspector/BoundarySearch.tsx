@@ -31,6 +31,7 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
         clearTimeout(debounceTimerRef.current);
       }
       abortControllerRef.current?.abort();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       searchSeqRef.current++;
     };
   }, []);

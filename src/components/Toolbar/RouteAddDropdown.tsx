@@ -128,6 +128,7 @@ export const RouteAddDropdown = ({
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       calculationSeqRef.current++;
       const currentId = useProjectStore.getState().activePicker?.id;
       if (currentId === 'route-start' || currentId === 'route-end') {
