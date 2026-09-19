@@ -14,14 +14,14 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
     set((s) => {
       const { [id]: _, ...rest } = s.items;
       // Clean up camera keyframes followRoute if pointing to this deleted item
-      const cam = rest['camera-track'] as any;
+      const cam = rest['camera-track'];
       let updatedCam = cam;
-      if (cam && Array.isArray(cam.keyframes)) {
-        const hasFollow = cam.keyframes.some((k: any) => k.followRoute === id);
+      if (cam && cam.kind === 'camera' && Array.isArray(cam.keyframes)) {
+        const hasFollow = cam.keyframes.some((k) => k.followRoute === id);
         if (hasFollow) {
           updatedCam = {
             ...cam,
-            keyframes: cam.keyframes.map((k: any) => (k.followRoute === id ? { ...k, followRoute: undefined } : k)),
+            keyframes: cam.keyframes.map((k) => (k.followRoute === id ? { ...k, followRoute: null } : k)),
           };
         }
       }
