@@ -36,6 +36,8 @@ export class MapSceneController implements MapSceneRuntime {
   private sceneRevision = 0;
   private renderedRevision = -1;
   private lastRenderedTime = Number.NaN;
+  /** A store update arrived while Mapbox was replacing its style. */
+  private sceneDirty = true;
   private disposed = false;
 
   constructor(
@@ -65,6 +67,13 @@ export class MapSceneController implements MapSceneRuntime {
 
   renderAt = (time: number): void => {
     if (this.disposed) return;
+    // A style replacement removes every custom source and layer. Defer all
+    // renderer work until style.load rebuilds those resources from the latest
+    // project snapshot.
+    if (!this.map.isStyleLoaded()) {
+      this.sceneDirty = true;
+      return;
+    }
     if (time === this.lastRenderedTime && this.renderedRevision === this.sceneRevision) return;
     this.routes.forEach((renderer) => renderer.render(time));
     this.boundaries.forEach((renderer) => renderer.render(time));
@@ -85,7 +94,11 @@ export class MapSceneController implements MapSceneRuntime {
   }
 
   private reconcileRenderers(state: ProjectState, force = false): void {
-    if (!force && state.items === this.lastItems && state.itemOrder === this.lastItemOrder) return;
+    if (!this.map.isStyleLoaded()) {
+      this.sceneDirty = true;
+      return;
+    }
+    if (!force && !this.sceneDirty && state.items === this.lastItems && state.itemOrder === this.lastItemOrder) return;
     this.lastItems = state.items;
     this.lastItemOrder = state.itemOrder;
 
@@ -134,6 +147,7 @@ export class MapSceneController implements MapSceneRuntime {
     }
 
     this.sceneRevision += 1;
+    this.sceneDirty = false;
   }
 
   private disposeRenderers(): void {
@@ -148,6 +162,7 @@ export class MapSceneController implements MapSceneRuntime {
     this.disposeRenderers();
     this.lastItems = undefined;
     this.lastItemOrder = undefined;
+    this.sceneDirty = true;
     const state = useProjectStore.getState();
     this.reconcileRenderers(state, true);
     this.renderAt(state.playheadTime);
