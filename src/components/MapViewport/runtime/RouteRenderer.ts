@@ -28,7 +28,7 @@ const MODELS: Record<'car' | 'plane', string> = {
 // looks consistent across vehicle types. Adjust if the models are swapped out.
 const MODEL_BASE_SCALE: Record<'car' | 'plane', number> = {
   car: 1,
-  plane: 10,
+  plane: 100,
 };
 
 interface RouteResourceIds {
