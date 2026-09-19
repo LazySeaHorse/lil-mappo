@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { validateStoreInvariants, type MinimalProjectState } from './fuzz/storeInvariants';
 import type { CameraItem, RouteItem, CalloutItem } from '@/store/types';
+import type { useProjectStore } from '@/store/useProjectStore';
+
+interface ProjectStoreWindow extends Window {
+  __projectStore: typeof useProjectStore;
+}
 
 const TEST_STYLE = {
   version: 8,
@@ -87,7 +92,7 @@ async function openEditor(page: Page, errorsArray: string[]) {
   await expect(page.locator('.mapboxgl-canvas')).toBeVisible({ timeout: 15_000 });
 
   // Wait for __projectStore to be attached to window
-  await page.waitForFunction(() => typeof (window as any).__projectStore !== 'undefined');
+  await page.waitForFunction(() => typeof (window as unknown as ProjectStoreWindow).__projectStore !== 'undefined');
 }
 
 async function assertStoreInvariants(page: Page) {
@@ -120,7 +125,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await pickStartBtn.click();
 
     // Verify picking session is active in store
-    let activePickerId = await page.evaluate(() => (window as any).__projectStore.getState().activePicker?.id);
+    let activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);
     expect(activePickerId).toBe('route-start');
 
     // 3. Abruptly switch to Boundary tool while picking is active
@@ -129,7 +134,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await expect(page.getByText('Search regions & nations')).toBeVisible();
 
     // Verify Route picker was cleanly cancelled and no dangling picking session exists
-    activePickerId = await page.evaluate(() => (window as any).__projectStore.getState().activePicker?.id);
+    activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);
     expect(activePickerId).toBeUndefined();
 
     // 4. Click canvas to ensure no ghost picker captures the click
@@ -144,21 +149,21 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     const pickCalloutBtn = page.getByTitle('Pick on Map').first();
     await pickCalloutBtn.click();
-    activePickerId = await page.evaluate(() => (window as any).__projectStore.getState().activePicker?.id);
+    activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);
     expect(activePickerId).toBe('callout-new');
 
     // Press Escape to cancel drafting
     await page.keyboard.press('Escape');
 
     // Verify picker is cancelled and dropdown is closed
-    activePickerId = await page.evaluate(() => (window as any).__projectStore.getState().activePicker?.id);
+    activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);
     expect(activePickerId).toBeUndefined();
 
     // 6. Test interrupted route preview path
     await planRouteBtn.click();
     await page.evaluate(() => {
       // Simulate an in-flight or completed previewRoute in store
-      (window as any).__projectStore.getState().setPreviewRoute({
+      (window as unknown as ProjectStoreWindow).__projectStore.getState().setPreviewRoute({
         type: 'FeatureCollection',
         features: [{
           type: 'Feature',
@@ -168,14 +173,14 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
       });
     });
 
-    let previewRoute = await page.evaluate(() => (window as any).__projectStore.getState().previewRoute);
+    let previewRoute = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().previewRoute);
     expect(previewRoute).not.toBeNull();
 
     // Abruptly close route dropdown via Escape
     await page.keyboard.press('Escape');
 
     // Verify previewRoute was cleanly removed (no orphaned preview layer on map)
-    previewRoute = await page.evaluate(() => (window as any).__projectStore.getState().previewRoute);
+    previewRoute = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().previewRoute);
     expect(previewRoute).toBeNull();
 
     // 7. Verify no orphaned layers or store corruption
@@ -189,7 +194,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // 1. Insert items spanning 5s..25s
     await page.evaluate(() => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       store.setDuration(30);
 
       const routeItem: RouteItem = {
@@ -288,14 +293,14 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // 2. Start playback and advance playhead past 10s (to 14s)
     await page.evaluate(() => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       store.setPlayheadTime(14);
       store.setIsPlaying(true);
     });
 
     // Verify playhead is running past 10s
     let state = await page.evaluate(() => {
-      const s = (window as any).__projectStore.getState();
+      const s = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       return { playheadTime: s.playheadTime, duration: s.duration, isPlaying: s.isPlaying };
     });
     expect(state.playheadTime).toBeGreaterThanOrEqual(14);
@@ -303,7 +308,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // 3. Concurrently shrink project duration from 30s to 10s while running
     await page.evaluate(() => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       store.setDuration(10);
     });
 
@@ -312,7 +317,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // 4. Verify playhead clamped cleanly within bounds [0, 10]
     state = await page.evaluate(() => {
-      const s = (window as any).__projectStore.getState();
+      const s = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       return { playheadTime: s.playheadTime, duration: s.duration, isPlaying: s.isPlaying };
     });
 
@@ -340,7 +345,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     // 1. Insert a callout item
     const itemId = 'dirty-callout-race-1';
     await page.evaluate((id) => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       const item: CalloutItem = {
         kind: 'callout',
         id,
@@ -388,7 +393,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // 5. Verify state in useProjectStore remains clean with no dangling references
     const storeSnapshot = await page.evaluate((id) => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       return {
         itemExists: Boolean(store.items[id]),
         inItemOrder: store.itemOrder.includes(id),
@@ -412,7 +417,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // 1. Add multiple camera keyframes out of order and with dt = 0
     await page.evaluate(() => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       store.setDuration(20);
 
       // Clean existing keyframes
@@ -460,7 +465,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     const sampledTimes = [0, 0.5, 2.0, 3.5, 4.99, 5.0, 5.001, 7.5, 10.0, 15.0, 20.0];
 
     const interpolationResults = await page.evaluate((times) => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       const camItem = store.items['camera-track'];
       const keyframes = camItem?.keyframes ?? [];
 
@@ -501,7 +506,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // 4. Run playback across the dt = 0 point (t = 4.5s to 6.0s)
     await page.evaluate(() => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       store.setPlayheadTime(4.5);
       store.setIsPlaying(true);
     });
@@ -510,7 +515,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
 
     // Stop playback
     await page.evaluate(() => {
-      const store = (window as any).__projectStore.getState();
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
       store.setIsPlaying(false);
     });
 

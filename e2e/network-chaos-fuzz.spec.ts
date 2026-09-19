@@ -1,4 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { useProjectStore } from "@/store/useProjectStore";
+import type { RouteItem } from "@/store/types";
+
+interface ChaosWindow extends Window {
+  __projectStore?: typeof useProjectStore;
+  __unhandledRejections?: string[];
+}
 
 const TEST_STYLE = {
   version: 8,
@@ -188,7 +195,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // Verify previewRoute in store matches Route B geometry
     const previewGeometryB = await page.evaluate(() => {
-      const store = (window as any).__projectStore?.getState();
+      const store = (window as unknown as ChaosWindow).__projectStore?.getState();
       return store?.previewRoute?.features[0]?.geometry?.coordinates;
     });
     expect(previewGeometryB).toEqual(ROUTE_B_COORDINATES);
@@ -199,7 +206,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // 5. Assert that Route A's delayed resolution did NOT overwrite Route B
     const previewGeometryAfterA = await page.evaluate(() => {
-      const store = (window as any).__projectStore?.getState();
+      const store = (window as unknown as ChaosWindow).__projectStore?.getState();
       return store?.previewRoute?.features[0]?.geometry?.coordinates;
     });
     expect(previewGeometryAfterA).toEqual(ROUTE_B_COORDINATES);
@@ -209,9 +216,9 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     await expect(page.getByRole("heading", { name: "Route", exact: true })).toBeVisible();
 
     const insertedRoute = await page.evaluate(() => {
-      const store = (window as any).__projectStore?.getState();
+      const store = (window as unknown as ChaosWindow).__projectStore?.getState();
       const id = store?.selectedItemId;
-      return id ? store?.items[id] : null;
+      return (id ? store?.items[id] : null) as RouteItem | null | undefined;
     });
     expect(insertedRoute).not.toBeNull();
     expect(insertedRoute?.geojson?.features[0]?.geometry?.coordinates).toEqual(ROUTE_B_COORDINATES);
@@ -311,9 +318,10 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // Track unhandled promise rejections on window
     await page.addInitScript(() => {
-      (window as any).__unhandledRejections = [];
+      const customWindow = window as unknown as ChaosWindow;
+      customWindow.__unhandledRejections = [];
       window.addEventListener("unhandledrejection", (event) => {
-        (window as any).__unhandledRejections.push(
+        customWindow.__unhandledRejections?.push(
           event.reason?.message || String(event.reason),
         );
       });
@@ -360,7 +368,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // Verify unhandled rejections are clean
     const clientRejections = await page.evaluate(
-      () => (window as any).__unhandledRejections || [],
+      () => (window as unknown as ChaosWindow).__unhandledRejections || [],
     );
     expect(clientRejections).toEqual([]);
     expect(pageErrors).toEqual([]);
