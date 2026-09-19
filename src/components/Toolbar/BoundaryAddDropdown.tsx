@@ -36,6 +36,22 @@ export const BoundaryAddDropdown = ({
   
   const mapRef = useMapRef();
 
+  React.useEffect(() => {
+    if (!isOpen) {
+      if (useProjectStore.getState().previewBoundary) {
+        useProjectStore.getState().clearPreviewBoundary();
+      }
+    }
+  }, [isOpen]);
+
+  React.useEffect(() => {
+    return () => {
+      if (useProjectStore.getState().previewBoundary) {
+        useProjectStore.getState().clearPreviewBoundary();
+      }
+    };
+  }, []);
+
   const handleSelect = (r: NominatimResult) => {
     setPreviewBoundary(r.geojson, r.display_name.split(',')[0]);
     

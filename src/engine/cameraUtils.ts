@@ -5,6 +5,15 @@ import type { CameraOutput } from './cameraInterpolation';
 
 export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0): void {
   if (cam.type === 'freeCam') {
+    if (
+      !Number.isFinite(cam.position[0]) ||
+      !Number.isFinite(cam.position[1]) ||
+      !Number.isFinite(cam.position[2]) ||
+      !Number.isFinite(cam.lookAt[0]) ||
+      !Number.isFinite(cam.lookAt[1])
+    ) {
+      return;
+    }
     const opts = new mapboxgl.FreeCameraOptions();
     opts.position = mapboxgl.MercatorCoordinate.fromLngLat(
       { lng: cam.position[0], lat: cam.position[1] },
@@ -13,7 +22,17 @@ export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0
     opts.lookAtPoint({ lng: cam.lookAt[0], lat: cam.lookAt[1] });
     map.setFreeCameraOptions(opts);
   } else {
-    map.jumpTo({ center: cam.center, zoom: cam.zoom + zoomOffset, pitch: cam.pitch, bearing: cam.bearing });
+    if (
+      !Number.isFinite(cam.center[0]) ||
+      !Number.isFinite(cam.center[1]) ||
+      !Number.isFinite(cam.zoom)
+    ) {
+      return;
+    }
+    const zoom = Number.isFinite(cam.zoom + zoomOffset) ? cam.zoom + zoomOffset : cam.zoom;
+    const pitch = Number.isFinite(cam.pitch) ? cam.pitch : 0;
+    const bearing = Number.isFinite(cam.bearing) ? cam.bearing : 0;
+    map.jumpTo({ center: cam.center, zoom, pitch, bearing });
   }
 }
 

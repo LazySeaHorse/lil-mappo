@@ -119,6 +119,19 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
   }, [updateItem]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        const s = useProjectStore.getState();
+        if (s.activePicker) {
+          s.stopPicking();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     if (!mapReady) return;
     const map = mapRef.current?.getMap();
     if (!map) return;

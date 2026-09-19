@@ -35,6 +35,7 @@ export function applyEasing(name: EasingName, t: number): number {
 }
 
 export function getNormalizedProgress(playhead: number, start: number, end: number, easing: EasingName): number {
+  if (end <= start) return playhead >= start ? 1 : 0;
   if (playhead < start) return 0;
   if (playhead > end) return 1;
   const t = (playhead - start) / (end - start);

@@ -64,7 +64,15 @@ export const CalloutAddDropdown = ({
     }
   };
 
-  // Clean up picker if this component unmounts while picking
+  // Clean up picker if this component closes or unmounts while picking
+  useEffect(() => {
+    if (!isOpen) {
+      if (useProjectStore.getState().activePicker?.id === 'callout-new') {
+        useProjectStore.getState().stopPicking();
+      }
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     return () => {
       if (useProjectStore.getState().activePicker?.id === 'callout-new') {

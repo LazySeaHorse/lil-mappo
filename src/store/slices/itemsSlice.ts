@@ -13,10 +13,24 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
   removeItem: (id) =>
     set((s) => {
       const { [id]: _, ...rest } = s.items;
+      // Clean up camera keyframes followRoute if pointing to this deleted item
+      const cam = rest['camera-track'] as any;
+      let updatedCam = cam;
+      if (cam && Array.isArray(cam.keyframes)) {
+        const hasFollow = cam.keyframes.some((k: any) => k.followRoute === id);
+        if (hasFollow) {
+          updatedCam = {
+            ...cam,
+            keyframes: cam.keyframes.map((k: any) => (k.followRoute === id ? { ...k, followRoute: undefined } : k)),
+          };
+        }
+      }
       return {
-        items: rest,
+        items: updatedCam && updatedCam !== cam ? { ...rest, ['camera-track']: updatedCam } : rest,
         itemOrder: s.itemOrder.filter((i) => i !== id),
         selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
+        selectedAutoCamRouteId: s.selectedAutoCamRouteId === id ? null : s.selectedAutoCamRouteId,
+        activePicker: s.activePicker?.id.includes(id) ? null : s.activePicker,
       };
     }),
 
