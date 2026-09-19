@@ -24,6 +24,12 @@ const MODELS: Record<'car' | 'plane', string> = {
   car: '/models/car.glb',
   plane: '/models/airplane.glb',
 };
+// Normalizes each model's native Mapbox size so that vehicle.scale = 1.0
+// looks consistent across vehicle types. Adjust if the models are swapped out.
+const MODEL_BASE_SCALE: Record<'car' | 'plane', number> = {
+  car: 1,
+  plane: 10,
+};
 
 interface RouteResourceIds {
   mainSource: string;
@@ -382,7 +388,8 @@ export class RouteRenderer {
       });
     } else {
       this.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [vehicle.scale, vehicle.scale, vehicle.scale]);
+        const s = vehicle.scale * MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'];
+        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [s, s, s]);
       });
     }
   }
@@ -403,13 +410,15 @@ export class RouteRenderer {
       });
       return;
     }
+    const baseScale = MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'] ?? 1;
+    const s = vehicle.scale * baseScale;
     this.map.addLayer({
       id: this.ids.vehicleLayer,
       type: 'model',
       source: this.ids.vehicleSource,
       layout: { 'model-id': vehicle.type },
       paint: {
-        'model-scale': [vehicle.scale, vehicle.scale, vehicle.scale],
+        'model-scale': [s, s, s],
         'model-rotation': [0, 0, 0],
         'model-translation': [0, 0, 0],
       },
