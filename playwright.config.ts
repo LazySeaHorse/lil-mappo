@@ -110,5 +110,10 @@ export default defineConfig({
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: {
+      VITE_MAPBOX_TOKEN:
+        process.env.VITE_MAPBOX_TOKEN ||
+        "pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUwMDAwMHBsZXhhbXBsZTAifQ.example",
+    },
   },
 });
