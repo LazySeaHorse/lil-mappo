@@ -63,11 +63,31 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       modelId: '',
       scale: 1.0,
     };
+    const newVehicle = { ...currentVehicle, ...patch };
+    const oldType = currentVehicle.type;
+    const newType = newVehicle.type;
+
+    let autoCamPatch: Partial<AutoCamConfig> | undefined;
+    if (item.autoCam && oldType !== newType) {
+      if (newType === 'plane' && oldType !== 'plane') {
+        autoCamPatch = {
+          distance: item.autoCam.distance < 10000 ? item.autoCam.distance * 100 : item.autoCam.distance,
+          height: item.autoCam.height < 5000 ? item.autoCam.height * 100 : item.autoCam.height,
+        };
+      } else if (oldType === 'plane' && newType !== 'plane') {
+        autoCamPatch = {
+          distance: item.autoCam.distance >= 10000 ? Math.max(100, Math.round(item.autoCam.distance / 100)) : item.autoCam.distance,
+          height: item.autoCam.height >= 5000 ? Math.max(50, Math.round(item.autoCam.height / 100)) : item.autoCam.height,
+        };
+      }
+    }
+
     u({ 
       calculation: { 
         ...calc, 
-        vehicle: { ...currentVehicle, ...patch } 
-      } 
+        vehicle: newVehicle 
+      },
+      ...(autoCamPatch ? { autoCam: { ...item.autoCam, ...autoCamPatch } } : {}),
     });
   };
 
@@ -103,7 +123,24 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         return;
       }
 
-      u({ autoCam: { ...AUTO_CAM_DEFAULTS, ...(item.autoCam ?? {}), enabled: true } });
+      const isPlane = (calc.vehicle?.type || item.calculation?.vehicle?.type) === 'plane';
+      const existingCam = item.autoCam;
+      const initialDistance = isPlane
+        ? (existingCam && existingCam.distance >= 10000 ? existingCam.distance : AUTO_CAM_DEFAULTS.distance * 100)
+        : (existingCam && existingCam.distance <= 3000 ? existingCam.distance : AUTO_CAM_DEFAULTS.distance);
+      const initialHeight = isPlane
+        ? (existingCam && existingCam.height >= 5000 ? existingCam.height : AUTO_CAM_DEFAULTS.height * 100)
+        : (existingCam && existingCam.height <= 2000 ? existingCam.height : AUTO_CAM_DEFAULTS.height);
+
+      u({
+        autoCam: {
+          ...AUTO_CAM_DEFAULTS,
+          ...(existingCam ?? {}),
+          distance: initialDistance,
+          height: initialHeight,
+          enabled: true,
+        },
+      });
     } else {
       u({ autoCam: item.autoCam ? { ...item.autoCam, enabled: false } : undefined });
     }
