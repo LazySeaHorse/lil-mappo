@@ -115,8 +115,8 @@ async function openEditor(page: Page) {
   });
 
   await page.goto("/");
-  await expect(page.getByText("Timeline", { exact: true })).toBeVisible();
-  await expect(page.locator(".mapboxgl-canvas")).toBeVisible();
+  await expect(page.getByText("Timeline", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapboxgl-canvas")).toBeVisible({ timeout: 20_000 });
 }
 
 async function pickMapPoint(page: Page, pickerIndex = 0, position = { x: 650, y: 350 }) {
