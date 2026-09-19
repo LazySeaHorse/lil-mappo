@@ -62,6 +62,8 @@ jobs:
 
       - name: Run Playwright smoke tests
         run: npm run test:ui
+        env:
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUwMDAwMHBsZXhhbXBsZTAifQ.example' }}
 
       - name: Upload Playwright artifacts on failure
         if: failure()
