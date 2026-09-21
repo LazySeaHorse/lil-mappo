@@ -27,12 +27,52 @@ const TEST_BOUNDARY = {
   ],
 };
 
+const TEST_DEM = {
+  tilejson: "2.2.0",
+  name: "terrain-dem",
+  minzoom: 0,
+  maxzoom: 14,
+  tiles: ["https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/{z}/{x}/{y}.webp"],
+};
+
+const TEST_DIRECTIONS = {
+  code: "Ok",
+  routes: [
+    {
+      geometry: {
+        coordinates: [[-1, -1], [0, 0], [1, 1]],
+        type: "LineString",
+      },
+      duration: 120,
+      distance: 250000,
+    },
+  ],
+};
+
+const TRANSPARENT_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 async function stubExternalServices(page: Page) {
+  // Wildcard fallback for any unhandled Mapbox endpoints (telemetry, fonts, etc.)
+  await page.route("https://api.mapbox.com/**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
+  );
+  await page.route("https://api.mapbox.com/raster/v1/**", (route) =>
+    route.fulfill({ status: 200, contentType: "image/png", body: TRANSPARENT_PNG }),
+  );
+  await page.route("https://api.mapbox.com/v4/**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(TEST_DEM) }),
+  );
+  await page.route("https://api.mapbox.com/directions/v5/**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(TEST_DIRECTIONS) }),
+  );
   await page.route("https://api.mapbox.com/styles/v1/**", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(TEST_STYLE) }),
   );
   await page.route("https://events.mapbox.com/**", (route) => route.fulfill({ status: 204, body: "" }));
-  await page.route("https://nominatim.openstreetmap.org/search**", (route) =>
+  await page.route("https://nominatim.openstreetmap.org/**", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(TEST_BOUNDARY) }),
   );
 }
