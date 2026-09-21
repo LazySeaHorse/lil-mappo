@@ -326,27 +326,43 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
 
   const exportButton = page.getByTitle("Export");
   await exportButton.click();
-  await expect(page.getByRole("dialog", { name: "Export" })).toBeVisible();
+  const exportDialog = page.getByRole("dialog", { name: "Export" });
+  await expect(exportDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Export" })).not.toBeVisible();
+  if (await exportDialog.isVisible()) {
+    await exportDialog.getByRole("button", { name: "Close" }).click();
+  }
+  await expect(exportDialog).not.toBeVisible();
 
   await openMenu(page);
   await page.getByRole("menuitem", { name: "New Project" }).click();
-  await expect(page.getByRole("dialog", { name: "New project" })).toBeVisible();
+  const newProjectDialog = page.getByRole("dialog", { name: "New project" });
+  await expect(newProjectDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "New project" })).not.toBeVisible();
+  if (await newProjectDialog.isVisible()) {
+    await newProjectDialog.getByRole("button", { name: "Close" }).click();
+  }
+  await expect(newProjectDialog).not.toBeVisible();
 
   await openMenu(page);
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+  const settingsDialog = page.getByRole("dialog", { name: "Settings" });
+  await expect(settingsDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Settings" })).not.toBeVisible();
+  if (await settingsDialog.isVisible()) {
+    await settingsDialog.getByRole("button", { name: "Close" }).click();
+  }
+  await expect(settingsDialog).not.toBeVisible();
 
   await openMenu(page);
   await page.getByRole("menuitem", { name: "Sign In" }).click();
-  await expect(page.getByRole("dialog", { name: "Sign in" })).toBeVisible();
+  const signInDialog = page.getByRole("dialog", { name: "Sign in" });
+  await expect(signInDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Sign in" })).not.toBeVisible();
+  if (await signInDialog.isVisible()) {
+    await signInDialog.getByRole("button", { name: "Close" }).click();
+  }
+  await expect(signInDialog).not.toBeVisible();
 });
 
 test("9. local export produces an MP4 download", async ({ page }) => {

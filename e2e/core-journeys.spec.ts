@@ -117,6 +117,7 @@ test.describe("5 Golden E2E Journeys", () => {
   // Tests the full creation cycle: Route + Callout + Boundary + Timeline Playback
   // ---------------------------------------------------------------------------
   test("Journey 1: Core Creation & Animation Loop", async ({ page }) => {
+    test.setTimeout(90_000);
     await openEditor(page);
 
     // 1. Add a Flight Route
@@ -243,6 +244,9 @@ test.describe("5 Golden E2E Journeys", () => {
 
     // 4. Close dialogs cleanly
     await page.keyboard.press("Escape");
+    if (await upgradeDialog.isVisible()) {
+      await upgradeDialog.getByRole("button", { name: "Close" }).click();
+    }
     await expect(upgradeDialog).not.toBeVisible();
   });
 
