@@ -20,11 +20,17 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
 
       const routes = getRoutes();
       const cam = getCameraAtTime(camItem.keyframes, time, getRouteCoords, routes);
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+
       if (cam) {
-        const map = mapRef.current?.getMap();
-        if (map) applyCamera(map, cam);
+        applyCamera(map, cam);
+      } else if (store.mapCenter && (store.mapCenter[0] !== 0 || store.mapCenter[1] !== 0)) {
+        map.jumpTo({ center: store.mapCenter });
       }
     };
+
+    driveCamera(useProjectStore.getState().playheadTime);
 
     const unsub = useProjectStore.subscribe((state, prev) => {
       if (state.isPlaying && !prev.isPlaying) {
@@ -51,7 +57,12 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
         cancelAnimationFrame(rafRef.current);
       }
 
-      if (!state.isPlaying && state.playheadTime !== prev.playheadTime) {
+      if (
+        !state.isPlaying &&
+        (state.playheadTime !== prev.playheadTime ||
+          state.id !== prev.id ||
+          state.items[CAMERA_TRACK_ID] !== prev.items[CAMERA_TRACK_ID])
+      ) {
         driveCamera(state.playheadTime);
       }
     });
