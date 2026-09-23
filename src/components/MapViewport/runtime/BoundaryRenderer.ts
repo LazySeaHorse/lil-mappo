@@ -59,6 +59,7 @@ export class BoundaryRenderer {
   private readonly ids: BoundaryResourceIds;
   private paint = createPaintCache();
   private lastGeometry: GeoJSON.Geometry | null = null;
+  private strokeSourceMode: 'static' | 'animated' | null = null;
   private disposed = false;
 
   constructor(private readonly map: MapboxMap, boundary: BoundaryItem) {
@@ -70,6 +71,7 @@ export class BoundaryRenderer {
     this.disposed = false;
     this.paint = createPaintCache();
     this.lastGeometry = null;
+    this.strokeSourceMode = null;
     this.ensureResources();
   }
 
@@ -106,9 +108,15 @@ export class BoundaryRenderer {
 
     let fillProgress: number;
     if (reverseExit) {
-      fillProgress = animationStyle === 'draw' ? Math.max(0, (reverseProgress - 0.7) / 0.3) : reverseProgress;
+      fillProgress = (!style.animateStroke || animationStyle !== 'draw')
+        ? reverseProgress
+        : Math.max(0, (reverseProgress - 0.7) / 0.3);
+    } else if (!style.animateStroke) {
+      fillProgress = progress > 0 ? 1 : 0;
+    } else if (animationStyle === 'fade') {
+      fillProgress = progress;
     } else {
-      fillProgress = animationStyle === 'fade' ? progress : Math.max(0, (progress - 0.7) / 0.3);
+      fillProgress = Math.max(0, (progress - 0.7) / 0.3);
     }
     let fillOpacity = style.fillOpacity * fillProgress;
     if (fadeExit) fillOpacity *= reverseProgress;
@@ -128,18 +136,27 @@ export class BoundaryRenderer {
       strokeOpacity = staticStroke
         ? Math.min(reverseProgress * 2, 1)
         : animationStyle === 'draw' ? (reverseProgress > 0 ? 1 : 0) : reverseProgress;
+    } else if (!style.animateStroke) {
+      strokeOpacity = progress > 0 ? 1 : 0;
+      if (fadeExit) strokeOpacity *= reverseProgress;
     } else {
       strokeOpacity = animationStyle === 'fade' ? Math.min(progress * 2, 1) : (progress > 0 ? 1 : 0);
       if (fadeExit) strokeOpacity *= reverseProgress;
     }
 
-    if (!staticStroke || geometryChanged) {
-      strokeSource.setData(staticStroke
-        ? {
-            type: 'FeatureCollection',
-            features: [{ type: 'Feature', properties: {}, geometry }],
-          }
-        : this.buildAnimatedStroke(geometry, animationStyle, progress, exitProgress, reverseProgress, reverseExit));
+    if (staticStroke) {
+      if (this.strokeSourceMode !== 'static' || geometryChanged) {
+        strokeSource.setData({
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', properties: {}, geometry }],
+        });
+        this.strokeSourceMode = 'static';
+      }
+    } else {
+      strokeSource.setData(
+        this.buildAnimatedStroke(geometry, animationStyle, progress, exitProgress, reverseProgress, reverseExit)
+      );
+      this.strokeSourceMode = 'animated';
     }
 
     this.setPaint(this.ids.strokeLayer, 'line-opacity', strokeOpacity, 'strokeOpacity', strokeOpacity);
