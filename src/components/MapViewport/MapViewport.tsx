@@ -4,8 +4,10 @@ import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapLayerMouseEvent } from 'mapbox-gl';
 import { MAP_STYLES } from '@/config/mapbox';
 
-import { useProjectStore } from '@/store/useProjectStore';
-import type { CalloutItem } from '@/store/types';
+import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
+import type { CalloutItem, CameraItem } from '@/store/types';
+import { getCameraAtTime } from '@/engine/cameraInterpolation';
+import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
@@ -136,15 +138,60 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     const map = mapRef.current?.getMap();
     if (!map) return;
 
+    if (typeof window !== 'undefined' && (import.meta.env.DEV || (window as unknown as { __E2E__?: boolean }).__E2E__)) {
+      (window as unknown as { __mapInstance?: typeof map }).__mapInstance = map;
+    }
+
+    const store = useProjectStore.getState();
+    if (store.isCameraEnabled) {
+      const camItem = store.items[CAMERA_TRACK_ID] as CameraItem | undefined;
+      const routes = getRoutes();
+      const cam = getCameraAtTime(camItem?.keyframes ?? [], store.playheadTime, getRouteCoords, routes);
+      if (cam) {
+        applyCamera(map, cam);
+      } else if (store.mapCenter && (store.mapCenter[0] !== 0 || store.mapCenter[1] !== 0)) {
+        map.jumpTo({ center: store.mapCenter });
+      }
+    }
+
     const runtime = new MapSceneController(map, setStyleLoaded);
     runtimeRef.current = runtime;
     runtime.mount();
 
     return () => {
+      if (typeof window !== 'undefined' && (window as unknown as { __mapInstance?: unknown }).__mapInstance === map) {
+        delete (window as unknown as { __mapInstance?: unknown }).__mapInstance;
+      }
       runtime.dispose();
       if (runtimeRef.current === runtime) runtimeRef.current = null;
     };
   }, [mapReady, mapRef, runtimeRef]);
+
+  const initialViewState = useMemo(() => {
+    const store = useProjectStore.getState();
+    const camItem = store.items[CAMERA_TRACK_ID] as CameraItem | undefined;
+    const routes = getRoutes();
+    const cam = getCameraAtTime(camItem?.keyframes ?? [], store.playheadTime, getRouteCoords, routes);
+    if (cam && cam.type === 'jumpTo') {
+      return {
+        longitude: cam.center[0],
+        latitude: cam.center[1],
+        zoom: cam.zoom,
+        pitch: cam.pitch,
+        bearing: cam.bearing,
+      };
+    }
+    if (store.mapCenter && (store.mapCenter[0] !== 0 || store.mapCenter[1] !== 0)) {
+      return {
+        longitude: store.mapCenter[0],
+        latitude: store.mapCenter[1],
+        zoom: 12,
+        pitch: 0,
+        bearing: 0,
+      };
+    }
+    return { longitude: -73.97, latitude: 40.77, zoom: 12, pitch: 0, bearing: 0 };
+  }, []);
 
   const callouts: CalloutItem[] = [];
 
@@ -178,7 +225,8 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         ref={mapRef}
         mapboxAccessToken={mapboxToken}
         RTLTextPlugin={false}
-        initialViewState={{ longitude: -73.97, latitude: 40.77, zoom: 12, pitch: 0, bearing: 0 }}
+        styleDiffing={false}
+        initialViewState={initialViewState}
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
         onClick={handleMapClick}
