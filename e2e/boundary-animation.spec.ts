@@ -76,10 +76,24 @@ test.describe("Boundary Animation Mode Switching", () => {
 
     await expect(page.getByRole("heading", { name: "Boundary", exact: true })).toBeVisible();
 
+    interface WindowWithStores {
+      __mapInstance?: {
+        getSource: (id: string) => { _data?: GeoJSON.FeatureCollection } | undefined;
+      };
+      __projectStore?: {
+        getState: () => {
+          items: Record<string, { kind: string }>;
+          setPlayheadTime: (t: number) => void;
+        };
+      };
+    }
+
     const getStrokeSourceData = async () => {
       return await page.evaluate(() => {
-        const map = (window as any).__mapInstance;
-        const state = (window as any).__projectStore.getState();
+        const win = window as unknown as WindowWithStores;
+        const map = win.__mapInstance;
+        const state = win.__projectStore?.getState();
+        if (!map || !state) return null;
         const boundaryId = Object.keys(state.items).find(
           (id) => state.items[id].kind === "boundary"
         );
@@ -91,7 +105,8 @@ test.describe("Boundary Animation Mode Switching", () => {
 
     const setTime = async (time: number) => {
       await page.evaluate((t) => {
-        (window as any).__projectStore.getState().setPlayheadTime(t);
+        const win = window as unknown as WindowWithStores;
+        win.__projectStore?.getState().setPlayheadTime(t);
       }, time);
       await page.waitForTimeout(50);
     };
