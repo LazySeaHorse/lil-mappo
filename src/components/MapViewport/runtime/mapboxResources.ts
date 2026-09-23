@@ -37,6 +37,23 @@ export function mutateMap(
   }
 }
 
+/**
+ * Returns true if the Mapbox style is loaded and ready to accept sources, layers,
+ * and property updates.
+ *
+ * `map.isStyleLoaded()` in Mapbox GL checks whether all sources, tiles, and images
+ * have zero pending updates. Adding a GeoJSON source causes `map.isStyleLoaded()` to
+ * return false until the worker finishes processing the source cache.
+ *
+ * Checking `style._loaded` reflects whether the stylesheet itself is loaded and ready,
+ * matching Mapbox's internal `_checkLoaded()` guard.
+ */
+export function isStyleReady(map: MapboxMap): boolean {
+  if (map.isStyleLoaded()) return true;
+  const style = (map as unknown as { style?: { _loaded?: boolean } }).style;
+  return Boolean(style && style._loaded);
+}
+
 export function getGeoJSONSource(map: MapboxMap, sourceId: string): GeoJSONSource | undefined {
   const source = map.getSource(sourceId);
   if (!source || source.type !== 'geojson') return undefined;

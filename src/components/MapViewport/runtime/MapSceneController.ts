@@ -6,6 +6,7 @@ import { waitForMapRender } from './MapSceneRuntime';
 import { BasemapController } from './BasemapController';
 import { BoundaryRenderer } from './BoundaryRenderer';
 import { RouteRenderer } from './RouteRenderer';
+import { isStyleReady } from './mapboxResources';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -68,9 +69,8 @@ export class MapSceneController implements MapSceneRuntime {
   renderAt = (time: number): void => {
     if (this.disposed) return;
     // A style replacement removes every custom source and layer. Defer all
-    // renderer work until style.load rebuilds those resources from the latest
-    // project snapshot.
-    if (!this.map.isStyleLoaded()) {
+    // renderer work until the replacement style stylesheet has loaded.
+    if (!isStyleReady(this.map)) {
       this.sceneDirty = true;
       return;
     }
@@ -94,7 +94,7 @@ export class MapSceneController implements MapSceneRuntime {
   }
 
   private reconcileRenderers(state: ProjectState, force = false): void {
-    if (!this.map.isStyleLoaded()) {
+    if (!isStyleReady(this.map)) {
       this.sceneDirty = true;
       return;
     }
@@ -162,6 +162,8 @@ export class MapSceneController implements MapSceneRuntime {
     this.disposeRenderers();
     this.lastItems = undefined;
     this.lastItemOrder = undefined;
+    this.lastRenderedTime = Number.NaN;
+    this.renderedRevision = -1;
     this.sceneDirty = true;
     const state = useProjectStore.getState();
     this.reconcileRenderers(state, true);

@@ -6,7 +6,7 @@ import type {
 } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { detectRuntimeCapabilities } from '../mapUtils';
-import { mutateMap } from './mapboxResources';
+import { isStyleReady, mutateMap } from './mapboxResources';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -101,11 +101,11 @@ export class BasemapController {
       if (state.isPlaying !== previous.isPlaying) applyInteractivity(state.isPlaying);
     });
 
-    if (this.map.isStyleLoaded()) this.handleStyleLoad();
+    if (isStyleReady(this.map)) this.handleStyleLoad();
   }
 
   reconcile = (): void => {
-    if (this.disposed || !this.map.isStyleLoaded()) return;
+    if (this.disposed || !isStyleReady(this.map)) return;
     const state = useProjectStore.getState();
 
     if (this.map.getProjection().name !== state.projection) {
