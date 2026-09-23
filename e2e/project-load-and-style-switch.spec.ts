@@ -252,18 +252,24 @@ test.describe("project load and map style switching", () => {
       return map && map.isStyleLoaded();
     });
 
-    // Initial layers must be present
+    // Initial layers and sources must be present and populated
     const initialLayers = await page.evaluate(() => {
-      const map = (window as unknown as { __mapInstance?: { getLayer: (id: string) => unknown } }).__mapInstance!;
+      const map = (window as unknown as { __mapInstance?: any }).__mapInstance!;
+      const fillSource = map.getSource("boundary-fill-boundary-paris")?._data;
+      const routeSource = map.getSource("route-route-paris")?._data;
       return {
         routeLayer: Boolean(map.getLayer("route-layer-route-paris")),
         boundaryFill: Boolean(map.getLayer("boundary-fill-layer-boundary-paris")),
         boundaryStroke: Boolean(map.getLayer("boundary-stroke-layer-boundary-paris")),
+        boundaryFeatures: fillSource?.features?.length ?? 0,
+        routeFeatures: routeSource?.features?.length ?? 0,
       };
     });
     expect(initialLayers.routeLayer).toBe(true);
     expect(initialLayers.boundaryFill).toBe(true);
     expect(initialLayers.boundaryStroke).toBe(true);
+    expect(initialLayers.boundaryFeatures).toBeGreaterThan(0);
+    expect(initialLayers.routeFeatures).toBeGreaterThan(0);
 
     // Switch map style to satellite
     await page.evaluate(() => {
@@ -278,20 +284,25 @@ test.describe("project load and map style switching", () => {
     });
     await page.waitForTimeout(500);
 
-    // After switching styles, route and boundary layers MUST be present on the new style
+    // After switching styles, route and boundary layers MUST be present and populated on the new style
     const afterSwitchLayers = await page.evaluate(() => {
-      const map = (window as unknown as { __mapInstance?: { getLayer: (id: string) => unknown; isStyleLoaded: () => boolean } }).__mapInstance!;
+      const map = (window as unknown as { __mapInstance?: any }).__mapInstance!;
+      const fillSource = map.getSource("boundary-fill-boundary-paris")?._data;
+      const routeSource = map.getSource("route-route-paris")?._data;
       return {
         isStyleLoaded: map.isStyleLoaded(),
         routeLayer: Boolean(map.getLayer("route-layer-route-paris")),
         boundaryFill: Boolean(map.getLayer("boundary-fill-layer-boundary-paris")),
         boundaryStroke: Boolean(map.getLayer("boundary-stroke-layer-boundary-paris")),
+        boundaryFeatures: fillSource?.features?.length ?? 0,
+        routeFeatures: routeSource?.features?.length ?? 0,
       };
     });
 
-    // In buggy code: routeLayer and boundaryFill are false because styleDiffing wiped them and style.load never fired
     expect(afterSwitchLayers.routeLayer).toBe(true);
     expect(afterSwitchLayers.boundaryFill).toBe(true);
     expect(afterSwitchLayers.boundaryStroke).toBe(true);
+    expect(afterSwitchLayers.boundaryFeatures).toBeGreaterThan(0);
+    expect(afterSwitchLayers.routeFeatures).toBeGreaterThan(0);
   });
 });

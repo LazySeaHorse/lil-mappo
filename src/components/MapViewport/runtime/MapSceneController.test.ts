@@ -54,6 +54,9 @@ function createMapDouble() {
     once: vi.fn(),
     loaded: vi.fn(() => true),
     isStyleLoaded: vi.fn(() => styleLoaded),
+    style: {
+      get _loaded() { return styleLoaded; },
+    },
     getProjection: vi.fn(() => ({ name: state.projection })),
     setProjection: vi.fn(),
     getConfigProperty: vi.fn(),
@@ -180,5 +183,38 @@ describe('MapSceneController', () => {
 
     expect([...double.listeners.values()].every((group) => group.size === 0)).toBe(true);
     expect(double.layers.has('route-layer-scene-route')).toBe(false);
+  });
+
+  it('renders scene elements when style._loaded is true even if isStyleLoaded returns false due to source updates', () => {
+    const previous = useProjectStore.getState();
+    useProjectStore.setState({
+      items: { [route.id]: route },
+      itemOrder: [route.id],
+      playheadTime: 2.5,
+    });
+    const double = createMapDouble();
+    // Simulate Mapbox behavior where isStyleLoaded() returns false when sources/tiles are in flight,
+    // but the stylesheet is loaded (style._loaded is true).
+    double.isStyleLoaded.mockReturnValue(false);
+    double.setStyleLoaded(true);
+
+    const controller = new MapSceneController(double.map, vi.fn());
+
+    try {
+      controller.mount();
+      expect(double.layers.has('route-layer-scene-route')).toBe(true);
+      const sceneSource = double.sources.get('route-scene-route');
+      expect(sceneSource).toBeDefined();
+      expect(sceneSource!.setData).toHaveBeenCalled();
+    } finally {
+      controller.dispose();
+      useProjectStore.setState({
+        items: previous.items,
+        itemOrder: previous.itemOrder,
+        playheadTime: previous.playheadTime,
+        detectedCapabilities: previous.detectedCapabilities,
+        isPlaying: previous.isPlaying,
+      });
+    }
   });
 });
