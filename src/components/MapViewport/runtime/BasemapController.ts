@@ -5,6 +5,7 @@ import type {
   MapSourceDataEvent,
 } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
+import { isDarkMapStyle } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 
@@ -19,7 +20,8 @@ const CONFIG_PROPERTIES: Record<string, string> = {
 };
 
 function resolveFog(state: ProjectState): FogSpecification {
-  const base: FogSpecification = state.mapStyle === 'dark'
+  const isDark = isDarkMapStyle(state.mapStyle);
+  const base: FogSpecification = isDark
     ? {
         color: 'rgb(23, 23, 23)',
         'high-color': 'rgb(10, 10, 40)',

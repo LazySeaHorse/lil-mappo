@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { Eye, Play, Pause, Camera } from "lucide-react";
 import { takeSnapshot } from "@/services/snapshot";
 import { useResponsive } from "@/hooks/useResponsive";
+import { isDarkMapStyle } from "@/config/mapbox";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
@@ -135,11 +136,7 @@ export default function MapStudioEditor() {
   const isPlaying = useProjectStore((s) => s.isPlaying);
   const setIsPlaying = useProjectStore((s) => s.setIsPlaying);
   useEffect(() => {
-    const isDark =
-      mapStyle === "dark" ||
-      mapStyle === "satellite" ||
-      mapStyle === "satelliteStreets" ||
-      (mapStyle === "standard" && (lightPreset === "night" || lightPreset === "dusk"));
+    const isDark = isDarkMapStyle(mapStyle, lightPreset);
     document.documentElement.classList.toggle("dark", isDark);
   }, [mapStyle, lightPreset]);
 

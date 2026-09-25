@@ -107,7 +107,9 @@ export function MapStyleSelectItems() {
   return (
     <>
       {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-        <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+        <SelectItem key={key} value={key} className="text-xs">
+          {label}
+        </SelectItem>
       ))}
     </>
   );

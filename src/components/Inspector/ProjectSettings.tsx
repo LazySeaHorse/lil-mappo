@@ -17,6 +17,7 @@ import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-se
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
 import { parseLightPreset, parseProjection } from '@/store/domainValues';
+import { getDefaultFogColor } from '@/config/mapbox';
 
 
 
@@ -180,11 +181,7 @@ export function ProjectSettings() {
             <Field label="Fog color">
               <div className="flex gap-2 items-center">
                 <ColorPicker
-                  value={fogColor || (
-                    mapStyle === 'satellite' || mapStyle === 'satelliteStreets' ? '#DC9F71' :
-                      mapStyle === 'dark' ? '#171717' :
-                        '#BAD2EB'
-                  )}
+                  value={fogColor || getDefaultFogColor(mapStyle)}
                   onChange={(v) => setAtmosphere({ fogColor: v })}
                 />
                 <Button
