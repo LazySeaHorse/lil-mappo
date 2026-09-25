@@ -35,6 +35,8 @@ function createMapDouble() {
     getFog: vi.fn(),
     setFog: vi.fn(),
     isSourceLoaded: vi.fn(() => false),
+    hasImage: vi.fn(() => false),
+    addImage: vi.fn(),
     dragPan: control(),
     dragRotate: control(),
     scrollZoom: control(),
@@ -64,12 +66,13 @@ describe('BasemapController', () => {
       'sourcedata',
       'idle',
       'error',
+      'styleimagemissing',
     ]);
     expect(double.setConfigProperty).toHaveBeenCalled();
 
     controller.dispose();
 
-    expect(double.off).toHaveBeenCalledTimes(6);
+    expect(double.off).toHaveBeenCalledTimes(7);
     expect([...double.listeners.values()].every((listeners) => listeners.size === 0)).toBe(true);
   });
 
@@ -86,5 +89,24 @@ describe('BasemapController', () => {
     useProjectStore.getState().setIsPlaying(false);
     useProjectStore.getState().setIsPlaying(true);
     expect(double.dragPan.disable).toHaveBeenCalledTimes(disableCalls);
+  });
+
+  it('delegates styleimagemissing event to add missing style image', async () => {
+    const double = createMapDouble();
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+
+    const missingListeners = double.listeners.get('styleimagemissing');
+    expect(missingListeners).toBeDefined();
+
+    for (const listener of missingListeners!) {
+      listener({ id: 'texture-64' });
+    }
+
+    // Wait a tick for async resolution
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(double.addImage).toHaveBeenCalledWith('texture-64', expect.anything());
+
+    controller.dispose();
   });
 });

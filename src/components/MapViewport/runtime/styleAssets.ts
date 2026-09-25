@@ -108,6 +108,7 @@ if (typeof window !== 'undefined') {
  * Returns true if added or already exists.
  */
 export function addCachedStyleAsset(map: MapboxMap, id: string): boolean {
+  if (typeof map.hasImage !== 'function' || typeof map.addImage !== 'function') return false;
   if (map.hasImage(id)) return true;
   const cached = rasterizedCache.get(id);
   if (!cached) return false;
@@ -124,6 +125,7 @@ export function addCachedStyleAsset(map: MapboxMap, id: string): boolean {
  * Handles a missing style image event, either synchronously from cache or asynchronously.
  */
 export async function handleMissingStyleImage(map: MapboxMap, imageId: string): Promise<boolean> {
+  if (typeof map.hasImage !== 'function' || typeof map.addImage !== 'function') return false;
   if (addCachedStyleAsset(map, imageId)) return true;
 
   const data = await getRasterizedStyleAsset(imageId);
@@ -144,6 +146,7 @@ export async function handleMissingStyleImage(map: MapboxMap, imageId: string): 
  * Ensures all known style assets are loaded and added to the map.
  */
 export async function loadKnownStyleAssets(map: MapboxMap): Promise<void> {
+  if (typeof map.hasImage !== 'function' || typeof map.addImage !== 'function') return;
   await preloadStyleAssets();
   for (const id of Object.keys(KNOWN_STYLE_TEXTURES)) {
     if (!map.hasImage(id)) {

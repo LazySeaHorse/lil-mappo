@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { isDarkMapStyle } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
+import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -86,6 +87,7 @@ export class BasemapController {
     this.map.on('sourcedata', this.handleSourceData);
     this.map.on('idle', this.handleIdle);
     this.map.on('error', this.handleError);
+    this.map.on('styleimagemissing', this.handleStyleImageMissing);
 
     const handlers = [
       this.map.dragPan,
@@ -134,6 +136,7 @@ export class BasemapController {
     this.map.off('sourcedata', this.handleSourceData);
     this.map.off('idle', this.handleIdle);
     this.map.off('error', this.handleError);
+    this.map.off('styleimagemissing', this.handleStyleImageMissing);
   }
 
   private reconcileBuildings(state: ProjectState): void {
@@ -237,10 +240,16 @@ export class BasemapController {
 
   private readonly handleStyleLoad = () => {
     const state = useProjectStore.getState();
+    void loadKnownStyleAssets(this.map);
     state.setDetectedCapabilities(detectRuntimeCapabilities(this.map, state.mapStyle));
     this.setStyleLoaded(true);
     this.reconcile();
     this.onStyleLoad?.();
+  };
+
+  private readonly handleStyleImageMissing = (event: { id: string }) => {
+    if (this.disposed) return;
+    void handleMissingStyleImage(this.map, event.id);
   };
 
   private readonly handleStyleImportData = () => this.reconcile();
