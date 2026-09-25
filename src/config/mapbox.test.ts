@@ -44,7 +44,7 @@ describe('Mapbox configuration', () => {
     });
 
     expect(MAP_STYLES.blackMarble).toEqual({
-      label: "NASA's Black Marble",
+      label: 'Black Marble',
       url: 'mapbox://styles/mapbox-map-design/cl4fnpof7000i15p8jvz3aw2r',
       category: 'community',
     });

@@ -144,7 +144,7 @@ export const MAP_STYLES = {
     category: 'community',
   },
   blackMarble: {
-    label: "NASA's Black Marble",
+    label: 'Black Marble',
     url: 'mapbox://styles/mapbox-map-design/cl4fnpof7000i15p8jvz3aw2r',
     category: 'community',
   },
