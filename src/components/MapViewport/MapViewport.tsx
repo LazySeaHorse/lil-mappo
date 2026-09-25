@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react'
 import MapGL, { Layer } from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapLayerMouseEvent } from 'mapbox-gl';
-import { MAP_STYLES } from '@/config/mapbox';
+import { MAP_STYLES, transformMapboxRequest } from '@/config/mapbox';
 
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CalloutItem, CameraItem } from '@/store/types';
@@ -224,6 +224,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
       <MapGL
         ref={mapRef}
         mapboxAccessToken={mapboxToken}
+        transformRequest={transformMapboxRequest}
         RTLTextPlugin={false}
         styleDiffing={false}
         initialViewState={initialViewState}
