@@ -50,13 +50,13 @@ describe('Mapbox configuration', () => {
     });
 
     expect(MAP_STYLES.navigationDay).toEqual({
-      label: 'Navigation Guidance Day',
+      label: 'Nav Day',
       url: 'mapbox://styles/mapbox/navigation-guidance-day-v4',
       category: 'community',
     });
 
     expect(MAP_STYLES.navigationNight).toEqual({
-      label: 'Navigation Guidance Night',
+      label: 'Nav Night',
       url: 'mapbox://styles/mapbox/navigation-guidance-night-v4',
       category: 'community',
     });
