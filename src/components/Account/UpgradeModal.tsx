@@ -142,6 +142,11 @@ export function UpgradeModal() {
               <Crown size={15} />
               {isCurrent ? "Current plan" : "Subscribe to Wanderer"}
             </Button>
+            {!isCurrent && (
+              <p className="text-[11px] text-muted-foreground text-center mt-2.5 leading-relaxed">
+                Renews automatically at ${PLAN_CONFIG.wanderer.priceMonthly}/month until cancelled. Cancel anytime in Account Settings.
+              </p>
+            )}
           </div>
         </div>
       </DialogContent>

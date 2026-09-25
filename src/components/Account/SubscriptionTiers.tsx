@@ -106,6 +106,12 @@ function TierCard({
       >
         {isCurrent ? "Current plan" : comingSoon ? "Not available yet" : "Subscribe"}
       </Button>
+
+      {!isCurrent && !comingSoon && (
+        <p className="text-[10px] text-muted-foreground text-center mt-2 leading-tight">
+          Renews at {price} until cancelled. Cancel anytime in Account Settings.
+        </p>
+      )}
     </div>
   );
 }
