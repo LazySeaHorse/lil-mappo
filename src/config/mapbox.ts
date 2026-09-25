@@ -82,6 +82,10 @@ export const MAP_STYLES = {
     label: 'Satellite Streets',
     url: 'mapbox://styles/mapbox/satellite-streets-v12',
   },
+  vintage: {
+    label: 'Vintage',
+    url: 'mapbox://styles/mapstertech/cm15klhbj033m01r70dwy5ap8',
+  },
 } satisfies Record<string, MapStyleDef>;
 
 export type MapStyleKey = keyof typeof MAP_STYLES;
