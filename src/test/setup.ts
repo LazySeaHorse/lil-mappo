@@ -53,3 +53,12 @@ if (typeof Element !== 'undefined') {
   }
 }
 
+vi.mock('react-secure-storage', () => ({
+  default: {
+    getItem: vi.fn(() => null),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+  },
+}));
+
