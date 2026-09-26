@@ -85,8 +85,8 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       footer={footer}
     >
       <EditableTitle
-        value={item.content.title}
-        onChange={(v) => u({ content: { ...item.content, title: v }, linkTitleToLocation: false })}
+        value={item.content?.title ?? (item as unknown as { title?: string }).title ?? ''}
+        onChange={(v) => u({ content: { ...(item.content ?? { title: '' }), title: v }, linkTitleToLocation: false })}
         placeholder="Callout title"
       />
 

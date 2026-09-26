@@ -2,13 +2,17 @@ import type { StateCreator } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { TimelineItem } from '../types';
 import type { ItemsSlice, ProjectStore } from './types';
+import { isLegacyCallout, migrateCalloutV1ToV2 } from '@/annotations/migration';
 
 export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set) => ({
   addItem: (item) =>
-    set((s) => ({
-      items: { ...s.items, [item.id]: item },
-      itemOrder: item.kind === 'camera' ? s.itemOrder : [...s.itemOrder, item.id],
-    })),
+    set((s) => {
+      const cleanItem = isLegacyCallout(item) ? migrateCalloutV1ToV2(item) : item;
+      return {
+        items: { ...s.items, [cleanItem.id]: cleanItem },
+        itemOrder: cleanItem.kind === 'camera' ? s.itemOrder : [...s.itemOrder, cleanItem.id],
+      };
+    }),
 
   removeItem: (id) =>
     set((s) => {

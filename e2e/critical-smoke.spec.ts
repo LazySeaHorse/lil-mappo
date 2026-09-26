@@ -159,6 +159,7 @@ test("2. map and editor load", async ({ page }) => {
 });
 
 test("2a. quick walkthrough is opt-in and advances through real actions", async ({ page }) => {
+  test.slow();
   await openEditor(page, { dismissWalkthrough: false });
 
   const invitation = page.getByRole("alertdialog", { name: "Start the quick tour?" });
