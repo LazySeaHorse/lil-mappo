@@ -196,6 +196,8 @@ export const pinMarkerStyle: AnnotationStyleDefinition<PinMarkerSettings> = {
   contentSlots: ['title', 'icon'],
   settingsSchema: pinMarkerSettingsSchema,
   defaultSettings: defaultPinMarkerSettings,
+  supportsAltitude: false,
+  defaultAnchor: 'bottom',
   defaultConnector: {
     visible: false,
   },

@@ -200,6 +200,12 @@ export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> 
   settingsSchema: ZodType<TSettings>;
   defaultSettings: TSettings;
 
+  /** Whether this style can sit on an elevated anchor pole (cards) or sits flush on the map (surface markers). Default true. */
+  supportsAltitude?: boolean;
+
+  /** Default map anchor point ('center' for ripples/dots, 'bottom' for cards/pins). Default 'bottom'. */
+  defaultAnchor?: AnchorPosition;
+
   /** Default connector config override. */
   defaultConnector?: Partial<ConnectorConfig>;
 

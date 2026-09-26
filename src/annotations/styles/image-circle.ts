@@ -80,6 +80,8 @@ export const imageCircleStyle: AnnotationStyleDefinition<ImageCircleSettings> = 
   contentSlots: ['title', 'image'],
   settingsSchema: imageCircleSettingsSchema,
   defaultSettings: defaultImageCircleSettings,
+  supportsAltitude: false,
+  defaultAnchor: 'center',
   defaultConnector: {
     visible: false,
   },

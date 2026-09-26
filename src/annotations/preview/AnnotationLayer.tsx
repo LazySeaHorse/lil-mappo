@@ -225,7 +225,7 @@ function AnnotationMarker({ callout, mapRef, isSelected, playheadTime }: Annotat
 
   // Compute altitude offset
   let altitudeOffset = 0;
-  if (binding.altitude > 0) {
+  if (style.supportsAltitude !== false && binding.altitude > 0) {
     const map = mapRef.current?.getMap();
     if (map) {
       const zoom = map.getZoom();

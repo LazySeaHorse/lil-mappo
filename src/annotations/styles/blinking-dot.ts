@@ -76,6 +76,8 @@ export const blinkingDotStyle: AnnotationStyleDefinition<BlinkingDotSettings> = 
   contentSlots: ['title'],
   settingsSchema: blinkingDotSettingsSchema,
   defaultSettings,
+  supportsAltitude: false,
+  defaultAnchor: 'center',
   defaultConnector: {
     visible: false,
   },

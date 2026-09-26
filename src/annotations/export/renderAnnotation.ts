@@ -43,6 +43,8 @@ export function renderAnnotationToCanvas(
   const style = getStyle(callout.styleId);
   if (!style) return;
 
+  const effectiveAltitude = style.supportsAltitude === false ? 0 : altitudeOffset;
+
   // Enrich content with geographic metadata
   const enrichedContent = { ...callout.content };
   if (callout.binding.kind === 'geographic') {
@@ -53,7 +55,7 @@ export function renderAnnotationToCanvas(
     if (!enrichedContent.eyebrow) {
       enrichedContent.eyebrow = `${Math.abs(lat).toFixed(4)}° ${ns}, ${Math.abs(lng).toFixed(4)}° ${ew}`;
     }
-    if (!enrichedContent.body && callout.binding.altitude > 0) {
+    if (!enrichedContent.body && style.supportsAltitude !== false && callout.binding.altitude > 0) {
       enrichedContent.body = `ELEV: ${Math.round(callout.binding.altitude * 3.28084)}ft`;
     }
   }
@@ -74,12 +76,12 @@ export function renderAnnotationToCanvas(
 
   // Draw connector first (below card)
   const anchorX = pos.x + callout.offset[0];
-  const anchorY = pos.y - altitudeOffset + callout.offset[1];
+  const anchorY = pos.y - effectiveAltitude + callout.offset[1];
 
   ctx.save();
   ctx.globalAlpha = transition.opacity * callout.opacity;
 
-  if (callout.connector.visible && altitudeOffset > 0) {
+  if (callout.connector.visible && effectiveAltitude > 0) {
     ctx.save();
     ctx.strokeStyle = callout.connector.color;
     ctx.lineWidth = callout.connector.width;
@@ -147,7 +149,8 @@ export function compositeAnnotations(
     const projected = map.project(lngLat);
 
     let altitudeOffset = 0;
-    if (callout.binding.altitude > 0) {
+    const style = getStyle(callout.styleId);
+    if (style?.supportsAltitude !== false && callout.binding.altitude > 0) {
       const metersPerPixel =
         (156543.03392 * Math.cos((lngLat[1] * Math.PI) / 180)) /
         Math.pow(2, zoom);

@@ -102,6 +102,8 @@ export const standardCardStyle: AnnotationStyleDefinition<StandardCardSettings> 
   contentSlots: ['title'],
   settingsSchema: standardCardSettingsSchema,
   defaultSettings: defaultStandardCardSettings,
+  supportsAltitude: true,
+  defaultAnchor: 'bottom',
   defaultConnector: {
     visible: true,
   },

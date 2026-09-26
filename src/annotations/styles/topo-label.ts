@@ -315,6 +315,8 @@ export const topoLabelStyle: AnnotationStyleDefinition<TopoLabelSettings> = {
   contentSlots: ['title'],
   settingsSchema: topoLabelSettingsSchema,
   defaultSettings: defaultTopoLabelSettings,
+  supportsAltitude: true,
+  defaultAnchor: 'bottom',
   defaultConnector: {
     visible: true,
     style: 'solid',

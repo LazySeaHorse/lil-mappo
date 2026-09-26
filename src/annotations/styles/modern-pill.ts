@@ -70,6 +70,8 @@ export const modernPillStyle: AnnotationStyleDefinition<ModernPillSettings> = {
   contentSlots: ['title'],
   settingsSchema: modernPillSettingsSchema,
   defaultSettings,
+  supportsAltitude: true,
+  defaultAnchor: 'bottom',
   defaultConnector: {
     visible: true,
   },

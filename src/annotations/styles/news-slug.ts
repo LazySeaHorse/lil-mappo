@@ -75,6 +75,8 @@ export const newsSlugStyle: AnnotationStyleDefinition<NewsSlugSettings> = {
   contentSlots: ['title'],
   settingsSchema: newsSlugSettingsSchema,
   defaultSettings,
+  supportsAltitude: true,
+  defaultAnchor: 'bottom',
   defaultConnector: {
     visible: false,
   },

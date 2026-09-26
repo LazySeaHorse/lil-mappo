@@ -73,6 +73,8 @@ export const rippleMarkerStyle: AnnotationStyleDefinition<RippleMarkerSettings> 
   contentSlots: ['title'],
   settingsSchema: rippleMarkerSettingsSchema,
   defaultSettings,
+  supportsAltitude: false,
+  defaultAnchor: 'center',
   defaultConnector: {
     visible: false,
   },

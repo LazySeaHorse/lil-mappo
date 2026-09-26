@@ -73,6 +73,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
   };
 
   const style = getStyle(item.styleId);
+  const supportsAltitude = style?.supportsAltitude !== false;
   const lngLat = item.binding.kind === 'geographic' ? item.binding.lngLat : [0, 0] as [number, number];
   const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
 
@@ -98,7 +99,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
             onChange={(newStyleId) => {
               const newStyle = getStyle(newStyleId);
               if (!newStyle) return;
-              u({
+              const patch: Partial<CalloutItem> = {
                 styleId: newStyleId,
                 styleVersion: newStyle.version,
                 settings: { ...newStyle.defaultSettings } as Record<string, unknown>,
@@ -107,7 +108,14 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
                   ...newStyle.defaultConnector,
                 },
                 ...(newStyle.defaultTransition ? { transition: { ...item.transition, ...newStyle.defaultTransition } } : {}),
-              });
+              };
+              if (newStyle.defaultAnchor) {
+                patch.anchor = newStyle.defaultAnchor;
+              }
+              if (newStyle.supportsAltitude === false && item.binding.kind === 'geographic') {
+                patch.binding = { ...item.binding, altitude: 0 };
+              }
+              u(patch);
             }}
           />
         </InspectorSection>
@@ -160,22 +168,24 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           </InspectorSection>
         )}
 
-        <InspectorSection value="connector" title="Anchor line">
-          <div className="flex flex-col gap-2.5">
-            <SwitchRow
-              label="Show anchor line"
-              checked={item.connector.visible}
-              onChange={(v) => u({ connector: { ...item.connector, visible: v } })}
-            />
-            {item.connector.visible && (
-              <ColorRow
-                label="Line color"
-                value={item.connector.color}
-                onChange={(v) => u({ connector: { ...item.connector, color: v } })}
+        {supportsAltitude && (
+          <InspectorSection value="connector" title="Anchor line">
+            <div className="flex flex-col gap-2.5">
+              <SwitchRow
+                label="Show anchor line"
+                checked={item.connector.visible}
+                onChange={(v) => u({ connector: { ...item.connector, visible: v } })}
               />
-            )}
-          </div>
-        </InspectorSection>
+              {item.connector.visible && (
+                <ColorRow
+                  label="Line color"
+                  value={item.connector.color}
+                  onChange={(v) => u({ connector: { ...item.connector, color: v } })}
+                />
+              )}
+            </div>
+          </InspectorSection>
+        )}
 
         <InspectorSection value="position" title="Position">
           <div className="flex flex-col gap-3.5 pt-0.5">
@@ -189,19 +199,21 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
               <span>{isMoveModeActive ? 'Finish positioning' : 'Position on map'}</span>
             </Button>
 
-            <SliderRow
-              label="Altitude"
-              value={altitude}
-              onChange={(v) => u({
-                binding: item.binding.kind === 'geographic'
-                  ? { ...item.binding, altitude: v }
-                  : item.binding,
-              })}
-              min={0}
-              max={500}
-              step={5}
-              unit="m"
-            />
+            {supportsAltitude && (
+              <SliderRow
+                label="Altitude"
+                value={altitude}
+                onChange={(v) => u({
+                  binding: item.binding.kind === 'geographic'
+                    ? { ...item.binding, altitude: v }
+                    : item.binding,
+                })}
+                min={0}
+                max={500}
+                step={5}
+                unit="m"
+              />
+            )}
 
             <CoordinatesRows
               lngLat={lngLat as [number, number]}

@@ -202,6 +202,69 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByText('Max width')).toBeInTheDocument();
     expect(screen.getByLabelText('Longitude')).toHaveValue(-122.4783);
     expect(screen.getByLabelText('Latitude')).toHaveValue(37.8199);
+    expect(screen.getByText('Altitude')).toBeInTheDocument();
+    expect(screen.getByText('Anchor line')).toBeInTheDocument();
+  });
+
+  it('hides Altitude slider and Anchor line section for ripple-marker', () => {
+    const rippleItem: CalloutItem = {
+      id: 'ripple-1',
+      kind: 'callout',
+      styleId: 'ripple-marker',
+      styleVersion: 1,
+      content: {
+        title: 'Sonar Ping',
+      },
+      binding: {
+        kind: 'geographic',
+        lngLat: [12.4924, 41.8902],
+        altitude: 0,
+      },
+      offset: [0, 0],
+      anchor: 'center',
+      startTime: 1,
+      endTime: 5,
+      linkTitleToLocation: false,
+      transition: {
+        enter: 'fade',
+        exit: 'fade',
+        enterDuration: 0.3,
+        exitDuration: 0.3,
+      },
+      connector: {
+        visible: false,
+        style: 'dashed',
+        color: '#94a3b8',
+        width: 2,
+        endDot: true,
+        endDotRadius: 3,
+      },
+      opacity: 1,
+      scale: 1,
+      settings: {
+        color: '#3b82f6',
+        dotRadius: 5,
+        rippleRadius: 30,
+        rippleSpeed: 0.8,
+        rippleCount: 2,
+        strokeWidth: 2,
+        textColor: '#f8fafc',
+        fontFamily: 'Outfit',
+        fontSize: 13,
+      },
+    };
+
+    useProjectStore.setState({
+      items: { 'ripple-1': rippleItem },
+      selectedItemId: 'ripple-1',
+    });
+
+    render(<AnnotationInspector item={rippleItem} />);
+
+    expect(screen.getByDisplayValue('Sonar Ping')).toBeInTheDocument();
+    expect(screen.queryByText('Altitude')).not.toBeInTheDocument();
+    expect(screen.queryByText('Anchor line')).not.toBeInTheDocument();
+    expect(screen.queryByText('Show anchor line')).not.toBeInTheDocument();
   });
 
   it('renders CameraKFInspector and displays keyframe details', () => {
