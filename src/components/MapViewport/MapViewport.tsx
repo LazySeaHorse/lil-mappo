@@ -14,6 +14,7 @@ import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 import { resolveClickTarget } from './mapUtils';
 import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
+import { RouteWaypointMarkers } from './RouteWaypointMarkers';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
 import type { MapGesture } from '@/components/Onboarding/walkthroughState';
@@ -234,6 +235,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
           selectedCalloutId={selectedCalloutId}
           mapRef={mapRef}
         />
+        <RouteWaypointMarkers />
       </MapGL>
     </div>
   );

@@ -20,6 +20,8 @@ import { PanelHeader } from '@/components/ui/panel-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import type { SegmentedControlOption } from '@/components/ui/segmented-control';
 import { SectionLabel } from '@/components/ui/field';
+import { SwitchRow } from '../Inspector/InspectorShared';
+import { buildRouteGeometry } from '@/engine/routeCurves';
 
 type PlannedRouteMode = Exclude<RouteMode, 'manual'>;
 
@@ -48,6 +50,7 @@ export const RouteAddDropdown = ({
   const [startName, setStartName] = useState('');
   const [end, setEnd] = useState<[number, number]>([0, 0]);
   const [endName, setEndName] = useState('');
+  const [isCurved, setIsCurved] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const calculationSeqRef = useRef(0);
@@ -154,9 +157,11 @@ export const RouteAddDropdown = ({
     setLoading(true);
     try {
       let geojson: GeoJSON.Geometry;
-      if (mode === 'car' || mode === 'walk') {
+      if (mode === 'car' || (mode === 'walk' && !isCurved)) {
         const res = await getDirections(start, end, mode, abortController.signal);
         geojson = res.geometry;
+      } else if (mode === 'walk' && isCurved) {
+        geojson = buildRouteGeometry([start, end], { curved: false });
       } else {
         geojson = calculateFlightArc(start, end);
       }
@@ -210,6 +215,9 @@ export const RouteAddDropdown = ({
         mode,
         startPoint: start,
         endPoint: end,
+        waypoints: [],
+        curved: mode === 'walk' && isCurved ? true : undefined,
+        sharpness: 0.85,
         vehicle: {
           enabled: true,
           type: mode === 'flight' ? 'plane' as const : 'dot' as const,
@@ -349,6 +357,20 @@ export const RouteAddDropdown = ({
               onStartPick={handleTogglePickEnd}
             />
           </>
+        )}
+
+        {mode === 'walk' && (
+          <div className="pt-1">
+            <SwitchRow
+              label="Freeform curvy trail"
+              sublabel="Draw custom off-road path with spline curves"
+              checked={isCurved}
+              onChange={(v) => {
+                setIsCurved(v);
+                setPreviewRoute(null);
+              }}
+            />
+          </div>
         )}
       </div>
 

@@ -147,4 +147,54 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
     expect(coords.length).toBeGreaterThan(10);
     expect(coords[0].length).toBe(2); // [lng, lat] without Z elevation
   });
+
+  it('supports walk mode freeform routing with smooth curve switch and waypoints', async () => {
+    const route: RouteItem = {
+      ...createBaseRouteItem('car'),
+      calculation: {
+        mode: 'walk',
+        startPoint: [-73.9851, 40.7488],
+        endPoint: [-73.9650, 40.7820],
+        waypoints: [[-73.9780, 40.7550]],
+        curved: true,
+        sharpness: 0.85,
+      },
+    };
+    useProjectStore.setState({
+      items: { [route.id]: route },
+      selectedItemId: route.id,
+    });
+
+    render(<RoutePlanner item={route} />);
+
+    // In walk mode with freeform active, "Routing:" segmented control is visible
+    expect(screen.getByText('Routing:')).toBeInTheDocument();
+    expect(screen.getByText('Smooth Curve')).toBeInTheDocument();
+    expect(screen.getByText(/Curvature/)).toBeInTheDocument();
+    expect(screen.getByText(/Point 1:/)).toBeInTheDocument();
+
+    // Toggle "Smooth Curve" switch
+    const switchEl = screen.getByRole('switch');
+    expect(switchEl).toBeInTheDocument();
+    expect(switchEl).toHaveAttribute('data-state', 'checked');
+
+    act(() => {
+      fireEvent.click(switchEl);
+    });
+
+    const afterToggleItem = useProjectStore.getState().items[route.id] as RouteItem;
+    expect(afterToggleItem.calculation?.curved).toBe(false);
+    // When curved is false, geometry coordinates should equal the 3 raw points
+    const rawCoords = (afterToggleItem.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
+    expect(rawCoords.length).toBe(3);
+
+    // Toggle back on
+    act(() => {
+      fireEvent.click(switchEl);
+    });
+    const curvedAgainItem = useProjectStore.getState().items[route.id] as RouteItem;
+    expect(curvedAgainItem.calculation?.curved).toBe(true);
+    const splineCoords = (curvedAgainItem.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
+    expect(splineCoords.length).toBeGreaterThan(3);
+  });
 });

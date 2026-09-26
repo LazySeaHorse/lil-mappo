@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X, Eye } from 'lucide-react';
+import { Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X, Eye, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RouteItem, RouteMode } from '@/store/types';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
+import { SwitchRow, SliderField } from './InspectorShared';
+import { buildRouteFeatureCollection } from '@/engine/routeCurves';
 
 interface InspectorSearchFieldProps {
   label: string;
@@ -283,6 +285,50 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     setPreviewRoute(null);
   };
 
+  const isFreeform =
+    calc.mode === 'manual' ||
+    calc.curved !== undefined ||
+    (calc.waypoints !== undefined && calc.waypoints.length > 0);
+
+  const updateFreeformRoute = (patch: {
+    startPoint?: [number, number];
+    waypoints?: [number, number][];
+    endPoint?: [number, number];
+    curved?: boolean;
+    sharpness?: number;
+  }) => {
+    const nextStart = patch.startPoint ?? calc.startPoint;
+    const nextWp = patch.waypoints ?? (calc.waypoints || []);
+    const nextEnd = patch.endPoint ?? calc.endPoint;
+    const nextCurved = patch.curved !== undefined ? patch.curved : (calc.curved ?? true);
+    const nextSharpness = patch.sharpness ?? (calc.sharpness ?? 0.85);
+
+    const allPoints: [number, number][] = [];
+    if (nextStart && (nextStart[0] !== 0 || nextStart[1] !== 0)) allPoints.push(nextStart);
+    for (const wp of nextWp) {
+      if (wp && (wp[0] !== 0 || wp[1] !== 0)) allPoints.push(wp);
+    }
+    if (nextEnd && (nextEnd[0] !== 0 || nextEnd[1] !== 0)) allPoints.push(nextEnd);
+
+    const geojson = allPoints.length >= 2
+      ? buildRouteFeatureCollection(allPoints, { curved: nextCurved, sharpness: nextSharpness })
+      : activeItem.geojson;
+
+    updateItem(item.id, {
+      geojson,
+      calculation: {
+        ...calc,
+        startPoint: nextStart,
+        waypoints: nextWp,
+        endPoint: nextEnd,
+        curved: nextCurved,
+        sharpness: nextSharpness,
+      },
+    });
+  };
+
+  const isAddingWp = activePicker?.id === `route-${item.id}-add-wp`;
+
   return (
     <div className="flex flex-col gap-3.5">
       <SegmentedControl
@@ -297,7 +343,194 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
         className="h-8"
       />
 
-      {calc.mode !== 'manual' && (
+      {calc.mode === 'walk' && (
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <span className="text-xs font-medium text-muted-foreground">Routing:</span>
+          <SegmentedControl
+            options={[
+              { value: 'streets', label: 'Streets' },
+              { value: 'freeform', label: 'Freeform' },
+            ]}
+            value={isFreeform ? 'freeform' : 'streets'}
+            onValueChange={(val) => {
+              if (val === 'freeform') {
+                updateFreeformRoute({ curved: true, waypoints: calc.waypoints ?? [] });
+                toast.success('Switched to freeform spline mode');
+              } else {
+                updateItem(item.id, {
+                  calculation: {
+                    ...calc,
+                    curved: undefined,
+                    waypoints: undefined,
+                  },
+                });
+              }
+            }}
+            className="h-7 text-xs"
+          />
+        </div>
+      )}
+
+      {/* Freeform Spline / Manual Waypoints Mode */}
+      {(calc.mode === 'manual' || (calc.mode === 'walk' && isFreeform)) ? (
+        <div className="flex flex-col gap-3">
+          <SwitchRow
+            label="Smooth Curve"
+            sublabel={calc.curved !== false ? 'Bézier spline through points' : 'Straight line segments'}
+            checked={calc.curved !== false}
+            onChange={(checked) => {
+              updateFreeformRoute({ curved: checked });
+            }}
+          />
+
+          {calc.curved !== false && (
+            <SliderField
+              label="Curvature"
+              value={calc.sharpness ?? 0.85}
+              min={0.1}
+              max={1.0}
+              step={0.05}
+              onChange={(sharpness) => {
+                updateFreeformRoute({ sharpness });
+              }}
+            />
+          )}
+
+          <div className="flex flex-col gap-2 pt-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Waypoints</span>
+
+            {/* Start Point */}
+            <div className="flex items-center gap-2 bg-secondary/30 p-2 rounded-lg border border-border/40">
+              <div className="w-5 h-5 rounded-full bg-emerald-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                S
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-foreground block truncate">
+                  Start: {calc.startPoint[0] !== 0 || calc.startPoint[1] !== 0
+                    ? `${calc.startPoint[0].toFixed(4)}, ${calc.startPoint[1].toFixed(4)}`
+                    : '(Click crosshair to set)'}
+                </span>
+              </div>
+              <IconButton
+                variant={isPickingStart ? 'default' : 'outline'}
+                size="xs"
+                className={`rounded-lg h-7 w-7 shrink-0 ${isPickingStart ? 'bg-primary text-primary-foreground' : ''}`}
+                onClick={() => handleTogglePick('start')}
+                title="Pick Start on map"
+              >
+                <Crosshair size={12} className={isPickingStart ? 'animate-pulse text-white' : 'text-muted-foreground'} />
+              </IconButton>
+            </div>
+
+            {/* Intermediate Waypoints */}
+            {(calc.waypoints || []).map((wp, idx) => {
+              const pickerId = `route-${item.id}-wp-${idx}`;
+              const isPickingThis = activePicker?.id === pickerId;
+              return (
+                <div key={`wp-row-${idx}`} className="flex items-center gap-2 bg-secondary/30 p-2 rounded-lg border border-border/40">
+                  <div className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium text-foreground block truncate">
+                      Point {idx + 1}: {wp[0].toFixed(4)}, {wp[1].toFixed(4)}
+                    </span>
+                  </div>
+                  <IconButton
+                    variant={isPickingThis ? 'default' : 'outline'}
+                    size="xs"
+                    className={`rounded-lg h-7 w-7 shrink-0 ${isPickingThis ? 'bg-primary text-primary-foreground' : ''}`}
+                    onClick={() => {
+                      if (isPickingThis) {
+                        stopPicking();
+                      } else {
+                        startPicking({
+                          id: pickerId,
+                          prompt: `Point ${idx + 1}`,
+                          onPick: (result) => {
+                            const nextWp = [...(calc.waypoints || [])];
+                            nextWp[idx] = result.lngLat;
+                            updateFreeformRoute({ waypoints: nextWp });
+                          },
+                        });
+                      }
+                    }}
+                    title="Pick Point on map"
+                  >
+                    <Crosshair size={12} className={isPickingThis ? 'animate-pulse text-white' : 'text-muted-foreground'} />
+                  </IconButton>
+                  <IconButton
+                    variant="ghost"
+                    size="xs"
+                    className="rounded-lg h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      const nextWp = (calc.waypoints || []).filter((_, i) => i !== idx);
+                      updateFreeformRoute({ waypoints: nextWp });
+                    }}
+                    title="Delete waypoint"
+                  >
+                    <Trash2 size={12} />
+                  </IconButton>
+                </div>
+              );
+            })}
+
+            {/* End Point */}
+            <div className="flex items-center gap-2 bg-secondary/30 p-2 rounded-lg border border-border/40">
+              <div className="w-5 h-5 rounded-full bg-rose-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                E
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-foreground block truncate">
+                  End: {calc.endPoint[0] !== 0 || calc.endPoint[1] !== 0
+                    ? `${calc.endPoint[0].toFixed(4)}, ${calc.endPoint[1].toFixed(4)}`
+                    : '(Click crosshair to set)'}
+                </span>
+              </div>
+              <IconButton
+                variant={isPickingEnd ? 'default' : 'outline'}
+                size="xs"
+                className={`rounded-lg h-7 w-7 shrink-0 ${isPickingEnd ? 'bg-primary text-primary-foreground' : ''}`}
+                onClick={() => handleTogglePick('end')}
+                title="Pick End on map"
+              >
+                <Crosshair size={12} className={isPickingEnd ? 'animate-pulse text-white' : 'text-muted-foreground'} />
+              </IconButton>
+            </div>
+
+            {/* Add Waypoint Button */}
+            <Button
+              type="button"
+              variant={isAddingWp ? 'default' : 'outline'}
+              size="sm"
+              className="w-full h-8 mt-1 text-xs gap-1.5"
+              onClick={() => {
+                if (isAddingWp) {
+                  stopPicking();
+                } else {
+                  startPicking({
+                    id: `route-${item.id}-add-wp`,
+                    prompt: 'Waypoint',
+                    onPick: (result) => {
+                      const nextWp = [...(calc.waypoints || []), result.lngLat];
+                      updateFreeformRoute({ waypoints: nextWp });
+                      toast.success('Waypoint added');
+                    },
+                  });
+                }
+              }}
+            >
+              <Plus size={13} />
+              {isAddingWp ? 'Click map to place waypoint' : 'Add waypoint on map'}
+            </Button>
+
+            <div className="text-[11px] text-muted-foreground bg-muted/40 p-2 rounded-lg border border-border/40 mt-1 leading-snug">
+              💡 <strong>Tip:</strong> Drag the colored markers (S, 1, 2..., E) directly on the map to bend the path.
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Standard Driving / Walking Directions or Flight */
         <div className="flex flex-col gap-2.5">
           {calc.mode === 'flight' ? (
             <>
@@ -362,7 +595,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
               type="button"
               variant="outline" 
               onClick={() => calculateRoute(false)}
-              disabled={loading}
+              disabled={loading} 
               className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Eye size={15} className="text-muted-foreground" />
