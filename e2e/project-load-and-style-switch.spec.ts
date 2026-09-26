@@ -254,7 +254,12 @@ test.describe("project load and map style switching", () => {
 
     // Initial layers and sources must be present and populated
     const initialLayers = await page.evaluate(() => {
-      const map = (window as unknown as { __mapInstance?: any }).__mapInstance!;
+      const map = (window as unknown as {
+        __mapInstance?: {
+          getSource: (id: string) => { _data?: { features?: unknown[] } } | undefined;
+          getLayer: (id: string) => unknown;
+        };
+      }).__mapInstance!;
       const fillSource = map.getSource("boundary-fill-boundary-paris")?._data;
       const routeSource = map.getSource("route-route-paris")?._data;
       return {
@@ -286,7 +291,13 @@ test.describe("project load and map style switching", () => {
 
     // After switching styles, route and boundary layers MUST be present and populated on the new style
     const afterSwitchLayers = await page.evaluate(() => {
-      const map = (window as unknown as { __mapInstance?: any }).__mapInstance!;
+      const map = (window as unknown as {
+        __mapInstance?: {
+          getSource: (id: string) => { _data?: { features?: unknown[] } } | undefined;
+          getLayer: (id: string) => unknown;
+          isStyleLoaded: () => boolean;
+        };
+      }).__mapInstance!;
       const fillSource = map.getSource("boundary-fill-boundary-paris")?._data;
       const routeSource = map.getSource("route-route-paris")?._data;
       return {

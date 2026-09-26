@@ -3,9 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RouteInspector } from './RouteInspector';
 import { BoundaryInspector } from './BoundaryInspector';
-import { CalloutInspector } from './CalloutInspector';
+import { AnnotationInspector } from '@/annotations/inspector/AnnotationInspector';
 import { CameraKFInspector } from './CameraKFInspector';
 import { useProjectStore } from '@/store/useProjectStore';
+import '@/annotations/styles/index';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
 
 vi.mock('@/hooks/useSubscription', () => ({
@@ -143,37 +144,48 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByLabelText('Duration')).toHaveValue(4);
   });
 
-  it('renders CalloutInspector and updates location, font & timing', () => {
+  it('renders AnnotationInspector and updates location, font & timing', () => {
     const calloutItem: CalloutItem = {
       id: 'callout-1',
       kind: 'callout',
-      title: 'Golden Gate Bridge',
-      subtitle: '',
-      imageUrl: null,
-      lngLat: [-122.4783, 37.8199],
+      styleId: 'standard-card',
+      styleVersion: 1,
+      content: {
+        title: 'Golden Gate Bridge',
+      },
+      binding: {
+        kind: 'geographic',
+        lngLat: [-122.4783, 37.8199],
+        altitude: 100,
+      },
+      offset: [0, 0],
       anchor: 'bottom',
-      altitude: 100,
-      poleVisible: true,
-      poleColor: '#ffffff',
       startTime: 2,
       endTime: 6,
       linkTitleToLocation: false,
-      animation: {
-        enter: 'fadeIn',
-        exit: 'fadeOut',
+      transition: {
+        enter: 'fade',
+        exit: 'fade',
         enterDuration: 0.5,
         exitDuration: 0.5,
       },
-      style: {
-        variant: 'modern',
+      connector: {
+        visible: true,
+        style: 'dashed',
+        color: '#ffffff',
+        width: 2,
+        endDot: true,
+        endDotRadius: 3,
+      },
+      opacity: 1,
+      scale: 1,
+      settings: {
         fontFamily: 'Inter',
         bgColor: '#1e1e1e',
         textColor: '#ffffff',
-        accentColor: '#3b82f6',
         borderRadius: 8,
         shadow: true,
         maxWidth: 200,
-        showMetadata: false,
       },
     };
 
@@ -182,12 +194,12 @@ describe('Inspector Components Integration', () => {
       selectedItemId: 'callout-1',
     });
 
-    render(<CalloutInspector item={calloutItem} />);
+    render(<AnnotationInspector item={calloutItem} />);
 
     expect(screen.getByDisplayValue('Golden Gate Bridge')).toBeInTheDocument();
     expect(screen.getByText('Font')).toBeInTheDocument();
-    expect(screen.getByText('Background color')).toBeInTheDocument();
-    expect(screen.getByText('Card width')).toBeInTheDocument();
+    expect(screen.getByText('Background')).toBeInTheDocument();
+    expect(screen.getByText('Max width')).toBeInTheDocument();
     expect(screen.getByLabelText('Longitude')).toHaveValue(-122.4783);
     expect(screen.getByLabelText('Latitude')).toHaveValue(37.8199);
   });

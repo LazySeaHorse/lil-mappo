@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveClickTarget } from './mapUtils';
 import { useProjectStore } from '@/store/useProjectStore';
 import { RouteAddDropdown } from '@/components/Toolbar/RouteAddDropdown';
-import { CalloutAddDropdown } from '@/components/Toolbar/CalloutAddDropdown';
-import { CalloutInspector } from '@/components/Inspector/CalloutInspector';
+import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
+import { AnnotationInspector } from '@/annotations/inspector/AnnotationInspector';
 import type { CalloutItem } from '@/store/types';
 
 vi.mock('react-secure-storage', () => ({
@@ -132,10 +132,10 @@ describe('Map Point Picking Architecture', () => {
     });
   });
 
-  describe('CalloutAddDropdown picker lifecycle', () => {
+  describe('AnnotationAddDropdown picker lifecycle', () => {
     it('starts picking callout and receives location update onPick', () => {
       const { unmount } = render(
-        <CalloutAddDropdown
+        <AnnotationAddDropdown
           isOpen={true}
           onOpenChange={() => {}}
         />
@@ -160,30 +160,24 @@ describe('Map Point Picking Architecture', () => {
     });
   });
 
-  describe('CalloutInspector picker lifecycle', () => {
+  describe('AnnotationInspector picker lifecycle', () => {
     it('updates existing callout item in store when pick callback fires', () => {
       const callout: CalloutItem = {
         id: 'callout-1',
         kind: 'callout',
-        title: 'Original Title',
-        subtitle: '',
-        imageUrl: null,
-        lngLat: [0, 0],
+        styleId: 'standard-card',
+        styleVersion: 1,
+        content: { title: 'Original Title' },
+        binding: { kind: 'geographic', lngLat: [0, 0], altitude: 0 },
+        offset: [0, 0],
         anchor: 'bottom',
         startTime: 0,
         endTime: 5,
-        animation: { enter: 'fadeIn', exit: 'fadeOut', enterDuration: 0.3, exitDuration: 0.3 },
-        style: {
-          bgColor: '#000',
-          textColor: '#fff',
-          accentColor: '#3b82f6',
-          borderRadius: 8,
-          shadow: true,
-          maxWidth: 200,
-          fontFamily: 'Outfit',
-          variant: 'default',
-          showMetadata: true,
-        },
+        transition: { enter: 'fade', exit: 'fade', enterDuration: 0.3, exitDuration: 0.3 },
+        connector: { visible: true, style: 'dashed', color: '#94a3b8', width: 2, endDot: true, endDotRadius: 3 },
+        opacity: 1,
+        scale: 1,
+        settings: {},
         linkTitleToLocation: true,
       };
 
@@ -192,7 +186,7 @@ describe('Map Point Picking Architecture', () => {
         selectedItemId: 'callout-1',
       });
 
-      const { unmount } = render(<CalloutInspector item={callout} />);
+      const { unmount } = render(<AnnotationInspector item={callout} />);
 
       const pickButton = screen.getByTitle(/Pick on Map/i);
       act(() => {
@@ -209,8 +203,8 @@ describe('Map Point Picking Architecture', () => {
 
       // Check item was updated in store
       const updated = useProjectStore.getState().items['callout-1'] as CalloutItem;
-      expect(updated.lngLat).toEqual([4.9, 52.37]);
-      expect(updated.title).toBe('Amsterdam');
+      expect((updated.binding as { lngLat: [number, number] }).lngLat).toEqual([4.9, 52.37]);
+      expect(updated.content.title).toBe('Amsterdam');
 
       act(() => {
         unmount();
