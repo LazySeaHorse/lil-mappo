@@ -82,6 +82,9 @@ const routeItemSchema = z.object({
       modelId: z.string(),
       scale: z.number(),
     }).optional(),
+    waypoints: z.array(coordinateSchema).optional(),
+    curved: z.boolean().optional(),
+    sharpness: z.number().optional(),
   }).optional(),
 });
 

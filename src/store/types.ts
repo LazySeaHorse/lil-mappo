@@ -40,6 +40,9 @@ export interface RouteCalculation {
   endPoint: [number, number];
   mode: RouteMode;
   vehicle?: RouteVehicleConfig;
+  waypoints?: [number, number][];
+  curved?: boolean;
+  sharpness?: number;
 }
 
 export interface RouteStyle {
