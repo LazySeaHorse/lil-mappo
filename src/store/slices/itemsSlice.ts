@@ -56,7 +56,7 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
 
       if (newItem.kind === 'route') newItem.name = `${newItem.name} Copy`;
       if (newItem.kind === 'boundary') newItem.placeName = `${newItem.placeName} Copy`;
-      if (newItem.kind === 'callout') newItem.title = `${newItem.title} Copy`;
+      if (newItem.kind === 'callout') newItem.content = { ...newItem.content, title: `${newItem.content.title} Copy` };
 
       return {
         items: { ...s.items, [newId]: newItem },

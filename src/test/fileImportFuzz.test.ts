@@ -491,7 +491,7 @@ describe('File Import Payload Fuzzing', () => {
 
       // Newer schema version
       expect(() => parseProjectDocument({ ...validDoc, schemaVersion: 999 })).toThrow(/newer than supported version/);
-      expect(() => parseProjectDocument({ ...validDoc, schemaVersion: 2 })).toThrow(/newer than supported version/);
+      expect(() => parseProjectDocument({ ...validDoc, schemaVersion: 3 })).toThrow(/newer than supported version/);
 
       // Negative schema version
       expect(() => parseProjectDocument({ ...validDoc, schemaVersion: -1 })).toThrow();

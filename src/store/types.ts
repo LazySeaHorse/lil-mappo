@@ -1,4 +1,11 @@
 import type { AspectRatio, ExportResolution } from '@/types/render';
+import type {
+  AnnotationContent,
+  AnnotationBinding,
+  AnchorPosition,
+  ConnectorConfig,
+  TransitionConfig,
+} from '@/annotations/types';
 
 export type EasingName =
   | 'linear'
@@ -89,35 +96,43 @@ export interface BoundaryItem {
 export interface CalloutItem {
   kind: 'callout';
   id: string;
-  title: string;
-  subtitle: string;
-  imageUrl: string | null;
-  lngLat: [number, number];
-  anchor: 'bottom' | 'top' | 'left' | 'right';
+
+  /** Style identity — registered in the annotation style registry. */
+  styleId: string;
+  styleVersion: number;
+
+  /** Semantic content — styles declare which slots they consume. */
+  content: AnnotationContent;
+
+  /** Placement on the map or screen. */
+  binding: AnnotationBinding;
+  offset: [number, number];
+  anchor: AnchorPosition;
+
+  /** Timeline timing. */
   startTime: number;
   endTime: number;
-  animation: {
-    enter: 'fadeIn' | 'scaleUp' | 'slideUp';
-    exit: 'fadeOut' | 'scaleDown' | 'slideDown';
-    enterDuration: number;
-    exitDuration: number;
-  };
-  style: {
-    bgColor: string;
-    textColor: string;
-    accentColor: string;
-    borderRadius: number;
-    shadow: boolean;
-    maxWidth: number;
-    fontFamily: string;
-    variant: 'default' | 'modern' | 'news' | 'topo';
-    showMetadata: boolean;
-  };
+
+  /** Enter/exit transitions. */
+  transition: TransitionConfig;
+
+  /** Connector line from card to map point. */
+  connector: ConnectorConfig;
+
+  /** Base appearance modifiers. */
+  opacity: number;
+  scale: number;
+
+  /** Style-specific settings, validated by the style's Zod schema. */
+  settings: Record<string, unknown>;
+
+  /** Whether title auto-updates when location changes. */
   linkTitleToLocation: boolean;
-  altitude: number;
-  poleVisible: boolean;
-  poleColor: string;
 }
+
+// Re-export annotation types used by other modules
+export type { AnnotationContent, AnnotationBinding, AnchorPosition, ConnectorConfig, TransitionConfig };
+
 
 export interface CameraKeyframe {
   id: string;

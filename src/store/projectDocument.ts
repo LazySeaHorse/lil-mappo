@@ -2,9 +2,10 @@ import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { getExportDimensions } from '@/types/render';
 import { sanitizeFeatureCollection } from '@/services/fileImport';
+import { migrateCalloutV1ToV2, isLegacyCallout } from '@/annotations/migration';
 import type { Project } from './types';
 
-export const PROJECT_SCHEMA_VERSION = 1 as const;
+export const PROJECT_SCHEMA_VERSION = 2 as const;
 export const CAMERA_TRACK_ID = 'camera-track';
 
 export type ProjectDocument = Project & {
@@ -108,38 +109,8 @@ const boundaryItemSchema = z.object({
   exitAnimation: z.enum(['none', 'reverse', 'fade']).optional(),
 });
 
-const calloutItemSchema = z.object({
-  kind: z.literal('callout'),
-  id: z.string().min(1),
-  title: z.string(),
-  subtitle: z.string(),
-  imageUrl: z.string().nullable(),
-  lngLat: coordinateSchema,
-  anchor: z.enum(['bottom', 'top', 'left', 'right']),
-  startTime: z.number(),
-  endTime: z.number(),
-  animation: z.object({
-    enter: z.enum(['fadeIn', 'scaleUp', 'slideUp']),
-    exit: z.enum(['fadeOut', 'scaleDown', 'slideDown']),
-    enterDuration: z.number(),
-    exitDuration: z.number(),
-  }),
-  style: z.object({
-    bgColor: z.string(),
-    textColor: z.string(),
-    accentColor: z.string(),
-    borderRadius: z.number(),
-    shadow: z.boolean(),
-    maxWidth: z.number(),
-    fontFamily: z.string(),
-    variant: z.enum(['default', 'modern', 'news', 'topo']),
-    showMetadata: z.boolean(),
-  }),
-  linkTitleToLocation: z.boolean(),
-  altitude: z.number(),
-  poleVisible: z.boolean(),
-  poleColor: z.string(),
-});
+// Callout schema now lives in the annotation system
+import { calloutItemSchema } from '@/annotations/schema';
 
 const cameraItemSchema = z.object({
   kind: z.literal('camera'),
@@ -166,7 +137,7 @@ const timelineItemSchema = z.discriminatedUnion('kind', [
   cameraItemSchema,
 ]);
 
-const projectDocumentV1Schema = z.object({
+const projectDocumentSchema = z.object({
   schemaVersion: z.literal(PROJECT_SCHEMA_VERSION),
   id: z.string().min(1),
   name: z.string(),
@@ -267,8 +238,23 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
   return { ...document, schemaVersion: 1, items };
 };
 
+/** Migrates schema v1 callout items to the annotation-based v2 format. */
+const migrateProjectV1ToV2: ProjectMigration = (input) => {
+  const document = legacyDocumentEnvelopeSchema.parse(input);
+  const items = Object.fromEntries(
+    Object.entries(document.items).map(([id, value]) => {
+      if (isLegacyCallout(value)) {
+        return [id, migrateCalloutV1ToV2(value)];
+      }
+      return [id, value];
+    }),
+  );
+  return { ...document, schemaVersion: 2, items };
+};
+
 const projectMigrations: Record<number, ProjectMigration> = {
   0: migrateProjectV0ToV1,
+  1: migrateProjectV1ToV2,
 };
 
 function migrateProjectDocument(input: unknown): unknown {
@@ -302,7 +288,7 @@ function migrateProjectDocument(input: unknown): unknown {
  * cross the persistence boundary or be spread back into Zustand.
  */
 export function parseProjectDocument(input: unknown): Project {
-  const parsed = projectDocumentV1Schema.parse(migrateProjectDocument(input));
+  const parsed = projectDocumentSchema.parse(migrateProjectDocument(input));
   const { schemaVersion: _, ...project } = parsed;
 
   const knownOrder = project.itemOrder.filter((id) => id in project.items);
