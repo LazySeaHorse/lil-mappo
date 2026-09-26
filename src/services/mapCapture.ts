@@ -1,6 +1,6 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
-import type { CalloutItem, TimelineItem } from '@/store/types';
-import { computeCalloutAnimation, renderCalloutToCanvas } from './renderCallout';
+import type { TimelineItem } from '@/store/types';
+import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 
 /**
  * Draws the current map frame (map canvas + callouts) onto compCtx.
@@ -20,27 +20,8 @@ export function compositeFrame(
   compCtx.clearRect(0, 0, width, height);
   compCtx.drawImage(mapCanvas, 0, 0, width, height);
 
-  const zoom = map.getZoom();
-  for (const id of itemOrder) {
-    const item = items[id];
-    if (item?.kind !== 'callout') continue;
-    const callout = item as CalloutItem;
-    if (callout.lngLat[0] === 0 && callout.lngLat[1] === 0) continue;
-
-    const anim = computeCalloutAnimation(callout, playheadTime);
-    if (!anim || anim.opacity <= 0) continue;
-
-    const projected = map.project(callout.lngLat);
-    let altitudeOffset = 0;
-    if (callout.altitude > 0) {
-      const metersPerPixel =
-        (156543.03392 * Math.cos((callout.lngLat[1] * Math.PI) / 180)) /
-        Math.pow(2, zoom);
-      altitudeOffset = Math.min(callout.altitude / metersPerPixel, 300);
-    }
-
-    renderCalloutToCanvas(compCtx, callout, anim, { x: projected.x, y: projected.y }, altitudeOffset);
-  }
+  // Render all annotations using the unified style registry and scene renderer
+  compositeAnnotations(map, compCtx, items, itemOrder, playheadTime);
 
   // Draw Mapbox attribution (required for legal compliance on exported assets)
   // Since attribution is a DOM overlay, it doesn't exist on the map canvas itself.

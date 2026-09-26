@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { truncateCoordinates, optimizeGeometry, truncateCoordinate } from './geoUtils';
 import { calculateFlightArc } from '@/services/flightPath';
-import { computeCalloutAnimation } from '@/services/renderCallout';
+import { computePhase, computeOpacity } from '@/annotations/animation';
 import { getRouteCoords } from './cameraUtils';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem, RouteItem } from '@/store/types';
@@ -168,60 +168,63 @@ describe('services/flightPath', () => {
   });
 });
 
-describe('services/renderCallout', () => {
+describe('annotations/animation', () => {
   it('computes callout animation opacity during enter, hold, and exit', () => {
     const callout: CalloutItem = {
       kind: 'callout',
       id: 'callout-1',
-      title: 'Test Callout',
-      subtitle: '',
-      imageUrl: null,
-      lngLat: [10, 20],
+      styleId: 'standard-card',
+      styleVersion: 1,
+      content: { title: 'Test Callout' },
+      binding: { kind: 'geographic', lngLat: [10, 20], altitude: 0 },
+      offset: [0, 0],
       anchor: 'bottom',
       startTime: 2,
       endTime: 6,
-      animation: {
-        enter: 'fadeIn',
-        exit: 'fadeOut',
+      transition: {
+        enter: 'fade',
+        exit: 'fade',
         enterDuration: 1,
         exitDuration: 1,
       },
-      style: {
-        bgColor: '#000',
-        textColor: '#fff',
-        accentColor: '#00f',
-        borderRadius: 8,
-        shadow: true,
-        maxWidth: 200,
-        fontFamily: 'sans-serif',
-        variant: 'default',
-        showMetadata: false,
+      connector: {
+        visible: false,
+        style: 'solid',
+        color: '#000',
+        width: 1,
+        endDot: false,
+        endDotRadius: 2,
       },
+      opacity: 1,
+      scale: 1,
+      settings: {},
       linkTitleToLocation: false,
-      altitude: 0,
-      poleVisible: false,
-      poleColor: '#000',
     };
 
     // Before start
-    expect(computeCalloutAnimation(callout, 1)).toBeNull();
+    expect(computeOpacity(callout, 1)).toBe(0);
+    expect(computePhase(callout.startTime, callout.endTime, 1, 1, 1)).toBeNull();
 
     // Entering (midway enter at 2.5s)
-    const enterState = computeCalloutAnimation(callout, 2.5);
+    const enterState = computePhase(callout.startTime, callout.endTime, 1, 1, 2.5);
     expect(enterState).not.toBeNull();
-    expect(enterState!.opacity).toBeCloseTo(0.5, 1);
+    expect(enterState!.progress).toBeCloseTo(0.5, 1);
+    expect(computeOpacity(callout, 2.5)).toBeCloseTo(0.5, 1);
 
     // Active / Hold (at 4s)
-    const holdState = computeCalloutAnimation(callout, 4);
+    const holdState = computePhase(callout.startTime, callout.endTime, 1, 1, 4);
     expect(holdState).not.toBeNull();
-    expect(holdState!.opacity).toBe(1);
+    expect(holdState!.phase).toBe('visible');
+    expect(computeOpacity(callout, 4)).toBe(1);
 
     // Exiting (midway exit at 5.5s)
-    const exitState = computeCalloutAnimation(callout, 5.5);
+    const exitState = computePhase(callout.startTime, callout.endTime, 1, 1, 5.5);
     expect(exitState).not.toBeNull();
-    expect(exitState!.opacity).toBeCloseTo(0.5, 1);
+    expect(exitState!.progress).toBeCloseTo(0.5, 1);
+    expect(computeOpacity(callout, 5.5)).toBeCloseTo(0.5, 1);
 
     // After end
-    expect(computeCalloutAnimation(callout, 7)).toBeNull();
+    expect(computeOpacity(callout, 7)).toBe(0);
+    expect(computePhase(callout.startTime, callout.endTime, 1, 1, 7)).toBeNull();
   });
 });
