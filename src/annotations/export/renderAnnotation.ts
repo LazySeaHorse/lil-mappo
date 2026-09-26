@@ -55,9 +55,6 @@ export function renderAnnotationToCanvas(
     if (!enrichedContent.eyebrow) {
       enrichedContent.eyebrow = `${Math.abs(lat).toFixed(4)}° ${ns}, ${Math.abs(lng).toFixed(4)}° ${ew}`;
     }
-    if (!enrichedContent.body && style.supportsAltitude !== false && callout.binding.altitude > 0) {
-      enrichedContent.body = `ELEV: ${Math.round(callout.binding.altitude * 3.28084)}ft`;
-    }
   }
 
   // Build render input
@@ -135,8 +132,6 @@ export function compositeAnnotations(
   itemOrder: string[],
   playheadTime: number,
 ): void {
-  const zoom = map.getZoom();
-
   for (const id of itemOrder) {
     const item = items[id];
     if (item?.kind !== 'callout') continue;
@@ -151,10 +146,7 @@ export function compositeAnnotations(
     let altitudeOffset = 0;
     const style = getStyle(callout.styleId);
     if (style?.supportsAltitude !== false && callout.binding.altitude > 0) {
-      const metersPerPixel =
-        (156543.03392 * Math.cos((lngLat[1] * Math.PI) / 180)) /
-        Math.pow(2, zoom);
-      altitudeOffset = Math.min(callout.binding.altitude / metersPerPixel, 300);
+      altitudeOffset = Math.min(callout.binding.altitude, 300);
     }
 
     renderAnnotationToCanvas(

@@ -175,9 +175,6 @@ function AnnotationMarker({ callout, mapRef, isSelected, playheadTime }: Annotat
     if (!enrichedContent.eyebrow) {
       enrichedContent.eyebrow = `${Math.abs(lat).toFixed(4)}° ${ns}, ${Math.abs(lng).toFixed(4)}° ${ew}`;
     }
-    if (!enrichedContent.body && binding.altitude > 0) {
-      enrichedContent.body = `ELEV: ${Math.round(binding.altitude * 3.28084)}ft`;
-    }
   }
 
   const renderInput: StyleRenderInput = {
@@ -223,17 +220,11 @@ function AnnotationMarker({ callout, mapRef, isSelected, playheadTime }: Annotat
     ctx.restore();
   }
 
-  // Compute altitude offset
-  let altitudeOffset = 0;
-  if (style.supportsAltitude !== false && binding.altitude > 0) {
-    const map = mapRef.current?.getMap();
-    if (map) {
-      const zoom = map.getZoom();
-      const metersPerPixel =
-        (156543.03392 * Math.cos((lngLat[1] * Math.PI) / 180)) / Math.pow(2, zoom);
-      altitudeOffset = Math.min(binding.altitude / metersPerPixel, 300);
-    }
-  }
+  // Compute altitude offset in screen pixels (zoom-independent)
+  const altitudeOffset =
+    style.supportsAltitude !== false && binding.altitude > 0
+      ? Math.min(binding.altitude, 300)
+      : 0;
 
   // Anchor offset based on anchor position
   const anchorToMapbox = (anchor: string): 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' => {
