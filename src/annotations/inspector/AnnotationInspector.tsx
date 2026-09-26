@@ -209,9 +209,9 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
                     : item.binding,
                 })}
                 min={0}
-                max={500}
-                step={5}
-                unit="m"
+                max={150}
+                step={2}
+                unit="px"
               />
             )}
 

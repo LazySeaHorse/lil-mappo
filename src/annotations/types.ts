@@ -20,7 +20,12 @@ export interface AnnotationContent {
 // ─── Placement ────────────────────────────────────────────────────────────────
 
 export type AnnotationBinding =
-  | { kind: 'geographic'; lngLat: [number, number]; altitude: number }
+  | {
+      kind: 'geographic';
+      lngLat: [number, number];
+      /** Visual stalk/connector height in screen pixels above ground anchor (default 0) */
+      altitude: number;
+    }
   | { kind: 'screen'; position: [number, number] };
 
 export type AnchorPosition =

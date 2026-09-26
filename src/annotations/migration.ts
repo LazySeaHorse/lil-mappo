@@ -69,7 +69,7 @@ const EXIT_NAME_MAP: Record<string, string> = {
 // ─── Settings migration ──────────────────────────────────────────────────────
 
 function migrateStyleSettings(legacy: LegacyCalloutItem): Record<string, unknown> {
-  const { style } = legacy;
+  const style = legacy.style || ({} as Partial<LegacyCalloutItem['style']>);
   const base: Record<string, unknown> = {
     fontFamily: style.fontFamily,
     textColor: style.textColor,
@@ -132,7 +132,9 @@ export function migrateCalloutV1ToV2(legacy: unknown): CalloutItem {
     binding: {
       kind: 'geographic',
       lngLat: old.lngLat || [0, 0],
-      altitude: old.altitude || 0,
+      altitude: typeof old.altitude === 'number'
+        ? (old.altitude > 150 ? 40 : Math.max(0, old.altitude))
+        : 0,
     },
     offset: [0, 0],
     anchor: 'bottom',

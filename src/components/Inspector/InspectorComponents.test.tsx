@@ -203,6 +203,7 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByLabelText('Longitude')).toHaveValue(-122.4783);
     expect(screen.getByLabelText('Latitude')).toHaveValue(37.8199);
     expect(screen.getByText('Altitude')).toBeInTheDocument();
+    expect(screen.getByText('100 px')).toBeInTheDocument();
     expect(screen.getByText('Anchor line')).toBeInTheDocument();
   });
 

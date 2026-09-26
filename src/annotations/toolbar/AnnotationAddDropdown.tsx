@@ -106,7 +106,7 @@ export const AnnotationAddDropdown = ({
       binding: {
         kind: 'geographic',
         lngLat,
-        altitude: style.supportsAltitude === false ? 0 : 100,
+        altitude: style.supportsAltitude === false ? 0 : 40,
       },
       offset: [0, 0],
       anchor: style.defaultAnchor ?? (style.category === 'marker' ? 'center' : 'bottom'),
