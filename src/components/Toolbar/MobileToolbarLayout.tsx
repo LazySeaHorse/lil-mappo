@@ -2,7 +2,7 @@ import React from 'react';
 import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
-import { CalloutAddDropdown } from './CalloutAddDropdown';
+import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -75,7 +75,7 @@ export function MobileToolbarLayout({
           <div className="flex items-center gap-2 w-full justify-between px-2">
             <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
             <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
-            <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
+            <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
             <ToolbarButton icon={<Video size={18} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" isPulsing={isCameraPulsing} />
             <IconButton variant="toolbar" size="sm" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />

@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RouteAddDropdown } from './RouteAddDropdown';
-import { CalloutAddDropdown } from './CalloutAddDropdown';
+import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
@@ -158,7 +158,7 @@ export function DesktopToolbarLayout({
       <div className="flex items-center gap-0.5">
         <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
         <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
-        <CalloutAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
+        <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
         <ToolbarButton icon={<Video size={16} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" isPulsing={isCameraPulsing} />
       </div>
 

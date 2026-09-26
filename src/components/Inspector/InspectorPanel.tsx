@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import { ProjectSettings } from "./ProjectSettings";
 import { RouteInspector } from "./RouteInspector";
 import { BoundaryInspector } from "./BoundaryInspector";
-import { CalloutInspector } from "./CalloutInspector";
+import { AnnotationInspector } from "@/annotations/inspector/AnnotationInspector";
 import { CameraKFInspector } from "./CameraKFInspector";
 import { AutoCamInspector } from "./AutoCamInspector";
 import type { RouteItem } from "@/store/types";
@@ -34,7 +34,7 @@ export default function InspectorPanel() {
     case "boundary":
       return <BoundaryInspector item={item} />;
     case "callout":
-      return <CalloutInspector item={item} />;
+      return <AnnotationInspector item={item} />;
     case "camera":
       return <CameraKFInspector item={item} />;
     default:

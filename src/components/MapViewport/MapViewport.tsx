@@ -13,52 +13,11 @@ import { toast } from 'sonner';
 import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 import { resolveClickTarget } from './mapUtils';
-import { CalloutMarker } from './CalloutMarker';
+import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
-import { useCalloutAnimationState } from './hooks/useCalloutAnimationState';
-import { useCalloutAltitudeOffsets } from './hooks/useCalloutAltitudeOffsets';
 import type { MapGesture } from '@/components/Onboarding/walkthroughState';
 
-interface CalloutMarkerListProps {
-  callouts: CalloutItem[];
-  selectedCalloutId: string | null;
-  mapRef: React.MutableRefObject<MapRef | null>;
-}
-
-function CalloutMarkerList({ callouts, selectedCalloutId, mapRef }: CalloutMarkerListProps) {
-  const playheadTime = useProjectStore((s) => s.playheadTime);
-  const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
-
-  const calloutAnimationStates = useCalloutAnimationState(
-    playheadTime,
-    isMoveModeActive,
-    selectedCalloutId,
-    callouts
-  );
-
-  const calloutAltitudeOffsets = useCalloutAltitudeOffsets(mapRef, callouts);
-
-  return (
-    <>
-      {callouts.map((callout) => {
-        const animState = calloutAnimationStates[callout.id];
-        return (
-          <CalloutMarker
-            key={callout.id}
-            callout={callout}
-            mapRef={mapRef}
-            isSelected={selectedCalloutId === callout.id}
-            isVisible={animState.isVisible}
-            phase={animState.phase}
-            progress={animState.progress}
-            altitudeOffset={calloutAltitudeOffsets[callout.id] ?? 0}
-          />
-        );
-      })}
-    </>
-  );
-}
 
 interface MapViewportProps {
   mapRef: React.MutableRefObject<MapRef | null>;
@@ -114,8 +73,8 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     const selectedId = s.selectedItemId;
     if (selectedId) {
       const item = s.items[selectedId];
-      if (item?.kind === 'callout' && item.lngLat[0] === 0 && item.lngLat[1] === 0) {
-        updateItem(selectedId, { lngLat: [e.lngLat.lng, e.lngLat.lat] });
+      if (item?.kind === 'callout' && item.binding.kind === 'geographic' && item.binding.lngLat[0] === 0 && item.binding.lngLat[1] === 0) {
+        updateItem(selectedId, { binding: { kind: 'geographic', lngLat: [e.lngLat.lng, e.lngLat.lat], altitude: 0 } });
       }
     }
   }, [updateItem]);
@@ -268,9 +227,9 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
           </>
         )}
 
-        {/* Callouts use Markers (DOM elements) — safe outside the styleLoaded gate.
-            CalloutMarkerList owns playheadTime so MapViewport never re-renders during playback. */}
-        <CalloutMarkerList
+        {/* Annotations use Markers (DOM elements) — safe outside the styleLoaded gate.
+            AnnotationLayer owns playheadTime so MapViewport never re-renders during playback. */}
+        <AnnotationLayer
           callouts={callouts}
           selectedCalloutId={selectedCalloutId}
           mapRef={mapRef}

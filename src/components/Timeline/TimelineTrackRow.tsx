@@ -57,7 +57,7 @@ const TimelineTrackRow = React.memo(({
       ? item.name
       : item.kind === 'boundary'
         ? item.placeName || 'Boundary'
-        : item.title;
+        : item.content.title;
 
   const keyframeDragRef = React.useRef<{
     startX: number;
