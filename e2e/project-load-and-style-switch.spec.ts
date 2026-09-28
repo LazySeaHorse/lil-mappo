@@ -176,7 +176,6 @@ async function seedPreviousProjectDraft(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("lil-mappo:quick-walkthrough:v1", "completed");
     window.localStorage.setItem("lil-mappo:mobile-warning:v1", "dismissed");
-    (window as unknown as { __E2E__?: boolean }).__E2E__ = true;
   });
 
   // Navigate to load the app and establish origin

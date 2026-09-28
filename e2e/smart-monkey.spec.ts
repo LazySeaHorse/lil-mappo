@@ -114,7 +114,6 @@ test.describe('UI Fuzzing & Monkey Testing Suite (Approach C)', () => {
       window.localStorage.setItem('lil-mappo:mobile-warning:v1', 'dismissed');
       // Set test API token so Mapbox initialization succeeds cleanly
       window.localStorage.setItem('lil-mappo:custom-mapbox-token:v1', 'pk.e2e-fuzz-token');
-      (window as unknown as { __E2E__?: boolean }).__E2E__ = true;
     });
 
     await page.goto('/');

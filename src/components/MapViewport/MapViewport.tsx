@@ -98,7 +98,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     const map = mapRef.current?.getMap();
     if (!map) return;
 
-    if (typeof window !== 'undefined' && (import.meta.env.DEV || (window as unknown as { __E2E__?: boolean }).__E2E__)) {
+    if (import.meta.env.DEV) {
       (window as unknown as { __mapInstance?: typeof map }).__mapInstance = map;
     }
 

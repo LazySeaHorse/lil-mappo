@@ -118,7 +118,6 @@ async function openEditor(page: Page) {
     window.localStorage.setItem("lil-mappo:quick-walkthrough:v1", "completed");
     window.localStorage.setItem("lil-mappo:mobile-warning:v1", "dismissed");
     window.localStorage.setItem("lil-mappo:custom-mapbox-token:v1", "pk.e2e-chaos-token");
-    (window as unknown as { __E2E__?: boolean }).__E2E__ = true;
   });
 
   await page.goto("/");

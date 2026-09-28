@@ -25,7 +25,7 @@ export const useProjectStore = create<ProjectStore>()(
   }))
 );
 
-if (typeof window !== 'undefined' && (import.meta.env.DEV || (window as unknown as { __E2E__?: boolean }).__E2E__)) {
+if (import.meta.env.DEV) {
   (window as unknown as { __projectStore?: typeof useProjectStore }).__projectStore = useProjectStore;
 }
 
