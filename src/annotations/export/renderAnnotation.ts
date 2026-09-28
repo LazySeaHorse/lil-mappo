@@ -23,7 +23,7 @@ export function compositeAnnotations(
     const callout = item as CalloutItem;
 
     const frame = prepareAnnotationFrame(callout, playheadTime);
-    if (!frame || callout.binding.kind !== 'geographic') continue;
+    if (!frame || frame.opacity <= 0 || callout.binding.kind !== 'geographic') continue;
 
     const projected = map.project(callout.binding.lngLat);
     drawAnnotationFrame(ctx, frame, projected.x, projected.y);

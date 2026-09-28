@@ -41,8 +41,8 @@ describe('prepareAnnotationFrame', () => {
     expect(prepareAnnotationFrame(makeCallout({ styleId: 'does-not-exist' }), 5)).toBeNull();
   });
 
-  it('returns null at the very start of a fade-in, when fully transparent', () => {
-    expect(prepareAnnotationFrame(makeCallout(), 0)).toBeNull();
+  it('keeps a frame at the very start of a fade-in, fully transparent', () => {
+    expect(prepareAnnotationFrame(makeCallout(), 0)?.opacity).toBe(0);
   });
 
   it('lifts the origin by the altitude and adds the offset', () => {

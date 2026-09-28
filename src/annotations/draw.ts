@@ -54,8 +54,9 @@ function formatCoordinates(lngLat: [number, number]): string {
 
 /**
  * Resolves everything needed to draw a callout at a playhead time.
- * Returns null when the callout is hidden (outside its time window, fully
- * transparent, unplaced, or using an unknown style).
+ * Returns null when the callout is not shown (outside its time window,
+ * unplaced, or using an unknown style). A frame may still be fully transparent,
+ * e.g. at the first instant of a fade-in.
  */
 export function prepareAnnotationFrame(callout: CalloutItem, playheadTime: number): AnnotationFrame | null {
   const { binding } = callout;
@@ -78,7 +79,6 @@ export function prepareAnnotationFrame(callout: CalloutItem, playheadTime: numbe
   const transitionName = phase === 'enter' ? callout.transition.enter : callout.transition.exit;
   const transition = evaluateTransition(transitionName, phase, progress);
   const opacity = transition.opacity * callout.opacity;
-  if (opacity <= 0) return null;
 
   const input = {
     content: {
