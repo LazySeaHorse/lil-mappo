@@ -226,7 +226,7 @@ export function clampCameraState(state: CameraState): CameraState {
   };
 }
 
-function interpolateTwoKeyframes(
+export function interpolateTwoKeyframes(
   kfA: CameraKeyframe,
   kfB: CameraKeyframe,
   t: number,
@@ -302,38 +302,6 @@ export function getCameraAtTimeFromKeyframes(
     pitch: last.camera.pitch,
     bearing: last.camera.bearing,
   });
-}
-
-export function interpolateCamera(
-  keyframes: CameraKeyframe[],
-  time: number,
-  getRouteCoords?: (routeId: string) => number[][] | null,
-): CameraState;
-export function interpolateCamera(
-  kfA: CameraKeyframe,
-  kfB: CameraKeyframe,
-  t: number,
-  getRouteCoords?: (routeId: string) => number[][] | null,
-): CameraState;
-export function interpolateCamera(
-  first: CameraKeyframe | CameraKeyframe[],
-  second: CameraKeyframe | number,
-  third?: number | ((routeId: string) => number[][] | null),
-  fourth?: (routeId: string) => number[][] | null,
-): CameraState {
-  if (Array.isArray(first)) {
-    const keyframes = first;
-    const time = second as number;
-    const getRouteCoords = typeof third === 'function' ? third : undefined;
-    const result = getCameraAtTimeFromKeyframes(keyframes, time, getRouteCoords);
-    return result ?? { center: [0, 0], zoom: 3, pitch: 0, bearing: 0 };
-  } else {
-    const kfA = first;
-    const kfB = second as CameraKeyframe;
-    const t = third as number;
-    const getRouteCoords = fourth;
-    return interpolateTwoKeyframes(kfA, kfB, t, getRouteCoords);
-  }
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────

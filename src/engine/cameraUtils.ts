@@ -1,7 +1,7 @@
 import mapboxgl from 'mapbox-gl';
-import { useProjectStore } from '@/store/useProjectStore';
-import type { RouteItem } from '@/store/types';
-import type { CameraOutput } from './cameraInterpolation';
+import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
+import type { CameraItem, RouteItem } from '@/store/types';
+import { getCameraAtTime, type CameraOutput } from './cameraInterpolation';
 
 export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0): void {
   if (cam.type === 'freeCam') {
@@ -54,4 +54,28 @@ export function getRouteCoords(routeId: string): number[][] | null {
 
 export function getRoutes(): RouteItem[] {
   return Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route') as RouteItem[];
+}
+
+/** The camera the project's camera track shows at `time`, or null if it has none. */
+export function getProjectCameraAt(time: number): CameraOutput | null {
+  const camera = useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem | undefined;
+  return getCameraAtTime(camera?.keyframes ?? [], time, getRouteCoords, getRoutes());
+}
+
+/** Whether a saved map centre has been set ([0, 0] means never set). */
+export function hasMapCenter(center: [number, number] | undefined): center is [number, number] {
+  return Boolean(center) && (center![0] !== 0 || center![1] !== 0);
+}
+
+/**
+ * Moves the map to what the project shows at `time`: the camera track when it
+ * has keyframes or an auto-camera, otherwise the project's saved map centre.
+ * Does nothing while the camera is disabled.
+ */
+export function syncMapToProject(map: mapboxgl.Map, time: number): void {
+  const { isCameraEnabled, mapCenter } = useProjectStore.getState();
+  if (!isCameraEnabled) return;
+  const cam = getProjectCameraAt(time);
+  if (cam) applyCamera(map, cam);
+  else if (hasMapCenter(mapCenter)) map.jumpTo({ center: mapCenter });
 }

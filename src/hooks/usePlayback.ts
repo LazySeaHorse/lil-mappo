@@ -1,9 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import { getCameraAtTime } from '@/engine/cameraInterpolation';
-import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
-import type { CameraItem } from '@/store/types';
+import { syncMapToProject } from '@/engine/cameraUtils';
 
 export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.MutableRefObject<MapRef | null>) {
   const rafRef = useRef<number>(0);
@@ -12,25 +10,11 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
 
   useEffect(() => {
 
+    // The initial sync happens in MapViewport once the map is ready.
     const driveCamera = (time: number) => {
-      const store = useProjectStore.getState();
-      if (!store.isCameraEnabled) return;
-      const camItem = store.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-      if (!camItem || !mapRef.current) return;
-
-      const routes = getRoutes();
-      const cam = getCameraAtTime(camItem.keyframes, time, getRouteCoords, routes);
       const map = mapRef.current?.getMap();
-      if (!map) return;
-
-      if (cam) {
-        applyCamera(map, cam);
-      } else if (store.mapCenter && (store.mapCenter[0] !== 0 || store.mapCenter[1] !== 0)) {
-        map.jumpTo({ center: store.mapCenter });
-      }
+      if (map) syncMapToProject(map, time);
     };
-
-    driveCamera(useProjectStore.getState().playheadTime);
 
     const unsub = useProjectStore.subscribe((state, prev) => {
       if (state.isPlaying && !prev.isPlaying) {

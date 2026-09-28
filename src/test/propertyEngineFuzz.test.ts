@@ -8,7 +8,7 @@ import {
   truncateCoordinates,
   extractLineStringsFromGeometry,
 } from '@/engine/geoUtils';
-import { interpolateCamera, getCameraAtTimeFromKeyframes } from '@/engine/cameraInterpolation';
+import { interpolateTwoKeyframes, getCameraAtTimeFromKeyframes } from '@/engine/cameraInterpolation';
 import { applyEasing } from '@/engine/easings';
 import { getLineSegment, getAnimatedLine } from '@/engine/lineAnimation';
 import {
@@ -320,7 +320,7 @@ describe('Property-Based Math & Engine Fuzzing', () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('Property 3: Camera Interpolation Invariants', () => {
-    it('interpolateCamera outputs strictly finite zoom [0, 26], pitch [0, 90], finite bearing, and valid coordinates in [-180, 180] x [-90, 90]', () => {
+    it('getCameraAtTimeFromKeyframes outputs strictly finite zoom [0, 26], pitch [0, 90], finite bearing, and valid coordinates in [-180, 180] x [-90, 90]', () => {
       const keyframesArrayArbitrary = fc.array(validKeyframeArbitrary(0, 100), {
         minLength: 1,
         maxLength: 15,
@@ -329,7 +329,7 @@ describe('Property-Based Math & Engine Fuzzing', () => {
 
       fc.assert(
         fc.property(keyframesArrayArbitrary, timeArbitrary, (keyframes, t) => {
-          const state = interpolateCamera(keyframes, t);
+          const state = getCameraAtTimeFromKeyframes(keyframes, t)!;
 
           expect(state).toBeDefined();
           expect(Number.isFinite(state.zoom)).toBe(true);
@@ -370,7 +370,7 @@ describe('Property-Based Math & Engine Fuzzing', () => {
 
       fc.assert(
         fc.property(kfArbitrary, kfArbitrary, normalizedTArbitrary, (kfA, kfB, t) => {
-          const state = interpolateCamera(kfA, kfB, t);
+          const state = interpolateTwoKeyframes(kfA, kfB, t);
 
           expect(Number.isFinite(state.zoom)).toBe(true);
           expect(state.zoom).toBeGreaterThanOrEqual(0);
@@ -403,14 +403,12 @@ describe('Property-Based Math & Engine Fuzzing', () => {
       };
 
       // Querying before, at, and after single keyframe
-      expect(interpolateCamera([singleKf], 0).zoom).toBe(5);
-      expect(interpolateCamera([singleKf], 5).zoom).toBe(5);
-      expect(interpolateCamera([singleKf], 10).zoom).toBe(5);
+      expect(getCameraAtTimeFromKeyframes([singleKf], 0)?.zoom).toBe(5);
+      expect(getCameraAtTimeFromKeyframes([singleKf], 5)?.zoom).toBe(5);
+      expect(getCameraAtTimeFromKeyframes([singleKf], 10)?.zoom).toBe(5);
 
-      // Empty array fallback
-      const emptyResult = interpolateCamera([], 5);
-      expect(emptyResult.zoom).toBeGreaterThanOrEqual(0);
-      expect(emptyResult.pitch).toBeGreaterThanOrEqual(0);
+      // No keyframes: no camera to apply
+      expect(getCameraAtTimeFromKeyframes([], 5)).toBeNull();
 
       // Co-located timestamps (division by zero protection)
       const kfSameTime1: CameraKeyframe = {
@@ -425,7 +423,7 @@ describe('Property-Based Math & Engine Fuzzing', () => {
         time: 5,
         camera: { center: [50, 50], zoom: 10, pitch: 45, bearing: 180, altitude: null },
       };
-      const coLocatedResult = interpolateCamera([kfSameTime1, kfSameTime2], 5);
+      const coLocatedResult = getCameraAtTimeFromKeyframes([kfSameTime1, kfSameTime2], 5)!;
       expect(Number.isFinite(coLocatedResult.zoom)).toBe(true);
       expect(Number.isNaN(coLocatedResult.zoom)).toBe(false);
     });
