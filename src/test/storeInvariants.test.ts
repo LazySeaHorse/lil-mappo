@@ -68,7 +68,7 @@ describe('validateStoreInvariants', () => {
   });
 
   it('catches invalid camera pitch / coordinates', () => {
-    const state = {
+    const state: MinimalProjectState = {
       ...healthyState,
       cameraItem: {
         id: 'camera-track',

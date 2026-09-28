@@ -164,6 +164,7 @@ describe('imageCircleStyle', () => {
     const noTitleInput: StyleRenderInput<ImageCircleSettings> = {
       ...baseInput,
       content: {
+        title: '',
         image: 'https://example.com/fuji.jpg',
       },
     };
@@ -218,7 +219,7 @@ describe('imageCircleStyle', () => {
   it('measures dimensions accurately without title', () => {
     const noTitleInput: StyleRenderInput<ImageCircleSettings> = {
       ...baseInput,
-      content: {},
+      content: { title: '' },
     };
     const dims = imageCircleStyle.measure(noTitleInput);
     // circleOuterSize = 54

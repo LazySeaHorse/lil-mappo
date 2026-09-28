@@ -159,7 +159,7 @@ describe('pinMarkerStyle', () => {
     it('omits title text node when title is missing or empty', () => {
       const sceneWithoutTitle = pinMarkerStyle.render({
         ...baseInput,
-        content: { icon: '★' },
+        content: { title: '', icon: '★' },
       });
       if (sceneWithoutTitle.type !== 'group') return;
       expect(sceneWithoutTitle.children).toHaveLength(3);
@@ -192,7 +192,7 @@ describe('pinMarkerStyle', () => {
     it('measures width = size * 0.7 + strokeWidth * 2 and height = size when no title', () => {
       const measured = pinMarkerStyle.measure({
         ...baseInput,
-        content: { icon: '📍' },
+        content: { title: '', icon: '📍' },
       });
       expect(measured.width).toBeCloseTo(36 * 0.7 + 2 * 2); // 29.2
       expect(measured.height).toBe(36);
@@ -212,7 +212,7 @@ describe('pinMarkerStyle', () => {
           size: 50,
           strokeWidth: 3,
         },
-        content: { icon: '📍' },
+        content: { title: '', icon: '📍' },
       });
       expect(customMeasured.width).toBeCloseTo(50 * 0.7 + 3 * 2); // 41
       expect(customMeasured.height).toBe(50);

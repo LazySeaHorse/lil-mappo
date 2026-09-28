@@ -71,11 +71,11 @@ const sampleBoundary: BoundaryItem = {
 
 describe("BoundaryRenderer animation style switching and state management", () => {
   it("updates stroke source to full geometry when switching mid-draw to Off", () => {
-    const { map } = createMapDouble();
+    const { map, sources } = createMapDouble();
     const renderer = new BoundaryRenderer(map, sampleBoundary);
     renderer.mount();
 
-    const strokeSource = map.getSource("boundary-stroke-test-boundary")!;
+    const strokeSource = sources.get("boundary-stroke-test-boundary")!;
 
     // 1. Render at t=5s (50% progress in 'draw' mode)
     renderer.render(5);
@@ -98,15 +98,15 @@ describe("BoundaryRenderer animation style switching and state management", () =
     // strokeSource must have been updated to the full polygon geometry!
     const fullCallData = strokeSource.setData.mock.calls.at(-1)![0];
     expect(fullCallData.features[0].geometry.type).toBe("Polygon");
-    expect(fullCallData.features[0].geometry.coordinates).toEqual(sampleBoundary.geojson!.coordinates);
+    expect(fullCallData.features[0].geometry.coordinates).toEqual((sampleBoundary.geojson as GeoJSON.Polygon).coordinates);
   });
 
   it("updates stroke source to full geometry when switching mid-draw to Fade-in", () => {
-    const { map } = createMapDouble();
+    const { map, sources } = createMapDouble();
     const renderer = new BoundaryRenderer(map, sampleBoundary);
     renderer.mount();
 
-    const strokeSource = map.getSource("boundary-stroke-test-boundary")!;
+    const strokeSource = sources.get("boundary-stroke-test-boundary")!;
 
     // 1. Render at t=5s (50% progress in 'draw' mode)
     renderer.render(5);
@@ -125,11 +125,11 @@ describe("BoundaryRenderer animation style switching and state management", () =
     // strokeSource must have been updated to the full polygon geometry!
     const fadeCallData = strokeSource.setData.mock.calls.at(-1)![0];
     expect(fadeCallData.features[0].geometry.type).toBe("Polygon");
-    expect(fadeCallData.features[0].geometry.coordinates).toEqual(sampleBoundary.geojson!.coordinates);
+    expect(fadeCallData.features[0].geometry.coordinates).toEqual((sampleBoundary.geojson as GeoJSON.Polygon).coordinates);
   });
 
   it("populates full geometry and displays boundary when switched to Off while at t=0", () => {
-    const { map, layers } = createMapDouble();
+    const { map, layers, sources } = createMapDouble();
     const delayedBoundary: BoundaryItem = {
       ...sampleBoundary,
       startTime: 2,
@@ -138,7 +138,7 @@ describe("BoundaryRenderer animation style switching and state management", () =
     const renderer = new BoundaryRenderer(map, delayedBoundary);
     renderer.mount();
 
-    const strokeSource = map.getSource("boundary-stroke-test-boundary")!;
+    const strokeSource = sources.get("boundary-stroke-test-boundary")!;
 
     // Render at t=0 (before start)
     renderer.render(0);
@@ -159,7 +159,7 @@ describe("BoundaryRenderer animation style switching and state management", () =
     // strokeSource must contain the full polygon geometry
     const activeData = strokeSource.setData.mock.calls.at(-1)![0];
     expect(activeData.features[0].geometry.type).toBe("Polygon");
-    expect(activeData.features[0].geometry.coordinates).toEqual(sampleBoundary.geojson!.coordinates);
+    expect(activeData.features[0].geometry.coordinates).toEqual((sampleBoundary.geojson as GeoJSON.Polygon).coordinates);
 
     // Stroke layer opacity must be 1 (visible)
     const strokeLayer = layers.get("boundary-stroke-layer-test-boundary");
@@ -190,7 +190,7 @@ describe("BoundaryRenderer animation style switching and state management", () =
   });
 
   it("does not redundantly call setData every frame when stroke is static", () => {
-    const { map } = createMapDouble();
+    const { map, sources } = createMapDouble();
     const staticBoundary: BoundaryItem = {
       ...sampleBoundary,
       style: {
@@ -201,7 +201,7 @@ describe("BoundaryRenderer animation style switching and state management", () =
     const renderer = new BoundaryRenderer(map, staticBoundary);
     renderer.mount();
 
-    const strokeSource = map.getSource("boundary-stroke-test-boundary")!;
+    const strokeSource = sources.get("boundary-stroke-test-boundary")!;
 
     renderer.render(2);
     const countAfterFirstRender = strokeSource.setData.mock.calls.length;

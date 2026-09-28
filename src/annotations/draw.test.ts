@@ -125,13 +125,13 @@ describe('annotation assets', () => {
   });
 
   it('loads fonts for every callout before export, including ones not yet on screen', async () => {
-    const load = vi.fn(() => Promise.resolve([]));
+    const load = vi.fn((_font: string) => Promise.resolve([]));
     vi.stubGlobal('document', Object.assign(Object.create(document), { fonts: { load } }));
 
     const later = makeCallout({ id: 'c2', startTime: 20, endTime: 30, settings: { fontFamily: 'Lexend' } });
     await loadAnnotationAssets({ c1: makeCallout(), c2: later }, ['c1', 'c2']);
 
-    const loaded = load.mock.calls.map(([font]) => font as string);
+    const loaded = load.mock.calls.map(([font]) => font);
     expect(loaded.some((f) => f.includes("'Outfit'"))).toBe(true);
     expect(loaded.some((f) => f.includes("'Lexend'"))).toBe(true);
   });
