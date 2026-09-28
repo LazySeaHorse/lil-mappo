@@ -244,9 +244,6 @@ test.describe("5 Golden E2E Journeys", () => {
 
     // 4. Close dialogs cleanly
     await page.keyboard.press("Escape");
-    if (await upgradeDialog.isVisible()) {
-      await upgradeDialog.getByRole("button", { name: "Close" }).click();
-    }
     await expect(upgradeDialog).not.toBeVisible();
   });
 

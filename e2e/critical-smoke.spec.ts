@@ -330,9 +330,6 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
   const exportDialog = page.getByRole("dialog", { name: "Export" });
   await expect(exportDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  if (await exportDialog.isVisible()) {
-    await exportDialog.getByRole("button", { name: "Close" }).click();
-  }
   await expect(exportDialog).not.toBeVisible();
 
   await openMenu(page);
@@ -340,9 +337,6 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
   const newProjectDialog = page.getByRole("dialog", { name: "New project" });
   await expect(newProjectDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  if (await newProjectDialog.isVisible()) {
-    await newProjectDialog.getByRole("button", { name: "Close" }).click();
-  }
   await expect(newProjectDialog).not.toBeVisible();
 
   await openMenu(page);
@@ -350,9 +344,6 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
   const settingsDialog = page.getByRole("dialog", { name: "Settings" });
   await expect(settingsDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  if (await settingsDialog.isVisible()) {
-    await settingsDialog.getByRole("button", { name: "Close" }).click();
-  }
   await expect(settingsDialog).not.toBeVisible();
 
   await openMenu(page);
@@ -360,9 +351,6 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
   const signInDialog = page.getByRole("dialog", { name: "Sign in" });
   await expect(signInDialog).toBeVisible();
   await page.keyboard.press("Escape");
-  if (await signInDialog.isVisible()) {
-    await signInDialog.getByRole("button", { name: "Close" }).click();
-  }
   await expect(signInDialog).not.toBeVisible();
 });
 
