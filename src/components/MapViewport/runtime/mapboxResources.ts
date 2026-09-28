@@ -46,7 +46,9 @@ export function mutateMap(
  * return false until the worker finishes processing the source cache.
  *
  * Checking `style._loaded` reflects whether the stylesheet itself is loaded and ready,
- * matching Mapbox's internal `_checkLoaded()` guard.
+ * matching Mapbox's internal `_checkLoaded()` guard. Mapbox has no public equivalent;
+ * react-map-gl's Source and Layer components gate on the same field. Re-check this
+ * when upgrading mapbox-gl.
  */
 export function isStyleReady(map: MapboxMap): boolean {
   if (map.isStyleLoaded()) return true;
