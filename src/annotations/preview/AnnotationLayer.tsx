@@ -13,12 +13,13 @@ import type { MarkerDragEvent } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
 import {
+  collectSceneAssets,
   drawAnnotationFrame,
   getFrameBounds,
+  loadSceneAssets,
   prepareAnnotationFrame,
   type AnnotationFrame,
 } from '@/annotations/draw';
-import { preloadImage } from '@/annotations/scene/renderer';
 
 // ─── Canvas marker ────────────────────────────────────────────────────────────
 
@@ -30,24 +31,23 @@ interface AnnotationCanvasMarkerProps {
 
 function AnnotationCanvasMarker({ callout, lngLat, frame }: AnnotationCanvasMarkerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [imageLoads, setImageLoads] = useState(0);
-  const image = callout.content.image;
+  const [assetLoads, setAssetLoads] = useState(0);
 
-  // Images load asynchronously; redraw once the callout's image is available.
+  // Canvas text doesn't trigger web font downloads and images load
+  // asynchronously: load what this frame uses, then redraw.
+  const assets = collectSceneAssets(frame.scene);
+  const assetKey = [...assets.fonts, ...assets.images].join('|');
   useEffect(() => {
-    if (!image) return;
     let active = true;
-    preloadImage(image)
-      .then(() => {
-        if (active) setImageLoads((n) => n + 1);
-      })
-      .catch(() => {
-        // The style draws its placeholder when the image cannot load.
-      });
+    void loadSceneAssets(assets).then(() => {
+      if (active) setAssetLoads((n) => n + 1);
+    });
     return () => {
       active = false;
     };
-  }, [image]);
+    // assets is derived from assetKey; re-run only when the set of assets changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetKey]);
 
   const bounds = getFrameBounds(frame);
   const width = bounds.maxX - bounds.minX;
@@ -62,7 +62,7 @@ function AnnotationCanvasMarker({ callout, lngLat, frame }: AnnotationCanvasMark
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawAnnotationFrame(ctx, frame, -bounds.minX, -bounds.minY);
-  }, [frame, dpr, bounds.minX, bounds.minY, imageLoads]);
+  }, [frame, dpr, bounds.minX, bounds.minY, assetLoads]);
 
   return (
     <Marker

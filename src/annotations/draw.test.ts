@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import '@/annotations/styles';
-import { getFrameBounds, prepareAnnotationFrame, MAX_ALTITUDE_PX } from './draw';
+import {
+  collectSceneAssets,
+  getFrameBounds,
+  loadAnnotationAssets,
+  prepareAnnotationFrame,
+  MAX_ALTITUDE_PX,
+} from './draw';
 import { getStyle } from './registry';
 import type { CalloutItem } from '@/store/types';
 
@@ -99,5 +105,34 @@ describe('getFrameBounds', () => {
     expect(height).toBeGreaterThan(48);
     // Topo cards sit with their bottom edge on the origin.
     expect(getFrameBounds(frame).minY).toBeLessThanOrEqual(frame.originY - height);
+  });
+});
+
+describe('annotation assets', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('collects the exact fonts and images a scene draws', () => {
+    const frame = prepareAnnotationFrame(
+      makeCallout({ styleId: 'image-circle', content: { title: 'Ana', image: 'https://example.com/a.png' } }),
+      5,
+    )!;
+    const assets = collectSceneAssets(frame.scene);
+    expect(assets.images).toEqual(['https://example.com/a.png']);
+    expect(assets.fonts.length).toBeGreaterThan(0);
+    expect(assets.fonts.every((f) => f.includes("'Outfit'"))).toBe(true);
+  });
+
+  it('loads fonts for every callout before export, including ones not yet on screen', async () => {
+    const load = vi.fn(() => Promise.resolve([]));
+    vi.stubGlobal('document', Object.assign(Object.create(document), { fonts: { load } }));
+
+    const later = makeCallout({ id: 'c2', startTime: 20, endTime: 30, settings: { fontFamily: 'Lexend' } });
+    await loadAnnotationAssets({ c1: makeCallout(), c2: later }, ['c1', 'c2']);
+
+    const loaded = load.mock.calls.map(([font]) => font as string);
+    expect(loaded.some((f) => f.includes("'Outfit'"))).toBe(true);
+    expect(loaded.some((f) => f.includes("'Lexend'"))).toBe(true);
   });
 });

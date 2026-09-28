@@ -6,6 +6,7 @@
  */
 
 import type { SceneNode, RectNode } from '../types';
+import { buildFont } from './textMetrics';
 
 // ─── Image cache ──────────────────────────────────────────────────────────────
 
@@ -132,8 +133,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
     case 'text': {
       if (node.opacity != null) ctx.globalAlpha *= node.opacity;
 
-      const weight = node.fontWeight ?? 400;
-      ctx.font = `${weight} ${node.fontSize}px '${node.fontFamily}', sans-serif`;
+      ctx.font = buildFont(node.fontSize, node.fontFamily, node.fontWeight ?? 400);
       ctx.textAlign = node.align ?? 'left';
       ctx.textBaseline = node.baseline ?? 'top';
       // Styles size their cards with letter spacing included (see textMetrics).

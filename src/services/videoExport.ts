@@ -6,6 +6,7 @@ import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime } from '@/engine/cameraInterpolation';
 import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
+import { loadAnnotationAssets } from '@/annotations/draw';
 import type { RenderConfig } from '@/types/render';
 import {
   EncodedPacket,
@@ -399,6 +400,8 @@ export async function runExport(
         // Wait for map ready
         await waitForMapIdle(map, { timeoutMs: 3_000, signal: abortSignal });
         await document.fonts.ready;
+        const { items: annotationItems, itemOrder: annotationOrder } = useProjectStore.getState();
+        await loadAnnotationAssets(annotationItems, annotationOrder);
 
         // Phase 1: pre-warm tile cache
         await prewarmTileCache(map, getRouteCoords, getRoutes, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);

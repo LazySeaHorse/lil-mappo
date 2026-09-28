@@ -1,6 +1,7 @@
 import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
+import { loadAnnotationAssets } from '@/annotations/draw';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
@@ -36,6 +37,8 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
       toast.loading('Rendering high-res tiles...', { id });
       await waitForMapIdle(map, { timeoutMs: 3_000 });
       await document.fonts.ready;
+      const { items: annotationItems, itemOrder: annotationOrder } = useProjectStore.getState();
+      await loadAnnotationAssets(annotationItems, annotationOrder);
 
       const compCanvas = document.createElement('canvas');
       compCanvas.width = width;

@@ -9,11 +9,12 @@
  * from the origin down to the ground point.
  */
 
-import type { CalloutItem } from '@/store/types';
+import type { CalloutItem, TimelineItem } from '@/store/types';
 import type { ConnectorConfig, SceneNode } from './types';
 import { computePhase, evaluateTransition } from './animation';
 import { getStyle, validateSettings } from './registry';
-import { renderScene } from './scene/renderer';
+import { preloadImage, renderScene } from './scene/renderer';
+import { buildFont } from './scene/textMetrics';
 
 /** Room around the measured style box for shadows and glow. */
 const EFFECT_PADDING = 24;
@@ -169,4 +170,58 @@ export function drawAnnotationFrame(
   ctx.scale(frame.scale, frame.scale);
   renderScene(ctx, frame.scene);
   ctx.restore();
+}
+
+export interface SceneAssets {
+  /** CSS font shorthands used by text nodes, e.g. "600 14px 'Outfit', sans-serif". */
+  fonts: string[];
+  /** Image URLs used by image nodes. */
+  images: string[];
+}
+
+/** Fonts and images a scene needs before it can be drawn faithfully. */
+export function collectSceneAssets(scene: SceneNode): SceneAssets {
+  const fonts = new Set<string>();
+  const images = new Set<string>();
+  const visit = (node: SceneNode) => {
+    if (node.type === 'group') node.children.forEach(visit);
+    else if (node.type === 'text') fonts.add(buildFont(node.fontSize, node.fontFamily, node.fontWeight ?? 400));
+    else if (node.type === 'image') images.add(node.src);
+  };
+  visit(scene);
+  return { fonts: [...fonts], images: [...images] };
+}
+
+/**
+ * Loads the given fonts and images. Canvas text does not trigger web font
+ * downloads by itself, and images load asynchronously, so both must be ready
+ * before drawing frames that should look final. Failures are ignored: the
+ * renderer falls back to system fonts and image placeholders.
+ */
+export async function loadSceneAssets({ fonts, images }: SceneAssets): Promise<void> {
+  const fontLoads = typeof document !== 'undefined' && document.fonts
+    ? fonts.map((font) => document.fonts.load(font).catch(() => []))
+    : [];
+  const imageLoads = images.map((src) => preloadImage(src).catch(() => null));
+  await Promise.all([...fontLoads, ...imageLoads]);
+}
+
+/** Loads every font and image the project's callouts draw, for export. */
+export async function loadAnnotationAssets(
+  items: Record<string, TimelineItem>,
+  itemOrder: string[],
+): Promise<void> {
+  const fonts = new Set<string>();
+  const images = new Set<string>();
+  for (const id of itemOrder) {
+    const item = items[id];
+    if (item?.kind !== 'callout') continue;
+    // Mid-point of the time window: fully entered, so the scene is complete.
+    const frame = prepareAnnotationFrame(item, (item.startTime + item.endTime) / 2);
+    if (!frame) continue;
+    const assets = collectSceneAssets(frame.scene);
+    assets.fonts.forEach((f) => fonts.add(f));
+    assets.images.forEach((src) => images.add(src));
+  }
+  await loadSceneAssets({ fonts: [...fonts], images: [...images] });
 }
