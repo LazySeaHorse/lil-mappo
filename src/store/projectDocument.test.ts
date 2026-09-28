@@ -268,4 +268,51 @@ describe('project document persistence boundary', () => {
       }
     });
   });
+
+  describe('v1 → v2 plane auto-camera migration', () => {
+    function v1DocumentWithRoute(type: 'car' | 'plane', distance: number, height: number) {
+      const { items: _items, itemOrder: _order, ...rest } = toProjectDocument(createProject());
+      const routeItem = {
+        kind: 'route', id: 'r1', name: 'Flight',
+        geojson: { type: 'FeatureCollection', features: [] },
+        startTime: 0, endTime: 10,
+        style: {
+          color: '#fff', width: 4, glow: false, glowColor: '#fff', glowWidth: 12,
+          trailFade: false, trailFadeLength: 0.3, dashPattern: null,
+        },
+        easing: 'linear',
+        calculation: {
+          mode: 'flight', startPoint: [0, 0], endPoint: [1, 1],
+          vehicle: { enabled: true, type, modelId: '', scale: 1 },
+        },
+        autoCam: {
+          enabled: true, mode: 'cinematic', pitch: 65, smoothing: 0.3,
+          distance, height, zoom: 14, lookAhead: 300,
+        },
+      };
+      return {
+        ...rest,
+        schemaVersion: 1,
+        items: { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] }, r1: routeItem },
+        itemOrder: ['r1'],
+      };
+    }
+
+    const autoCamOf = (doc: unknown) => {
+      const r = parseProjectDocument(doc).items.r1;
+      return r.kind === 'route' ? r.autoCam : undefined;
+    };
+
+    it('scales plane follow framing saved before the plane model was enlarged', () => {
+      expect(autoCamOf(v1DocumentWithRoute('plane', 500, 300))).toMatchObject({ distance: 50000, height: 30000 });
+    });
+
+    it('leaves plane framing already in the plane range untouched', () => {
+      expect(autoCamOf(v1DocumentWithRoute('plane', 50000, 30000))).toMatchObject({ distance: 50000, height: 30000 });
+    });
+
+    it('leaves car routes untouched', () => {
+      expect(autoCamOf(v1DocumentWithRoute('car', 500, 300))).toMatchObject({ distance: 500, height: 300 });
+    });
+  });
 });

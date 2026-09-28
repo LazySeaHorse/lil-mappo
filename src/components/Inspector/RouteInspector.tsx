@@ -1,7 +1,8 @@
 import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
-import type { RouteItem, EasingName, AutoCamConfig } from '@/store/types';
+import type { RouteItem } from '@/store/types';
+import { defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
 import { useSubscription } from '@/hooks/useSubscription';
@@ -30,18 +31,6 @@ import {
 type RouteLineStyle = 'solid' | 'dashed' | 'dotted';
 type RouteAnimationType = NonNullable<RouteItem['style']['animationType']>;
 
-const AUTO_CAM_DEFAULTS: AutoCamConfig = {
-  enabled: true,
-  mode: 'cinematic',
-  pitch: 65,
-  smoothing: 0.3,
-  distance: 500,
-  height: 300,
-  zoom: 14,
-  lookAhead: 300,
-  easing: 'easeInOutSine' as EasingName,
-};
-
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
   const { data: sub } = useSubscription();
@@ -63,32 +52,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       modelId: '',
       scale: 1.0,
     };
-    const newVehicle = { ...currentVehicle, ...patch };
-    const oldType = currentVehicle.type;
-    const newType = newVehicle.type;
-
-    let autoCamPatch: Partial<AutoCamConfig> | undefined;
-    if (item.autoCam && oldType !== newType) {
-      if (newType === 'plane' && oldType !== 'plane') {
-        autoCamPatch = {
-          distance: item.autoCam.distance < 10000 ? item.autoCam.distance * 100 : item.autoCam.distance,
-          height: item.autoCam.height < 5000 ? item.autoCam.height * 100 : item.autoCam.height,
-        };
-      } else if (oldType === 'plane' && newType !== 'plane') {
-        autoCamPatch = {
-          distance: item.autoCam.distance >= 10000 ? Math.max(100, Math.round(item.autoCam.distance / 100)) : item.autoCam.distance,
-          height: item.autoCam.height >= 5000 ? Math.max(50, Math.round(item.autoCam.height / 100)) : item.autoCam.height,
-        };
-      }
-    }
-
-    u({ 
-      calculation: { 
-        ...calc, 
-        vehicle: newVehicle 
-      },
-      ...(autoCamPatch ? { autoCam: { ...item.autoCam, ...autoCamPatch } } : {}),
-    });
+    u(vehicleChangePatch(item, calc, { ...currentVehicle, ...patch }));
   };
 
   const handleAutoCamToggle = (enabled: boolean) => {
@@ -123,21 +87,10 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         return;
       }
 
-      const isPlane = (calc.vehicle?.type || item.calculation?.vehicle?.type) === 'plane';
-      const existingCam = item.autoCam;
-      const initialDistance = isPlane
-        ? (existingCam && existingCam.distance >= 10000 ? existingCam.distance : AUTO_CAM_DEFAULTS.distance * 100)
-        : (existingCam && existingCam.distance <= 3000 ? existingCam.distance : AUTO_CAM_DEFAULTS.distance);
-      const initialHeight = isPlane
-        ? (existingCam && existingCam.height >= 5000 ? existingCam.height : AUTO_CAM_DEFAULTS.height * 100)
-        : (existingCam && existingCam.height <= 2000 ? existingCam.height : AUTO_CAM_DEFAULTS.height);
-
       u({
         autoCam: {
-          ...AUTO_CAM_DEFAULTS,
-          ...(existingCam ?? {}),
-          distance: initialDistance,
-          height: initialHeight,
+          ...defaultAutoCamFor(calc.vehicle?.type),
+          ...(item.autoCam ?? {}),
           enabled: true,
         },
       });

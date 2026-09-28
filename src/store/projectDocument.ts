@@ -8,7 +8,8 @@ import {
   isLegacyCallout,
   migrateCalloutV1ToV2,
 } from '@/annotations/migration';
-import type { Project } from './types';
+import type { Project, RouteItem } from './types';
+import { getAutoCamRanges, rescaleAutoCam } from '@/config/vehicles';
 
 export const PROJECT_SCHEMA_VERSION = 2 as const;
 export const CAMERA_TRACK_ID = 'camera-track';
@@ -246,6 +247,20 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
   return { ...document, schemaVersion: 1, items };
 };
 
+/**
+ * v2 draws the plane model 100x larger (MODEL_BASE_SCALE) and frames its
+ * auto-camera 100x further out. Plane routes saved before that change still
+ * have follow distances in the ground range, which would put the camera inside
+ * the enlarged model. Distances already in the plane range were saved after
+ * the change and are left alone; the two ranges do not overlap.
+ */
+function migratePlaneAutoCam(value: unknown): unknown {
+  const route = value as Partial<RouteItem> | null;
+  if (route?.kind !== 'route' || route.calculation?.vehicle?.type !== 'plane' || !route.autoCam) return value;
+  if (route.autoCam.distance > getAutoCamRanges('car').distance.max) return value;
+  return { ...route, autoCam: rescaleAutoCam(route.autoCam, 'car', 'plane') };
+}
+
 /** Migrates schema v1 callout items to the annotation-based v2 format. */
 const migrateProjectV1ToV2: ProjectMigration = (input) => {
   const document = legacyDocumentEnvelopeSchema.parse(input);
@@ -259,7 +274,7 @@ const migrateProjectV1ToV2: ProjectMigration = (input) => {
         const viewZoom = cameraZoomAt(camera?.keyframes, (startTime + endTime) / 2) ?? DEFAULT_VIEW_ZOOM;
         return [id, migrateCalloutV1ToV2(value, viewZoom)];
       }
-      return [id, value];
+      return [id, migratePlaneAutoCam(value)];
     }),
   );
 

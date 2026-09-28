@@ -15,6 +15,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
 import { SwitchRow, SliderField } from './InspectorShared';
 import { buildRouteFeatureCollection } from '@/engine/routeCurves';
+import { vehicleChangePatch } from '@/config/vehicles';
 
 interface InspectorSearchFieldProps {
   label: string;
@@ -214,7 +215,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
       ? { ...currentVehicle, enabled: true, type: 'plane' as const }
       : currentVehicle;
 
-    updateItem(item.id, { calculation: { ...calc, mode, vehicle } });
+    updateItem(item.id, vehicleChangePatch(activeItem, { ...calc, mode }, vehicle));
   };
 
   const calculateRoute = async (saveToItem: boolean) => {

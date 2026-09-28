@@ -8,6 +8,7 @@ import { formatPercent } from './inspectorValues';
 import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { Video, VideoOff, Compass, Activity, Car, Plane, ArrowUpToLine, ZoomIn, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAutoCamRanges } from '@/config/vehicles';
 
 export function AutoCamInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
@@ -23,30 +24,11 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
     setSelectedAutoCamRouteId(null);
   };
 
-  const isPlane = item.calculation?.vehicle?.type === 'plane';
+  const vehicleType = item.calculation?.vehicle?.type;
+  const isPlane = vehicleType === 'plane';
+  const ranges = getAutoCamRanges(vehicleType);
+  const formatDistance = (v: number) => (isPlane ? `${(v / 1000).toLocaleString()} km` : `${v} m`);
 
-  React.useEffect(() => {
-    if (config.mode !== 'cinematic') return;
-    if (isPlane) {
-      const needsDistance = config.distance < 10000;
-      const needsHeight = config.height < 5000;
-      if (needsDistance || needsHeight) {
-        u({
-          distance: needsDistance ? config.distance * 100 : config.distance,
-          height: needsHeight ? config.height * 100 : config.height,
-        });
-      }
-    } else {
-      const needsDistance = config.distance > 3000;
-      const needsHeight = config.height > 2000;
-      if (needsDistance || needsHeight) {
-        u({
-          distance: needsDistance ? Math.max(100, Math.round(config.distance / 100)) : config.distance,
-          height: needsHeight ? Math.max(50, Math.round(config.height / 100)) : config.height,
-        });
-      }
-    }
-  }, [isPlane]);
 
   const footer = (
     <Button
@@ -182,58 +164,34 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
           </div>
         </InspectorSection>
 
-        {config.mode === 'cinematic' && (() => {
-          const scale = isPlane ? 100 : 1;
-          const minDistance = 100 * scale;
-          const maxDistance = 3000 * scale;
-          const stepDistance = 50 * scale;
-          const minHeight = 50 * scale;
-          const maxHeight = 2000 * scale;
-          const stepHeight = 50 * scale;
-
-          const distanceVal = isPlane && config.distance < minDistance
-            ? config.distance * scale
-            : !isPlane && config.distance > maxDistance
-              ? Math.max(minDistance, Math.round(config.distance / 100))
-              : config.distance;
-
-          const heightVal = isPlane && config.height < minHeight
-            ? config.height * scale
-            : !isPlane && config.height > maxHeight
-              ? Math.max(minHeight, Math.round(config.height / 100))
-              : config.height;
-
-          const formatDist = (v: number) => isPlane ? `${(v / 1000).toLocaleString()} km` : `${v} m`;
-
-          return (
-            <InspectorSection value="framing" title="Follow view">
-              <div className="flex flex-col gap-3">
-                <SliderRow
-                  label="Follow distance"
-                  icon={isPlane ? <Plane size={13} /> : <Car size={13} />}
-                  value={distanceVal}
-                  onChange={(v) => u({ distance: v })}
-                  min={minDistance}
-                  max={maxDistance}
-                  step={stepDistance}
-                  unit={isPlane ? '' : 'm'}
-                  formatValue={formatDist}
-                />
-                <SliderRow
-                  label="Camera height"
-                  icon={<ArrowUpToLine size={13} />}
-                  value={heightVal}
-                  onChange={(v) => u({ height: v })}
-                  min={minHeight}
-                  max={maxHeight}
-                  step={stepHeight}
-                  unit={isPlane ? '' : 'm'}
-                  formatValue={formatDist}
-                />
-              </div>
-            </InspectorSection>
-          );
-        })()}
+        {config.mode === 'cinematic' && (
+          <InspectorSection value="framing" title="Follow view">
+            <div className="flex flex-col gap-3">
+              <SliderRow
+                label="Follow distance"
+                icon={isPlane ? <Plane size={13} /> : <Car size={13} />}
+                value={config.distance}
+                onChange={(v) => u({ distance: v })}
+                min={ranges.distance.min}
+                max={ranges.distance.max}
+                step={ranges.distance.step}
+                unit={isPlane ? '' : 'm'}
+                formatValue={formatDistance}
+              />
+              <SliderRow
+                label="Camera height"
+                icon={<ArrowUpToLine size={13} />}
+                value={config.height}
+                onChange={(v) => u({ height: v })}
+                min={ranges.height.min}
+                max={ranges.height.max}
+                step={ranges.height.step}
+                unit={isPlane ? '' : 'm'}
+                formatValue={formatDistance}
+              />
+            </div>
+          </InspectorSection>
+        )}
 
         {config.mode === 'navigation' && (
           <InspectorSection value="framing" title="Navigation view">

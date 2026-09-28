@@ -16,6 +16,7 @@ import {
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
+import { MODEL_BASE_SCALE } from '@/config/vehicles';
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 const EXIT_DURATION = 0.5;
@@ -23,12 +24,6 @@ const DOT_BASE_RADIUS = 9;
 const MODELS: Record<'car' | 'plane', string> = {
   car: '/models/car.glb',
   plane: '/models/airplane.glb',
-};
-// Normalizes each model's native Mapbox size so that vehicle.scale = 1.0
-// looks consistent across vehicle types. Adjust if the models are swapped out.
-const MODEL_BASE_SCALE: Record<'car' | 'plane', number> = {
-  car: 1,
-  plane: 100,
 };
 
 interface RouteResourceIds {
@@ -410,7 +405,7 @@ export class RouteRenderer {
       });
       return;
     }
-    const baseScale = MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'] ?? 1;
+    const baseScale = MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'];
     const s = vehicle.scale * baseScale;
     this.map.addLayer({
       id: this.ids.vehicleLayer,
