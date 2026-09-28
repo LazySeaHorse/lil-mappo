@@ -73,6 +73,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       opacity: 1,
       scale: 1,
       settings: {},
+      linkTitleToLocation: false,
     };
 
     compositeAnnotations(map, ctx, { c1: callout }, ['c1'], 5);
@@ -124,6 +125,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       opacity: 1,
       scale: 1,
       settings: {},
+      linkTitleToLocation: false,
     };
 
     compositeAnnotations(mapZoom10, ctxZoom10, { c2: callout }, ['c2'], 5);
@@ -169,6 +171,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       opacity: 1,
       scale: 1,
       settings: {},
+      linkTitleToLocation: false,
     };
 
     compositeAnnotations(map, ctx, { r1: rippleCallout }, ['r1'], 5);

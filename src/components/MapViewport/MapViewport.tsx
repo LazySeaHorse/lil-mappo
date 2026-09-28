@@ -233,7 +233,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         <AnnotationLayer
           callouts={callouts}
           selectedCalloutId={selectedCalloutId}
-          mapRef={mapRef}
         />
         <RouteWaypointMarkers />
       </MapGL>

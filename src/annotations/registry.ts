@@ -57,7 +57,8 @@ export function hasStyle(id: string): boolean {
 
 /**
  * Validate and coerce settings for a style, applying defaults for missing keys.
- * Returns the validated settings or the style's defaults if validation fails.
+ * Returns the style's defaults if the stored settings are invalid, so renderers
+ * never receive values of the wrong type.
  */
 export function validateSettings(
   styleId: string,
@@ -66,9 +67,7 @@ export function validateSettings(
   const style = getStyle(styleId);
   if (!style) return settings;
 
-  const result = style.settingsSchema.safeParse(settings);
+  const result = style.settingsSchema.safeParse(settings ?? {});
   if (result.success) return result.data as Record<string, unknown>;
-
-  // Fall back to defaults merged with whatever we can salvage
-  return { ...style.defaultSettings, ...settings };
+  return { ...(style.defaultSettings as Record<string, unknown>) };
 }

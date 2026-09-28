@@ -1,14 +1,10 @@
 /**
  * Animation phase calculation and transition evaluation for annotations.
  *
- * Replaces src/engine/calloutAnimation.ts with:
- * - Same enter/visible/exit phase logic (backward-compatible)
- * - Extended StyleRenderInput construction for continuous animations
+ * Same enter/visible/exit phase logic as the legacy callout animation.
  */
 
 import type { CalloutItem } from '@/store/types';
-import type { StyleRenderInput, AnnotationContent } from './types';
-import { getStyle } from './registry';
 
 /**
  * Compute the animation phase and progress for a callout at a given playhead time.
@@ -95,36 +91,6 @@ export function evaluateTransition(
   }
 
   return { opacity, scaleX: scale, scaleY: scale, translateY };
-}
-
-/**
- * Build a full StyleRenderInput from a CalloutItem and playhead time.
- * Returns null if the callout is not visible at this time.
- */
-export function buildRenderInput(
-  callout: CalloutItem,
-  playheadTime: number,
-  pixelRatio = 1,
-): StyleRenderInput | null {
-  const phaseResult = computePhase(
-    callout.startTime,
-    callout.endTime,
-    callout.transition.enterDuration,
-    callout.transition.exitDuration,
-    playheadTime,
-  );
-
-  if (!phaseResult) return null;
-
-  return {
-    content: callout.content,
-    settings: callout.settings,
-    phase: phaseResult.phase,
-    phaseProgress: phaseResult.progress,
-    itemTime: playheadTime - callout.startTime,
-    playheadTime,
-    pixelRatio,
-  };
 }
 
 /**
