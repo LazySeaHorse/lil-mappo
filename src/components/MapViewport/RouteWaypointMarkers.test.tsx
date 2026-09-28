@@ -5,8 +5,15 @@ import { RouteWaypointMarkers } from './RouteWaypointMarkers';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 
+interface MockMarkerProps {
+  children: React.ReactNode;
+  longitude: number;
+  latitude: number;
+  onDragEnd?: (e: { lngLat: { lng: number; lat: number } }) => void;
+}
+
 vi.mock('react-map-gl/mapbox', () => ({
-  Marker: ({ children, longitude, latitude, onDragEnd }: any) => (
+  Marker: ({ children, longitude, latitude, onDragEnd }: MockMarkerProps) => (
     <div
       data-testid="map-marker"
       data-lng={longitude}

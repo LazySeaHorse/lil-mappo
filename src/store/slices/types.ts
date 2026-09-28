@@ -15,6 +15,8 @@ export interface PickResult {
 
 export interface PickSession {
   id: string;
+  /** Item this session edits; the session ends if that item is deleted. */
+  ownerId?: string;
   prompt?: string;
   onPick: (result: PickResult) => void;
 }

@@ -197,4 +197,71 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
     const splineCoords = (curvedAgainItem.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(splineCoords.length).toBeGreaterThan(3);
   });
+
+  describe('freeform editing', () => {
+    const freeformRoute = (): RouteItem => ({
+      ...createBaseRouteItem('car'),
+      calculation: {
+        mode: 'manual',
+        startPoint: [0, 0.5],
+        endPoint: [2, 0.5],
+        waypoints: [[1, 1]],
+        curved: false,
+        sharpness: 0.85,
+      },
+    });
+
+    const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
+    const pick = (lngLat: [number, number]) =>
+      act(() => {
+        useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' });
+      });
+
+    beforeEach(() => {
+      const route = freeformRoute();
+      useProjectStore.setState({ items: { [route.id]: route } });
+    });
+
+    it('adds a waypoint without discarding edits made while picking', () => {
+      render(<RoutePlanner item={freeformRoute()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Add waypoint on map/i }));
+
+      // Meanwhile, the existing waypoint is dragged on the map.
+      const dragged = { ...stored(), calculation: { ...stored().calculation!, waypoints: [[1, 2]] as [number, number][] } };
+      act(() => {
+        useProjectStore.setState({ items: { [dragged.id]: dragged } });
+      });
+
+      pick([1.5, 0]);
+      expect(stored().calculation?.waypoints).toEqual([[1, 2], [1.5, 0]]);
+    });
+
+    it('rebuilds the freeform geometry when the start point is picked', () => {
+      render(<RoutePlanner item={freeformRoute()} />);
+      fireEvent.click(screen.getByTitle('Pick Start on map'));
+      pick([-1, 0.5]);
+
+      const coords = (stored().geojson.features[0].geometry as GeoJSON.LineString).coordinates;
+      expect(coords[0]).toEqual([-1, 0.5]);
+      expect(stored().calculation?.startPoint).toEqual([-1, 0.5]);
+    });
+
+    it('stops its own pickers when unmounted', () => {
+      const { unmount } = render(<RoutePlanner item={freeformRoute()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Add waypoint on map/i }));
+      expect(useProjectStore.getState().activePicker?.ownerId).toBe('route-test-1');
+
+      unmount();
+      expect(useProjectStore.getState().activePicker).toBeNull();
+    });
+
+    it('stops its pickers when the route is deleted', () => {
+      render(<RoutePlanner item={freeformRoute()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Add waypoint on map/i }));
+      act(() => {
+        useProjectStore.getState().removeItem('route-test-1');
+      });
+      expect(useProjectStore.getState().activePicker).toBeNull();
+    });
+  });
 });

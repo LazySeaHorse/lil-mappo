@@ -14,7 +14,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
 import { SwitchRow, SliderField } from './InspectorShared';
-import { buildRouteFeatureCollection } from '@/engine/routeCurves';
+import { applyFreeformPatch, isFreeformRoute, type FreeformPatch } from '@/engine/routeCurves';
 import { vehicleChangePatch } from '@/config/vehicles';
 
 interface InspectorSearchFieldProps {
@@ -44,6 +44,7 @@ const InspectorSearchField = ({
     } else {
       startPicking({
         id: pickerId,
+        ownerId: item.id,
         prompt: pointType === 'start' ? 'Start' : 'End',
         onPick: (result) => {
           onSelect(result.lngLat);
@@ -177,6 +178,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     } else {
       startPicking({
         id: pickerId,
+        ownerId: item.id,
         prompt: pointType === 'start' ? 'Start' : 'End',
         onPick: (result) => {
           if (pointType === 'start') {
@@ -194,8 +196,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
       abortControllerRef.current?.abort();
       // eslint-disable-next-line react-hooks/exhaustive-deps
       calculationSeqRef.current++;
-      const currentId = useProjectStore.getState().activePicker?.id;
-      if (currentId === `route-${item.id}-start` || currentId === `route-${item.id}-end`) {
+      if (useProjectStore.getState().activePicker?.ownerId === item.id) {
         useProjectStore.getState().stopPicking();
       }
     };
@@ -270,62 +271,34 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     }
   };
 
-  const setStart = (lngLat: [number, number]) => {
+  const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number]) => {
     abortControllerRef.current?.abort();
     calculationSeqRef.current++;
     setLoading(false);
-    updateItem(item.id, { calculation: { ...calc, startPoint: lngLat } });
-    setPreviewRoute(null);
-  };
-
-  const setEnd = (lngLat: [number, number]) => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
-    updateItem(item.id, { calculation: { ...calc, endPoint: lngLat } });
-    setPreviewRoute(null);
-  };
-
-  const isFreeform =
-    calc.mode === 'manual' ||
-    calc.curved !== undefined ||
-    (calc.waypoints !== undefined && calc.waypoints.length > 0);
-
-  const updateFreeformRoute = (patch: {
-    startPoint?: [number, number];
-    waypoints?: [number, number][];
-    endPoint?: [number, number];
-    curved?: boolean;
-    sharpness?: number;
-  }) => {
-    const nextStart = patch.startPoint ?? calc.startPoint;
-    const nextWp = patch.waypoints ?? (calc.waypoints || []);
-    const nextEnd = patch.endPoint ?? calc.endPoint;
-    const nextCurved = patch.curved !== undefined ? patch.curved : (calc.curved ?? true);
-    const nextSharpness = patch.sharpness ?? (calc.sharpness ?? 0.85);
-
-    const allPoints: [number, number][] = [];
-    if (nextStart && (nextStart[0] !== 0 || nextStart[1] !== 0)) allPoints.push(nextStart);
-    for (const wp of nextWp) {
-      if (wp && (wp[0] !== 0 || wp[1] !== 0)) allPoints.push(wp);
+    // Read the latest route: pick callbacks can fire long after this render.
+    const current = useProjectStore.getState().items[item.id];
+    if (current?.kind !== 'route') return;
+    if (isFreeformRoute(current.calculation)) {
+      updateItem(item.id, applyFreeformPatch(current, { [key]: lngLat }));
+    } else {
+      updateItem(item.id, { calculation: { ...(current.calculation ?? calc), [key]: lngLat } });
     }
-    if (nextEnd && (nextEnd[0] !== 0 || nextEnd[1] !== 0)) allPoints.push(nextEnd);
+    setPreviewRoute(null);
+  };
 
-    const geojson = allPoints.length >= 2
-      ? buildRouteFeatureCollection(allPoints, { curved: nextCurved, sharpness: nextSharpness })
-      : activeItem.geojson;
+  const setStart = (lngLat: [number, number]) => setPoint('startPoint', lngLat);
+  const setEnd = (lngLat: [number, number]) => setPoint('endPoint', lngLat);
 
-    updateItem(item.id, {
-      geojson,
-      calculation: {
-        ...calc,
-        startPoint: nextStart,
-        waypoints: nextWp,
-        endPoint: nextEnd,
-        curved: nextCurved,
-        sharpness: nextSharpness,
-      },
-    });
+  const isFreeform = isFreeformRoute(calc);
+
+  /** Applies a freeform edit to the latest stored route, not this render's copy. */
+  const updateFreeformRoute = (
+    patch: FreeformPatch | ((current: NonNullable<RouteItem['calculation']>) => FreeformPatch),
+  ) => {
+    const current = useProjectStore.getState().items[item.id];
+    if (current?.kind !== 'route') return;
+    const resolved = typeof patch === 'function' ? patch(current.calculation ?? calc) : patch;
+    updateItem(item.id, applyFreeformPatch(current, resolved));
   };
 
   const isAddingWp = activePicker?.id === `route-${item.id}-add-wp`;
@@ -447,11 +420,12 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                       } else {
                         startPicking({
                           id: pickerId,
+                          ownerId: item.id,
                           prompt: `Point ${idx + 1}`,
                           onPick: (result) => {
-                            const nextWp = [...(calc.waypoints || [])];
-                            nextWp[idx] = result.lngLat;
-                            updateFreeformRoute({ waypoints: nextWp });
+                            updateFreeformRoute((current) => ({
+                              waypoints: (current.waypoints ?? []).map((p, i) => (i === idx ? result.lngLat : p)),
+                            }));
                           },
                         });
                       }
@@ -465,8 +439,9 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                     size="xs"
                     className="rounded-lg h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => {
-                      const nextWp = (calc.waypoints || []).filter((_, i) => i !== idx);
-                      updateFreeformRoute({ waypoints: nextWp });
+                      updateFreeformRoute((current) => ({
+                        waypoints: (current.waypoints ?? []).filter((_, i) => i !== idx),
+                      }));
                     }}
                     title="Delete waypoint"
                   >
@@ -511,10 +486,12 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
                 } else {
                   startPicking({
                     id: `route-${item.id}-add-wp`,
+                    ownerId: item.id,
                     prompt: 'Waypoint',
                     onPick: (result) => {
-                      const nextWp = [...(calc.waypoints || []), result.lngLat];
-                      updateFreeformRoute({ waypoints: nextWp });
+                      updateFreeformRoute((current) => ({
+                        waypoints: [...(current.waypoints ?? []), result.lngLat],
+                      }));
                       toast.success('Waypoint added');
                     },
                   });

@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { TimelineItem } from '../types';
 import type { ItemsSlice, ProjectStore } from './types';
+import { CAMERA_TRACK_ID } from '../projectDocument';
 
 export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set) => ({
   addItem: (item) =>
@@ -14,7 +15,7 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
     set((s) => {
       const { [id]: _, ...rest } = s.items;
       // Clean up camera keyframes followRoute if pointing to this deleted item
-      const cam = rest['camera-track'];
+      const cam = rest[CAMERA_TRACK_ID];
       let updatedCam = cam;
       if (cam && cam.kind === 'camera' && Array.isArray(cam.keyframes)) {
         const hasFollow = cam.keyframes.some((k) => k.followRoute === id);
@@ -26,11 +27,11 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
         }
       }
       return {
-        items: updatedCam && updatedCam !== cam ? { ...rest, ['camera-track']: updatedCam } : rest,
+        items: updatedCam && updatedCam !== cam ? { ...rest, [CAMERA_TRACK_ID]: updatedCam } : rest,
         itemOrder: s.itemOrder.filter((i) => i !== id),
         selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
         selectedAutoCamRouteId: s.selectedAutoCamRouteId === id ? null : s.selectedAutoCamRouteId,
-        activePicker: s.activePicker?.id.includes(id) ? null : s.activePicker,
+        activePicker: s.activePicker?.ownerId === id ? null : s.activePicker,
       };
     }),
 

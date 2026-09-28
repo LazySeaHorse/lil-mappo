@@ -1,4 +1,5 @@
 import bezierSpline from '@turf/bezier-spline';
+import type { RouteItem } from '@/store/types';
 import { lineString } from '@turf/helpers';
 import { truncateCoordinates } from '@/engine/geoUtils';
 
@@ -65,4 +66,48 @@ export function buildRouteFeatureCollection(
       },
     ],
   };
+}
+
+export const DEFAULT_SHARPNESS = 0.85;
+
+export interface FreeformPatch {
+  startPoint?: [number, number];
+  waypoints?: [number, number][];
+  endPoint?: [number, number];
+  curved?: boolean;
+  sharpness?: number;
+}
+
+const isPlaced = (p: [number, number] | undefined): p is [number, number] =>
+  Boolean(p) && (p![0] !== 0 || p![1] !== 0);
+
+/**
+ * Applies a freeform edit (points, curve on/off, sharpness) to a route and
+ * rebuilds its geometry through start → waypoints → end. The geometry is kept
+ * unchanged until at least two points are placed.
+ */
+export function applyFreeformPatch(route: RouteItem, patch: FreeformPatch): Partial<RouteItem> {
+  const calc = route.calculation ?? {
+    mode: 'manual' as const,
+    startPoint: [0, 0] as [number, number],
+    endPoint: [0, 0] as [number, number],
+  };
+  const startPoint = patch.startPoint ?? calc.startPoint;
+  const waypoints = patch.waypoints ?? calc.waypoints ?? [];
+  const endPoint = patch.endPoint ?? calc.endPoint;
+  const curved = patch.curved ?? calc.curved ?? true;
+  const sharpness = patch.sharpness ?? calc.sharpness ?? DEFAULT_SHARPNESS;
+
+  const points = [startPoint, ...waypoints, endPoint].filter(isPlaced);
+
+  return {
+    geojson: points.length >= 2 ? buildRouteFeatureCollection(points, { curved, sharpness }) : route.geojson,
+    calculation: { ...calc, startPoint, waypoints, endPoint, curved, sharpness },
+  };
+}
+
+/** Whether a route is edited as freeform points rather than routed directions. */
+export function isFreeformRoute(calc: RouteItem['calculation']): boolean {
+  if (!calc) return false;
+  return calc.mode === 'manual' || calc.curved !== undefined || (calc.waypoints?.length ?? 0) > 0;
 }

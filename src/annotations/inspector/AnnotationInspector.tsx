@@ -41,17 +41,21 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
     } else {
       startPicking({
         id: pickerId,
+        ownerId: item.id,
         prompt: 'Callout',
         onPick: (result) => {
+          // Read the latest item: it may have been edited since picking started.
+          const current = useProjectStore.getState().items[item.id];
+          if (current?.kind !== 'callout') return;
           const patch: Partial<CalloutItem> = {
             binding: {
-              ...item.binding,
               kind: 'geographic',
               lngLat: result.lngLat,
-            } as CalloutItem['binding'],
+              altitude: current.binding.kind === 'geographic' ? current.binding.altitude : 0,
+            },
           };
-          if (item.linkTitleToLocation) {
-            patch.content = { ...item.content, title: result.name };
+          if (current.linkTitleToLocation) {
+            patch.content = { ...current.content, title: result.name };
           }
           u(patch);
         },
