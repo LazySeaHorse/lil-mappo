@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { getExportDimensions } from '@/types/render';
-import { sanitizeFeatureCollection } from '@/services/fileImport';
+import { sanitizeFeatureCollection } from '@/engine/geojsonSanitize';
 import {
   cameraZoomAt,
   DEFAULT_VIEW_ZOOM,

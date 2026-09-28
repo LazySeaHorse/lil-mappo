@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
+import { importRouteFile, parseGPX, parseKML, parseGeoJSON } from '@/services/fileImport';
 import {
-  importRouteFile,
-  parseGPX,
-  parseKML,
-  parseGeoJSON,
   sanitizeFeatureCollection,
   isValidCoordinate,
   sanitizeLineCoordinates,
   sanitizeMultiLineCoordinates,
-} from '@/services/fileImport';
+} from '@/engine/geojsonSanitize';
 import {
   parseProjectDocument,
   createProject,
