@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import type { AnnotationStyleDefinition, StyleRenderInput, SceneNode } from '../types';
 import { group, rect, pill, circle, text, line, shadows } from '../scene/primitives';
+import { measureTextWidth } from '../scene/textMetrics';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -55,72 +56,7 @@ const SQUARE_SIZE = 4;
 
 // ─── Text Measurement ─────────────────────────────────────────────────────────
 
-let cachedMeasureCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
-let measureCtxFailed = false;
 
-function measureTextWidth(
-  rawText: string,
-  fontSize: number,
-  fontFamily: string,
-  fontWeight = 700,
-  letterSpacing?: string,
-): number {
-  if (!rawText) return 0;
-
-  if (!cachedMeasureCtx && !measureCtxFailed) {
-    try {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        const canvas = new OffscreenCanvas(1, 1);
-        cachedMeasureCtx = canvas.getContext('2d');
-      } else if (typeof document !== 'undefined') {
-        const canvas = document.createElement('canvas');
-        cachedMeasureCtx = canvas.getContext('2d');
-      }
-    } catch {
-      measureCtxFailed = true;
-    }
-    if (!cachedMeasureCtx) {
-      measureCtxFailed = true;
-    }
-  }
-
-  let measured = 0;
-  if (cachedMeasureCtx) {
-    cachedMeasureCtx.font = `${fontWeight} ${fontSize}px '${fontFamily}', sans-serif`;
-    if (letterSpacing && 'letterSpacing' in cachedMeasureCtx) {
-      try {
-        (cachedMeasureCtx as CanvasRenderingContext2D).letterSpacing = letterSpacing;
-      } catch {
-        // letterSpacing might not be supported in some environments
-      }
-    }
-    measured = cachedMeasureCtx.measureText(rawText).width;
-    if (letterSpacing && 'letterSpacing' in cachedMeasureCtx) {
-      try {
-        (cachedMeasureCtx as CanvasRenderingContext2D).letterSpacing = '0px';
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  // Fallback approximation for headless or non-canvas test environments
-  if (measured <= 0 && rawText.length > 0) {
-    const charRatio = fontWeight >= 700 ? 0.6 : 0.55;
-    measured = rawText.length * fontSize * charRatio;
-    if (letterSpacing) {
-      if (letterSpacing.endsWith('em')) {
-        const em = parseFloat(letterSpacing) || 0;
-        measured += rawText.length * em * fontSize;
-      } else if (letterSpacing.endsWith('px')) {
-        const px = parseFloat(letterSpacing) || 0;
-        measured += rawText.length * px;
-      }
-    }
-  }
-
-  return measured;
-}
 
 // ─── Measurement & Render ─────────────────────────────────────────────────────
 

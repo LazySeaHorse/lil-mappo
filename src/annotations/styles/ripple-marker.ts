@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AnnotationStyleDefinition, StyleRenderInput, SceneNode } from '../types';
 import { group, rect, pill, circle, text, line, shadows } from '../scene/primitives';
+import { measureTextWidth } from '../scene/textMetrics';
 
 // ─── Settings Schema ─────────────────────────────────────────────────────────
 
@@ -33,33 +34,7 @@ const defaultSettings: RippleMarkerSettings = {
 // ─── Text Measurement Cache ──────────────────────────────────────────────────
 
 const FONT_WEIGHT = 500;
-let cachedCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
 
-function getTextWidth(
-  content: string,
-  fontSize: number,
-  fontFamily: string,
-  fontWeight = FONT_WEIGHT,
-): number {
-  if (!content) return 0;
-  try {
-    if (!cachedCtx) {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        cachedCtx = new OffscreenCanvas(1, 1).getContext('2d');
-      } else if (typeof document !== 'undefined') {
-        const canvas = document.createElement('canvas');
-        cachedCtx = canvas.getContext('2d');
-      }
-    }
-    if (cachedCtx) {
-      cachedCtx.font = `${fontWeight} ${fontSize}px '${fontFamily}', sans-serif`;
-      return cachedCtx.measureText(content).width;
-    }
-  } catch {
-    // Canvas measurement failed, fall back to approximation
-  }
-  return content.length * fontSize * 0.55;
-}
 
 // ─── Style Definition ────────────────────────────────────────────────────────
 
@@ -155,7 +130,7 @@ export const rippleMarkerStyle: AnnotationStyleDefinition<RippleMarkerSettings> 
     const gap = 8;
     const hasTitle = Boolean(content.title);
     const textWidth = hasTitle
-      ? getTextWidth(content.title!, settings.fontSize, settings.fontFamily, FONT_WEIGHT)
+      ? measureTextWidth(content.title!, settings.fontSize, settings.fontFamily, FONT_WEIGHT)
       : 0;
 
     return {

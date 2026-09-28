@@ -8,6 +8,7 @@ import {
 } from './standard-card';
 import type { StyleRenderInput } from '../types';
 import { shadows } from '../scene/primitives';
+import { measureTextWidth } from '../scene/textMetrics';
 
 describe('standardCardStyle', () => {
   const baseInput: StyleRenderInput<typeof defaultStandardCardSettings> = {
@@ -57,11 +58,11 @@ describe('standardCardStyle', () => {
   });
 
   describe('measure', () => {
-    it('measures dimensions based on title length and maxWidth', () => {
-      // 'Hello World' has 11 chars: 11 * 8 + 24 = 112
+    it('sizes the card from the measured title width plus padding', () => {
       // Height: 14 * 1.4 + 16 = 35.6
+      const titleWidth = measureTextWidth('Hello World', 14, 'Outfit', 600);
       const dims = standardCardStyle.measure(baseInput);
-      expect(dims.width).toBe(112);
+      expect(dims.width).toBe(Math.ceil(titleWidth) + 24);
       expect(dims.height).toBeCloseTo(35.6);
     });
 
@@ -83,7 +84,7 @@ describe('standardCardStyle', () => {
         content: { title: '' },
       };
       const dims = standardCardStyle.measure(emptyInput);
-      expect(dims.width).toBe(24); // 0 * 8 + 24
+      expect(dims.width).toBe(24); // padding only
       expect(dims.height).toBeCloseTo(35.6);
     });
   });
@@ -100,7 +101,7 @@ describe('standardCardStyle', () => {
       // 1. Rect node
       expect(rectNode.type).toBe('rect');
       if (rectNode.type === 'rect') {
-        const expectedW = 112;
+        const expectedW = Math.ceil(measureTextWidth('Hello World', 14, 'Outfit', 600)) + 24;
         const expectedH = 14 * 1.4 + 16;
         expect(rectNode.width).toBe(expectedW);
         expect(rectNode.height).toBeCloseTo(expectedH);
@@ -126,7 +127,7 @@ describe('standardCardStyle', () => {
         expect(textNode.baseline).toBe('middle');
         expect(textNode.x).toBe(0);
         expect(textNode.y).toBeCloseTo(-expectedH / 2);
-        expect(textNode.maxWidth).toBe(112 - 24);
+        expect(textNode.maxWidth).toBe(Math.ceil(measureTextWidth('Hello World', 14, 'Outfit', 600)));
       }
     });
 

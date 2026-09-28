@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { AnnotationStyleDefinition, StyleRenderInput, SceneNode } from '../types';
 import { group, rect, pill, circle, text, line, shadows } from '../scene/primitives';
 import { hexToRgba } from '@/utils/colors';
+import { measureTextWidth } from '../scene/textMetrics';
 
 // ─── Settings Schema ─────────────────────────────────────────────────────────
 
@@ -35,28 +36,7 @@ const FONT_WEIGHT = 700;
 
 // ─── Text Measurement Cache ──────────────────────────────────────────────────
 
-let cachedCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
 
-function getTextWidth(content: string, fontSize: number, fontFamily: string): number {
-  if (!content) return 0;
-  try {
-    if (!cachedCtx) {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        cachedCtx = new OffscreenCanvas(1, 1).getContext('2d');
-      } else if (typeof document !== 'undefined') {
-        const canvas = document.createElement('canvas');
-        cachedCtx = canvas.getContext('2d');
-      }
-    }
-    if (cachedCtx) {
-      cachedCtx.font = `${FONT_WEIGHT} ${fontSize}px '${fontFamily}', sans-serif`;
-      return cachedCtx.measureText(content).width;
-    }
-  } catch {
-    // Canvas measurement failed, fall back to approximation
-  }
-  return content.length * fontSize * 0.55;
-}
 
 // ─── Style Definition ────────────────────────────────────────────────────────
 
@@ -86,7 +66,7 @@ export const modernPillStyle: AnnotationStyleDefinition<ModernPillSettings> = {
   render(input: StyleRenderInput<ModernPillSettings>): SceneNode {
     const { content, settings } = input;
     const titleText = content.title ?? '';
-    const textWidth = getTextWidth(titleText, FONT_SIZE, settings.fontFamily);
+    const textWidth = measureTextWidth(titleText, FONT_SIZE, settings.fontFamily, FONT_WEIGHT);
 
     const cardW = DOT_DIAMETER + GAP + textWidth + PAD_H * 2;
     const cardH = Math.max(DOT_DIAMETER, FONT_SIZE * 1.2) + PAD_V * 2;
@@ -135,10 +115,11 @@ export const modernPillStyle: AnnotationStyleDefinition<ModernPillSettings> = {
   },
 
   measure(input: StyleRenderInput<ModernPillSettings>): { width: number; height: number } {
-    const textWidth = getTextWidth(
+    const textWidth = measureTextWidth(
       input.content.title ?? '',
       FONT_SIZE,
       input.settings.fontFamily,
+      FONT_WEIGHT,
     );
     const width = DOT_DIAMETER + GAP + textWidth + PAD_H * 2;
     const height = Math.max(DOT_DIAMETER, FONT_SIZE * 1.2) + PAD_V * 2;

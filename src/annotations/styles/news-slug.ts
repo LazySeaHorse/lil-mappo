@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AnnotationStyleDefinition, StyleRenderInput, SceneNode } from '../types';
 import { group, rect, pill, circle, text, line, shadows } from '../scene/primitives';
+import { measureTextWidth } from '../scene/textMetrics';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -34,34 +35,7 @@ const LETTER_SPACING = '-0.02em';
 
 // ─── Text Measurement Cache ──────────────────────────────────────────────────
 
-let cachedCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
 
-function getTextWidth(content: string, fontSize: number, fontFamily: string): number {
-  if (!content) return 0;
-  try {
-    if (!cachedCtx) {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        cachedCtx = new OffscreenCanvas(1, 1).getContext('2d');
-      } else if (typeof document !== 'undefined') {
-        const canvas = document.createElement('canvas');
-        cachedCtx = canvas.getContext('2d');
-      }
-    }
-    if (cachedCtx) {
-      cachedCtx.font = `${FONT_WEIGHT} ${fontSize}px '${fontFamily}', sans-serif`;
-      try {
-        (cachedCtx as CanvasRenderingContext2D).letterSpacing = LETTER_SPACING;
-      } catch {
-        // letterSpacing might not be supported in some environments
-      }
-      const measured = cachedCtx.measureText(content).width;
-      if (measured > 0) return measured;
-    }
-  } catch {
-    // Canvas measurement failed, fall back to approximation
-  }
-  return content.length * fontSize * 0.65;
-}
 
 // ─── Style Definition ────────────────────────────────────────────────────────
 
@@ -99,7 +73,7 @@ export const newsSlugStyle: AnnotationStyleDefinition<NewsSlugSettings> = {
     const accentColor = settings?.accentColor ?? defaultSettings.accentColor;
     const shadow = settings?.shadow ?? defaultSettings.shadow;
 
-    const textWidth = getTextWidth(titleText, FONT_SIZE, fontFamily);
+    const textWidth = measureTextWidth(titleText, FONT_SIZE, fontFamily, FONT_WEIGHT, LETTER_SPACING);
     const cardW = textWidth + PAD_H * 2 + ACCENT_BAR_W;
     const cardH = FONT_SIZE * LINE_HEIGHT_MULT + PAD_V * 2;
 
@@ -146,7 +120,7 @@ export const newsSlugStyle: AnnotationStyleDefinition<NewsSlugSettings> = {
   measure(input: StyleRenderInput<NewsSlugSettings>): { width: number; height: number } {
     const rawText = input.content.title ?? '';
     const fontFamily = input.settings?.fontFamily || defaultSettings.fontFamily;
-    const textWidth = getTextWidth(rawText.toUpperCase(), FONT_SIZE, fontFamily);
+    const textWidth = measureTextWidth(rawText.toUpperCase(), FONT_SIZE, fontFamily, FONT_WEIGHT, LETTER_SPACING);
     const width = textWidth + PAD_H * 2 + ACCENT_BAR_W;
     const height = FONT_SIZE * LINE_HEIGHT_MULT + PAD_V * 2;
     return { width, height };

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { AnnotationStyleDefinition, StyleRenderInput, SceneNode } from '../types';
 import { group, circle, text, shadows } from '../scene/primitives';
 import { hexToRgba } from '@/utils/colors';
+import { measureTextWidth } from '../scene/textMetrics';
 
 // ─── Settings Schema ─────────────────────────────────────────────────────────
 
@@ -36,33 +37,7 @@ const FONT_WEIGHT = 600;
 
 // ─── Text Measurement Cache ──────────────────────────────────────────────────
 
-let cachedCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
 
-function getTextWidth(
-  content: string,
-  fontSize: number,
-  fontFamily: string,
-  fontWeight = 600,
-): number {
-  if (!content) return 0;
-  try {
-    if (!cachedCtx) {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        cachedCtx = new OffscreenCanvas(1, 1).getContext('2d');
-      } else if (typeof document !== 'undefined') {
-        const canvas = document.createElement('canvas');
-        cachedCtx = canvas.getContext('2d');
-      }
-    }
-    if (cachedCtx) {
-      cachedCtx.font = `${fontWeight} ${fontSize}px '${fontFamily}', sans-serif`;
-      return cachedCtx.measureText(content).width;
-    }
-  } catch {
-    // Canvas measurement failed, fall back to approximation
-  }
-  return content.length * fontSize * 0.55;
-}
 
 // ─── Style Definition ────────────────────────────────────────────────────────
 
@@ -172,7 +147,7 @@ export const blinkingDotStyle: AnnotationStyleDefinition<BlinkingDotSettings> = 
 
     let width: number;
     if (hasTitle) {
-      const textWidth = getTextWidth(
+      const textWidth = measureTextWidth(
         titleText,
         settings.fontSize,
         settings.fontFamily,

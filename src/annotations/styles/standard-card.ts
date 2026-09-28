@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AnnotationStyleDefinition, StyleRenderInput, SceneNode } from '../types';
 import { group, rect, text, shadows } from '../scene/primitives';
+import { measureTextWidth } from '../scene/textMetrics';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -38,9 +39,10 @@ export function measureStandardCard(
   input: StyleRenderInput<StandardCardSettings>,
 ): { width: number; height: number } {
   const { content, settings } = input;
-  const titleChars = (content?.title ?? '').length;
+  const fontFamily = settings?.fontFamily ?? defaultStandardCardSettings.fontFamily;
+  const titleWidth = measureTextWidth(content?.title ?? '', FONT_SIZE, fontFamily, FONT_WEIGHT);
   const maxWidth = settings?.maxWidth ?? defaultStandardCardSettings.maxWidth;
-  const width = Math.min(titleChars * 8 + PAD_H * 2, maxWidth);
+  const width = Math.min(Math.ceil(titleWidth) + PAD_H * 2, maxWidth);
   const height = FONT_SIZE * LINE_HEIGHT_MULT + PAD_V * 2;
   return { width, height };
 }

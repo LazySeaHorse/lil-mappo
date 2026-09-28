@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AnnotationStyleDefinition, StyleRenderInput, SceneNode } from '../types';
 import { group, circle, text, path, shadows } from '../scene/primitives';
+import { measureTextWidth } from '../scene/textMetrics';
 
 // ─── Settings Schema ─────────────────────────────────────────────────────────
 
@@ -58,33 +59,7 @@ export function getPinPath(size: number): string {
 
 // ─── Text Measurement Cache ──────────────────────────────────────────────────
 
-let cachedCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
 
-export function getTextWidth(
-  content: string,
-  fontSize: number,
-  fontFamily: string,
-  fontWeight = TITLE_FONT_WEIGHT,
-): number {
-  if (!content) return 0;
-  try {
-    if (!cachedCtx) {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        cachedCtx = new OffscreenCanvas(1, 1).getContext('2d');
-      } else if (typeof document !== 'undefined') {
-        const canvas = document.createElement('canvas');
-        cachedCtx = canvas.getContext('2d');
-      }
-    }
-    if (cachedCtx) {
-      cachedCtx.font = `${fontWeight} ${fontSize}px '${fontFamily}', sans-serif`;
-      return cachedCtx.measureText(content).width;
-    }
-  } catch {
-    // Canvas measurement failed, fall back to approximation
-  }
-  return content.length * fontSize * 0.55;
-}
 
 // ─── Measurement & Render ─────────────────────────────────────────────────────
 

@@ -136,6 +136,8 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       ctx.font = `${weight} ${node.fontSize}px '${node.fontFamily}', sans-serif`;
       ctx.textAlign = node.align ?? 'left';
       ctx.textBaseline = node.baseline ?? 'top';
+      // Styles size their cards with letter spacing included (see textMetrics).
+      if (node.letterSpacing && 'letterSpacing' in ctx) ctx.letterSpacing = node.letterSpacing;
 
       if (node.fill) ctx.fillStyle = node.fill;
 
