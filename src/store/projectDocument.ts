@@ -2,7 +2,12 @@ import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { getExportDimensions } from '@/types/render';
 import { sanitizeFeatureCollection } from '@/services/fileImport';
-import { migrateCalloutV1ToV2, isLegacyCallout } from '@/annotations/migration';
+import {
+  cameraZoomAt,
+  DEFAULT_VIEW_ZOOM,
+  isLegacyCallout,
+  migrateCalloutV1ToV2,
+} from '@/annotations/migration';
 import type { Project } from './types';
 
 export const PROJECT_SCHEMA_VERSION = 2 as const;
@@ -244,14 +249,24 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
 /** Migrates schema v1 callout items to the annotation-based v2 format. */
 const migrateProjectV1ToV2: ProjectMigration = (input) => {
   const document = legacyDocumentEnvelopeSchema.parse(input);
-  const items = Object.fromEntries(
+  const camera = document.items[CAMERA_TRACK_ID] as { keyframes?: unknown } | undefined;
+
+  const items: Record<string, unknown> = Object.fromEntries(
     Object.entries(document.items).map(([id, value]) => {
       if (isLegacyCallout(value)) {
-        return [id, migrateCalloutV1ToV2(value)];
+        const { startTime = 0, endTime = 0 } = value as { startTime?: number; endTime?: number };
+        // v1 altitudes were metres; convert at the zoom the camera shows mid-callout.
+        const viewZoom = cameraZoomAt(camera?.keyframes, (startTime + endTime) / 2) ?? DEFAULT_VIEW_ZOOM;
+        return [id, migrateCalloutV1ToV2(value, viewZoom)];
       }
       return [id, value];
     }),
   );
+
+  if (!items[CAMERA_TRACK_ID]) {
+    items[CAMERA_TRACK_ID] = { kind: 'camera', id: CAMERA_TRACK_ID, keyframes: [] };
+  }
+
   return { ...document, schemaVersion: 2, items };
 };
 

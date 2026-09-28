@@ -212,4 +212,60 @@ describe('project document persistence boundary', () => {
   it('rejects malformed project data instead of partially hydrating the store', () => {
     expect(() => parseProjectDocument({ id: 'bad', items: [] })).toThrow();
   });
+
+  describe('v1 → v2 callout migration', () => {
+    const v1Callout = {
+      kind: 'callout',
+      id: 'c1',
+      title: 'Harbour',
+      subtitle: '',
+      imageUrl: null,
+      lngLat: [0, 0.0001],
+      anchor: 'bottom',
+      startTime: 4,
+      endTime: 6,
+      animation: { enter: 'fadeIn', exit: 'fadeOut', enterDuration: 0.4, exitDuration: 0.3 },
+      style: {
+        bgColor: '#0f172a', textColor: '#f8fafc', accentColor: '#3b82f6', borderRadius: 8,
+        shadow: true, maxWidth: 240, fontFamily: 'Outfit', variant: 'default', showMetadata: true,
+      },
+      linkTitleToLocation: false,
+      altitude: 100,
+      poleVisible: true,
+      poleColor: '#94a3b8',
+    };
+
+    function v1Document(items: Record<string, unknown>) {
+      const { items: _items, itemOrder: _order, ...rest } = toProjectDocument(createProject());
+      return { ...rest, schemaVersion: 1, items, itemOrder: Object.keys(items) };
+    }
+
+    it('converts callout altitude at the zoom the camera shows mid-callout', () => {
+      const camera = {
+        kind: 'camera',
+        id: 'camera-track',
+        keyframes: [
+          { id: 'k1', time: 0, camera: { center: [0, 0], zoom: 14, pitch: 0, bearing: 0, altitude: null }, easing: 'linear', followRoute: null },
+          { id: 'k2', time: 10, camera: { center: [0, 0], zoom: 18, pitch: 0, bearing: 0, altitude: null }, easing: 'linear', followRoute: null },
+        ],
+      };
+      const project = parseProjectDocument(v1Document({ 'camera-track': camera, c1: v1Callout }));
+      const callout = project.items.c1;
+      expect(callout.kind).toBe('callout');
+      // Mid-callout (t=5) the camera is at zoom 16: 100 m ≈ 42 px at the equator.
+      if (callout.kind === 'callout' && callout.binding.kind === 'geographic') {
+        expect(callout.binding.altitude).toBe(42);
+      }
+    });
+
+    it('repairs v1 documents that lack a camera track instead of rejecting them', () => {
+      const project = parseProjectDocument(v1Document({ c1: v1Callout }));
+      expect(project.items['camera-track']).toEqual({ kind: 'camera', id: 'camera-track', keyframes: [] });
+      const callout = project.items.c1;
+      // No keyframes: converted at the default editor zoom (12).
+      if (callout.kind === 'callout' && callout.binding.kind === 'geographic') {
+        expect(callout.binding.altitude).toBe(3);
+      }
+    });
+  });
 });

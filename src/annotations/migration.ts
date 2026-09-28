@@ -113,11 +113,61 @@ function migrateStyleSettings(legacy: LegacyCalloutItem): Record<string, unknown
 
 // ─── Main migration ──────────────────────────────────────────────────────────
 
+/** Zoom the editor opens at when a project has no camera keyframes. */
+export const DEFAULT_VIEW_ZOOM = 12;
+/** Screen-space cap the v1 renderer applied to the pole height. */
+const LEGACY_MAX_ALTITUDE_PX = 300;
+
+/**
+ * Converts a v1 altitude to v2 screen pixels.
+ *
+ * v1 stored metres and drew the pole at metres / metres-per-pixel for the
+ * current zoom, capped at 300px, so its on-screen height changed with zoom.
+ * v2 stores a fixed pixel height. Converting at the zoom the callout was
+ * viewed at reproduces the height it had on screen.
+ */
+export function legacyAltitudeToPixels(altitudeMeters: unknown, latitude: number, zoom: number): number {
+  if (typeof altitudeMeters !== 'number' || !Number.isFinite(altitudeMeters) || altitudeMeters <= 0) return 0;
+  const metersPerPixel = (156543.03392 * Math.cos((latitude * Math.PI) / 180)) / Math.pow(2, zoom);
+  if (!(metersPerPixel > 0)) return 0;
+  return Math.round(Math.min(altitudeMeters / metersPerPixel, LEGACY_MAX_ALTITUDE_PX));
+}
+
+interface LegacyKeyframe {
+  time: number;
+  camera: { zoom: number };
+}
+
+/**
+ * Camera zoom at a time, interpolated linearly between keyframes.
+ * Returns undefined when there are no usable keyframes.
+ */
+export function cameraZoomAt(keyframes: unknown, time: number): number | undefined {
+  if (!Array.isArray(keyframes)) return undefined;
+  const usable = (keyframes as LegacyKeyframe[])
+    .filter((kf) => Number.isFinite(kf?.time) && Number.isFinite(kf?.camera?.zoom))
+    .sort((a, b) => a.time - b.time);
+  if (usable.length === 0) return undefined;
+  if (time <= usable[0].time) return usable[0].camera.zoom;
+  for (let i = 1; i < usable.length; i++) {
+    const a = usable[i - 1];
+    const b = usable[i];
+    if (time <= b.time) {
+      const t = b.time > a.time ? (time - a.time) / (b.time - a.time) : 1;
+      return a.camera.zoom + (b.camera.zoom - a.camera.zoom) * t;
+    }
+  }
+  return usable[usable.length - 1].camera.zoom;
+}
+
 /**
  * Migrate a v1 CalloutItem to the new annotation-based shape.
  * This is called during project document migration (v1 → v2).
+ *
+ * @param viewZoom Map zoom the callout was viewed at, used to convert its
+ *   altitude from metres to screen pixels (see legacyAltitudeToPixels).
  */
-export function migrateCalloutV1ToV2(legacy: unknown): CalloutItem {
+export function migrateCalloutV1ToV2(legacy: unknown, viewZoom = DEFAULT_VIEW_ZOOM): CalloutItem {
   const old = legacy as LegacyCalloutItem;
 
   return {
@@ -132,9 +182,7 @@ export function migrateCalloutV1ToV2(legacy: unknown): CalloutItem {
     binding: {
       kind: 'geographic',
       lngLat: old.lngLat || [0, 0],
-      altitude: typeof old.altitude === 'number'
-        ? (old.altitude > 150 ? 40 : Math.max(0, old.altitude))
-        : 0,
+      altitude: legacyAltitudeToPixels(old.altitude, old.lngLat?.[1] ?? 0, viewZoom),
     },
     offset: [0, 0],
     anchor: 'bottom',
