@@ -100,12 +100,11 @@ Right-side panel for editing selected items. Uses local state for draft values (
 
 **Lesson Learned**: Hardcoded label toggles per style + incorrect Config API property names = broken UX.
 
-**Solution**: 
-- `detectRuntimeCapabilities()` scans the loaded style's actual label layers at runtime.
-- **Standard style** uses verified Config API mappings (`'place'` → `'showPlaceLabels'`, etc.).
-- Custom styles use layer pattern matching.
-- `toggleFeature()` routes to Config API (Standard) or layer visibility (others) intelligently.
-- UI renders dynamically based on detected capabilities.
+**Solution**:
+- `LABEL_CATEGORIES` in `src/config/mapbox.ts` is the single source of truth: fixed, stable ids `place`, `admin`, `road`, `transit`, `poi`, `water`, `natural`, `building`, each with label-layer id patterns (and a Config API `configProperty` where Standard supports it).
+- **Standard** exposes only the 5 config-backed categories (`place`, `admin`, `road`, `transit`, `poi`) via `STANDARD_CAPABILITIES`; its layers live inside the `basemap` import, so `BasemapController.reconcileLabels` uses `setConfigProperty` only.
+- **Classic/community styles**: `detectRuntimeCapabilities()` returns only the categories whose patterns match a layer in the loaded style; `reconcileLabels` toggles those layers' visibility.
+- UI renders dynamically from detected capabilities.
 
 **Key Design**: Label visibility is **transient** (never persisted) — resets on project load.
 

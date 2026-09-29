@@ -37,7 +37,40 @@ export interface LabelLayerGroup {
   id: string; // e.g., "road", "place", "poi", "water"
   label: string; // Human-readable name: "Road Labels", "Water Names"
   layerPatterns: string[]; // Layer ID patterns to match (case-insensitive substring match)
+  configProperty?: string; // Standard style basemap config property that toggles this category
 }
+
+/**
+ * Canonical label categories: the single source of truth for label toggles across all map styles.
+ * Ids are stable (safe to persist). Patterns target classic (non-Standard) style layers;
+ * configProperty marks the categories Standard exposes via its basemap Config API.
+ * Patterns are deliberately label-specific so toggling never hides road, ferry or rail geometry.
+ */
+export const LABEL_CATEGORIES: readonly LabelLayerGroup[] = [
+  { id: 'place', label: 'Place Names', configProperty: 'showPlaceLabels', layerPatterns: ['country-label', 'state-label', 'settlement', 'continent-label', 'place-label'] },
+  { id: 'admin', label: 'Country & State Borders', configProperty: 'showAdminBoundaries', layerPatterns: ['admin'] },
+  { id: 'road', label: 'Road Labels', configProperty: 'showRoadLabels', layerPatterns: ['road-label', 'road-number-shield', 'road-exit-shield'] },
+  { id: 'transit', label: 'Transit', configProperty: 'showTransitLabels', layerPatterns: ['transit-label', 'airport-label', 'ferry-aerialway-label'] },
+  { id: 'poi', label: 'Points of Interest', configProperty: 'showPointOfInterestLabels', layerPatterns: ['poi-label'] },
+  { id: 'water', label: 'Water Names', layerPatterns: ['water-point-label', 'water-line-label', 'waterway-label', 'marine'] },
+  { id: 'natural', label: 'Natural Features', layerPatterns: ['natural-point-label', 'natural-line-label'] },
+  { id: 'building', label: 'Building Names', layerPatterns: ['building-number-label', 'housenum'] },
+];
+
+/** Standard exposes only the categories backed by a basemap config property. */
+export function getStandardLabelGroups(): LabelLayerGroup[] {
+  return LABEL_CATEGORIES.filter((c) => c.configProperty).map((c) => ({ ...c, layerPatterns: [...c.layerPatterns] }));
+}
+
+/** Capabilities of the Standard style (also the initial state before any style loads). */
+export const STANDARD_CAPABILITIES: MapStyleCapabilities = {
+  labelGroups: getStandardLabelGroups(),
+  landmarks3d: true,
+  trees3d: true,
+  facades3d: true,
+  timeOfDayPreset: true,
+  colorCustomization: false,
+};
 
 export interface MapStyleCapabilities {
   labelGroups: LabelLayerGroup[];

@@ -30,7 +30,8 @@ if (import.meta.env.DEV) {
 }
 
 export { CAMERA_TRACK_ID } from './projectDocument';
-export { createTransientState, STANDARD_STYLE_CAPABILITIES } from './slices/mapEnvironmentSlice';
+export { createTransientState } from './slices/mapEnvironmentSlice';
+export { STANDARD_CAPABILITIES } from '@/config/mapbox';
 export {
   isCameraItem,
   isRouteItem,

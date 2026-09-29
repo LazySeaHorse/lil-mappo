@@ -1,6 +1,8 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
+import { STANDARD_CAPABILITIES } from '@/config/mapbox';
+import { detectRuntimeCapabilities } from '../mapUtils';
 import { BasemapController } from './BasemapController';
 
 function createMapDouble() {
@@ -108,5 +110,40 @@ describe('BasemapController', () => {
     expect(double.addImage).toHaveBeenCalledWith('texture-64', expect.anything());
 
     controller.dispose();
+  });
+
+  it('reconciles Standard labels through config properties only', () => {
+    const double = createMapDouble();
+    double.getStyle.mockReturnValue({ version: 8, sources: {}, layers: [{ id: 'road-label' }] });
+    const store = useProjectStore.getState();
+    store.setMapStyle('standard');
+    store.setDetectedCapabilities(STANDARD_CAPABILITIES);
+    store.setLabelGroupVisibility('road', false);
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+
+    expect(double.setConfigProperty).toHaveBeenCalledWith('basemap', 'showRoadLabels', false);
+    expect(double.setLayoutProperty).not.toHaveBeenCalledWith('road-label', 'visibility', expect.anything());
+
+    controller.dispose();
+    store.setAllLabelsVisibility(true);
+  });
+
+  it('reconciles classic style labels through layer patterns only', () => {
+    const double = createMapDouble();
+    double.getStyle.mockReturnValue({ version: 8, sources: {}, layers: [{ id: 'road-label' }, { id: 'poi-label' }] });
+    const store = useProjectStore.getState();
+    store.setMapStyle('streets');
+    store.setDetectedCapabilities(detectRuntimeCapabilities(double.map, 'streets'));
+    store.setLabelGroupVisibility('road', false);
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+
+    expect(double.setLayoutProperty).toHaveBeenCalledWith('road-label', 'visibility', 'none');
+    expect(double.setConfigProperty).not.toHaveBeenCalledWith('basemap', 'showRoadLabels', expect.anything());
+
+    controller.dispose();
+    store.setMapStyle('standard');
+    store.setAllLabelsVisibility(true);
   });
 });

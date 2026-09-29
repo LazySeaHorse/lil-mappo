@@ -1,25 +1,6 @@
 import type { StateCreator } from 'zustand';
-import type { MapStyleCapabilities } from '@/config/mapbox';
+import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 import type { MapEnvironmentSlice, ProjectStore, TransientProjectState } from './types';
-
-// Eagerly initialize standard style capabilities
-export const STANDARD_STYLE_CAPABILITIES: MapStyleCapabilities = {
-  labelGroups: [
-    { id: 'road', label: 'Road Labels', layerPatterns: ['road'] },
-    { id: 'place', label: 'Place Names', layerPatterns: ['place'] },
-    { id: 'poi', label: 'Points of Interest', layerPatterns: ['poi'] },
-    { id: 'transit', label: 'Transit', layerPatterns: ['transit'] },
-    { id: 'water', label: 'Water Names', layerPatterns: ['water'] },
-    { id: 'natural', label: 'Natural Features', layerPatterns: ['natural'] },
-    { id: 'building', label: 'Building Names', layerPatterns: ['building'] },
-    { id: 'area', label: 'Area Labels', layerPatterns: ['area'] },
-  ],
-  landmarks3d: true,
-  trees3d: true,
-  facades3d: true,
-  timeOfDayPreset: true,
-  colorCustomization: false,
-};
 
 /** Fresh transient editor state shared by initial creation and project loads. */
 export function createTransientState(): TransientProjectState {
@@ -34,7 +15,7 @@ export function createTransientState(): TransientProjectState {
     terrainLoading: false,
     buildingsLoading: false,
     isCameraEnabled: true,
-    detectedCapabilities: STANDARD_STYLE_CAPABILITIES,
+    detectedCapabilities: STANDARD_CAPABILITIES,
     terrainEnabled: false,
     buildingsEnabled: false,
     show3dLandmarks: true,

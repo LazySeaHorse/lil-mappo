@@ -12,14 +12,6 @@ import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
-const CONFIG_PROPERTIES: Record<string, string> = {
-  place: 'showPlaceLabels',
-  admin: 'showAdminBoundaries',
-  road: 'showRoadLabels',
-  poi: 'showPointOfInterestLabels',
-  transit: 'showTransitLabels',
-};
-
 function resolveFog(state: ProjectState): FogSpecification {
   const isDark = isDarkMapStyle(state.mapStyle);
   const base: FogSpecification = isDark
@@ -171,13 +163,19 @@ export class BasemapController {
     if (!groups) return;
     const layers = this.map.getStyle()?.layers ?? [];
 
+    const isStandard = state.mapStyle === 'standard';
+
     for (const group of groups) {
       const visible = state.labelVisibility[group.id] ?? true;
-      const configProperty = CONFIG_PROPERTIES[group.id];
-      if (state.mapStyle === 'standard' && configProperty && this.map.getConfigProperty('basemap', configProperty) !== visible) {
-        mutateMap(this.map, { operation: `setConfigProperty:${configProperty}`, phase: 'style-sync' }, () => {
-          this.map.setConfigProperty('basemap', configProperty, visible);
-        });
+      if (isStandard) {
+        // Standard's label layers live inside the basemap import, so only its config properties work
+        const configProperty = group.configProperty;
+        if (configProperty && this.map.getConfigProperty('basemap', configProperty) !== visible) {
+          mutateMap(this.map, { operation: `setConfigProperty:${configProperty}`, phase: 'style-sync' }, () => {
+            this.map.setConfigProperty('basemap', configProperty, visible);
+          });
+        }
+        continue;
       }
       setLayerVisibility(this.map, layers, group.layerPatterns, visible);
     }
