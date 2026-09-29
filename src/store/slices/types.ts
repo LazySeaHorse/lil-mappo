@@ -55,6 +55,8 @@ export interface TransientProjectState {
   // Transient picking state (not persisted)
   activePicker: PickSession | null;
   previewRoute: GeoJSON.FeatureCollection | null;
+  /** Walk being built in the Plan Route dropdown; drawn live on the map until inserted. */
+  draftWalk: WalkRouteCalculation | null;
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
   draftBoundaryName: string;
@@ -132,6 +134,7 @@ export interface EditorUiSlice {
   startPicking: (session: PickSession) => void;
   stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
+  setDraftWalk: (v: WalkRouteCalculation | null) => void;
   setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;

@@ -3,22 +3,17 @@ import { Marker } from 'react-map-gl/mapbox';
 import type { MarkerDragEvent } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 
-/** Draggable, numbered markers for the selected walk route's points (numbers match the inspector list). */
-export function RouteWaypointMarkers() {
-  const selectedItemId = useProjectStore((s) => s.selectedItemId);
-  const selectedItem = useProjectStore((s) => (selectedItemId ? s.items[selectedItemId] : null));
-  const updateWalkRoute = useProjectStore((s) => s.updateWalkRoute);
-
-  if (selectedItem?.kind !== 'route' || selectedItem.calculation?.mode !== 'walk') return null;
-
-  const routeId = selectedItem.id;
-  const { points } = selectedItem.calculation;
+/** Draggable, numbered markers for walk points (numbers match the inspector list). */
+function WalkPointMarkers({
+  points,
+  onMove,
+}: {
+  points: [number, number][];
+  onMove: (index: number, point: [number, number]) => void;
+}) {
   const lastIndex = points.length - 1;
 
-  const handleDrag = (index: number, e: MarkerDragEvent) => {
-    const point: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-    updateWalkRoute(routeId, (c) => ({ points: c.points.map((p, i) => (i === index ? point : p)) }));
-  };
+  const handleDrag = (index: number, e: MarkerDragEvent) => onMove(index, [e.lngLat.lng, e.lngLat.lat]);
 
   const colorFor = (index: number) =>
     index === 0 ? 'bg-emerald-500' : index === lastIndex ? 'bg-rose-500' : 'bg-blue-500';
@@ -46,5 +41,41 @@ export function RouteWaypointMarkers() {
         </Marker>
       ))}
     </>
+  );
+}
+
+/** Markers for the selected walk route's points. */
+export function RouteWaypointMarkers() {
+  const selectedItemId = useProjectStore((s) => s.selectedItemId);
+  const selectedItem = useProjectStore((s) => (selectedItemId ? s.items[selectedItemId] : null));
+  const updateWalkRoute = useProjectStore((s) => s.updateWalkRoute);
+
+  if (selectedItem?.kind !== 'route' || selectedItem.calculation?.mode !== 'walk') return null;
+
+  const routeId = selectedItem.id;
+  return (
+    <WalkPointMarkers
+      points={selectedItem.calculation.points}
+      onMove={(index, point) =>
+        updateWalkRoute(routeId, (c) => ({ points: c.points.map((p, i) => (i === index ? point : p)) }))
+      }
+    />
+  );
+}
+
+/** Markers for the walk being drafted in the Plan Route dropdown. */
+export function DraftWalkMarkers() {
+  const draft = useProjectStore((s) => s.draftWalk);
+  const setDraftWalk = useProjectStore((s) => s.setDraftWalk);
+
+  if (!draft) return null;
+
+  return (
+    <WalkPointMarkers
+      points={draft.points}
+      onMove={(index, point) =>
+        setDraftWalk({ ...draft, points: draft.points.map((p, i) => (i === index ? point : p)) })
+      }
+    />
   );
 }

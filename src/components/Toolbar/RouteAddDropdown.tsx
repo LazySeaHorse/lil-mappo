@@ -22,6 +22,7 @@ import { SectionLabel } from '@/components/ui/field';
 import { arrayMove } from '@dnd-kit/sortable';
 import { buildWalkGeometry, createWalkCalculation } from '@/engine/routeCurves';
 import { WalkPointList } from '../Inspector/WalkPointList';
+import { SwitchRow } from '../Inspector/InspectorShared';
 
 // ---------------------------------------------------------------------------
 // Types / constants
@@ -48,7 +49,7 @@ export const RouteAddDropdown = ({
 }) => {
   const {
     addItem, selectItem, playheadTime, previewRoute, setPreviewRoute,
-    activePicker, startPicking, stopPicking,
+    activePicker, startPicking, stopPicking, setDraftWalk,
   } = useProjectStore();
 
   const [mode, setMode] = useState<RouteMode>('car');
@@ -62,6 +63,7 @@ export const RouteAddDropdown = ({
 
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
+  const [walkCurved, setWalkCurved] = useState(true);
 
   const calculationSeqRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -75,6 +77,7 @@ export const RouteAddDropdown = ({
     setEnd([0, 0]);
     setEndName('');
     setWalkPoints([]);
+    setWalkCurved(true);
     setPreviewRoute(null);
   };
 
@@ -104,6 +107,14 @@ export const RouteAddDropdown = ({
     setPreviewRoute(null);
   };
 
+  // Live walk preview: mirror the draft into the store so the map draws it as points change.
+  useEffect(() => {
+    const draft = isOpen && mode === 'walk' && walkPoints.length > 0
+      ? createWalkCalculation(walkPoints)
+      : null;
+    setDraftWalk(draft && { ...draft, curved: walkCurved });
+  }, [isOpen, mode, walkPoints, walkCurved, setDraftWalk]);
+
   // Cleanup on close / unmount
   useEffect(() => {
     if (!isOpen) {
@@ -121,6 +132,7 @@ export const RouteAddDropdown = ({
 
   useEffect(() => {
     return () => {
+      useProjectStore.getState().setDraftWalk(null);
       abortControllerRef.current?.abort();
       // eslint-disable-next-line react-hooks/exhaustive-deps
       calculationSeqRef.current++;
@@ -269,7 +281,10 @@ export const RouteAddDropdown = ({
     }
 
     const id = nanoid();
-    const calculation = createWalkCalculation(walkPoints, { enabled: true, type: 'dot', modelId: '', scale: 1 });
+    const calculation = {
+      ...createWalkCalculation(walkPoints, { enabled: true, type: 'dot', modelId: '', scale: 1 }),
+      curved: walkCurved,
+    };
     const geojson = buildWalkGeometry(calculation);
 
     const item: RouteItem = {
@@ -396,6 +411,13 @@ export const RouteAddDropdown = ({
       {/* Walk mode — sequential point list */}
       {mode === 'walk' ? (
         <div className="space-y-3">
+          <SwitchRow
+            label="Smooth Curve"
+            sublabel={walkCurved ? 'Bézier spline through points' : 'Straight line segments'}
+            checked={walkCurved}
+            onChange={setWalkCurved}
+          />
+
           <SectionLabel>Walk points</SectionLabel>
 
           {walkPoints.length === 0 && (

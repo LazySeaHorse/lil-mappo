@@ -50,6 +50,7 @@ export function createTransientState(): TransientProjectState {
     projectSettingsTab: 'general',
     activePicker: null,
     previewRoute: null,
+    draftWalk: null,
     previewBoundary: null,
     previewBoundaryStyle: null,
     draftBoundaryName: '',

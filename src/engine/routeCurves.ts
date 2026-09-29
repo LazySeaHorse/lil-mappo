@@ -41,7 +41,9 @@ export function buildRouteGeometry(
       : 10000;
 
     const curved = bezierSpline(straightLine, { sharpness, resolution });
-    return truncateCoordinates(curved.geometry, 5);
+    // The spline emits ~resolution/10 samples regardless of length, so on short routes neighbours sit
+    // well under a metre apart; 5 decimals (~1.1 m) would snap them to a visible staircase when zoomed in.
+    return truncateCoordinates(curved.geometry, 6);
   } catch (error) {
     // If bezierSpline fails (e.g. coincident points or degenerate geometry), fallback to straight line
     console.warn('[routeCurves] Failed to compute spline, falling back to straight polyline:', error);

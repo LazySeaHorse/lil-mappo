@@ -13,7 +13,8 @@ import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 import { resolveClickTarget } from './mapUtils';
 import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
-import { RouteWaypointMarkers } from './RouteWaypointMarkers';
+import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
+import { DraftWalkLayer } from './DraftWalkLayer';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
 import type { MapGesture } from '@/components/Onboarding/walkthroughState';
@@ -198,6 +199,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
 
             {/* Previews */}
             <PreviewRouteLayer />
+            <DraftWalkLayer />
             <PreviewBoundaryLayer />
 
           </>
@@ -210,6 +212,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
           selectedCalloutId={selectedCalloutId}
         />
         <RouteWaypointMarkers />
+        <DraftWalkMarkers />
       </MapGL>
     </div>
   );

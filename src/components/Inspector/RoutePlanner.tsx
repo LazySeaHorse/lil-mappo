@@ -239,10 +239,6 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
             )
           }
         />
-
-        <div className="text-[11px] text-muted-foreground bg-muted/40 p-2 rounded-lg border border-border/40 mt-1 leading-snug">
-          💡 <strong>Tip:</strong> Drag the numbered markers on the map to reposition points, or use the grip handles above to reorder.
-        </div>
       </div>
     </div>
   );
