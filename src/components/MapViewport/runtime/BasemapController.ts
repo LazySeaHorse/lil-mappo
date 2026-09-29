@@ -1,11 +1,10 @@
 import type {
   FogSpecification,
-  LayerSpecification,
   Map as MapboxMap,
   MapSourceDataEvent,
 } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import { isDarkMapStyle } from '@/config/mapbox';
+import { LABEL_CATEGORIES, isDarkMapStyle } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
@@ -49,16 +48,16 @@ function resolveFog(state: ProjectState): FogSpecification {
 
 function setLayerVisibility(
   map: MapboxMap,
-  layers: LayerSpecification[],
+  layerIds: string[],
   patterns: string[],
   visible: boolean,
 ): void {
   const target = visible ? 'visible' : 'none';
-  for (const layer of layers) {
-    if (!patterns.some((pattern) => layer.id.toLowerCase().includes(pattern.toLowerCase()))) continue;
-    if (map.getLayoutProperty(layer.id, 'visibility') === target) continue;
-    mutateMap(map, { operation: 'setLayoutProperty', phase: 'style-sync', resourceId: layer.id }, () => {
-      map.setLayoutProperty(layer.id, 'visibility', target);
+  for (const id of layerIds) {
+    if (!patterns.some((pattern) => id.toLowerCase().includes(pattern.toLowerCase()))) continue;
+    if (map.getLayoutProperty(id, 'visibility') === target) continue;
+    mutateMap(map, { operation: 'setLayoutProperty', phase: 'style-sync', resourceId: id }, () => {
+      map.setLayoutProperty(id, 'visibility', target);
     });
   }
 }
@@ -66,6 +65,8 @@ function setLayerVisibility(
 export class BasemapController {
   private disposed = false;
   private readonly animationFrames = new Set<number>();
+  /** Label-relevant classic layer ids and the first symbol layer, scanned once per style load (getStyle() serializes the whole style). */
+  private styleScan: { labelLayerIds: string[]; firstSymbolId: string | undefined } | undefined;
   private unsubscribeInteractive: (() => void) | undefined;
 
   constructor(
@@ -164,7 +165,7 @@ export class BasemapController {
 
   /** Inserted below the first symbol layer so labels stay on top of the extrusions. */
   private addBuildingsLayer(visible: boolean): void {
-    const beforeId = this.map.getStyle()?.layers?.find((layer) => layer.type === 'symbol')?.id;
+    const beforeId = this.getStyleScan().firstSymbolId;
     mutateMap(this.map, { operation: 'addLayer', phase: 'style-sync', resourceId: BUILDINGS_LAYER_ID }, () => {
       this.map.addLayer({
         id: BUILDINGS_LAYER_ID,
@@ -186,8 +187,6 @@ export class BasemapController {
   private reconcileLabels(state: ProjectState): void {
     const groups = state.detectedCapabilities?.labelGroups;
     if (!groups) return;
-    const layers = this.map.getStyle()?.layers ?? [];
-
     const isStandard = state.mapStyle === 'standard';
 
     for (const group of groups) {
@@ -202,7 +201,7 @@ export class BasemapController {
         }
         continue;
       }
-      setLayerVisibility(this.map, layers, group.layerPatterns, visible);
+      setLayerVisibility(this.map, this.getStyleScan().labelLayerIds, group.layerPatterns, visible);
     }
   }
 
@@ -246,6 +245,22 @@ export class BasemapController {
     });
   }
 
+  private getStyleScan(): NonNullable<BasemapController['styleScan']> {
+    if (this.styleScan) return this.styleScan;
+    // Standard's layers live inside the basemap import and are driven by config properties, so skip the scan
+    if (useProjectStore.getState().mapStyle === 'standard') {
+      return { labelLayerIds: [], firstSymbolId: undefined };
+    }
+    const layers = this.map.getStyle()?.layers ?? [];
+    const patterns = LABEL_CATEGORIES.flatMap((category) => category.layerPatterns.map((p) => p.toLowerCase()));
+    // Custom route/boundary layers added after style load never match label patterns, so they are not tracked
+    this.styleScan = {
+      labelLayerIds: layers.filter((layer) => patterns.some((p) => layer.id.toLowerCase().includes(p))).map((layer) => layer.id),
+      firstSymbolId: layers.find((layer) => layer.type === 'symbol')?.id,
+    };
+    return this.styleScan;
+  }
+
   private schedule(callback: () => void): void {
     const frame = requestAnimationFrame(() => {
       this.animationFrames.delete(frame);
@@ -263,6 +278,7 @@ export class BasemapController {
 
   private readonly handleStyleLoad = () => {
     const state = useProjectStore.getState();
+    this.styleScan = undefined;
     void loadKnownStyleAssets(this.map);
     state.setDetectedCapabilities(detectRuntimeCapabilities(this.map, state.mapStyle));
     this.setStyleLoaded(true);
@@ -279,7 +295,6 @@ export class BasemapController {
 
   private readonly handleSourceData = (event: MapSourceDataEvent) => {
     if (event.sourceId !== 'mapbox-dem') return;
-    this.reconcile();
     this.schedule(() => this.updateTerrainLoading());
   };
 
@@ -291,7 +306,6 @@ export class BasemapController {
   };
 
   private readonly handleIdle = () => {
-    this.reconcile();
     const state = useProjectStore.getState();
     if (!state.isPlaying && state.terrainLoading) this.schedule(() => this.updateTerrainLoading());
   };

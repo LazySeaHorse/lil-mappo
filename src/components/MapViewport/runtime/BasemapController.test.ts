@@ -245,4 +245,73 @@ describe('BasemapController', () => {
       controller.dispose();
     });
   });
+
+  it('does not re-reconcile on idle or DEM sourcedata events', () => {
+    const double = createMapDouble();
+    const store = useProjectStore.getState();
+    store.setMapStyle('standard');
+    store.setDetectedCapabilities(STANDARD_CAPABILITIES);
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+    vi.clearAllMocks();
+
+    for (const listener of double.listeners.get('idle')!) listener({});
+    for (const listener of double.listeners.get('sourcedata')!) listener({ sourceId: 'mapbox-dem' });
+
+    expect(double.setConfigProperty).not.toHaveBeenCalled();
+    expect(double.setFog).not.toHaveBeenCalled();
+    expect(double.setProjection).not.toHaveBeenCalled();
+    expect(double.setTerrain).not.toHaveBeenCalled();
+    expect(double.getFog).not.toHaveBeenCalled();
+
+    controller.dispose();
+  });
+
+  it('still reconciles on styleimportdata (Standard basemap import becoming ready)', () => {
+    const double = createMapDouble();
+    const store = useProjectStore.getState();
+    store.setMapStyle('standard');
+    store.setDetectedCapabilities(STANDARD_CAPABILITIES);
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+    vi.clearAllMocks();
+
+    for (const listener of double.listeners.get('styleimportdata')!) listener({});
+
+    expect(double.setConfigProperty).toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it('scans the style once per load and reconciles labels without getStyle afterwards', () => {
+    const double = createMapDouble();
+    double.getStyle.mockReturnValue({ version: 8, sources: {}, layers: [{ id: 'road-label' }, { id: 'land' }] });
+    const store = useProjectStore.getState();
+    store.setMapStyle('streets');
+    store.setDetectedCapabilities(detectRuntimeCapabilities(double.map, 'streets'));
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+    double.getStyle.mockClear();
+
+    store.setLabelGroupVisibility('road', false);
+    controller.reconcile();
+
+    expect(double.setLayoutProperty).toHaveBeenCalledWith('road-label', 'visibility', 'none');
+    expect(double.getStyle).not.toHaveBeenCalled();
+
+    controller.dispose();
+    store.setMapStyle('standard');
+    store.setAllLabelsVisibility(true);
+  });
+
+  it('skips the layer scan entirely on Standard', () => {
+    const double = createMapDouble();
+    const store = useProjectStore.getState();
+    store.setMapStyle('standard');
+    store.setDetectedCapabilities(STANDARD_CAPABILITIES);
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+    controller.reconcile();
+    expect(double.getStyle).not.toHaveBeenCalled();
+    controller.dispose();
+  });
 });
