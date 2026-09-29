@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
-import MapGL, { Layer } from 'react-map-gl/mapbox';
+import MapGL from 'react-map-gl/mapbox';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapLayerMouseEvent } from 'mapbox-gl';
 import { MAP_STYLES, transformMapboxRequest } from '@/config/mapbox';
@@ -179,24 +179,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}
         {styleLoaded && (
           <>
-            {/* Buildings layer for non-Standard styles — visibility controlled by sync engine */}
-            {mapStyle !== 'standard' && mapStyle !== 'satellite' && (
-              <Layer
-                id="3d-buildings"
-                source="composite"
-                source-layer="building"
-                type="fill-extrusion"
-                minzoom={14}
-                paint={{
-                  'fill-extrusion-color': '#ddd',
-                  'fill-extrusion-height': ['get', 'height'],
-                  'fill-extrusion-base': ['get', 'min_height'],
-                  'fill-extrusion-opacity': 0.8,
-                }}
-                layout={{ 'visibility': 'none' }}
-              />
-            )}
-
             {/* Previews */}
             <PreviewRouteLayer />
             <DraftWalkLayer />

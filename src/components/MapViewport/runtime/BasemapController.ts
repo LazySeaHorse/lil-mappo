@@ -10,6 +10,8 @@ import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
 
+const BUILDINGS_LAYER_ID = '3d-buildings';
+
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
 function resolveFog(state: ProjectState): FogSpecification {
@@ -149,13 +151,36 @@ export class BasemapController {
       return;
     }
 
-    if (!this.map.getLayer('3d-buildings')) return;
+    // Classic styles: satellite-v9 has no vector data; others expose `composite` with a building layer
+    if (state.mapStyle === 'satellite' || !this.map.getSource('composite')) return;
+    if (!this.map.getLayer(BUILDINGS_LAYER_ID)) this.addBuildingsLayer(state.buildingsEnabled);
     const target = state.buildingsEnabled ? 'visible' : 'none';
-    if (this.map.getLayoutProperty('3d-buildings', 'visibility') !== target) {
-      mutateMap(this.map, { operation: 'setLayoutProperty', phase: 'style-sync', resourceId: '3d-buildings' }, () => {
-        this.map.setLayoutProperty('3d-buildings', 'visibility', target);
+    if (this.map.getLayer(BUILDINGS_LAYER_ID) && this.map.getLayoutProperty(BUILDINGS_LAYER_ID, 'visibility') !== target) {
+      mutateMap(this.map, { operation: 'setLayoutProperty', phase: 'style-sync', resourceId: BUILDINGS_LAYER_ID }, () => {
+        this.map.setLayoutProperty(BUILDINGS_LAYER_ID, 'visibility', target);
       });
     }
+  }
+
+  /** Inserted below the first symbol layer so labels stay on top of the extrusions. */
+  private addBuildingsLayer(visible: boolean): void {
+    const beforeId = this.map.getStyle()?.layers?.find((layer) => layer.type === 'symbol')?.id;
+    mutateMap(this.map, { operation: 'addLayer', phase: 'style-sync', resourceId: BUILDINGS_LAYER_ID }, () => {
+      this.map.addLayer({
+        id: BUILDINGS_LAYER_ID,
+        source: 'composite',
+        'source-layer': 'building',
+        type: 'fill-extrusion',
+        minzoom: 14,
+        paint: {
+          'fill-extrusion-color': '#ddd',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': ['get', 'min_height'],
+          'fill-extrusion-opacity': 0.8,
+        },
+        layout: { visibility: visible ? 'visible' : 'none' },
+      }, beforeId);
+    });
   }
 
   private reconcileLabels(state: ProjectState): void {

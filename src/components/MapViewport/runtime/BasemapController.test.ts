@@ -27,6 +27,7 @@ function createMapDouble() {
     getConfigProperty: vi.fn(() => undefined),
     setConfigProperty: vi.fn(),
     getLayer: vi.fn(),
+    addLayer: vi.fn(),
     getLayoutProperty: vi.fn(),
     setLayoutProperty: vi.fn(),
     getStyle: vi.fn(() => ({ version: 8, sources: {}, layers: [] })),
@@ -145,5 +146,103 @@ describe('BasemapController', () => {
     controller.dispose();
     store.setMapStyle('standard');
     store.setAllLabelsVisibility(true);
+  });
+
+  describe('3d-buildings layer', () => {
+    const classicLayers = [
+      { id: 'land', type: 'background' },
+      { id: 'road', type: 'line' },
+      { id: 'road-label', type: 'symbol' },
+      { id: 'poi-label', type: 'symbol' },
+    ];
+
+    /** Makes addLayer/getLayer/getLayoutProperty behave like a real style for the buildings layer. */
+    function withCompositeStyle(double: ReturnType<typeof createMapDouble>, layers = classicLayers) {
+      const added = new Map<string, string>();
+      double.getStyle.mockReturnValue({ version: 8, sources: {}, layers } as never);
+      double.getSource.mockImplementation(((id: string) => (id === 'composite' ? {} : undefined)) as never);
+      double.addLayer.mockImplementation(((layer: { id: string; layout: { visibility: string } }) => {
+        added.set(layer.id, layer.layout.visibility);
+      }) as never);
+      double.getLayer.mockImplementation(((id: string) => (added.has(id) ? { id } : undefined)) as never);
+      double.getLayoutProperty.mockImplementation(((id: string) => added.get(id)) as never);
+      double.setLayoutProperty.mockImplementation(((id: string, _p: string, value: string) => {
+        added.set(id, value);
+      }) as never);
+      return added;
+    }
+
+    afterEach(() => {
+      const store = useProjectStore.getState();
+      store.setBuildingsEnabled(false);
+      store.setMapStyle('standard');
+    });
+
+    it('is added on style load below the first symbol layer and follows buildingsEnabled', () => {
+      const double = createMapDouble();
+      const added = withCompositeStyle(double);
+      const store = useProjectStore.getState();
+      store.setMapStyle('streets');
+      store.setBuildingsEnabled(true);
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+
+      expect(double.addLayer).toHaveBeenCalledTimes(1);
+      expect(double.addLayer).toHaveBeenCalledWith(
+        expect.objectContaining({ id: '3d-buildings', source: 'composite', 'source-layer': 'building', type: 'fill-extrusion', minzoom: 14 }),
+        'road-label',
+      );
+      expect(added.get('3d-buildings')).toBe('visible');
+
+      store.setBuildingsEnabled(false);
+      controller.reconcile();
+      expect(added.get('3d-buildings')).toBe('none');
+      expect(double.addLayer).toHaveBeenCalledTimes(1);
+
+      controller.dispose();
+    });
+
+    it('is re-added with the current visibility after a style swap', () => {
+      const double = createMapDouble();
+      const added = withCompositeStyle(double);
+      const store = useProjectStore.getState();
+      store.setMapStyle('streets');
+      store.setBuildingsEnabled(true);
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+
+      // Mapbox drops custom layers when the style is replaced
+      added.clear();
+      store.setMapStyle('light');
+      for (const listener of double.listeners.get('style.load')!) listener({});
+
+      expect(double.addLayer).toHaveBeenCalledTimes(2);
+      expect(added.get('3d-buildings')).toBe('visible');
+
+      controller.dispose();
+    });
+
+    it('is not added on Standard, satellite, or styles without a composite source', () => {
+      const store = useProjectStore.getState();
+      store.setBuildingsEnabled(true);
+      for (const style of ['standard', 'satellite'] as const) {
+        const double = createMapDouble();
+        withCompositeStyle(double);
+        store.setMapStyle(style);
+        const controller = new BasemapController(double.map, vi.fn());
+        controller.mount();
+        expect(double.addLayer).not.toHaveBeenCalled();
+        controller.dispose();
+      }
+
+      const double = createMapDouble();
+      withCompositeStyle(double);
+      double.getSource.mockReturnValue(undefined as never);
+      store.setMapStyle('streets');
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+      expect(double.addLayer).not.toHaveBeenCalled();
+      controller.dispose();
+    });
   });
 });
