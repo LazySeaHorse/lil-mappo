@@ -30,7 +30,7 @@ const route: RouteItem = {
     animationType: 'draw',
   },
   easing: 'linear',
-  calculation: { mode: 'manual', startPoint: [0, 0], endPoint: [1, 1] },
+  calculation: { mode: 'walk', startPoint: [0, 0], endPoint: [1, 1] },
 };
 
 function createMapDouble() {

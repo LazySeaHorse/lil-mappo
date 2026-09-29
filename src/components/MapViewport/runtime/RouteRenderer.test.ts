@@ -214,7 +214,7 @@ describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {
     },
     easing: "linear",
     calculation: {
-      mode: "manual",
+      mode: "walk",
       startPoint: [-73.9851, 40.7488],
       endPoint: [-73.9712, 40.7614],
       vehicle: {
