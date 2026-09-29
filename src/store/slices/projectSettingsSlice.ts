@@ -29,7 +29,7 @@ export const createProjectSettingsSlice: StateCreator<
     })),
   setProjection: (v) => set({ projection: v }),
   setLightPreset: (v) => set({ lightPreset: v }),
-  setAtmosphere: (updates) => set((s) => ({ ...s, ...updates })),
+  setAtmosphere: (updates) => set(updates),
   setTerrainExaggeration: (v) => set({ terrainExaggeration: v }),
 
   loadFullProject: (input) => {
