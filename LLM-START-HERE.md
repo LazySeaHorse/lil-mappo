@@ -108,6 +108,7 @@ Right-side panel for editing selected items. Uses local state for draft values (
 **Solution**:
 - `LABEL_CATEGORIES` in `src/config/mapbox.ts` is the single source of truth: fixed, stable ids `place`, `admin`, `road`, `transit`, `poi`, `water`, `natural`, `building`, each with label-layer id patterns (and a Config API `configProperty` where Standard supports it).
 - **Standard** exposes only the 5 config-backed categories (`place`, `admin`, `road`, `transit`, `poi`) via `STANDARD_CAPABILITIES`; its layers live inside the `basemap` import, so `BasemapController.reconcileLabels` uses `setConfigProperty` only.
+- **Buildings on classic styles**: `BasemapController` adds the `3d-buildings` fill-extrusion layer imperatively (below the first symbol layer, only when a `composite` source exists and the style is not `satellite`) on style load and sets its visibility from `buildingsEnabled`. Basemap reconcile runs on store changes, `style.load`, and `styleimportdata`, not on `idle`/DEM `sourcedata`; label layer ids are scanned once per style load.
 - **Classic/community styles**: `detectRuntimeCapabilities()` returns only the categories whose patterns match a layer in the loaded style; `reconcileLabels` toggles those layers' visibility.
 - UI renders dynamically from detected capabilities.
 
