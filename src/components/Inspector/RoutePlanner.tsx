@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useProjectStore } from '@/store/useProjectStore';
-import { getDirections } from '@/services/directions';
-import { calculateFlightArc } from '@/services/flightPath';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +13,9 @@ import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
 import { SwitchRow, SliderField } from './InspectorShared';
-import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
-import { convertRouteCalculation, isPlacedPoint, UNSET_POINT } from '@/engine/routeMode';
+import { buildWalkGeometry, DEFAULT_SHARPNESS } from '@/engine/routeCurves';
+import { useEndpointRoutePath } from './useEndpointRoutePath';
+import { convertRouteCalculation, isPlacedPoint } from '@/engine/routeMode';
 import { WalkPointList } from './WalkPointList';
 import { vehicleChangePatch } from '@/config/vehicles';
 
@@ -253,31 +252,22 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
 // Car / flight — two endpoints, computed path
 // ---------------------------------------------------------------------------
 
-const EndpointPlanner = ({ item, calc }: { item: RouteItem; calc: EndpointRouteCalculation }) => {
+const EndpointPlanner = ({
+  item,
+  calc,
+  path,
+}: {
+  item: RouteItem;
+  calc: EndpointRouteCalculation;
+  path: ReturnType<typeof useEndpointRoutePath>;
+}) => {
   const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore();
-  const [loading, setLoading] = useState(false);
-  const calculationSeqRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const isPickingStart = activePicker?.id === `route-${item.id}-start`;
   const isPickingEnd = activePicker?.id === `route-${item.id}-end`;
 
-  useEffect(() => {
-    return () => {
-      abortControllerRef.current?.abort();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      calculationSeqRef.current++;
-    };
-  }, [item.id]);
-
-  const cancelCalculation = () => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
-  };
-
   const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number]) => {
-    cancelCalculation();
+    path.cancel();
     const current = useProjectStore.getState().items[item.id];
     if (current?.kind !== 'route' || current.calculation?.mode === 'walk') return;
     updateItem(item.id, { calculation: { ...(current.calculation ?? calc), [key]: lngLat } });
@@ -301,51 +291,6 @@ const EndpointPlanner = ({ item, calc }: { item: RouteItem; calc: EndpointRouteC
           else setEnd(result.lngLat);
         },
       });
-    }
-  };
-
-  const calculateRoute = async (saveToItem: boolean) => {
-    if (!isPlacedPoint(calc.startPoint) || !isPlacedPoint(calc.endPoint)) {
-      toast.error('Set start and end points.');
-      return;
-    }
-
-    abortControllerRef.current?.abort();
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    const seq = ++calculationSeqRef.current;
-    setLoading(true);
-    try {
-      const geojson: GeoJSON.Geometry = calc.mode === 'car'
-        ? (await getDirections(calc.startPoint, calc.endPoint, abortController.signal)).geometry
-        : calculateFlightArc(calc.startPoint, calc.endPoint);
-
-      if (seq !== calculationSeqRef.current || abortController.signal.aborted) return;
-
-      const featureCollection: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: [{ type: 'Feature', geometry: geojson, properties: {} }],
-      };
-
-      if (saveToItem) {
-        updateItem(item.id, { geojson: featureCollection });
-        toast.success('Route updated.');
-        setPreviewRoute(null);
-      } else {
-        setPreviewRoute(featureCollection);
-        toast.success('Route preview is ready.');
-      }
-    } catch (err: unknown) {
-      if (
-        abortController.signal.aborted ||
-        seq !== calculationSeqRef.current ||
-        (err instanceof Error && err.name === 'AbortError')
-      )
-        return;
-      toast.error('Cannot calculate route.');
-    } finally {
-      if (seq === calculationSeqRef.current) setLoading(false);
     }
   };
 
@@ -396,18 +341,18 @@ const EndpointPlanner = ({ item, calc }: { item: RouteItem; calc: EndpointRouteC
       <div className="flex flex-col gap-2.5 pt-1">
         <Button
           type="button"
-          onClick={() => calculateRoute(true)}
-          disabled={loading}
+          onClick={() => path.calculate(calc, 'save')}
+          disabled={path.loading}
           className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
-          {loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply route'}
+          {path.loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply route'}
         </Button>
 
         <Button
           type="button"
           variant="outline"
-          onClick={() => calculateRoute(false)}
-          disabled={loading}
+          onClick={() => path.calculate(calc, 'preview')}
+          disabled={path.loading}
           className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <Eye size={15} className="text-muted-foreground" />
@@ -431,6 +376,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const storeItem = useProjectStore((s) => s.items[item.id]) as RouteItem | undefined;
   const activeItem = storeItem ?? item;
   const calc = activeItem.calculation ?? convertRouteCalculation(undefined, 'car');
+  const path = useEndpointRoutePath(item.id);
 
   useEffect(() => {
     return () => {
@@ -440,7 +386,13 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     };
   }, [item.id]);
 
+  /**
+   * Switching mode redraws the path from the carried-over points so the route
+   * never shows a path from its previous mode. Routes without enough points
+   * (e.g. imported tracks) keep their geometry, since it cannot be rebuilt.
+   */
   const handleModeChange = (mode: RouteMode) => {
+    path.cancel();
     const store = useProjectStore.getState();
     if (store.activePicker?.ownerId === item.id) store.stopPicking();
     store.setPreviewRoute(null);
@@ -452,7 +404,13 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
         ? { ...currentVehicle, enabled: true, type: 'plane' as const }
         : currentVehicle;
 
-    updateItem(item.id, vehicleChangePatch(activeItem, next, vehicle));
+    const patch = vehicleChangePatch(activeItem, next, vehicle);
+    if (next.mode === 'walk') {
+      updateItem(item.id, next.points.length >= 2 ? { ...patch, geojson: buildWalkGeometry(next) } : patch);
+      return;
+    }
+    updateItem(item.id, patch);
+    if (isPlacedPoint(next.startPoint) && isPlacedPoint(next.endPoint)) void path.calculate(next, 'save');
   };
 
   return (
@@ -470,7 +428,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
 
       {calc.mode === 'walk'
         ? <WalkPlanner routeId={item.id} calc={calc} />
-        : <EndpointPlanner key={calc.mode} item={activeItem} calc={calc} />}
+        : <EndpointPlanner item={activeItem} calc={calc} path={path} />}
     </div>
   );
 };

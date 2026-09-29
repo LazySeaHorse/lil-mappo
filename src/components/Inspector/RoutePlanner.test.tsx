@@ -5,6 +5,7 @@ import { RoutePlanner } from './RoutePlanner';
 import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
 import type { RouteItem } from '@/store/types';
+import { getDirections } from '@/services/directions';
 
 vi.mock('react-secure-storage', () => ({
   default: {
@@ -13,6 +14,10 @@ vi.mock('react-secure-storage', () => ({
     removeItem: vi.fn(),
     clear: vi.fn(),
   },
+}));
+
+vi.mock('@/services/directions', () => ({
+  getDirections: vi.fn(),
 }));
 
 vi.mock('@/hooks/useSubscription', () => ({
@@ -298,6 +303,95 @@ describe('RoutePlanner in Inspector', () => {
       fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
       act(() => { useProjectStore.getState().removeItem('route-test-1'); });
       expect(useProjectStore.getState().activePicker).toBeNull();
+    });
+  });
+
+  describe('switching mode', () => {
+    const drivenGeometry: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[1, 1], [1.2, 1.5], [2, 2]] } }],
+    };
+    const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
+    const coordsOf = (route: RouteItem) => (route.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
+    const setRoute = (patch: Partial<RouteItem>) => {
+      const route = { ...createBaseRouteItem('car'), ...patch };
+      useProjectStore.setState({ items: { [route.id]: route } });
+      return route;
+    };
+    const clickMode = (name: RegExp) => act(() => { fireEvent.click(screen.getByRole('radio', { name })); });
+
+    beforeEach(() => {
+      vi.mocked(getDirections).mockReset();
+    });
+
+    it('car → walk redraws the path through the two endpoints', () => {
+      const route = setRoute({
+        geojson: drivenGeometry,
+        calculation: { mode: 'car', startPoint: [1, 1], endPoint: [2, 2] },
+      });
+      render(<RoutePlanner item={route} />);
+      clickMode(/walk/i);
+
+      expect(stored().calculation).toMatchObject({ mode: 'walk', points: [[1, 1], [2, 2]] });
+      expect(coordsOf(stored())).toEqual([[1, 1], [2, 2]]);
+    });
+
+    it('walk → flight draws an arc between the first and last points', () => {
+      const route = setRoute({
+        geojson: drivenGeometry,
+        calculation: { mode: 'walk', points: [[1, 1], [5, 5], [2, 2]], curved: true, sharpness: 0.85 },
+      });
+      render(<RoutePlanner item={route} />);
+      clickMode(/flight/i);
+
+      expect(stored().calculation).toMatchObject({ mode: 'flight', startPoint: [1, 1], endPoint: [2, 2] });
+      const coords = coordsOf(stored());
+      expect(coords[0]).toEqual([1, 1]);
+      expect(coords[coords.length - 1]).toEqual([2, 2]);
+      expect(coords).not.toContainEqual([5, 5]);
+    });
+
+    it('walk → car fetches directions between the first and last points', async () => {
+      vi.mocked(getDirections).mockResolvedValue({
+        geometry: { type: 'LineString', coordinates: [[1, 1], [1.5, 1.1], [2, 2]] }, distance: 1, duration: 1,
+      });
+      const route = setRoute({
+        geojson: drivenGeometry,
+        calculation: { mode: 'walk', points: [[1, 1], [5, 5], [2, 2]], curved: true, sharpness: 0.85 },
+      });
+      render(<RoutePlanner item={route} />);
+      await act(async () => { fireEvent.click(screen.getByRole('radio', { name: /drive/i })); });
+
+      expect(getDirections).toHaveBeenCalledWith([1, 1], [2, 2], expect.any(AbortSignal));
+      expect(coordsOf(stored())).toEqual([[1, 1], [1.5, 1.1], [2, 2]]);
+    });
+
+    it('discards a directions result that lands after switching away from car', async () => {
+      let resolve!: (value: Awaited<ReturnType<typeof getDirections>>) => void;
+      vi.mocked(getDirections).mockReturnValue(new Promise((r) => { resolve = r; }));
+      const route = setRoute({
+        geojson: drivenGeometry,
+        calculation: { mode: 'walk', points: [[1, 1], [2, 2]], curved: true, sharpness: 0.85 },
+      });
+      render(<RoutePlanner item={route} />);
+      clickMode(/drive/i);
+      clickMode(/walk/i);
+      await act(async () => {
+        resolve({ geometry: { type: 'LineString', coordinates: [[9, 9], [8, 8]] }, distance: 1, duration: 1 });
+      });
+
+      expect(stored().calculation?.mode).toBe('walk');
+      expect(coordsOf(stored())).toEqual([[1, 1], [2, 2]]);
+    });
+
+    it('keeps imported geometry when there are no points to redraw from', () => {
+      const route = setRoute({ geojson: drivenGeometry, calculation: undefined });
+      render(<RoutePlanner item={route} />);
+      clickMode(/walk/i);
+
+      expect(stored().calculation).toMatchObject({ mode: 'walk', points: [] });
+      expect(stored().geojson).toEqual(drivenGeometry);
+      expect(getDirections).not.toHaveBeenCalled();
     });
   });
 });
