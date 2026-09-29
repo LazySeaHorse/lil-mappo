@@ -49,14 +49,19 @@ The application is built around a **state-driven animation engine**.
 
 Everything lives in a single Zustand store. The `Project` type contains **only essential animation data**. Transient UI state lives alongside but is never persisted.
 
+**Rule: anything that changes the exported pixels belongs to the project file.** Editor-only state stays transient.
+
 **Persisted (Project)**:
 - `items`, `itemOrder`: Timeline elements (Routes, Boundaries, Callouts, Camera).
 - `duration`, `fps`, `resolution`: Export settings. **Default: 30s, 30fps, 720p (1280×720).**
 - `projection`, `lightPreset`, `starIntensity`, `fogColor`, `terrainExaggeration`: Environment.
+- `mapStyle` (a `MAP_STYLES` key; unknown keys parse to `standard`), `terrainEnabled`, `buildingsEnabled`, `labelVisibility` (stable category id -> boolean), `show3dLandmarks`, `show3dTrees`, `show3dFacades`: Map look. Old documents without them parse to the defaults; new projects start from Standard.
 - `mapCenter`: For search proximity bias.
 
 **Transient (UI State — NOT persisted)**:
-- `mapStyle`, `labelVisibility`, `playheadTime`, `isInspectorOpen`, `timelineHeight`, selection state (selectedItemId, selectedKeyframeId, selectedAutoCamRouteId), drafting state (search results, preview geometries).
+- `playheadTime`, `isInspectorOpen`, selection state (selectedItemId, selectedKeyframeId, selectedAutoCamRouteId), drafting state (search results, preview geometries).
+- `timelineHeight` is a per-user UI preference persisted to localStorage (`lil-mappo-timeline-height`), not in the project file and not reset by project load.
+- `RenderConfig` (`src/types/render.ts`) is dimensions and timing only; cloud jobs send the full `toProjectDocument()` as `project_data`, so the headless renderer gets the map look from `loadFullProject`.
 
 **Key Practice**: Use `useShallow` selectors to prevent unnecessary re-renders during playback:
 ```ts
@@ -106,7 +111,7 @@ Right-side panel for editing selected items. Uses local state for draft values (
 - **Classic/community styles**: `detectRuntimeCapabilities()` returns only the categories whose patterns match a layer in the loaded style; `reconcileLabels` toggles those layers' visibility.
 - UI renders dynamically from detected capabilities.
 
-**Key Design**: Label visibility is **transient** (never persisted) — resets on project load.
+**Key Design**: Label visibility is **persisted in the project** (`labelVisibility`, keyed by the stable category ids), survives style switches and project reloads, and is exported as-is.
 
 ### 3.6 Canvas Callout Rendering
 
