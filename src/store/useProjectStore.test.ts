@@ -167,6 +167,21 @@ describe('useProjectStore modular slices', () => {
     });
   });
 
+  describe('timelineHeight preference', () => {
+    it('persists to localStorage and survives project load', () => {
+      localStorage.removeItem('lil-mappo-timeline-height');
+      useProjectStore.getState().setTimelineHeight(333);
+      expect(localStorage.getItem('lil-mappo-timeline-height')).toBe('333');
+      useProjectStore.getState().loadFullProject(createProject({ id: 'tl' }));
+      expect(useProjectStore.getState().timelineHeight).toBe(333);
+      expect(createTransientState().timelineHeight).toBe(333);
+      localStorage.setItem('lil-mappo-timeline-height', 'garbage');
+      expect(createTransientState().timelineHeight).toBe(256);
+      localStorage.removeItem('lil-mappo-timeline-height');
+      expect(createTransientState().timelineHeight).toBe(256);
+    });
+  });
+
   describe('editorUiSlice', () => {
     it('handles drafting boundaries and route selection', () => {
       const store = useProjectStore.getState();

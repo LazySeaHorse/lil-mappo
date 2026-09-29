@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { EditorUiSlice, ProjectStore } from './types';
+import { writeTimelineHeight } from '../timelineHeightPreference';
 import { CAMERA_TRACK_ID } from '../projectDocument';
 
 export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSlice> = (
@@ -48,7 +49,10 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
   setShowNewProjectModal: (v) => set({ showNewProjectModal: v }),
   setProjectSettingsTab: (tab) => set({ projectSettingsTab: tab }),
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
-  setTimelineHeight: (v) => set({ timelineHeight: v }),
+  setTimelineHeight: (v) => {
+    writeTimelineHeight(v);
+    set({ timelineHeight: v });
+  },
   setMapCenter: (v) => set({ mapCenter: v }),
 
   startPicking: (session) => set({ activePicker: session }),

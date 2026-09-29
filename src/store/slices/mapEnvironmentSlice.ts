@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
+import { readTimelineHeight } from '../timelineHeightPreference';
 import type { MapEnvironmentSlice, ProjectStore, TransientProjectState } from './types';
 
 /** Fresh transient editor state shared by initial creation and project loads. */
@@ -9,7 +10,7 @@ export function createTransientState(): TransientProjectState {
     isPlaying: false,
     isScrubbing: false,
     isInspectorOpen: false,
-    timelineHeight: 256,
+    timelineHeight: readTimelineHeight(),
     terrainLoading: false,
     buildingsLoading: false,
     isCameraEnabled: true,
