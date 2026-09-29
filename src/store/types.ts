@@ -26,7 +26,7 @@ export interface AutoCamConfig {
   easing?: EasingName;
 }
 
-export type RouteMode = 'car' | 'walk' | 'flight' | 'manual';
+export type RouteMode = 'car' | 'walk' | 'flight';
 
 export interface RouteVehicleConfig {
   enabled: boolean;

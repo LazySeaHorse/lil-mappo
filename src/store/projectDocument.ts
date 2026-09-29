@@ -81,7 +81,7 @@ const routeItemSchema = z.object({
   calculation: z.object({
     startPoint: coordinateSchema,
     endPoint: coordinateSchema,
-    mode: z.enum(['car', 'walk', 'flight', 'manual']),
+    mode: z.enum(['car', 'walk', 'flight', 'manual']).transform((m) => m === 'manual' ? 'walk' : m),
     vehicle: z.object({
       enabled: z.boolean(),
       type: z.enum(['car', 'plane', 'dot']),

@@ -15,7 +15,6 @@ const ROUTE_MODES = {
   car: true,
   walk: true,
   flight: true,
-  manual: true,
 } satisfies Record<RouteMode, true>;
 
 const routeStyle: RouteStyle = {
@@ -62,7 +61,7 @@ describe('canonical domain contracts', () => {
   });
 
   it('keeps every supported route mode in the canonical union', () => {
-    expect(Object.keys(ROUTE_MODES)).toEqual(['car', 'walk', 'flight', 'manual']);
+    expect(Object.keys(ROUTE_MODES)).toEqual(['car', 'walk', 'flight']);
     for (const mode of Object.keys(ROUTE_MODES) as RouteMode[]) {
       expect(createRoute(mode).calculation?.mode).toBe(mode);
     }
