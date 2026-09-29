@@ -12,6 +12,7 @@ import { Marker } from 'react-map-gl/mapbox';
 import type { MarkerDragEvent } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
+import { selectionPreviewTime } from '@/engine/selectionPreview';
 import {
   collectSceneAssets,
   drawAnnotationFrame,
@@ -130,6 +131,7 @@ interface AnnotationMarkerProps {
 
 function AnnotationMarker({ callout, isSelected, playheadTime }: AnnotationMarkerProps) {
   const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
+  const isExporting = useProjectStore((s) => s.isExporting);
 
   const { binding } = callout;
   if (binding.kind !== 'geographic') return null;
@@ -140,7 +142,7 @@ function AnnotationMarker({ callout, isSelected, playheadTime }: AnnotationMarke
     return <AnnotationMoveHandle callout={callout} lngLat={lngLat} />;
   }
 
-  const frame = prepareAnnotationFrame(callout, playheadTime);
+  const frame = prepareAnnotationFrame(callout, selectionPreviewTime(callout, playheadTime, isSelected && !isExporting));
   if (!frame) return null;
   return <AnnotationCanvasMarker callout={callout} lngLat={lngLat} frame={frame} />;
 }
