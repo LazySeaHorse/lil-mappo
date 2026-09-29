@@ -21,7 +21,7 @@ vi.mock('@/hooks/useSubscription', () => ({
   }),
 }));
 
-describe('RoutePlanner in Inspector with Flight mode', () => {
+describe('RoutePlanner in Inspector', () => {
   beforeAll(async () => {
     if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -89,7 +89,6 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
     const route = createBaseRouteItem('car');
     render(<RoutePlanner item={route} />);
 
-    // Switch to Flight mode
     const flightRadio = screen.getByRole('radio', { name: /flight/i });
     act(() => {
       fireEvent.click(flightRadio);
@@ -102,53 +101,39 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
 
   it('allows picking airports and applying flight arc', async () => {
     const route = createBaseRouteItem('flight');
-    // Pre-populate with plane
     route.calculation!.vehicle!.type = 'plane';
-    useProjectStore.setState({
-      items: { [route.id]: route },
-    });
+    useProjectStore.setState({ items: { [route.id]: route } });
 
     render(<RoutePlanner item={route} />);
 
-    // Departure and Arrival airport fields
     const departureInput = screen.getByPlaceholderText(/Departure airport or city/i);
     const arrivalInput = screen.getByPlaceholderText(/Arrival airport or city/i);
 
     expect(departureInput).toBeInTheDocument();
     expect(arrivalInput).toBeInTheDocument();
 
-    // Select LHR
     fireEvent.focus(departureInput);
     fireEvent.change(departureInput, { target: { value: 'LHR' } });
     const lhrOption = await screen.findByText('London Heathrow Airport');
-    act(() => {
-      fireEvent.click(lhrOption);
-    });
+    act(() => { fireEvent.click(lhrOption); });
 
-    // Select JFK
     fireEvent.focus(arrivalInput);
     fireEvent.change(arrivalInput, { target: { value: 'JFK' } });
     const jfkOption = await screen.findByText(/John F Kennedy/i);
-    act(() => {
-      fireEvent.click(jfkOption);
-    });
+    act(() => { fireEvent.click(jfkOption); });
 
-    // Apply route
     const applyBtn = screen.getByRole('button', { name: /Apply route/i });
-    await act(async () => {
-      fireEvent.click(applyBtn);
-    });
+    await act(async () => { fireEvent.click(applyBtn); });
 
     const finalItem = useProjectStore.getState().items['route-test-1'] as RouteItem;
     expect(finalItem.geojson.features.length).toBe(1);
     expect(finalItem.geojson.features[0].geometry.type).toBe('LineString');
-    // Turf great circle has 100 coordinates on globe surface without Z elevation
     const coords = (finalItem.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(coords.length).toBeGreaterThan(10);
-    expect(coords[0].length).toBe(2); // [lng, lat] without Z elevation
+    expect(coords[0].length).toBe(2);
   });
 
-  it('supports walk mode freeform routing with smooth curve switch and waypoints', async () => {
+  it('shows walk freeform UI (no routing sub-toggle, always freeform)', () => {
     const route: RouteItem = {
       ...createBaseRouteItem('car'),
       calculation: {
@@ -160,49 +145,59 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
         sharpness: 0.85,
       },
     };
-    useProjectStore.setState({
-      items: { [route.id]: route },
-      selectedItemId: route.id,
-    });
+    useProjectStore.setState({ items: { [route.id]: route }, selectedItemId: route.id });
 
     render(<RoutePlanner item={route} />);
 
-    // In walk mode with freeform active, "Routing:" segmented control is visible
-    expect(screen.getByText('Routing:')).toBeInTheDocument();
+    // No "Routing:" sub-toggle — walk is always freeform
+    expect(screen.queryByText('Routing:')).not.toBeInTheDocument();
+
+    // Curve controls are present
     expect(screen.getByText('Smooth Curve')).toBeInTheDocument();
     expect(screen.getByText(/Curvature/)).toBeInTheDocument();
-    expect(screen.getByText(/Point 1:/)).toBeInTheDocument();
 
-    // Toggle "Smooth Curve" switch
+    // Sequential points displayed (3 points total: start + 1 waypoint + end)
+    expect(screen.getByText(/Point 1:/)).toBeInTheDocument();
+    expect(screen.getByText(/Point 2:/)).toBeInTheDocument();
+    expect(screen.getByText(/Point 3:/)).toBeInTheDocument();
+  });
+
+  it('toggling Smooth Curve switch rebuilds geometry', () => {
+    const route: RouteItem = {
+      ...createBaseRouteItem('car'),
+      calculation: {
+        mode: 'walk',
+        startPoint: [-73.9851, 40.7488],
+        endPoint: [-73.9650, 40.7820],
+        waypoints: [[-73.9780, 40.7550]],
+        curved: true,
+        sharpness: 0.85,
+      },
+    };
+    useProjectStore.setState({ items: { [route.id]: route }, selectedItemId: route.id });
+    render(<RoutePlanner item={route} />);
+
     const switchEl = screen.getByRole('switch');
-    expect(switchEl).toBeInTheDocument();
     expect(switchEl).toHaveAttribute('data-state', 'checked');
 
-    act(() => {
-      fireEvent.click(switchEl);
-    });
-
-    const afterToggleItem = useProjectStore.getState().items[route.id] as RouteItem;
-    expect(afterToggleItem.calculation?.curved).toBe(false);
-    // When curved is false, geometry coordinates should equal the 3 raw points
-    const rawCoords = (afterToggleItem.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
+    act(() => { fireEvent.click(switchEl); });
+    const afterToggle = useProjectStore.getState().items[route.id] as RouteItem;
+    expect(afterToggle.calculation?.curved).toBe(false);
+    const rawCoords = (afterToggle.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(rawCoords.length).toBe(3);
 
-    // Toggle back on
-    act(() => {
-      fireEvent.click(switchEl);
-    });
-    const curvedAgainItem = useProjectStore.getState().items[route.id] as RouteItem;
-    expect(curvedAgainItem.calculation?.curved).toBe(true);
-    const splineCoords = (curvedAgainItem.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
+    act(() => { fireEvent.click(switchEl); });
+    const curvedAgain = useProjectStore.getState().items[route.id] as RouteItem;
+    expect(curvedAgain.calculation?.curved).toBe(true);
+    const splineCoords = (curvedAgain.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(splineCoords.length).toBeGreaterThan(3);
   });
 
-  describe('freeform editing', () => {
-    const freeformRoute = (): RouteItem => ({
+  describe('walk freeform point editing', () => {
+    const walkRoute = (): RouteItem => ({
       ...createBaseRouteItem('car'),
       calculation: {
-        mode: 'manual',
+        mode: 'walk',
         startPoint: [0, 0.5],
         endPoint: [2, 0.5],
         waypoints: [[1, 1]],
@@ -218,27 +213,32 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
       });
 
     beforeEach(() => {
-      const route = freeformRoute();
+      const route = walkRoute();
       useProjectStore.setState({ items: { [route.id]: route } });
     });
 
-    it('adds a waypoint without discarding edits made while picking', () => {
-      render(<RoutePlanner item={freeformRoute()} />);
-      fireEvent.click(screen.getByRole('button', { name: /Add waypoint on map/i }));
+    it('adds a point without discarding concurrent edits', () => {
+      render(<RoutePlanner item={walkRoute()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
 
-      // Meanwhile, the existing waypoint is dragged on the map.
-      const dragged = { ...stored(), calculation: { ...stored().calculation!, waypoints: [[1, 2]] as [number, number][] } };
-      act(() => {
-        useProjectStore.setState({ items: { [dragged.id]: dragged } });
-      });
+      // Simulate a concurrent drag of the existing waypoint on the map
+      const dragged = {
+        ...stored(),
+        calculation: { ...stored().calculation!, waypoints: [[1, 2]] as [number, number][] },
+      };
+      act(() => { useProjectStore.setState({ items: { [dragged.id]: dragged } }); });
 
       pick([1.5, 0]);
-      expect(stored().calculation?.waypoints).toEqual([[1, 2], [1.5, 0]]);
+      // flat list after append: [[0,0.5], [1,2], [2,0.5], [1.5,0]]
+      // reassigned as: start=[0,0.5], waypoints=[[1,2],[2,0.5]], end=[1.5,0]
+      expect(stored().calculation?.waypoints).toEqual([[1, 2], [2, 0.5]]);
     });
 
-    it('rebuilds the freeform geometry when the start point is picked', () => {
-      render(<RoutePlanner item={freeformRoute()} />);
-      fireEvent.click(screen.getByTitle('Pick Start on map'));
+    it('rebuilds geometry when a point is repositioned via map pick', () => {
+      render(<RoutePlanner item={walkRoute()} />);
+      // Point 1 is the start point — click its crosshair (first of three)
+      const crosshairs = screen.getAllByTitle('Move point on map');
+      fireEvent.click(crosshairs[0]);
       pick([-1, 0.5]);
 
       const coords = (stored().geojson.features[0].geometry as GeoJSON.LineString).coordinates;
@@ -247,8 +247,8 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
     });
 
     it('stops its own pickers when unmounted', () => {
-      const { unmount } = render(<RoutePlanner item={freeformRoute()} />);
-      fireEvent.click(screen.getByRole('button', { name: /Add waypoint on map/i }));
+      const { unmount } = render(<RoutePlanner item={walkRoute()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
       expect(useProjectStore.getState().activePicker?.ownerId).toBe('route-test-1');
 
       unmount();
@@ -256,11 +256,9 @@ describe('RoutePlanner in Inspector with Flight mode', () => {
     });
 
     it('stops its pickers when the route is deleted', () => {
-      render(<RoutePlanner item={freeformRoute()} />);
-      fireEvent.click(screen.getByRole('button', { name: /Add waypoint on map/i }));
-      act(() => {
-        useProjectStore.getState().removeItem('route-test-1');
-      });
+      render(<RoutePlanner item={walkRoute()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
+      act(() => { useProjectStore.getState().removeItem('route-test-1'); });
       expect(useProjectStore.getState().activePicker).toBeNull();
     });
   });
