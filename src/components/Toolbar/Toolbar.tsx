@@ -51,7 +51,7 @@ export default function Toolbar({
   const {
     isPlaying, mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
-    terrainLoading, buildingsLoading,
+    terrainLoading,
     selectItem, setHideUI, isInspectorOpen, isScrubbing,
     setProjectSettingsTab,
   } = useProjectStore(
@@ -59,7 +59,7 @@ export default function Toolbar({
       isPlaying: s.isPlaying, mapStyle: s.mapStyle, setMapStyle: s.setMapStyle,
       terrainEnabled: s.terrainEnabled, setTerrainEnabled: s.setTerrainEnabled,
       buildingsEnabled: s.buildingsEnabled, setBuildingsEnabled: s.setBuildingsEnabled,
-      terrainLoading: s.terrainLoading, buildingsLoading: s.buildingsLoading,
+      terrainLoading: s.terrainLoading,
       selectItem: s.selectItem, setHideUI: s.setHideUI,
       isInspectorOpen: s.isInspectorOpen, isScrubbing: s.isScrubbing,
       setProjectSettingsTab: s.setProjectSettingsTab,
@@ -87,7 +87,7 @@ export default function Toolbar({
     mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled,
     buildingsEnabled, setBuildingsEnabled,
-    terrainLoading, buildingsLoading,
+    terrainLoading,
     isScrubbing,
     onMapStyleOpenChange,
     onMapToolsOpenChange,

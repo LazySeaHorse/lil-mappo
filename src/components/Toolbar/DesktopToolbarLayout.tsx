@@ -34,7 +34,6 @@ interface DesktopToolbarLayoutProps {
   buildingsEnabled: boolean;
   setBuildingsEnabled: (v: boolean) => void;
   terrainLoading: boolean;
-  buildingsLoading: boolean;
   isScrubbing: boolean;
   onMapStyleOpenChange: (open: boolean) => void;
   onMapToolsOpenChange: (open: boolean) => void;
@@ -44,11 +43,11 @@ function TabletLayerDropdown({
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
-  terrainLoading, buildingsLoading,
+  terrainLoading,
   isPlaying, isScrubbing,
   onProjectSettings,
   onMapStyleOpenChange, onMapToolsOpenChange,
-}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'buildingsLoading' | 'isScrubbing' | 'onProjectSettings' | 'onMapStyleOpenChange' | 'onMapToolsOpenChange'> & { isPlaying: boolean }) {
+}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings' | 'onMapStyleOpenChange' | 'onMapToolsOpenChange'> & { isPlaying: boolean }) {
   return (
     <DropdownMenu onOpenChange={onMapToolsOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -70,7 +69,7 @@ function TabletLayerDropdown({
         </div>
         <div data-walkthrough="map-3d" className="grid grid-cols-2 gap-2">
           <DropdownToggle icon={<Mountain size={14} />} label="Terrain" active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying && !isScrubbing} />
-          <DropdownToggle icon={<Building2 size={14} />} label="Buildings" active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying && !isScrubbing} disabled={mapStyle === 'satellite'} />
+          <DropdownToggle icon={<Building2 size={14} />} label="Buildings" active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} disabled={mapStyle === 'satellite'} />
         </div>
         <div className="h-px bg-border/50 mx-1 border-dotted border-b" />
         <DropdownMenuItem data-walkthrough="map-settings" onClick={onProjectSettings} className="gap-2 cursor-pointer h-9 text-xs rounded-lg">
@@ -85,10 +84,10 @@ function InlineLayerGroup({
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
-  terrainLoading, buildingsLoading,
+  terrainLoading,
   isPlaying, isScrubbing, onProjectSettings,
   onMapStyleOpenChange,
-}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'buildingsLoading' | 'isScrubbing' | 'onProjectSettings' | 'onMapStyleOpenChange'> & { isPlaying: boolean }) {
+}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings' | 'onMapStyleOpenChange'> & { isPlaying: boolean }) {
   return (
     <div className="flex items-center gap-1">
       <div className="flex items-center gap-1 px-1">
@@ -105,7 +104,7 @@ function InlineLayerGroup({
       <Divider />
       <div data-walkthrough="map-3d" className="flex items-center gap-1">
         <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying && !isScrubbing} />
-        <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying && !isScrubbing} disabled={mapStyle === 'satellite'} />
+        <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} disabled={mapStyle === 'satellite'} />
       </div>
     </div>
   );
@@ -134,14 +133,14 @@ export function DesktopToolbarLayout({
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
-  terrainLoading, buildingsLoading, isScrubbing,
+  terrainLoading, isScrubbing,
   onMapStyleOpenChange, onMapToolsOpenChange,
 }: DesktopToolbarLayoutProps) {
   const isCameraPulsing = useWalkthroughStore((s) => s.isRunning && s.walkthrough.stage === 'second-keyframe');
 
   const layerProps = {
     mapStyle, setMapStyle, terrainEnabled, setTerrainEnabled,
-    buildingsEnabled, setBuildingsEnabled, terrainLoading, buildingsLoading,
+    buildingsEnabled, setBuildingsEnabled, terrainLoading,
     isPlaying, isScrubbing, onProjectSettings, onMapStyleOpenChange, onMapToolsOpenChange,
   };
 

@@ -26,7 +26,6 @@ interface MobileToolbarLayoutProps {
   buildingsEnabled: boolean;
   setBuildingsEnabled: (v: boolean) => void;
   terrainLoading: boolean;
-  buildingsLoading: boolean;
   isPlaying2: boolean;
   isScrubbing: boolean;
   handleAddCameraKF: () => void;
@@ -42,7 +41,7 @@ export function MobileToolbarLayout({
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
-  terrainLoading, buildingsLoading,
+  terrainLoading,
   isPlaying2, isScrubbing,
   handleAddCameraKF,
   onProjectSettings, onMapStyleOpenChange,
@@ -100,7 +99,7 @@ export function MobileToolbarLayout({
             <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
             <div data-walkthrough="map-3d" className="flex items-center gap-1">
               <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying2 && !isScrubbing} />
-              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} loading={buildingsLoading && !isPlaying2 && !isScrubbing} disabled={mapStyle === 'satellite'} />
+              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} disabled={mapStyle === 'satellite'} />
             </div>
             <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('default')} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />

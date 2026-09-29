@@ -12,7 +12,6 @@ export function createTransientState(): TransientProjectState {
     isInspectorOpen: false,
     timelineHeight: readTimelineHeight(),
     terrainLoading: false,
-    buildingsLoading: false,
     isCameraEnabled: true,
     detectedCapabilities: STANDARD_CAPABILITIES,
     selectedItemId: null,
@@ -43,7 +42,6 @@ export const createMapEnvironmentSlice: StateCreator<
       mapStyle: s,
       // The DEM source/terrain are re-added by BasemapController after the swap.
       terrainLoading: s2.terrainEnabled,
-      buildingsLoading: false,
       detectedCapabilities: null,
     })),
 
@@ -73,6 +71,5 @@ export const createMapEnvironmentSlice: StateCreator<
   setTerrainEnabled: (v) => set({ terrainEnabled: v, terrainLoading: v }),
   setBuildingsEnabled: (v) => set({ buildingsEnabled: v }),
   setTerrainLoading: (v) => set({ terrainLoading: v }),
-  setBuildingsLoading: (v) => set({ buildingsLoading: v }),
   setDetectedCapabilities: (caps) => set({ detectedCapabilities: caps }),
 });

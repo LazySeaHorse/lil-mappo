@@ -31,7 +31,6 @@ export interface TransientProjectState {
   isInspectorOpen: boolean;
   timelineHeight: number;
   terrainLoading: boolean;
-  buildingsLoading: boolean;
   isCameraEnabled: boolean;
   detectedCapabilities: MapStyleCapabilities | null;
   // Transient selection state (not persisted)
@@ -108,7 +107,6 @@ export interface MapEnvironmentSlice {
   setTerrainEnabled: (v: boolean) => void;
   setBuildingsEnabled: (v: boolean) => void;
   setTerrainLoading: (v: boolean) => void;
-  setBuildingsLoading: (v: boolean) => void;
   setDetectedCapabilities: (caps: MapStyleCapabilities | null) => void;
 }
 
