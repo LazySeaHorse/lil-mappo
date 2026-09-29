@@ -182,6 +182,15 @@ export interface Project {
   starIntensity: number;
   fogColor: string | null;
   terrainExaggeration: number;
+  /** Key of MAP_STYLES; anything that changes exported pixels lives in the project. */
+  mapStyle: string;
+  terrainEnabled: boolean;
+  buildingsEnabled: boolean;
+  /** Label category id -> visible; missing ids use the style default. */
+  labelVisibility: Record<string, boolean>;
+  show3dLandmarks: boolean;
+  show3dTrees: boolean;
+  show3dFacades: boolean;
   items: Record<string, TimelineItem>;
   itemOrder: string[];
   mapCenter: [number, number];

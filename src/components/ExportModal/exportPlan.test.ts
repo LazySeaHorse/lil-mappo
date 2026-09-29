@@ -8,13 +8,6 @@ const requestedConfig: RenderConfig = {
   aspectRatio: '16:9',
   exportResolution: '2160p',
   isVertical: false,
-  mapStyle: 'standard',
-  terrainEnabled: false,
-  buildingsEnabled: true,
-  labelVisibility: {},
-  show3dLandmarks: true,
-  show3dTrees: true,
-  show3dFacades: true,
 };
 
 describe('resolveExportPlan', () => {

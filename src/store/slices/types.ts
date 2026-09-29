@@ -8,7 +8,7 @@ import type {
 } from '../types';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
-import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
+import type { AspectRatio, ExportResolution } from '@/types/render';
 
 export interface PickResult {
   lngLat: [number, number];
@@ -25,8 +25,6 @@ export interface PickSession {
 
 export interface TransientProjectState {
   // Transient map runtime state (not persisted)
-  mapStyle: string;
-  labelVisibility: Record<string, boolean>;
   playheadTime: number;
   isPlaying: boolean;
   isScrubbing: boolean;
@@ -36,12 +34,6 @@ export interface TransientProjectState {
   buildingsLoading: boolean;
   isCameraEnabled: boolean;
   detectedCapabilities: MapStyleCapabilities | null;
-  // Transient feature toggles (not persisted)
-  terrainEnabled: boolean;
-  buildingsEnabled: boolean;
-  show3dLandmarks: boolean;
-  show3dTrees: boolean;
-  show3dFacades: boolean;
   // Transient selection state (not persisted)
   selectedItemId: string | null;
   selectedKeyframeId: string | null;
@@ -103,6 +95,8 @@ export interface ProjectSettingsSlice {
   setTerrainExaggeration: (v: number) => void;
   setCustomMapStyle: (url?: string, label?: string) => void;
   resetProjectSettings: () => void;
+  /** Replaces the project with a parsed document and resets transient editor state. */
+  loadFullProject: (input: unknown) => void;
 }
 
 export interface MapEnvironmentSlice {
@@ -116,7 +110,6 @@ export interface MapEnvironmentSlice {
   setTerrainLoading: (v: boolean) => void;
   setBuildingsLoading: (v: boolean) => void;
   setDetectedCapabilities: (caps: MapStyleCapabilities | null) => void;
-  applyRenderConfig: (config: RenderConfig) => void;
 }
 
 export interface EditorUiSlice {

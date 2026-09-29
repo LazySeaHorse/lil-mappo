@@ -27,6 +27,13 @@ describe('project document persistence boundary', () => {
       'starIntensity',
       'fogColor',
       'terrainExaggeration',
+      'mapStyle',
+      'terrainEnabled',
+      'buildingsEnabled',
+      'labelVisibility',
+      'show3dLandmarks',
+      'show3dTrees',
+      'show3dFacades',
       'items',
       'itemOrder',
       'mapCenter',
@@ -98,6 +105,75 @@ describe('project document persistence boundary', () => {
     for (const key of Object.keys(defaults) as Array<keyof typeof defaults>) {
       expect(loaded[key]).toEqual(expected[key]);
     }
+  });
+
+  it('round-trips the persisted map look', () => {
+    const look = {
+      mapStyle: 'satellite',
+      terrainEnabled: true,
+      buildingsEnabled: true,
+      labelVisibility: { road: false, poi: true },
+      show3dLandmarks: false,
+      show3dTrees: false,
+      show3dFacades: false,
+    };
+    const project = createProject({ id: 'look', ...look });
+    const reparsed = parseProjectDocument(JSON.parse(JSON.stringify(toProjectDocument(project))));
+    expect(reparsed).toMatchObject(look);
+  });
+
+  it('defaults the map look for documents that predate it', () => {
+    const { mapStyle, terrainEnabled, buildingsEnabled, labelVisibility, show3dLandmarks, show3dTrees, show3dFacades, ...old } =
+      createProject({ id: 'old' });
+    void [mapStyle, terrainEnabled, buildingsEnabled, labelVisibility, show3dLandmarks, show3dTrees, show3dFacades];
+    const parsed = parseProjectDocument({ ...old, schemaVersion: PROJECT_SCHEMA_VERSION });
+    expect(parsed).toMatchObject({
+      mapStyle: 'standard',
+      terrainEnabled: false,
+      buildingsEnabled: false,
+      labelVisibility: {},
+      show3dLandmarks: true,
+      show3dTrees: true,
+      show3dFacades: true,
+    });
+  });
+
+  it('falls back to standard for unknown map styles', () => {
+    for (const bad of ['no-such-style', 42, null, '__proto__', 'toString']) {
+      const parsed = parseProjectDocument({
+        ...createProject({ id: 'bad-style' }),
+        schemaVersion: PROJECT_SCHEMA_VERSION,
+        mapStyle: bad,
+      });
+      expect(parsed.mapStyle).toBe('standard');
+    }
+  });
+
+  it('keeps persisted map look but resets transient state on load', () => {
+    useProjectStore.setState({ selectedItemId: 'x', playheadTime: 9 });
+    useProjectStore.getState().loadFullProject(
+      createProject({
+        id: 'look-load',
+        mapStyle: 'satellite',
+        terrainEnabled: true,
+        labelVisibility: { road: false },
+      }),
+    );
+    const s = useProjectStore.getState();
+    expect(s.mapStyle).toBe('satellite');
+    expect(s.terrainEnabled).toBe(true);
+    expect(s.labelVisibility).toEqual({ road: false });
+    expect(s.selectedItemId).toBeNull();
+    expect(s.playheadTime).toBe(0);
+  });
+
+  it('serializes a map style change, so draft dirty checks see it', () => {
+    useProjectStore.getState().setMapStyle('standard');
+    const before = JSON.stringify(toProjectDocument(useProjectStore.getState()));
+    useProjectStore.getState().setMapStyle('satellite');
+    const after = JSON.stringify(toProjectDocument(useProjectStore.getState()));
+    expect(after).not.toBe(before);
+    useProjectStore.getState().setMapStyle('standard');
   });
 
   it('migrates legacy item defaults before validating v1', () => {

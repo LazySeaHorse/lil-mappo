@@ -24,8 +24,6 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   const {
     fps, duration, name, isExporting,
     aspectRatio, exportResolution, isVertical, resolution,
-    mapStyle, terrainEnabled, buildingsEnabled, labelVisibility,
-    show3dLandmarks, show3dTrees, show3dFacades,
     setAspectRatio, setExportResolution, setIsVertical,
   } = useProjectStore(
     useShallow((s) => ({
@@ -37,13 +35,6 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
       exportResolution: s.exportResolution,
       isVertical: s.isVertical,
       resolution: s.resolution,
-      mapStyle: s.mapStyle,
-      terrainEnabled: s.terrainEnabled,
-      buildingsEnabled: s.buildingsEnabled,
-      labelVisibility: s.labelVisibility,
-      show3dLandmarks: s.show3dLandmarks,
-      show3dTrees: s.show3dTrees,
-      show3dFacades: s.show3dFacades,
       setAspectRatio: s.setAspectRatio,
       setExportResolution: s.setExportResolution,
       setIsVertical: s.setIsVertical,
@@ -77,13 +68,6 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     aspectRatio,
     exportResolution,
     isVertical,
-    mapStyle,
-    terrainEnabled,
-    buildingsEnabled,
-    labelVisibility,
-    show3dLandmarks,
-    show3dTrees,
-    show3dFacades,
   };
 
   const exportPlan = resolveExportPlan(

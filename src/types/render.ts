@@ -81,14 +81,11 @@ export function calculateRenderCredits(
 }
 
 /**
- * Complete snapshot of everything the render pipeline needs.
- *
- * For LOCAL renders — read directly from the live Zustand store; the map
- * already reflects this state.
+ * Dimensions and timing for one render run. The map's look (style, terrain,
+ * labels, ...) is part of the Project document, not of this config.
  *
  * For CLOUD renders — serialized into the `render_jobs.render_config` JSONB
- * column so the headless Chromium instance can faithfully reconstruct the
- * scene without relying on any user's browser session.
+ * column next to the project document (`render_jobs.project_data`).
  *
  * NOTE: Overlays are not yet implemented. When the overlays feature lands,
  * extend this interface with `overlays?: OverlayItem[]` and add a
@@ -101,12 +98,4 @@ export interface RenderConfig {
   aspectRatio: AspectRatio;
   exportResolution: ExportResolution;
   isVertical: boolean;
-  // Transient map visual state (not part of persisted Project)
-  mapStyle: string;
-  terrainEnabled: boolean;
-  buildingsEnabled: boolean;
-  labelVisibility: Record<string, boolean>;
-  show3dLandmarks: boolean;
-  show3dTrees: boolean;
-  show3dFacades: boolean;
 }

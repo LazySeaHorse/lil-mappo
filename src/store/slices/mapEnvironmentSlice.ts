@@ -5,8 +5,6 @@ import type { MapEnvironmentSlice, ProjectStore, TransientProjectState } from '.
 /** Fresh transient editor state shared by initial creation and project loads. */
 export function createTransientState(): TransientProjectState {
   return {
-    mapStyle: 'standard',
-    labelVisibility: {},
     playheadTime: 0,
     isPlaying: false,
     isScrubbing: false,
@@ -16,11 +14,6 @@ export function createTransientState(): TransientProjectState {
     buildingsLoading: false,
     isCameraEnabled: true,
     detectedCapabilities: STANDARD_CAPABILITIES,
-    terrainEnabled: false,
-    buildingsEnabled: false,
-    show3dLandmarks: true,
-    show3dTrees: true,
-    show3dFacades: true,
     selectedItemId: null,
     selectedKeyframeId: null,
     selectedAutoCamRouteId: null,
@@ -45,14 +38,13 @@ export const createMapEnvironmentSlice: StateCreator<
   MapEnvironmentSlice
 > = (set) => ({
   setMapStyle: (s) =>
-    set({
+    set((s2) => ({
       mapStyle: s,
-      terrainEnabled: false,
-      buildingsEnabled: false,
-      terrainLoading: false,
+      // The DEM source/terrain are re-added by BasemapController after the swap.
+      terrainLoading: s2.terrainEnabled,
       buildingsLoading: false,
       detectedCapabilities: null,
-    }),
+    })),
 
   setLabelGroupVisibility: (groupId, visible) =>
     set((s) => ({
@@ -82,15 +74,4 @@ export const createMapEnvironmentSlice: StateCreator<
   setTerrainLoading: (v) => set({ terrainLoading: v }),
   setBuildingsLoading: (v) => set({ buildingsLoading: v }),
   setDetectedCapabilities: (caps) => set({ detectedCapabilities: caps }),
-
-  applyRenderConfig: (config) =>
-    set({
-      mapStyle: config.mapStyle,
-      terrainEnabled: config.terrainEnabled,
-      buildingsEnabled: config.buildingsEnabled,
-      labelVisibility: config.labelVisibility,
-      show3dLandmarks: config.show3dLandmarks,
-      show3dTrees: config.show3dTrees,
-      show3dFacades: config.show3dFacades,
-    }),
 });

@@ -10,6 +10,7 @@ import {
 } from '@/annotations/migration';
 import type { Project, RouteItem } from './types';
 import { getAutoCamRanges, rescaleAutoCam } from '@/config/vehicles';
+import { MAP_STYLES } from '@/config/mapbox';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 
 export const PROJECT_SCHEMA_VERSION = 3 as const;
@@ -172,6 +173,17 @@ const projectDocumentSchema = z.object({
   starIntensity: z.number().finite().default(0.6),
   fogColor: z.string().nullable().default(null),
   terrainExaggeration: z.number().finite().default(1.5),
+  mapStyle: z
+    .string()
+    .catch('standard')
+    .transform((key) => (Object.prototype.hasOwnProperty.call(MAP_STYLES, key) ? key : 'standard'))
+    .default('standard'),
+  terrainEnabled: z.boolean().default(false),
+  buildingsEnabled: z.boolean().default(false),
+  labelVisibility: z.record(z.string(), z.boolean()).default({}),
+  show3dLandmarks: z.boolean().default(true),
+  show3dTrees: z.boolean().default(true),
+  show3dFacades: z.boolean().default(true),
   items: z.record(timelineItemSchema),
   itemOrder: z.array(z.string()).default([]),
   mapCenter: coordinateSchema.default([0, 0]),
@@ -430,6 +442,13 @@ export function toProjectDocument(state: Project): ProjectDocument {
     starIntensity: state.starIntensity,
     fogColor: state.fogColor,
     terrainExaggeration: state.terrainExaggeration,
+    mapStyle: state.mapStyle,
+    terrainEnabled: state.terrainEnabled,
+    buildingsEnabled: state.buildingsEnabled,
+    labelVisibility: state.labelVisibility,
+    show3dLandmarks: state.show3dLandmarks,
+    show3dTrees: state.show3dTrees,
+    show3dFacades: state.show3dFacades,
     items: state.items,
     itemOrder: state.itemOrder,
     mapCenter: state.mapCenter,
@@ -463,6 +482,13 @@ export function createProject(overrides: Partial<Project> = {}): Project {
     starIntensity: 0.6,
     fogColor: null,
     terrainExaggeration: 1.5,
+    mapStyle: 'standard',
+    terrainEnabled: false,
+    buildingsEnabled: false,
+    labelVisibility: {},
+    show3dLandmarks: true,
+    show3dTrees: true,
+    show3dFacades: true,
     items: { [CAMERA_TRACK_ID]: camera },
     itemOrder: [CAMERA_TRACK_ID],
     mapCenter: [0, 0],

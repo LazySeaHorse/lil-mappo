@@ -57,11 +57,9 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
         const projectData = parseProjectDocument(data.projectData);
         useProjectStore.getState().loadFullProject(projectData);
 
-        // Apply transient map visual state (call setMapStyle first so it resets
-        // terrain/buildings, then applyRenderConfig to restore them)
+        // Map look (style, terrain, labels) comes from the project document.
+        // Old jobs may carry extra renderConfig fields; they are ignored.
         const config = data.renderConfig as RenderConfig;
-        useProjectStore.getState().setMapStyle(config.mapStyle);
-        useProjectStore.getState().applyRenderConfig(config);
         useProjectStore.getState().setIsExporting(true);
 
         setJobData({

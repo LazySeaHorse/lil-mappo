@@ -148,18 +148,22 @@ describe('useProjectStore modular slices', () => {
   });
 
   describe('mapEnvironmentSlice', () => {
-    it('switches map styles and resets dependent features', () => {
+    it('switches map styles and keeps terrain, buildings and labels', () => {
       const store = useProjectStore.getState();
       store.setTerrainEnabled(true);
       store.setBuildingsEnabled(true);
+      store.setLabelGroupVisibility('road', false);
 
       expect(useProjectStore.getState().terrainEnabled).toBe(true);
 
       store.setMapStyle('satellite');
       const state = useProjectStore.getState();
       expect(state.mapStyle).toBe('satellite');
-      expect(state.terrainEnabled).toBe(false);
-      expect(state.buildingsEnabled).toBe(false);
+      expect(state.terrainEnabled).toBe(true);
+      expect(state.terrainLoading).toBe(true);
+      expect(state.buildingsEnabled).toBe(true);
+      expect(state.labelVisibility).toEqual({ road: false });
+      expect(state.detectedCapabilities).toBeNull();
     });
   });
 
