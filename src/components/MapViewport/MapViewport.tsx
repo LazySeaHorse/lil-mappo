@@ -51,10 +51,10 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     }
   }, [styleUrl]);
 
-  // Called by <MapGL onLoad> — the map instance is now available
+  // Called by <MapGL onLoad> — the map instance is now available. The controller's
+  // style.load handler (also run on mount for an already-loaded style) sets styleLoaded.
   const handleMapLoad = useCallback(() => {
     setMapReady(true);
-    setStyleLoaded(true);
     onMapReady?.();
   }, [onMapReady]);
 
