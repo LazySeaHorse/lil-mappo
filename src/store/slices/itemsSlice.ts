@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import type { TimelineItem } from '../types';
 import type { ItemsSlice, ProjectStore } from './types';
 import { CAMERA_TRACK_ID } from '../projectDocument';
+import { applyWalkPatch } from '@/engine/routeCurves';
 
 export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set) => ({
   addItem: (item) =>
@@ -41,6 +42,16 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
       if (!existing) return s;
       return {
         items: { ...s.items, [id]: { ...existing, ...updates } as TimelineItem },
+      };
+    }),
+
+  updateWalkRoute: (id, update) =>
+    set((s) => {
+      const route = s.items[id];
+      if (route?.kind !== 'route' || route.calculation?.mode !== 'walk') return s;
+      const patch = typeof update === 'function' ? update(route.calculation) : update;
+      return {
+        items: { ...s.items, [id]: { ...route, ...applyWalkPatch(route.calculation, patch) } },
       };
     }),
 

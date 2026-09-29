@@ -1,5 +1,5 @@
 import bezierSpline from '@turf/bezier-spline';
-import type { RouteItem } from '@/store/types';
+import type { RouteItem, RouteVehicleConfig, WalkRouteCalculation } from '@/store/types';
 import { lineString } from '@turf/helpers';
 import { truncateCoordinates } from '@/engine/geoUtils';
 
@@ -70,45 +70,32 @@ export function buildRouteFeatureCollection(
 
 export const DEFAULT_SHARPNESS = 0.85;
 
-export interface FreeformPatch {
-  startPoint?: [number, number];
-  waypoints?: [number, number][];
-  endPoint?: [number, number];
-  curved?: boolean;
-  sharpness?: number;
+export type WalkPatch = Partial<Pick<WalkRouteCalculation, 'points' | 'curved' | 'sharpness'>>;
+
+/** A walk's geometry is always derived from its points; fewer than two draw nothing. */
+export function buildWalkGeometry(calc: WalkRouteCalculation): GeoJSON.FeatureCollection {
+  if (calc.points.length < 2) return { type: 'FeatureCollection', features: [] };
+  return buildRouteFeatureCollection(calc.points, { curved: calc.curved, sharpness: calc.sharpness });
 }
 
-const isPlaced = (p: [number, number] | undefined): p is [number, number] =>
-  Boolean(p) && (p![0] !== 0 || p![1] !== 0);
-
-/**
- * Applies a freeform edit (points, curve on/off, sharpness) to a route and
- * rebuilds its geometry through start → waypoints → end. The geometry is kept
- * unchanged until at least two points are placed.
- */
-export function applyFreeformPatch(route: RouteItem, patch: FreeformPatch): Partial<RouteItem> {
-  const calc = route.calculation ?? {
-    mode: 'walk' as const,
-    startPoint: [0, 0] as [number, number],
-    endPoint: [0, 0] as [number, number],
-  };
-  const startPoint = patch.startPoint ?? calc.startPoint;
-  const waypoints = patch.waypoints ?? calc.waypoints ?? [];
-  const endPoint = patch.endPoint ?? calc.endPoint;
-  const curved = patch.curved ?? calc.curved ?? true;
-  const sharpness = patch.sharpness ?? calc.sharpness ?? DEFAULT_SHARPNESS;
-
-  const points = [startPoint, ...waypoints, endPoint].filter(isPlaced);
-
+export function createWalkCalculation(
+  points: [number, number][],
+  vehicle?: RouteVehicleConfig,
+): WalkRouteCalculation {
   return {
-    geojson: points.length >= 2 ? buildRouteFeatureCollection(points, { curved, sharpness }) : route.geojson,
-    calculation: { ...calc, startPoint, waypoints, endPoint, curved, sharpness },
+    mode: 'walk',
+    points,
+    curved: true,
+    sharpness: DEFAULT_SHARPNESS,
+    ...(vehicle ? { vehicle } : {}),
   };
 }
 
-/** Whether a route uses freeform point editing rather than routed directions.
- *  Walk mode is always freeform (no routing API call). */
-export function isFreeformRoute(calc: RouteItem['calculation']): boolean {
-  if (!calc) return false;
-  return calc.mode === 'walk';
+/** Applies a walk edit and rebuilds the geometry to match it. */
+export function applyWalkPatch(
+  calc: WalkRouteCalculation,
+  patch: WalkPatch,
+): Pick<RouteItem, 'calculation' | 'geojson'> {
+  const calculation = { ...calc, ...patch };
+  return { calculation, geojson: buildWalkGeometry(calculation) };
 }

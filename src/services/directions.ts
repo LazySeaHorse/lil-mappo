@@ -7,13 +7,13 @@ export interface DirectionsResult {
   duration: number;
 }
 
+/** Driving directions between two points. Walks are drawn freehand and never routed. */
 export async function getDirections(
   start: [number, number],
   end: [number, number],
-  mode: 'car' | 'walk',
   signal?: AbortSignal
 ): Promise<DirectionsResult> {
-  const profile = mode === 'car' ? 'driving-traffic' : 'walking';
+  const profile = 'driving-traffic';
   const coords = `${start[0]},${start[1]};${end[0]},${end[1]}`;
   const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?access_token=${getEffectiveMapboxToken()}&geometries=geojson&overview=full`;
 

@@ -5,7 +5,7 @@ import { calculateFlightArc } from '@/services/flightPath';
 import { Button } from '@/components/ui/button';
 import {
   Car, Footprints, Plane, Search, Loader2,
-  Navigation, Upload, Plus, Check, Compass, Trash2, GripVertical,
+  Navigation, Upload, Plus, Check, Compass,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
@@ -19,22 +19,9 @@ import { PanelHeader } from '@/components/ui/panel-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import type { SegmentedControlOption } from '@/components/ui/segmented-control';
 import { SectionLabel } from '@/components/ui/field';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-  arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { buildRouteFeatureCollection } from '@/engine/routeCurves';
+import { arrayMove } from '@dnd-kit/sortable';
+import { buildWalkGeometry, createWalkCalculation } from '@/engine/routeCurves';
+import { WalkPointList } from '../Inspector/WalkPointList';
 
 // ---------------------------------------------------------------------------
 // Types / constants
@@ -45,58 +32,6 @@ const ROUTE_MODE_OPTIONS: SegmentedControlOption<RouteMode>[] = [
   { value: 'walk', label: 'Walk', icon: <Footprints size={12} /> },
   { value: 'flight', label: 'Flight', icon: <Plane size={12} /> },
 ];
-
-// ---------------------------------------------------------------------------
-// Tiny sortable row used in the walk point list
-// ---------------------------------------------------------------------------
-
-interface SortableWalkPointRowProps {
-  id: string;
-  index: number;
-  coords: [number, number];
-  onDelete: () => void;
-}
-
-const SortableWalkPointRow = ({ id, index, coords, onDelete }: SortableWalkPointRowProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-2 bg-secondary/30 p-1.5 rounded-lg border border-border/40"
-    >
-      <button
-        type="button"
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0 touch-none"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical size={13} />
-      </button>
-      <div className="w-4 h-4 rounded-full bg-blue-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0">
-        {index + 1}
-      </div>
-      <span className="text-xs font-mono text-foreground/80 flex-1 truncate">
-        {coords[0].toFixed(4)}, {coords[1].toFixed(4)}
-      </span>
-      <IconButton
-        variant="ghost"
-        size="xs"
-        className="h-6 w-6 rounded text-muted-foreground hover:text-destructive"
-        onClick={onDelete}
-        title="Remove point"
-      >
-        <Trash2 size={11} />
-      </IconButton>
-    </div>
-  );
-};
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -245,7 +180,7 @@ export const RouteAddDropdown = ({
     try {
       let geojson: GeoJSON.Geometry;
       if (mode === 'car') {
-        const res = await getDirections(start, end, mode, abortController.signal);
+        const res = await getDirections(start, end, abortController.signal);
         geojson = res.geometry;
       } else {
         geojson = calculateFlightArc(start, end);
@@ -270,7 +205,7 @@ export const RouteAddDropdown = ({
   };
 
   const handleAddCarFlight = () => {
-    if (!previewRoute) return;
+    if (!previewRoute || mode === 'walk') return;
 
     const id = nanoid();
     const flightName =
@@ -305,7 +240,6 @@ export const RouteAddDropdown = ({
         mode,
         startPoint: start,
         endPoint: end,
-        waypoints: [],
         vehicle: {
           enabled: true,
           type: mode === 'flight' ? ('plane' as const) : ('dot' as const),
@@ -328,19 +262,6 @@ export const RouteAddDropdown = ({
 
   const isAppending = activePicker?.id === 'walk-append';
 
-  const walkPointIds = walkPoints.map((_, i) => `wpt-${i}`);
-
-  const sensors = useSensors(useSensor(PointerSensor));
-
-  const handleWalkDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIdx = walkPointIds.indexOf(active.id as string);
-    const newIdx = walkPointIds.indexOf(over.id as string);
-    if (oldIdx === -1 || newIdx === -1) return;
-    setWalkPoints((pts) => arrayMove(pts, oldIdx, newIdx));
-  };
-
   const handleAddWalk = () => {
     if (walkPoints.length < 2) {
       toast.error('Add at least 2 points to create a walk path.');
@@ -348,11 +269,8 @@ export const RouteAddDropdown = ({
     }
 
     const id = nanoid();
-    const [newStart, ...rest] = walkPoints;
-    const newEnd = rest.pop()!;
-    const waypoints = rest;
-
-    const geojson = buildRouteFeatureCollection(walkPoints, { curved: true, sharpness: 0.85 });
+    const calculation = createWalkCalculation(walkPoints, { enabled: true, type: 'dot', modelId: '', scale: 1 });
+    const geojson = buildWalkGeometry(calculation);
 
     const item: RouteItem = {
       kind: 'route',
@@ -373,20 +291,7 @@ export const RouteAddDropdown = ({
         animationType: 'draw' as const,
         cometTrailLength: 0.2,
       },
-      calculation: {
-        mode: 'walk',
-        startPoint: newStart,
-        endPoint: newEnd,
-        waypoints,
-        curved: true,
-        sharpness: 0.85,
-        vehicle: {
-          enabled: true,
-          type: 'dot' as const,
-          modelId: '',
-          scale: 1,
-        },
-      },
+      calculation,
       easing: 'easeInOutQuad',
     };
 
@@ -502,34 +407,12 @@ export const RouteAddDropdown = ({
             />
           )}
 
-          {walkPoints.length > 0 && (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleWalkDragEnd}
-            >
-              <SortableContext items={walkPointIds} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-1.5">
-                  {walkPoints.map((pt, idx) => (
-                    <SortableWalkPointRow
-                      key={walkPointIds[idx]}
-                      id={walkPointIds[idx]}
-                      index={idx}
-                      coords={pt}
-                      onDelete={() => setWalkPoints((pts) => pts.filter((_, i) => i !== idx))}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
-
-          <Button
-            type="button"
-            variant={isAppending ? 'default' : 'outline'}
-            size="sm"
-            className="w-full h-8 text-xs gap-1.5"
-            onClick={() => {
+          <WalkPointList
+            points={walkPoints}
+            onReorder={(from, to) => setWalkPoints((pts) => arrayMove(pts, from, to))}
+            onRemove={(index) => setWalkPoints((pts) => pts.filter((_, i) => i !== index))}
+            isAppending={isAppending}
+            onToggleAppend={() => {
               if (isAppending) {
                 stopPicking();
               } else {
@@ -543,10 +426,7 @@ export const RouteAddDropdown = ({
                 });
               }
             }}
-          >
-            <Plus size={13} />
-            {isAppending ? 'Click map to place point' : 'Add point on map'}
-          </Button>
+          />
         </div>
       ) : (
         /* Car / flight — start + end */

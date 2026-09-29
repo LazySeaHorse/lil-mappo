@@ -154,4 +154,27 @@ describe('RouteAddDropdown with Airport Picker', () => {
 
     expect(useProjectStore.getState().activePicker?.id).toBe('route-start');
   });
+  it('inserts a walk through the appended points without routing it', async () => {
+    const { getDirections } = await import('@/services/directions');
+    vi.mocked(getDirections).mockClear();
+    render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /walk/i }));
+    expect(screen.getByRole('button', { name: /Insert walk path/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
+    const pick = (lngLat: [number, number]) =>
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+    pick([0, 0.5]);
+    pick([1, 1]);
+    pick([2, 0.5]);
+    expect(screen.getAllByTitle('Remove point')).toHaveLength(3);
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Insert walk path/i })); });
+
+    const added = Object.values(useProjectStore.getState().items)[0] as RouteItem;
+    expect(added.calculation).toMatchObject({ mode: 'walk', points: [[0, 0.5], [1, 1], [2, 0.5]], curved: true });
+    expect((added.geojson.features[0].geometry as GeoJSON.LineString).coordinates.length).toBeGreaterThan(3);
+    expect(getDirections).not.toHaveBeenCalled();
+  });
 });

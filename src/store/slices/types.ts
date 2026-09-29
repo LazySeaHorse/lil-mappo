@@ -4,7 +4,9 @@ import type {
   TimelineItem,
   CameraKeyframe,
   BoundaryItem,
+  WalkRouteCalculation,
 } from '../types';
+import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
 
@@ -62,6 +64,12 @@ export interface ItemsSlice {
   addItem: (item: TimelineItem) => void;
   removeItem: (id: string) => void;
   updateItem: (id: string, updates: Partial<TimelineItem>) => void;
+  /**
+   * Edits a walk route's points or curve settings and rebuilds its geometry.
+   * Function updates receive the latest stored calculation, so edits that
+   * started earlier (map pickers, drags) never overwrite newer changes.
+   */
+  updateWalkRoute: (id: string, update: WalkPatch | ((calc: WalkRouteCalculation) => WalkPatch)) => void;
   reorderItems: (newOrder: string[]) => void;
   duplicateItem: (id: string) => void;
 }

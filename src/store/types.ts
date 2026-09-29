@@ -35,15 +35,24 @@ export interface RouteVehicleConfig {
   scale: number;
 }
 
-export interface RouteCalculation {
+/** Car and flight paths are computed from two endpoints; [0, 0] means unset. */
+export interface EndpointRouteCalculation {
+  mode: 'car' | 'flight';
   startPoint: [number, number];
   endPoint: [number, number];
-  mode: RouteMode;
   vehicle?: RouteVehicleConfig;
-  waypoints?: [number, number][];
-  curved?: boolean;
-  sharpness?: number;
 }
+
+/** Walk paths are drawn freehand through an ordered list of points. */
+export interface WalkRouteCalculation {
+  mode: 'walk';
+  points: [number, number][];
+  curved: boolean;
+  sharpness: number;
+  vehicle?: RouteVehicleConfig;
+}
+
+export type RouteCalculation = EndpointRouteCalculation | WalkRouteCalculation;
 
 export interface RouteStyle {
   color: string;

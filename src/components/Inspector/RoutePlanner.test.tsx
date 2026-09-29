@@ -138,9 +138,7 @@ describe('RoutePlanner in Inspector', () => {
       ...createBaseRouteItem('car'),
       calculation: {
         mode: 'walk',
-        startPoint: [-73.9851, 40.7488],
-        endPoint: [-73.9650, 40.7820],
-        waypoints: [[-73.9780, 40.7550]],
+        points: [[-73.9851, 40.7488], [-73.9780, 40.7550], [-73.9650, 40.7820]],
         curved: true,
         sharpness: 0.85,
       },
@@ -156,10 +154,8 @@ describe('RoutePlanner in Inspector', () => {
     expect(screen.getByText('Smooth Curve')).toBeInTheDocument();
     expect(screen.getByText(/Curvature/)).toBeInTheDocument();
 
-    // Sequential points displayed (3 points total: start + 1 waypoint + end)
-    expect(screen.getByText(/Point 1:/)).toBeInTheDocument();
-    expect(screen.getByText(/Point 2:/)).toBeInTheDocument();
-    expect(screen.getByText(/Point 3:/)).toBeInTheDocument();
+    expect(screen.getAllByTitle('Remove point')).toHaveLength(3);
+    expect(screen.getByText('-73.9780, 40.7550')).toBeInTheDocument();
   });
 
   it('toggling Smooth Curve switch rebuilds geometry', () => {
@@ -167,9 +163,7 @@ describe('RoutePlanner in Inspector', () => {
       ...createBaseRouteItem('car'),
       calculation: {
         mode: 'walk',
-        startPoint: [-73.9851, 40.7488],
-        endPoint: [-73.9650, 40.7820],
-        waypoints: [[-73.9780, 40.7550]],
+        points: [[-73.9851, 40.7488], [-73.9780, 40.7550], [-73.9650, 40.7820]],
         curved: true,
         sharpness: 0.85,
       },
@@ -182,13 +176,13 @@ describe('RoutePlanner in Inspector', () => {
 
     act(() => { fireEvent.click(switchEl); });
     const afterToggle = useProjectStore.getState().items[route.id] as RouteItem;
-    expect(afterToggle.calculation?.curved).toBe(false);
+    expect(afterToggle.calculation).toMatchObject({ curved: false });
     const rawCoords = (afterToggle.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(rawCoords.length).toBe(3);
 
     act(() => { fireEvent.click(switchEl); });
     const curvedAgain = useProjectStore.getState().items[route.id] as RouteItem;
-    expect(curvedAgain.calculation?.curved).toBe(true);
+    expect(curvedAgain.calculation).toMatchObject({ curved: true });
     const splineCoords = (curvedAgain.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(splineCoords.length).toBeGreaterThan(3);
   });
@@ -198,15 +192,23 @@ describe('RoutePlanner in Inspector', () => {
       ...createBaseRouteItem('car'),
       calculation: {
         mode: 'walk',
-        startPoint: [0, 0.5],
-        endPoint: [2, 0.5],
-        waypoints: [[1, 1]],
+        points: [[0, 0.5], [1, 1], [2, 0.5]],
         curved: false,
         sharpness: 0.85,
       },
     });
 
     const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
+    const storedPoints = () => {
+      const calc = stored().calculation;
+      return calc?.mode === 'walk' ? calc.points : undefined;
+    };
+    const setPoints = (points: [number, number][]) => {
+      const route = walkRoute();
+      if (route.calculation?.mode === 'walk') route.calculation.points = points;
+      useProjectStore.setState({ items: { [route.id]: route } });
+      return route;
+    };
     const pick = (lngLat: [number, number]) =>
       act(() => {
         useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' });
@@ -221,17 +223,11 @@ describe('RoutePlanner in Inspector', () => {
       render(<RoutePlanner item={walkRoute()} />);
       fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
 
-      // Simulate a concurrent drag of the existing waypoint on the map
-      const dragged = {
-        ...stored(),
-        calculation: { ...stored().calculation!, waypoints: [[1, 2]] as [number, number][] },
-      };
-      act(() => { useProjectStore.setState({ items: { [dragged.id]: dragged } }); });
+      // Simulate a concurrent drag of the middle point on the map
+      act(() => { useProjectStore.getState().updateWalkRoute('route-test-1', { points: [[0, 0.5], [1, 2], [2, 0.5]] }); });
 
       pick([1.5, 0]);
-      // flat list after append: [[0,0.5], [1,2], [2,0.5], [1.5,0]]
-      // reassigned as: start=[0,0.5], waypoints=[[1,2],[2,0.5]], end=[1.5,0]
-      expect(stored().calculation?.waypoints).toEqual([[1, 2], [2, 0.5]]);
+      expect(storedPoints()).toEqual([[0, 0.5], [1, 2], [2, 0.5], [1.5, 0]]);
     });
 
     it('rebuilds geometry when a point is repositioned via map pick', () => {
@@ -243,7 +239,49 @@ describe('RoutePlanner in Inspector', () => {
 
       const coords = (stored().geojson.features[0].geometry as GeoJSON.LineString).coordinates;
       expect(coords[0]).toEqual([-1, 0.5]);
-      expect(stored().calculation?.startPoint).toEqual([-1, 0.5]);
+      expect(storedPoints()?.[0]).toEqual([-1, 0.5]);
+    });
+
+    it('keeps a map drag made while a move pick is pending', () => {
+      render(<RoutePlanner item={walkRoute()} />);
+      fireEvent.click(screen.getAllByTitle('Move point on map')[2]);
+      // The middle point is dragged on the map before the pick lands
+      act(() => { useProjectStore.getState().updateWalkRoute('route-test-1', (c) => ({ points: c.points.map((p, i) => (i === 1 ? [9, 9] : p)) })); });
+      pick([3, 3]);
+      expect(storedPoints()).toEqual([[0, 0.5], [9, 9], [3, 3]]);
+    });
+
+    it('shows a single point once and can delete it, clearing the path', () => {
+      const route = setPoints([[0, 0.5], [2, 0.5]]);
+      render(<RoutePlanner item={route} />);
+
+      fireEvent.click(screen.getAllByTitle('Remove point')[1]);
+      expect(screen.getAllByTitle('Remove point')).toHaveLength(1);
+      expect(storedPoints()).toEqual([[0, 0.5]]);
+      expect(stored().geojson.features).toEqual([]);
+
+      fireEvent.click(screen.getByTitle('Remove point'));
+      expect(screen.queryAllByTitle('Remove point')).toHaveLength(0);
+      expect(storedPoints()).toEqual([]);
+    });
+
+    it('appends the first points of an empty walk without duplicating them', () => {
+      const route = setPoints([]);
+      render(<RoutePlanner item={route} />);
+      fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
+
+      pick([5, 5]);
+      expect(screen.getAllByTitle('Remove point')).toHaveLength(1);
+      pick([6, 6]);
+      expect(storedPoints()).toEqual([[5, 5], [6, 6]]);
+      expect((stored().geojson.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([[5, 5], [6, 6]]);
+    });
+
+    it('cancels a pending move pick when points are removed', () => {
+      render(<RoutePlanner item={walkRoute()} />);
+      fireEvent.click(screen.getAllByTitle('Move point on map')[2]);
+      fireEvent.click(screen.getAllByTitle('Remove point')[0]);
+      expect(useProjectStore.getState().activePicker).toBeNull();
     });
 
     it('stops its own pickers when unmounted', () => {

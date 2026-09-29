@@ -10,8 +10,9 @@ import {
 } from '@/annotations/migration';
 import type { Project, RouteItem } from './types';
 import { getAutoCamRanges, rescaleAutoCam } from '@/config/vehicles';
+import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 
-export const PROJECT_SCHEMA_VERSION = 2 as const;
+export const PROJECT_SCHEMA_VERSION = 3 as const;
 export const CAMERA_TRACK_ID = 'camera-track';
 
 export type ProjectDocument = Project & {
@@ -57,6 +58,29 @@ const routeStyleSchema = z.object({
   cometTrailLength: z.number().optional(),
 });
 
+const routeVehicleSchema = z.object({
+  enabled: z.boolean(),
+  type: z.enum(['car', 'plane', 'dot']),
+  modelId: z.string(),
+  scale: z.number(),
+});
+
+const routeCalculationSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.enum(['car', 'flight']),
+    startPoint: coordinateSchema,
+    endPoint: coordinateSchema,
+    vehicle: routeVehicleSchema.optional(),
+  }),
+  z.object({
+    mode: z.literal('walk'),
+    points: z.array(coordinateSchema),
+    curved: z.boolean(),
+    sharpness: z.number().finite(),
+    vehicle: routeVehicleSchema.optional(),
+  }),
+]);
+
 const routeItemSchema = z.object({
   kind: z.literal('route'),
   id: z.string().min(1),
@@ -78,20 +102,7 @@ const routeItemSchema = z.object({
   style: routeStyleSchema,
   easing: easingSchema,
   exitAnimation: z.enum(['none', 'reverse', 'fade']).optional(),
-  calculation: z.object({
-    startPoint: coordinateSchema,
-    endPoint: coordinateSchema,
-    mode: z.enum(['car', 'walk', 'flight', 'manual']).transform((m) => m === 'manual' ? 'walk' : m),
-    vehicle: z.object({
-      enabled: z.boolean(),
-      type: z.enum(['car', 'plane', 'dot']),
-      modelId: z.string(),
-      scale: z.number(),
-    }).optional(),
-    waypoints: z.array(coordinateSchema).optional(),
-    curved: z.boolean().optional(),
-    sharpness: z.number().optional(),
-  }).optional(),
+  calculation: routeCalculationSchema.optional(),
 });
 
 const boundaryStyleSchema = z.object({
@@ -285,9 +296,82 @@ const migrateProjectV1ToV2: ProjectMigration = (input) => {
   return { ...document, schemaVersion: 2, items };
 };
 
+const legacyRouteCalculationSchema = z.object({
+  mode: z.string(),
+  startPoint: z.unknown(),
+  endPoint: z.unknown(),
+  waypoints: z.array(z.unknown()).optional(),
+  curved: z.boolean().optional(),
+  sharpness: z.number().optional(),
+  vehicle: z.unknown().optional(),
+}).passthrough();
+
+const legacyRouteSchema = z.object({
+  kind: z.literal('route'),
+  calculation: legacyRouteCalculationSchema,
+}).passthrough();
+
+const isPlacedPoint = (p: unknown): p is [number, number] =>
+  coordinateSchema.safeParse(p).success && ((p as number[])[0] !== 0 || (p as number[])[1] !== 0);
+
+/**
+ * v3 splits route calculations by mode. In v2, 'walk' was routed through the
+ * walking directions API and 'manual' kept its geometry untouched; both become
+ * 'car', which also never rebuilds geometry until the user applies a new route.
+ * Only walk/manual routes that were already edited as freehand points (curve
+ * settings or waypoints present) become v3 freehand walks.
+ */
+function migrateRouteCalculationV2ToV3(value: unknown): unknown {
+  const result = legacyRouteSchema.safeParse(value);
+  if (!result.success) return value;
+  const route = result.data;
+  const { mode, startPoint, endPoint, waypoints, curved, sharpness, vehicle } = route.calculation;
+  const vehicleField = vehicle === undefined ? {} : { vehicle };
+
+  const isLegacyFreehand = (mode === 'walk' || mode === 'manual')
+    && (curved !== undefined || (waypoints?.length ?? 0) > 0);
+
+  if (isLegacyFreehand) {
+    const points = [startPoint, ...(waypoints ?? []), endPoint]
+      .filter(isPlacedPoint)
+      // A preview-only bug stored a lone point as both start and end.
+      .filter((p, i, all) => i === 0 || p[0] !== all[i - 1][0] || p[1] !== all[i - 1][1]);
+    return {
+      ...route,
+      calculation: {
+        mode: 'walk',
+        points,
+        curved: curved ?? true,
+        sharpness: sharpness ?? DEFAULT_SHARPNESS,
+        ...vehicleField,
+      },
+    };
+  }
+
+  return {
+    ...route,
+    calculation: {
+      mode: mode === 'flight' ? 'flight' : 'car',
+      startPoint,
+      endPoint,
+      ...vehicleField,
+    },
+  };
+}
+
+/** Migrates v2 route calculations to the mode-specific v3 shapes. */
+const migrateProjectV2ToV3: ProjectMigration = (input) => {
+  const document = legacyDocumentEnvelopeSchema.parse(input);
+  const items = Object.fromEntries(
+    Object.entries(document.items).map(([id, value]) => [id, migrateRouteCalculationV2ToV3(value)]),
+  );
+  return { ...document, schemaVersion: 3, items };
+};
+
 const projectMigrations: Record<number, ProjectMigration> = {
   0: migrateProjectV0ToV1,
   1: migrateProjectV1ToV2,
+  2: migrateProjectV2ToV3,
 };
 
 function migrateProjectDocument(input: unknown): unknown {

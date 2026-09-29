@@ -10,6 +10,7 @@ import type {
   RouteStyle,
 } from './types';
 import { useProjectStore } from './useProjectStore';
+import { convertRouteCalculation } from '@/engine/routeMode';
 
 const ROUTE_MODES = {
   car: true,
@@ -47,11 +48,7 @@ function createRoute(mode: RouteMode): RouteItem {
     endTime: 5,
     style: routeStyle,
     easing: 'linear',
-    calculation: {
-      mode,
-      startPoint: [0, 0],
-      endPoint: [1, 1],
-    },
+    calculation: convertRouteCalculation({ mode: 'car', startPoint: [0, 0], endPoint: [1, 1] }, mode),
   };
 }
 

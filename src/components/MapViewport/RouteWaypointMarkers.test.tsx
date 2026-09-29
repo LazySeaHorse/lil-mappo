@@ -26,7 +26,7 @@ vi.mock('react-map-gl/mapbox', () => ({
 }));
 
 describe('RouteWaypointMarkers', () => {
-  const createTestRoute = (isFreeform: boolean): RouteItem => ({
+  const createTestRoute = (mode: 'walk' | 'car' = 'walk'): RouteItem => ({
     id: 'test-route-freeform',
     kind: 'route',
     name: 'Walk Trail',
@@ -48,14 +48,9 @@ describe('RouteWaypointMarkers', () => {
       animationType: 'draw',
       cometTrailLength: 0.2,
     },
-    calculation: {
-      mode: 'walk',
-      startPoint: [-73.98, 40.75],
-      endPoint: [-73.96, 40.78],
-      waypoints: [[-73.97, 40.76]],
-      curved: isFreeform,
-      sharpness: 0.85,
-    },
+    calculation: mode === 'walk'
+      ? { mode: 'walk', points: [[-73.98, 40.75], [-73.97, 40.76], [-73.96, 40.78]], curved: true, sharpness: 0.85 }
+      : { mode: 'car', startPoint: [-73.98, 40.75], endPoint: [-73.96, 40.78] },
     easing: 'easeInOutQuad',
   });
 
@@ -72,8 +67,15 @@ describe('RouteWaypointMarkers', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders Start, Waypoint, and End markers when a freeform route is selected', () => {
-    const route = createTestRoute(true);
+  it('renders nothing for car routes', () => {
+    const route = createTestRoute('car');
+    useProjectStore.setState({ items: { [route.id]: route }, selectedItemId: route.id });
+    const { container } = render(<RouteWaypointMarkers />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders one marker per walk point, numbered like the inspector list', () => {
+    const route = createTestRoute();
     useProjectStore.setState({
       items: { [route.id]: route },
       selectedItemId: route.id,
@@ -82,15 +84,12 @@ describe('RouteWaypointMarkers', () => {
     render(<RouteWaypointMarkers />);
 
     const markers = screen.getAllByTestId('map-marker');
-    // Start (S), Waypoint 1 (1), End (E)
     expect(markers.length).toBe(3);
-    expect(screen.getByText('S')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('E')).toBeInTheDocument();
+    expect(markers.map((m) => m.textContent)).toEqual(['1', '2', '3']);
   });
 
   it('updates route coordinates and re-curves geometry when a marker is dragged', () => {
-    const route = createTestRoute(true);
+    const route = createTestRoute();
     useProjectStore.setState({
       items: { [route.id]: route },
       selectedItemId: route.id,
@@ -105,8 +104,9 @@ describe('RouteWaypointMarkers', () => {
     });
 
     const updatedRoute = useProjectStore.getState().items[route.id] as RouteItem;
-    expect(updatedRoute.calculation?.waypoints?.[0][0]).toBeCloseTo(-73.96, 2);
-    expect(updatedRoute.calculation?.waypoints?.[0][1]).toBeCloseTo(40.77, 2);
+    const points = updatedRoute.calculation?.mode === 'walk' ? updatedRoute.calculation.points : [];
+    expect(points[1][0]).toBeCloseTo(-73.96, 2);
+    expect(points[1][1]).toBeCloseTo(40.77, 2);
 
     // Verify geojson feature collection was recomputed
     expect(updatedRoute.geojson.features.length).toBe(1);

@@ -315,4 +315,81 @@ describe('project document persistence boundary', () => {
       expect(autoCamOf(v1DocumentWithRoute('car', 500, 300))).toMatchObject({ distance: 500, height: 300 });
     });
   });
+  describe('v2 → v3 route calculation migration', () => {
+    const routedGeometry: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[0, 1], [0.2, 1.3], [0.7, 1.1], [1, 2]] } }],
+    };
+
+    function v2DocumentWithCalculation(calculation: Record<string, unknown>) {
+      const { items: _items, itemOrder: _order, ...rest } = toProjectDocument(createProject());
+      const routeItem = {
+        kind: 'route', id: 'r1', name: 'Route',
+        geojson: routedGeometry,
+        startTime: 0, endTime: 10,
+        style: {
+          color: '#fff', width: 4, glow: false, glowColor: '#fff', glowWidth: 12,
+          trailFade: false, trailFadeLength: 0.3, dashPattern: null,
+        },
+        easing: 'linear',
+        calculation,
+      };
+      return {
+        ...rest,
+        schemaVersion: 2,
+        items: { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] }, r1: routeItem },
+        itemOrder: ['r1'],
+      };
+    }
+
+    const migrate = (calculation: Record<string, unknown>) => {
+      const route = parseProjectDocument(v2DocumentWithCalculation(calculation)).items.r1;
+      if (route.kind !== 'route') throw new Error('expected a route');
+      return route;
+    };
+
+    const vehicle = { enabled: true, type: 'dot', modelId: '', scale: 1 };
+
+    it('turns API-routed walks into car routes and keeps their geometry', () => {
+      const route = migrate({ mode: 'walk', startPoint: [0, 1], endPoint: [1, 2], vehicle });
+      expect(route.calculation).toEqual({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2], vehicle });
+      expect(route.geojson).toEqual(routedGeometry);
+    });
+
+    it('turns manual routes into car routes and keeps their geometry', () => {
+      const route = migrate({ mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] });
+      expect(route.calculation).toEqual({ mode: 'car', startPoint: [0, 0], endPoint: [0, 0] });
+      expect(route.geojson).toEqual(routedGeometry);
+    });
+
+    it('keeps car and flight routes and drops freehand fields', () => {
+      expect(migrate({ mode: 'flight', startPoint: [0, 1], endPoint: [1, 2], waypoints: [], vehicle }).calculation)
+        .toEqual({ mode: 'flight', startPoint: [0, 1], endPoint: [1, 2], vehicle });
+      expect(migrate({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2], waypoints: [] }).calculation)
+        .toEqual({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2] });
+    });
+
+    it('turns freehand walk/manual routes into ordered walk points', () => {
+      expect(migrate({
+        mode: 'walk', startPoint: [0, 1], waypoints: [[0.5, 1.5]], endPoint: [1, 2], curved: false, sharpness: 0.4,
+      }).calculation).toEqual({ mode: 'walk', points: [[0, 1], [0.5, 1.5], [1, 2]], curved: false, sharpness: 0.4 });
+
+      expect(migrate({ mode: 'manual', startPoint: [0, 1], endPoint: [1, 2], waypoints: [[0.5, 1.5]] }).calculation)
+        .toEqual({ mode: 'walk', points: [[0, 1], [0.5, 1.5], [1, 2]], curved: true, sharpness: 0.85 });
+    });
+
+    it('drops unset endpoints and the duplicated lone point from freehand walks', () => {
+      expect(migrate({ mode: 'walk', startPoint: [5, 5], endPoint: [5, 5], waypoints: [], curved: true }).calculation)
+        .toMatchObject({ points: [[5, 5]] });
+      expect(migrate({ mode: 'walk', startPoint: [0, 0], endPoint: [0, 0], waypoints: [], curved: true }).calculation)
+        .toMatchObject({ points: [] });
+    });
+
+    it('leaves routes without a calculation (imports) untouched', () => {
+      const document = v2DocumentWithCalculation({});
+      delete (document.items.r1 as { calculation?: unknown }).calculation;
+      const route = parseProjectDocument(document).items.r1;
+      expect(route).not.toHaveProperty('calculation');
+    });
+  });
 });

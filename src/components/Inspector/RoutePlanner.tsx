@@ -1,19 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-  arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
@@ -22,17 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Car, Footprints, Plane, Search, Loader2, Crosshair, MapPin, X, Eye,
-  Plus, Trash2, GripVertical,
-} from 'lucide-react';
+import { Car, Footprints, Plane, Loader2, Crosshair, MapPin, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import type { RouteItem, RouteMode } from '@/store/types';
+import type { EndpointRouteCalculation, RouteItem, RouteMode, WalkRouteCalculation } from '@/store/types';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
 import { SwitchRow, SliderField } from './InspectorShared';
-import { applyFreeformPatch, type FreeformPatch } from '@/engine/routeCurves';
+import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
+import { convertRouteCalculation, isPlacedPoint, UNSET_POINT } from '@/engine/routeMode';
+import { WalkPointList } from './WalkPointList';
 import { vehicleChangePatch } from '@/config/vehicles';
 
 // ---------------------------------------------------------------------------
@@ -174,115 +159,133 @@ const InspectorSearchField = ({
 };
 
 // ---------------------------------------------------------------------------
-// Sortable point row (walk / freeform mode)
+// Walk — freehand points
 // ---------------------------------------------------------------------------
 
-interface SortablePointRowProps {
-  id: string;
-  index: number;
-  label: string;
-  coords: [number, number];
-  isPicking: boolean;
-  onPickToggle: () => void;
-  onDelete: () => void;
-}
+const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalculation }) => {
+  const { updateWalkRoute, activePicker, startPicking, stopPicking } = useProjectStore();
+  const appendPickerId = `route-${routeId}-append`;
+  const movePickerPrefix = `route-${routeId}-move-`;
+  const movingIndex = activePicker?.id.startsWith(movePickerPrefix)
+    ? Number(activePicker.id.slice(movePickerPrefix.length))
+    : null;
 
-const SortablePointRow = ({
-  id,
-  index,
-  label,
-  coords,
-  isPicking,
-  onPickToggle,
-  onDelete,
-}: SortablePointRowProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+  // Removing or reordering shifts indices, so a pending "move point N" pick would land on the wrong point.
+  const stopMovePicker = () => {
+    if (movingIndex !== null) stopPicking();
+  };
+
+  const togglePicker = (id: string, prompt: string, onPick: (lngLat: [number, number]) => void) => {
+    if (activePicker?.id === id) {
+      stopPicking();
+      return;
+    }
+    startPicking({ id, ownerId: routeId, prompt, onPick: (result) => onPick(result.lngLat) });
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-2 bg-secondary/30 p-2 rounded-lg border border-border/40"
-    >
-      {/* Drag handle */}
-      <button
-        type="button"
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0 touch-none"
-        {...attributes}
-        {...listeners}
-        title="Drag to reorder"
-      >
-        <GripVertical size={14} />
-      </button>
+    <div className="flex flex-col gap-3">
+      <SwitchRow
+        label="Smooth Curve"
+        sublabel={calc.curved ? 'Bézier spline through points' : 'Straight line segments'}
+        checked={calc.curved}
+        onChange={(curved) => updateWalkRoute(routeId, { curved })}
+      />
 
-      {/* Index badge */}
-      <div className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-        {index + 1}
-      </div>
+      {calc.curved && (
+        <SliderField
+          label="Curvature"
+          value={calc.sharpness ?? DEFAULT_SHARPNESS}
+          min={0.1}
+          max={1.0}
+          step={0.05}
+          onChange={(sharpness) => updateWalkRoute(routeId, { sharpness })}
+        />
+      )}
 
-      {/* Coordinates */}
-      <div className="flex-1 min-w-0">
-        <span className="text-xs font-medium text-foreground block truncate">
-          {label}: {coords[0].toFixed(4)}, {coords[1].toFixed(4)}
+      <div className="flex flex-col gap-2 pt-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Points
         </span>
+
+        {calc.points.length === 0 && (
+          <p className="text-xs text-muted-foreground px-1">
+            No points yet — click below to add your first point.
+          </p>
+        )}
+
+        <WalkPointList
+          points={calc.points}
+          onReorder={(from, to) => {
+            stopMovePicker();
+            updateWalkRoute(routeId, (c) => ({ points: arrayMove(c.points, from, to) }));
+          }}
+          onRemove={(index) => {
+            stopMovePicker();
+            updateWalkRoute(routeId, (c) => ({ points: c.points.filter((_, i) => i !== index) }));
+          }}
+          isAppending={activePicker?.id === appendPickerId}
+          onToggleAppend={() =>
+            togglePicker(appendPickerId, 'Point', (lngLat) => {
+              updateWalkRoute(routeId, (c) => ({ points: [...c.points, lngLat] }));
+              toast.success('Point added');
+            })
+          }
+          movingIndex={movingIndex}
+          onToggleMove={(index) =>
+            togglePicker(`${movePickerPrefix}${index}`, `Move point ${index + 1}`, (lngLat) =>
+              updateWalkRoute(routeId, (c) => ({
+                points: c.points.map((p, i) => (i === index ? lngLat : p)),
+              })),
+            )
+          }
+        />
+
+        <div className="text-[11px] text-muted-foreground bg-muted/40 p-2 rounded-lg border border-border/40 mt-1 leading-snug">
+          💡 <strong>Tip:</strong> Drag the numbered markers on the map to reposition points, or use the grip handles above to reorder.
+        </div>
       </div>
-
-      {/* Pick button */}
-      <IconButton
-        variant={isPicking ? 'default' : 'outline'}
-        size="xs"
-        className={`rounded-lg h-7 w-7 shrink-0 ${isPicking ? 'bg-primary text-primary-foreground' : ''}`}
-        onClick={onPickToggle}
-        title="Move point on map"
-      >
-        <Crosshair size={12} className={isPicking ? 'animate-pulse text-white' : 'text-muted-foreground'} />
-      </IconButton>
-
-      {/* Delete */}
-      <IconButton
-        variant="ghost"
-        size="xs"
-        className="rounded-lg h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-        onClick={onDelete}
-        title="Remove point"
-      >
-        <Trash2 size={12} />
-      </IconButton>
     </div>
   );
 };
 
 // ---------------------------------------------------------------------------
-// Main RoutePlanner
+// Car / flight — two endpoints, computed path
 // ---------------------------------------------------------------------------
 
-interface RoutePlannerProps {
-  item: RouteItem;
-}
-
-export const RoutePlanner = ({ item }: RoutePlannerProps) => {
-  const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } =
-    useProjectStore();
+const EndpointPlanner = ({ item, calc }: { item: RouteItem; calc: EndpointRouteCalculation }) => {
+  const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore();
   const [loading, setLoading] = useState(false);
   const calculationSeqRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const storeItem = useProjectStore((s) => s.items[item.id]) as RouteItem | undefined;
-  const activeItem = storeItem ?? item;
-
-  const calc = activeItem.calculation || {
-    mode: 'car' as const,
-    startPoint: [0, 0] as [number, number],
-    endPoint: [0, 0] as [number, number],
-  };
-
   const isPickingStart = activePicker?.id === `route-${item.id}-start`;
   const isPickingEnd = activePicker?.id === `route-${item.id}-end`;
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      calculationSeqRef.current++;
+    };
+  }, [item.id]);
+
+  const cancelCalculation = () => {
+    abortControllerRef.current?.abort();
+    calculationSeqRef.current++;
+    setLoading(false);
+  };
+
+  const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number]) => {
+    cancelCalculation();
+    const current = useProjectStore.getState().items[item.id];
+    if (current?.kind !== 'route' || current.calculation?.mode === 'walk') return;
+    updateItem(item.id, { calculation: { ...(current.calculation ?? calc), [key]: lngLat } });
+    setPreviewRoute(null);
+  };
+
+  const setStart = (lngLat: [number, number]) => setPoint('startPoint', lngLat);
+  const setEnd = (lngLat: [number, number]) => setPoint('endPoint', lngLat);
 
   const handleTogglePick = (pointType: 'start' | 'end') => {
     const pickerId = `route-${item.id}-${pointType}`;
@@ -301,37 +304,8 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      abortControllerRef.current?.abort();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      calculationSeqRef.current++;
-      if (useProjectStore.getState().activePicker?.ownerId === item.id) {
-        useProjectStore.getState().stopPicking();
-      }
-    };
-  }, [item.id]);
-
-  const handleModeChange = (mode: RouteMode) => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
-    const currentVehicle = calc.vehicle || {
-      enabled: false,
-      type: 'dot' as const,
-      modelId: '',
-      scale: 1,
-    };
-    const vehicle =
-      mode === 'flight' && currentVehicle.type === 'dot'
-        ? { ...currentVehicle, enabled: true, type: 'plane' as const }
-        : currentVehicle;
-
-    updateItem(item.id, vehicleChangePatch(activeItem, { ...calc, mode }, vehicle));
-  };
-
   const calculateRoute = async (saveToItem: boolean) => {
-    if (!calc.startPoint || !calc.endPoint || (calc.startPoint[0] === 0 && calc.startPoint[1] === 0)) {
+    if (!isPlacedPoint(calc.startPoint) || !isPlacedPoint(calc.endPoint)) {
       toast.error('Set start and end points.');
       return;
     }
@@ -343,13 +317,9 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     const seq = ++calculationSeqRef.current;
     setLoading(true);
     try {
-      let geojson: GeoJSON.Geometry;
-      if (calc.mode === 'car') {
-        const result = await getDirections(calc.startPoint, calc.endPoint, calc.mode, abortController.signal);
-        geojson = result.geometry;
-      } else {
-        geojson = calculateFlightArc(calc.startPoint, calc.endPoint);
-      }
+      const geojson: GeoJSON.Geometry = calc.mode === 'car'
+        ? (await getDirections(calc.startPoint, calc.endPoint, abortController.signal)).geometry
+        : calculateFlightArc(calc.startPoint, calc.endPoint);
 
       if (seq !== calculationSeqRef.current || abortController.signal.aborted) return;
 
@@ -379,79 +349,110 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     }
   };
 
-  const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number]) => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
-    const current = useProjectStore.getState().items[item.id];
-    if (current?.kind !== 'route') return;
-    updateItem(item.id, { calculation: { ...(current.calculation ?? calc), [key]: lngLat } });
-    setPreviewRoute(null);
-  };
+  return (
+    <div className="flex flex-col gap-2.5">
+      {calc.mode === 'flight' ? (
+        <>
+          <AirportSearchField
+            label="Departure"
+            placeholder="Departure airport or city (e.g. JFK)..."
+            value={calc.startPoint}
+            onSelect={setStart}
+            color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+            isPicking={isPickingStart}
+            onStartPick={() => handleTogglePick('start')}
+          />
+          <AirportSearchField
+            label="Arrival"
+            placeholder="Arrival airport or city (e.g. LHR)..."
+            value={calc.endPoint}
+            onSelect={setEnd}
+            color="bg-rose-500/10 text-rose-500 border-rose-500/20"
+            isPicking={isPickingEnd}
+            onStartPick={() => handleTogglePick('end')}
+          />
+        </>
+      ) : (
+        <>
+          <InspectorSearchField
+            label="Start"
+            pointType="start"
+            item={item}
+            value={calc.startPoint}
+            onSelect={setStart}
+            dotColor="bg-emerald-500"
+          />
+          <InspectorSearchField
+            label="End"
+            pointType="end"
+            item={item}
+            value={calc.endPoint}
+            onSelect={setEnd}
+            dotColor="bg-rose-500"
+          />
+        </>
+      )}
 
-  const setStart = (lngLat: [number, number]) => setPoint('startPoint', lngLat);
-  const setEnd = (lngLat: [number, number]) => setPoint('endPoint', lngLat);
+      <div className="flex flex-col gap-2.5 pt-1">
+        <Button
+          type="button"
+          onClick={() => calculateRoute(true)}
+          disabled={loading}
+          className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          {loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply route'}
+        </Button>
 
-  /** Applies a freeform edit to the latest stored route (not this render's stale copy). */
-  const updateFreeformRoute = (
-    patch: FreeformPatch | ((current: NonNullable<RouteItem['calculation']>) => FreeformPatch),
-  ) => {
-    const current = useProjectStore.getState().items[item.id];
-    if (current?.kind !== 'route') return;
-    const resolved = typeof patch === 'function' ? patch(current.calculation ?? calc) : patch;
-    updateItem(item.id, applyFreeformPatch(current, resolved));
-  };
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => calculateRoute(false)}
+          disabled={loading}
+          className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Eye size={15} className="text-muted-foreground" />
+          <span>Preview route</span>
+        </Button>
+      </div>
+    </div>
+  );
+};
 
-  // Walk freeform: flat sequential point list = [startPoint, ...waypoints, endPoint]
-  const allPoints: [number, number][] = calc.mode === 'walk'
-    ? [
-        ...(calc.startPoint && (calc.startPoint[0] !== 0 || calc.startPoint[1] !== 0) ? [calc.startPoint] : []),
-        ...(calc.waypoints ?? []),
-        ...(calc.endPoint && (calc.endPoint[0] !== 0 || calc.endPoint[1] !== 0) ? [calc.endPoint] : []),
-      ]
-    : [];
+// ---------------------------------------------------------------------------
+// Main RoutePlanner
+// ---------------------------------------------------------------------------
 
-  // Stable DnD ids — just use index-based strings derived from the points array
-  const pointIds = allPoints.map((_, i) => `pt-${i}`);
+interface RoutePlannerProps {
+  item: RouteItem;
+}
 
-  const isAddingWp = activePicker?.id === `route-${item.id}-add-wp`;
+export const RoutePlanner = ({ item }: RoutePlannerProps) => {
+  const updateItem = useProjectStore((s) => s.updateItem);
+  const storeItem = useProjectStore((s) => s.items[item.id]) as RouteItem | undefined;
+  const activeItem = storeItem ?? item;
+  const calc = activeItem.calculation ?? convertRouteCalculation(undefined, 'car');
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  useEffect(() => {
+    return () => {
+      if (useProjectStore.getState().activePicker?.ownerId === item.id) {
+        useProjectStore.getState().stopPicking();
+      }
+    };
+  }, [item.id]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = pointIds.indexOf(active.id as string);
-    const newIndex = pointIds.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
+  const handleModeChange = (mode: RouteMode) => {
+    const store = useProjectStore.getState();
+    if (store.activePicker?.ownerId === item.id) store.stopPicking();
+    store.setPreviewRoute(null);
 
-    const reordered = arrayMove(allPoints, oldIndex, newIndex);
-    const [newStart, ...rest] = reordered;
-    const newEnd = rest.length > 0 ? rest.pop()! : newStart;
-    updateFreeformRoute({
-      startPoint: newStart,
-      waypoints: rest,
-      endPoint: newEnd,
-    });
-  };
+    const next = convertRouteCalculation(calc, mode);
+    const currentVehicle = next.vehicle ?? { enabled: false, type: 'dot' as const, modelId: '', scale: 1 };
+    const vehicle =
+      mode === 'flight' && currentVehicle.type === 'dot'
+        ? { ...currentVehicle, enabled: true, type: 'plane' as const }
+        : currentVehicle;
 
-  const deletePoint = (flatIndex: number) => {
-    if (allPoints.length <= 1) {
-      // Clear to empty
-      updateFreeformRoute({ startPoint: [0, 0], waypoints: [], endPoint: [0, 0] });
-      return;
-    }
-    const next = allPoints.filter((_, i) => i !== flatIndex);
-    const [newStart, ...rest] = next;
-    const newEnd = rest.length > 0 ? rest.pop()! : newStart;
-    updateFreeformRoute({ startPoint: newStart, waypoints: rest, endPoint: newEnd });
-  };
-
-  const movePoint = (flatIndex: number, lngLat: [number, number]) => {
-    const next = allPoints.map((p, i) => (i === flatIndex ? lngLat : p));
-    const [newStart, ...rest] = next;
-    const newEnd = rest.length > 0 ? rest.pop()! : newStart;
-    updateFreeformRoute({ startPoint: newStart, waypoints: rest, endPoint: newEnd });
+    updateItem(item.id, vehicleChangePatch(activeItem, next, vehicle));
   };
 
   return (
@@ -462,190 +463,14 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
           { value: 'walk', label: 'Walk', icon: <Footprints size={13} /> },
           { value: 'flight', label: 'Flight', icon: <Plane size={13} /> },
         ]}
-        value={calc.mode || 'car'}
+        value={calc.mode}
         onValueChange={handleModeChange}
         className="h-8"
       />
 
-      {/* Walk — always freeform spline, sequential point list */}
-      {calc.mode === 'walk' ? (
-        <div className="flex flex-col gap-3">
-          {/* Curve controls */}
-          <SwitchRow
-            label="Smooth Curve"
-            sublabel={calc.curved !== false ? 'Bézier spline through points' : 'Straight line segments'}
-            checked={calc.curved !== false}
-            onChange={(checked) => updateFreeformRoute({ curved: checked })}
-          />
-
-          {calc.curved !== false && (
-            <SliderField
-              label="Curvature"
-              value={calc.sharpness ?? 0.85}
-              min={0.1}
-              max={1.0}
-              step={0.05}
-              onChange={(sharpness) => updateFreeformRoute({ sharpness })}
-            />
-          )}
-
-          {/* Sequential point list */}
-          <div className="flex flex-col gap-2 pt-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Points
-            </span>
-
-            {allPoints.length === 0 && (
-              <p className="text-xs text-muted-foreground px-1">
-                No points yet — click below to add your first point.
-              </p>
-            )}
-
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={pointIds} strategy={verticalListSortingStrategy}>
-                {allPoints.map((pt, idx) => {
-                  const pickerId = `route-${item.id}-wp-move-${idx}`;
-                  const isPickingThis = activePicker?.id === pickerId;
-                  return (
-                    <SortablePointRow
-                      key={pointIds[idx]}
-                      id={pointIds[idx]}
-                      index={idx}
-                      label={`Point ${idx + 1}`}
-                      coords={pt}
-                      isPicking={isPickingThis}
-                      onPickToggle={() => {
-                        if (isPickingThis) {
-                          stopPicking();
-                        } else {
-                          startPicking({
-                            id: pickerId,
-                            ownerId: item.id,
-                            prompt: `Move point ${idx + 1}`,
-                            onPick: (result) => movePoint(idx, result.lngLat),
-                          });
-                        }
-                      }}
-                      onDelete={() => deletePoint(idx)}
-                    />
-                  );
-                })}
-              </SortableContext>
-            </DndContext>
-
-            {/* Append point button */}
-            <Button
-              type="button"
-              variant={isAddingWp ? 'default' : 'outline'}
-              size="sm"
-              className="w-full h-8 mt-1 text-xs gap-1.5"
-              onClick={() => {
-                if (isAddingWp) {
-                  stopPicking();
-                } else {
-                  startPicking({
-                    id: `route-${item.id}-add-wp`,
-                    ownerId: item.id,
-                    prompt: 'Point',
-                    onPick: (result) => {
-                      updateFreeformRoute((current) => {
-                        const pts: [number, number][] = [
-                          ...(current.startPoint && (current.startPoint[0] !== 0 || current.startPoint[1] !== 0)
-                            ? [current.startPoint]
-                            : []),
-                          ...(current.waypoints ?? []),
-                          ...(current.endPoint && (current.endPoint[0] !== 0 || current.endPoint[1] !== 0)
-                            ? [current.endPoint]
-                            : []),
-                          result.lngLat,
-                        ];
-                        const [s, ...rest] = pts;
-                        const e = rest.length > 0 ? rest.pop()! : s;
-                        return { startPoint: s, waypoints: rest, endPoint: e };
-                      });
-                      toast.success('Point added');
-                    },
-                  });
-                }
-              }}
-            >
-              <Plus size={13} />
-              {isAddingWp ? 'Click map to place point' : 'Add point on map'}
-            </Button>
-
-            <div className="text-[11px] text-muted-foreground bg-muted/40 p-2 rounded-lg border border-border/40 mt-1 leading-snug">
-              💡 <strong>Tip:</strong> Drag the numbered markers on the map to reposition points, or use the grip handles above to reorder.
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Car / Flight — standard start + end + calculate flow */
-        <div className="flex flex-col gap-2.5">
-          {calc.mode === 'flight' ? (
-            <>
-              <AirportSearchField
-                label="Departure"
-                placeholder="Departure airport or city (e.g. JFK)..."
-                value={calc.startPoint}
-                onSelect={setStart}
-                color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                isPicking={isPickingStart}
-                onStartPick={() => handleTogglePick('start')}
-              />
-              <AirportSearchField
-                label="Arrival"
-                placeholder="Arrival airport or city (e.g. LHR)..."
-                value={calc.endPoint}
-                onSelect={setEnd}
-                color="bg-rose-500/10 text-rose-500 border-rose-500/20"
-                isPicking={isPickingEnd}
-                onStartPick={() => handleTogglePick('end')}
-              />
-            </>
-          ) : (
-            <>
-              <InspectorSearchField
-                label="Start"
-                pointType="start"
-                item={item}
-                value={calc.startPoint}
-                onSelect={setStart}
-                dotColor="bg-emerald-500"
-              />
-              <InspectorSearchField
-                label="End"
-                pointType="end"
-                item={item}
-                value={calc.endPoint}
-                onSelect={setEnd}
-                dotColor="bg-rose-500"
-              />
-            </>
-          )}
-
-          <div className="flex flex-col gap-2.5 pt-1">
-            <Button
-              type="button"
-              onClick={() => calculateRoute(true)}
-              disabled={loading}
-              className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply route'}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => calculateRoute(false)}
-              disabled={loading}
-              className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Eye size={15} className="text-muted-foreground" />
-              <span>Preview route</span>
-            </Button>
-          </div>
-        </div>
-      )}
+      {calc.mode === 'walk'
+        ? <WalkPlanner routeId={item.id} calc={calc} />
+        : <EndpointPlanner key={calc.mode} item={activeItem} calc={calc} />}
     </div>
   );
 };

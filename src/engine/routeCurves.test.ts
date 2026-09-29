@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildRouteGeometry, buildRouteFeatureCollection } from './routeCurves';
+import { applyWalkPatch, buildRouteGeometry, buildRouteFeatureCollection, buildWalkGeometry, createWalkCalculation } from './routeCurves';
 
 describe('routeCurves', () => {
   const threePoints: [number, number][] = [
@@ -52,5 +52,22 @@ describe('routeCurves', () => {
 
     const singlePointGeom = buildRouteGeometry([[-73.98, 40.75]], { curved: true });
     expect(singlePointGeom.coordinates).toEqual([[-73.98, 40.75]]);
+  });
+});
+
+describe('walk geometry', () => {
+  it('draws nothing until there are two points', () => {
+    expect(buildWalkGeometry(createWalkCalculation([])).features).toEqual([]);
+    expect(buildWalkGeometry(createWalkCalculation([[1, 1]])).features).toEqual([]);
+    expect(buildWalkGeometry(createWalkCalculation([[1, 1], [2, 2]])).features).toHaveLength(1);
+  });
+
+  it('rebuilds geometry from the patched points and curve settings', () => {
+    const calc = createWalkCalculation([[0, 0.5], [1, 1], [2, 0.5]]);
+    const { calculation, geojson } = applyWalkPatch(calc, { curved: false });
+    expect(calculation).toEqual({ ...calc, curved: false });
+    expect((geojson.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([[0, 0.5], [1, 1], [2, 0.5]]);
+
+    expect(applyWalkPatch(calc, { points: [[0, 0.5]] }).geojson.features).toEqual([]);
   });
 });
