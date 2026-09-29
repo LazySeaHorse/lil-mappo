@@ -88,7 +88,7 @@ const isPlaced = (p: [number, number] | undefined): p is [number, number] =>
  */
 export function applyFreeformPatch(route: RouteItem, patch: FreeformPatch): Partial<RouteItem> {
   const calc = route.calculation ?? {
-    mode: 'manual' as const,
+    mode: 'walk' as const,
     startPoint: [0, 0] as [number, number],
     endPoint: [0, 0] as [number, number],
   };
@@ -106,8 +106,9 @@ export function applyFreeformPatch(route: RouteItem, patch: FreeformPatch): Part
   };
 }
 
-/** Whether a route is edited as freeform points rather than routed directions. */
+/** Whether a route uses freeform point editing rather than routed directions.
+ *  Walk mode is always freeform (no routing API call). */
 export function isFreeformRoute(calc: RouteItem['calculation']): boolean {
   if (!calc) return false;
-  return calc.mode === 'manual' || calc.curved !== undefined || (calc.waypoints?.length ?? 0) > 0;
+  return calc.mode === 'walk';
 }

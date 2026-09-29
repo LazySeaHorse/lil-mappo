@@ -14,7 +14,7 @@ const route = (calc: Partial<NonNullable<RouteItem['calculation']>> = {}): Route
     trailFade: false, trailFadeLength: 0.3, dashPattern: null,
   },
   easing: 'linear',
-  calculation: { mode: 'manual', startPoint: [0, 0], endPoint: [0, 0], ...calc },
+  calculation: { mode: 'walk', startPoint: [0, 0], endPoint: [0, 0], ...calc },
 });
 
 const coordsOf = (patch: Partial<RouteItem>) =>
@@ -48,10 +48,11 @@ describe('applyFreeformPatch', () => {
 });
 
 describe('isFreeformRoute', () => {
-  it('recognises manual mode, curve settings, and waypoints', () => {
+  it('returns true for walk mode (always freeform), false for car and flight', () => {
     expect(isFreeformRoute(undefined)).toBe(false);
     expect(isFreeformRoute(route({ mode: 'car' }).calculation)).toBe(false);
-    expect(isFreeformRoute(route({ mode: 'manual' }).calculation)).toBe(true);
+    expect(isFreeformRoute(route({ mode: 'flight' }).calculation)).toBe(false);
+    expect(isFreeformRoute(route({ mode: 'walk' }).calculation)).toBe(true);
     expect(isFreeformRoute(route({ mode: 'walk', curved: false }).calculation)).toBe(true);
     expect(isFreeformRoute(route({ mode: 'walk', waypoints: [[1, 1]] }).calculation)).toBe(true);
   });
