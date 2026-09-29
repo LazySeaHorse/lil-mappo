@@ -35,4 +35,9 @@ describe('detectRuntimeCapabilities', () => {
     const ids = ['ferry', 'transit-line', 'road-intersection'];
     expect(detectRuntimeCapabilities(mapWithLayers(ids), 'x').labelGroups).toEqual([]);
   });
+
+  it('detects navigation-style layer ids', () => {
+    const ids = ['road-label-small', 'road-shields-black', 'motorway-junction', 'poi-scalerank1', 'rail-label-minor', 'airport-label', 'place-city-lg-n', 'place-neighbourhood', 'state-label-sm', 'country-label-lg', 'block-number-label'];
+    expect(detectRuntimeCapabilities(mapWithLayers(ids), 'nav').labelGroups.map((g) => g.id)).toEqual(['place', 'road', 'transit', 'poi', 'building']);
+  });
 });

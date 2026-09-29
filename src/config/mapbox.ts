@@ -47,14 +47,14 @@ export interface LabelLayerGroup {
  * Patterns are deliberately label-specific so toggling never hides road, ferry or rail geometry.
  */
 export const LABEL_CATEGORIES: readonly LabelLayerGroup[] = [
-  { id: 'place', label: 'Place Names', configProperty: 'showPlaceLabels', layerPatterns: ['country-label', 'state-label', 'settlement', 'continent-label', 'place-label'] },
+  { id: 'place', label: 'Place Names', configProperty: 'showPlaceLabels', layerPatterns: ['country-label', 'state-label', 'settlement', 'continent-label', 'place-label', 'place-'] },
   { id: 'admin', label: 'Country & State Borders', configProperty: 'showAdminBoundaries', layerPatterns: ['admin'] },
-  { id: 'road', label: 'Road Labels', configProperty: 'showRoadLabels', layerPatterns: ['road-label', 'road-number-shield', 'road-exit-shield'] },
-  { id: 'transit', label: 'Transit', configProperty: 'showTransitLabels', layerPatterns: ['transit-label', 'airport-label', 'ferry-aerialway-label'] },
-  { id: 'poi', label: 'Points of Interest', configProperty: 'showPointOfInterestLabels', layerPatterns: ['poi-label'] },
+  { id: 'road', label: 'Road Labels', configProperty: 'showRoadLabels', layerPatterns: ['road-label', 'road-number-shield', 'road-exit-shield', 'road-shields', 'motorway-junction'] },
+  { id: 'transit', label: 'Transit', configProperty: 'showTransitLabels', layerPatterns: ['transit-label', 'airport-label', 'ferry-aerialway-label', 'rail-label'] },
+  { id: 'poi', label: 'Points of Interest', configProperty: 'showPointOfInterestLabels', layerPatterns: ['poi-label', 'poi-scalerank'] },
   { id: 'water', label: 'Water Names', layerPatterns: ['water-point-label', 'water-line-label', 'waterway-label', 'marine'] },
   { id: 'natural', label: 'Natural Features', layerPatterns: ['natural-point-label', 'natural-line-label'] },
-  { id: 'building', label: 'Building Names', layerPatterns: ['building-number-label', 'housenum'] },
+  { id: 'building', label: 'Building Names', layerPatterns: ['building-number-label', 'block-number-label', 'housenum'] },
 ];
 
 /** Standard exposes only the categories backed by a basemap config property. */
