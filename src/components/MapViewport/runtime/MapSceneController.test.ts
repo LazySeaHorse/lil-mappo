@@ -217,4 +217,75 @@ describe('MapSceneController', () => {
       });
     }
   });
+
+  describe('selection preview', () => {
+    const lastCoords = (double: ReturnType<typeof createMapDouble>) => {
+      const calls = double.sources.get('route-scene-route')!.setData.mock.calls;
+      const data = calls[calls.length - 1]?.[0] as GeoJSON.FeatureCollection | undefined;
+      return (data?.features[0]?.geometry as GeoJSON.LineString | undefined)?.coordinates;
+    };
+
+    const FULL = [[0, 0], [1, 1]];
+
+    const setup = (playheadTime: number) => {
+      const previous = useProjectStore.getState();
+      useProjectStore.setState({
+        items: { [route.id]: { ...route, startTime: 2, endTime: 6 } },
+        itemOrder: [route.id],
+        playheadTime,
+        selectedItemId: null,
+        isExporting: false,
+      });
+      const double = createMapDouble();
+      const controller = new MapSceneController(double.map, vi.fn());
+      controller.mount();
+      const restore = () => {
+        controller.dispose();
+        useProjectStore.setState({
+          items: previous.items,
+          itemOrder: previous.itemOrder,
+          playheadTime: previous.playheadTime,
+          selectedItemId: previous.selectedItemId,
+          isExporting: previous.isExporting,
+        });
+      };
+      return { double, controller, restore };
+    };
+
+    it('draws the selected route fully when the playhead is before its clip, and reverts on deselect', () => {
+      const { double, restore } = setup(0);
+      try {
+        expect(lastCoords(double)).not.toEqual(FULL);
+
+        useProjectStore.getState().selectItem(route.id);
+        expect(lastCoords(double)).toEqual(FULL);
+
+        useProjectStore.getState().selectItem(null);
+        expect(lastCoords(double)).not.toEqual(FULL);
+      } finally {
+        restore();
+      }
+    });
+
+    it('keeps the real animation while the playhead is inside the selected clip', () => {
+      const { double, restore } = setup(4);
+      try {
+        useProjectStore.getState().selectItem(route.id);
+        expect(lastCoords(double)).toEqual([[0, 0], [0.5, 0.5]]);
+      } finally {
+        restore();
+      }
+    });
+
+    it('renderAt (export) ignores the selection', () => {
+      const { double, controller, restore } = setup(0);
+      try {
+        useProjectStore.getState().selectItem(route.id);
+        controller.renderAt(0);
+        expect(lastCoords(double)).not.toEqual(FULL);
+      } finally {
+        restore();
+      }
+    });
+  });
 });

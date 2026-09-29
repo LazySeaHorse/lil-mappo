@@ -7,6 +7,7 @@ import { BasemapController } from './BasemapController';
 import { BoundaryRenderer } from './BoundaryRenderer';
 import { RouteRenderer } from './RouteRenderer';
 import { isStyleReady } from './mapboxResources';
+import { selectionPreviewTime } from '@/engine/selectionPreview';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -37,6 +38,8 @@ export class MapSceneController implements MapSceneRuntime {
   private sceneRevision = 0;
   private renderedRevision = -1;
   private lastRenderedTime = Number.NaN;
+  /** Selection the last live render used, so selecting an item redraws even at the same playhead time. */
+  private lastRenderedSelection: string | null = null;
   /** A store update arrived while Mapbox was replacing its style. */
   private sceneDirty = true;
   private disposed = false;
@@ -63,10 +66,24 @@ export class MapSceneController implements MapSceneRuntime {
     const state = useProjectStore.getState();
     this.basemap.reconcile();
     this.reconcileRenderers(state);
-    this.renderAt(state.playheadTime);
+    this.renderLive(state);
   };
 
+  /** Draws the scene at exactly `time` (used by export); the editor's selection preview does not apply. */
   renderAt = (time: number): void => {
+    this.renderScene(time, null);
+  };
+
+  /** Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead. */
+  private renderLive(state: ProjectState): void {
+    this.renderScene(state.playheadTime, state.isExporting ? null : state.selectedItemId, state.items);
+  }
+
+  private renderScene = (
+    time: number,
+    selectedId: string | null,
+    items: ProjectState['items'] = useProjectStore.getState().items,
+  ): void => {
     if (this.disposed) return;
     // A style replacement removes every custom source and layer. Defer all
     // renderer work until the replacement style stylesheet has loaded.
@@ -74,10 +91,19 @@ export class MapSceneController implements MapSceneRuntime {
       this.sceneDirty = true;
       return;
     }
-    if (time === this.lastRenderedTime && this.renderedRevision === this.sceneRevision) return;
-    this.routes.forEach((renderer) => renderer.render(time));
-    this.boundaries.forEach((renderer) => renderer.render(time));
+    if (
+      time === this.lastRenderedTime
+      && selectedId === this.lastRenderedSelection
+      && this.renderedRevision === this.sceneRevision
+    ) return;
+    const timeFor = (id: string) => {
+      const item = items[id];
+      return item ? selectionPreviewTime(item, time, id === selectedId) : time;
+    };
+    this.routes.forEach((renderer, id) => renderer.render(timeFor(id)));
+    this.boundaries.forEach((renderer, id) => renderer.render(timeFor(id)));
     this.lastRenderedTime = time;
+    this.lastRenderedSelection = selectedId;
     this.renderedRevision = this.sceneRevision;
   };
 
@@ -167,7 +193,7 @@ export class MapSceneController implements MapSceneRuntime {
     this.sceneDirty = true;
     const state = useProjectStore.getState();
     this.reconcileRenderers(state, true);
-    this.renderAt(state.playheadTime);
+    this.renderLive(state);
   };
 
   private readonly handleStoreChange = (state: ProjectState, previous: ProjectState) => {
@@ -175,6 +201,11 @@ export class MapSceneController implements MapSceneRuntime {
     const sceneChanged = state.items !== previous.items || state.itemOrder !== previous.itemOrder;
     if (basemapStateChanged(state, previous)) this.basemap.reconcile();
     if (sceneChanged) this.reconcileRenderers(state);
-    if (sceneChanged || state.playheadTime !== previous.playheadTime) this.renderAt(state.playheadTime);
+    if (
+      sceneChanged
+      || state.playheadTime !== previous.playheadTime
+      || state.selectedItemId !== previous.selectedItemId
+      || state.isExporting !== previous.isExporting
+    ) this.renderLive(state);
   };
 }
