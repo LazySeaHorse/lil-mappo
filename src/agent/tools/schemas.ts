@@ -50,7 +50,20 @@ export const contentShape = {
     .strictObject({ value: z.number(), label: z.string().max(60).optional(), unit: z.string().max(20).optional() })
     .describe('A number to highlight, e.g. {value: 42, unit: "km"}.'),
 };
-export const contentPatchSchema = z.strictObject(contentShape).partial();
+/**
+ * Content patch: title cannot be cleared, but every optional slot accepts null
+ * (or, for text, an empty string) to remove it.
+ */
+export const contentPatchSchema = z
+  .strictObject({
+    title: contentShape.title,
+    subtitle: contentShape.subtitle.nullable(),
+    eyebrow: contentShape.eyebrow.nullable(),
+    body: contentShape.body.nullable(),
+    badge: contentShape.badge.nullable(),
+    metric: contentShape.metric.nullable(),
+  })
+  .partial();
 
 export const anchorSchema = z
   .enum(['center', 'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'])

@@ -28,6 +28,7 @@ import { createCalloutStyleDefaults } from '@/store/itemFactories';
 import { ENTER_TRANSITIONS, EXIT_TRANSITIONS, TRANSITION_LABELS } from '@/annotations/animation';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
+import { ContentFields } from './ContentFields';
 
 /** Picker options for a transition list, keeping an unrecognised saved value selectable. */
 function transitionOptions(names: readonly string[], current: string) {
@@ -158,6 +159,12 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
               label="Use place name as title"
               checked={item.linkTitleToLocation}
               onChange={(v) => u({ linkTitleToLocation: v })}
+            />
+
+            <ContentFields
+              content={item.content}
+              slots={style?.contentSlots ?? []}
+              onChange={(content) => u({ content })}
             />
           </div>
         </InspectorSection>

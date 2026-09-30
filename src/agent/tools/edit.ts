@@ -65,7 +65,7 @@ const patchSchema = z
           'Boundary keys: strokeColor, fillColor, strokeWidth, glow, fillOpacity, animateStroke, animationStyle, traceLength.',
       ),
     // callout
-    content: contentPatchSchema.describe('Callout content fields merged into the existing content.'),
+    content: contentPatchSchema.describe('Callout content fields merged into the existing content. Set an optional slot (subtitle, eyebrow, body, badge, metric) to null to clear it. Images cannot be set by agents.'),
     location: locationSchema.describe('Callout: new [lng, lat] or place name.'),
     styleId: z.string().max(60).describe('Callout: switch to another style id (settings reset to that style\'s defaults, then `settings` applied).'),
     anchor: anchorSchema,
@@ -190,7 +190,14 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
   if (settings !== item.settings) updates.settings = settings;
 
   let content = item.content;
-  if (patch.content) content = { ...content, ...patch.content };
+  if (patch.content) {
+    content = { ...content };
+    for (const [key, value] of Object.entries(patch.content)) {
+      // null (or '' for text) clears an optional slot.
+      if (value === null || (value === '' && key !== 'title')) delete (content as Record<string, unknown>)[key];
+      else (content as Record<string, unknown>)[key] = value;
+    }
+  }
   if (place?.name && item.linkTitleToLocation && patch.content?.title === undefined && patch.linkTitleToLocation !== false) {
     content = { ...content, title: place.name };
   }

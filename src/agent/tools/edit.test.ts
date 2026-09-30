@@ -88,6 +88,19 @@ describe('update_item', () => {
     expect(r.kind === 'route' && r.calculation?.vehicle).toMatchObject({ type: 'car', scale: 2, enabled: true });
   });
 
+  it('sets and clears optional content slots', async () => {
+    const { callout } = seed();
+    await runAgentTool('update_item', { id: callout.id, patch: { content: { eyebrow: 'E', body: 'B', badge: 'Bd', metric: { value: 3, unit: 'km' } } } });
+    expect(state().items[callout.id]).toMatchObject({ content: { title: 'Spot', subtitle: 'sub', eyebrow: 'E', body: 'B', badge: 'Bd', metric: { value: 3, unit: 'km' } } });
+
+    await runAgentTool('update_item', { id: callout.id, patch: { content: { subtitle: null, eyebrow: '', body: null, badge: null, metric: null } } });
+    const content = (state().items[callout.id] as { content: Record<string, unknown> }).content;
+    expect(content).toEqual({ title: 'Spot' });
+
+    const noTitle = await runAgentTool('update_item', { id: callout.id, patch: { content: { title: null } } });
+    expect(noTitle.isError).toBe(true);
+  });
+
   it('updates callouts: content merge, style switch resets settings, invalid settings rejected', async () => {
     const { callout } = seed();
     await runAgentTool('update_item', { id: callout.id, patch: { content: { title: 'New' }, anchor: 'left', altitude: 10 } });
