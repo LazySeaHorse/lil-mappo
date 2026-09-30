@@ -16,4 +16,8 @@ export const ANNOTATION_FONTS = {
   handwritten: 'Caveat',
   /** Highway-sign lettering. */
   sign: 'Overpass',
+  /** Monospace for readouts and coordinates. */
+  mono: 'JetBrains Mono',
+  /** Humanist sans for running text. */
+  body: 'Outfit',
 } as const;

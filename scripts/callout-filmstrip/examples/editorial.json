@@ -1,0 +1,10 @@
+{
+  "styleId": "editorial",
+  "cellHeight": 300, "cellWidth": 420, "samples": 6,
+  "variants": [
+    { "name": "full right", "offset": [50, -100], "ground": [0.12, 0.85], "content": { "eyebrow": "1943", "title": "The bridge that never fell", "body": "Built across the harbour in 1932, it carried troops and supplies through the war years without a single closure." } },
+    { "name": "full left", "offset": [-50, -100], "ground": [0.88, 0.85], "content": { "eyebrow": "Landmark", "title": "Harbour Bridge", "body": "A steel through arch bridge across Sydney Harbour." } },
+    { "name": "title only", "offset": [50, -60], "ground": [0.12, 0.85], "content": { "eyebrow": "Sydney", "title": "Opera House" } },
+    { "name": "below", "offset": [50, 60], "ground": [0.12, 0.15], "content": { "eyebrow": "1973", "title": "Opened by the Queen", "body": "After fourteen years of construction." } }
+  ]
+}

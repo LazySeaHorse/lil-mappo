@@ -1,0 +1,8 @@
+{
+  "styleId": "target-lock",
+  "variants": [
+    { "name": "right+sub", "offset": [80, -80], "ground": [0.16, 0.8], "content": { "title": "Harbour Bridge", "subtitle": "Sydney, Australia", "eyebrow": "33.85S 151.21E" } },
+    { "name": "left", "offset": [-80, -80], "ground": [0.84, 0.8], "settings": { "pulse": true }, "content": { "title": "Mont Blanc", "eyebrow": "45.83N 6.86E" } },
+    { "name": "short", "offset": [80, 70], "ground": [0.16, 0.2], "content": { "title": "Site 7" } }
+  ]
+}
