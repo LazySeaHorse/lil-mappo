@@ -94,7 +94,7 @@ describe('update_item', () => {
     expect(state().items[callout.id]).toMatchObject({ content: { title: 'Spot', subtitle: 'sub', eyebrow: 'E', body: 'B', badge: 'Bd', metric: { value: 3, unit: 'km' } } });
 
     await runAgentTool('update_item', { id: callout.id, patch: { content: { subtitle: null, eyebrow: '', body: null, badge: null, metric: null } } });
-    const content = (state().items[callout.id] as { content: Record<string, unknown> }).content;
+    const content = (state().items[callout.id] as unknown as { content: Record<string, unknown> }).content;
     expect(content).toEqual({ title: 'Spot' });
 
     const noTitle = await runAgentTool('update_item', { id: callout.id, patch: { content: { title: null } } });

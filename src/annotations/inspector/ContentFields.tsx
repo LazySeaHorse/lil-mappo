@@ -38,7 +38,7 @@ function withSlot<K extends keyof AnnotationContent>(
 ): AnnotationContent {
   const { [key]: _removed, ...rest } = content;
   void _removed;
-  return value === undefined || value === '' ? (rest as AnnotationContent) : { ...rest, [key]: value };
+  return (value === undefined || value === '' ? rest : { ...rest, [key]: value }) as AnnotationContent;
 }
 
 function MetricFields({ content, onChange }: { content: AnnotationContent; onChange: (c: AnnotationContent) => void }) {

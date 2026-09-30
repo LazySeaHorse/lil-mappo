@@ -191,12 +191,13 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
 
   let content = item.content;
   if (patch.content) {
-    content = { ...content };
+    const next: Record<string, unknown> = { ...content };
     for (const [key, value] of Object.entries(patch.content)) {
       // null (or '' for text) clears an optional slot.
-      if (value === null || (value === '' && key !== 'title')) delete (content as Record<string, unknown>)[key];
-      else (content as Record<string, unknown>)[key] = value;
+      if (value === null || (value === '' && key !== 'title')) delete next[key];
+      else next[key] = value;
     }
+    content = next as unknown as typeof content;
   }
   if (place?.name && item.linkTitleToLocation && patch.content?.title === undefined && patch.linkTitleToLocation !== false) {
     content = { ...content, title: place.name };

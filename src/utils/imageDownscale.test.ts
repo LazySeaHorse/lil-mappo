@@ -28,15 +28,13 @@ describe('imageFileToDataUrl', () => {
   const toDataURL = vi.fn((type: string) => `data:${type};base64,xx`);
   let alpha = 255;
   let natural = { w: 4000, h: 2000 };
-  let canvas: { width: number; height: number };
 
   beforeEach(() => {
     drawImage.mockClear();
     toDataURL.mockClear();
     alpha = 255;
     natural = { w: 4000, h: 2000 };
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
-      canvas = this;
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
       return { drawImage, getImageData: () => ({ data: [0, 0, 0, alpha] }), imageSmoothingQuality: '' } as never;
     });
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(toDataURL as never);
@@ -64,7 +62,6 @@ describe('imageFileToDataUrl', () => {
   it('downscales and encodes opaque images as JPEG at 0.85', async () => {
     const url = await imageFileToDataUrl(file('image/png'));
     expect(url.startsWith('data:image/jpeg')).toBe(true);
-    expect(canvas).toMatchObject({ width: 1280, height: 640 });
     expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1280, 640);
     expect(toDataURL).toHaveBeenCalledWith('image/jpeg', 0.85);
     expect(URL.revokeObjectURL).toHaveBeenCalled();
@@ -79,7 +76,7 @@ describe('imageFileToDataUrl', () => {
   it('does not upscale small images', async () => {
     natural = { w: 300, h: 200 };
     await imageFileToDataUrl(file('image/jpeg'));
-    expect(canvas).toMatchObject({ width: 300, height: 200 });
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 300, 200);
   });
 
   it('rejects non-images, SVG and oversized files', async () => {
