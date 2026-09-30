@@ -7,6 +7,7 @@ import {
   Gauge,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import {
   Dialog,
@@ -50,6 +51,12 @@ const BENEFITS = [
     free: "Yes",
     paid: "No",
     icon: ShieldCheck,
+  },
+  {
+    label: "Create animations with AI",
+    free: "Not included",
+    paid: "Experimental",
+    icon: Sparkles,
   },
 ] as const;
 
