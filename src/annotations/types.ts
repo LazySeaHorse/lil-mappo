@@ -91,6 +91,9 @@ export interface GroupNode {
   /** Radians, clockwise, about (anchorX, anchorY). */
   rotation?: number;
   scale?: number;
+  /** Extra per-axis scale, multiplied with `scale`; e.g. scaleY flips a panel up from its bottom edge. */
+  scaleX?: number;
+  scaleY?: number;
   anchorX?: number;
   anchorY?: number;
   /**

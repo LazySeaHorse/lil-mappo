@@ -26,6 +26,12 @@ function recordingContext() {
 const names = (calls: Array<[string, ...unknown[]]>) => calls.map((c) => c[0]);
 
 describe('renderScene', () => {
+  it('scales a group per axis, multiplying with the uniform scale', () => {
+    const { ctx, calls } = recordingContext();
+    renderScene(ctx, group({ scale: 2, scaleY: 0.5, children: [rect({ x: 0, y: 0, width: 4, height: 4, fill: '#fff' })] }));
+    expect(calls).toContainEqual(['scale', 2, 1]);
+  });
+
   it('clips group children to the clip rectangle before drawing them', () => {
     const { ctx, calls } = recordingContext();
     renderScene(ctx, group({

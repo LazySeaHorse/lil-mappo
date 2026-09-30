@@ -78,8 +78,10 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       if (node.anchorX || node.anchorY) {
         ctx.translate(node.anchorX ?? 0, node.anchorY ?? 0);
       }
-      if (node.scale != null && node.scale !== 1) {
-        ctx.scale(node.scale, node.scale);
+      const scaleX = (node.scale ?? 1) * (node.scaleX ?? 1);
+      const scaleY = (node.scale ?? 1) * (node.scaleY ?? 1);
+      if (scaleX !== 1 || scaleY !== 1) {
+        ctx.scale(scaleX, scaleY);
       }
       if (node.rotation != null && node.rotation !== 0) {
         ctx.rotate(node.rotation);
