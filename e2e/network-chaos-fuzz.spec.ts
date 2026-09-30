@@ -125,9 +125,23 @@ async function openEditor(page: Page) {
   await expect(page.locator(".mapboxgl-canvas")).toBeVisible({ timeout: 20_000 });
 }
 
-async function pickMapPoint(page: Page, pickerIndex = 0, position = { x: 650, y: 350 }) {
+/**
+ * Picks a map point in the part of the canvas not covered by the open Radix popover.
+ * `xFrac`/`yFrac` (0-1) place the click within that uncovered region.
+ */
+async function pickMapPoint(page: Page, pickerIndex = 0, { xFrac = 0.5, yFrac = 0.5 } = {}) {
   await page.getByTitle("Pick on Map").nth(pickerIndex).click();
-  await page.locator(".mapboxgl-canvas").click({ position });
+  const canvas = page.locator(".mapboxgl-canvas");
+  const canvasBox = await canvas.boundingBox();
+  const popoverBox = await page.locator("[data-radix-popper-content-wrapper]").first().boundingBox();
+  if (!canvasBox) throw new Error("Map canvas has no bounding box");
+  const margin = 24;
+  const freeLeft = popoverBox ? Math.max(0, popoverBox.x + popoverBox.width + margin - canvasBox.x) : margin;
+  const freeWidth = canvasBox.width - freeLeft - margin;
+  expect(freeWidth, "no unobstructed map area beside the popover").toBeGreaterThan(50);
+  await canvas.click({
+    position: { x: freeLeft + freeWidth * xFrac, y: canvasBox.height * (0.3 + 0.4 * yFrac) },
+  });
 }
 
 test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
@@ -176,8 +190,8 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     await expect(page.getByText("Choose travel mode & points")).toBeVisible();
 
     // 1. Set points for Route A
-    await pickMapPoint(page, 0, { x: 580, y: 300 });
-    await pickMapPoint(page, 1, { x: 640, y: 320 });
+    await pickMapPoint(page, 0, { xFrac: 0.3, yFrac: 0.3 });
+    await pickMapPoint(page, 1, { xFrac: 0.6, yFrac: 0.6 });
 
     // Trigger Route A preview calculation (delayed by 2000ms)
     await page.getByRole("button", { name: "Preview path" }).click();
@@ -243,8 +257,8 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     await page.getByTitle("Plan Route").click();
     await expect(page.getByText("Choose travel mode & points")).toBeVisible();
 
-    await pickMapPoint(page, 0, { x: 600, y: 320 });
-    await pickMapPoint(page, 1, { x: 700, y: 360 });
+    await pickMapPoint(page, 0, { xFrac: 0.3, yFrac: 0.3 });
+    await pickMapPoint(page, 1, { xFrac: 0.6, yFrac: 0.6 });
 
     const previewButton = page.getByRole("button", { name: /Preview path/i });
     await previewButton.click();
@@ -387,8 +401,8 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     await page.getByTitle("Plan Route").click();
     await expect(page.getByText("Choose travel mode & points")).toBeVisible();
 
-    await pickMapPoint(page, 0, { x: 550, y: 320 });
-    await pickMapPoint(page, 1, { x: 650, y: 360 });
+    await pickMapPoint(page, 0, { xFrac: 0.3, yFrac: 0.3 });
+    await pickMapPoint(page, 1, { xFrac: 0.6, yFrac: 0.6 });
 
     const previewButton = page.getByRole("button", { name: /Preview path/i });
     await previewButton.click();
