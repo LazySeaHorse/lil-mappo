@@ -10,7 +10,6 @@ import { boundsOf, HALO_REACH, haloShadow } from './shared';
 
 export const mapLabelSettingsSchema = z.object({
   variant: z.enum(['place', 'water', 'region']).default('place'),
-  /** White means "the variant's own colour": water is a cool blue by default. */
   tint: z.string().default('#FFFFFF'),
   halo: z.boolean().default(true),
   showPoint: z.boolean().default(false),
@@ -37,8 +36,6 @@ interface VariantSpec {
   /** Extra spacing, in em, that the letters start with and tighten out of. */
   entranceExtra: number;
   uppercase: boolean;
-  /** Colour used when the tint setting is left at white. */
-  defaultTint: string;
   subtitleTracking: number;
 }
 
@@ -51,7 +48,6 @@ const VARIANTS: Record<MapLabelSettings['variant'], VariantSpec> = {
     tracking: 0.25,
     entranceExtra: 0.35,
     uppercase: true,
-    defaultTint: '#FFFFFF',
     subtitleTracking: 0.1,
   },
   water: {
@@ -62,7 +58,6 @@ const VARIANTS: Record<MapLabelSettings['variant'], VariantSpec> = {
     tracking: 0.14,
     entranceExtra: 0.25,
     uppercase: false,
-    defaultTint: '#CFE3FF',
     subtitleTracking: 0.08,
   },
   region: {
@@ -73,7 +68,6 @@ const VARIANTS: Record<MapLabelSettings['variant'], VariantSpec> = {
     tracking: 0.5,
     entranceExtra: 0.3,
     uppercase: true,
-    defaultTint: '#FFFFFF',
     subtitleTracking: 0.16,
   },
 };
@@ -102,7 +96,6 @@ const LETTER_SPREAD = 0.6;
 
 interface Layout {
   spec: VariantSpec;
-  tint: string;
   subtitle: string;
   textSpec: TextSpec;
   glyphs: GlyphLayout;
@@ -128,7 +121,6 @@ function layout(input: StyleRenderInput<MapLabelSettings>): Layout {
   const glyphs = layoutGlyphs(title, textSpec);
   return {
     spec,
-    tint: settings.tint.toUpperCase() === '#FFFFFF' ? spec.defaultTint : settings.tint,
     subtitle: (content.subtitle ?? '').trim(),
     textSpec,
     glyphs,
@@ -142,7 +134,8 @@ function layout(input: StyleRenderInput<MapLabelSettings>): Layout {
 
 export function renderMapLabel(input: StyleRenderInput<MapLabelSettings>): SceneNode {
   const { settings, phase, phaseProgress } = input;
-  const { spec, tint, subtitle, glyphs, textSpec, titleWidth, extraPx, subtitleTrackingPx } = layout(input);
+  const { tint } = settings;
+  const { spec, subtitle, glyphs, textSpec, titleWidth, extraPx, subtitleTrackingPx } = layout(input);
   const build = buildProgress(phase, phaseProgress);
   const shadow = haloShadow(settings.halo);
   const count = glyphs.glyphs.length;
@@ -258,7 +251,7 @@ export const mapLabelStyle: AnnotationStyleDefinition<MapLabelSettings> = {
         { value: 'region', label: 'Region' },
       ],
     },
-    { type: 'color', key: 'tint', label: 'Tint' },
+    { type: 'color', key: 'tint', label: 'Text color' },
     { type: 'switch', key: 'halo', label: 'Soft shadow' },
     { type: 'switch', key: 'showPoint', label: 'Point marker' },
   ],

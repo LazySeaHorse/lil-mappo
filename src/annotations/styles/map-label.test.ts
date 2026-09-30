@@ -61,11 +61,20 @@ describe('variants', () => {
     expect(letters(scene)[0]).toMatchObject({ fontFamily: 'Barlow Condensed', fontWeight: 600, fill: '#FFFFFF' });
   });
 
-  it('sets water in blue italic serif, keeping the sentence case', () => {
+  it('sets water in italic serif, keeping the sentence case', () => {
     const scene = renderMapLabel(makeInput({ content: { title: 'Pacific Ocean' }, settings: { ...defaultMapLabelSettings, variant: 'water' } }));
     const first = letters(scene)[0];
     expect(letters(scene).map((t) => t.text).join('')).toBe('PacificOcean');
-    expect(first).toMatchObject({ fontFamily: 'Fraunces', fontStyle: 'italic', fill: '#CFE3FF' });
+    expect(first).toMatchObject({ fontFamily: 'Fraunces', fontStyle: 'italic', fill: '#FFFFFF' });
+  });
+
+  it('applies the tint as-is to every variant, so pure white stays white', () => {
+    for (const variant of ['place', 'water', 'region'] as const) {
+      const scene = renderMapLabel(makeInput({ settings: { ...defaultMapLabelSettings, variant, tint: '#FFFFFF' } }));
+      expect(texts(scene).every((t) => t.fill === '#FFFFFF')).toBe(true);
+      const blue = renderMapLabel(makeInput({ settings: { ...defaultMapLabelSettings, variant, tint: '#CFE3FF' } }));
+      expect(texts(blue).every((t) => t.fill === '#CFE3FF')).toBe(true);
+    }
   });
 
   it('sets regions wider and lighter, and a tint overrides the variant colour', () => {
