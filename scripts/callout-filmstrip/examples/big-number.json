@@ -1,0 +1,9 @@
+{
+  "styleId": "big-number",
+  "cellWidth": 380, "cellHeight": 300, "samples": 6,
+  "variants": [
+    { "name": "unit+label", "offset": [60, -80], "ground": [0.14, 0.8], "content": { "title": "Height", "metric": { "value": 1234.5, "unit": "m", "label": "Bridge span" } } },
+    { "name": "prefix left", "offset": [-60, -80], "ground": [0.86, 0.8], "settings": { "prefix": "$" }, "content": { "title": "Budget", "metric": { "value": 4200000 } } },
+    { "name": "no metric", "offset": [60, -80], "ground": [0.14, 0.8], "content": { "title": "Open 24/7", "subtitle": "All year" } }
+  ]
+}
