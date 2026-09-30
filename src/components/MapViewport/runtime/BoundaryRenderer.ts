@@ -1,4 +1,4 @@
-import type { LayoutSpecification, Map as MapboxMap, PaintSpecification } from 'mapbox-gl';
+import type { Map as MapboxMap } from 'mapbox-gl';
 import { getNormalizedProgress } from '@/engine/easings';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
@@ -6,7 +6,7 @@ import type { BoundaryItem } from '@/store/types';
 import { resolveBoundaryFillColor } from '../layerStyleContracts';
 import {
   getGeoJSONSource,
-  mutateMap,
+  LayerPropertyWriter,
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
@@ -57,19 +57,20 @@ function createPaintCache(): BoundaryPaintCache {
 export class BoundaryRenderer {
   private boundary: BoundaryItem;
   private readonly ids: BoundaryResourceIds;
-  private paint = createPaintCache();
+  private readonly layers: LayerPropertyWriter<BoundaryPaintCache>;
   private lastGeometry: GeoJSON.Geometry | null = null;
   private strokeSourceMode: 'static' | 'animated' | null = null;
   private disposed = false;
 
   constructor(private readonly map: MapboxMap, boundary: BoundaryItem) {
+    this.layers = new LayerPropertyWriter(map, createPaintCache);
     this.boundary = boundary;
     this.ids = createIds(boundary.id);
   }
 
   mount(): void {
     this.disposed = false;
-    this.paint = createPaintCache();
+    this.layers.reset();
     this.lastGeometry = null;
     this.strokeSourceMode = null;
     this.ensureResources();
@@ -100,11 +101,11 @@ export class BoundaryRenderer {
     const geometryChanged = this.lastGeometry !== geometry;
 
     const fillColor = resolveBoundaryFillColor(style);
-    this.setPaint(this.ids.fillLayer, 'fill-color', fillColor, 'fillColor', fillColor);
+    this.layers.setPaint(this.ids.fillLayer, 'fill-color', fillColor, 'fillColor', fillColor);
     this.updateStrokeStyle();
 
     const glowVisible = style.glow && !reverseExit;
-    this.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
+    this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
 
     let fillProgress: number;
     if (reverseExit) {
@@ -128,7 +129,7 @@ export class BoundaryRenderer {
       });
       this.lastGeometry = geometry;
     }
-    this.setPaint(this.ids.fillLayer, 'fill-opacity', fillOpacity, 'fillOpacity', fillOpacity);
+    this.layers.setPaint(this.ids.fillLayer, 'fill-opacity', fillOpacity, 'fillOpacity', fillOpacity);
 
     const staticStroke = !style.animateStroke || animationStyle === 'fade';
     let strokeOpacity: number;
@@ -159,10 +160,10 @@ export class BoundaryRenderer {
       this.strokeSourceMode = 'animated';
     }
 
-    this.setPaint(this.ids.strokeLayer, 'line-opacity', strokeOpacity, 'strokeOpacity', strokeOpacity);
+    this.layers.setPaint(this.ids.strokeLayer, 'line-opacity', strokeOpacity, 'strokeOpacity', strokeOpacity);
     if (glowVisible) {
       const glowOpacity = 0.35 * strokeOpacity;
-      this.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
+      this.layers.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
     }
   };
 
@@ -223,18 +224,18 @@ export class BoundaryRenderer {
 
   private updateStrokeStyle(): void {
     const style = this.boundary.style;
-    if (this.paint.strokeColor !== style.strokeColor) {
-      if (this.mutate('setPaintProperty:stroke-color', this.ids.strokeLayer, () => {
+    if (this.layers.cache.strokeColor !== style.strokeColor) {
+      if (this.layers.mutate('setPaintProperty:stroke-color', this.ids.strokeLayer, () => {
         this.map.setPaintProperty(this.ids.strokeLayer, 'line-color', style.strokeColor);
         this.map.setPaintProperty(this.ids.glowLayer, 'line-color', style.strokeColor);
-      })) this.paint.strokeColor = style.strokeColor;
+      })) this.layers.cache.strokeColor = style.strokeColor;
     }
-    if (this.paint.strokeWidth !== style.strokeWidth) {
-      if (this.mutate('setPaintProperty:stroke-size', this.ids.strokeLayer, () => {
+    if (this.layers.cache.strokeWidth !== style.strokeWidth) {
+      if (this.layers.mutate('setPaintProperty:stroke-size', this.ids.strokeLayer, () => {
         this.map.setPaintProperty(this.ids.strokeLayer, 'line-width', style.strokeWidth);
         this.map.setPaintProperty(this.ids.glowLayer, 'line-width', style.strokeWidth * 3);
         this.map.setPaintProperty(this.ids.glowLayer, 'line-blur', style.strokeWidth * 2);
-      })) this.paint.strokeWidth = style.strokeWidth;
+      })) this.layers.cache.strokeWidth = style.strokeWidth;
     }
   }
 
@@ -272,35 +273,5 @@ export class BoundaryRenderer {
         geometry: { type: 'MultiLineString', coordinates: animatedRings },
       }],
     };
-  }
-
-  private setPaint<K extends keyof BoundaryPaintCache>(
-    layerId: string,
-    property: keyof PaintSpecification,
-    value: unknown,
-    cacheKey: K,
-    cacheValue: BoundaryPaintCache[K],
-  ): void {
-    if (this.paint[cacheKey] === cacheValue) return;
-    if (this.mutate(`setPaintProperty:${property}`, layerId, () => {
-      this.map.setPaintProperty(layerId, property, value);
-    })) this.paint[cacheKey] = cacheValue;
-  }
-
-  private setLayout<K extends keyof BoundaryPaintCache>(
-    layerId: string,
-    property: keyof LayoutSpecification,
-    value: unknown,
-    cacheKey: K,
-    cacheValue: BoundaryPaintCache[K],
-  ): void {
-    if (this.paint[cacheKey] === cacheValue) return;
-    if (this.mutate(`setLayoutProperty:${property}`, layerId, () => {
-      this.map.setLayoutProperty(layerId, property, value);
-    })) this.paint[cacheKey] = cacheValue;
-  }
-
-  private mutate(operation: string, resourceId: string, mutation: () => void): boolean {
-    return mutateMap(this.map, { operation, phase: 'update', resourceId }, mutation);
   }
 }

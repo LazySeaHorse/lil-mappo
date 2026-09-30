@@ -1,9 +1,7 @@
 import type {
   ExpressionSpecification,
   GeoJSONSourceSpecification,
-  LayoutSpecification,
   Map as MapboxMap,
-  PaintSpecification,
 } from 'mapbox-gl';
 import { getNormalizedProgress } from '@/engine/easings';
 import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
@@ -12,7 +10,7 @@ import type { RouteItem, RouteVehicleConfig } from '@/store/types';
 import { resolveRoutePaint } from '../layerStyleContracts';
 import {
   getGeoJSONSource,
-  mutateMap,
+  LayerPropertyWriter,
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
@@ -98,12 +96,13 @@ export class RouteRenderer {
   private route: RouteItem;
   private coordinates: number[][];
   private readonly ids: RouteResourceIds;
-  private paint = createPaintCache();
+  private readonly layers: LayerPropertyWriter<PaintCache>;
   private lastGeometryState = '';
   private lastGlowState = '';
   private disposed = false;
 
   constructor(private readonly map: MapboxMap, route: RouteItem) {
+    this.layers = new LayerPropertyWriter(map, createPaintCache);
     this.route = route;
     this.coordinates = extractLineCoords(route.geojson);
     this.ids = createIds(route.id);
@@ -111,7 +110,7 @@ export class RouteRenderer {
 
   mount(): void {
     this.disposed = false;
-    this.paint = createPaintCache();
+    this.layers.reset();
     this.lastGeometryState = '';
     this.lastGlowState = '';
     this.ensureRouteResources();
@@ -145,10 +144,10 @@ export class RouteRenderer {
     const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
     const animationType = route.style.animationType ?? 'draw';
 
-    if (this.paint.lastAnimationType === 'comet' && animationType !== 'comet') {
+    if (this.layers.cache.lastAnimationType === 'comet' && animationType !== 'comet') {
       getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
     }
-    this.paint.lastAnimationType = animationType;
+    this.layers.cache.lastAnimationType = animationType;
 
     const isBeforeStart = playheadTime < route.startTime;
     const exitActive = route.exitAnimation !== 'none' && playheadTime > route.endTime;
@@ -156,8 +155,8 @@ export class RouteRenderer {
     const isAfterExit = exitProgress >= 1;
 
     if (animationType === 'comet') {
-      this.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
-      this.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
+      this.layers.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
+      this.layers.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
       if (isBeforeStart || isAfterExit) {
         if (this.lastGeometryState !== 'comet:empty') {
           getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
@@ -171,13 +170,13 @@ export class RouteRenderer {
           getGeoJSONSource(this.map, this.ids.cometSource)?.setData(coordsToFeatureCollection(trail));
           this.lastGeometryState = state;
         }
-        this.setPaint(this.ids.cometLayer, 'line-gradient', gradient(routeColor), 'cometColor', routeColor);
-        this.setPaint(this.ids.cometLayer, 'line-width', route.style.width, 'cometWidth', route.style.width);
+        this.layers.setPaint(this.ids.cometLayer, 'line-gradient', gradient(routeColor), 'cometColor', routeColor);
+        this.layers.setPaint(this.ids.cometLayer, 'line-width', route.style.width, 'cometWidth', route.style.width);
       }
     } else {
       if (isBeforeStart || isAfterExit) {
-        this.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
-        this.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
+        this.layers.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
+        this.layers.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
         if (this.lastGeometryState !== 'empty') {
           mainSource.setData(EMPTY_FC);
           getGeoJSONSource(this.map, this.ids.glowSource)?.setData(EMPTY_FC);
@@ -185,25 +184,25 @@ export class RouteRenderer {
           this.lastGlowState = 'empty';
         }
       } else {
-        this.setLayout(this.ids.mainLayer, 'visibility', 'visible', 'mainVisible', true);
+        this.layers.setLayout(this.ids.mainLayer, 'visibility', 'visible', 'mainVisible', true);
         const glowVisible = Boolean(route.style.glow);
-        this.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
+        this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
 
         const opacity = this.resolveOpacity(playheadTime);
-        this.setPaint(this.ids.mainLayer, 'line-color', routeColor, 'mainColor', routeColor);
-        this.setPaint(this.ids.mainLayer, 'line-opacity', opacity, 'mainOpacity', opacity);
-        this.setPaint(this.ids.mainLayer, 'line-width', route.style.width, 'mainWidth', route.style.width);
+        this.layers.setPaint(this.ids.mainLayer, 'line-color', routeColor, 'mainColor', routeColor);
+        this.layers.setPaint(this.ids.mainLayer, 'line-opacity', opacity, 'mainOpacity', opacity);
+        this.layers.setPaint(this.ids.mainLayer, 'line-width', route.style.width, 'mainWidth', route.style.width);
         this.updateDashPattern();
 
         if (glowVisible) {
           const glowOpacity = 0.35 * opacity;
-          this.setPaint(this.ids.glowLayer, 'line-color', resolvedPaint.glowColor, 'glowColor', resolvedPaint.glowColor);
-          this.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
-          if (this.paint.glowWidth !== resolvedPaint.glowWidth) {
-            if (this.mutate('setPaintProperty:glow-size', this.ids.glowLayer, () => {
+          this.layers.setPaint(this.ids.glowLayer, 'line-color', resolvedPaint.glowColor, 'glowColor', resolvedPaint.glowColor);
+          this.layers.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
+          if (this.layers.cache.glowWidth !== resolvedPaint.glowWidth) {
+            if (this.layers.mutate('setPaintProperty:glow-size', this.ids.glowLayer, () => {
               this.map.setPaintProperty(this.ids.glowLayer, 'line-width', resolvedPaint.glowWidth);
               this.map.setPaintProperty(this.ids.glowLayer, 'line-blur', resolvedPaint.glowBlur);
-            })) this.paint.glowWidth = resolvedPaint.glowWidth;
+            })) this.layers.cache.glowWidth = resolvedPaint.glowWidth;
           }
         }
 
@@ -322,7 +321,7 @@ export class RouteRenderer {
     }
 
     if (vehicle.type !== 'dot' && !this.map.hasModel(vehicle.type)) {
-      this.mutate('addModel', vehicle.type, () => this.map.addModel(vehicle.type, MODELS[vehicle.type]));
+      this.layers.mutate('addModel', vehicle.type, () => this.map.addModel(vehicle.type, MODELS[vehicle.type]));
     }
     if (!this.map.getSource(this.ids.vehicleSource)) {
       const initialCoord = this.coordinates[0] ?? [0, 0];
@@ -334,12 +333,12 @@ export class RouteRenderer {
     if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(vehicle);
 
     if (vehicle.type === 'dot') {
-      this.mutate('setPaintProperty:vehicle-dot', this.ids.vehicleLayer, () => {
+      this.layers.mutate('setPaintProperty:vehicle-dot', this.ids.vehicleLayer, () => {
         this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', DOT_BASE_RADIUS * vehicle.scale);
         this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-color', this.route.style.color);
       });
     } else {
-      this.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
+      this.layers.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
         const s = vehicle.scale * MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'];
         this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [s, s, s]);
       });
@@ -392,11 +391,11 @@ export class RouteRenderer {
 
   private updateDashPattern(): void {
     const pattern = this.route.style.dashPattern;
-    if (this.paint.dashPattern?.[0] === pattern?.[0] && this.paint.dashPattern?.[1] === pattern?.[1]) return;
-    if (this.mutate('setPaintProperty:line-dasharray', this.ids.mainLayer, () => {
+    if (this.layers.cache.dashPattern?.[0] === pattern?.[0] && this.layers.cache.dashPattern?.[1] === pattern?.[1]) return;
+    if (this.layers.mutate('setPaintProperty:line-dasharray', this.ids.mainLayer, () => {
       this.map.setPaintProperty(this.ids.mainLayer, 'line-dasharray', pattern);
       this.map.setPaintProperty(this.ids.glowLayer, 'line-dasharray', pattern);
-    })) this.paint.dashPattern = pattern ? [...pattern] : null;
+    })) this.layers.cache.dashPattern = pattern ? [...pattern] : null;
   }
 
   private renderVehicle(playheadTime: number, progress: number): void {
@@ -406,7 +405,7 @@ export class RouteRenderer {
     const exitProgress = exitActive ? Math.min((playheadTime - this.route.endTime) / EXIT_DURATION, 1) : 0;
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
       && !((this.route.style.animationType ?? 'draw') === 'comet' && progress === 0);
-    this.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
+    this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
     const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
     if (!visible || !source) return;
 
@@ -421,7 +420,7 @@ export class RouteRenderer {
     });
     const opacity = this.route.exitAnimation === 'fade' && exitActive ? 1 - exitProgress : 1;
     const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
-    this.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
+    this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 
     if (vehicle.type !== 'dot') {
       const coord0 = this.coordinates[0] ?? [0, 0];
@@ -432,40 +431,10 @@ export class RouteRenderer {
           : [previous, current];
       const bearing = calculateBearing(prevForAngle, currForAngle);
       const pitch = calculatePitch(prevForAngle, currForAngle);
-      this.mutate('setPaintProperty:model-transform', this.ids.vehicleLayer, () => {
+      this.layers.mutate('setPaintProperty:model-transform', this.ids.vehicleLayer, () => {
         this.map.setPaintProperty(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing]);
         this.map.setPaintProperty(this.ids.vehicleLayer, 'model-translation', [0, 0, 0]);
       });
     }
-  }
-
-  private setPaint<K extends keyof PaintCache>(
-    layerId: string,
-    property: keyof PaintSpecification,
-    value: unknown,
-    cacheKey: K,
-    cacheValue: PaintCache[K],
-  ): void {
-    if (this.paint[cacheKey] === cacheValue) return;
-    if (this.mutate(`setPaintProperty:${property}`, layerId, () => {
-      this.map.setPaintProperty(layerId, property, value);
-    })) this.paint[cacheKey] = cacheValue;
-  }
-
-  private setLayout<K extends keyof PaintCache>(
-    layerId: string,
-    property: keyof LayoutSpecification,
-    value: unknown,
-    cacheKey: K,
-    cacheValue: PaintCache[K],
-  ): void {
-    if (this.paint[cacheKey] === cacheValue) return;
-    if (this.mutate(`setLayoutProperty:${property}`, layerId, () => {
-      this.map.setLayoutProperty(layerId, property, value);
-    })) this.paint[cacheKey] = cacheValue;
-  }
-
-  private mutate(operation: string, resourceId: string, mutation: () => void): boolean {
-    return mutateMap(this.map, { operation, phase: 'update', resourceId }, mutation);
   }
 }

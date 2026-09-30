@@ -1,4 +1,4 @@
-import type { GeoJSONSource, Map as MapboxMap } from 'mapbox-gl';
+import type { GeoJSONSource, LayoutSpecification, Map as MapboxMap, PaintSpecification } from 'mapbox-gl';
 
 export type MapMutationPhase = 'setup' | 'update' | 'cleanup' | 'style-sync';
 
@@ -82,4 +82,56 @@ export function removeSourceIfPresent(
   mutateMap(map, { operation: 'removeSource', phase: 'cleanup', resourceId: sourceId }, () => {
     map.removeSource(sourceId);
   }, report);
+}
+
+/**
+ * Applies paint/layout properties to layers, skipping writes whose value is
+ * already what the cache says Mapbox has. `cache` maps a caller-chosen key to
+ * the last value successfully written; it is only updated when the write
+ * succeeds, so a failed write is retried on the next update.
+ */
+export class LayerPropertyWriter<C extends object> {
+  cache: C;
+
+  constructor(
+    private readonly map: MapboxMap,
+    private readonly createCache: () => C,
+  ) {
+    this.cache = createCache();
+  }
+
+  /** Forget everything written; call when layers are recreated. */
+  reset(): void {
+    this.cache = this.createCache();
+  }
+
+  setPaint<K extends keyof C>(
+    layerId: string,
+    property: keyof PaintSpecification,
+    value: unknown,
+    cacheKey: K,
+    cacheValue: C[K],
+  ): void {
+    if (this.cache[cacheKey] === cacheValue) return;
+    if (this.mutate(`setPaintProperty:${property}`, layerId, () => {
+      this.map.setPaintProperty(layerId, property, value);
+    })) this.cache[cacheKey] = cacheValue;
+  }
+
+  setLayout<K extends keyof C>(
+    layerId: string,
+    property: keyof LayoutSpecification,
+    value: unknown,
+    cacheKey: K,
+    cacheValue: C[K],
+  ): void {
+    if (this.cache[cacheKey] === cacheValue) return;
+    if (this.mutate(`setLayoutProperty:${property}`, layerId, () => {
+      this.map.setLayoutProperty(layerId, property, value);
+    })) this.cache[cacheKey] = cacheValue;
+  }
+
+  mutate(operation: string, resourceId: string, mutation: () => void): boolean {
+    return mutateMap(this.map, { operation, phase: 'update', resourceId }, mutation);
+  }
 }

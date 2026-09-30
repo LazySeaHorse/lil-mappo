@@ -2,6 +2,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   getGeoJSONSource,
+  LayerPropertyWriter,
   mutateMap,
   removeLayerIfPresent,
   removeSourceIfPresent,
@@ -81,5 +82,38 @@ describe('mapbox resource helpers', () => {
 
     expect(getGeoJSONSource(map, 'geojson')).toBe(geojson);
     expect(getGeoJSONSource(map, 'vector')).toBeUndefined();
+  });
+});
+
+describe('LayerPropertyWriter', () => {
+  const makeCache = () => ({ color: '' as string, shown: true });
+
+  it('skips writes that match the cache and retries after a failed write', () => {
+    const setPaintProperty = vi.fn()
+      .mockImplementationOnce(() => { throw new Error('layer missing'); })
+      .mockImplementation(() => undefined);
+    const map = createMap({ setPaintProperty, isStyleLoaded: vi.fn(() => false) });
+    const writer = new LayerPropertyWriter(map, makeCache);
+
+    writer.setPaint('layer', 'line-color', '#f00', 'color', '#f00');
+    expect(writer.cache.color).toBe('');
+
+    writer.setPaint('layer', 'line-color', '#f00', 'color', '#f00');
+    writer.setPaint('layer', 'line-color', '#f00', 'color', '#f00');
+    expect(setPaintProperty).toHaveBeenCalledTimes(2);
+    expect(writer.cache.color).toBe('#f00');
+  });
+
+  it('writes layout properties and forgets the cache on reset', () => {
+    const setLayoutProperty = vi.fn();
+    const writer = new LayerPropertyWriter(createMap({ setLayoutProperty }), makeCache);
+
+    writer.setLayout('layer', 'visibility', 'none', 'shown', false);
+    writer.setLayout('layer', 'visibility', 'none', 'shown', false);
+    expect(setLayoutProperty).toHaveBeenCalledTimes(1);
+
+    writer.reset();
+    writer.setLayout('layer', 'visibility', 'none', 'shown', false);
+    expect(setLayoutProperty).toHaveBeenCalledTimes(2);
   });
 });
