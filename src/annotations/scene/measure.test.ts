@@ -43,6 +43,11 @@ describe('measureScene', () => {
     expect(box.minY).toBeCloseTo(-20 * 1.3 - 3);
   });
 
+  it('grows boxes by the widest of several stacked shadows', () => {
+    const shadow = [{ color: '#000', blur: 2 }, { color: '#000', blur: 8 }];
+    expect(measureScene(rect({ x: 0, y: 0, width: 4, height: 4, shadow })).width).toBe(4 + 16);
+  });
+
   it('grows boxes by their shadow blur and offset', () => {
     const shadow = { color: '#000', blur: 6, offsetX: 2, offsetY: -1 };
     expect(measureScene(polyline({ points: [[0, 0], [10, 0]], stroke: '#fff', strokeWidth: 2, shadow }))).toMatchObject({

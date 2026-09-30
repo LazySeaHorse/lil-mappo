@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeOutBack, easeOutCubic, stage, staggered } from '../motion';
 import { glyphTexts, layoutGlyphs, type GlyphLayout, type TextSpec } from '../scene/glyphs';

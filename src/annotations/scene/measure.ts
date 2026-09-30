@@ -9,6 +9,7 @@
  */
 
 import type { GroupNode, SceneNode } from '../types';
+import { shadowLayers } from './shadows';
 import { measureTextWidth } from './textMetrics';
 
 export interface BoundingBox {
@@ -81,13 +82,12 @@ function measureNode(node: SceneNode): Extent | null {
   const box = measureShape(node);
   if (!box || !('shadow' in node) || !node.shadow) return box;
   // A shadow reaches its blur radius past the shape, shifted by its offset.
-  const { blur, offsetX = 0, offsetY = 0 } = node.shadow;
-  return {
+  return union([box, ...shadowLayers(node.shadow).map(({ blur, offsetX = 0, offsetY = 0 }) => ({
     minX: box.minX - blur + Math.min(0, offsetX),
     minY: box.minY - blur + Math.min(0, offsetY),
     maxX: box.maxX + blur + Math.max(0, offsetX),
     maxY: box.maxY + blur + Math.max(0, offsetY),
-  };
+  }))]);
 }
 
 function measureShape(node: SceneNode): Extent | null {

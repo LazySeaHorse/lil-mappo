@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, Shadow, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, clamp01, easeInCubic, easeOutBack, easeOutCubic, easeOutQuad, lerp, stage } from '../motion';
 import { hashInts, seededRandom } from '../random';
@@ -184,7 +184,7 @@ function layout(input: StyleRenderInput<StampSettings>): Layout {
 
 // ─── Drawing the stamp ────────────────────────────────────────────────────────
 
-function star(cx: number, cy: number, r: number, fill: string, shadow?: ShadowConfig): SceneNode {
+function star(cx: number, cy: number, r: number, fill: string, shadow?: Shadow): SceneNode {
   const points = Array.from({ length: 10 }, (_, i) => {
     const angle = -Math.PI / 2 + (i * Math.PI) / 5;
     const radius = i % 2 === 0 ? r : r * 0.42;
@@ -194,7 +194,7 @@ function star(cx: number, cy: number, r: number, fill: string, shadow?: ShadowCo
 }
 
 /** A ring split into inked arcs by the seeded gaps. */
-function wornRing(radius: number, width: number, ink: string, seed: number, shadow?: ShadowConfig): SceneNode[] {
+function wornRing(radius: number, width: number, ink: string, seed: number, shadow?: Shadow): SceneNode[] {
   const circumference = Math.PI * 2 * radius;
   return inkSpans(circumference, seed).map(([from, to]) =>
     circle({ cx: 0, cy: 0, r: radius, stroke: ink, strokeWidth: width, startAngle: from * Math.PI * 2, endAngle: to * Math.PI * 2, shadow }),
@@ -202,7 +202,7 @@ function wornRing(radius: number, width: number, ink: string, seed: number, shad
 }
 
 /** A rough outline split into inked strokes by the seeded gaps. */
-function wornOutline(points: Point[], width: number, ink: string, seed: number, shadow?: ShadowConfig): SceneNode[] {
+function wornOutline(points: Point[], width: number, ink: string, seed: number, shadow?: Shadow): SceneNode[] {
   return inkSpans(polylineLength(points), seed).flatMap(([from, to]) => {
     const piece = trimPolyline(points, from, to);
     return piece.length > 1
@@ -211,7 +211,7 @@ function wornOutline(points: Point[], width: number, ink: string, seed: number, 
   });
 }
 
-function drawRound(l: RoundLayout, ink: string, seed: number, shadow?: ShadowConfig): SceneNode[] {
+function drawRound(l: RoundLayout, ink: string, seed: number, shadow?: Shadow): SceneNode[] {
   const nodes: SceneNode[] = [
     ...wornRing(l.radius, OUTER_RING_WIDTH, ink, seed, shadow),
     ...wornRing(l.innerRadius, INNER_RING_WIDTH, ink, seed + 1, shadow),
@@ -254,7 +254,7 @@ function drawRound(l: RoundLayout, ink: string, seed: number, shadow?: ShadowCon
   return nodes;
 }
 
-function drawRect(l: RectLayout, ink: string, seed: number, shadow?: ShadowConfig): SceneNode[] {
+function drawRect(l: RectLayout, ink: string, seed: number, shadow?: Shadow): SceneNode[] {
   const x = -l.width / 2;
   const y = -l.height / 2;
   const nodes: SceneNode[] = [

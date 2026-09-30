@@ -44,6 +44,17 @@ describe('renderScene', () => {
     expect(names(calls).indexOf('clip')).toBeLessThan(names(calls).indexOf('fillRect'));
   });
 
+  it('paints a node once per shadow layer, each with its own shadow', () => {
+    const { ctx, calls } = recordingContext();
+    renderScene(ctx, rect({
+      x: 0, y: 0, width: 4, height: 4, fill: '#fff',
+      shadow: [{ color: 'rgba(0,0,0,0.7)', blur: 2 }, { color: 'rgba(0,0,0,0.4)', blur: 8 }],
+    }));
+    expect(names(calls).filter((n) => n === 'fillRect')).toHaveLength(2);
+    const blurs = calls.filter((c) => c[0] === 'set shadowBlur' && c[1] !== 0).map((c) => c[1]);
+    expect(blurs).toEqual([2, 8]);
+  });
+
   it('paints a text halo behind the fill with round joins', () => {
     const { ctx, calls, state } = recordingContext();
     renderScene(ctx, text({

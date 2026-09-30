@@ -8,6 +8,7 @@ import {
   renderLeaderLine,
   type LeaderLineSettings,
 } from './leader-line';
+import { HALO_REACH, HALO_SHADOW } from './shared';
 import { measureTextWidth } from '../scene/textMetrics';
 import { measureScene } from '../scene/measure';
 
@@ -122,7 +123,7 @@ describe('layout', () => {
     expect(texts(shadowed).every((t) => t.shadow && t.stroke === undefined)).toBe(true);
     expect(lines(shadowed).every((l) => l.shadow)).toBe(true);
     expect(withShadow.length).toBeGreaterThanOrEqual(6);
-    expect(texts(shadowed)[0].shadow).toMatchObject({ blur: expect.any(Number), offsetX: 0, offsetY: 0 });
+    expect(texts(shadowed)[0].shadow).toBe(HALO_SHADOW);
     expect(lines(shadowed)).toHaveLength(2); // no doubled underlay lines
 
     const flat = renderLeaderLine(makeInput({ settings: { ...defaultLeaderLineSettings, halo: false } }));
@@ -253,7 +254,7 @@ describe('entrance choreography', () => {
     const [clip] = clipGroups(renderLeaderLine(makeInput()));
     const [title] = texts(clip);
     const box = measureScene(title);
-    const shadowReach = title.shadow!.blur;
+    const shadowReach = HALO_REACH;
     expect(clip.clip!.y).toBeLessThanOrEqual(box.minY);
     expect(clip.clip!.x).toBeLessThanOrEqual(box.minX);
     expect(clip.clip!.x + clip.clip!.width).toBeGreaterThanOrEqual(box.maxX);

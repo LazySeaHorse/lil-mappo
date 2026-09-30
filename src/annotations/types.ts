@@ -68,6 +68,13 @@ export interface ShadowConfig {
   offsetY?: number;
 }
 
+/**
+ * One shadow, or several stacked: e.g. a tight dark one for edge contrast and a
+ * wide soft one for lift. The shape is painted once per layer, so translucent
+ * shapes with several shadows come out slightly denser.
+ */
+export type Shadow = ShadowConfig | ShadowConfig[];
+
 /** Stroke appearance shared by every node that can draw an outline or line. */
 export interface StrokeOptions {
   lineCap?: 'butt' | 'round' | 'square';
@@ -116,7 +123,7 @@ export interface RectNode extends StrokeOptions {
   stroke?: string;
   strokeWidth?: number;
   opacity?: number;
-  shadow?: ShadowConfig;
+  shadow?: Shadow;
 }
 
 export interface CircleNode extends StrokeOptions {
@@ -135,7 +142,7 @@ export interface CircleNode extends StrokeOptions {
   stroke?: string;
   strokeWidth?: number;
   opacity?: number;
-  shadow?: ShadowConfig;
+  shadow?: Shadow;
 }
 
 export interface TextNode {
@@ -154,7 +161,7 @@ export interface TextNode {
   /** Full outline width; half of it shows outside the glyphs. Default 1. */
   strokeWidth?: number;
   /** Soft shadow behind the text, e.g. for legibility over a busy map. */
-  shadow?: ShadowConfig;
+  shadow?: Shadow;
   align?: 'left' | 'center' | 'right';
   /** 'alphabetic' puts y on the text baseline, for aligning type to lines. Default 'top'. */
   baseline?: 'top' | 'middle' | 'alphabetic' | 'bottom';
@@ -190,7 +197,7 @@ export interface LineNode extends StrokeOptions {
 /** Connected line segments whose visible length can be animated. */
 export interface PolylineNode extends StrokeOptions {
   type: 'polyline';
-  shadow?: ShadowConfig;
+  shadow?: Shadow;
   points: Array<[number, number]>;
   /** Join the last point back to the first. */
   closed?: boolean;
@@ -208,7 +215,7 @@ export interface PathNode extends StrokeOptions {
   stroke?: string;
   strokeWidth?: number;
   opacity?: number;
-  shadow?: ShadowConfig;
+  shadow?: Shadow;
 }
 
 export type SceneNode =

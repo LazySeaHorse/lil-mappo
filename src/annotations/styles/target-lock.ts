@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, Shadow, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import {
   buildProgress,
@@ -120,7 +120,7 @@ function lockCorner(ground: { x: number; y: number }, direction: 1 | -1): [numbe
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 /** Four corner brackets around (0, 0), each an L of two arms. */
-function brackets(color: string, shadow: ShadowConfig | undefined, progress: number): SceneNode[] {
+function brackets(color: string, shadow: Shadow | undefined, progress: number): SceneNode[] {
   return ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([sx, sy]) =>
     polyline({
       points: [[sx * HALF, sy * (HALF - ARM)], [sx * HALF, sy * HALF], [sx * (HALF - ARM), sy * HALF]],

@@ -5,20 +5,24 @@
  * drop, a flag's cloth) stay in their own files.
  */
 
-import type { ShadowConfig, SceneNode, StyleBounds } from '../types';
+import type { SceneNode, Shadow, StyleBounds } from '../types';
+import { shadowLayers } from '../scene/shadows';
 import { measureScene } from '../scene/measure';
 import { circle, group, polyline } from '../scene/primitives';
 
 // ─── Shadow ───────────────────────────────────────────────────────────────────
 
 /** Soft dark shadow that lifts light line work and lettering off any map. */
-export const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
+export const HALO_SHADOW: Shadow = [
+  { color: 'rgba(0, 0, 0, 0.75)', blur: 2, offsetX: 0, offsetY: 0 },
+  { color: 'rgba(0, 0, 0, 0.4)', blur: 8, offsetX: 0, offsetY: 0 },
+];
 
 /** How far the house shadow reaches past what it lights; leave this much room for it. */
-export const HALO_REACH = HALO_SHADOW.blur;
+export const HALO_REACH = Math.max(...shadowLayers(HALO_SHADOW).map((layer) => layer.blur));
 
 /** The house shadow when a style's "Soft shadow" switch is on, else none. */
-export function haloShadow(enabled: boolean): ShadowConfig | undefined {
+export function haloShadow(enabled: boolean): Shadow | undefined {
   return enabled ? HALO_SHADOW : undefined;
 }
 
@@ -47,7 +51,7 @@ interface GroundDotOptions {
   stroke?: string;
   /** Adds a fine ring round the dot in this colour. */
   ring?: string;
-  shadow?: ShadowConfig;
+  shadow?: Shadow;
 }
 
 /** The dot that marks the ground point, popping in at `scale`. */
@@ -69,7 +73,7 @@ interface LeaderOptions {
   strokeWidth: number;
   /** Fraction of the line drawn, from the ground point. */
   progress: number;
-  shadow?: ShadowConfig;
+  shadow?: Shadow;
 }
 
 /** The line from the ground point to where a card or label attaches, drawn on from the ground. */
