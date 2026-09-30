@@ -1,6 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
+import { extractLineCoords } from './geoUtils';
 import { getCameraAtTime, type CameraOutput } from './cameraInterpolation';
 import {
   blendPoses,
@@ -95,16 +96,7 @@ export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0
 export function getRouteCoords(routeId: string): number[][] | null {
   const route = useProjectStore.getState().items[routeId] as RouteItem | undefined;
   if (!route) return null;
-  const coords: number[][] = [];
-  for (const f of route.geojson.features) {
-    if (f.geometry?.type === 'LineString' && Array.isArray((f.geometry as GeoJSON.LineString).coordinates)) {
-      coords.push(...(f.geometry as GeoJSON.LineString).coordinates);
-    } else if (f.geometry?.type === 'MultiLineString' && Array.isArray((f.geometry as GeoJSON.MultiLineString).coordinates)) {
-      for (const l of (f.geometry as GeoJSON.MultiLineString).coordinates) {
-        if (Array.isArray(l)) coords.push(...l);
-      }
-    }
-  }
+  const coords = extractLineCoords(route.geojson);
   return coords.length >= 2 ? coords : null;
 }
 

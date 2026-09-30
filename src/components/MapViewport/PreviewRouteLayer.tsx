@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Source, Layer } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
+import { extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getAnimatedLine } from '@/engine/lineAnimation';
 
 export const PreviewRouteLayer = () => {
@@ -37,35 +38,14 @@ export const PreviewRouteLayer = () => {
   const animatedData = useMemo(() => {
     if (!previewRoute || progress === 0) return null;
 
-    const allCoords: number[][] = [];
-    for (const feature of previewRoute.features) {
-      const geom = feature.geometry;
-      if (geom.type === 'LineString') allCoords.push(...geom.coordinates);
-      else if (geom.type === 'MultiLineString') {
-        for (const line of geom.coordinates) allCoords.push(...line);
-      }
-    }
+    const allCoords = extractLineCoords(previewRoute);
 
     if (allCoords.length < 2) return null;
 
     const animCoords = getAnimatedLine(allCoords, progress);
     if (animCoords.length < 2) return null;
 
-    const segments: number[][][] = [];
-    let currentSegment: number[][] = [animCoords[0]];
-    for (let i = 1; i < animCoords.length; i++) {
-      if (Math.abs(animCoords[i][0] - animCoords[i - 1][0]) > 180) {
-        segments.push(currentSegment);
-        currentSegment = [];
-      }
-      currentSegment.push(animCoords[i]);
-    }
-    segments.push(currentSegment);
-
-    const geometry: GeoJSON.LineString | GeoJSON.MultiLineString =
-      segments.length > 1
-        ? { type: 'MultiLineString', coordinates: segments }
-        : { type: 'LineString', coordinates: animCoords };
+    const geometry = splitAtAntimeridian(animCoords);
 
     return {
       type: 'FeatureCollection' as const,

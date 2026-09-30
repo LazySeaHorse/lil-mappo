@@ -6,7 +6,7 @@ import type {
   PaintSpecification,
 } from 'mapbox-gl';
 import { getNormalizedProgress } from '@/engine/easings';
-import { calculateBearing, calculatePitch } from '@/engine/geoUtils';
+import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getAnimatedLine, getLineSegment } from '@/engine/lineAnimation';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
 import { resolveRoutePaint } from '../layerStyleContracts';
@@ -80,53 +80,10 @@ function createPaintCache(): PaintCache {
 
 function coordsToFeatureCollection(coords: number[][]): GeoJSON.FeatureCollection {
   if (!coords || coords.length < 2 || !Array.isArray(coords[0])) return EMPTY_FC;
-  const segments: number[][][] = [];
-  let currentSegment: number[][] = [coords[0]];
-  for (let i = 1; i < coords.length; i++) {
-    const prev = coords[i - 1];
-    const curr = coords[i];
-    if (!prev || !curr || typeof prev[0] !== 'number' || typeof curr[0] !== 'number') continue;
-    if (Math.abs(curr[0] - prev[0]) > 180) {
-      if (currentSegment.length >= 2) {
-        segments.push(currentSegment);
-      }
-      currentSegment = [];
-    }
-    currentSegment.push(curr);
-  }
-  if (currentSegment.length >= 2) {
-    segments.push(currentSegment);
-  }
-
-  if (segments.length === 0) {
-    return {
-      type: 'FeatureCollection',
-      features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }],
-    };
-  }
-
-  const geometry: GeoJSON.Geometry = segments.length > 1
-    ? { type: 'MultiLineString', coordinates: segments }
-    : { type: 'LineString', coordinates: segments[0] };
-
   return {
     type: 'FeatureCollection',
-    features: [{ type: 'Feature', properties: {}, geometry }],
+    features: [{ type: 'Feature', properties: {}, geometry: splitAtAntimeridian(coords) }],
   };
-}
-
-function extractCoordinates(route: RouteItem): number[][] {
-  const coordinates: number[][] = [];
-  for (const feature of route.geojson.features) {
-    if (feature.geometry?.type === 'LineString' && Array.isArray(feature.geometry.coordinates)) {
-      coordinates.push(...feature.geometry.coordinates);
-    } else if (feature.geometry?.type === 'MultiLineString' && Array.isArray(feature.geometry.coordinates)) {
-      for (const line of feature.geometry.coordinates) {
-        if (Array.isArray(line)) coordinates.push(...line);
-      }
-    }
-  }
-  return coordinates;
 }
 
 function geoJSONSource(lineMetrics = false): GeoJSONSourceSpecification {
@@ -148,7 +105,7 @@ export class RouteRenderer {
 
   constructor(private readonly map: MapboxMap, route: RouteItem) {
     this.route = route;
-    this.coordinates = extractCoordinates(route);
+    this.coordinates = extractLineCoords(route.geojson);
     this.ids = createIds(route.id);
   }
 
@@ -168,7 +125,7 @@ export class RouteRenderer {
     const vehicleChanged = route.calculation?.vehicle !== this.route.calculation?.vehicle;
     this.route = route;
     if (geometryChanged) {
-      this.coordinates = extractCoordinates(route);
+      this.coordinates = extractLineCoords(route.geojson);
       this.lastGeometryState = '';
       this.lastGlowState = '';
       this.uploadGeometry();

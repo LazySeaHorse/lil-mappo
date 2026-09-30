@@ -1,3 +1,4 @@
+import { extractLineCoords } from '@/engine/geoUtils';
 import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
@@ -57,16 +58,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
 
   const handleAutoCamToggle = (enabled: boolean) => {
     if (enabled) {
-      let coordCount = 0;
-      for (const f of item.geojson.features) {
-        if (f.geometry?.type === 'LineString' && Array.isArray(f.geometry.coordinates)) {
-          coordCount += f.geometry.coordinates.length;
-        } else if (f.geometry?.type === 'MultiLineString' && Array.isArray(f.geometry.coordinates)) {
-          for (const l of f.geometry.coordinates) {
-            if (Array.isArray(l)) coordCount += l.length;
-          }
-        }
-      }
+      const coordCount = extractLineCoords(item.geojson).length;
       if (coordCount < 2) {
         toast.error('Add a route before you enable Auto camera.');
         return;

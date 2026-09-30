@@ -38,6 +38,74 @@ export function extractLineStringsFromGeometry(geometry: GeoJSON.Geometry): numb
 }
 
 /**
+ * Flattens every LineString / MultiLineString in a feature collection into one
+ * coordinate list. Other geometry types and malformed coordinates are skipped.
+ */
+export function extractLineCoords(fc: { features: GeoJSON.Feature[] }): number[][] {
+  const coords: number[][] = [];
+  for (const feature of fc.features) {
+    const geom = feature.geometry;
+    if (geom?.type === 'LineString' && Array.isArray(geom.coordinates)) {
+      coords.push(...geom.coordinates);
+    } else if (geom?.type === 'MultiLineString' && Array.isArray(geom.coordinates)) {
+      for (const line of geom.coordinates) {
+        if (Array.isArray(line)) coords.push(...line);
+      }
+    }
+  }
+  return coords;
+}
+
+/**
+ * Builds a line geometry from coordinates, splitting into a MultiLineString
+ * wherever consecutive points jump more than 180° of longitude (antimeridian
+ * crossing) so Mapbox doesn't draw a line across the whole map.
+ */
+export function splitAtAntimeridian(coords: number[][]): GeoJSON.LineString | GeoJSON.MultiLineString {
+  const segments: number[][][] = [];
+  let current: number[][] = [coords[0]];
+  for (let i = 1; i < coords.length; i++) {
+    const prev = coords[i - 1];
+    const curr = coords[i];
+    if (!prev || !curr || typeof prev[0] !== 'number' || typeof curr[0] !== 'number') continue;
+    if (Math.abs(curr[0] - prev[0]) > 180) {
+      if (current.length >= 2) segments.push(current);
+      current = [];
+    }
+    current.push(curr);
+  }
+  if (current.length >= 2) segments.push(current);
+
+  if (segments.length === 0) return { type: 'LineString', coordinates: coords };
+  return segments.length > 1
+    ? { type: 'MultiLineString', coordinates: segments }
+    : { type: 'LineString', coordinates: segments[0] };
+}
+
+/**
+ * Bounding box of a geometry as [[west, south], [east, north]], covering every
+ * polygon/line/point in it. Returns null if it has no valid coordinates.
+ */
+export function geometryBounds(geometry: GeoJSON.Geometry): [[number, number], [number, number]] | null {
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  const visit = (c: unknown): void => {
+    if (!Array.isArray(c)) return;
+    if (typeof c[0] === 'number' && typeof c[1] === 'number') {
+      w = Math.min(w, c[0]); e = Math.max(e, c[0]);
+      s = Math.min(s, c[1]); n = Math.max(n, c[1]);
+      return;
+    }
+    for (const child of c) visit(child);
+  };
+  if (geometry.type === 'GeometryCollection') {
+    for (const g of geometry.geometries) visit((g as { coordinates?: unknown }).coordinates);
+  } else {
+    visit(geometry.coordinates);
+  }
+  return Number.isFinite(w) ? [[w, s], [e, n]] : null;
+}
+
+/**
  * Calculates the bearing between two points in degrees.
  * Guaranteed to return a finite number in [0, 360).
  */
