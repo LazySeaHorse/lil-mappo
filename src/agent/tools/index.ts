@@ -2,6 +2,7 @@ import '@/annotations/styles/index';
 import type { AnyAgentTool } from '../defineTool';
 import { getGuide, getItem, getProject, searchPlace } from './read';
 import { addBoundary, addCallout, addRoute } from './add';
+import { addCameraKeyframe, frameItems, removeCameraKeyframe, updateCameraKeyframe } from './camera';
 import { duplicateItem, removeItem, reorderItems, updateItem } from './edit';
 import { redoTool, setPlayhead, undoTool } from './playback';
 
@@ -18,6 +19,10 @@ export const ALL_TOOLS = [
   removeItem,
   duplicateItem,
   reorderItems,
+  addCameraKeyframe,
+  updateCameraKeyframe,
+  removeCameraKeyframe,
+  frameItems,
   setPlayhead,
   undoTool,
   redoTool,
