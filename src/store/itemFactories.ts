@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { DEFAULT_VIEW_ZOOM } from '@/annotations/migration';
 import { getStyle } from '@/annotations/registry';
 import type { AnnotationStyleDefinition } from '@/annotations/types';
 import { buildWalkGeometry, createWalkCalculation } from '@/engine/routeCurves';
@@ -176,6 +177,8 @@ export interface CalloutInput {
   startTime: number;
   endTime?: number;
   linkTitleToLocation?: boolean;
+  /** Map zoom that size-with-map callouts are sized at. */
+  referenceZoom?: number;
   id?: string;
 }
 
@@ -227,6 +230,8 @@ export function createCalloutItem(input: CalloutInput): CalloutItem | null {
     endTime: input.endTime ?? input.startTime + DEFAULT_ITEM_DURATION,
     opacity: 1,
     scale: 1,
+    sizeMode: 'screen',
+    referenceZoom: input.referenceZoom ?? DEFAULT_VIEW_ZOOM,
     linkTitleToLocation: input.linkTitleToLocation ?? true,
     ...defaults,
   };

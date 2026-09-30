@@ -105,6 +105,8 @@ export interface BoundaryItem {
   exitAnimation?: 'none' | 'reverse' | 'fade';
 }
 
+export type CalloutSizeMode = 'screen' | 'map';
+
 export interface CalloutItem {
   kind: 'callout';
   id: string;
@@ -134,6 +136,13 @@ export interface CalloutItem {
   /** Base appearance modifiers. */
   opacity: number;
   scale: number;
+  /**
+   * 'screen' keeps the callout's pixel size at every zoom. 'map' sizes it like
+   * something printed on the map: `scale` is its size at `referenceZoom`, and it
+   * grows and shrinks with the zoom from there.
+   */
+  sizeMode: CalloutSizeMode;
+  referenceZoom: number;
 
   /** Style-specific settings, validated by the style's Zod schema. */
   settings: Record<string, unknown>;

@@ -8,6 +8,7 @@ import {
   prepareAnnotationFrame,
   MAX_ALTITUDE_PX,
 } from './draw';
+import { MAP_SCALE_FADE_START, MAP_SCALE_HIDDEN, MAX_MAP_SCALE } from './sizing';
 import { getStyle, registerStyle } from './registry';
 import { group } from './scene/primitives';
 import { registerTestStyles, TEST_CARD_STYLE_ID, TEST_FLAT_STYLE_ID } from './testStyles';
@@ -32,6 +33,8 @@ function makeCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
     connector: { visible: true, style: 'solid', color: '#fff', width: 2, endDot: true, endDotRadius: 3 },
     opacity: 1,
     scale: 1,
+    sizeMode: 'screen',
+    referenceZoom: 12,
     settings: {},
     linkTitleToLocation: false,
     ...overrides,
@@ -91,6 +94,148 @@ describe('prepareAnnotationFrame', () => {
     if (scene.type !== 'group') return;
     const rect = scene.children.find((n) => n.type === 'rect');
     expect(rect && rect.type === 'rect' && rect.fill).toBe('#0f172a');
+  });
+});
+
+describe('settled frames', () => {
+  // A 2 s clip with a 1 s entrance and a 1 s exit has no room for a visible phase.
+  const short = { startTime: 4, endTime: 6 };
+
+  it('draws a callout fully entered, however the clip is timed', () => {
+    for (const time of [0, 4, 5, 6, 30]) {
+      const frame = prepareAnnotationFrame(makeCallout(short), time, { settled: true })!;
+      expect(frame.opacity).toBe(1);
+      expect(frame.scale).toBe(1);
+    }
+  });
+
+  it('is what a real frame lacks at the end of the clip', () => {
+    expect(prepareAnnotationFrame(makeCallout(short), 6)!.opacity).toBe(0);
+    expect(prepareAnnotationFrame(makeCallout(short), 4)!.opacity).toBe(0);
+  });
+
+  it('settles block transitions, and style animations in their visible phase', () => {
+    const scaleUp = makeCallout({ transition: { enter: 'scale-up', exit: 'scale-down', enterDuration: 1, exitDuration: 1 } });
+    const frame = prepareAnnotationFrame(scaleUp, 0, { settled: true })!;
+    expect(frame.opacity).toBe(1);
+    expect(frame.scale).toBe(1);
+    expect(frame.translateY).toBe(0);
+
+    const leader = makeLeaderLine();
+    const fromStart = JSON.stringify(prepareAnnotationFrame(leader, 0, { settled: true })!.scene);
+    const fromEnd = JSON.stringify(prepareAnnotationFrame(leader, leader.startTime + leader.transition.enterDuration, { settled: true })!.scene);
+    expect(fromStart).toBe(fromEnd);
+    expect(fromStart).not.toBe(JSON.stringify(prepareAnnotationFrame(leader, 0.1)!.scene));
+  });
+
+  it('still hides unplaced callouts', () => {
+    const unplaced = makeCallout({ binding: { kind: 'geographic', lngLat: [0, 0], altitude: 0 } });
+    expect(prepareAnnotationFrame(unplaced, 0, { settled: true })).toBeNull();
+  });
+});
+
+describe('pixel scale', () => {
+  const callout = makeCallout({
+    offset: [12, -6],
+    scale: 1.5,
+    transition: { enter: 'slide-up', exit: 'slide-down', enterDuration: 1, exitDuration: 1 },
+  });
+
+  it('scales the origin, artwork and slide of a frame', () => {
+    const editor = prepareAnnotationFrame(callout, 0.5)!;
+    const doubled = prepareAnnotationFrame(callout, 0.5, { pixelScale: 2 })!;
+    expect(doubled.originX).toBe(editor.originX * 2);
+    expect(doubled.originY).toBe(editor.originY * 2);
+    expect(doubled.scale).toBe(editor.scale * 2);
+    expect(doubled.translateY).toBe(editor.translateY * 2);
+    expect(doubled.opacity).toBe(editor.opacity);
+    expect(doubled.pixelScale).toBe(2);
+  });
+
+  it('has bounds at exactly twice the editor bounds', () => {
+    for (const time of [0.5, 5]) {
+      const editor = prepareAnnotationFrame(callout, time)!;
+      const doubled = prepareAnnotationFrame(callout, time, { pixelScale: 2 })!;
+      expect(doubled.bounds.minX).toBeCloseTo(editor.bounds.minX * 2);
+      expect(doubled.bounds.minY).toBeCloseTo(editor.bounds.minY * 2);
+      expect(doubled.bounds.maxX).toBeCloseTo(editor.bounds.maxX * 2);
+      expect(doubled.bounds.maxY).toBeCloseTo(editor.bounds.maxY * 2);
+    }
+  });
+
+  it('keeps the padding at least as large in output pixels for small callouts', () => {
+    const small = makeCallout({ scale: 0.5 });
+    const editor = prepareAnnotationFrame(small, 5)!;
+    const doubled = prepareAnnotationFrame(small, 5, { pixelScale: 2 })!;
+    expect(doubled.bounds.maxX - doubled.bounds.minX).toBeCloseTo((editor.bounds.maxX - editor.bounds.minX) * 2);
+  });
+
+  it('contains the connector end dot scaled with the frame', () => {
+    const editor = getFrameBounds(prepareAnnotationFrame(makeCallout({ offset: [0, 200] }), 5)!);
+    const doubled = getFrameBounds(prepareAnnotationFrame(makeCallout({ offset: [0, 200] }), 5, { pixelScale: 2 })!);
+    expect(doubled.maxY).toBeGreaterThanOrEqual(editor.maxY);
+    expect(doubled.minX).toBeLessThanOrEqual(-3 * 2);
+  });
+});
+
+describe('map size mode', () => {
+  const mapSized = (overrides: Partial<CalloutItem> = {}) => makeCallout({
+    sizeMode: 'map',
+    referenceZoom: 12,
+    offset: [10, -4],
+    transition: { enter: 'fade', exit: 'fade', enterDuration: 0, exitDuration: 0 },
+    ...overrides,
+  });
+
+  it('draws as a screen callout at the reference zoom', () => {
+    const at = prepareAnnotationFrame(mapSized(), 5, { viewZoom: 12 })!;
+    const screen = prepareAnnotationFrame(makeCallout({ offset: [10, -4] }), 5)!;
+    expect(at.scale).toBe(screen.scale);
+    expect(at.originX).toBe(screen.originX);
+    expect(at.originY).toBe(screen.originY);
+    expect(at.bounds).toEqual(screen.bounds);
+  });
+
+  it('scales the artwork, offset and altitude by the zoom factor', () => {
+    const frame = prepareAnnotationFrame(mapSized(), 5, { viewZoom: 13 })!;
+    expect(frame.scale).toBe(2);
+    expect(frame.originX).toBe(10 * 2);
+    // Offset -4 lifted by the 40px altitude, both doubled.
+    expect(frame.originY).toBe((-4 - 40) * 2);
+  });
+
+  it('scales the altitude cap along with the zoom', () => {
+    const high = mapSized({ binding: { kind: 'geographic', lngLat: [10, 20], altitude: 5000 }, offset: [0, 0] });
+    expect(prepareAnnotationFrame(high, 5, { viewZoom: 11 })!.originY).toBe(-MAX_ALTITUDE_PX / 2);
+  });
+
+  it('composes with the pixel scale of an export', () => {
+    // An export at twice the editor width sits one zoom level in; the editor viewZoom is unchanged.
+    const editor = prepareAnnotationFrame(mapSized(), 5, { viewZoom: 13 })!;
+    const exported = prepareAnnotationFrame(mapSized(), 5, { viewZoom: 13, pixelScale: 2 })!;
+    expect(exported.scale).toBe(editor.scale * 2);
+    expect(exported.originX).toBe(editor.originX * 2);
+    expect(exported.originY).toBe(editor.originY * 2);
+    expect(exported.bounds.maxX).toBeCloseTo(editor.bounds.maxX * 2);
+  });
+
+  it('caps the scale so canvases stay bounded, and moves the placement with it', () => {
+    const frame = prepareAnnotationFrame(mapSized(), 5, { viewZoom: 30 })!;
+    expect(frame.scale).toBe(MAX_MAP_SCALE);
+    expect(frame.originX).toBe(10 * MAX_MAP_SCALE);
+  });
+
+  it('fades out, then stops drawing, when zoomed far out', () => {
+    const halfway = prepareAnnotationFrame(mapSized(), 5, { viewZoom: 12 + Math.log2((MAP_SCALE_FADE_START + MAP_SCALE_HIDDEN) / 2) })!;
+    expect(halfway.opacity).toBeCloseTo(0.5);
+    expect(prepareAnnotationFrame(mapSized(), 5, { viewZoom: 12 + Math.log2(MAP_SCALE_HIDDEN * 0.99) })).toBeNull();
+  });
+
+  it('ignores the view zoom in screen mode', () => {
+    const near = prepareAnnotationFrame(makeCallout(), 5, { viewZoom: 20 })!;
+    const far = prepareAnnotationFrame(makeCallout(), 5, { viewZoom: 2 })!;
+    expect(near.scale).toBe(far.scale);
+    expect(near.opacity).toBe(far.opacity);
   });
 });
 

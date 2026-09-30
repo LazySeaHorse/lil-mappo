@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { DEFAULT_VIEW_ZOOM } from './migration';
 
 const coordinateSchema = z.tuple([z.number().finite(), z.number().finite()]);
 
@@ -80,6 +81,8 @@ export const calloutItemSchema = z.object({
   connector: connectorConfigSchema,
   opacity: z.number(),
   scale: z.number(),
+  sizeMode: z.enum(['screen', 'map']).default('screen'),
+  referenceZoom: z.number().finite().default(DEFAULT_VIEW_ZOOM),
   settings: z.record(z.unknown()),
   linkTitleToLocation: z.boolean(),
 });

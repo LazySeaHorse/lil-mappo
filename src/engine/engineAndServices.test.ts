@@ -197,6 +197,8 @@ describe('annotations/animation', () => {
       },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
     };

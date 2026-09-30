@@ -177,6 +177,8 @@ describe('Map Point Picking Architecture', () => {
         connector: { visible: true, style: 'dashed', color: '#94a3b8', width: 2, endDot: true, endDotRadius: 3 },
         opacity: 1,
         scale: 1,
+        sizeMode: 'screen',
+        referenceZoom: 12,
         settings: {},
         linkTitleToLocation: true,
       };

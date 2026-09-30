@@ -31,7 +31,7 @@ function callout(styleId: string, content: AnnotationContent): CalloutItem {
     offset: [0, 0], anchor: 'bottom', startTime: 0, endTime: 5,
     transition: { enter: 'fade', exit: 'fade', enterDuration: 0.4, exitDuration: 0.3 },
     connector: { visible: false, style: 'dashed', color: '#fff', width: 2, endDot: true, endDotRadius: 3 },
-    opacity: 1, scale: 1, settings: {}, linkTitleToLocation: true,
+    opacity: 1, scale: 1, sizeMode: 'screen', referenceZoom: 12, settings: {}, linkTitleToLocation: true,
   };
 }
 

@@ -48,6 +48,8 @@ function makeInspectorCallout(overrides: Partial<CalloutItem> = {}): CalloutItem
     connector: { visible: false, style: 'dashed', color: '#94a3b8', width: 2, endDot: true, endDotRadius: 3 },
     opacity: 1,
     scale: 1,
+    sizeMode: 'screen',
+    referenceZoom: 12,
     settings: {},
     linkTitleToLocation: false,
     ...overrides,
@@ -204,6 +206,8 @@ describe('Inspector Components Integration', () => {
       },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: {
         lineColor: '#ffffff',
         accentColor: '#ff5a36',
@@ -281,6 +285,8 @@ describe('Inspector Components Integration', () => {
       },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: { color: '#3b82f6' },
     };
 

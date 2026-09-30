@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectionPreviewTime } from './selectionPreview';
+import { isSelectionPreview, selectionPreviewTime } from './selectionPreview';
 
 const clip = { startTime: 2, endTime: 6 };
 
@@ -26,5 +26,23 @@ describe('selectionPreviewTime', () => {
 
   it('never overrides while exporting', () => {
     expect(selectionPreviewTime(clip, 0, true, true)).toBe(0);
+  });
+});
+
+describe('isSelectionPreview', () => {
+  it('previews a selected item at or before its start and after its end', () => {
+    expect(isSelectionPreview(clip, 0, true)).toBe(true);
+    expect(isSelectionPreview(clip, 2, true)).toBe(true);
+    expect(isSelectionPreview(clip, 9, true)).toBe(true);
+  });
+
+  it('shows the real animation while the playhead is inside the clip', () => {
+    expect(isSelectionPreview(clip, 2.01, true)).toBe(false);
+    expect(isSelectionPreview(clip, 6, true)).toBe(false);
+  });
+
+  it('never previews unselected items or while exporting', () => {
+    expect(isSelectionPreview(clip, 0, false)).toBe(false);
+    expect(isSelectionPreview(clip, 0, true, true)).toBe(false);
   });
 });
