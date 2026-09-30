@@ -7,5 +7,7 @@
 
 import { registerStyle } from '../registry';
 import { leaderLineStyle } from './leader-line';
+import { mapLabelStyle } from './map-label';
 
 registerStyle(leaderLineStyle);
+registerStyle(mapLabelStyle);

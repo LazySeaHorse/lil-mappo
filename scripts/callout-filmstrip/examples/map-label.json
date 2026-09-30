@@ -1,0 +1,9 @@
+{
+  "styleId": "map-label",
+  "variants": [
+    { "name": "place+sub", "offset": [0, 0], "ground": [0.5, 0.5], "content": { "title": "Sydney", "subtitle": "New South Wales" } },
+    { "name": "place point", "offset": [0, 0], "ground": [0.5, 0.5], "settings": { "showPoint": true }, "content": { "title": "Mont Blanc" } },
+    { "name": "water", "offset": [0, 0], "ground": [0.5, 0.5], "settings": { "variant": "water" }, "content": { "title": "Pacific Ocean", "subtitle": "Deepest at 10,911 m" } },
+    { "name": "region", "offset": [0, 0], "ground": [0.5, 0.5], "settings": { "variant": "region" }, "content": { "title": "Patagonia" } }
+  ]
+}
