@@ -308,7 +308,7 @@ function AuthModalBody({
 
       <div className="mt-2 text-center">
         <p className="text-[10px] text-muted-foreground/50">
-          Need help? Email <a href="mailto:support@lilmappo.tech" className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2">support@lilmappo.tech</a>
+          Need help? Email <a href="mailto:support@mail.lilmappo.tech" className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2">support@mail.lilmappo.tech</a>
         </p>
       </div>
     </div>

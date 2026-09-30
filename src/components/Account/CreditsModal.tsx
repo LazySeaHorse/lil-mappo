@@ -268,7 +268,7 @@ function CreditsModalBody() {
 
       <div className="mt-6 pt-4 border-t border-border/20 text-center">
         <p className="text-[11px] text-muted-foreground/60">
-          For credit or plan support, email <a href="mailto:support@lilmappo.tech" className="text-primary hover:underline font-medium">support@lilmappo.tech</a>
+          For credit or plan support, email <a href="mailto:support@mail.lilmappo.tech" className="text-primary hover:underline font-medium">support@mail.lilmappo.tech</a>
         </p>
       </div>
     </div>
