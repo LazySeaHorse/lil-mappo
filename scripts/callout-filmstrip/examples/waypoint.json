@@ -1,0 +1,9 @@
+{
+  "styleId": "waypoint",
+  "variants": [
+    { "name": "1 right+sub", "offset": [0, 0], "ground": [0.2, 0.5], "content": { "title": "Lisbon", "subtitle": "Day one arrival", "badge": "1" } },
+    { "name": "left DAY 3", "offset": [0, 0], "ground": [0.8, 0.5], "settings": { "side": "left", "accentColor": "#1E6FD9" }, "content": { "title": "Mont Saint-Michel", "subtitle": "Normandy", "badge": "DAY 3" } },
+    { "name": "no badge", "offset": [0, 0], "ground": [0.2, 0.5], "content": { "title": "Rest stop" } },
+    { "name": "big 12", "offset": [0, 0], "ground": [0.2, 0.5], "settings": { "size": 56 }, "content": { "title": "Finish", "badge": "12" } }
+  ]
+}

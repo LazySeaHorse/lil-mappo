@@ -8,6 +8,8 @@
 import { registerStyle } from '../registry';
 import { flagStyle } from './flag';
 import { leaderLineStyle } from './leader-line';
+import { waypointStyle } from './waypoint';
 
 registerStyle(leaderLineStyle);
 registerStyle(flagStyle);
+registerStyle(waypointStyle);
