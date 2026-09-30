@@ -8,6 +8,14 @@
 @import '@fontsource/outfit/900.css';
 @import '@fontsource/jetbrains-mono/500.css';
 @import '@fontsource/jetbrains-mono/700.css';
+/* Annotation style fonts (see src/annotations/fonts.ts): only the weights the styles draw. */
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import '@fontsource/fraunces/600.css';
+@import '@fontsource/fraunces/700.css';
+@import '@fontsource/caveat/600.css';
+@import '@fontsource/overpass/700.css';
 
 @tailwind base;
 @tailwind components;
