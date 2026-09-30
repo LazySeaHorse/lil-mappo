@@ -95,7 +95,9 @@ describe('project document persistence boundary', () => {
       Object.fromEntries(dirtyEntries) as unknown as Partial<StoreState>,
     );
 
-    useProjectStore.getState().loadFullProject(createProject({ id: 'transient-reset' }));
+    // Force a style change so capabilities are reset for re-detection.
+    const otherStyle = useProjectStore.getState().mapStyle === 'streets' ? 'dark' : 'streets';
+    useProjectStore.getState().loadFullProject(createProject({ id: 'transient-reset', mapStyle: otherStyle }));
 
     const loaded = useProjectStore.getState();
     const expected = {
