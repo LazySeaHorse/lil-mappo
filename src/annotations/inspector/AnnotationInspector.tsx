@@ -29,6 +29,7 @@ import { ENTER_TRANSITIONS, EXIT_TRANSITIONS, TRANSITION_LABELS } from '@/annota
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
+import { SizeControls } from './SizeControls';
 
 /** Picker options for a transition list, keeping an unrecognised saved value selectable. */
 function transitionOptions(names: readonly string[], current: string) {
@@ -105,7 +106,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
         placeholder="Callout title"
       />
 
-      <Accordion type="multiple" defaultValue={['style', 'location', 'appearance', 'connector', 'position', 'animation', 'timing']} className="w-full">
+      <Accordion type="multiple" defaultValue={['style', 'location', 'appearance', 'size', 'connector', 'position', 'animation', 'timing']} className="w-full">
 
         <InspectorSection value="style" title="Style">
           <StylePicker
@@ -179,6 +180,10 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
             />
           </InspectorSection>
         )}
+
+        <InspectorSection value="size" title="Size">
+          <SizeControls item={item} onChange={u} />
+        </InspectorSection>
 
         {supportsAltitude && !style?.drawsConnector && (
           <InspectorSection value="connector" title="Anchor line">

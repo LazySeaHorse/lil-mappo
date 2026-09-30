@@ -122,6 +122,7 @@ export function SliderRow({
   step = 0.1,
   unit = '',
   formatValue,
+  onReset,
   className,
 }: {
   label: string;
@@ -133,6 +134,8 @@ export function SliderRow({
   step?: number;
   unit?: string;
   formatValue?: (v: number) => string;
+  /** Called on double-click, to return the slider to its default. */
+  onReset?: () => void;
   className?: string;
 }) {
   const displayVal = formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ''}`;
@@ -148,6 +151,8 @@ export function SliderRow({
         step={step}
         value={[value]}
         onValueChange={([v]) => onChange(v)}
+        onDoubleClick={onReset}
+        title={onReset ? 'Double-click to reset' : undefined}
         className="flex-1 py-1"
       />
       <span className="text-xs font-mono text-muted-foreground shrink-0 w-14 text-right tabular-nums">

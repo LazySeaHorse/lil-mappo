@@ -545,6 +545,21 @@ describe('project document persistence boundary', () => {
       expect(calloutOf(v3Document({ c1: v3Callout('topo-label', { offset: [0, -40] }) })).offset).toEqual([0, -40]);
     });
 
+    it('gives migrated callouts the screen size mode the schema defaults to', () => {
+      const callout = calloutOf(v3Document({ c1: v3Callout('news-slug') }));
+      expect(callout).toMatchObject({ scale: 1.4, sizeMode: 'screen', referenceZoom: 12 });
+    });
+
+    it('keeps the size mode of a callout that already has one', () => {
+      const current = v3Callout('leader-line', { sizeMode: 'map', referenceZoom: 15.5 });
+      expect(calloutOf(v3Document({ c1: current }))).toMatchObject({ sizeMode: 'map', referenceZoom: 15.5 });
+    });
+
+    it('rejects an unknown size mode', () => {
+      const current = v3Callout('leader-line', { sizeMode: 'huge' });
+      expect(() => parseProjectDocument(v3Document({ c1: current }))).toThrow();
+    });
+
     it('keeps screen-bound placement', () => {
       const callout = calloutOf(v3Document({ c1: v3Callout('standard-card', { binding: { kind: 'screen', position: [0.2, 0.4] } }) }));
       expect(callout.binding).toEqual({ kind: 'screen', position: [0.2, 0.4] });

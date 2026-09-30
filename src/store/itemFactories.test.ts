@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import '@/annotations/styles/index';
+import { getStyle } from '@/annotations/registry';
 import {
   DEFAULT_ITEM_DURATION,
   createBoundaryItem,
   createCalloutItem,
+  createCalloutStyleDefaults,
   createCameraKeyframe,
   createEndpointRouteItem,
   createWalkRouteItem,
@@ -31,6 +33,13 @@ describe('itemFactories', () => {
     expect(walk.geojson.features.length).toBeGreaterThan(0);
   });
 
+  it('keeps size out of the style defaults, so changing style keeps how big a callout is', () => {
+    const defaults = createCalloutStyleDefaults(getStyle('editorial')!);
+    expect(defaults).not.toHaveProperty('scale');
+    expect(defaults).not.toHaveProperty('sizeMode');
+    expect(defaults).not.toHaveProperty('referenceZoom');
+  });
+
   it('builds boundaries, callouts and keyframes with defaults', () => {
     expect(createBoundaryItem({ placeName: 'X', geojson: null, startTime: 1 })).toMatchObject({
       resolveStatus: 'resolved', endTime: 6, style: { strokeColor: '#a855f7' },
@@ -43,7 +52,11 @@ describe('itemFactories', () => {
       transition: { enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 },
       connector: { visible: false },
       settings: { side: 'auto', accentColor: '#FF5A36' },
+      scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
     });
+    expect(createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0, referenceZoom: 15 })?.referenceZoom).toBe(15);
     expect(createCalloutItem({ styleId: 'nope', content: { title: '' }, lngLat: [0, 0], startTime: 0 })).toBeNull();
     expect(createCameraKeyframe({ time: 3, center: [1, 2], zoom: 4 })).toMatchObject({
       time: 3, easing: 'easeInOutCubic', followRoute: null, camera: { pitch: 0, bearing: 0, altitude: null },
