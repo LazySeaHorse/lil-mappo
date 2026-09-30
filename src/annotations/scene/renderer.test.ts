@@ -54,6 +54,18 @@ describe('renderScene', () => {
     expect(state.strokeStyle).toBe('#000');
   });
 
+  it('casts a soft shadow from text and polylines', () => {
+    const shadow = { color: 'rgba(0,0,0,0.5)', blur: 6, offsetX: 0, offsetY: 0 };
+    const t = recordingContext();
+    renderScene(t.ctx, text({ x: 0, y: 0, text: 'Shade', fontSize: 12, fontFamily: 'Outfit', fill: '#fff', shadow }));
+    expect(t.calls).toContainEqual(['set shadowBlur', 6]);
+    expect(names(t.calls).indexOf('set shadowBlur')).toBeLessThan(names(t.calls).indexOf('fillText'));
+
+    const p = recordingContext();
+    renderScene(p.ctx, polyline({ points: [[0, 0], [5, 5]], stroke: '#fff', shadow }));
+    expect(p.calls).toContainEqual(['set shadowColor', 'rgba(0,0,0,0.5)']);
+  });
+
   it('draws no halo when the text has no stroke', () => {
     const { ctx, calls } = recordingContext();
     renderScene(ctx, text({ x: 0, y: 0, text: 'Plain', fontSize: 12, fontFamily: 'Outfit', fill: '#fff' }));

@@ -148,6 +148,8 @@ export interface TextNode {
   stroke?: string;
   /** Full outline width; half of it shows outside the glyphs. Default 1. */
   strokeWidth?: number;
+  /** Soft shadow behind the text, e.g. for legibility over a busy map. */
+  shadow?: ShadowConfig;
   align?: 'left' | 'center' | 'right';
   /** 'alphabetic' puts y on the text baseline, for aligning type to lines. Default 'top'. */
   baseline?: 'top' | 'middle' | 'alphabetic' | 'bottom';
@@ -183,6 +185,7 @@ export interface LineNode extends StrokeOptions {
 /** Connected line segments whose visible length can be animated. */
 export interface PolylineNode extends StrokeOptions {
   type: 'polyline';
+  shadow?: ShadowConfig;
   points: Array<[number, number]>;
   /** Join the last point back to the first. */
   closed?: boolean;

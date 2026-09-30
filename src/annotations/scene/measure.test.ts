@@ -43,6 +43,14 @@ describe('measureScene', () => {
     expect(box.minY).toBeCloseTo(-20 * 1.3 - 3);
   });
 
+  it('grows boxes by their shadow blur and offset', () => {
+    const shadow = { color: '#000', blur: 6, offsetX: 2, offsetY: -1 };
+    expect(measureScene(polyline({ points: [[0, 0], [10, 0]], stroke: '#fff', strokeWidth: 2, shadow }))).toMatchObject({
+      minX: -1 - 6, maxX: 11 + 6 + 2, minY: -1 - 6 - 1, maxY: 1 + 6,
+    });
+    expect(measureScene(rect({ x: 0, y: 0, width: 4, height: 4, shadow })).width).toBe(4 + 12 + 2);
+  });
+
   it('places alphabetic text on its baseline', () => {
     const box = measureScene(text({ x: 0, y: 50, text: 'Base', fontSize: 20, fontFamily: 'Outfit', baseline: 'alphabetic' }));
     expect(box.minY).toBeCloseTo(30);

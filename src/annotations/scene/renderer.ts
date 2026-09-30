@@ -5,7 +5,7 @@
  * compositing pipeline. There is no separate DOM renderer.
  */
 
-import type { SceneNode, RectNode, StrokeOptions } from '../types';
+import type { SceneNode, RectNode, ShadowConfig, StrokeOptions } from '../types';
 import { trimPolyline } from './geometry';
 import { buildFont } from './textMetrics';
 
@@ -107,12 +107,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
     case 'circle': {
       if (node.opacity != null) ctx.globalAlpha *= node.opacity;
 
-      if (node.shadow) {
-        ctx.shadowColor = node.shadow.color;
-        ctx.shadowBlur = node.shadow.blur;
-        ctx.shadowOffsetX = node.shadow.offsetX ?? 0;
-        ctx.shadowOffsetY = node.shadow.offsetY ?? 0;
-      }
+      applyShadow(ctx, node.shadow);
 
       ctx.beginPath();
       ctx.arc(node.cx, node.cy, node.r, 0, Math.PI * 2);
@@ -156,6 +151,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       else if (node.textTransform === 'lowercase') displayText = displayText.toLowerCase();
 
       const maxWidth = node.maxWidth || undefined;
+      applyShadow(ctx, node.shadow);
       if (node.stroke) {
         // Halo: painted first so the fill stays crisp on top of it.
         ctx.strokeStyle = node.stroke;
@@ -230,6 +226,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       if (visible.length < 2) break;
 
       applyStroke(ctx, node.stroke, node.strokeWidth, node);
+      applyShadow(ctx, node.shadow);
       ctx.beginPath();
       visible.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
       // Close only once fully drawn, so the last join is a real corner.
@@ -241,12 +238,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
     case 'path': {
       if (node.opacity != null) ctx.globalAlpha *= node.opacity;
 
-      if (node.shadow) {
-        ctx.shadowColor = node.shadow.color;
-        ctx.shadowBlur = node.shadow.blur;
-        ctx.shadowOffsetX = node.shadow.offsetX ?? 0;
-        ctx.shadowOffsetY = node.shadow.offsetY ?? 0;
-      }
+      applyShadow(ctx, node.shadow);
 
       const path2d = new Path2D(node.d);
       if (node.fill) {
@@ -272,6 +264,15 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Turns on the context's shadow for what is drawn next. Callers restore the context. */
+function applyShadow(ctx: CanvasRenderingContext2D, shadow: ShadowConfig | undefined): void {
+  if (!shadow) return;
+  ctx.shadowColor = shadow.color;
+  ctx.shadowBlur = shadow.blur;
+  ctx.shadowOffsetX = shadow.offsetX ?? 0;
+  ctx.shadowOffsetY = shadow.offsetY ?? 0;
+}
+
 /** Sets the stroke state shared by all stroked nodes. Callers restore the context. */
 function applyStroke(
   ctx: CanvasRenderingContext2D,
@@ -287,12 +288,7 @@ function applyStroke(
 }
 
 function renderRect(ctx: CanvasRenderingContext2D, node: RectNode): void {
-  if (node.shadow) {
-    ctx.shadowColor = node.shadow.color;
-    ctx.shadowBlur = node.shadow.blur;
-    ctx.shadowOffsetX = node.shadow.offsetX ?? 0;
-    ctx.shadowOffsetY = node.shadow.offsetY ?? 0;
-  }
+  applyShadow(ctx, node.shadow);
 
   const r = node.cornerRadius;
 

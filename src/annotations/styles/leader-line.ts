@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import {
   buildProgress,
@@ -61,10 +61,8 @@ const BURST_RADIUS = 16;
 const PULSE_RADIUS = 18;
 const PULSE_PERIOD = 2.4;
 
-const HALO_COLOR = 'rgba(0, 0, 0, 0.45)';
-const HALO_TEXT_WIDTH = 4;
-const HALO_LINE_COLOR = 'rgba(0, 0, 0, 0.3)';
-const HALO_LINE_EXTRA = 2;
+/** Soft dark shadow that lifts white line work and text off any map. */
+const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
 
 /**
  * Entrance timeline, as windows of the 0–1 build progress. They overlap so the
@@ -136,18 +134,7 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
 
   const children: SceneNode[] = [];
 
-  // Dark underlay first, so it never overlaps a neighbouring line.
-  if (settings.halo) {
-    for (const { points, progress } of leaders) {
-      children.push(polyline({
-        points,
-        progress,
-        stroke: HALO_LINE_COLOR,
-        strokeWidth: settings.lineWidth + HALO_LINE_EXTRA,
-        lineCap: 'round',
-      }));
-    }
-  }
+  const shadow = settings.halo ? HALO_SHADOW : undefined;
   for (const { points, progress } of leaders) {
     children.push(polyline({
       points,
@@ -155,6 +142,7 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
       stroke: settings.lineColor,
       strokeWidth: settings.lineWidth,
       lineCap: 'round',
+      shadow,
     }));
   }
 
@@ -164,8 +152,8 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
       y: ground.y,
       scale: dot,
       children: [
-        circle({ cx: 0, cy: 0, r: RING_RADIUS, stroke: settings.accentColor, strokeWidth: 1, opacity: 0.7 }),
-        circle({ cx: 0, cy: 0, r: DOT_RADIUS, fill: settings.accentColor, stroke: settings.lineColor, strokeWidth: 1 }),
+        circle({ cx: 0, cy: 0, r: RING_RADIUS, stroke: settings.accentColor, strokeWidth: 1, opacity: 0.7, shadow }),
+        circle({ cx: 0, cy: 0, r: DOT_RADIUS, fill: settings.accentColor, stroke: settings.lineColor, strokeWidth: 1, shadow }),
       ],
     }));
   }
@@ -196,20 +184,17 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
 
   const textX = direction * SHELF_PAD;
   const textAlign = direction === 1 ? 'left' : 'right';
-  const halo = settings.halo
-    ? { stroke: HALO_COLOR, strokeWidth: HALO_TEXT_WIDTH }
-    : {};
 
   if (title && titleReveal > 0) {
     // The title rises from behind the shelf: the clip ends at the line, so the
     // text is hidden until it has travelled above it.
-    const clipTop = -(TITLE_SIZE + TITLE_GAP + HALO_TEXT_WIDTH);
+    const clipTop = -(TITLE_SIZE + TITLE_GAP + HALO_SHADOW.blur);
     const travel = TITLE_SIZE + TITLE_GAP;
     children.push(group({
       clip: {
-        x: Math.min(0, direction * shelfLength) - HALO_TEXT_WIDTH,
+        x: Math.min(0, direction * shelfLength) - HALO_SHADOW.blur,
         y: clipTop,
-        width: shelfLength + HALO_TEXT_WIDTH * 2,
+        width: shelfLength + HALO_SHADOW.blur * 2,
         height: -clipTop - settings.lineWidth / 2,
       },
       children: [
@@ -227,7 +212,7 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
               fill: settings.textColor,
               align: textAlign,
               baseline: 'alphabetic',
-              ...halo,
+              shadow,
             }),
           ],
         }),
@@ -247,7 +232,7 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
       align: textAlign,
       baseline: 'top',
       opacity: subtitleReveal * SUBTITLE_OPACITY,
-      ...halo,
+      shadow,
     }));
   }
 
@@ -297,7 +282,7 @@ export const leaderLineStyle: AnnotationStyleDefinition<LeaderLineSettings> = {
     { type: 'color', key: 'lineColor', label: 'Line color' },
     { type: 'color', key: 'accentColor', label: 'Dot color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Text halo' },
+    { type: 'switch', key: 'halo', label: 'Soft shadow' },
     {
       type: 'select',
       key: 'side',

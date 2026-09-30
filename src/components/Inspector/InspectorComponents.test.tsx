@@ -225,7 +225,7 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByDisplayValue('Golden Gate Bridge')).toBeInTheDocument();
     expect(screen.getByText('Line color')).toBeInTheDocument();
     expect(screen.getByText('Dot color')).toBeInTheDocument();
-    expect(screen.getByText('Text halo')).toBeInTheDocument();
+    expect(screen.getByText('Soft shadow')).toBeInTheDocument();
     expect(screen.queryByText('Font')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Longitude')).toHaveValue(-122.4783);
     expect(screen.getByLabelText('Latitude')).toHaveValue(37.8199);

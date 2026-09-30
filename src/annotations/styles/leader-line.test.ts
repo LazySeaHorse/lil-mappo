@@ -125,16 +125,17 @@ describe('layout', () => {
     expect(lines(bare).length).toBeGreaterThan(0);
   });
 
-  it('gives the text a dark halo unless it is turned off', () => {
-    const haloed = renderLeaderLine(makeInput());
-    expect(texts(haloed).every((t) => t.stroke && t.strokeWidth)).toBe(true);
-    const underlays = lines(haloed).filter((l) => l.stroke !== '#FFFFFF');
-    expect(underlays).toHaveLength(2);
-    expect(underlays[0].strokeWidth).toBeGreaterThan(1.5);
+  it('lifts text, lines and the dot with a soft shadow unless the halo is turned off', () => {
+    const shadowed = renderLeaderLine(makeInput());
+    const withShadow = flatten(shadowed).filter((n) => 'shadow' in n && n.shadow);
+    expect(texts(shadowed).every((t) => t.shadow && t.stroke === undefined)).toBe(true);
+    expect(lines(shadowed).every((l) => l.shadow)).toBe(true);
+    expect(withShadow.length).toBeGreaterThanOrEqual(6);
+    expect(texts(shadowed)[0].shadow).toMatchObject({ blur: expect.any(Number), offsetX: 0, offsetY: 0 });
+    expect(lines(shadowed)).toHaveLength(2); // no doubled underlay lines
 
     const flat = renderLeaderLine(makeInput({ settings: { ...defaultLeaderLineSettings, halo: false } }));
-    expect(texts(flat).every((t) => t.stroke === undefined)).toBe(true);
-    expect(lines(flat).every((l) => l.stroke === '#FFFFFF')).toBe(true);
+    expect(flatten(flat).some((n) => 'shadow' in n && n.shadow)).toBe(false);
   });
 
   it('applies the colour and width settings', () => {
@@ -261,12 +262,13 @@ describe('entrance choreography', () => {
     const [clip] = clipGroups(renderLeaderLine(makeInput()));
     const [title] = texts(clip);
     const box = measureScene(title);
-    const halo = title.strokeWidth! / 2;
+    const shadowReach = title.shadow!.blur;
     expect(clip.clip!.y).toBeLessThanOrEqual(box.minY);
     expect(clip.clip!.x).toBeLessThanOrEqual(box.minX);
     expect(clip.clip!.x + clip.clip!.width).toBeGreaterThanOrEqual(box.maxX);
+    expect(shadowReach).toBeGreaterThan(0);
     // Capitals sit on the baseline, so only the empty descender space is cropped.
-    expect(clip.clip!.y + clip.clip!.height).toBeGreaterThanOrEqual(title.y + halo);
+    expect(clip.clip!.y + clip.clip!.height).toBeGreaterThanOrEqual(title.y);
   });
 });
 
