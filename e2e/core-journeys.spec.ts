@@ -349,7 +349,7 @@ test.describe("5 Golden E2E Journeys", () => {
     }
 
     // Toggle 3D Terrain
-    const terrainButton = page.getByRole("button", { name: "Terrain" });
+    const terrainButton = page.getByRole("button", { name: "Terrain", exact: true });
     if (await terrainButton.isVisible()) {
       await terrainButton.click();
       await page.waitForTimeout(200);
