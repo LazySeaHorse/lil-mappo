@@ -166,18 +166,20 @@ export function ColorRow({
   label,
   value,
   onChange,
+  presets,
   className,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  presets?: readonly string[] | string[];
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center justify-between gap-3 text-xs py-0.5", className)}>
+    <div className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs py-0.5", className)}>
       <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 truncate">{label}</span>
-      <div className="flex-1">
-        <ColorPicker value={value} onChange={onChange} />
+      <div className="flex-1 flex justify-end min-w-[140px]">
+        <ColorPicker value={value} onChange={onChange} presets={presets} />
       </div>
     </div>
   );

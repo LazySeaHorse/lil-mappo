@@ -110,9 +110,19 @@ describe('SliderRow', () => {
 describe('ColorRow', () => {
   it('renders label and color picker', () => {
     const onChange = vi.fn();
-    render(<ColorRow label="Border color" value="#ff0000" onChange={onChange} />);
+    render(<ColorRow label="Border color" value="#3b82f6" onChange={onChange} />);
 
     expect(screen.getByText('Border color')).toBeInTheDocument();
+    expect(screen.getByLabelText('Select color #3b82f6')).toBeInTheDocument();
+    expect(screen.getByLabelText('More colors')).toBeInTheDocument();
+  });
+
+  it('triggers onChange when clicking a preset swatch in ColorRow', () => {
+    const onChange = vi.fn();
+    render(<ColorRow label="Border color" value="#3b82f6" onChange={onChange} />);
+
+    fireEvent.click(screen.getByLabelText('Select color #ef4444'));
+    expect(onChange).toHaveBeenCalledWith('#ef4444');
   });
 });
 
