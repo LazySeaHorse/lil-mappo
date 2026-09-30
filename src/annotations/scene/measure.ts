@@ -59,17 +59,19 @@ function intersect(a: Extent, clip: NonNullable<GroupNode['clip']>): Extent | nu
 
 /** Bounds of a box after the group's transform (translate, then scale and rotate about the anchor). */
 function transformBox(box: Extent, group: GroupNode): Extent {
-  const { x = 0, y = 0, anchorX = 0, anchorY = 0, scale = 1, rotation = 0 } = group;
-  const cos = Math.cos(rotation) * scale;
-  const sin = Math.sin(rotation) * scale;
+  const { x = 0, y = 0, anchorX = 0, anchorY = 0, scale = 1, scaleX = 1, scaleY = 1, rotation = 0 } = group;
+  const sx = scale * scaleX;
+  const sy = scale * scaleY;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
   const corners: Array<[number, number]> = [
     [box.minX, box.minY],
     [box.maxX, box.minY],
     [box.maxX, box.maxY],
     [box.minX, box.maxY],
   ].map(([px, py]) => [
-    x + anchorX + (px - anchorX) * cos - (py - anchorY) * sin,
-    y + anchorY + (px - anchorX) * sin + (py - anchorY) * cos,
+    x + anchorX + (px - anchorX) * sx * cos - (py - anchorY) * sy * sin,
+    y + anchorY + (px - anchorX) * sx * sin + (py - anchorY) * sy * cos,
   ]);
   return pointsBox(corners, 0)!;
 }

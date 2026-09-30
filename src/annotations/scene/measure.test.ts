@@ -69,6 +69,12 @@ describe('measureScene', () => {
     expect(turned.maxY).toBeCloseTo(10);
   });
 
+  it('applies per-axis scaleX and scaleY about the anchor', () => {
+    const child = rect({ x: -10, y: -20, width: 20, height: 20 });
+    expect(measureScene(group({ scaleY: 0.5, children: [child] }))).toMatchObject({ minX: -10, minY: -10, maxX: 10, maxY: 0 });
+    expect(measureScene(group({ scale: 2, scaleX: 0.5, children: [child] }))).toMatchObject({ minX: -10, minY: -40, maxX: 10, maxY: 0 });
+  });
+
   it('crops group content to its clip', () => {
     const box = measureScene(group({
       clip: { x: 0, y: -4, width: 20, height: 4 },

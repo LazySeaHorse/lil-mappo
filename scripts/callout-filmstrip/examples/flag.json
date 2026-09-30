@@ -1,0 +1,9 @@
+{
+  "styleId": "flag",
+  "variants": [
+    { "name": "swallowtail+sub", "offset": [0, 0], "altitude": 90, "content": { "title": "Base Camp", "subtitle": "Elevation 5,364 m" } },
+    { "name": "pennant", "offset": [0, 0], "altitude": 90, "settings": { "shape": "pennant" }, "content": { "title": "Summit" } },
+    { "name": "rect long", "offset": [0, 0], "altitude": 70, "settings": { "shape": "rect", "clothColor": "#1E6FD9" }, "content": { "title": "Mont Saint-Michel Abbey", "subtitle": "Normandy" } },
+    { "name": "no wave", "offset": [0, 0], "altitude": 0, "settings": { "wave": false }, "content": { "title": "Start" } }
+  ]
+}

@@ -6,6 +6,12 @@
  */
 
 import { registerStyle } from '../registry';
+import { flagStyle } from './flag';
 import { leaderLineStyle } from './leader-line';
+import { roadSignStyle } from './road-sign';
+import { waypointStyle } from './waypoint';
 
 registerStyle(leaderLineStyle);
+registerStyle(flagStyle);
+registerStyle(waypointStyle);
+registerStyle(roadSignStyle);
