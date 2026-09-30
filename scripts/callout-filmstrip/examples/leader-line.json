@@ -1,0 +1,9 @@
+{
+  "styleId": "leader-line",
+  "variants": [
+    { "name": "right+sub", "offset": [70, -90], "ground": [0.16, 0.82], "content": { "title": "Harbour Bridge", "subtitle": "Sydney, Australia" } },
+    { "name": "left+sub", "offset": [-70, -90], "ground": [0.84, 0.82], "content": { "title": "Harbour Bridge", "subtitle": "Sydney, Australia" } },
+    { "name": "right", "offset": [70, -90], "ground": [0.16, 0.82], "content": { "title": "Mont Blanc" } },
+    { "name": "left", "offset": [-70, -90], "ground": [0.84, 0.82], "content": { "title": "Mont Blanc" } }
+  ]
+}
