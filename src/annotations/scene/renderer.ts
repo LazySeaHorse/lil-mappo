@@ -5,7 +5,8 @@
  * compositing pipeline. There is no separate DOM renderer.
  */
 
-import type { SceneNode, RectNode } from '../types';
+import type { SceneNode, RectNode, StrokeOptions } from '../types';
+import { trimPolyline } from './geometry';
 import { buildFont } from './textMetrics';
 
 // ─── Image cache ──────────────────────────────────────────────────────────────
@@ -86,6 +87,11 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       if (node.anchorX || node.anchorY) {
         ctx.translate(-(node.anchorX ?? 0), -(node.anchorY ?? 0));
       }
+      if (node.clip) {
+        ctx.beginPath();
+        ctx.rect(node.clip.x, node.clip.y, node.clip.width, node.clip.height);
+        ctx.clip();
+      }
       for (const child of node.children) {
         renderScene(ctx, child);
       }
@@ -123,8 +129,12 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       }
 
       if (node.stroke) {
-        ctx.strokeStyle = node.stroke;
-        ctx.lineWidth = node.strokeWidth ?? 1;
+        applyStroke(ctx, node.stroke, node.strokeWidth, node);
+        if (node.startAngle !== undefined || node.endAngle !== undefined) {
+          const startAngle = node.startAngle ?? 0;
+          ctx.beginPath();
+          ctx.arc(node.cx, node.cy, node.r, startAngle, node.endAngle ?? startAngle + Math.PI * 2);
+        }
         ctx.stroke();
       }
       break;
@@ -145,11 +155,15 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       if (node.textTransform === 'uppercase') displayText = displayText.toUpperCase();
       else if (node.textTransform === 'lowercase') displayText = displayText.toLowerCase();
 
-      if (node.maxWidth) {
-        ctx.fillText(displayText, node.x, node.y, node.maxWidth);
-      } else {
-        ctx.fillText(displayText, node.x, node.y);
+      const maxWidth = node.maxWidth || undefined;
+      if (node.stroke) {
+        // Halo: painted first so the fill stays crisp on top of it.
+        ctx.strokeStyle = node.stroke;
+        ctx.lineWidth = node.strokeWidth ?? 1;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(displayText, node.x, node.y, maxWidth);
       }
+      ctx.fillText(displayText, node.x, node.y, maxWidth);
       break;
     }
 
@@ -201,14 +215,26 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
 
     case 'line': {
       if (node.opacity != null) ctx.globalAlpha *= node.opacity;
-      ctx.strokeStyle = node.stroke;
-      ctx.lineWidth = node.strokeWidth ?? 1;
-      if (node.dashPattern) ctx.setLineDash(node.dashPattern);
+      applyStroke(ctx, node.stroke, node.strokeWidth, node);
       ctx.beginPath();
       ctx.moveTo(node.x1, node.y1);
       ctx.lineTo(node.x2, node.y2);
       ctx.stroke();
-      if (node.dashPattern) ctx.setLineDash([]);
+      break;
+    }
+
+    case 'polyline': {
+      if (node.opacity != null) ctx.globalAlpha *= node.opacity;
+      const progress = node.progress ?? 1;
+      const visible = trimPolyline(node.points, 0, progress, node.closed);
+      if (visible.length < 2) break;
+
+      applyStroke(ctx, node.stroke, node.strokeWidth, node);
+      ctx.beginPath();
+      visible.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+      // Close only once fully drawn, so the last join is a real corner.
+      if (node.closed && progress >= 1) ctx.closePath();
+      ctx.stroke();
       break;
     }
 
@@ -234,8 +260,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
       }
 
       if (node.stroke) {
-        ctx.strokeStyle = node.stroke;
-        ctx.lineWidth = node.strokeWidth ?? 1;
+        applyStroke(ctx, node.stroke, node.strokeWidth, node);
         ctx.stroke(path2d);
       }
       break;
@@ -246,6 +271,20 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Sets the stroke state shared by all stroked nodes. Callers restore the context. */
+function applyStroke(
+  ctx: CanvasRenderingContext2D,
+  color: string,
+  width: number | undefined,
+  options: StrokeOptions,
+): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width ?? 1;
+  if (options.lineCap) ctx.lineCap = options.lineCap;
+  if (options.lineJoin) ctx.lineJoin = options.lineJoin;
+  if (options.dashPattern) ctx.setLineDash(options.dashPattern);
+}
 
 function renderRect(ctx: CanvasRenderingContext2D, node: RectNode): void {
   if (node.shadow) {
@@ -279,8 +318,7 @@ function renderRect(ctx: CanvasRenderingContext2D, node: RectNode): void {
   }
 
   if (node.stroke) {
-    ctx.strokeStyle = node.stroke;
-    ctx.lineWidth = node.strokeWidth ?? 1;
+    applyStroke(ctx, node.stroke, node.strokeWidth, node);
     if (r) {
       ctx.beginPath();
       if (Array.isArray(r)) {

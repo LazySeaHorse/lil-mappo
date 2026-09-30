@@ -10,6 +10,7 @@ import type {
   TextNode,
   ImageNode,
   LineNode,
+  PolylineNode,
   PathNode,
   SceneNode,
   ShadowConfig,
@@ -56,6 +57,12 @@ export function image(props: Omit<ImageNode, 'type'>): ImageNode {
 
 export function line(props: Omit<LineNode, 'type'>): LineNode {
   return { type: 'line', ...props };
+}
+
+// ─── Polyline ─────────────────────────────────────────────────────────────────
+
+export function polyline(props: Omit<PolylineNode, 'type'>): PolylineNode {
+  return { type: 'polyline', ...props };
 }
 
 // ─── Path ─────────────────────────────────────────────────────────────────────

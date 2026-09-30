@@ -68,19 +68,41 @@ export interface ShadowConfig {
   offsetY?: number;
 }
 
+/** Stroke appearance shared by every node that can draw an outline or line. */
+export interface StrokeOptions {
+  lineCap?: 'butt' | 'round' | 'square';
+  lineJoin?: 'miter' | 'round' | 'bevel';
+  /** Alternating dash and gap lengths in pixels. Solid when omitted. */
+  dashPattern?: number[];
+}
+
+export interface ClipRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface GroupNode {
   type: 'group';
   x?: number;
   y?: number;
   opacity?: number;
+  /** Radians, clockwise, about (anchorX, anchorY). */
   rotation?: number;
   scale?: number;
   anchorX?: number;
   anchorY?: number;
+  /**
+   * Rectangle, in the space the children are drawn in (after this group's own
+   * transform), that children are cropped to. Animate a child inside a clipped
+   * group to reveal it, e.g. a title sliding up from behind a line.
+   */
+  clip?: ClipRect;
   children: SceneNode[];
 }
 
-export interface RectNode {
+export interface RectNode extends StrokeOptions {
   type: 'rect';
   x: number;
   y: number;
@@ -94,11 +116,18 @@ export interface RectNode {
   shadow?: ShadowConfig;
 }
 
-export interface CircleNode {
+export interface CircleNode extends StrokeOptions {
   type: 'circle';
   cx: number;
   cy: number;
   r: number;
+  /**
+   * Arc drawn by the stroke, in radians clockwise from 3 o'clock (canvas
+   * convention). Defaults to the full circle; use a moving `endAngle` to draw a
+   * ring on. The fill always covers the whole disc.
+   */
+  startAngle?: number;
+  endAngle?: number;
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
@@ -115,6 +144,10 @@ export interface TextNode {
   fontFamily: string;
   fontWeight?: number;
   fill?: string;
+  /** Outline (halo) colour, painted behind the fill with round joins. */
+  stroke?: string;
+  /** Full outline width; half of it shows outside the glyphs. Default 1. */
+  strokeWidth?: number;
   align?: 'left' | 'center' | 'right';
   baseline?: 'top' | 'middle' | 'bottom';
   maxWidth?: number;
@@ -135,7 +168,7 @@ export interface ImageNode {
   objectFit?: 'cover' | 'contain' | 'fill';
 }
 
-export interface LineNode {
+export interface LineNode extends StrokeOptions {
   type: 'line';
   x1: number;
   y1: number;
@@ -143,11 +176,23 @@ export interface LineNode {
   y2: number;
   stroke: string;
   strokeWidth?: number;
-  dashPattern?: number[];
   opacity?: number;
 }
 
-export interface PathNode {
+/** Connected line segments whose visible length can be animated. */
+export interface PolylineNode extends StrokeOptions {
+  type: 'polyline';
+  points: Array<[number, number]>;
+  /** Join the last point back to the first. */
+  closed?: boolean;
+  stroke: string;
+  strokeWidth?: number;
+  /** Fraction (0–1, default 1) of the total length drawn, from the first point. */
+  progress?: number;
+  opacity?: number;
+}
+
+export interface PathNode extends StrokeOptions {
   type: 'path';
   d: string;
   fill?: string;
@@ -164,6 +209,7 @@ export type SceneNode =
   | TextNode
   | ImageNode
   | LineNode
+  | PolylineNode
   | PathNode;
 
 // ─── Style Render Input ───────────────────────────────────────────────────────
