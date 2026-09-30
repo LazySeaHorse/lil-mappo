@@ -4,13 +4,14 @@
  */
 import '@/annotations/styles';
 import {
+  type AnnotationFrame,
   collectSceneAssets,
   drawAnnotationFrame,
   getFrameBounds,
   loadSceneAssets,
   prepareAnnotationFrame,
 } from '@/annotations/draw';
-import { getStyle } from '@/annotations/registry';
+import { getAllStyles, getStyle } from '@/annotations/registry';
 import { createCalloutItem } from '@/store/itemFactories';
 import type { CalloutItem } from '@/store/types';
 
@@ -39,6 +40,9 @@ export interface FilmstripSpec {
   /** Outline the frame bounds (the canvas the app would allocate). Default true. */
   showBounds: boolean;
 }
+
+/** Room left round a callout in a contact-sheet cell, in pixels. */
+const CELL_MARGIN = 24;
 
 const START = 0;
 const END = 10;
@@ -99,6 +103,26 @@ function paintBackground(ctx: CanvasRenderingContext2D, x: number, y: number, w:
   ctx.restore();
 }
 
+/** Draws a frame with its ground point at (gx, gy), clipped to the frame bounds as the app's canvas is. */
+function drawFrameAt(ctx: CanvasRenderingContext2D, frame: AnnotationFrame, gx: number, gy: number, showBounds: boolean) {
+  const bounds = getFrameBounds(frame);
+  const box = [gx + bounds.minX, gy + bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY] as const;
+
+  ctx.save();
+  if (showBounds) {
+    ctx.strokeStyle = 'rgba(255,0,80,0.6)';
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(...box);
+    ctx.setLineDash([]);
+  }
+  // Clip to the bounds as the real canvas marker does: anything outside is lost.
+  ctx.beginPath();
+  ctx.rect(...box);
+  ctx.clip();
+  drawAnnotationFrame(ctx, frame, gx, gy);
+  ctx.restore();
+}
+
 export async function renderFilmstrip(canvas: HTMLCanvasElement, spec: FilmstripSpec): Promise<void> {
   const style = getStyle(spec.styleId);
   if (!style) throw new Error(`Unknown style "${spec.styleId}"`);
@@ -127,26 +151,11 @@ export async function renderFilmstrip(canvas: HTMLCanvasElement, spec: Filmstrip
       const frame = prepareAnnotationFrame(row.callout, t);
       if (frame) {
         const [fx, fy] = row.variant.ground ?? [0.2, 0.85];
-        const gx = x + fx * spec.cellWidth;
-        const gy = y + fy * spec.cellHeight;
-        const bounds = getFrameBounds(frame);
-        const box = [gx + bounds.minX, gy + bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY] as const;
-
         ctx.save();
         ctx.beginPath();
         ctx.rect(x, y, spec.cellWidth, spec.cellHeight);
         ctx.clip();
-        if (spec.showBounds) {
-          ctx.strokeStyle = 'rgba(255,0,80,0.6)';
-          ctx.setLineDash([4, 3]);
-          ctx.strokeRect(...box);
-          ctx.setLineDash([]);
-        }
-        // Clip to the bounds as the real canvas marker does: anything outside is lost.
-        ctx.beginPath();
-        ctx.rect(...box);
-        ctx.clip();
-        drawAnnotationFrame(ctx, frame, gx, gy);
+        drawFrameAt(ctx, frame, x + fx * spec.cellWidth, y + fy * spec.cellHeight, spec.showBounds);
         ctx.restore();
       }
 
@@ -157,4 +166,64 @@ export async function renderFilmstrip(canvas: HTMLCanvasElement, spec: Filmstrip
   });
 }
 
-(window as unknown as { renderFilmstrip: typeof renderFilmstrip }).renderFilmstrip = renderFilmstrip;
+export interface ContactSheetSpec {
+  /** One representative variant per style id; a style without one is skipped. */
+  variants: Record<string, Variant>;
+  backgrounds: Record<string, string>;
+  columns: number;
+  cellWidth: number;
+  cellHeight: number;
+}
+
+/**
+ * The settled frame of every registered style, in picker order, as a grid per
+ * background (stacked, one below the other).
+ */
+export async function renderContactSheet(canvas: HTMLCanvasElement, spec: ContactSheetSpec): Promise<void> {
+  const entries = getAllStyles().flatMap((style) => {
+    const variant = spec.variants[style.id];
+    return variant ? [{ style, variant, callout: buildCallout(style.id, variant) }] : [];
+  });
+  const rowsPerGrid = Math.ceil(entries.length / spec.columns);
+  const backgrounds = Object.entries(spec.backgrounds);
+  const gridHeight = rowsPerGrid * spec.cellHeight;
+  canvas.width = spec.columns * spec.cellWidth;
+  canvas.height = backgrounds.length * gridHeight;
+  const ctx = canvas.getContext('2d')!;
+
+  const settled = (callout: CalloutItem) => {
+    const { enterDuration, exitDuration } = callout.transition;
+    return START + enterDuration + (END - START - enterDuration - exitDuration) / 2;
+  };
+  const frames = entries.map((entry) => prepareAnnotationFrame(entry.callout, settled(entry.callout)));
+  for (const frame of frames) if (frame) await loadSceneAssets(collectSceneAssets(frame.scene));
+
+  backgrounds.forEach(([, color], b) => {
+    entries.forEach((entry, i) => {
+      const x = (i % spec.columns) * spec.cellWidth;
+      const y = b * gridHeight + Math.floor(i / spec.columns) * spec.cellHeight;
+      paintBackground(ctx, x, y, spec.cellWidth, spec.cellHeight, color);
+      const frame = frames[i];
+      if (frame) {
+        // Centre what the callout draws in its cell, shrinking it to fit if needed.
+        const bounds = getFrameBounds(frame);
+        const fit = Math.min(1, (spec.cellWidth - CELL_MARGIN) / (bounds.maxX - bounds.minX), (spec.cellHeight - CELL_MARGIN) / (bounds.maxY - bounds.minY));
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, spec.cellWidth, spec.cellHeight);
+        ctx.clip();
+        ctx.translate(x + spec.cellWidth / 2, y + spec.cellHeight / 2);
+        ctx.scale(fit, fit);
+        drawFrameAt(ctx, frame, -(bounds.minX + bounds.maxX) / 2, -(bounds.minY + bounds.maxY) / 2, false);
+        ctx.restore();
+      }
+      ctx.fillStyle = '#8a929c';
+      ctx.font = '10px monospace';
+      ctx.fillText(entry.style.id, x + 4, y + 12);
+    });
+  });
+}
+
+const globals = window as unknown as { renderFilmstrip: typeof renderFilmstrip; renderContactSheet: typeof renderContactSheet };
+globals.renderFilmstrip = renderFilmstrip;
+globals.renderContactSheet = renderContactSheet;

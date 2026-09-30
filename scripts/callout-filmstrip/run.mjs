@@ -15,6 +15,11 @@
  *                    variants [{name, content, settings?, offset?, altitude?, scale?, ground?}],
  *                    backgrounds {name: colour}, samples, exit, cellWidth, cellHeight, showBounds
  *   --exit           also sample the exit
+ *   --sheet          contact sheet instead: the settled frame of every registered
+ *                    style, in picker order, on a dark and a light backdrop (one
+ *                    grid each, stacked). Each style shows the first variant of
+ *                    examples/<id>.json. Needs no --style or --spec.
+ *                    node scripts/callout-filmstrip/run.mjs --sheet --out /tmp/contact-sheet.png
  *
  * Every variant is drawn on every background: one row each; columns are
  * entrance samples, a settled frame, then exit samples. Dashed red boxes are the
@@ -39,12 +44,30 @@ function parseArgs(argv) {
   const args = { out: 'callout-filmstrip.png' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--exit') args.exit = true;
+    else if (argv[i] === '--sheet') args.sheet = true;
     else if (argv[i].startsWith('--')) args[argv[i].slice(2)] = argv[++i];
   }
   return args;
 }
 
 const args = parseArgs(process.argv.slice(2));
+
+/** Contact-sheet spec: each style's first example variant, on two backdrops. */
+function sheetSpec() {
+  const dir = path.join(here, 'examples');
+  const variants = {};
+  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+    const example = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+    variants[example.styleId] = example.variants[0];
+  }
+  return {
+    variants,
+    backgrounds: { dark: '#1f2b3a', light: '#ebe7dc' },
+    columns: 4,
+    cellWidth: 340,
+    cellHeight: 240,
+  };
+}
 const fromFile = args.spec ? JSON.parse(fs.readFileSync(args.spec, 'utf8')) : {};
 const spec = {
   styleId: args.style,
@@ -61,7 +84,7 @@ const spec = {
   ...fromFile,
   ...(args.exit ? { exit: true } : {}),
 };
-if (!spec.styleId) {
+if (!args.sheet && !spec.styleId) {
   console.error('Missing --style <id> (or styleId in the spec).');
   process.exit(1);
 }
@@ -125,7 +148,8 @@ try {
   page.on('pageerror', (error) => console.error('page error:', error.message));
   await page.goto(`http://localhost:${server.address().port}/`);
   await page.evaluate(async () => document.fonts.ready);
-  await page.evaluate((s) => window.renderFilmstrip(document.getElementById('c'), s), spec);
+  if (args.sheet) await page.evaluate((s) => window.renderContactSheet(document.getElementById('c'), s), sheetSpec());
+  else await page.evaluate((s) => window.renderFilmstrip(document.getElementById('c'), s), spec);
   await page.locator('#c').screenshot({ path: args.out });
   console.log('wrote', path.resolve(args.out));
 } finally {
