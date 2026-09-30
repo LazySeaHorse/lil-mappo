@@ -10,6 +10,7 @@ import {
   lerp,
   linear,
   stage,
+  staggered,
   type Easing,
 } from './motion';
 
@@ -107,5 +108,24 @@ describe('buildProgress', () => {
   it('clamps progress', () => {
     expect(buildProgress('enter', 1.5)).toBe(1);
     expect(buildProgress('exit', -1)).toBe(1);
+  });
+});
+
+describe('staggered', () => {
+  it('offsets each item start and finishes the last exactly at 1', () => {
+    expect(staggered(0, 0, 5)).toBe(0);
+    expect(staggered(0.1, 0, 5)).toBeGreaterThan(0);
+    expect(staggered(0.1, 4, 5)).toBe(0);
+    expect(staggered(1, 4, 5)).toBe(1);
+    // Earlier items are always ahead of later ones.
+    for (const p of [0.2, 0.5, 0.8]) {
+      expect(staggered(p, 0, 5)).toBeGreaterThanOrEqual(staggered(p, 2, 5));
+      expect(staggered(p, 2, 5)).toBeGreaterThanOrEqual(staggered(p, 4, 5));
+    }
+  });
+
+  it('handles a single item and applies easing', () => {
+    expect(staggered(0.2, 0, 1)).toBeCloseTo(0.5); // one item plays out over the last 1 - spread
+    expect(staggered(0.3, 0, 5, 0.6, easeOutQuad)).toBeGreaterThan(staggered(0.3, 0, 5));
   });
 });

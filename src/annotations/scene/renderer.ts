@@ -138,7 +138,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
     case 'text': {
       if (node.opacity != null) ctx.globalAlpha *= node.opacity;
 
-      ctx.font = buildFont(node.fontSize, node.fontFamily, node.fontWeight ?? 400);
+      ctx.font = buildFont(node.fontSize, node.fontFamily, node.fontWeight ?? 400, node.fontStyle);
       ctx.textAlign = node.align ?? 'left';
       ctx.textBaseline = node.baseline ?? 'top';
       // Styles size their cards with letter spacing included (see textMetrics).

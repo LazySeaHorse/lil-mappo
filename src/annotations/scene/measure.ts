@@ -124,6 +124,7 @@ function measureShape(node: SceneNode): Extent | null {
         node.fontFamily,
         node.fontWeight ?? 400,
         node.letterSpacing,
+        node.fontStyle,
       );
       const width = node.maxWidth ? Math.min(measured, node.maxWidth) : measured;
       const height = node.fontSize * TEXT_LINE_HEIGHT;

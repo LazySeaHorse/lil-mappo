@@ -143,6 +143,8 @@ export interface TextNode {
   fontSize: number;
   fontFamily: string;
   fontWeight?: number;
+  /** Needs the italic face imported for the family. Default 'normal'. */
+  fontStyle?: 'normal' | 'italic';
   fill?: string;
   /** Outline (halo) colour, painted behind the fill with round joins. */
   stroke?: string;

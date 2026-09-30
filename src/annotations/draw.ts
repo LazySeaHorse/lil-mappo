@@ -259,7 +259,7 @@ export function collectSceneAssets(scene: SceneNode): SceneAssets {
   const images = new Set<string>();
   const visit = (node: SceneNode) => {
     if (node.type === 'group') node.children.forEach(visit);
-    else if (node.type === 'text') fonts.add(buildFont(node.fontSize, node.fontFamily, node.fontWeight ?? 400));
+    else if (node.type === 'text') fonts.add(buildFont(node.fontSize, node.fontFamily, node.fontWeight ?? 400, node.fontStyle));
     else if (node.type === 'image') images.add(node.src);
   };
   visit(scene);

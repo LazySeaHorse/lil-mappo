@@ -70,3 +70,43 @@ export function trimPolyline(
   trimmed.push(pointAtLength(path, to));
   return trimmed;
 }
+
+// ─── Shape outlines ───────────────────────────────────────────────────────────
+
+/** Points along a circular arc (radians, canvas convention), `segments` steps long. */
+export function arcPoints(
+  cx: number,
+  cy: number,
+  r: number,
+  startAngle: number,
+  endAngle: number,
+  segments = 48,
+): Array<[number, number]> {
+  return Array.from({ length: segments + 1 }, (_, i) => {
+    const angle = startAngle + ((endAngle - startAngle) * i) / segments;
+    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+  });
+}
+
+/**
+ * Outline of a rounded rectangle as points, clockwise from the start of its
+ * top-left corner, for a closed polyline that draws on. Corner radius is capped at half the shorter side.
+ */
+export function roundedRectPoints(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius = 0,
+  cornerSegments = 6,
+): Array<[number, number]> {
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  if (r === 0) return [[x, y], [x + width, y], [x + width, y + height], [x, y + height]];
+  const corner = (cx: number, cy: number, start: number) => arcPoints(cx, cy, r, start, start + Math.PI / 2, cornerSegments);
+  return [
+    ...corner(x + r, y + r, Math.PI), // top-left, ending on the top edge
+    ...corner(x + width - r, y + r, -Math.PI / 2),
+    ...corner(x + width - r, y + height - r, 0),
+    ...corner(x + r, y + height - r, Math.PI / 2),
+  ];
+}

@@ -35,8 +35,14 @@ function letterSpacingToPx(letterSpacing: string | undefined, fontSize: number):
   return 0;
 }
 
-export function buildFont(fontSize: number, fontFamily: string, fontWeight = 400): string {
-  return `${fontWeight} ${fontSize}px '${fontFamily}', sans-serif`;
+export function buildFont(
+  fontSize: number,
+  fontFamily: string,
+  fontWeight = 400,
+  fontStyle: 'normal' | 'italic' = 'normal',
+): string {
+  const style = fontStyle === 'italic' ? 'italic ' : '';
+  return `${style}${fontWeight} ${fontSize}px '${fontFamily}', sans-serif`;
 }
 
 /**
@@ -49,13 +55,14 @@ export function measureTextWidth(
   fontFamily: string,
   fontWeight = 400,
   letterSpacing?: string,
+  fontStyle: 'normal' | 'italic' = 'normal',
 ): number {
   if (!text) return 0;
   const spacing = letterSpacingToPx(letterSpacing, fontSize) * text.length;
 
   const ctx = getMeasureContext();
   if (ctx) {
-    ctx.font = buildFont(fontSize, fontFamily, fontWeight);
+    ctx.font = buildFont(fontSize, fontFamily, fontWeight, fontStyle);
     const width = ctx.measureText(text).width;
     if (width > 0) return width + spacing;
   }

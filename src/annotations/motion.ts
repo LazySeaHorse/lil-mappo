@@ -61,3 +61,20 @@ export function buildProgress(phase: 'enter' | 'visible' | 'exit', phaseProgress
   if (phase === 'exit') return 1 - clamp01(phaseProgress);
   return 1;
 }
+
+/**
+ * Progress of item `index` of `count` when items start one after another (for
+ * per-letter or per-row reveals). `spread` is the share of the timeline used to
+ * offset the starts; each item then takes the remaining share to play out, so
+ * the last one finishes exactly at progress 1.
+ */
+export function staggered(
+  progress: number,
+  index: number,
+  count: number,
+  spread = 0.6,
+  ease: Easing = linear,
+): number {
+  const start = count > 1 ? (spread * index) / (count - 1) : 0;
+  return stage(progress, start, start + (1 - spread), ease);
+}
