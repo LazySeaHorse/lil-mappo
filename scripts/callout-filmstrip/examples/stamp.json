@@ -1,0 +1,5 @@
+{"styleId":"stamp","samples":6,"cellWidth":300,"cellHeight":230,"variants":[
+{"name":"round+sub","offset":[0,0],"ground":[0.5,0.5],"content":{"title":"Approved","subtitle":"Sydney Australia"}},
+{"name":"round long","offset":[0,0],"ground":[0.5,0.5],"content":{"title":"Harbour Bridge Crossing"}},
+{"name":"rect+sub","offset":[0,0],"ground":[0.5,0.5],"settings":{"shape":"rect"},"content":{"title":"Top secret","subtitle":"Eyes only"}},
+{"name":"rect","offset":[0,0],"ground":[0.5,0.5],"settings":{"shape":"rect","inkColor":"#1F4E9C","rotation":6},"content":{"title":"Paris"}}]}
