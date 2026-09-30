@@ -134,10 +134,31 @@ function setStore(callouts: CalloutItem[], extra: Partial<ReturnType<typeof useP
   });
 }
 
+/** Animation frames that run only when the test says so. */
+function stubAnimationFrames() {
+  const pending = new Map<number, FrameRequestCallback>();
+  let next = 1;
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    pending.set(next, cb);
+    return next++;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => pending.delete(id));
+  return {
+    pending: () => pending.size,
+    flush: () => {
+      const callbacks = [...pending.values()];
+      pending.clear();
+      callbacks.forEach((cb) => cb(0));
+    },
+  };
+}
+
 describe('AnnotationOverlay', () => {
+  let frames: ReturnType<typeof stubAnimationFrames>;
   let overlay: AnnotationOverlay | undefined;
 
   beforeEach(() => {
+    frames = stubAnimationFrames();
     contexts.clear();
     vi.mocked(loadAnnotationAssets).mockClear();
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
@@ -155,6 +176,7 @@ describe('AnnotationOverlay', () => {
     overlay?.dispose();
     overlay = undefined;
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   function mount(fake = createFakeMap()) {
@@ -167,6 +189,7 @@ describe('AnnotationOverlay', () => {
 
   it('adds one viewport-sized canvas that ignores the pointer', () => {
     const { canvas, canvasContainer } = mount();
+    frames.flush();
     expect(canvasContainer.querySelectorAll('canvas')).toHaveLength(1);
     expect(canvas.style.pointerEvents).toBe('none');
     expect(canvas.width).toBe(Math.round(400 * (window.devicePixelRatio || 1)));
@@ -188,34 +211,62 @@ describe('AnnotationOverlay', () => {
 
   it('clears the previous frame before every draw and does not resize the canvas', () => {
     const { fire, canvas, ctx } = mount();
+    fire('render');
     const size = [canvas.width, canvas.height];
     fire('render');
     fire('render');
-    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(2);
+    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(3);
     expect([canvas.width, canvas.height]).toEqual(size);
   });
 
-  it('resizes with the viewport', () => {
+  it('resizes with the viewport, and with the display pixel ratio, only when either changes', () => {
     const size = { width: 400, height: 300 };
     const { fire, canvas } = mount(createFakeMap(size));
+    fire('render');
     size.width = 800;
-    fire('resize');
+    fire('render');
     expect(canvas.width).toBe(Math.round(800 * (window.devicePixelRatio || 1)));
+
+    const setWidth = vi.spyOn(canvas, 'width', 'set');
+    fire('render');
+    expect(setWidth).not.toHaveBeenCalled();
+
+    vi.stubGlobal('devicePixelRatio', 2);
+    fire('render');
+    expect(canvas.width).toBe(1600);
+    expect(canvas.height).toBe(600);
   });
 
-  it('asks the map to repaint, rather than drawing, when what it shows changes', () => {
+  it('redraws the overlay alone on the next animation frame when what it shows changes', () => {
     const { raw, ctx } = mount();
-    raw.triggerRepaint.mockClear();
+    frames.flush(); // the first draw
+    ctx.calls.length = 0;
 
     useProjectStore.setState({ playheadTime: 6 });
     useProjectStore.setState({ selectedItemId: 'c1' });
     useProjectStore.setState({ items: { ...useProjectStore.getState().items } });
-    expect(raw.triggerRepaint).toHaveBeenCalledTimes(3);
+    // However many changes, one frame is scheduled and nothing has drawn yet.
+    expect(frames.pending()).toBe(1);
     expect(ctx.calls).toEqual([]);
 
-    raw.triggerRepaint.mockClear();
-    useProjectStore.setState({ mapStyle: 'satellite' });
+    frames.flush();
+    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
     expect(raw.triggerRepaint).not.toHaveBeenCalled();
+
+    useProjectStore.setState({ mapStyle: 'satellite' });
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('lets a map render stand in for the redraw it had scheduled', () => {
+    const { fire, ctx } = mount();
+    frames.flush();
+    ctx.calls.length = 0;
+
+    useProjectStore.setState({ playheadTime: 6 });
+    fire('render');
+    expect(frames.pending()).toBe(0);
+    frames.flush();
+    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
   });
 
   it('draws what the store holds at render time, not what it held earlier', () => {
@@ -251,6 +302,26 @@ describe('AnnotationOverlay', () => {
     expect(drawnAfterClear(ctx.calls)).toEqual([]);
   });
 
+  it('leaves the overlay alone while the map is lent to a capture, and redraws after', () => {
+    const size = { width: 400, height: 300 };
+    const { fire, ctx, canvas } = mount(createFakeMap(size));
+    fire('render');
+    const before = { width: canvas.width, calls: ctx.calls.length };
+
+    useProjectStore.setState({ isCapturingViewport: true });
+    frames.flush();
+    size.width = 3840;
+    fire('render');
+    expect(canvas.width).toBe(before.width);
+    expect(ctx.calls).toHaveLength(before.calls);
+
+    size.width = 400;
+    useProjectStore.setState({ isCapturingViewport: false });
+    expect(frames.pending()).toBe(1);
+    frames.flush();
+    expect(ctx.calls.length).toBeGreaterThan(before.calls);
+  });
+
   it('uses the map zoom as the view zoom for callouts sized with the map', () => {
     setStore([makeCallout({ sizeMode: 'map', referenceZoom: 12 })]);
     const { fire, ctx, raw } = mount();
@@ -259,11 +330,11 @@ describe('AnnotationOverlay', () => {
     expect(ctx.calls.filter(([name]) => name === 'scale')).toContainEqual(['scale', 2, 2]);
   });
 
-  it('loads fonts and images for the callouts, then repaints', async () => {
-    const { raw } = mount();
+  it('loads fonts and images for the callouts, then redraws', async () => {
+    mount();
     expect(loadAnnotationAssets).toHaveBeenCalledTimes(1);
-    raw.triggerRepaint.mockClear();
-    await vi.waitFor(() => expect(raw.triggerRepaint).toHaveBeenCalled());
+    frames.flush();
+    await vi.waitFor(() => expect(frames.pending()).toBe(1));
 
     // Only edits to the callouts reload them, not playhead ticks.
     vi.mocked(loadAnnotationAssets).mockClear();
@@ -273,18 +344,17 @@ describe('AnnotationOverlay', () => {
     expect(loadAnnotationAssets).toHaveBeenCalledTimes(1);
   });
 
-  it('removes its canvas and listeners when disposed', async () => {
-    const { listeners, canvasContainer, raw } = mount();
+  it('removes its canvas and listeners, and cancels a pending redraw, when disposed', async () => {
+    const { listeners, canvasContainer } = mount();
     expect(listeners('render')).toBe(1);
-    expect(listeners('resize')).toBe(1);
+    expect(frames.pending()).toBe(1);
     overlay!.dispose();
     expect(listeners('render')).toBe(0);
-    expect(listeners('resize')).toBe(0);
+    expect(frames.pending()).toBe(0);
     expect(canvasContainer.querySelector('canvas')).toBeNull();
 
-    raw.triggerRepaint.mockClear();
     useProjectStore.setState({ playheadTime: 8 });
     await Promise.resolve();
-    expect(raw.triggerRepaint).not.toHaveBeenCalled();
+    expect(frames.pending()).toBe(0);
   });
 });

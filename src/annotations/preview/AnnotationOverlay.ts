@@ -5,8 +5,9 @@
  *
  * It draws through compositeAnnotations, the function exports use, so the editor
  * and an export run the same code; only the inputs differ (see draw for the
- * frame options). Anything that changes what should be drawn just asks the map
- * to repaint, so there is a single place that draws.
+ * frame options). When the map is not rendering, a change to the project or an
+ * asset load schedules one redraw of the overlay alone on the next animation
+ * frame, without repainting the basemap. Both paths run the same `draw`.
  */
 
 import type { Map as MapboxMap } from 'mapbox-gl';
@@ -23,12 +24,15 @@ function overlayStateChanged(state: ProjectState, previous: ProjectState): boole
     || state.itemOrder !== previous.itemOrder
     || state.selectedItemId !== previous.selectedItemId
     || state.isMoveModeActive !== previous.isMoveModeActive
-    || state.isExporting !== previous.isExporting;
+    || state.isExporting !== previous.isExporting
+    || state.isCapturingViewport !== previous.isCapturingViewport;
 }
 
 export class AnnotationOverlay {
   private readonly canvas = document.createElement('canvas');
   private unsubscribe: (() => void) | undefined;
+  /** The animation frame of the pending redraw, if any. At most one. */
+  private frame: number | undefined;
   private disposed = false;
 
   constructor(private readonly map: MapboxMap) {
@@ -39,10 +43,9 @@ export class AnnotationOverlay {
   mount(): void {
     this.map.getCanvasContainer().appendChild(this.canvas);
     this.map.on('render', this.draw);
-    this.map.on('resize', this.resize);
     this.unsubscribe = useProjectStore.subscribe(this.handleStoreChange);
-    this.resize();
     this.loadAssets();
+    this.scheduleDraw();
   }
 
   dispose(): void {
@@ -50,43 +53,67 @@ export class AnnotationOverlay {
     this.disposed = true;
     this.unsubscribe?.();
     this.map.off('render', this.draw);
-    this.map.off('resize', this.resize);
+    this.cancelScheduledDraw();
     this.canvas.remove();
   }
 
   private handleStoreChange = (state: ProjectState, previous: ProjectState): void => {
     if (!overlayStateChanged(state, previous)) return;
     if (state.items !== previous.items || state.itemOrder !== previous.itemOrder) this.loadAssets();
-    this.map.triggerRepaint();
+    this.scheduleDraw();
   };
 
-  /** Canvas text doesn't trigger web font downloads and images load asynchronously: repaint once they have. */
+  /** Canvas text doesn't trigger web font downloads and images load asynchronously: redraw once they have. */
   private loadAssets(): void {
     const { items, itemOrder } = useProjectStore.getState();
     void loadAnnotationAssets(items, itemOrder).then(() => {
-      if (!this.disposed) this.map.triggerRepaint();
+      if (!this.disposed) this.scheduleDraw();
     });
   }
 
-  /** Matches the backing store to the viewport. Only a resize changes it, never a redraw. */
-  private resize = (): void => {
-    const dpr = window.devicePixelRatio || 1;
+  private scheduleDraw(): void {
+    if (this.frame !== undefined) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = undefined;
+      this.draw();
+    });
+  }
+
+  private cancelScheduledDraw(): void {
+    if (this.frame === undefined) return;
+    cancelAnimationFrame(this.frame);
+    this.frame = undefined;
+  }
+
+  /**
+   * Matches the backing store to the viewport and the display's pixel ratio, which
+   * changes when the window moves between monitors. Only reallocates on a change.
+   */
+  private fitToViewport(dpr: number): void {
     const container = this.map.getContainer();
-    this.canvas.width = Math.round(container.clientWidth * dpr);
-    this.canvas.height = Math.round(container.clientHeight * dpr);
-  };
+    const width = Math.round(container.clientWidth * dpr);
+    const height = Math.round(container.clientHeight * dpr);
+    if (this.canvas.width !== width) this.canvas.width = width;
+    if (this.canvas.height !== height) this.canvas.height = height;
+  }
 
   private draw = (): void => {
+    // Whatever asked for this frame, this draw covers it.
+    this.cancelScheduledDraw();
+
+    const state = useProjectStore.getState();
+    // Exports composite callouts themselves. Captures lend the map a different size,
+    // which is no reason to resize or redraw the overlay.
+    if (state.isCapturingViewport) return;
+
     const ctx = this.canvas.getContext('2d');
     if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    this.fitToViewport(dpr);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // Exports composite callouts themselves, and resize the map while they do.
-    const state = useProjectStore.getState();
     if (state.isExporting) return;
 
-    const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     // While positioning, the callout is replaced by its drag handle.
     const drawn = state.isMoveModeActive
