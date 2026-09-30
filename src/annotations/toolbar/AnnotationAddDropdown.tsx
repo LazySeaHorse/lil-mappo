@@ -2,7 +2,7 @@
  * AnnotationAddDropdown — replaces CalloutAddDropdown.
  *
  * Creates new annotation items using the style registry.
- * Shows a style picker grid instead of a 4-option segmented control.
+ * Only asks for location and label; style is chosen later in the inspector.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -19,7 +19,6 @@ import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SectionLabel, Field } from '@/components/ui/field';
 import { StatusPill } from '@/components/ui/pro-badge';
-import { StylePicker } from '@/annotations/inspector/StylePicker';
 
 export const AnnotationAddDropdown = ({
   isOpen,
@@ -36,7 +35,6 @@ export const AnnotationAddDropdown = ({
   const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
   const [locationName, setLocationName] = useState('');
   const [title, setTitle] = useState('New Callout');
-  const [styleId, setStyleId] = useState(DEFAULT_CALLOUT_STYLE_ID);
   const [linkTitle, setLinkTitle] = useState(true);
 
   const isPicking = activePicker?.id === 'callout-new';
@@ -87,7 +85,7 @@ export const AnnotationAddDropdown = ({
     }
 
     const item = createCalloutItem({
-      styleId,
+      styleId: DEFAULT_CALLOUT_STYLE_ID,
       content: { title },
       lngLat,
       startTime: playheadTime,
@@ -192,11 +190,9 @@ export const AnnotationAddDropdown = ({
       </div>
 
       <div className="space-y-3">
-        <SectionLabel>Style</SectionLabel>
-        <StylePicker
-          value={styleId}
-          onChange={setStyleId}
-        />
+        <p className="px-1 text-xs text-muted-foreground">
+          You can choose the style, colors, and more in the inspector panel after the callout is created.
+        </p>
       </div>
     </ToolbarDropdownPanel>
   );
