@@ -1,90 +1,17 @@
 /**
- * AnnotationLayer — renders callouts on the live map.
+ * AnnotationLayer — the live editor's callouts.
  *
- * Each visible callout is drawn into its own canvas marker using the same
- * frame pipeline as the export compositor (see ../draw). The canvas is sized
- * to the frame bounds and positioned so the callout's ground point lands on
- * its map coordinate, so the preview matches exported frames pixel for pixel.
+ * Callouts are drawn by one overlay canvas that follows the map's render loop
+ * (see AnnotationOverlay). What stays in React is the drag handle shown while
+ * positioning a callout.
  */
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Marker } from 'react-map-gl/mapbox';
+import React, { useEffect } from 'react';
+import { Marker, useMap } from 'react-map-gl/mapbox';
 import type { MarkerDragEvent } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
-import { selectionPreviewTime } from '@/engine/selectionPreview';
-import {
-  collectSceneAssets,
-  drawAnnotationFrame,
-  getFrameBounds,
-  loadSceneAssets,
-  prepareAnnotationFrame,
-  type AnnotationFrame,
-} from '@/annotations/draw';
-
-// ─── Canvas marker ────────────────────────────────────────────────────────────
-
-interface AnnotationCanvasMarkerProps {
-  callout: CalloutItem;
-  lngLat: [number, number];
-  frame: AnnotationFrame;
-}
-
-function AnnotationCanvasMarker({ callout, lngLat, frame }: AnnotationCanvasMarkerProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [assetLoads, setAssetLoads] = useState(0);
-
-  // Canvas text doesn't trigger web font downloads and images load
-  // asynchronously: load what this frame uses, then redraw.
-  const assets = collectSceneAssets(frame.scene);
-  const assetKey = [...assets.fonts, ...assets.images].join('|');
-  useEffect(() => {
-    let active = true;
-    void loadSceneAssets(assets).then(() => {
-      if (active) setAssetLoads((n) => n + 1);
-    });
-    return () => {
-      active = false;
-    };
-    // assets is derived from assetKey; re-run only when the set of assets changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assetKey]);
-
-  const bounds = getFrameBounds(frame);
-  const width = bounds.maxX - bounds.minX;
-  const height = bounds.maxY - bounds.minY;
-  const dpr = window.devicePixelRatio || 1;
-
-  // Draw after commit: React may have just resized the canvas, which clears it.
-  useLayoutEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawAnnotationFrame(ctx, frame, -bounds.minX, -bounds.minY);
-  }, [frame, dpr, bounds.minX, bounds.minY, assetLoads]);
-
-  return (
-    <Marker
-      longitude={lngLat[0]}
-      latitude={lngLat[1]}
-      anchor="top-left"
-      offset={[bounds.minX, bounds.minY]}
-      pitchAlignment="viewport"
-      rotationAlignment="viewport"
-      style={{ pointerEvents: 'none' }}
-    >
-      <span className="sr-only">{callout.content.title}</span>
-      <canvas
-        ref={canvasRef}
-        width={Math.round(width * dpr)}
-        height={Math.round(height * dpr)}
-        style={{ width: `${width}px`, height: `${height}px`, display: 'block' }}
-      />
-    </Marker>
-  );
-}
+import { AnnotationOverlay } from './AnnotationOverlay';
 
 // ─── Move-mode handle ─────────────────────────────────────────────────────────
 
@@ -121,55 +48,34 @@ function AnnotationMoveHandle({ callout, lngLat }: { callout: CalloutItem; lngLa
   );
 }
 
-// ─── Single annotation ────────────────────────────────────────────────────────
-
-interface AnnotationMarkerProps {
-  callout: CalloutItem;
-  isSelected: boolean;
-  playheadTime: number;
-}
-
-function AnnotationMarker({ callout, isSelected, playheadTime }: AnnotationMarkerProps) {
-  const isMoveModeActive = useProjectStore((s) => s.isMoveModeActive);
-  const isExporting = useProjectStore((s) => s.isExporting);
-
-  const { binding } = callout;
-  if (binding.kind !== 'geographic') return null;
-  const lngLat = binding.lngLat;
-  if (lngLat[0] === 0 && lngLat[1] === 0) return null;
-
-  if (isSelected && isMoveModeActive) {
-    return <AnnotationMoveHandle callout={callout} lngLat={lngLat} />;
-  }
-
-  const frame = prepareAnnotationFrame(callout, selectionPreviewTime(callout, playheadTime, isSelected && !isExporting));
-  if (!frame) return null;
-  return <AnnotationCanvasMarker callout={callout} lngLat={lngLat} frame={frame} />;
-}
-
 // ─── Annotation layer ─────────────────────────────────────────────────────────
 
-interface AnnotationLayerProps {
-  callouts: CalloutItem[];
-  selectedCalloutId: string | null;
+/** The overlay canvas for the map this layer sits in. */
+function useAnnotationOverlay(): void {
+  const { current } = useMap();
+  const map = current?.getMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const overlay = new AnnotationOverlay(map);
+    overlay.mount();
+    return () => overlay.dispose();
+  }, [map]);
 }
 
-/**
- * Subscribes to playheadTime here so MapViewport doesn't re-render every frame.
- */
-export function AnnotationLayer({ callouts, selectedCalloutId }: AnnotationLayerProps) {
-  const playheadTime = useProjectStore((s) => s.playheadTime);
+/** The drag handle of the selected callout, while it is being positioned. */
+function MoveHandle() {
+  const callout = useProjectStore((s) => {
+    const item = s.selectedItemId ? s.items[s.selectedItemId] : undefined;
+    return s.isMoveModeActive && item?.kind === 'callout' ? item : null;
+  });
+  if (callout?.binding.kind !== 'geographic') return null;
+  const { lngLat } = callout.binding;
+  if (lngLat[0] === 0 && lngLat[1] === 0) return null;
+  return <AnnotationMoveHandle callout={callout} lngLat={lngLat} />;
+}
 
-  return (
-    <>
-      {callouts.map((callout) => (
-        <AnnotationMarker
-          key={callout.id}
-          callout={callout}
-          isSelected={selectedCalloutId === callout.id}
-          playheadTime={playheadTime}
-        />
-      ))}
-    </>
-  );
+export function AnnotationLayer() {
+  useAnnotationOverlay();
+  return <MoveHandle />;
 }

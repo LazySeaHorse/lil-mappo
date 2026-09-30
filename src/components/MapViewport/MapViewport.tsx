@@ -5,7 +5,6 @@ import type { MapLayerMouseEvent } from 'mapbox-gl';
 import { MAP_STYLES, transformMapboxRequest } from '@/config/mapbox';
 
 import { useProjectStore } from '@/store/useProjectStore';
-import type { CalloutItem } from '@/store/types';
 import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cameraUtils';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
@@ -30,9 +29,6 @@ interface MapViewportProps {
 
 export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGesture, mapboxToken }: MapViewportProps) {
   const mapStyle = useProjectStore((s) => s.mapStyle);
-  const items = useProjectStore((s) => s.items);
-  const itemOrder = useProjectStore((s) => s.itemOrder);
-  const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const updateItem = useProjectStore((s) => s.updateItem);
   const setMapCenter = useProjectStore((s) => s.setMapCenter);
 
@@ -129,14 +125,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     return { longitude, latitude, zoom: 12, pitch: 0, bearing: 0 };
   }, []);
 
-  const callouts: CalloutItem[] = [];
-
-  for (const id of itemOrder) {
-    const item = items[id];
-    if (!item) continue;
-    if (item.kind === 'callout') callouts.push(item);
-  }
-
   // Debounced map center update to prevent store churn during continuous panning
   const debouncedSetMapCenter = useMemo(() => {
     let timer: NodeJS.Timeout;
@@ -147,8 +135,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
       }, 100);
     };
   }, [setMapCenter]);
-
-  const selectedCalloutId = selectedItemId && items[selectedItemId]?.kind === 'callout' ? selectedItemId : null;
 
   return (
     <div className="w-full h-full relative" data-walkthrough="map-viewport">
@@ -187,12 +173,9 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
           </>
         )}
 
-        {/* Annotations use Markers (DOM elements) — safe outside the styleLoaded gate.
-            AnnotationLayer owns playheadTime so MapViewport never re-renders during playback. */}
-        <AnnotationLayer
-          callouts={callouts}
-          selectedCalloutId={selectedCalloutId}
-        />
+        {/* Callouts draw on their own overlay canvas, so they are safe outside the styleLoaded gate.
+            AnnotationLayer reads the store itself so MapViewport never re-renders during playback. */}
+        <AnnotationLayer />
         <RouteWaypointMarkers />
         <DraftWalkMarkers />
       </MapGL>
