@@ -110,6 +110,7 @@ const TimelineTrackRow = React.memo(({
 
   return (
     <div
+      data-agent-item={item.id}
       className={`flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
       onClick={handleSelect}
     >
@@ -224,6 +225,7 @@ function CameraTrackContent({
           <div
             key={keyframe.id}
             data-walkthrough="timeline-keyframe"
+            data-agent-keyframe={keyframe.id}
             data-testid={`timeline-keyframe-${keyframe.id}`}
             className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-ew-resize transition-transform z-10 select-none touch-none
               ${isDisabled ? 'opacity-35 grayscale pointer-events-none' : selectedKeyframeId === keyframe.id ? 'scale-125 z-20' : 'hover:scale-110'} active:scale-95`}
