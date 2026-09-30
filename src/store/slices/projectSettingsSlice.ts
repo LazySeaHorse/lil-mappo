@@ -9,7 +9,7 @@ export const createProjectSettingsSlice: StateCreator<
   [],
   [],
   ProjectSettingsSlice
-> = (set) => ({
+> = (set, _get, store) => ({
   setProjectName: (n) => set({ name: n }),
   setResolution: (r) => set({ resolution: r }),
   setAspectRatio: (v) =>
@@ -41,5 +41,10 @@ export const createProjectSettingsSlice: StateCreator<
       isInspectorOpen: true,
       detectedCapabilities: null,
     });
+    // A loaded document is a new baseline, not an undoable edit. Clearing via
+    // the temporal store also clears the label/source stacks (see wrapTemporal).
+    (store as unknown as { temporal: { getState: () => { clear: () => void } } }).temporal
+      .getState()
+      .clear();
   },
 });
