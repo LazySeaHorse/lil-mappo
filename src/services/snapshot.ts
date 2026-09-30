@@ -1,10 +1,8 @@
 import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
-import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
-import { loadAnnotationAssets } from '@/annotations/draw';
+import { canvasToBlob, withFrameCapturer } from './frameCapture';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
-import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
 
 /**
  * Captures a high-resolution snapshot of the current map view.
@@ -24,41 +22,15 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
   const [width, height] = store.resolution;
   const id = toast.loading('Preparing high-res snapshot...');
 
-  // Capture preview dimensions before resize so we can preserve framing.
-  const previewWidth = map.getContainer().getBoundingClientRect().width;
-  const previewZoom = map.getZoom();
-  const zoomOffset = Math.log2(width / previewWidth);
-
   try {
-    await withTemporaryMapViewport(map, width, height, async () => {
+    await withFrameCapturer(map, { width, height, showWatermark }, async ({ zoomOffset, previewZoom, captureNow }) => {
       // Restore equivalent framing at the new resolution.
       if (zoomOffset !== 0) map.jumpTo({ zoom: previewZoom + zoomOffset });
 
       toast.loading('Rendering high-res tiles...', { id });
-      await waitForMapIdle(map, { timeoutMs: 3_000 });
-      await document.fonts.ready;
-      const { items: annotationItems, itemOrder: annotationOrder } = useProjectStore.getState();
-      await loadAnnotationAssets(annotationItems, annotationOrder);
-
-      const compCanvas = document.createElement('canvas');
-      compCanvas.width = width;
-      compCanvas.height = height;
-      const compCtx = compCanvas.getContext('2d')!;
-
-      const freshStore = useProjectStore.getState();
-      compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, freshStore.playheadTime, showWatermark);
-
-      await new Promise<void>((resolve, reject) => {
-        compCanvas.toBlob((blob) => {
-          if (blob) {
-            saveAs(blob, `snapshot-${Date.now()}.png`);
-            toast.success('Snapshot saved!', { id });
-            resolve();
-          } else {
-            reject(new Error('Format conversion failed'));
-          }
-        }, 'image/png');
-      });
+      const compCanvas = await captureNow();
+      saveAs(await canvasToBlob(compCanvas, 'image/png'), `snapshot-${Date.now()}.png`);
+      toast.success('Snapshot saved!', { id });
     });
   } catch (err: unknown) {
     console.error('Snapshot error:', err);
