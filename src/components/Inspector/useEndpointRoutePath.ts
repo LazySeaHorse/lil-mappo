@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
+import { withoutHistory } from '@/store/history';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
 import { isPlacedPoint } from '@/engine/routeMode';
@@ -48,7 +49,8 @@ export function useEndpointRoutePath(routeId: string) {
       };
       const { updateItem, setPreviewRoute } = useProjectStore.getState();
       if (target === 'save') {
-        updateItem(routeId, { geojson: featureCollection });
+        // Async result of an earlier request, not an edit of its own.
+        withoutHistory(() => updateItem(routeId, { geojson: featureCollection }));
         setPreviewRoute(null);
         toast.success('Route updated.');
       } else {

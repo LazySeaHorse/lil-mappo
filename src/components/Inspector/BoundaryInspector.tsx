@@ -16,6 +16,7 @@ import {
 } from './InspectorShared';
 import { formatPercent } from './inspectorValues';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { withoutHistory } from '@/store/history';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 
 type BoundaryAnimationMode = 'none' | BoundaryItem['style']['animationStyle'];
@@ -76,7 +77,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             <BoundarySearch
               initialValue={item.placeName}
               onSelect={handleSelect}
-              onSearchingChange={(loading) => u({ resolveStatus: loading ? 'loading' : 'idle' })}
+              onSearchingChange={(loading) => withoutHistory(() => u({ resolveStatus: loading ? 'loading' : 'idle' }))}
             />
           </div>
         </InspectorSection>
