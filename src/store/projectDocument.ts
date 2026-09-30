@@ -401,15 +401,19 @@ const V4_CALLOUT_STYLE_IDS: ReadonlySet<string> = new Set([
   'road-sign',
 ]);
 
+/** Shortest offset, in pixels, that still gives a Leader Line a readable diagonal. */
+const MIN_LEADER_OFFSET = 40;
+
 const calloutOffsetSchema = z.tuple([z.number().finite(), z.number().finite()]);
 
 /**
  * v4 replaces the eight original callout styles. Their look cannot be carried
  * over, so those callouts become Leader Line: content, location, altitude,
  * timing, opacity and scale are kept, while settings, transition, connector and
- * anchor take Leader Line's defaults. Old styles sat directly on the point
- * (offset 0, 0), which would hide a leader line, so that offset is replaced by
- * Leader Line's own.
+ * anchor take Leader Line's defaults. Old styles sat on or just above their
+ * point, so small offsets would leave a stubby leader line: an offset shorter
+ * than MIN_LEADER_OFFSET is replaced by Leader Line's own, larger (deliberate)
+ * ones are kept.
  */
 function migrateCalloutStyleV3ToV4(value: unknown): unknown {
   const result = legacyCalloutItemSchema.safeParse(value);
@@ -419,7 +423,7 @@ function migrateCalloutStyleV3ToV4(value: unknown): unknown {
 
   const { altitude: _altitude, ...defaults } = createCalloutStyleDefaults(leaderLineStyle);
   const offset = calloutOffsetSchema.safeParse(callout.offset);
-  const keepOffset = offset.success && (offset.data[0] !== 0 || offset.data[1] !== 0);
+  const keepOffset = offset.success && Math.hypot(...offset.data) >= MIN_LEADER_OFFSET;
   return {
     ...callout,
     ...defaults,

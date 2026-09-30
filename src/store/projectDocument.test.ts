@@ -534,13 +534,15 @@ describe('project document persistence boundary', () => {
       expect(callout.anchor).toBe('bottom');
     });
 
-    it('gives callouts stacked on their point the default offset so the leader line shows', () => {
-      expect(calloutOf(v3Document({ c1: v3Callout('pin-marker', { offset: [0, 0] }) })).offset).toEqual([70, -90]);
+    it('gives callouts on or just beside their point the default offset so the leader line is not stubby', () => {
+      for (const offset of [[0, 0], [0, 25], [-20, 12], [39, 0]]) {
+        expect(calloutOf(v3Document({ c1: v3Callout('pin-marker', { offset }) })).offset).toEqual([70, -90]);
+      }
     });
 
-    it('keeps an offset the user had already set', () => {
-      expect(calloutOf(v3Document({ c1: v3Callout('topo-label', { offset: [-30, 12] }) })).offset).toEqual([-30, 12]);
-      expect(calloutOf(v3Document({ c1: v3Callout('topo-label', { offset: [0, 25] }) })).offset).toEqual([0, 25]);
+    it('keeps deliberate offsets of 40px or more', () => {
+      expect(calloutOf(v3Document({ c1: v3Callout('topo-label', { offset: [-30, 45] }) })).offset).toEqual([-30, 45]);
+      expect(calloutOf(v3Document({ c1: v3Callout('topo-label', { offset: [0, -40] }) })).offset).toEqual([0, -40]);
     });
 
     it('keeps screen-bound placement', () => {
