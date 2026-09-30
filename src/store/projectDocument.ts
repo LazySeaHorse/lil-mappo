@@ -12,8 +12,10 @@ import type { Project, RouteItem } from './types';
 import { getAutoCamRanges, rescaleAutoCam } from '@/config/vehicles';
 import { MAP_STYLES } from '@/config/mapbox';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
+import { leaderLineStyle } from '@/annotations/styles/leader-line';
+import { createCalloutStyleDefaults } from './itemFactories';
 
-export const PROJECT_SCHEMA_VERSION = 3 as const;
+export const PROJECT_SCHEMA_VERSION = 4 as const;
 export const CAMERA_TRACK_ID = 'camera-track';
 
 export type ProjectDocument = Project & {
@@ -380,10 +382,65 @@ const migrateProjectV2ToV3: ProjectMigration = (input) => {
   return { ...document, schemaVersion: 3, items };
 };
 
+/**
+ * Callout styles that exist from v4 on. Listed here rather than read from the
+ * registry so this migration keeps meaning the same thing as styles are added.
+ */
+const V4_CALLOUT_STYLE_IDS: ReadonlySet<string> = new Set([
+  'leader-line',
+  'map-label',
+  'target-lock',
+  'editorial',
+  'stamp',
+  'flag',
+  'polaroid',
+  'big-number',
+  'hand-drawn',
+  'radius-ring',
+  'waypoint',
+  'road-sign',
+]);
+
+const calloutOffsetSchema = z.tuple([z.number().finite(), z.number().finite()]);
+
+/**
+ * v4 replaces the eight original callout styles. Their look cannot be carried
+ * over, so those callouts become Leader Line: content, location, altitude,
+ * timing, opacity and scale are kept, while settings, transition, connector and
+ * anchor take Leader Line's defaults. Old styles sat directly on the point
+ * (offset 0, 0), which would hide a leader line, so that offset is replaced by
+ * Leader Line's own.
+ */
+function migrateCalloutStyleV3ToV4(value: unknown): unknown {
+  const result = legacyCalloutItemSchema.safeParse(value);
+  if (!result.success) return value;
+  const callout = result.data;
+  if (typeof callout.styleId === 'string' && V4_CALLOUT_STYLE_IDS.has(callout.styleId)) return value;
+
+  const { altitude: _altitude, ...defaults } = createCalloutStyleDefaults(leaderLineStyle);
+  const offset = calloutOffsetSchema.safeParse(callout.offset);
+  const keepOffset = offset.success && (offset.data[0] !== 0 || offset.data[1] !== 0);
+  return {
+    ...callout,
+    ...defaults,
+    offset: keepOffset ? offset.data : defaults.offset,
+  };
+}
+
+/** Migrates callouts on removed styles to Leader Line. */
+const migrateProjectV3ToV4: ProjectMigration = (input) => {
+  const document = legacyDocumentEnvelopeSchema.parse(input);
+  const items = Object.fromEntries(
+    Object.entries(document.items).map(([id, value]) => [id, migrateCalloutStyleV3ToV4(value)]),
+  );
+  return { ...document, schemaVersion: 4, items };
+};
+
 const projectMigrations: Record<number, ProjectMigration> = {
   0: migrateProjectV0ToV1,
   1: migrateProjectV1ToV2,
   2: migrateProjectV2ToV3,
+  3: migrateProjectV3ToV4,
 };
 
 function migrateProjectDocument(input: unknown): unknown {

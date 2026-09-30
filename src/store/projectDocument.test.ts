@@ -6,6 +6,7 @@ import {
   toProjectDocument,
 } from './projectDocument';
 import { createTransientState, useProjectStore } from './useProjectStore';
+import { leaderLineStyle } from '@/annotations/styles/leader-line';
 
 describe('project document persistence boundary', () => {
   it('serializes only durable project fields from the Zustand store', () => {
@@ -466,6 +467,146 @@ describe('project document persistence boundary', () => {
       delete (document.items.r1 as { calculation?: unknown }).calculation;
       const route = parseProjectDocument(document).items.r1;
       expect(route).not.toHaveProperty('calculation');
+    });
+  });
+
+  describe('v3 → v4 callout style migration', () => {
+    const OLD_STYLE_IDS = [
+      'standard-card', 'modern-pill', 'news-slug', 'topo-label',
+      'blinking-dot', 'ripple-marker', 'image-circle', 'pin-marker',
+    ];
+
+    const v3Callout = (styleId: string, overrides: Record<string, unknown> = {}) => ({
+      kind: 'callout',
+      id: 'c1',
+      styleId,
+      styleVersion: 1,
+      content: { title: 'Harbour', subtitle: 'Old town', eyebrow: '1°N', body: 'Busy', badge: 'NEW' },
+      binding: { kind: 'geographic', lngLat: [10, 20], altitude: 40 },
+      offset: [0, 0],
+      anchor: 'center',
+      startTime: 3,
+      endTime: 9,
+      transition: { enter: 'scale-up', exit: 'scale-down', enterDuration: 0.9, exitDuration: 0.6 },
+      connector: { visible: true, style: 'solid', color: '#ff0000', width: 5, endDot: false, endDotRadius: 9 },
+      opacity: 0.7,
+      scale: 1.4,
+      settings: { bgColor: '#123456', fontFamily: 'Lexend', variant: 'legacy' },
+      linkTitleToLocation: true,
+      ...overrides,
+    });
+
+    function v3Document(items: Record<string, unknown>) {
+      const { items: _items, itemOrder: _order, ...rest } = toProjectDocument(createProject());
+      const all = { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] }, ...items };
+      return { ...rest, schemaVersion: 3, items: all, itemOrder: Object.keys(all) };
+    }
+
+    const calloutOf = (document: unknown, id = 'c1') => {
+      const item = parseProjectDocument(document).items[id];
+      if (item.kind !== 'callout') throw new Error('expected a callout');
+      return item;
+    };
+
+    it.each(OLD_STYLE_IDS)('turns a %s callout into a Leader Line and keeps what it said and where it was', (styleId) => {
+      const callout = calloutOf(v3Document({ c1: v3Callout(styleId) }));
+
+      expect(callout).toMatchObject({
+        id: 'c1',
+        styleId: 'leader-line',
+        styleVersion: 1,
+        content: { title: 'Harbour', subtitle: 'Old town', eyebrow: '1°N', body: 'Busy', badge: 'NEW' },
+        binding: { kind: 'geographic', lngLat: [10, 20], altitude: 40 },
+        startTime: 3,
+        endTime: 9,
+        opacity: 0.7,
+        scale: 1.4,
+        linkTitleToLocation: true,
+      });
+    });
+
+    it('resets settings, transition, connector and anchor to Leader Line defaults', () => {
+      const callout = calloutOf(v3Document({ c1: v3Callout('news-slug') }));
+
+      expect(callout.settings).toEqual(leaderLineStyle.defaultSettings);
+      expect(callout.transition).toEqual({ enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 });
+      expect(callout.connector).toMatchObject({ visible: false });
+      expect(callout.anchor).toBe('bottom');
+    });
+
+    it('gives callouts stacked on their point the default offset so the leader line shows', () => {
+      expect(calloutOf(v3Document({ c1: v3Callout('pin-marker', { offset: [0, 0] }) })).offset).toEqual([70, -90]);
+    });
+
+    it('keeps an offset the user had already set', () => {
+      expect(calloutOf(v3Document({ c1: v3Callout('topo-label', { offset: [-30, 12] }) })).offset).toEqual([-30, 12]);
+      expect(calloutOf(v3Document({ c1: v3Callout('topo-label', { offset: [0, 25] }) })).offset).toEqual([0, 25]);
+    });
+
+    it('keeps screen-bound placement', () => {
+      const callout = calloutOf(v3Document({ c1: v3Callout('standard-card', { binding: { kind: 'screen', position: [0.2, 0.4] } }) }));
+      expect(callout.binding).toEqual({ kind: 'screen', position: [0.2, 0.4] });
+    });
+
+    it('leaves callouts that are already on a current style untouched', () => {
+      const current = v3Callout('leader-line', {
+        offset: [0, 0],
+        settings: { side: 'left', lineWidth: 3 },
+        transition: { enter: 'fade', exit: 'fade', enterDuration: 0.4, exitDuration: 0.3 },
+      });
+      const callout = calloutOf(v3Document({ c1: current }));
+
+      expect(callout.offset).toEqual([0, 0]);
+      expect(callout.transition).toEqual(current.transition);
+      expect(callout.connector).toEqual(current.connector);
+      expect(callout.anchor).toBe('center');
+      expect(callout.settings).toMatchObject({ side: 'left', lineWidth: 3 });
+    });
+
+    it('migrates every callout in a mixed document and leaves other items alone', () => {
+      const document = v3Document({
+        c1: v3Callout('ripple-marker'),
+        c2: v3Callout('leader-line', { id: 'c2', offset: [5, 5] }),
+        c3: v3Callout('blinking-dot', { id: 'c3' }),
+      });
+      const project = parseProjectDocument(document);
+
+      expect(['c1', 'c2', 'c3'].map((id) => (project.items[id] as { styleId: string }).styleId))
+        .toEqual(['leader-line', 'leader-line', 'leader-line']);
+      expect(calloutOf(document, 'c2').offset).toEqual([5, 5]);
+      expect(project.items['camera-track'].kind).toBe('camera');
+      expect(toProjectDocument(project).schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
+    });
+
+    it('carries a v1 document all the way to Leader Line', () => {
+      const v1Callout = {
+        kind: 'callout', id: 'c1', title: 'Harbour', subtitle: 'Old town', imageUrl: null,
+        lngLat: [0, 0.0001], anchor: 'bottom', startTime: 4, endTime: 6,
+        animation: { enter: 'fadeIn', exit: 'fadeOut', enterDuration: 0.4, exitDuration: 0.3 },
+        style: {
+          bgColor: '#0f172a', textColor: '#f8fafc', accentColor: '#3b82f6', borderRadius: 8,
+          shadow: true, maxWidth: 240, fontFamily: 'Outfit', variant: 'topo', showMetadata: true,
+        },
+        linkTitleToLocation: false, altitude: 100, poleVisible: true, poleColor: '#94a3b8',
+      };
+      const { items: _items, itemOrder: _order, ...rest } = toProjectDocument(createProject());
+      const callout = calloutOf({
+        ...rest,
+        schemaVersion: 1,
+        items: { c1: v1Callout },
+        itemOrder: ['c1'],
+      });
+
+      expect(callout).toMatchObject({
+        styleId: 'leader-line',
+        content: { title: 'Harbour', subtitle: 'Old town' },
+        binding: { lngLat: [0, 0.0001] },
+        startTime: 4,
+        endTime: 6,
+        offset: [70, -90],
+        settings: leaderLineStyle.defaultSettings,
+        transition: { enter: 'auto', exit: 'auto' },
+      });
     });
   });
 });
