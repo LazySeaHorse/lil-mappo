@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -34,6 +34,11 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
   const actions = useToolbarActions();
   const isLocked = !user && !hasByok();
 
+  // Run an action once the menu has finished closing. Radix refocuses the menu content
+  // as the pointer leaves an item, which steals focus from a dialog that opened alongside it.
+  const afterCloseRef = useRef<(() => void) | null>(null);
+  const afterClose = (fn: () => void) => () => { afterCloseRef.current = fn; };
+
   const gatedClick = (fn: () => void) => {
     if (isLocked) openAuthModal();
     else fn();
@@ -68,6 +73,11 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
 
       <DropdownMenuContent
         align="start"
+        onCloseAutoFocus={() => {
+          const run = afterCloseRef.current;
+          afterCloseRef.current = null;
+          run?.();
+        }}
         className="w-56 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl"
       >
         {/* ─── Project Section ─── */}
@@ -75,19 +85,19 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
           Project
         </DropdownMenuLabel>
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={actions.handleNewProject} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(actions.handleNewProject)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <FilePlus2 size={14} /> New Project
           </DropdownMenuItem>
           <DropdownMenuItem onClick={actions.handleSaveToLibrary} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Save size={14} /> Save to Library
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onLibrary} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(onLibrary)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Library size={14} /> Projects
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
-          <DropdownMenuItem onClick={actions.handleExportProject} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(actions.handleExportProject)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <FileJson size={14} /> Export Project File
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
@@ -102,7 +112,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
           >
             <Settings size={14} /> Project Settings
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onWalkthrough} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(onWalkthrough)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Compass size={14} /> Quick Walkthrough
           </DropdownMenuItem>
         </DropdownMenuGroup>
@@ -114,7 +124,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         </DropdownMenuLabel>
         <DropdownMenuGroup>
           {/* Credits return here when cloud rendering is re-enabled. */}
-          <DropdownMenuItem onClick={openSettingsModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(openSettingsModal)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Settings2 size={14} /> Settings
           </DropdownMenuItem>
           {/* CLOUD RENDERS TEMPORARILY DISABLED — not dead code.
@@ -131,7 +141,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
               <LogOut size={14} /> Sign Out
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={openAuthModal} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+            <DropdownMenuItem onClick={afterClose(openAuthModal)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
               <LogIn size={14} /> Sign In
             </DropdownMenuItem>
           )}
