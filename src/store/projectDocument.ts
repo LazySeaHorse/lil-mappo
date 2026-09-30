@@ -94,6 +94,11 @@ const routeItemSchema = z.object({
   autoCam: z.object({
     enabled: z.boolean(),
     mode: z.enum(['cinematic', 'navigation']),
+    preset: z.enum(['chase', 'drone', 'reveal', 'topdown']).optional(),
+    dynamics: z.number().optional(),
+    orbit: z.number().optional(),
+    intro: z.number().optional(),
+    outro: z.number().optional(),
     pitch: z.number(),
     smoothing: z.number(),
     distance: z.number(),

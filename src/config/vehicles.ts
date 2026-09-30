@@ -1,4 +1,4 @@
-import type { AutoCamConfig, EasingName, RouteItem, RouteVehicleConfig } from '@/store/types';
+import type { AutoCamConfig, AutoCamPreset, EasingName, RouteItem, RouteVehicleConfig } from '@/store/types';
 
 export type VehicleType = RouteVehicleConfig['type'];
 
@@ -43,6 +43,11 @@ export function getAutoCamRanges(type: VehicleType | undefined): AutoCamRanges {
 const BASE_AUTO_CAM_DEFAULTS: AutoCamConfig = {
   enabled: true,
   mode: 'cinematic',
+  preset: 'chase',
+  dynamics: 0.5,
+  orbit: 0,
+  intro: 0,
+  outro: 0,
   pitch: 65,
   smoothing: 0.3,
   distance: 500,
@@ -62,7 +67,60 @@ export function defaultAutoCamFor(type: VehicleType | undefined): AutoCamConfig 
   };
 }
 
+interface AutoCamPresetSpec {
+  label: string;
+  description: string;
+  /** Multipliers on the vehicle's default follow distance and height. */
+  distance: number;
+  height: number;
+  smoothing: number;
+  dynamics: number;
+  orbit: number;
+  intro: number;
+  outro: number;
+}
+
+export const AUTO_CAM_PRESETS: Record<AutoCamPreset, AutoCamPresetSpec> = {
+  chase: {
+    label: 'Chase',
+    description: 'Steady camera behind the vehicle.',
+    distance: 1, height: 1, smoothing: 0.4, dynamics: 0.5, orbit: 0, intro: 0, outro: 0,
+  },
+  drone: {
+    label: 'Drone',
+    description: 'Higher and wider, drifting around the route.',
+    distance: 1.4, height: 2.2, smoothing: 0.55, dynamics: 0.6, orbit: 0.6, intro: 0.4, outro: 0.3,
+  },
+  reveal: {
+    label: 'Reveal',
+    description: 'Swoops in from a wide shot, pulls back to frame the route.',
+    distance: 1.1, height: 1.4, smoothing: 0.5, dynamics: 0.7, orbit: 0.2, intro: 1, outro: 1,
+  },
+  topdown: {
+    label: 'Top-down',
+    description: 'Almost straight overhead, turning with the route.',
+    distance: 0.2, height: 5, smoothing: 0.7, dynamics: 0.3, orbit: 0, intro: 0, outro: 0.4,
+  },
+};
+
 const clamp = (value: number, { min, max }: SliderRange) => Math.min(max, Math.max(min, value));
+
+/** Item patch that switches a follow-view auto-camera to a preset for a vehicle type. */
+export function autoCamPresetPatch(preset: AutoCamPreset, type: VehicleType | undefined): Partial<AutoCamConfig> {
+  const spec = AUTO_CAM_PRESETS[preset];
+  const base = defaultAutoCamFor(type);
+  const ranges = getAutoCamRanges(type);
+  return {
+    preset,
+    distance: clamp(Math.round(base.distance * spec.distance), ranges.distance),
+    height: clamp(Math.round(base.height * spec.height), ranges.height),
+    smoothing: spec.smoothing,
+    dynamics: spec.dynamics,
+    orbit: spec.orbit,
+    intro: spec.intro,
+    outro: spec.outro,
+  };
+}
 
 /**
  * Rescales follow distance and height when a route's vehicle type changes,

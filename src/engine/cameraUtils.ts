@@ -2,37 +2,93 @@ import mapboxgl from 'mapbox-gl';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 import { getCameraAtTime, type CameraOutput } from './cameraInterpolation';
+import {
+  blendPoses,
+  poseFromFreeCam,
+  poseFromJumpTo,
+  poseToJumpTo,
+  poseToPosition,
+  type CameraPose,
+} from './cameraPose';
+
+type PlainCamera = Exclude<CameraOutput, { type: 'blend' }>;
+
+const DEFAULT_VIEWPORT_HEIGHT = 800;
+const DEG = Math.PI / 180;
+
+function isFiniteCamera(cam: PlainCamera): boolean {
+  return cam.type === 'freeCam'
+    ? cam.position.every(Number.isFinite) && cam.lookAt.every(Number.isFinite)
+    : cam.center.every(Number.isFinite) && Number.isFinite(cam.zoom);
+}
+
+/** Ground height in metres under a point, or 0 when terrain is off or not loaded there. */
+function groundElevation(map: mapboxgl.Map, lngLat: [number, number]): number {
+  if (typeof map.queryTerrainElevation !== 'function') return 0;
+  const e = map.queryTerrainElevation(lngLat);
+  return typeof e === 'number' && Number.isFinite(e) ? e : 0;
+}
+
+/** Places a free camera for a pose, keeping it clear of terrain and aimed at the ground below the target. */
+function applyPose(map: mapboxgl.Map, pose: CameraPose): void {
+  const { lngLat, horizontal, altitude } = poseToPosition(pose);
+  const groundTarget = groundElevation(map, pose.target);
+  const groundCamera = groundElevation(map, lngLat);
+  let cameraAltitude = groundTarget + altitude;
+  if (groundCamera !== 0 || groundTarget !== 0) {
+    cameraAltitude = Math.max(cameraAltitude, groundCamera + Math.max(15, pose.range * 0.04));
+  }
+
+  const opts = new mapboxgl.FreeCameraOptions();
+  opts.position = mapboxgl.MercatorCoordinate.fromLngLat({ lng: lngLat[0], lat: lngLat[1] }, cameraAltitude);
+  if (groundTarget === 0 && cameraAltitude === altitude) {
+    opts.lookAtPoint({ lng: pose.target[0], lat: pose.target[1] });
+  } else {
+    const drop = Math.max(1e-6, cameraAltitude - groundTarget);
+    opts.setPitchBearing(Math.atan2(horizontal, drop) / DEG, pose.bearing);
+  }
+  map.setFreeCameraOptions(opts);
+}
+
+function viewportHeight(map: mapboxgl.Map, zoomOffset: number): number {
+  const h = (map as { transform?: { height?: number } }).transform?.height;
+  return (Number.isFinite(h) && h! > 0 ? h! : DEFAULT_VIEWPORT_HEIGHT) / 2 ** zoomOffset;
+}
+
+function toPose(cam: PlainCamera, refHeight: number): CameraPose {
+  return cam.type === 'freeCam'
+    ? poseFromFreeCam(cam.position, cam.lookAt)
+    : poseFromJumpTo(cam, refHeight);
+}
+
+function applyJumpTo(
+  map: mapboxgl.Map,
+  cam: { center: [number, number]; zoom: number; pitch: number; bearing: number },
+  zoomOffset: number,
+): void {
+  const zoom = Number.isFinite(cam.zoom + zoomOffset) ? cam.zoom + zoomOffset : cam.zoom;
+  const pitch = Number.isFinite(cam.pitch) ? cam.pitch : 0;
+  const bearing = Number.isFinite(cam.bearing) ? cam.bearing : 0;
+  map.jumpTo({ center: cam.center, zoom, pitch, bearing });
+}
 
 export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0): void {
+  if (cam.type === 'blend') {
+    if (!isFiniteCamera(cam.from) || !isFiniteCamera(cam.to) || !Number.isFinite(cam.t)) return;
+    const refHeight = viewportHeight(map, zoomOffset);
+    const pose = blendPoses(toPose(cam.from, refHeight), toPose(cam.to, refHeight), cam.t);
+    if (cam.from.type === 'jumpTo' && cam.to.type === 'jumpTo') {
+      applyJumpTo(map, poseToJumpTo(pose, refHeight), zoomOffset);
+    } else {
+      applyPose(map, pose);
+    }
+    return;
+  }
+  if (!isFiniteCamera(cam)) return;
   if (cam.type === 'freeCam') {
-    if (
-      !Number.isFinite(cam.position[0]) ||
-      !Number.isFinite(cam.position[1]) ||
-      !Number.isFinite(cam.position[2]) ||
-      !Number.isFinite(cam.lookAt[0]) ||
-      !Number.isFinite(cam.lookAt[1])
-    ) {
-      return;
-    }
-    const opts = new mapboxgl.FreeCameraOptions();
-    opts.position = mapboxgl.MercatorCoordinate.fromLngLat(
-      { lng: cam.position[0], lat: cam.position[1] },
-      cam.position[2],
-    );
-    opts.lookAtPoint({ lng: cam.lookAt[0], lat: cam.lookAt[1] });
-    map.setFreeCameraOptions(opts);
+    applyPose(map, poseFromFreeCam(cam.position, cam.lookAt));
   } else {
-    if (
-      !Number.isFinite(cam.center[0]) ||
-      !Number.isFinite(cam.center[1]) ||
-      !Number.isFinite(cam.zoom)
-    ) {
-      return;
-    }
-    const zoom = Number.isFinite(cam.zoom + zoomOffset) ? cam.zoom + zoomOffset : cam.zoom;
-    const pitch = Number.isFinite(cam.pitch) ? cam.pitch : 0;
-    const bearing = Number.isFinite(cam.bearing) ? cam.bearing : 0;
-    map.jumpTo({ center: cam.center, zoom, pitch, bearing });
+    applyJumpTo(map, cam, zoomOffset);
   }
 }
 

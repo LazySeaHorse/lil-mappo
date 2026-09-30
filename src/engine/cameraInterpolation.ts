@@ -1,9 +1,9 @@
-import type { CameraKeyframe, RouteItem } from '@/store/types';
+import type { CameraKeyframe, EasingName, RouteItem } from '@/store/types';
 import { applyEasing } from './easings';
 import along from '@turf/along';
 import length from '@turf/length';
 import { lineString } from '@turf/helpers';
-import { calculateBearing } from './geoUtils';
+import { getRig, sampleRig, type AutoCamOutput } from './cameraRig';
 
 export interface CameraState {
   center: [number, number];
@@ -13,8 +13,9 @@ export interface CameraState {
 }
 
 export type CameraOutput =
-  | { type: 'jumpTo'; center: [number, number]; zoom: number; pitch: number; bearing: number }
-  | { type: 'freeCam'; position: [number, number, number]; lookAt: [number, number] };
+  | AutoCamOutput
+  /** Two cameras mixed on a smooth zoom-and-pan path; `t` is the raw 0..1 progress. */
+  | { type: 'blend'; from: Exclude<CameraOutput, { type: 'blend' }>; to: Exclude<CameraOutput, { type: 'blend' }>; t: number };
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────
 
@@ -29,145 +30,6 @@ function lerpBearing(a: number, b: number, t: number): number {
 
 function lerpLngLat(a: [number, number], b: [number, number], t: number): [number, number] {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
-}
-
-// Vincenty destination formula: given start (lng, lat), distance in km, bearing in degrees
-function destinationPoint(lng: number, lat: number, distKm: number, bearingDeg: number): [number, number] {
-  const R = 6371.0088;
-  const δ = distKm / R;
-  const θ = (bearingDeg * Math.PI) / 180;
-  const φ1 = (lat * Math.PI) / 180;
-  const λ1 = (lng * Math.PI) / 180;
-  const sinφ2 = Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ);
-  const clampedSinφ2 = Math.max(-1, Math.min(1, sinφ2));
-  const φ2 = Math.asin(clampedSinφ2);
-  const y = Math.sin(θ) * Math.sin(δ) * Math.cos(φ1);
-  const x = Math.cos(δ) - Math.sin(φ1) * sinφ2;
-  const λ2 = λ1 + Math.atan2(y, x);
-  return [((λ2 * 180) / Math.PI + 540) % 360 - 180, (φ2 * 180) / Math.PI];
-}
-
-// Haversine distance in meters
-function haversineDistM(a: [number, number], b: [number, number]): number {
-  const R = 6371000;
-  const φ1 = (a[1] * Math.PI) / 180;
-  const φ2 = (b[1] * Math.PI) / 180;
-  const Δφ = ((b[1] - a[1]) * Math.PI) / 180;
-  const Δλ = ((b[0] - a[0]) * Math.PI) / 180;
-  const s = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-}
-
-// ─── Auto-cam computation ─────────────────────────────────────────────────────
-
-function computeCinematicCamera(
-  coords: number[][],
-  progress: number,
-  config: NonNullable<RouteItem['autoCam']>,
-): CameraOutput {
-  const line = lineString(coords);
-  const totalLen = length(line, { units: 'kilometers' });
-  const dist = progress * totalLen;
-
-  // Current position on route
-  const currentPt = along(line, dist, { units: 'kilometers' });
-  const [currentLng, currentLat] = currentPt.geometry.coordinates as [number, number];
-
-  // Look-at: slightly ahead of current position for natural framing
-  const lookAheadKm = Math.min(dist + (config.distance / 1000) * 0.3, totalLen);
-  const lookAtPt = along(line, lookAheadKm, { units: 'kilometers' });
-  const lookAt = lookAtPt.geometry.coordinates as [number, number];
-
-  // Smoothed travel bearing: sample a window around current position
-  const smoothWindowKm = config.smoothing * 0.5;
-  const fromDist = Math.max(0, dist - smoothWindowKm);
-  const toDist = Math.min(totalLen, dist + smoothWindowKm * 0.5);
-  const fromPt = along(line, fromDist, { units: 'kilometers' });
-  const toPt = along(line, toDist, { units: 'kilometers' });
-  const travelBearing = calculateBearing(
-    fromPt.geometry.coordinates as number[],
-    toPt.geometry.coordinates as number[],
-  );
-
-  // Camera position: behind and above current point
-  const antiBearing = (travelBearing + 180) % 360;
-  const camLngLat = destinationPoint(currentLng, currentLat, config.distance / 1000, antiBearing);
-
-  return {
-    type: 'freeCam',
-    position: [camLngLat[0], camLngLat[1], config.height],
-    lookAt,
-  };
-}
-
-function computeNavigationCamera(
-  coords: number[][],
-  progress: number,
-  config: NonNullable<RouteItem['autoCam']>,
-): CameraOutput {
-  const line = lineString(coords);
-  const totalLen = length(line, { units: 'kilometers' });
-  const dist = progress * totalLen;
-
-  const currentPt = along(line, dist, { units: 'kilometers' });
-  const [currentLng, currentLat] = currentPt.geometry.coordinates as [number, number];
-
-  // Smoothed bearing via window
-  const smoothWindowKm = config.smoothing * 0.5;
-  const fromDist = Math.max(0, dist - smoothWindowKm);
-  const toDist = Math.min(totalLen, dist + Math.max(config.lookAhead / 1000, smoothWindowKm * 0.3));
-  const fromPt = along(line, fromDist, { units: 'kilometers' });
-  const toPt = along(line, toDist, { units: 'kilometers' });
-  const bearing = calculateBearing(
-    fromPt.geometry.coordinates as number[],
-    toPt.geometry.coordinates as number[],
-  );
-
-  return {
-    type: 'jumpTo',
-    center: [currentLng, currentLat],
-    zoom: config.zoom,
-    pitch: config.pitch,
-    bearing: (bearing + 360) % 360,
-  };
-}
-
-// Convert a freeCam position to an approximate standard camera state (for boundary blending)
-function freeCamToJumpTo(
-  position: [number, number, number],
-  lookAt: [number, number],
-): Extract<CameraOutput, { type: 'jumpTo' }> {
-  const bearing = calculateBearing([position[0], position[1]], [lookAt[0], lookAt[1]]);
-  const hDistM = haversineDistM([position[0], position[1]], lookAt);
-  const alt = Math.max(1, position[2]);
-  const pitch = Math.max(0, Math.min(85, (Math.atan2(hDistM, alt) * 180) / Math.PI));
-  const latCos = Math.max(1e-6, Math.cos((lookAt[1] * Math.PI) / 180));
-  const metersPerPixel = Math.max(0.1, hDistM / 400);
-  const zoomRatio = (156543.03 * latCos) / metersPerPixel;
-  const zoom = Math.max(0, Math.min(22, zoomRatio > 0 ? Math.log2(zoomRatio) : 0));
-  return {
-    type: 'jumpTo',
-    center: [
-      Math.max(-180, Math.min(180, lookAt[0])),
-      Math.max(-90, Math.min(90, lookAt[1])),
-    ],
-    zoom,
-    pitch,
-    bearing: ((bearing % 360) + 360) % 360,
-  };
-}
-
-type JumpToOutput = Extract<CameraOutput, { type: 'jumpTo' }>;
-
-function lerpJumpTo(a: JumpToOutput, b: JumpToOutput, t: number): JumpToOutput {
-  const et = applyEasing('easeInOutSine', t);
-  return {
-    type: 'jumpTo',
-    center: lerpLngLat(a.center, b.center, et),
-    zoom: lerp(a.zoom, b.zoom, et),
-    pitch: lerp(a.pitch, b.pitch, et),
-    bearing: lerpBearing(a.bearing, b.bearing, et),
-  };
 }
 
 // ─── Block helpers ────────────────────────────────────────────────────────────
@@ -306,6 +168,31 @@ export function getCameraAtTimeFromKeyframes(
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
+/** Rate of route progress relative to a steady pace, from the block's easing. */
+function progressSpeed(easing: EasingName, p: number): number {
+  const d = 0.01;
+  const a = Math.max(0, p - d);
+  const b = Math.min(1, p + d);
+  if (b <= a) return 1;
+  return (applyEasing(easing, b) - applyEasing(easing, a)) / (b - a);
+}
+
+/** Seconds over which a block's camera eases in from / out to the neighbouring keyframe. */
+function blendSeconds(blockDuration: number): number {
+  return Math.min(blockDuration / 2, Math.max(0.6, Math.min(3, blockDuration * 0.15)));
+}
+
+type Plain = Exclude<CameraOutput, { type: 'blend' }>;
+
+function autoCamAt(route: RouteItem, coords: number[][], progress: number): Plain | null {
+  const config = route.autoCam!;
+  const rig = getRig(coords, config);
+  if (!rig) return null;
+  const p = Math.max(0, Math.min(1, progress));
+  const easing = route.easing ?? 'easeInOutSine';
+  return sampleRig(rig, config, { u: applyEasing(easing, p), p, speed: progressSpeed(easing, p) });
+}
+
 export function getCameraAtTime(
   keyframes: CameraKeyframe[],
   time: number,
@@ -318,56 +205,60 @@ export function getCameraAtTime(
   const activeRoute = autoCamRoutes.find((r) => time >= r.startTime && time <= r.endTime);
 
   if (activeRoute?.autoCam) {
-    const config = activeRoute.autoCam;
     const coords = getRouteCoords(activeRoute.id);
 
     if (coords && coords.length >= 2) {
       const blockStart = activeRoute.startTime;
       const blockEnd = activeRoute.endTime;
       const blockDuration = blockEnd - blockStart;
-      const BLEND = Math.min(0.5, blockDuration / 2);
+      const BLEND = blendSeconds(blockDuration);
       const progress = blockDuration > 0 ? (time - blockStart) / blockDuration : 0;
-      const easedProgress = applyEasing(activeRoute.easing ?? 'easeInOutSine', Math.max(0, Math.min(1, progress)));
+      const autoCam = autoCamAt(activeRoute, coords, progress);
 
-      const fullAutoCam =
-        config.mode === 'cinematic'
-          ? computeCinematicCamera(coords, easedProgress, config)
-          : computeNavigationCamera(coords, easedProgress, config);
-
-      // Exit blend: last BLEND seconds of block → ease toward next manual KF
-      if (BLEND > 0 && time > blockEnd - BLEND) {
-        const blendT = (time - (blockEnd - BLEND)) / BLEND;
-        const nextKF = findNextKFAfterBlock(keyframes, blockEnd, autoCamRoutes);
-        if (nextKF) {
-          const autoCamStd: JumpToOutput =
-            fullAutoCam.type === 'freeCam'
-              ? freeCamToJumpTo(fullAutoCam.position, fullAutoCam.lookAt)
-              : fullAutoCam;
-          const nextStd: JumpToOutput = { type: 'jumpTo', ...nextKF.camera };
-          return lerpJumpTo(autoCamStd, nextStd, blendT);
+      if (autoCam) {
+        // Exit blend: last BLEND seconds of block → ease toward next manual KF
+        if (BLEND > 0 && time > blockEnd - BLEND) {
+          const nextKF = findNextKFAfterBlock(keyframes, blockEnd, autoCamRoutes);
+          if (nextKF) {
+            const nextCam: Plain = { type: 'jumpTo', ...nextKF.camera };
+            return { type: 'blend', from: autoCam, to: nextCam, t: (time - (blockEnd - BLEND)) / BLEND };
+          }
         }
-      }
 
-      // Entry blend: first BLEND seconds of block → ease from previous manual KF
-      if (BLEND > 0 && time < blockStart + BLEND) {
-        const blendT = (time - blockStart) / BLEND;
-        const prevKF = findPrevKFBeforeBlock(keyframes, blockStart, autoCamRoutes);
-        if (prevKF) {
-          const autoCamStd: JumpToOutput =
-            fullAutoCam.type === 'freeCam'
-              ? freeCamToJumpTo(fullAutoCam.position, fullAutoCam.lookAt)
-              : fullAutoCam;
-          const prevStd: JumpToOutput = { type: 'jumpTo', ...prevKF.camera };
-          return lerpJumpTo(prevStd, autoCamStd, blendT);
+        // Entry blend: first BLEND seconds of block → ease from previous manual KF
+        if (BLEND > 0 && time < blockStart + BLEND) {
+          const prevKF = findPrevKFBeforeBlock(keyframes, blockStart, autoCamRoutes);
+          if (prevKF) {
+            const prevCam: Plain = { type: 'jumpTo', ...prevKF.camera };
+            return { type: 'blend', from: prevCam, to: autoCam, t: (time - blockStart) / BLEND };
+          }
         }
-      }
 
-      return fullAutoCam;
+        return autoCam;
+      }
     }
   }
 
   // Standard keyframe interpolation — skip KFs inside any auto-cam block
   const activeKeyframes = keyframes.filter((kf) => !isTimeInBlock(kf.time, autoCamRoutes));
+
+  // After a block with no keyframe following it, hold the camera where the block ended
+  // rather than snapping back to a keyframe from before it.
+  const finished = autoCamRoutes
+    .filter((r) => r.endTime < time && getRouteCoords(r.id))
+    .sort((a, b) => b.endTime - a.endTime)[0];
+  if (finished) {
+    const lastKF = activeKeyframes.reduce<CameraKeyframe | null>(
+      (best, kf) => (kf.time <= time && (!best || kf.time > best.time) ? kf : best),
+      null,
+    );
+    const nextKF = activeKeyframes.find((kf) => kf.time > time);
+    if (!nextKF && (!lastKF || lastKF.time < finished.endTime)) {
+      const held = autoCamAt(finished, getRouteCoords(finished.id)!, 1);
+      if (held) return held;
+    }
+  }
+
   const result = getCameraAtTimeFromKeyframes(activeKeyframes, time, getRouteCoords);
   if (!result) return null;
   return { type: 'jumpTo', ...result };

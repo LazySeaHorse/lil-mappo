@@ -14,9 +14,21 @@ export type EasingName =
   | 'easeInOutSine'
   | 'bounce';
 
+export type AutoCamPreset = 'chase' | 'drone' | 'reveal' | 'topdown';
+
 export interface AutoCamConfig {
   enabled: boolean;
   mode: 'cinematic' | 'navigation';
+  /** Follow-view shot style; the sliders below start from the preset and can be tuned. */
+  preset?: AutoCamPreset;
+  /** 0..1: how much the framing reacts to turns and speed. */
+  dynamics?: number;
+  /** 0..1: slow sideways drift of the follow camera around the route. */
+  orbit?: number;
+  /** 0..1: strength of the opening swoop in from a wide shot. */
+  intro?: number;
+  /** 0..1: strength of the closing pull-back to frame the route. */
+  outro?: number;
   pitch: number;
   smoothing: number;
   distance: number;
