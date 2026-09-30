@@ -1,0 +1,54 @@
+name: Build bridge
+
+# Manual only: the bridge rarely changes. Run it from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag, e.g. bridge-v1.0.0 (leave empty to only build artifacts)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bridge
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: bridge/go.mod
+          cache-dependency-path: bridge/go.sum
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build all platforms
+        env:
+          CGO_ENABLED: '0'
+          VERSION: ${{ inputs.version || github.sha }}
+        run: |
+          mkdir -p ../dist-bridge
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os=${target%/*}; arch=${target#*/}
+            ext=""; [ "$os" = windows ] && ext=".exe"
+            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+              -o ../dist-bridge/lil-mappo-bridge-$os-$arch$ext .
+          done
+          cd ../dist-bridge && sha256sum * > SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lil-mappo-bridge
+          path: dist-bridge/*
+
+      - name: Publish release
+        if: inputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ inputs.version }}" ../dist-bridge/* --title "Bridge ${{ inputs.version }}" --notes "Local bridge that lets coding agents use the open lil' Mappo tab. See bridge/README.md."
