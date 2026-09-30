@@ -25,9 +25,15 @@ export interface AutoCamConfig {
   dynamics?: number;
   /** 0..1: slow sideways drift of the follow camera around the route. */
   orbit?: number;
-  /** 0..1: strength of the opening swoop in from a wide shot. */
+  /**
+   * 0..1: strength of the opening move. Eases in from the previous keyframe over a longer
+   * stretch the higher it is; with no previous keyframe it swoops in from a wide shot.
+   */
   intro?: number;
-  /** 0..1: strength of the closing pull-back to frame the route. */
+  /**
+   * 0..1: strength of the closing move. Eases out to the next keyframe over a longer stretch
+   * the higher it is; with no next keyframe it pulls back to frame the route.
+   */
   outro?: number;
   pitch: number;
   smoothing: number;

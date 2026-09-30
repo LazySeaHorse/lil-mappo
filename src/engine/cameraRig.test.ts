@@ -158,6 +158,45 @@ describe('getCameraAtTime with an auto camera', () => {
     expect(getCameraAtTime(kfs, 19.8, coords, [route])?.type).toBe('blend');
   });
 
+  describe('with an intro and outro', () => {
+    const shots = (intro: number, outro: number) =>
+      ({ ...route, autoCam: { ...config, intro, outro } }) as unknown as RouteItem;
+    const kfs = [kf('a', 0), kf('b', 30)];
+
+    it('eases to the neighbouring keyframe instead of the wide shot', () => {
+      const plain = getCameraAtTime(kfs, 10.5, coords, [shots(0, 0)]);
+      const withShots = getCameraAtTime(kfs, 10.5, coords, [shots(1, 1)]);
+      if (plain?.type !== 'blend' || withShots?.type !== 'blend') throw new Error('expected blends');
+      expect(withShots.to).toEqual(plain.to);
+      const exitPlain = getCameraAtTime(kfs, 19.5, coords, [shots(0, 0)]);
+      const exitShots = getCameraAtTime(kfs, 19.5, coords, [shots(1, 1)]);
+      if (exitPlain?.type !== 'blend' || exitShots?.type !== 'blend') throw new Error('expected blends');
+      expect(exitShots.from).toEqual(exitPlain.from);
+    });
+
+    it('starts and ends the move exactly on the keyframe pose', () => {
+      const entry = getCameraAtTime(kfs, 10, coords, [shots(1, 1)]);
+      expect(entry).toMatchObject({ type: 'blend', t: 0, from: { type: 'jumpTo', zoom: 10 } });
+      const exit = getCameraAtTime(kfs, 20, coords, [shots(1, 1)]);
+      expect(exit).toMatchObject({ type: 'blend', t: 1, to: { type: 'jumpTo', zoom: 10 } });
+    });
+
+    it('takes longer the stronger the intro and outro are', () => {
+      // A 10 s block: full strength spans 20% of it, so 2 s.
+      expect(getCameraAtTime(kfs, 11.5, coords, [shots(1, 1)])?.type).toBe('blend');
+      expect(getCameraAtTime(kfs, 11.5, coords, [shots(0.5, 0.5)])?.type).toBe('freeCam');
+      expect(getCameraAtTime(kfs, 18.5, coords, [shots(1, 1)])?.type).toBe('blend');
+      expect(getCameraAtTime(kfs, 18.5, coords, [shots(0.5, 0.5)])?.type).toBe('freeCam');
+    });
+
+    it('still opens and closes on the wide shot with no neighbouring keyframe', () => {
+      const wide = getCameraAtTime([], 10, coords, [shots(1, 1)]);
+      const plain = getCameraAtTime([], 10, coords, [shots(0, 0)]);
+      if (wide?.type !== 'freeCam' || plain?.type !== 'freeCam') throw new Error('expected free cameras');
+      expect(wide.position[2]).toBeGreaterThan(plain.position[2] * 2);
+    });
+  });
+
   it('holds the final shot after the block when no keyframe follows', () => {
     const cam = getCameraAtTime([kf('a', 0)], 25, coords, [route]);
     expect(cam?.type).toBe('freeCam');

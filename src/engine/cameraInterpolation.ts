@@ -3,7 +3,7 @@ import { applyEasing, easingPeakSpeed } from './easings';
 import along from '@turf/along';
 import length from '@turf/length';
 import { lineString } from '@turf/helpers';
-import { getRig, sampleRig, type AutoCamOutput } from './cameraRig';
+import { getRig, sampleRig, INTRO_FRACTION, OUTRO_FRACTION, type AutoCamOutput, type RigSampleParams } from './cameraRig';
 
 export interface CameraState {
   center: [number, number];
@@ -182,15 +182,36 @@ function blendSeconds(blockDuration: number): number {
   return Math.min(blockDuration / 2, Math.max(0.6, Math.min(3, blockDuration * 0.15)));
 }
 
+/**
+ * Seconds over which a block's camera eases from / to a neighbouring keyframe. A non-zero
+ * intro / outro sets how long that move takes, scaling the same share of the block the
+ * wide shot would span; with none the camera uses a short fixed blend.
+ */
+function transitionSeconds(blockDuration: number, amount: number, fraction: number): number {
+  if (!(amount > 0)) return blendSeconds(blockDuration);
+  return Math.min(blockDuration / 2, blockDuration * fraction * Math.min(1, amount));
+}
+
 type Plain = Exclude<CameraOutput, { type: 'blend' }>;
 
-function autoCamAt(route: RouteItem, coords: number[][], progress: number): Plain | null {
+function autoCamAt(
+  route: RouteItem,
+  coords: number[][],
+  progress: number,
+  skipShots?: RigSampleParams['skipShots'],
+): Plain | null {
   const config = route.autoCam!;
   const rig = getRig(coords, config);
   if (!rig) return null;
   const p = Math.max(0, Math.min(1, progress));
   const easing = route.easing ?? 'easeInOutSine';
-  return sampleRig(rig, config, { u: applyEasing(easing, p), p, speed: progressSpeed(easing, p), peakSpeed: easingPeakSpeed(easing) });
+  return sampleRig(rig, config, {
+    u: applyEasing(easing, p),
+    p,
+    speed: progressSpeed(easing, p),
+    peakSpeed: easingPeakSpeed(easing),
+    skipShots,
+  });
 }
 
 export function getCameraAtTime(
@@ -211,27 +232,29 @@ export function getCameraAtTime(
       const blockStart = activeRoute.startTime;
       const blockEnd = activeRoute.endTime;
       const blockDuration = blockEnd - blockStart;
-      const BLEND = blendSeconds(blockDuration);
       const progress = blockDuration > 0 ? (time - blockStart) / blockDuration : 0;
-      const autoCam = autoCamAt(activeRoute, coords, progress);
+      const config = activeRoute.autoCam;
+      const prevKF = findPrevKFBeforeBlock(keyframes, blockStart, autoCamRoutes);
+      const nextKF = findNextKFAfterBlock(keyframes, blockEnd, autoCamRoutes);
+      // With a neighbouring keyframe the intro / outro is the move to or from it, in place of
+      // the wide shot, so the two never stack into an outward swoop and a second move.
+      const introMove = (config.intro ?? 0) > 0 && prevKF !== null;
+      const outroMove = (config.outro ?? 0) > 0 && nextKF !== null;
+      const autoCam = autoCamAt(activeRoute, coords, progress, { intro: introMove, outro: outroMove });
 
       if (autoCam) {
-        // Exit blend: last BLEND seconds of block → ease toward next manual KF
-        if (BLEND > 0 && time > blockEnd - BLEND) {
-          const nextKF = findNextKFAfterBlock(keyframes, blockEnd, autoCamRoutes);
-          if (nextKF) {
-            const nextCam: Plain = { type: 'jumpTo', ...nextKF.camera };
-            return { type: 'blend', from: autoCam, to: nextCam, t: (time - (blockEnd - BLEND)) / BLEND };
-          }
+        // Exit blend: last stretch of the block → ease toward the next manual KF
+        const exit = transitionSeconds(blockDuration, config.outro ?? 0, OUTRO_FRACTION);
+        if (nextKF && exit > 0 && time > blockEnd - exit) {
+          const nextCam: Plain = { type: 'jumpTo', ...nextKF.camera };
+          return { type: 'blend', from: autoCam, to: nextCam, t: (time - (blockEnd - exit)) / exit };
         }
 
-        // Entry blend: first BLEND seconds of block → ease from previous manual KF
-        if (BLEND > 0 && time < blockStart + BLEND) {
-          const prevKF = findPrevKFBeforeBlock(keyframes, blockStart, autoCamRoutes);
-          if (prevKF) {
-            const prevCam: Plain = { type: 'jumpTo', ...prevKF.camera };
-            return { type: 'blend', from: prevCam, to: autoCam, t: (time - blockStart) / BLEND };
-          }
+        // Entry blend: first stretch of the block → ease from previous manual KF
+        const entry = transitionSeconds(blockDuration, config.intro ?? 0, INTRO_FRACTION);
+        if (prevKF && entry > 0 && time < blockStart + entry) {
+          const prevCam: Plain = { type: 'jumpTo', ...prevKF.camera };
+          return { type: 'blend', from: prevCam, to: autoCam, t: (time - blockStart) / entry };
         }
 
         return autoCam;
