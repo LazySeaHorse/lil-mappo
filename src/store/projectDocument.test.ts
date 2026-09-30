@@ -6,6 +6,7 @@ import {
   toProjectDocument,
 } from './projectDocument';
 import { createTransientState, useProjectStore } from './useProjectStore';
+import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
 
 describe('project document persistence boundary', () => {
@@ -80,6 +81,16 @@ describe('project document persistence boundary', () => {
     expect(loaded.isExporting).toBe(false);
     expect(loaded.isCameraEnabled).toBe(true);
     expect(loaded.previewRoute).toBeNull();
+  });
+
+  it('keeps detected capabilities when a load does not change the map style', () => {
+    const style = useProjectStore.getState().mapStyle;
+    const caps = { ...STANDARD_CAPABILITIES };
+    useProjectStore.setState({ detectedCapabilities: caps });
+
+    useProjectStore.getState().loadFullProject(createProject({ id: 'same-style', mapStyle: style }));
+
+    expect(useProjectStore.getState().detectedCapabilities).toBe(caps);
   });
 
   it('resets every transient field from the shared defaults when loading', () => {
