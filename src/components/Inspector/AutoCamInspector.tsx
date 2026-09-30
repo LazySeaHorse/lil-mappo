@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { SliderRow } from './InspectorShared';
 import { formatPercent } from './inspectorValues';
 import { PanelWrapper, InspectorSection } from './InspectorLayout';
-import { Video, VideoOff, Compass, Activity, Car, Plane, ArrowUpToLine, ZoomIn, Eye } from 'lucide-react';
+import { Video, VideoOff, Compass, Activity, Car, Plane, ArrowUpToLine, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getAutoCamRanges } from '@/config/vehicles';
+import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges } from '@/config/vehicles';
+import type { AutoCamPreset } from '@/store/types';
 
 export function AutoCamInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
@@ -138,7 +139,30 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
         </button>
       </div>
 
-      <Accordion type="multiple" defaultValue={['camera', 'framing']} className="w-full">
+      {config.mode === 'cinematic' && (
+        <div className="mb-3">
+          <div className="grid grid-cols-2 gap-1.5">
+            {(Object.keys(AUTO_CAM_PRESETS) as AutoCamPreset[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => u(autoCamPresetPatch(key, vehicleType))}
+                className={cn(
+                  'px-2.5 py-2 rounded-lg border text-left transition-all cursor-pointer select-none',
+                  config.preset === key
+                    ? 'bg-primary/10 border-primary text-foreground ring-1 ring-primary/20'
+                    : 'bg-secondary/30 hover:bg-secondary/60 border-border/40 text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <span className="block text-xs font-medium text-foreground">{AUTO_CAM_PRESETS[key].label}</span>
+                <span className="block text-[10px] leading-tight mt-0.5">{AUTO_CAM_PRESETS[key].description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Accordion type="multiple" defaultValue={['camera', 'framing', 'motion']} className="w-full">
         <InspectorSection value="camera" title="Camera">
           <div className="flex flex-col gap-3">
             <SliderRow
@@ -219,6 +243,55 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
             </div>
           </InspectorSection>
         )}
+
+        <InspectorSection value="motion" title="Motion">
+          <div className="flex flex-col gap-3">
+            <SliderRow
+              label="Dynamics"
+              icon={<Gauge size={13} />}
+              value={config.dynamics ?? 0.5}
+              onChange={(v) => u({ dynamics: v })}
+              min={0}
+              max={1}
+              step={0.05}
+              formatValue={formatPercent}
+            />
+            {config.mode === 'cinematic' && (
+              <>
+                <SliderRow
+                  label="Orbit drift"
+                  icon={<Orbit size={13} />}
+                  value={config.orbit ?? 0}
+                  onChange={(v) => u({ orbit: v })}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  formatValue={formatPercent}
+                />
+                <SliderRow
+                  label="Intro swoop"
+                  icon={<Clapperboard size={13} />}
+                  value={config.intro ?? 0}
+                  onChange={(v) => u({ intro: v })}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  formatValue={formatPercent}
+                />
+                <SliderRow
+                  label="Outro pull-back"
+                  icon={<Maximize2 size={13} />}
+                  value={config.outro ?? 0}
+                  onChange={(v) => u({ outro: v })}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  formatValue={formatPercent}
+                />
+              </>
+            )}
+          </div>
+        </InspectorSection>
       </Accordion>
     </PanelWrapper>
   );
