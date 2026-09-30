@@ -1,62 +1,104 @@
 # li'l Mappo (Map Animation Studio)
 
-li'l Mappo is a browser-based application. It creates map animations and exports them as video. Use the timeline to control camera movement, import routes, and add 3D callouts and boundaries.
+li'l Mappo is a browser-based application for creating cinematic map animations and exporting them as video. Use the timeline to control camera movement, plan automated and freeform routes, place annotations with a custom 2D canvas engine, and render animations locally or in the cloud.
 
 [![Preview](https://i.postimg.cc/nhvCjTzX/redsfxfgdfbvcx.webp)](https://postimg.cc/bZwz4x1P)
 
 ## Features
 
 ### 1. Route Planning and Import
-- **Import GPX and KML**: Import and animate route files.
-- **Automated Routing**: Create car, walking, or flight paths with Mapbox Directions and Great Circle math.
-- **Airport Search**: Search 7,697 global airports by IATA or ICAO code. The route snaps directly to runways.
-- **3D Vehicles**: Display animated cars and airplanes that follow route lines and headings.
-- **Animated Lines**: Draw lines progressively over time with customizable width, color, and glow effects.
+- **Import GPX and KML**: Import, parse, and animate GPS routes.
+- **Automated Routing**: Generate car, walking, or flight paths with Mapbox Directions and Great Circle math.
+- **Freeform Walking Paths**: Multi-point routes with interactive waypoints, drag-to-reorder, and Bezier spline curve smoothing.
+- **Airport Search**: Search 7,697 global airports by IATA or ICAO code with automatic runway snapping.
+- **3D Vehicles**: Display animated 3D cars and airplanes that follow route paths and orientation.
+- **Animated Lines**: Draw lines progressively over time with customizable width, colors, and glow effects.
 
-### 2. Boundaries and Annotations
-- **Boundary Search**: Find places with OpenStreetMap Nominatim. Animate boundary polygons.
-- **3D Callout Cards**: Add 3D cards with images and text. Select coordinates directly on the map.
-- **Manual Pick Mode**: Use a crosshair to set coordinates and move items on terrain.
-- **Drafting Tools**: Search, style, and preview routes and boundaries before you add them to the timeline.
+### 2. Annotations and Boundaries
+- **Canvas 2D Scene Graph**: High-performance callout overlay rendered directly in the Mapbox render loop at native pixel scale.
+- **Multiple Visual Styles**: Choose from 8+ styles including Modern, News, Minimal, Badge, Ripple, Pulsing Marker, House, and Retro.
+- **Screen-Space Altitude**: Pixel-based altitude controls that eliminate zoom drift while preserving 3D terrain awareness.
+- **Boundary Search**: Search administrative boundaries with OpenStreetMap Nominatim and animate boundary polygons.
+- **Manual Pick Mode**: Position items with crosshairs and adjust points on 3D terrain.
+- **Drafting Tools**: Search, style, and preview routes and boundaries before adding them to the timeline.
 
-### 3. Camera Controls
-- **Keyframe Timeline**: Control camera position, zoom, pitch, bearing, and altitude.
-- **AutoCam Engine**: Track routes automatically with navigation and cinematic camera modes.
+### 3. Camera and Timeline
+- **Keyframe Timeline**: Control position, zoom, pitch, bearing, and altitude across time.
+- **AutoCam Engine**: Track routes automatically with navigation follow and cinematic camera modes.
 - **Interpolation**: Apply easing functions (Linear, Quad, Cubic, Sine) for smooth transitions.
-- **Orbit Tool**: Generate keyframes to rotate the camera 360 degrees around a point.
+- **Orbit Tool**: Generate keyframes to rotate the camera 360 degrees around a central point.
+- **Undo / Redo History**: Multi-step history powered by Zundo with pointer gesture coalescing and source tracking (`user` vs `ai`).
 
-### 4. Map Views
-- **3D Terrain and Buildings**: Display Mapbox Terrain RGB and extruded 3D buildings.
-- **Label Controls**: Toggle labels for places, roads, and points of interest.
-- **Mapbox Standard Style**: Adjust light presets and 3D features with the Mapbox Config API.
-- **Map Projections**: Switch between Globe and Mercator projections.
-- **Zen Mode**: Hide interface panels to view only the map.
+### 4. Map Styles and Views
+- **Expanded Styles**: Mapbox Standard, Nav Day, Nav Night, Black Marble, Vintage, and custom community styles.
+- **3D Terrain and Features**: Mapbox Terrain RGB, 3D extruded buildings, landmarks, trees, and facades.
+- **Dynamic Label Controls**: Toggle category-level labels (places, roads, transit, POI) persisted per project.
+- **Projections and Atmosphere**: Switch between Globe and Mercator projections with custom fog and light presets.
+- **Zen Mode**: Hide interface panels for focused map viewing.
 
-### 5. Media Export
-- **Video Export**: Render MP4 video offline with the WebCodecs API and Mediabunny.
-- **Output Settings**: Select resolutions up to 4K and frame rates of 30 or 60 frames per second.
-- **Snapshot Export**: Capture high-resolution PNG images from any camera view.
+### 5. Media Export and Rendering
+- **Client-Side Export**: Render MP4 videos offline using WebCodecs API and Mediabunny up to 4K resolution at 30 or 60 fps.
+- **Cloud GPU Rendering**: Dispatch long or high-resolution render jobs to remote Modal GPU workers.
+- **Snapshot Export**: Capture high-resolution PNG images from any camera position.
+
+### 6. AI Agent Integration
+- **WebMCP Support**: Native browser agent connectivity through `document.modelContext` (e.g. Gemini in Chrome).
+- **Local MCP Bridge**: A Go bridge daemon (`bridge/`) exposing project tools to desktop coding agents (Claude Code, Antigravity) over Model Context Protocol via WebSocket.
+- **Agent Feed and Visuals**: Real-time action feed, timeline row pulses, toolbar notifications, and atomic AI undo steps.
+
+### 7. Accounts and Cloud Storage
+- **Authentication**: Supabase Auth supporting email, Google OAuth, and GitHub OAuth.
+- **Cloud Project Sync**: Save projects to Supabase PostgreSQL and synchronize across devices alongside local IndexedDB storage.
+- **Subscriptions and Quotas**: Free and Wanderer tiers integrated with Dodo Payments, with support for Bring-Your-Own-Key (BYOK).
 
 ## Tech Stack
 
-- **Framework**: React 18 with Vite
-- **State Management**: Zustand
-- **Map Engine**: Mapbox GL JS v3 via `react-map-gl/mapbox`
-- **Geospatial Processing**: Turf.js
-- **Airport Search**: cmdk with local airport dataset
-- **Video Export**: WebCodecs API, Mediabunny, and Canvas 2D
-- **UI Components**: Radix UI primitives and Tailwind CSS
-- **Icons**: Lucide React
-- **Persistence**: IndexedDB and Supabase PostgreSQL
-- **Testing**: Vitest and Playwright
+- **Frontend**: React 18, Vite, Zustand, Zundo, TanStack React Query
+- **Map Engine**: Mapbox GL JS v3, `react-map-gl/mapbox`, Turf.js
+- **Annotations**: Canvas 2D scene graph renderer
+- **Video Export**: WebCodecs API, Mediabunny, Canvas 2D, and Modal (Python/Chromium headless workers)
+- **AI & MCP**: WebMCP browser protocol and Go WebSocket MCP bridge
+- **Backend & Auth**: Supabase (PostgreSQL, Auth, Storage) and Vercel Serverless Functions
+- **Payments**: Dodo Payments (hosted checkout and webhooks)
+- **UI & Styling**: Radix UI primitives, Tailwind CSS, Lucide React
+- **Testing**: Vitest, Playwright, and fast-check property-based fuzzing
 
 ## Architecture
 
-The application runs as a state-driven animation engine. A single Zustand store manages timeline items (Routes, Boundaries, Callouts, Camera Keyframes) and the playhead time.
+The application runs as a state-driven animation engine:
+- A central Zustand store manages timeline items (Routes, Boundaries, Callouts, Camera Keyframes), environment settings, and playhead timing.
+- Persistent document state is separated from transient UI state and wrapped by an undo/redo temporal layer.
+- An off-DOM Canvas 2D scene graph draws map annotations in lockstep with the Mapbox camera.
+- Transport-agnostic agent tools allow both in-browser and external AI agents to programmatically create and modify scenes through MCP.
+
+## Development & Testing
+
+### Prerequisites
+- Node.js 18+
+- Docker (for local Supabase services)
+
+### Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Run unit and integration tests
+npm test
+
+# Run browser smoke tests
+npm run test:ui
+
+# Run property-based smart monkey fuzzing
+npm run test:fuzz
+```
 
 ## Local Supabase
 
-The repository includes a local Supabase configuration in Docker. It applies all database migrations and seeds two test accounts. It does not require production credentials. The start script binds published ports to `127.0.0.1` to protect local services.
+The repository includes a local Supabase configuration in Docker. It applies all database migrations and seeds test accounts without requiring production credentials. The start script binds published ports to `127.0.0.1` to protect local services.
 
 ```bash
 npm run db:local:start
@@ -67,13 +109,11 @@ npm run db:local:status
 Copy `.env.local.example` to `.env.local`. Replace the keys with values from `npm run db:local:status`. Vite gives `.env.local` priority over `.env`. This isolates local sessions from production Supabase.
 
 Local service endpoints:
-
 - API: `http://127.0.0.1:54321`
 - Studio: `http://127.0.0.1:54323`
 - Mailpit: `http://127.0.0.1:54324`
 
 Test login credentials (password: `local-test-password`):
-
 - `local-free@gmail.com`
 - `local-wanderer@gmail.com`
 
