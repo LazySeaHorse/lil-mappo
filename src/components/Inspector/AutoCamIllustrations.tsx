@@ -1,7 +1,7 @@
 import React from 'react';
 
 export function FollowViewIllustration() {
-return (
+  return (
     <svg viewBox="0 0 100 60" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Background gradient/horizon */}
       <path d="M0 35 Q 50 25 100 35 L 100 60 L 0 60 Z" fill="hsl(var(--primary) / 0.15)" />
@@ -17,11 +17,11 @@ return (
       <rect x="42" y="44" width="16" height="10" rx="3" fill="hsl(var(--primary))" stroke="hsl(var(--primary-foreground))" strokeWidth="1" />
       <rect x="45" y="46" width="10" height="4" rx="1" fill="hsl(var(--primary-foreground) / 0.7)" />
     </svg>
-);
+  );
 }
 
 export function NavigationViewIllustration() {
-return (
+  return (
     <svg viewBox="0 0 100 60" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Map grid lines */}
       <path d="M10 20 L 90 20 M10 40 L 90 40 M30 10 L 30 50 M70 10 L 70 50" stroke="hsl(var(--border))" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
@@ -33,5 +33,5 @@ return (
       <circle cx="65" cy="15" r="8" fill="hsl(var(--primary))" />
       <path d="M65 10 L 69 18 L 65 16 L 61 18 Z" fill="hsl(var(--primary-foreground))" />
     </svg>
-);
+  );
 }
