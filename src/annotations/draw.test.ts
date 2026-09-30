@@ -7,7 +7,10 @@ import {
   prepareAnnotationFrame,
   MAX_ALTITUDE_PX,
 } from './draw';
-import { getStyle } from './registry';
+import { getStyle, registerStyle } from './registry';
+import { z } from 'zod';
+import { group } from './scene/primitives';
+import type { AnnotationStyleDefinition, StyleRenderInput } from './types';
 import type { CalloutItem } from '@/store/types';
 
 function makeCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
@@ -134,5 +137,91 @@ describe('annotation assets', () => {
     const loaded = load.mock.calls.map(([font]) => font);
     expect(loaded.some((f) => f.includes("'Outfit'"))).toBe(true);
     expect(loaded.some((f) => f.includes("'Lexend'"))).toBe(true);
+  });
+});
+
+describe('style-owned choreography', () => {
+  const seen: Array<StyleRenderInput<Record<string, never>>> = [];
+  const probe: AnnotationStyleDefinition<Record<string, never>> = {
+    id: 'probe',
+    version: 1,
+    name: 'Probe',
+    description: 'Records the input it is rendered with',
+    category: 'label',
+    icon: 'type',
+    contentSlots: ['title'],
+    settingsSchema: z.object({}) as never,
+    defaultSettings: {},
+    drawsConnector: true,
+    controls: [],
+    render(input) {
+      seen.push(input);
+      return group({});
+    },
+    measure: () => ({ width: 10, height: 10 }),
+  };
+  registerStyle(probe);
+
+  const transition = (enter: string, exit = enter) => ({ enter, exit, enterDuration: 2, exitDuration: 2 });
+  const last = () => seen[seen.length - 1];
+
+  it('gives the style the real phase and progress under the style animation, with no block effect', () => {
+    const frame = prepareAnnotationFrame(makeCallout({ styleId: 'probe', transition: transition('auto') }), 1)!;
+    expect(last().phase).toBe('enter');
+    expect(last().phaseProgress).toBeCloseTo(0.5);
+    expect(frame.opacity).toBe(1);
+    expect(frame.scale).toBe(1);
+    expect(frame.translateY).toBe(0);
+
+    prepareAnnotationFrame(makeCallout({ styleId: 'probe', transition: transition('auto') }), 9)!;
+    expect(last().phase).toBe('exit');
+    expect(last().phaseProgress).toBeCloseTo(0.5);
+  });
+
+  it('still applies the callout opacity and scale under the style animation', () => {
+    const frame = prepareAnnotationFrame(
+      makeCallout({ styleId: 'probe', transition: transition('auto'), opacity: 0.5, scale: 2 }),
+      1,
+    )!;
+    expect(frame.opacity).toBe(0.5);
+    expect(frame.scale).toBe(2);
+  });
+
+  it('renders the finished state under a block transition while the block animates', () => {
+    const frame = prepareAnnotationFrame(makeCallout({ styleId: 'probe', transition: transition('fade') }), 1)!;
+    expect(last().phase).toBe('visible');
+    expect(last().phaseProgress).toBe(1);
+    expect(frame.opacity).toBeCloseTo(0.5);
+
+    prepareAnnotationFrame(makeCallout({ styleId: 'probe', transition: transition('slide-up', 'scale-down') }), 9)!;
+    expect(last().phase).toBe('visible');
+  });
+
+  it('decides per phase, so enter can be style-owned while exit is a fade', () => {
+    prepareAnnotationFrame(makeCallout({ styleId: 'probe', transition: transition('auto', 'fade') }), 1);
+    expect(last().phase).toBe('enter');
+    prepareAnnotationFrame(makeCallout({ styleId: 'probe', transition: transition('auto', 'fade') }), 9);
+    expect(last().phase).toBe('visible');
+  });
+
+  it('gives the style the ground point relative to its origin', () => {
+    prepareAnnotationFrame(
+      makeCallout({ styleId: 'probe', offset: [70, -90], binding: { kind: 'geographic', lngLat: [10, 20], altitude: 10 } }),
+      5,
+    );
+    // Origin = ground + offset - altitude = (70, -100); the ground is the opposite way.
+    expect(last().ground).toEqual({ x: -70, y: 100 });
+  });
+
+  it('keeps the drawn ground point on the map when the callout is scaled', () => {
+    const frame = prepareAnnotationFrame(makeCallout({ styleId: 'probe', offset: [60, -80], scale: 2 }), 5)!;
+    expect(last().ground).toEqual({ x: -30, y: 60 }); // origin (60, -80 - 40 altitude), halved by the scale
+    // Drawn at scale 2 about the origin, the ground lands back on (0, 0).
+    expect(frame.originX + last().ground.x * frame.scale).toBe(0);
+    expect(frame.originY + last().ground.y * frame.scale).toBe(0);
+  });
+
+  it('skips the generic connector for styles that draw their own', () => {
+    expect(prepareAnnotationFrame(makeCallout({ styleId: 'probe' }), 5)!.connector).toBeNull();
   });
 });

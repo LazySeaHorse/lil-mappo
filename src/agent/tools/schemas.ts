@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import { colorSchema, easingSchema, lngLatSchema } from './shared';
+import { ENTER_TRANSITIONS, EXIT_TRANSITIONS } from '@/annotations/animation';
 
 // Style/field schemas shared by the add_* and update_item tools. Patch objects
 // are strict so a misspelled field is reported instead of silently ignored.
@@ -60,11 +61,14 @@ export const calloutSettingsSchema = z
   .describe('Style-specific settings, merged over the style defaults and validated by the style. Keys depend on styleId; omit unless needed.');
 
 export const transitionPatchSchema = z.strictObject({
-  enter: z.string().max(40),
-  exit: z.string().max(40),
+  enter: z.enum(ENTER_TRANSITIONS),
+  exit: z.enum(EXIT_TRANSITIONS),
   enterDuration: z.number().min(0).max(5),
   exitDuration: z.number().min(0).max(5),
-}).partial().describe('Enter/exit transition names and durations (seconds).');
+}).partial().describe(
+  'Enter/exit transitions and durations (seconds). "auto" lets the style play its own choreographed entrance/exit (the default for most styles); ' +
+  'fade, scale-up/scale-down and slide-up/slide-down apply that effect to the whole callout instead.',
+);
 
 export const connectorPatchSchema = z.strictObject({
   visible: z.boolean(),

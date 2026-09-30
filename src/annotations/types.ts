@@ -218,7 +218,12 @@ export interface StyleRenderInput<TSettings = Record<string, unknown>> {
   content: AnnotationContent;
   settings: TSettings;
 
-  /** Current lifecycle phase. */
+  /**
+   * Current lifecycle phase. Styles only see the real phase when the callout's
+   * transition is the style animation ('auto'); under any block transition
+   * (fade, scale-up, …) they are always told 'visible' at progress 1 and draw
+   * their finished state.
+   */
   phase: 'enter' | 'visible' | 'exit';
   /** Progress within the current phase, 0–1. */
   phaseProgress: number;
@@ -227,6 +232,14 @@ export interface StyleRenderInput<TSettings = Record<string, unknown>> {
   itemTime: number;
   /** Absolute playhead position in seconds. */
   playheadTime: number;
+
+  /**
+   * The map point the callout is attached to, in the style's own coordinates
+   * (relative to its origin, in pixels before the callout scale). The origin
+   * sits at the ground point plus the callout offset, lifted by the altitude, so
+   * this is where a leader line or pole must end to touch the map.
+   */
+  ground: { x: number; y: number };
 
   /** Device pixel ratio (1 for standard, 2 for retina, etc.) */
   pixelRatio: number;
@@ -254,13 +267,23 @@ export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> 
   /** Whether this style can sit on an elevated anchor pole (cards) or sits flush on the map (surface markers). Default true. */
   supportsAltitude?: boolean;
 
+  /**
+   * The style draws its own line to the ground point (see `ground` in the render
+   * input), so the generic connector is not drawn for it and its inspector
+   * section is hidden.
+   */
+  drawsConnector?: boolean;
+
   /** Default map anchor point ('center' for ripples/dots, 'bottom' for cards/pins). Default 'bottom'. */
   defaultAnchor?: AnchorPosition;
 
   /** Default connector config override. */
   defaultConnector?: Partial<ConnectorConfig>;
 
-  /** Default transition override. */
+  /**
+   * Default transition override. Styles that choreograph their own entrance use
+   * enter/exit 'auto' (see STYLE_ANIMATION) with durations that suit the motion.
+   */
   defaultTransition?: Partial<TransitionConfig>;
 
   /** Inspector controls generated from this definition. */

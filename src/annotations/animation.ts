@@ -7,6 +7,28 @@
 import type { CalloutItem } from '@/store/types';
 
 /**
+ * Transition name meaning the style animates itself. No block-level fade,
+ * scale or slide is applied; the style receives the real phase and progress and
+ * plays its own entrance and exit.
+ */
+export const STYLE_ANIMATION = 'auto';
+
+export const ENTER_TRANSITIONS = [STYLE_ANIMATION, 'fade', 'scale-up', 'slide-up'] as const;
+export const EXIT_TRANSITIONS = [STYLE_ANIMATION, 'fade', 'scale-down', 'slide-down'] as const;
+
+export const TRANSITION_LABELS: Record<string, string> = {
+  [STYLE_ANIMATION]: 'Style animation',
+  fade: 'Fade',
+  'scale-up': 'Scale up',
+  'scale-down': 'Scale down',
+  'slide-up': 'Slide up',
+  'slide-down': 'Slide down',
+};
+
+/** Pixels the slide transitions travel. */
+export const SLIDE_DISTANCE = 20;
+
+/**
  * Compute the animation phase and progress for a callout at a given playhead time.
  * Returns null if the callout is not within its time window.
  */
@@ -38,14 +60,16 @@ export function computePhase(
 }
 
 /**
- * Apply a transition to compute opacity and transform values.
- * Returns opacity and a CSS-like transform string.
+ * Apply a block-level transition to compute opacity and transform values.
+ * The style animation leaves the block untouched (see STYLE_ANIMATION).
  */
 export function evaluateTransition(
   transitionName: string,
   phase: 'enter' | 'visible' | 'exit',
   progress: number,
 ): { opacity: number; scaleX: number; scaleY: number; translateY: number } {
+  if (transitionName === STYLE_ANIMATION) return { opacity: 1, scaleX: 1, scaleY: 1, translateY: 0 };
+
   const isEntering = phase === 'enter';
   const isExiting = phase === 'exit';
   const p = Math.min(progress, 1);
@@ -65,7 +89,7 @@ export function evaluateTransition(
         break;
       case 'slide-up':
         opacity = p;
-        translateY = 20 * (1 - p);
+        translateY = SLIDE_DISTANCE * (1 - p);
         break;
       default:
         opacity = p;
@@ -82,7 +106,7 @@ export function evaluateTransition(
         break;
       case 'slide-down':
         opacity = 1 - p;
-        translateY = 20 * p;
+        translateY = SLIDE_DISTANCE * p;
         break;
       default:
         opacity = 1 - p;

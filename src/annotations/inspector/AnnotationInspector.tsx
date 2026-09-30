@@ -18,13 +18,21 @@ import {
   SliderRow,
   ColorRow,
   SwitchRow,
+  SelectRow,
   TimingControls,
   CoordinatesRows,
 } from '@/components/Inspector/InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from '@/components/Inspector/InspectorLayout';
 import { getStyle } from '@/annotations/registry';
+import { ENTER_TRANSITIONS, EXIT_TRANSITIONS, TRANSITION_LABELS } from '@/annotations/animation';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
+
+/** Picker options for a transition list, keeping an unrecognised saved value selectable. */
+function transitionOptions(names: readonly string[], current: string) {
+  const all = names.includes(current) ? names : [...names, current];
+  return all.map((value) => ({ value, label: TRANSITION_LABELS[value] ?? value }));
+}
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const {
@@ -95,7 +103,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
         placeholder="Callout title"
       />
 
-      <Accordion type="multiple" defaultValue={['style', 'location', 'appearance', 'connector', 'position', 'timing']} className="w-full">
+      <Accordion type="multiple" defaultValue={['style', 'location', 'appearance', 'connector', 'position', 'animation', 'timing']} className="w-full">
 
         <InspectorSection value="style" title="Style">
           <StylePicker
@@ -230,6 +238,41 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
                 linkTitleToLocation: false,
               })}
               className="pt-1"
+            />
+          </div>
+        </InspectorSection>
+
+        <InspectorSection value="animation" title="Animation">
+          <div className="flex flex-col gap-3.5">
+            <SelectRow
+              label="Enter"
+              value={item.transition.enter}
+              onChange={(enter) => u({ transition: { ...item.transition, enter } })}
+              options={transitionOptions(ENTER_TRANSITIONS, item.transition.enter)}
+            />
+            <SliderRow
+              label="Enter duration"
+              value={item.transition.enterDuration}
+              onChange={(enterDuration) => u({ transition: { ...item.transition, enterDuration } })}
+              min={0}
+              max={3}
+              step={0.1}
+              unit="s"
+            />
+            <SelectRow
+              label="Exit"
+              value={item.transition.exit}
+              onChange={(exit) => u({ transition: { ...item.transition, exit } })}
+              options={transitionOptions(EXIT_TRANSITIONS, item.transition.exit)}
+            />
+            <SliderRow
+              label="Exit duration"
+              value={item.transition.exitDuration}
+              onChange={(exitDuration) => u({ transition: { ...item.transition, exitDuration } })}
+              min={0}
+              max={3}
+              step={0.1}
+              unit="s"
             />
           </div>
         </InspectorSection>

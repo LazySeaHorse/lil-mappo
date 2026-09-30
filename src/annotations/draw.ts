@@ -11,7 +11,7 @@
 
 import type { CalloutItem, TimelineItem } from '@/store/types';
 import type { ConnectorConfig, SceneNode } from './types';
-import { computePhase, evaluateTransition } from './animation';
+import { computePhase, evaluateTransition, STYLE_ANIMATION } from './animation';
 import { getStyle, validateSettings } from './registry';
 import { preloadImage, renderScene } from './scene/renderer';
 import { buildFont } from './scene/textMetrics';
@@ -80,36 +80,57 @@ export function prepareAnnotationFrame(callout: CalloutItem, playheadTime: numbe
   const transition = evaluateTransition(transitionName, phase, progress);
   const opacity = transition.opacity * callout.opacity;
 
+  const altitude = style.supportsAltitude === false
+    ? 0
+    : Math.max(0, Math.min(binding.altitude, MAX_ALTITUDE_PX));
+  const originX = callout.offset[0];
+  const originY = callout.offset[1] - altitude;
+  const scale = transition.scaleX * callout.scale;
+  // The style plays its own entrance and exit only when it owns the transition.
+  const styleAnimates = transitionName === STYLE_ANIMATION;
+
   const input = {
     content: {
       ...callout.content,
       eyebrow: callout.content.eyebrow || formatCoordinates(binding.lngLat),
     },
     settings: validateSettings(callout.styleId, callout.settings),
-    phase,
-    phaseProgress: progress,
+    phase: styleAnimates ? phase : 'visible' as const,
+    phaseProgress: styleAnimates ? progress : 1,
+    ground: groundInStyleSpace(originX, originY, scale),
     itemTime: playheadTime - callout.startTime,
     playheadTime,
     pixelRatio: 1,
   };
 
-  const altitude = style.supportsAltitude === false
-    ? 0
-    : Math.max(0, Math.min(binding.altitude, MAX_ALTITUDE_PX));
-  const scale = transition.scaleX * callout.scale;
-  const measured = style.measure(input);
+  // Bounds are for the finished state, so the canvas never resizes mid-animation.
+  const measured = style.measure({
+    ...input,
+    phase: 'visible',
+    phaseProgress: 1,
+    ground: groundInStyleSpace(originX, originY, callout.scale),
+  });
 
   return {
     scene: style.render(input),
     opacity,
     scale,
     translateY: transition.translateY,
-    originX: callout.offset[0],
-    originY: callout.offset[1] - altitude,
-    connector: callout.connector.visible && altitude > 0 ? callout.connector : null,
+    originX,
+    originY,
+    connector: callout.connector.visible && altitude > 0 && !style.drawsConnector ? callout.connector : null,
     extent: (Math.max(measured.width, measured.height) + EFFECT_PADDING) * Math.max(scale, 1)
       + Math.abs(transition.translateY),
   };
+}
+
+/**
+ * The ground point as the style sees it. The scene is drawn scaled about the
+ * origin, so dividing by the scale keeps the drawn ground point on the map.
+ */
+function groundInStyleSpace(originX: number, originY: number, scale: number): { x: number; y: number } {
+  const safeScale = scale > 0 ? scale : 1;
+  return { x: -originX / safeScale, y: -originY / safeScale };
 }
 
 /** Bounds of everything a frame draws, relative to the ground point. */
