@@ -7,6 +7,7 @@ import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { IconButton } from '@/components/ui/icon-button';
+import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 
@@ -66,6 +67,8 @@ export function MobileToolbarLayout({
           <Divider />
           <HistoryButtons iconSize={18} />
           <div className="flex-1" />
+          <AiToolbarButton iconSize={18} />
+          <div className="w-1" />
           <ToolbarButton icon={<Clapperboard size={18} />} label="Export" hideLabel onClick={onExport} walkthroughTarget="render" />
           <div className="w-1" />
           <ToolbarButton icon={<EyeOff size={18} />} label="Hide UI" hideLabel onClick={onHideUI} />

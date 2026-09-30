@@ -13,6 +13,7 @@ import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdo
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
+import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 
@@ -175,6 +176,7 @@ export function DesktopToolbarLayout({
       <div className="flex-1" />
       <Divider />
 
+      <AiToolbarButton />
       <ToolbarButton icon={<Clapperboard size={16} />} label="Export" hideLabel onClick={onExport} walkthroughTarget="render" />
       <Divider className="hidden sm:block" />
       <div className="hidden sm:block">

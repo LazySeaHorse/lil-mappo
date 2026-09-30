@@ -37,6 +37,7 @@ import { RendersModal } from "@/components/Account/RendersModal";
 import type { CameraItem } from "@/store/types";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
+import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import type { Subscription } from "@/lib/database.types";
 
@@ -166,6 +167,7 @@ export default function MapStudioEditor() {
     <MapRefContext.Provider value={mapRef}>
       <MapRuntimeContext.Provider value={runtimeRef}>
         <FontLoader />
+        <AiRuntime />
         <Sonner style={sonnerStyle as React.CSSProperties} />
         <div className="h-dvh w-screen relative overflow-hidden bg-background">
         {/* Map Background Layer — wrapped in gate to prevent loads over quota */}
@@ -207,6 +209,7 @@ export default function MapStudioEditor() {
           />
           <InspectorPanel />
           <TimelinePanel />
+          <AiOverlays />
         </div>
 
         {hideUI && (
