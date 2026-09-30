@@ -4,6 +4,7 @@ import { getGuide, getItem, getProject, searchPlace } from './read';
 import { addBoundary, addCallout, addRoute } from './add';
 import { addCameraKeyframe, frameItems, removeCameraKeyframe, updateCameraKeyframe } from './camera';
 import { duplicateItem, removeItem, reorderItems, updateItem } from './edit';
+import { renderFrames } from './render';
 import { updateProjectSettings } from './settings';
 import { redoTool, setPlayhead, undoTool } from './playback';
 
@@ -13,6 +14,7 @@ export const ALL_TOOLS = [
   getProject,
   getItem,
   searchPlace,
+  renderFrames,
   addRoute,
   addBoundary,
   addCallout,
