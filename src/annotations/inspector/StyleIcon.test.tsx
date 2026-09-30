@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { StyleIcon, STYLE_ICONS, isStyleIconName } from './styleIcons';
+import { StyleIcon } from './StyleIcon';
+import { STYLE_ICONS, isStyleIconName } from './styleIcons';
 
 describe('style icons', () => {
   it('covers the icons the planned styles use', () => {

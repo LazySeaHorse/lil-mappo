@@ -6,7 +6,7 @@
 import React from 'react';
 import { getAllStyles, getCategories } from '@/annotations/registry';
 import type { AnnotationStyleDefinition, StyleCategory } from '@/annotations/types';
-import { StyleIcon } from './styleIcons';
+import { StyleIcon } from './StyleIcon';
 
 const CATEGORY_LABELS: Record<StyleCategory, string> = {
   label: 'Labels',

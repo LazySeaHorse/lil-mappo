@@ -422,12 +422,12 @@ function migrateCalloutStyleV3ToV4(value: unknown): unknown {
   if (typeof callout.styleId === 'string' && V4_CALLOUT_STYLE_IDS.has(callout.styleId)) return value;
 
   const { altitude: _altitude, ...defaults } = createCalloutStyleDefaults(leaderLineStyle);
-  const offset = calloutOffsetSchema.safeParse(callout.offset);
-  const keepOffset = offset.success && Math.hypot(...offset.data) >= MIN_LEADER_OFFSET;
+  const offset = calloutOffsetSchema.catch([0, 0]).parse(callout.offset);
+  const keepOffset = Math.hypot(offset[0], offset[1]) >= MIN_LEADER_OFFSET;
   return {
     ...callout,
     ...defaults,
-    offset: keepOffset ? offset.data : defaults.offset,
+    offset: keepOffset ? offset : defaults.offset,
   };
 }
 

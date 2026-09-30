@@ -5,7 +5,6 @@
  * use a different lucide icon, add it here and nowhere else.
  */
 
-import React from 'react';
 import {
   CircleDashed,
   Crosshair,
@@ -49,10 +48,4 @@ export type StyleIconName = keyof typeof STYLE_ICONS;
 
 export function isStyleIconName(name: string): name is StyleIconName {
   return Object.prototype.hasOwnProperty.call(STYLE_ICONS, name);
-}
-
-/** The icon for a style's `icon` name; a plain square for unknown names. */
-export function StyleIcon({ name, size = 16 }: { name: string; size?: number }) {
-  const Icon = isStyleIconName(name) ? STYLE_ICONS[name] : Square;
-  return <Icon size={size} />;
 }
