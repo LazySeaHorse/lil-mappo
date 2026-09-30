@@ -124,6 +124,16 @@ describe('camera rig', () => {
     }
   });
 
+  it('leaves out the wide shots a caller asks to skip', () => {
+    const rig = buildRig(corner, config)!;
+    const shots = { ...config, intro: 1, outro: 1 };
+    const plain = sampleRig(rig, config, { u: 0, p: 0, speed: 1 });
+    expect(sampleRig(rig, shots, { u: 0, p: 0, speed: 1, skipShots: { intro: true } })).toEqual(plain);
+    const end = sampleRig(rig, config, { u: 1, p: 1, speed: 1 });
+    expect(sampleRig(rig, shots, { u: 1, p: 1, speed: 1, skipShots: { outro: true } })).toEqual(end);
+    expect(sampleRig(rig, shots, { u: 1, p: 1, speed: 1, skipShots: { intro: true } })).not.toEqual(end);
+  });
+
   it('returns a navigation camera as a standard camera', () => {
     const nav = { ...config, mode: 'navigation' as const };
     const rig = buildRig(corner, nav)!;

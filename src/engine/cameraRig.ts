@@ -318,6 +318,11 @@ export interface RigSampleParams {
   speed: number;
   /** Highest `speed` the route's easing reaches (1 for a steady pace). */
   peakSpeed?: number;
+  /**
+   * Wide shots to leave out because the caller already eases this end of the block to a
+   * neighbouring keyframe. Both default to on.
+   */
+  skipShots?: { intro?: boolean; outro?: boolean };
 }
 
 /** 0..1 share of the easing's top speed the vehicle is doing right now. */
@@ -370,8 +375,9 @@ function resolve<T>(v: T | undefined, fallback: T): T {
   return v === undefined ? fallback : v;
 }
 
-const INTRO_FRACTION = 0.2;
-const OUTRO_FRACTION = 0.2;
+/** Share of the block the wide intro / outro shots span at full strength. */
+export const INTRO_FRACTION = 0.2;
+export const OUTRO_FRACTION = 0.2;
 
 function followPose(rig: CameraRig, config: AutoCamConfig, params: RigSampleParams): CameraPose {
   const { u, p } = params;
@@ -399,12 +405,12 @@ function withShots(rig: CameraRig, config: AutoCamConfig, params: RigSampleParam
   const intro = clamp(resolve(config.intro, 0), 0, 1);
   const outro = clamp(resolve(config.outro, 0), 0, 1);
   let out = pose;
-  if (intro > 0 && params.p < INTRO_FRACTION) {
+  if (intro > 0 && !params.skipShots?.intro && params.p < INTRO_FRACTION) {
     // Start wide and settle into the follow shot.
     const t = 1 - smootherstep(params.p / INTRO_FRACTION);
     out = blendPoses(out, rig.overview, t * intro);
   }
-  if (outro > 0 && params.p > 1 - OUTRO_FRACTION) {
+  if (outro > 0 && !params.skipShots?.outro && params.p > 1 - OUTRO_FRACTION) {
     const t = smootherstep((params.p - (1 - OUTRO_FRACTION)) / OUTRO_FRACTION);
     out = blendPoses(out, rig.overview, t * outro);
   }
