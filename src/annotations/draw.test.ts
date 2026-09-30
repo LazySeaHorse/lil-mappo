@@ -8,7 +8,7 @@ import {
   prepareAnnotationFrame,
   MAX_ALTITUDE_PX,
 } from './draw';
-import { registerStyle } from './registry';
+import { getStyle, registerStyle } from './registry';
 import { group } from './scene/primitives';
 import { registerTestStyles, TEST_CARD_STYLE_ID, TEST_FLAT_STYLE_ID } from './testStyles';
 import type { AnnotationStyleDefinition, StyleRenderInput } from './types';
@@ -91,6 +91,31 @@ describe('prepareAnnotationFrame', () => {
     if (scene.type !== 'group') return;
     const rect = scene.children.find((n) => n.type === 'rect');
     expect(rect && rect.type === 'rect' && rect.fill).toBe('#0f172a');
+  });
+});
+
+describe('eyebrow fallback', () => {
+  const COORDINATES = '20.0000° N, 10.0000° E';
+  const sceneText = (styleId: string, content: CalloutItem['content']) => {
+    const callout = makeCallout({
+      styleId,
+      content,
+      binding: { kind: 'geographic', lngLat: [10, 20], altitude: 0 },
+      transition: { enter: 'fade', exit: 'fade', enterDuration: 1, exitDuration: 1 },
+    });
+    return JSON.stringify(prepareAnnotationFrame(callout, 5)!.scene);
+  };
+
+  it('fills an empty eyebrow with the coordinates only for styles that opt in', () => {
+    expect(getStyle('target-lock')!.eyebrowFallback).toBe('coordinates');
+    expect(sceneText('target-lock', { title: 'Harbour' })).toContain(COORDINATES);
+    expect(getStyle('editorial')!.eyebrowFallback).toBeUndefined();
+    expect(sceneText('editorial', { title: 'Harbour' })).not.toContain('°');
+  });
+
+  it('keeps an eyebrow the user wrote', () => {
+    expect(sceneText('target-lock', { title: 'Harbour', eyebrow: 'SITE 4' })).not.toContain(COORDINATES);
+    expect(sceneText('editorial', { title: 'Harbour', eyebrow: '1943' })).toContain('1943');
   });
 });
 

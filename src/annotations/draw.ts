@@ -10,7 +10,7 @@
  */
 
 import type { CalloutItem, TimelineItem } from '@/store/types';
-import type { AnnotationStyleDefinition, ConnectorConfig, SceneNode, StyleBounds, StyleRenderInput } from './types';
+import type { AnnotationContent, AnnotationStyleDefinition, ConnectorConfig, SceneNode, StyleBounds, StyleRenderInput } from './types';
 import { computePhase, evaluateTransition, SLIDE_DISTANCE, STYLE_ANIMATION } from './animation';
 import { getStyle, validateSettings } from './registry';
 import { preloadImage, renderScene } from './scene/renderer';
@@ -54,6 +54,12 @@ function formatCoordinates(lngLat: [number, number]): string {
   const ns = lat >= 0 ? 'N' : 'S';
   const ew = lng >= 0 ? 'E' : 'W';
   return `${Math.abs(lat).toFixed(4)}° ${ns}, ${Math.abs(lng).toFixed(4)}° ${ew}`;
+}
+
+/** The content a style renders: an empty eyebrow becomes the coordinates for styles that opt in. */
+function withEyebrowFallback(content: AnnotationContent, placement: Placement): AnnotationContent {
+  if (placement.style.eyebrowFallback !== 'coordinates' || content.eyebrow) return content;
+  return { ...content, eyebrow: formatCoordinates(placement.lngLat) };
 }
 
 /**
@@ -106,10 +112,7 @@ function styleInput(
   scale: number,
 ): StyleRenderInput {
   return {
-    content: {
-      ...callout.content,
-      eyebrow: callout.content.eyebrow || formatCoordinates(placement.lngLat),
-    },
+    content: withEyebrowFallback(callout.content, placement),
     settings: validateSettings(callout.styleId, callout.settings),
     phase,
     phaseProgress,

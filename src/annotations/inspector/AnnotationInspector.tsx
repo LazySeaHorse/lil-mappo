@@ -164,6 +164,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
             <ContentFields
               content={item.content}
               slots={style?.contentSlots ?? []}
+              eyebrowFallback={style?.eyebrowFallback}
               onChange={(content) => u({ content })}
             />
           </div>

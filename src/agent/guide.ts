@@ -10,7 +10,7 @@ export function buildGuide(): string {
     .join(', ');
   const labels = LABEL_CATEGORIES.map((c) => c.id).join(', ');
   const callouts = getAllStyles()
-    .map((s) => `- ${s.id}: ${s.name}, ${s.category}. ${s.description} Uses content: ${s.contentSlots.join(', ')}.`)
+    .map((s) => `- ${s.id}: ${s.name}, ${s.category}. ${s.description} Uses content: ${s.contentSlots.join(', ')}.${s.eyebrowFallback === 'coordinates' ? ' An empty eyebrow shows the point\'s coordinates.' : ''}`)
     .join('\n');
 
   return `li'l Mappo guide for AI agents

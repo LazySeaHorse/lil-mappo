@@ -288,6 +288,13 @@ export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> 
   /** Which AnnotationContent slots this style consumes. */
   contentSlots: Array<keyof AnnotationContent>;
 
+  /**
+   * What fills the eyebrow slot when the user leaves it empty. Only styles whose
+   * design shows a coordinate readout there opt in ('coordinates'); for the rest
+   * an empty eyebrow stays empty.
+   */
+  eyebrowFallback?: 'coordinates';
+
   /** Zod schema validating style-specific settings. */
   settingsSchema: ZodType<TSettings>;
   defaultSettings: TSettings;

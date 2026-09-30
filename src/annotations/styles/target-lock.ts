@@ -272,6 +272,7 @@ export const targetLockStyle: AnnotationStyleDefinition<TargetLockSettings> = {
   category: 'data',
   icon: 'crosshair',
   contentSlots: ['eyebrow', 'title', 'subtitle'],
+  eyebrowFallback: 'coordinates',
   settingsSchema: targetLockSettingsSchema,
   defaultSettings: defaultTargetLockSettings,
   supportsAltitude: true,

@@ -14,13 +14,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
-import type { AnnotationContent } from '@/annotations/types';
+import type { AnnotationContent, AnnotationStyleDefinition } from '@/annotations/types';
 import { imageFileToDataUrl } from '@/utils/imageDownscale';
 
 type TextSlot = 'eyebrow' | 'subtitle' | 'badge';
 
 const TEXT_FIELDS: Record<TextSlot, { label: string; placeholder: string; maxLength: number }> = {
-  eyebrow: { label: 'Eyebrow', placeholder: 'Defaults to coordinates', maxLength: 100 },
+  eyebrow: { label: 'Eyebrow', placeholder: 'Small line above the title', maxLength: 100 },
   subtitle: { label: 'Subtitle', placeholder: 'Secondary line', maxLength: 300 },
   badge: { label: 'Badge', placeholder: 'e.g. Day 3', maxLength: 60 },
 };
@@ -176,13 +176,20 @@ function ImageField({ value, onChange }: { value?: string; onChange: (image: str
   );
 }
 
+/** Placeholder for a text slot: the eyebrow says so when the style fills it with coordinates. */
+function placeholderFor(slot: TextSlot, eyebrowFallback: AnnotationStyleDefinition['eyebrowFallback']): string {
+  return slot === 'eyebrow' && eyebrowFallback === 'coordinates' ? 'Defaults to coordinates' : TEXT_FIELDS[slot].placeholder;
+}
+
 export function ContentFields({
   content,
   slots,
+  eyebrowFallback,
   onChange,
 }: {
   content: AnnotationContent;
   slots: ReadonlyArray<keyof AnnotationContent>;
+  eyebrowFallback?: AnnotationStyleDefinition['eyebrowFallback'];
   onChange: (content: AnnotationContent) => void;
 }) {
   const shown = SLOT_ORDER.filter((slot) => slots.includes(slot));
@@ -195,7 +202,7 @@ export function ContentFields({
           case 'eyebrow':
           case 'subtitle':
           case 'badge': {
-            const { label, placeholder, maxLength } = TEXT_FIELDS[slot];
+            const { label, maxLength } = TEXT_FIELDS[slot];
             return (
               <Field key={slot} label={label}>
                 <Input
@@ -203,7 +210,7 @@ export function ContentFields({
                   aria-label={label}
                   value={content[slot] ?? ''}
                   onChange={(e) => onChange(withSlot(content, slot, e.target.value))}
-                  placeholder={placeholder}
+                  placeholder={placeholderFor(slot, eyebrowFallback)}
                   maxLength={maxLength}
                   className={INPUT_CLASS}
                 />

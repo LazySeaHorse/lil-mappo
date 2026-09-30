@@ -16,9 +16,11 @@ vi.mock('@/components/Search/SearchField', () => ({ SearchField: () => <div /> }
 
 const ALL = 'test-all-slots';
 const NONE = 'test-title-only';
+const COORDS = 'test-eyebrow-coordinates';
 registerTestStyles();
 if (!hasStyle(ALL)) {
   registerStyle({ ...testCardStyle, id: ALL, name: 'All slots', contentSlots: ['image', 'metric', 'badge', 'body', 'subtitle', 'eyebrow', 'title'] });
+  registerStyle({ ...testCardStyle, id: COORDS, name: 'Coordinates', contentSlots: ['eyebrow', 'title'], eyebrowFallback: 'coordinates' });
   registerStyle({ ...testCardStyle, id: NONE, name: 'Title only', contentSlots: ['title'] });
 }
 
@@ -52,9 +54,14 @@ describe('callout content fields', () => {
     labels.slice(0, -1).forEach((el, i) => {
       expect(el.compareDocumentPosition(labels[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
-    expect(screen.getByLabelText('Eyebrow')).toHaveAttribute('placeholder', 'Defaults to coordinates');
+    expect(screen.getByLabelText('Eyebrow')).not.toHaveAttribute('placeholder', 'Defaults to coordinates');
     expect(screen.getByLabelText('Body').tagName).toBe('TEXTAREA');
     expect(screen.getByLabelText('Number value')).toHaveAttribute('type', 'number');
+  });
+
+  it('promises coordinates in the eyebrow only for styles that fall back to them', () => {
+    mount(COORDS, { title: 'T' });
+    expect(screen.getByLabelText('Eyebrow')).toHaveAttribute('placeholder', 'Defaults to coordinates');
   });
 
   it('shows no extra fields for a title-only style', () => {
