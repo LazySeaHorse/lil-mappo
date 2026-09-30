@@ -197,8 +197,9 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     await page.getByRole("button", { name: "Preview path" }).click();
     expect(requestCount).toBe(1);
 
-    // 2. Immediately switch to Walk for Route B and request preview (resolves in 50ms)
-    await page.getByRole("radio", { name: "Walk" }).click();
+    // 2. While A is still in flight, move the end point (aborts A and re-enables the
+    //    button), then request Route B (resolves in 50ms)
+    await pickMapPoint(page, 1, { xFrac: 0.8, yFrac: 0.4 });
     await page.getByRole("button", { name: "Preview path" }).click();
     expect(requestCount).toBe(2);
 
