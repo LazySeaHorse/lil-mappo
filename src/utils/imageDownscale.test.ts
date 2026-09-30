@@ -5,11 +5,11 @@ import {
 
 describe('fitWithin', () => {
   it('keeps small images as they are', () => {
-    expect(fitWithin(800, 600)).toEqual({ width: 800, height: 600 });
+    expect(fitWithin(700, 500)).toEqual({ width: 700, height: 500 });
   });
-  it('scales the long edge down to 1280, keeping the aspect ratio', () => {
-    expect(fitWithin(4000, 2000)).toEqual({ width: 1280, height: 640 });
-    expect(fitWithin(1000, 5000)).toEqual({ width: 256, height: 1280 });
+  it('scales the long edge down to 756, keeping the aspect ratio', () => {
+    expect(fitWithin(4000, 2000)).toEqual({ width: 756, height: 378 });
+    expect(fitWithin(1000, 5000)).toEqual({ width: 151, height: 756 });
   });
   it('never yields a zero side', () => {
     expect(fitWithin(100000, 10).height).toBe(1);
@@ -25,7 +25,9 @@ describe('hasTransparency', () => {
 
 describe('imageFileToDataUrl', () => {
   const drawImage = vi.fn();
-  const toDataURL = vi.fn((type: string) => `data:${type};base64,xx`);
+  let webpSupported = true;
+  const toDataURL = vi.fn((type: string) =>
+    type === 'image/webp' && !webpSupported ? 'data:image/png;base64,xx' : `data:${type};base64,xx`);
   let alpha = 255;
   let natural = { w: 4000, h: 2000 };
 
@@ -33,6 +35,7 @@ describe('imageFileToDataUrl', () => {
     drawImage.mockClear();
     toDataURL.mockClear();
     alpha = 255;
+    webpSupported = true;
     natural = { w: 4000, h: 2000 };
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
       return { drawImage, getImageData: () => ({ data: [0, 0, 0, alpha] }), imageSmoothingQuality: '' } as never;
@@ -59,15 +62,23 @@ describe('imageFileToDataUrl', () => {
     return f;
   };
 
-  it('downscales and encodes opaque images as JPEG at 0.85', async () => {
+  it('downscales and encodes as WebP at 0.8', async () => {
     const url = await imageFileToDataUrl(file('image/png'));
-    expect(url.startsWith('data:image/jpeg')).toBe(true);
-    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1280, 640);
-    expect(toDataURL).toHaveBeenCalledWith('image/jpeg', 0.85);
+    expect(url.startsWith('data:image/webp')).toBe(true);
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 756, 378);
+    expect(toDataURL).toHaveBeenCalledWith('image/webp', 0.8);
     expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 
-  it('keeps PNG when the image has transparency', async () => {
+  it('falls back to JPEG when the browser cannot encode WebP', async () => {
+    webpSupported = false;
+    const url = await imageFileToDataUrl(file('image/png'));
+    expect(url.startsWith('data:image/jpeg')).toBe(true);
+    expect(toDataURL).toHaveBeenCalledWith('image/jpeg', 0.85);
+  });
+
+  it('falls back to PNG when WebP is unavailable and the image has transparency', async () => {
+    webpSupported = false;
     alpha = 10;
     const url = await imageFileToDataUrl(file('image/png'));
     expect(url.startsWith('data:image/png')).toBe(true);

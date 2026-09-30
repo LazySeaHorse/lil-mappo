@@ -3,10 +3,12 @@
  *
  * Callout images live inside the project document (IndexedDB and the cloud
  * project row), and export draws them onto a canvas. A same-origin data URL
- * never taints the canvas, and downscaling keeps the document small.
+ * never taints the canvas, and downscaling keeps the document small (cloud
+ * projects are size-capped: 500 KB free, 5 MB Wanderer).
  */
 
-export const MAX_IMAGE_EDGE = 1280;
+export const MAX_IMAGE_EDGE = 756;
+export const WEBP_QUALITY = 0.8;
 export const JPEG_QUALITY = 0.85;
 /** Source files above this are refused before decoding. */
 export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
@@ -52,8 +54,10 @@ function decode(file: File): Promise<{ image: HTMLImageElement; release: () => v
 }
 
 /**
- * Decode, downscale to fit MAX_IMAGE_EDGE and re-encode: JPEG, or PNG when the
- * image has real transparency. Throws ImageImportError with a user-facing message.
+ * Decode, downscale to fit MAX_IMAGE_EDGE and re-encode as WebP (which keeps
+ * transparency). Browsers without WebP canvas encoding silently return PNG, so
+ * that case falls back to JPEG, or PNG when the image has real transparency.
+ * Throws ImageImportError with a user-facing message.
  */
 export async function imageFileToDataUrl(file: File): Promise<string> {
   if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
@@ -76,6 +80,9 @@ export async function imageFileToDataUrl(file: File): Promise<string> {
     if (!ctx) throw new ImageImportError('That image could not be processed.');
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, width, height);
+
+    const webp = canvas.toDataURL('image/webp', WEBP_QUALITY);
+    if (webp.startsWith('data:image/webp')) return webp;
 
     // Only formats that can carry alpha are worth scanning.
     const canBeTransparent = file.type !== 'image/jpeg';
