@@ -3,8 +3,8 @@ import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, S
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, lerp, stage, staggered } from '../motion';
 import { arcGlyphGroups, layoutGlyphs, layoutGlyphsOnArc } from '../scene/glyphs';
-import { measureScene } from '../scene/measure';
 import { circle, group } from '../scene/primitives';
+import { boundsOf, haloShadow } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -55,9 +55,6 @@ const TEXT_GAP = 11;
 const MAX_TEXT_SPAN = (290 * Math.PI) / 180;
 const MIN_TEXT_SIZE = 9;
 
-/** Soft dark shadow that lifts white line work and text off any map. */
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
-
 /**
  * Entrance timeline as windows of the 0–1 build progress: the dot pops, the
  * ring draws on from the top while the disc behind it fades in, then the
@@ -104,7 +101,7 @@ export function renderRadiusRing(input: StyleRenderInput<RadiusRingSettings>): S
   const { content, settings, phase, phaseProgress, itemTime } = input;
   const r = settings.radius;
   const build = buildProgress(phase, phaseProgress);
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = haloShadow(settings.halo);
 
   const dot = stage(build, ...DOT_WINDOW, easeOutBack);
   const ringDraw = stage(build, ...RING_WINDOW, easeInOutCubic);
@@ -170,8 +167,7 @@ export function renderRadiusRing(input: StyleRenderInput<RadiusRingSettings>): S
 
 /** Bounds of the finished state: the ring and the lettering round it. */
 export function measureRadiusRing(input: StyleRenderInput<RadiusRingSettings>): StyleBounds {
-  const box = measureScene(renderRadiusRing({ ...input, phase: 'visible', phaseProgress: 1 }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(renderRadiusRing({ ...input, phase: 'visible', phaseProgress: 1 }));
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

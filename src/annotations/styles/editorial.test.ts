@@ -6,7 +6,6 @@ import {
   editorialStyle,
   measureEditorial,
   renderEditorial,
-  resolveDirection,
   type EditorialSettings,
 } from './editorial';
 import { measureTextWidth } from '../scene/textMetrics';
@@ -93,8 +92,6 @@ describe('layout', () => {
   it('mirrors for a point on the right', () => {
     const scene = renderEditorial(makeInput({ ground: { x: 50, y: 100 } }));
     expect(texts(scene).every((t) => t.align === 'right' && t.x === -12)).toBe(true);
-    expect(resolveDirection('auto', 50)).toBe(-1);
-    expect(resolveDirection('right', 50)).toBe(1);
   });
 
   it('leaves out the slots that are empty, and shortens the rule with them', () => {

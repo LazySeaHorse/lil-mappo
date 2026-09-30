@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import {
   buildProgress,
@@ -9,9 +9,9 @@ import {
   lerp,
   stage,
 } from '../motion';
-import { measureScene } from '../scene/measure';
 import { circle, group, polyline, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf, GROUND_DOT_RADIUS, GROUND_RING_RADIUS, groundDot, HALO_REACH, haloShadow, leaderLine, resolveDirection } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -55,14 +55,9 @@ const SUBTITLE_TRAVEL = 6;
 const SHELF_PAD = 6;
 const MIN_SHELF_LENGTH = 48;
 
-const DOT_RADIUS = 4;
-const RING_RADIUS = 8;
 const BURST_RADIUS = 16;
 const PULSE_RADIUS = 18;
 const PULSE_PERIOD = 2.4;
-
-/** Soft dark shadow that lifts white line work and text off any map. */
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
 
 /**
  * Entrance timeline, as windows of the 0–1 build progress. They overlap so the
@@ -77,14 +72,6 @@ const TITLE_WINDOW = [0.6, 0.9] as const;
 const SUBTITLE_WINDOW = [0.75, 1] as const;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-
-/** +1 when the label extends right of the elbow, -1 when it extends left. */
-export function resolveDirection(side: LeaderLineSettings['side'], groundX: number): 1 | -1 {
-  if (side === 'left') return -1;
-  if (side === 'right') return 1;
-  // Auto: the label extends away from the point, so the point is on the near side.
-  return groundX > 0 ? -1 : 1;
-}
 
 interface Layout {
   direction: 1 | -1;
@@ -127,35 +114,17 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
   const titleReveal = stage(build, ...TITLE_WINDOW, easeOutCubic);
   const subtitleReveal = stage(build, ...SUBTITLE_WINDOW, easeOutCubic);
 
-  const leaders = [
-    { points: [[ground.x, ground.y], [0, 0]] as Array<[number, number]>, progress: diagonal },
-    { points: [[0, 0], [direction * shelfLength, 0]] as Array<[number, number]>, progress: shelf },
-  ].filter((leader) => leader.progress > 0);
-
   const children: SceneNode[] = [];
 
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
-  for (const { points, progress } of leaders) {
-    children.push(polyline({
-      points,
-      progress,
-      stroke: settings.lineColor,
-      strokeWidth: settings.lineWidth,
-      lineCap: 'round',
-      shadow,
-    }));
+  const shadow = haloShadow(settings.halo);
+  const line = { stroke: settings.lineColor, strokeWidth: settings.lineWidth, shadow };
+  if (diagonal > 0) children.push(leaderLine(ground, [0, 0], { ...line, progress: diagonal }));
+  if (shelf > 0) {
+    children.push(polyline({ points: [[0, 0], [direction * shelfLength, 0]], progress: shelf, lineCap: 'round', ...line }));
   }
 
   if (dot > 0) {
-    children.push(group({
-      x: ground.x,
-      y: ground.y,
-      scale: dot,
-      children: [
-        circle({ cx: 0, cy: 0, r: RING_RADIUS, stroke: settings.accentColor, strokeWidth: 1, opacity: 0.7, shadow }),
-        circle({ cx: 0, cy: 0, r: DOT_RADIUS, fill: settings.accentColor, stroke: settings.lineColor, strokeWidth: 1, shadow }),
-      ],
-    }));
+    children.push(groundDot(ground, dot, { fill: settings.accentColor, stroke: settings.lineColor, ring: settings.accentColor, shadow }));
   }
 
   // One expanding, fading ring as the dot lands.
@@ -163,7 +132,7 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
     children.push(circle({
       cx: ground.x,
       cy: ground.y,
-      r: lerp(DOT_RADIUS, BURST_RADIUS, burst),
+      r: lerp(GROUND_DOT_RADIUS, BURST_RADIUS, burst),
       stroke: settings.accentColor,
       strokeWidth: 1.5,
       opacity: 1 - burst,
@@ -175,7 +144,7 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
     children.push(circle({
       cx: ground.x,
       cy: ground.y,
-      r: lerp(RING_RADIUS, PULSE_RADIUS, pulse),
+      r: lerp(GROUND_RING_RADIUS, PULSE_RADIUS, pulse),
       stroke: settings.accentColor,
       strokeWidth: 1,
       opacity: 0.6 * (1 - pulse),
@@ -188,13 +157,13 @@ export function renderLeaderLine(input: StyleRenderInput<LeaderLineSettings>): S
   if (title && titleReveal > 0) {
     // The title rises from behind the shelf: the clip ends at the line, so the
     // text is hidden until it has travelled above it.
-    const clipTop = -(TITLE_SIZE + TITLE_GAP + HALO_SHADOW.blur);
+    const clipTop = -(TITLE_SIZE + TITLE_GAP + HALO_REACH);
     const travel = TITLE_SIZE + TITLE_GAP;
     children.push(group({
       clip: {
-        x: Math.min(0, direction * shelfLength) - HALO_SHADOW.blur,
+        x: Math.min(0, direction * shelfLength) - HALO_REACH,
         y: clipTop,
-        width: shelfLength + HALO_SHADOW.blur * 2,
+        width: shelfLength + HALO_REACH * 2,
         height: -clipTop - settings.lineWidth / 2,
       },
       children: [
@@ -251,8 +220,7 @@ export function measureLeaderLine(input: StyleRenderInput<LeaderLineSettings>): 
   const pulseExtent = settings.pulse
     ? [circle({ cx: ground.x, cy: ground.y, r: PULSE_RADIUS, stroke: settings.accentColor })]
     : [];
-  const box = measureScene(group({ children: [finished, ...pulseExtent] }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, ...pulseExtent);
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

@@ -2,9 +2,9 @@ import { z } from 'zod';
 import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, stage } from '../motion';
-import { measureScene } from '../scene/measure';
 import { circle, group, image, path, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf, groundDot, HALO_SHADOW, leaderLine } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -43,11 +43,9 @@ const PLACEHOLDER_GLYPH = '#A4A9AF';
 
 const LEADER_COLOR = '#FFFFFF';
 const LEADER_WIDTH = 1.5;
-const DOT_RADIUS = 4;
 
 /** Everything the print casts onto the map. */
 const PRINT_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.42)', blur: 12, offsetX: 0, offsetY: 5 };
-const LINE_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
 const PIN_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.45)', blur: 3, offsetX: 1, offsetY: 2 };
 
 // Landing
@@ -155,23 +153,14 @@ export function renderPolaroid(input: StyleRenderInput<PolaroidSettings>): Scene
 
   const [attachX, attachY] = attachPoint(l.height, settings.rotation);
   if (leader > 0) {
-    children.push(polyline({
-      points: [[ground.x, ground.y], [attachX, attachY]],
-      progress: leader,
+    children.push(leaderLine(ground, [attachX, attachY], {
       stroke: LEADER_COLOR,
       strokeWidth: LEADER_WIDTH,
-      lineCap: 'round',
-      shadow: LINE_SHADOW,
+      progress: leader,
+      shadow: HALO_SHADOW,
     }));
   }
-  if (dot > 0) {
-    children.push(group({
-      x: ground.x,
-      y: ground.y,
-      scale: dot,
-      children: [circle({ cx: 0, cy: 0, r: DOT_RADIUS, fill: LEADER_COLOR, shadow: LINE_SHADOW })],
-    }));
-  }
+  if (dot > 0) children.push(groundDot(ground, dot, { fill: LEADER_COLOR, shadow: HALO_SHADOW }));
 
   if (appear > 0) {
     const left = -l.width / 2;
@@ -246,8 +235,7 @@ export function measurePolaroid(input: StyleRenderInput<PolaroidSettings>): Styl
     width: l.width + DROP_REACH,
     height: l.height + DROP_REACH * 1.4,
   });
-  const box = measureScene(group({ children: [finished, reach] }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, reach);
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

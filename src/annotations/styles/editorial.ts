@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, linear, stage, staggered } from '../motion';
 import { wrapText, type TextSpec } from '../scene/glyphs';
-import { measureScene } from '../scene/measure';
-import { circle, group, polyline, rect, text } from '../scene/primitives';
+import { group, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf, groundDot, haloShadow, leaderLine, resolveDirection } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -48,12 +48,9 @@ const BODY_GAP = 8;
 /** Space between the vertical rule and the text. */
 const RULE_GAP = 12;
 const RULE_WIDTH = 2;
-const DOT_RADIUS = 3.5;
 const LINE_WIDTH = 1.25;
 /** How far a line of text rises while it fades in. */
 const ROW_RISE = 8;
-
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
 
 /** Windows of the 0–1 build progress: dot, line, rule, then the text lines. */
 const DOT_WINDOW = [0, 0.2] as const;
@@ -63,12 +60,6 @@ const TEXT_WINDOW = [0.5, 1] as const;
 const ROW_SPREAD = 0.65;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-
-export function resolveDirection(side: EditorialSettings['side'], groundX: number): 1 | -1 {
-  if (side === 'left') return -1;
-  if (side === 'right') return 1;
-  return groundX > 0 ? -1 : 1;
-}
 
 interface Row {
   kind: 'eyebrow' | 'title' | 'body';
@@ -132,7 +123,7 @@ export function renderEditorial(input: StyleRenderInput<EditorialSettings>): Sce
   const { direction, rows, height, above } = layout(input);
   const { accentColor, textColor } = settings;
   const build = buildProgress(phase, phaseProgress);
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = haloShadow(settings.halo);
 
   const dot = stage(build, ...DOT_WINDOW, easeOutBack);
   const leader = stage(build, ...LINE_WINDOW, easeInOutCubic);
@@ -144,14 +135,7 @@ export function renderEditorial(input: StyleRenderInput<EditorialSettings>): Sce
   const children: SceneNode[] = [];
 
   if (leader > 0) {
-    children.push(polyline({
-      points: [[ground.x, ground.y], [0, 0]],
-      progress: leader,
-      stroke: textColor,
-      strokeWidth: LINE_WIDTH,
-      lineCap: 'round',
-      shadow,
-    }));
+    children.push(leaderLine(ground, [0, 0], { stroke: textColor, strokeWidth: LINE_WIDTH, progress: leader, shadow }));
   }
 
   if (rule > 0 && height > 0) {
@@ -167,12 +151,7 @@ export function renderEditorial(input: StyleRenderInput<EditorialSettings>): Sce
   }
 
   if (dot > 0) {
-    children.push(group({
-      x: ground.x,
-      y: ground.y,
-      scale: dot,
-      children: [circle({ cx: 0, cy: 0, r: DOT_RADIUS, fill: accentColor, stroke: textColor, strokeWidth: 1, shadow })],
-    }));
+    children.push(groundDot(ground, dot, { fill: accentColor, stroke: textColor, shadow }));
   }
 
   rows.forEach((row, index) => {
@@ -215,8 +194,7 @@ export function measureEditorial(input: StyleRenderInput<EditorialSettings>): St
         height: height + ROW_RISE,
       })]
     : [];
-  const box = measureScene(group({ children: [finished, ...extent] }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, ...extent);
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

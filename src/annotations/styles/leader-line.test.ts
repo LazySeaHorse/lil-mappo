@@ -6,7 +6,6 @@ import {
   leaderLineStyle,
   measureLeaderLine,
   renderLeaderLine,
-  resolveDirection,
   type LeaderLineSettings,
 } from './leader-line';
 import { measureTextWidth } from '../scene/textMetrics';
@@ -66,14 +65,6 @@ describe('leaderLineStyle definition', () => {
 });
 
 describe('side', () => {
-  it('extends away from the point when auto, and honours an explicit side', () => {
-    expect(resolveDirection('auto', -70)).toBe(1); // point is left of the elbow
-    expect(resolveDirection('auto', 70)).toBe(-1);
-    expect(resolveDirection('auto', 0)).toBe(1);
-    expect(resolveDirection('left', -70)).toBe(-1);
-    expect(resolveDirection('right', 70)).toBe(1);
-  });
-
   it('draws the shelf and text to the right for a point on the left, and mirrors it', () => {
     const right = renderLeaderLine(makeInput());
     const [, rightShelf] = lines(right).filter((l) => l.stroke === '#FFFFFF');

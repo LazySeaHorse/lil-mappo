@@ -6,7 +6,6 @@ import {
   handDrawnStyle,
   measureHandDrawn,
   renderHandDrawn,
-  resolveDirection,
   seedFor,
   type HandDrawnSettings,
 } from './hand-drawn';
@@ -65,8 +64,6 @@ describe('layout', () => {
   });
 
   it('mirrors the label and its tilt for the left side', () => {
-    expect(resolveDirection('auto', -80)).toBe(1);
-    expect(resolveDirection('auto', 80)).toBe(-1);
     const left = renderHandDrawn(makeInput({ settings: { ...defaultHandDrawnSettings, side: 'left' } }));
     expect(texts(left).every((t) => t.x < 0)).toBe(true);
     const tilted = flatten(left).find((n): n is GroupNode => n.type === 'group' && n.rotation !== undefined);

@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, stage } from '../motion';
 import { decimalPlaces, formatCountUp, formatNumber } from '../numbers';
-import { measureScene } from '../scene/measure';
-import { circle, group, polyline, rect, text } from '../scene/primitives';
+import { group, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf, groundDot, haloShadow, leaderLine, resolveDirection } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -49,11 +49,7 @@ const MIN_WIDTH = 64;
 /** The number starts this far low and settles up as the count lands. */
 const SETTLE_DROP = 4;
 
-const DOT_RADIUS = 4;
-const RING_RADIUS = 8;
 const LINE_WIDTH = 1.5;
-
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
 
 /** Windows of the 0–1 build progress: dot and line, then the count with its bar, label alongside. */
 const DOT_WINDOW = [0, 0.16] as const;
@@ -64,12 +60,6 @@ const SETTLE_WINDOW = [0.72, 0.96] as const;
 const LABEL_WINDOW = [0.55, 0.92] as const;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-
-export function resolveDirection(side: BigNumberSettings['side'], groundX: number): 1 | -1 {
-  if (side === 'left') return -1;
-  if (side === 'right') return 1;
-  return groundX > 0 ? -1 : 1;
-}
 
 interface Layout {
   direction: 1 | -1;
@@ -128,7 +118,7 @@ export function renderBigNumber(input: StyleRenderInput<BigNumberSettings>): Sce
   const { finalNumber, counts, unit, label, numberWidth, left, width } = layout(input);
   const { accentColor, textColor } = settings;
   const build = buildProgress(phase, phaseProgress);
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = haloShadow(settings.halo);
 
   const dot = stage(build, ...DOT_WINDOW, easeOutBack);
   const leader = stage(build, ...LINE_WINDOW, easeInOutCubic);
@@ -140,26 +130,11 @@ export function renderBigNumber(input: StyleRenderInput<BigNumberSettings>): Sce
   const children: SceneNode[] = [];
 
   if (leader > 0) {
-    children.push(polyline({
-      points: [[ground.x, ground.y], [0, 0]],
-      progress: leader,
-      stroke: textColor,
-      strokeWidth: LINE_WIDTH,
-      lineCap: 'round',
-      shadow,
-    }));
+    children.push(leaderLine(ground, [0, 0], { stroke: textColor, strokeWidth: LINE_WIDTH, progress: leader, shadow }));
   }
 
   if (dot > 0) {
-    children.push(group({
-      x: ground.x,
-      y: ground.y,
-      scale: dot,
-      children: [
-        circle({ cx: 0, cy: 0, r: RING_RADIUS, stroke: accentColor, strokeWidth: 1, opacity: 0.7, shadow }),
-        circle({ cx: 0, cy: 0, r: DOT_RADIUS, fill: accentColor, stroke: textColor, strokeWidth: 1, shadow }),
-      ],
-    }));
+    children.push(groundDot(ground, dot, { fill: accentColor, stroke: textColor, ring: accentColor, shadow }));
   }
 
   // The bar grows in step with the count.
@@ -241,8 +216,7 @@ export function measureBigNumber(input: StyleRenderInput<BigNumberSettings>): St
     width: width + LABEL_SLIDE * 2,
     height: NUMBER_SIZE + LABEL_GAP + LABEL_SIZE * 1.3 + SETTLE_DROP,
   });
-  const box = measureScene(group({ children: [finished, slack] }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, slack);
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

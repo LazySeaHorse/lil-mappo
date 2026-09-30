@@ -3,8 +3,8 @@ import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, S
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeOutBack, easeOutCubic, stage, staggered } from '../motion';
 import { glyphTexts, layoutGlyphs, type GlyphLayout, type TextSpec } from '../scene/glyphs';
-import { measureScene } from '../scene/measure';
 import { circle, group, rect, text } from '../scene/primitives';
+import { boundsOf, HALO_REACH, haloShadow } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -91,9 +91,6 @@ const LETTER_RISE = 8;
 const POINT_RADIUS = 2.5;
 const POINT_GAP = 12;
 
-/** Soft dark shadow that lifts the lettering off any map. */
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.65)', blur: 6, offsetX: 0, offsetY: 0 };
-
 /** Windows of the 0–1 build progress; letters use most of it, the subtitle trails. */
 const LETTERS_WINDOW = [0, 0.8] as const;
 const TRACKING_WINDOW = [0, 0.85] as const;
@@ -147,7 +144,7 @@ export function renderMapLabel(input: StyleRenderInput<MapLabelSettings>): Scene
   const { settings, phase, phaseProgress } = input;
   const { spec, tint, subtitle, glyphs, textSpec, titleWidth, extraPx, subtitleTrackingPx } = layout(input);
   const build = buildProgress(phase, phaseProgress);
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = haloShadow(settings.halo);
   const count = glyphs.glyphs.length;
 
   // Tracking tightens from wider to final as the letters arrive.
@@ -216,17 +213,16 @@ export function measureMapLabel(input: StyleRenderInput<MapLabelSettings>): Styl
   const { glyphs, titleWidth, extraPx, spec } = layout(input);
   const count = glyphs.glyphs.length;
   const widest = titleWidth + Math.max(0, count - 1) * extraPx;
-  const reach = widest / 2 + (input.settings.showPoint ? POINT_GAP + POINT_RADIUS : 0) + HALO_SHADOW.blur;
+  const reach = widest / 2 + (input.settings.showPoint ? POINT_GAP + POINT_RADIUS : 0) + HALO_REACH;
   const extent = count > 0
     ? [rect({
         x: -reach,
-        y: -spec.fontSize * 0.65 - HALO_SHADOW.blur,
+        y: -spec.fontSize * 0.65 - HALO_REACH,
         width: reach * 2,
-        height: spec.fontSize * 1.3 + LETTER_RISE + HALO_SHADOW.blur * 2,
+        height: spec.fontSize * 1.3 + LETTER_RISE + HALO_REACH * 2,
       })]
     : [];
-  const box = measureScene(group({ children: [finished, ...extent] }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, ...extent);
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

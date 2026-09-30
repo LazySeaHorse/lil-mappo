@@ -2,10 +2,10 @@ import { z } from 'zod';
 import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeOutBack, easeOutCubic, lerp, stage } from '../motion';
-import { measureScene } from '../scene/measure';
 import { circle, group, text } from '../scene/primitives';
 import { formatCountUp } from '../numbers';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf, HALO_REACH, haloShadow } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -51,7 +51,6 @@ const MIN_BADGE_FONT = 9;
 /** Share of the disc's diameter the badge text may fill. */
 const BADGE_FILL = 0.74;
 
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
 const DISC_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.5)', blur: 10, offsetX: 0, offsetY: 2 };
 
 /** Entrance timeline, as overlapping windows of the 0–1 build progress. */
@@ -79,6 +78,7 @@ interface Layout {
   subtitleWidth: number;
 }
 
+/** +1 when the name extends right of the disc, -1 when it extends left. There is no auto: the disc sits on the point. */
 export function resolveDirection(side: WaypointSettings['side']): 1 | -1 {
   return side === 'left' ? -1 : 1;
 }
@@ -122,13 +122,13 @@ export function renderWaypoint(input: StyleRenderInput<WaypointSettings>): Scene
   const titleReveal = stage(build, ...TITLE_WINDOW, easeOutCubic);
   const subtitleReveal = stage(build, ...SUBTITLE_WINDOW, easeOutCubic);
 
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = haloShadow(settings.halo);
   const ringRadius = radius + RING_GAP;
   const textEdge = direction * (ringRadius + RING_OVERSHOOT_ROOM + TEXT_GAP);
   const align = direction === 1 ? 'left' : 'right';
   const hasSubtitle = subtitle !== '';
-  const clipWidth = Math.max(titleWidth, subtitleWidth) + HALO_SHADOW.blur * 2 + radius * 2 + TEXT_GAP;
-  const clipHeight = TITLE_SIZE * 3 + HALO_SHADOW.blur * 2;
+  const clipWidth = Math.max(titleWidth, subtitleWidth) + HALO_REACH * 2 + radius * 2 + TEXT_GAP;
+  const clipHeight = TITLE_SIZE * 3 + HALO_REACH * 2;
 
   const children: SceneNode[] = [];
 
@@ -234,10 +234,7 @@ export function measureWaypoint(input: StyleRenderInput<WaypointSettings>): Styl
   const { radius } = layout(input);
   const finished = renderWaypoint({ ...input, phase: 'visible', phaseProgress: 1 });
   const reach = radius + RING_GAP + RING_OVERSHOOT_ROOM;
-  const box = measureScene(group({
-    children: [finished, circle({ cx: 0, cy: 0, r: reach, stroke: input.settings.accentColor, strokeWidth: RING_WIDTH })],
-  }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, circle({ cx: 0, cy: 0, r: reach, stroke: input.settings.accentColor, strokeWidth: RING_WIDTH }));
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

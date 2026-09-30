@@ -6,6 +6,7 @@ import { arcPoints } from '../scene/geometry';
 import { measureScene } from '../scene/measure';
 import { circle, group, path, polyline, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { HALO_SHADOW } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -64,7 +65,6 @@ const CLOTH_COLUMNS_PER_PX = 1 / 7;
 /** Darkest fold shade over the cloth. */
 const FOLD_SHADE = 0.2;
 
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 6, offsetX: 0, offsetY: 0 };
 const CLOTH_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.35)', blur: 8, offsetX: 0, offsetY: 3 };
 
 /** Entrance timeline, as overlapping windows of the 0–1 build progress. */

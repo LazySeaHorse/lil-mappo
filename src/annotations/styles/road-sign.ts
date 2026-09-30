@@ -3,9 +3,9 @@ import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, S
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeOutBack, easeOutCubic, stage } from '../motion';
 import { roundedRectPoints } from '../scene/geometry';
-import { measureScene } from '../scene/measure';
 import { circle, group, path, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -274,10 +274,7 @@ export function measureRoadSign(input: StyleRenderInput<RoadSignSettings>): Styl
   const { panelWidth, panelHeight } = layout(input);
   const finished = renderRoadSign({ ...input, phase: 'visible', phaseProgress: 1 });
   const overshoot = panelHeight * 0.12;
-  const box = measureScene(group({
-    children: [finished, rect({ x: -panelWidth / 2, y: -panelHeight - overshoot, width: panelWidth, height: overshoot })],
-  }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, rect({ x: -panelWidth / 2, y: -panelHeight - overshoot, width: panelWidth, height: overshoot }));
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

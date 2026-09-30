@@ -5,10 +5,10 @@ import { buildProgress, clamp01, easeInCubic, easeOutBack, easeOutCubic, easeOut
 import { hashInts, seededRandom } from '../random';
 import { polylineLength, trimPolyline, type Point } from '../scene/geometry';
 import { arcGlyphGroups, layoutGlyphs, layoutGlyphsOnArc } from '../scene/glyphs';
-import { measureScene } from '../scene/measure';
 import { circle, group, path, polyline, rect, text } from '../scene/primitives';
 import { roughRect } from '../scene/rough';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ const RECT_TITLE_GAP = 9;
 const RECT_INNER_INSET = 5.5;
 
 /** Faint dark shadow that keeps the red ink readable on any map. */
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.35)', blur: 5, offsetX: 0, offsetY: 0 };
+const INK_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.35)', blur: 5, offsetX: 0, offsetY: 0 };
 
 // Impact
 const FALL_START_SCALE = 1.8;
@@ -313,7 +313,7 @@ export function renderStamp(input: StyleRenderInput<StampSettings>): SceneNode {
   const { settings, phase, phaseProgress } = input;
   const l = layout(input);
   const seed = hashInts(...Array.from(l.title + l.subtitle, (char) => char.charCodeAt(0))) % 100000;
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = settings.halo ? INK_SHADOW : undefined;
   const baseRotation = (settings.rotation * Math.PI) / 180;
 
   let opacity: number;
@@ -365,8 +365,7 @@ export function measureStamp(input: StyleRenderInput<StampSettings>): StyleBound
     scale: 1 + SPLASH_GROWTH,
     children: [splashOutline(l, input.settings.inkColor)],
   });
-  const box = measureScene(group({ children: [finished, ...(input.settings.splash ? [reach] : [])] }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, ...(input.settings.splash ? [reach] : []));
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

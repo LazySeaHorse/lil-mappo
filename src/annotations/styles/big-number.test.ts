@@ -6,7 +6,6 @@ import {
   defaultBigNumberSettings,
   measureBigNumber,
   renderBigNumber,
-  resolveDirection,
   type BigNumberSettings,
 } from './big-number';
 
@@ -96,8 +95,6 @@ describe('layout', () => {
     expect(bar(left)!.points[1][0]).toBe(0);
     expect(bar(left)!.points[0][0]).toBeLessThan(-60);
     expect(bar(left)!.points[0][0]).toBe(-bar(right)!.points[1][0]);
-    expect(resolveDirection('auto', 60)).toBe(-1);
-    expect(resolveDirection('right', 60)).toBe(1);
   });
 
   it('sizes the bar to the finished number, so it does not change mid-count', () => {

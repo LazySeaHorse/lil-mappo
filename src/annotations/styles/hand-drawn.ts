@@ -3,11 +3,11 @@ import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, S
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, stage } from '../motion';
 import { hashInts, seededRandom } from '../random';
-import { measureScene } from '../scene/measure';
 import { group, polyline, text } from '../scene/primitives';
 import { roughArrow, roughCircle } from '../scene/rough';
 import { pointAtLength, polylineLength, type Point } from '../scene/geometry';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf, haloShadow, resolveDirection } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -49,9 +49,6 @@ const ARROW_GAP = 5;
 /** Extra room around wiped text, so the shadow and swashes are not cropped. */
 const WIPE_PAD = 10;
 
-/** Soft dark shadow that lifts marker strokes and white writing off any map. */
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.6)', blur: 5, offsetX: 0, offsetY: 0 };
-
 /**
  * Entrance timeline as windows of the 0–1 build progress: the circle is
  * scribbled, the arrow is pulled from the label towards it, then the words are
@@ -65,13 +62,6 @@ const TITLE_WINDOW = [0.6, 0.92] as const;
 const SUBTITLE_WINDOW = [0.78, 1] as const;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-
-/** +1 when the label extends right of its origin, -1 when it extends left. */
-export function resolveDirection(side: HandDrawnSettings['side'], groundX: number): 1 | -1 {
-  if (side === 'left') return -1;
-  if (side === 'right') return 1;
-  return groundX > 0 ? -1 : 1;
-}
 
 /** Stable per-callout seed, so each callout is drawn a little differently but always the same way. */
 export function seedFor(title: string): number {
@@ -158,7 +148,7 @@ export function renderHandDrawn(input: StyleRenderInput<HandDrawnSettings>): Sce
   const { settings, phase, phaseProgress } = input;
   const { direction, seed, title, subtitle, titleWidth, subtitleWidth } = layout(input);
   const build = buildProgress(phase, phaseProgress);
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = haloShadow(settings.halo);
   const marks = drawMarks(input, direction, seed, subtitle !== '');
 
   const circleDraw = stage(build, ...CIRCLE_WINDOW, easeInOutCubic);
@@ -242,8 +232,7 @@ export function renderHandDrawn(input: StyleRenderInput<HandDrawnSettings>): Sce
 
 /** Bounds of the finished drawing: circle, arrow and writing. */
 export function measureHandDrawn(input: StyleRenderInput<HandDrawnSettings>): StyleBounds {
-  const box = measureScene(renderHandDrawn({ ...input, phase: 'visible', phaseProgress: 1 }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(renderHandDrawn({ ...input, phase: 'visible', phaseProgress: 1 }));
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

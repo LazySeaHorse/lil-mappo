@@ -4,7 +4,6 @@ import {
   defaultTargetLockSettings,
   measureTargetLock,
   renderTargetLock,
-  resolveDirection,
   targetLockSettingsSchema,
   targetLockStyle,
   type TargetLockSettings,
@@ -75,9 +74,6 @@ describe('layout', () => {
     const points = leader(renderTargetLock(makeInput({ ground: { x: 80, y: 80 } })))!.points;
     expect(points[0]).toEqual([80 - 22, 80 - 22]);
     expect(points[2][0]).toBeLessThan(-90);
-    expect(resolveDirection('auto', 80)).toBe(-1);
-    expect(resolveDirection('left', -80)).toBe(-1);
-    expect(resolveDirection('right', 80)).toBe(1);
   });
 
   it('sets the readout in mono: coordinates small, title bold capitals, subtitle optional', () => {

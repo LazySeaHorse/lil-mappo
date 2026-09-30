@@ -11,9 +11,9 @@ import {
   stage,
 } from '../motion';
 import { caretVisible, scrambleText, typedCount } from '../scene/glyphs';
-import { measureScene } from '../scene/measure';
 import { circle, group, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { boundsOf, haloShadow, resolveDirection } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -64,8 +64,6 @@ const SCRAMBLE_SEED = 7;
 const PULSE_PERIOD = 2;
 const PULSE_AMOUNT = 0.06;
 
-const HALO_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.7)', blur: 5, offsetX: 0, offsetY: 0 };
-
 /** Windows of the 0–1 build progress; they overlap so the readout follows the lock. */
 const BRACKET_WINDOW = [0, 0.4] as const;
 const TICK_WINDOW = [0.15, 0.45] as const;
@@ -76,13 +74,6 @@ const TITLE_WINDOW = [0.6, 0.92] as const;
 const SUBTITLE_WINDOW = [0.82, 1] as const;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-
-/** +1 when the readout extends right of the origin, -1 when it extends left. */
-export function resolveDirection(side: TargetLockSettings['side'], groundX: number): 1 | -1 {
-  if (side === 'left') return -1;
-  if (side === 'right') return 1;
-  return groundX > 0 ? -1 : 1;
-}
 
 interface Layout {
   direction: 1 | -1;
@@ -148,7 +139,7 @@ export function renderTargetLock(input: StyleRenderInput<TargetLockSettings>): S
   const { direction, eyebrow, title, subtitle, panelWidth, panelHeight } = layout(input);
   const { accentColor, textColor } = settings;
   const build = buildProgress(phase, phaseProgress);
-  const shadow = settings.halo ? HALO_SHADOW : undefined;
+  const shadow = haloShadow(settings.halo);
 
   const lock = stage(build, ...BRACKET_WINDOW, easeOutBack);
   const lockFade = stage(build, BRACKET_WINDOW[0], BRACKET_WINDOW[1] * 0.6, easeOutCubic);
@@ -268,8 +259,7 @@ export function measureTargetLock(input: StyleRenderInput<TargetLockSettings>): 
   const finished = renderTargetLock({ ...input, phase: 'visible', phaseProgress: 1 });
   const reach = HALF * BRACKET_START_SCALE + BRACKET_WIDTH;
   const lockExtent = rect({ x: ground.x - reach, y: ground.y - reach, width: reach * 2, height: reach * 2 });
-  const box = measureScene(group({ children: [finished, lockExtent] }));
-  return { x: box.minX, y: box.minY, width: box.width, height: box.height };
+  return boundsOf(finished, lockExtent);
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────
