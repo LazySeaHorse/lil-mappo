@@ -322,7 +322,7 @@ async function captureFrame(
   await encoder.waitForMuxer();
 
   // Composite: map canvas + callouts
-  compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime, showWatermark);
+  compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime, showWatermark, zoomOffset);
 
   const frameDuration = Math.round(1_000_000 / fps);
   const videoFrame = new VideoFrame(compCanvas, {

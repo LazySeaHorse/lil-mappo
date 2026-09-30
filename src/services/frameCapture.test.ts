@@ -36,7 +36,7 @@ describe('withFrameCapturer', () => {
     expect(result).toEqual({ w: 1280, h: 720 });
     expect(withTemporaryMapViewport).toHaveBeenCalledWith(fakeMap, 1280, 720, expect.any(Function));
     expect(waitForMapIdle).toHaveBeenCalled();
-    expect(compositeFrame).toHaveBeenCalledWith(fakeMap, expect.anything(), 1280, 720, expect.anything(), expect.anything(), 4, true);
+    expect(compositeFrame).toHaveBeenCalledWith(fakeMap, expect.anything(), 1280, 720, expect.anything(), expect.anything(), 4, true, 1);
   });
 
   it('rejects when canvas conversion fails', async () => {

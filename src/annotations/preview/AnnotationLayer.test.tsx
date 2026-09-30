@@ -89,6 +89,8 @@ function makeCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
     connector: { visible: true, style: 'solid', color: '#fff', width: 2, endDot: true, endDotRadius: 3 },
     opacity: 1,
     scale: 1,
+    sizeMode: 'screen',
+    referenceZoom: 12,
     settings: {},
     linkTitleToLocation: false,
     ...overrides,
@@ -166,7 +168,7 @@ describe('AnnotationLayer', () => {
     const preview = drawCallsRelativeTo(contexts.get(canvas)!.calls, -bounds.minX, -bounds.minY);
 
     const exportCtx = createRecordingContext();
-    const map = { project: () => ({ x: 400, y: 300 }) } as unknown as MapboxMap;
+    const map = { getZoom: () => 12, project: () => ({ x: 400, y: 300 }) } as unknown as MapboxMap;
     compositeAnnotations(map, exportCtx as unknown as CanvasRenderingContext2D, { c1: callout }, ['c1'], 5);
     const exported = drawCallsRelativeTo([['clearRect'], ...exportCtx.calls], 400, 300);
 

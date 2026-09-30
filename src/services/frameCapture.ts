@@ -56,7 +56,7 @@ export async function withFrameCapturer<T>(
         canvas.height = height;
         const ctx = canvas.getContext('2d')!;
         const fresh = useProjectStore.getState();
-        compositeFrame(map, ctx, width, height, fresh.items, fresh.itemOrder, fresh.playheadTime, showWatermark);
+        compositeFrame(map, ctx, width, height, fresh.items, fresh.itemOrder, fresh.playheadTime, showWatermark, zoomOffset);
         return canvas;
       },
     }),

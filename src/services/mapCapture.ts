@@ -4,7 +4,8 @@ import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 
 /**
  * Draws the current map frame (map canvas + callouts) onto compCtx.
- * Shared by the video export pipeline and the snapshot tool.
+ * Shared by the video export pipeline and the snapshot tool. `zoomOffset` is how far the
+ * map was zoomed in to render at this size (see FrameCapturer.zoomOffset).
  */
 export function compositeFrame(
   map: MapboxMap,
@@ -15,13 +16,14 @@ export function compositeFrame(
   itemOrder: string[],
   playheadTime: number,
   showWatermark: boolean,
+  zoomOffset: number,
 ): void {
   const mapCanvas = map.getCanvas() as HTMLCanvasElement;
   compCtx.clearRect(0, 0, width, height);
   compCtx.drawImage(mapCanvas, 0, 0, width, height);
 
   // Render all annotations using the unified style registry and scene renderer
-  compositeAnnotations(map, compCtx, items, itemOrder, playheadTime);
+  compositeAnnotations(map, compCtx, items, itemOrder, playheadTime, { zoomOffset });
 
   // Draw Mapbox attribution (required for legal compliance on exported assets)
   // Since attribution is a DOM overlay, it doesn't exist on the map canvas itself.

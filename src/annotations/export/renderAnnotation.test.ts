@@ -78,6 +78,8 @@ describe('renderAnnotation and compositeAnnotations', () => {
       },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
     };
@@ -130,6 +132,8 @@ describe('renderAnnotation and compositeAnnotations', () => {
       },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
     };
@@ -176,6 +180,8 @@ describe('renderAnnotation and compositeAnnotations', () => {
       },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
     };
@@ -205,6 +211,8 @@ describe('renderAnnotation and compositeAnnotations', () => {
       connector: { visible: true, style: 'solid', color: '#ffffff', width: 2, endDot: true, endDotRadius: 3 },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
     };
@@ -238,6 +246,8 @@ describe('renderAnnotation and compositeAnnotations', () => {
       connector: { visible: false, style: 'solid', color: '#ffffff', width: 2, endDot: true, endDotRadius: 3 },
       opacity: 1,
       scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
     };
@@ -251,5 +261,81 @@ describe('renderAnnotation and compositeAnnotations', () => {
     compositeAnnotations(map, done, { l2: callout }, ['l2'], 1.2);
     expect(done.stroke).toHaveBeenCalled();
     expect(done.fillText).toHaveBeenCalled();
+  });
+
+  describe('export scale', () => {
+    const calloutAt = (overrides: Partial<CalloutItem> = {}): CalloutItem => ({
+      id: 's1',
+      kind: 'callout',
+      styleId: TEST_CARD_STYLE_ID,
+      styleVersion: 1,
+      content: { title: 'Scale' },
+      binding: { kind: 'geographic', lngLat: [10, 20], altitude: 40 },
+      offset: [6, 0],
+      anchor: 'bottom',
+      startTime: 2,
+      endTime: 8,
+      transition: { enter: 'none', exit: 'none', enterDuration: 0, exitDuration: 0 },
+      connector: { visible: true, style: 'solid', color: '#fff', width: 2, endDot: true, endDotRadius: 3 },
+      opacity: 1,
+      scale: 1,
+      sizeMode: 'screen',
+      referenceZoom: 12,
+      settings: {},
+      linkTitleToLocation: false,
+      ...overrides,
+    });
+
+    /** A map showing `zoom`, projecting every point to (x, y). */
+    const mapAt = (zoom: number, x: number, y: number) => ({
+      getZoom: vi.fn(() => zoom),
+      project: vi.fn(() => ({ x, y })),
+    }) as unknown as MapboxMap;
+
+    it('draws connector geometry at 2^zoomOffset times the editor size', () => {
+      const editor = createMockCtx();
+      compositeAnnotations(mapAt(12, 100, 100), editor, { s1: calloutAt() }, ['s1'], 5);
+      const exported = createMockCtx();
+      // The export renders at twice the width: one zoom level in, ground point twice as far out.
+      compositeAnnotations(mapAt(13, 200, 200), exported, { s1: calloutAt() }, ['s1'], 5, { zoomOffset: 1 });
+
+      // Connector runs from the origin (offset, lifted by the altitude) to the ground point.
+      expect(editor.moveTo).toHaveBeenCalledWith(106, 60);
+      expect(exported.moveTo).toHaveBeenCalledWith(212, 120);
+      expect(editor.arc).toHaveBeenCalledWith(100, 100, 3, 0, Math.PI * 2);
+      expect(exported.arc).toHaveBeenCalledWith(200, 200, 6, 0, Math.PI * 2);
+      expect(exported.lineWidth).toBe(4);
+      expect(exported.scale).toHaveBeenCalledWith(2, 2);
+    });
+
+    it('sizes map-scaled callouts for the zoom the editor shows, not the zoomed-in map', () => {
+      const callout = calloutAt({ sizeMode: 'map', referenceZoom: 12 });
+      const editor = createMockCtx();
+      compositeAnnotations(mapAt(12, 100, 100), editor, { s1: callout }, ['s1'], 5);
+      const exported = createMockCtx();
+      compositeAnnotations(mapAt(13, 200, 200), exported, { s1: callout }, ['s1'], 5, { zoomOffset: 1 });
+
+      // Same as the editor, relative to the frame: only the pixel scale differs.
+      expect(exported.moveTo).toHaveBeenCalledWith(212, 120);
+      expect(exported.scale).toHaveBeenCalledWith(2, 2);
+      expect(editor.scale).toHaveBeenCalledWith(1, 1);
+    });
+
+    it('draws a selected callout settled only when it is off the playhead', () => {
+      const callout = calloutAt({ transition: { enter: 'fade', exit: 'fade', enterDuration: 1, exitDuration: 1 } });
+      const opacityAt = (time: number, selectedId: string | null) => {
+        const ctx = createMockCtx();
+        const alphas: number[] = [];
+        Object.defineProperty(ctx, 'globalAlpha', { set: (v: number) => alphas.push(v), get: () => 1 });
+        compositeAnnotations(mapAt(12, 0, 0), ctx, { s1: callout }, ['s1'], time, { selectedId });
+        // The first alpha set is the frame's own; later ones are parts of it.
+        return alphas[0];
+      };
+
+      expect(opacityAt(9, null)).toBeUndefined();
+      expect(opacityAt(9, 's1')).toBe(1);
+      // On the clip, the real animation shows.
+      expect(opacityAt(2.5, 's1')).toBe(0.5);
+    });
   });
 });
