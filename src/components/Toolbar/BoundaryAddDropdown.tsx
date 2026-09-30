@@ -1,3 +1,4 @@
+import { geometryBounds } from '@/engine/geoUtils';
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { Button } from '@/components/ui/button';
@@ -57,20 +58,8 @@ export const BoundaryAddDropdown = ({
     // Zoom to boundary
     const map = mapRef.current?.getMap();
     if (map && r.geojson) {
-      // Very simple bbox calculation for zooming
-      let coords: number[][] = [];
-      if (r.geojson.type === 'Polygon') coords = r.geojson.coordinates[0];
-      else if (r.geojson.type === 'MultiPolygon') coords = r.geojson.coordinates[0][0];
-
-      if (coords.length > 0) {
-        const lats = coords.map(c => c[1]);
-        const lngs = coords.map(c => c[0]);
-        const bounds: [[number, number], [number, number]] = [
-          [Math.min(...lngs), Math.min(...lats)],
-          [Math.max(...lngs), Math.max(...lats)]
-        ];
-        map.fitBounds(bounds, { padding: 50, duration: 1000 });
-      }
+      const bounds = geometryBounds(r.geojson);
+      if (bounds) map.fitBounds(bounds, { padding: 50, duration: 1000 });
     }
   };
 
