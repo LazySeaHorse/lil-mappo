@@ -6,6 +6,8 @@
  */
 
 import { registerStyle } from '../registry';
+import { flagStyle } from './flag';
 import { leaderLineStyle } from './leader-line';
 
 registerStyle(leaderLineStyle);
+registerStyle(flagStyle);
