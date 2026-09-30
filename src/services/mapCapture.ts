@@ -1,6 +1,7 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import type { TimelineItem } from '@/store/types';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
+import { useProjectStore } from '@/store/useProjectStore';
 
 /**
  * Draws the current map frame (map canvas + callouts) onto compCtx.
@@ -73,7 +74,8 @@ mapboxLogo.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5v
 /**
  * Temporarily lends the map viewport to a capture operation. Container styles
  * and the exact free-camera state are restored after the operation, including
- * when capture fails or is cancelled.
+ * when capture fails or is cancelled. Marks the store meanwhile, so the editor's
+ * own overlays stay out of the way of the resized map.
  */
 export async function withTemporaryMapViewport<T>(
   map: MapboxMap,
@@ -85,6 +87,7 @@ export async function withTemporaryMapViewport<T>(
   const originalInlineStyles = mapContainer.style.cssText;
   const originalCamera = map.getFreeCameraOptions();
 
+  useProjectStore.setState({ isCapturingViewport: true });
   mapContainer.style.position = 'fixed';
   mapContainer.style.width = `${width}px`;
   mapContainer.style.height = `${height}px`;
@@ -99,5 +102,6 @@ export async function withTemporaryMapViewport<T>(
     mapContainer.style.cssText = originalInlineStyles;
     map.resize();
     map.setFreeCameraOptions(originalCamera);
+    useProjectStore.setState({ isCapturingViewport: false });
   }
 }

@@ -20,6 +20,7 @@ export function createTransientState(): TransientProjectState {
     isMoveModeActive: false,
     hideUI: false,
     isExporting: false,
+    isCapturingViewport: false,
     showNewProjectModal: false,
     projectSettingsTab: 'general',
     activePicker: null,

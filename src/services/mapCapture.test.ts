@@ -1,6 +1,7 @@
 import type { FreeCameraOptions, Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import { withTemporaryMapViewport } from './mapCapture';
+import { useProjectStore } from '@/store/useProjectStore';
 
 function createMapDouble() {
   const container = document.createElement('div');
@@ -18,6 +19,19 @@ function createMapDouble() {
 }
 
 describe('withTemporaryMapViewport', () => {
+  it('flags the store as capturing only while the viewport is lent, even when capture fails', async () => {
+    const double = createMapDouble();
+    await withTemporaryMapViewport(double.map, 640, 360, async () => {
+      expect(useProjectStore.getState().isCapturingViewport).toBe(true);
+    });
+    expect(useProjectStore.getState().isCapturingViewport).toBe(false);
+
+    await expect(withTemporaryMapViewport(double.map, 640, 360, async () => {
+      throw new Error('boom');
+    })).rejects.toThrow('boom');
+    expect(useProjectStore.getState().isCapturingViewport).toBe(false);
+  });
+
   it('restores inline styles and camera after successful capture', async () => {
     const double = createMapDouble();
 

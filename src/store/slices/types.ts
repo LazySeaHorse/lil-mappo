@@ -41,6 +41,8 @@ export interface TransientProjectState {
   isMoveModeActive: boolean;
   hideUI: boolean;
   isExporting: boolean;
+  /** The map is temporarily resized to render a capture (export, snapshot, agent frames). */
+  isCapturingViewport: boolean;
   showNewProjectModal: boolean;
   projectSettingsTab: 'general' | 'map';
   // Transient picking state (not persisted)
