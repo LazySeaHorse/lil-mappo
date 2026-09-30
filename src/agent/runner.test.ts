@@ -90,3 +90,26 @@ describe('getAgentTools', () => {
     expect((await setPlayhead.execute({ time: 1 })).isError).toBeUndefined();
   });
 });
+
+describe('undo / redo tools', () => {
+  beforeEach(resetAgentTestState);
+
+  it('undo reverts the last step and reports its label; redo re-applies it', async () => {
+    await runAgentTool('add_camera_keyframe', { time: 3, center: [0, 0], zoom: 4 });
+    const undone = resultJson<{ reverted: { label: string; source: string }; canRedo: boolean }>(await runAgentTool('undo', {}));
+    expect(undone.reverted).toEqual({ label: 'AI: add camera keyframe at 3s', source: 'ai' });
+    expect(undone.canRedo).toBe(true);
+    const cam = useProjectStore.getState().items['camera-track'];
+    expect(cam.kind === 'camera' && cam.keyframes).toHaveLength(0);
+
+    const redone = resultJson<{ reapplied: { label: string } }>(await runAgentTool('redo', {}));
+    expect(redone.reapplied.label).toBe('AI: add camera keyframe at 3s');
+    expect(resultJson(await runAgentTool('redo', {})).error).toBe('nothing_to_redo');
+  });
+
+  it('undo with an empty history is a structured error', async () => {
+    const result = await runAgentTool('undo', {});
+    expect(result.isError).toBe(true);
+    expect(resultJson(result).error).toBe('nothing_to_undo');
+  });
+});

@@ -4,6 +4,7 @@ import { getGuide, getItem, getProject, searchPlace } from './read';
 import { addBoundary, addCallout, addRoute } from './add';
 import { addCameraKeyframe, frameItems, removeCameraKeyframe, updateCameraKeyframe } from './camera';
 import { duplicateItem, removeItem, reorderItems, updateItem } from './edit';
+import { updateProjectSettings } from './settings';
 import { redoTool, setPlayhead, undoTool } from './playback';
 
 /** Every tool exposed to agents, in the order they are listed. */
@@ -23,6 +24,7 @@ export const ALL_TOOLS = [
   updateCameraKeyframe,
   removeCameraKeyframe,
   frameItems,
+  updateProjectSettings,
   setPlayhead,
   undoTool,
   redoTool,
