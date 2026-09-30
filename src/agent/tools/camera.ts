@@ -165,7 +165,7 @@ export const removeCameraKeyframe = defineTool({
 
 // ---- frame_items -----------------------------------------------------------
 
-function boundsOfItems(itemIds: string[]): BBox {
+export function boundsOfItems(itemIds: string[]): BBox {
   const boxes: (BBox | null)[] = [];
   for (const id of itemIds) {
     const item = requireItem(id);
@@ -187,7 +187,7 @@ function boundsOfItems(itemIds: string[]): BBox {
 }
 
 /** Points/very small areas would zoom to the maximum; keep a sensible minimum span (~1 km). */
-function withMinimumSpan(b: BBox, span = 0.01): BBox {
+export function withMinimumSpan(b: BBox, span = 0.01): BBox {
   const [w, s, e, n] = b;
   const padX = Math.max(0, (span - (e - w)) / 2);
   const padY = Math.max(0, (span - (n - s)) / 2);

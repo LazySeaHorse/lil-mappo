@@ -22,3 +22,4 @@ export type {
   AgentToolDescriptor,
   AgentToolResult,
 } from './defineTool';
+export { isWebMcpSupported, registerWebMcpTool } from './webmcp';
