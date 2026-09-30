@@ -8,8 +8,10 @@
 import { registerStyle } from '../registry';
 import { leaderLineStyle } from './leader-line';
 import { mapLabelStyle } from './map-label';
+import { editorialStyle } from './editorial';
 import { targetLockStyle } from './target-lock';
 
 registerStyle(leaderLineStyle);
 registerStyle(mapLabelStyle);
 registerStyle(targetLockStyle);
+registerStyle(editorialStyle);
