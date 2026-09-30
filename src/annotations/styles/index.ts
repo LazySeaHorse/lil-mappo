@@ -8,6 +8,8 @@
 import { registerStyle } from '../registry';
 import { leaderLineStyle } from './leader-line';
 import { handDrawnStyle } from './hand-drawn';
+import { stampStyle } from './stamp';
 
 registerStyle(leaderLineStyle);
 registerStyle(handDrawnStyle);
+registerStyle(stampStyle);
