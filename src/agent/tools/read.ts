@@ -12,7 +12,7 @@ export const getGuide = defineTool({
   description:
     'Returns the li\'l Mappo primer as text: timeline model (seconds, layer order, camera track), item kinds and their fields, valid map style keys, label categories, callout style ids, easing names, and a recommended workflow. ' +
     'Call this first in a new session. Then use get_project to see the current state.',
-  input: z.object({}),
+  input: z.strictObject({}),
   readOnly: true,
   handler: () => ({ text: buildGuide(), summary: 'Read the guide' }),
 });
@@ -24,7 +24,7 @@ export const getProject = defineTool({
     'Returns project settings (name, duration in seconds, fps, resolution, aspect ratio, projection, light preset, map style, terrain/buildings/label toggles, 3D detail flags), the playhead time, and a compact list of every timeline item in track order: ' +
     'id, kind, name/title, startTime/endTime (seconds), key style fields, and geometry summarized as point count and bbox [west, south, east, north] (never raw GeoJSON). The camera track includes all keyframes. ' +
     'Use get_item for full details of one item.',
-  input: z.object({}),
+  input: z.strictObject({}),
   readOnly: true,
   handler: () => {
     const s = getState();
@@ -69,7 +69,7 @@ export const getItem = defineTool({
   description:
     'Returns full details of one timeline item by id (from get_project): all style fields, content, timing, easing, calculation endpoints, callout binding, or all camera keyframes for id "camera-track". ' +
     'Geometry is summarized (point count, bbox) unless includeGeometry is true, which adds the raw GeoJSON and can be large.',
-  input: z.object({
+  input: z.strictObject({
     id: itemIdSchema,
     includeGeometry: z.boolean().optional().describe('Include raw GeoJSON geometry (routes and boundaries). Default false; can be very large.'),
   }),
@@ -88,7 +88,7 @@ export const searchPlace = defineTool({
   description:
     'Geocodes a place name or address with Mapbox. Returns up to `limit` matches as {name, fullName, coordinates: [lng, lat], bbox?: [west, south, east, north]}, biased toward the current map center. ' +
     'Use the coordinates for add_route, add_callout or add_camera_keyframe, or pass the place name directly to those tools. For area outlines use add_boundary instead.',
-  input: z.object({
+  input: z.strictObject({
     query: z.string().min(2).max(200).describe('Place name or address, e.g. "Eiffel Tower" or "Lisbon, Portugal".'),
     limit: z.number().int().min(1).max(10).optional().describe('Maximum results, 1-10. Default 5.'),
   }),

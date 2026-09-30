@@ -2,6 +2,7 @@ import '@/annotations/styles/index';
 import type { AnyAgentTool } from '../defineTool';
 import { getGuide, getItem, getProject, searchPlace } from './read';
 import { addBoundary, addCallout, addRoute } from './add';
+import { duplicateItem, removeItem, reorderItems, updateItem } from './edit';
 import { redoTool, setPlayhead, undoTool } from './playback';
 
 /** Every tool exposed to agents, in the order they are listed. */
@@ -13,6 +14,10 @@ export const ALL_TOOLS = [
   addRoute,
   addBoundary,
   addCallout,
+  updateItem,
+  removeItem,
+  duplicateItem,
+  reorderItems,
   setPlayhead,
   undoTool,
   redoTool,

@@ -53,7 +53,7 @@ export const addRoute = defineTool({
     'mode "flight": great-circle arc between `from` and `to` with a plane marker. mode "walk": a hand-placed path through `points` (2+ [lng, lat]), or from/to if no points. ' +
     '`from`/`to` accept [lng, lat] or a place name (geocoded; see search_place). The line draws itself between startTime and endTime (seconds on the project timeline, default: playhead to +5s). ' +
     '`style` is a partial style (color, width, glow, dashPattern, animationType...). One undo step. Frame it with frame_items or add_camera_keyframe. Returns the new item id.',
-  input: z.object({
+  input: z.strictObject({
     mode: z.enum(['car', 'flight', 'walk']).describe('car = driving directions; flight = great-circle arc; walk = freehand path through points.'),
     from: locationSchema.optional().describe('Start ([lng, lat] or place name). Required for car and flight.'),
     to: locationSchema.optional().describe('End ([lng, lat] or place name). Required for car and flight.'),
@@ -141,7 +141,7 @@ export const addBoundary = defineTool({
     'Adds an outlined region (country, state, city, district) found by name via OpenStreetMap Nominatim; the best polygon match is used. ' +
     'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace...). ' +
     'One undo step. Returns the item id, resolved place name and bbox [west, south, east, north] (pass the id to frame_items to frame it).',
-  input: z.object({
+  input: z.strictObject({
     query: z.string().min(2).max(200).describe('Region name, e.g. "Portugal", "Manhattan, New York", "Bavaria".'),
     ...timing,
     style: boundaryStylePatchSchema.optional().describe('Partial boundary style merged over the defaults.'),
@@ -191,7 +191,7 @@ export const addCallout = defineTool({
     'Adds a callout (label card or marker) pinned to a map location. `location` is [lng, lat] or a place name (geocoded; see search_place). ' +
     '`styleId` selects the look (default "topo-label"; ids and the content each uses are listed by get_guide). Content: title plus optional subtitle, eyebrow, body, badge, metric (styles show only the slots they support). ' +
     'Visible between startTime and endTime (seconds; default: playhead to +5s). `anchor` and `altitude` (pixels above ground) fine-tune placement. `settings` are style-specific overrides validated by the style. One undo step. Returns the item id.',
-  input: z.object({
+  input: z.strictObject({
     title: contentShape.title.min(1),
     subtitle: contentShape.subtitle.optional(),
     eyebrow: contentShape.eyebrow.optional(),

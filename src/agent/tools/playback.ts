@@ -11,7 +11,7 @@ export const setPlayhead = defineTool({
     'Moves the timeline playhead to `time` (seconds, 0 to project duration). The map camera and all items jump to how they look at that moment. ' +
     'Not an undo step and not saved in the project. Useful before adding items (new items default to starting at the playhead). ' +
     'To see what a moment looks like, use render_frames instead. Refused while playback is running.',
-  input: z.object({ time: timeSchema.describe('Seconds on the project timeline, 0 to project duration.') }),
+  input: z.strictObject({ time: timeSchema.describe('Seconds on the project timeline, 0 to project duration.') }),
   readOnly: false,
   handler: ({ time }) => {
     const s = getState();
@@ -40,7 +40,7 @@ export const undoTool = defineTool({
   description:
     'Reverts the most recent undoable change to the project, whoever made it (the user or an AI tool call; each tool call is one step). ' +
     'Returns the label of the reverted step and what undo/redo would do next. Fails if there is nothing to undo or the user is mid-drag. Reverse with redo.',
-  input: z.object({}),
+  input: z.strictObject({}),
   readOnly: false,
   handler: () => {
     const reverted = getHistoryEntries().past.at(-1);
@@ -59,7 +59,7 @@ export const redoTool = defineTool({
   title: 'Redo',
   description:
     'Re-applies the most recently undone step. Only available right after undo, before any new change. Returns the re-applied step label and the new undo/redo state.',
-  input: z.object({}),
+  input: z.strictObject({}),
   readOnly: false,
   handler: () => {
     const reapplied = getHistoryEntries().future.at(-1);
