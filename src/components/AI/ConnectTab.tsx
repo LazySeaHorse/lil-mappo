@@ -9,16 +9,19 @@ import {
 } from '@/components/ui/alert-dialog';
 import { hasAiConsent, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
 
-export function AiStatusLine({ enabled, supported, count }: { enabled: boolean; supported: boolean; count: number }) {
+export const BRIDGE_DOCS_HINT = 'Using Claude Code, Codex or another local agent? Run the lil-mappo-bridge app on this computer and follow the commands it prints.';
+
+export function AiStatusLine({ enabled, supported, count, bridged }: { enabled: boolean; supported: boolean; count: number; bridged: boolean }) {
   let text: string;
-  if (!supported) {
-    text = 'This browser does not support WebMCP. Use Chrome with WebMCP enabled (or its origin trial), then connect an agent such as Gemini in Chrome.';
-  } else if (!enabled) {
-    text = 'Off. Turn it on to let an agent in your browser see this project’s tools.';
-  } else if (count === 0) {
-    text = 'Enabled, waiting for the tools to register.';
+  if (!enabled) {
+    text = 'Off. Turn it on to let an agent see this project’s tools.';
+  } else if (count === 0 && !bridged) {
+    text = supported
+      ? 'Enabled, waiting for the tools to register.'
+      : 'This browser does not support WebMCP (try Chrome with WebMCP enabled, then an agent such as Gemini in Chrome). To use a local agent instead, start the bridge.';
   } else {
-    text = `${count} tools available. Ask an agent on this tab (for example Gemini in Chrome) to work on your project.`;
+    const via = [count > 0 && 'this browser (for example Gemini in Chrome)', bridged && 'the local bridge'].filter(Boolean).join(' and ');
+    text = `${count || getAgentTools().length} tools available through ${via}.`;
   }
   return <p data-testid="ai-status" className="text-xs text-muted-foreground leading-relaxed">{text}</p>;
 }
@@ -27,6 +30,7 @@ export function ConnectTab() {
   const enabled = useAgentStore((s) => s.enabled);
   const setEnabled = useAgentStore((s) => s.setEnabled);
   const count = useAiPanelStore((s) => s.registeredCount);
+  const bridged = useAiPanelStore((s) => s.bridgeConnected);
   const followAi = useAiPanelStore((s) => s.followAi);
   const setFollowAi = useAiPanelStore((s) => s.setFollowAi);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -48,10 +52,11 @@ export function ConnectTab() {
           <label htmlFor="ai-enable" className="text-xs font-medium">Allow AI agents to control this project</label>
           <p className="text-[11px] text-muted-foreground mt-0.5">Off each time you open the editor.</p>
         </div>
-        <Switch id="ai-enable" checked={enabled} onCheckedChange={handleToggle} disabled={!supported && !enabled} aria-label="Allow AI agents to control this project" />
+        <Switch id="ai-enable" checked={enabled} onCheckedChange={handleToggle} aria-label="Allow AI agents to control this project" />
       </div>
 
-      <AiStatusLine enabled={enabled} supported={supported} count={count} />
+      <AiStatusLine enabled={enabled} supported={supported} count={count} bridged={bridged} />
+      <p className="text-[11px] text-muted-foreground leading-relaxed">{BRIDGE_DOCS_HINT}</p>
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

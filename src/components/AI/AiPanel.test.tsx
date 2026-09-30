@@ -23,7 +23,7 @@ const rename = (n: string) =>
 function reset() {
   resetAgentTestState();
   useAgentStore.setState({ enabled: false });
-  useAiPanelStore.setState({ open: false, tab: 'connect', followAi: true, registeredCount: 0 });
+  useAiPanelStore.setState({ open: false, tab: 'connect', followAi: true, registeredCount: 0, bridgeConnected: false });
   sub.current = PRO;
   setSignedIn(true);
   localStorage.clear();
@@ -89,11 +89,19 @@ describe('AgentToolRegistrar', () => {
 });
 
 describe('Connect tab', () => {
-  it('explains unsupported browsers plainly and disables the switch', () => {
+  it('explains unsupported browsers plainly and points to the bridge', () => {
     useAiPanelStore.setState({ open: true });
     render(<AiPanel />);
-    expect(screen.getByTestId('ai-status').textContent).toMatch(/does not support WebMCP.*Gemini in Chrome/);
-    expect(screen.getByRole('switch', { name: 'Allow AI agents to control this project' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Allow AI agents to control this project' })).not.toBeDisabled();
+    act(() => useAgentStore.getState().setEnabled(true));
+    expect(screen.getByTestId('ai-status').textContent).toMatch(/does not support WebMCP.*Gemini in Chrome.*bridge/);
+  });
+
+  it('reports tools available through the bridge without WebMCP', () => {
+    useAiPanelStore.setState({ open: true, bridgeConnected: true });
+    useAgentStore.setState({ enabled: true });
+    render(<AiPanel />);
+    expect(screen.getByTestId('ai-status').textContent).toContain('through the local bridge');
   });
 
   it('asks for confirmation the first time, then remembers it', () => {

@@ -4,9 +4,10 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { belowToolbarTop } from './aiUtils';
 import { useAiPanelStore } from './useAiPanelStore';
 
-/** Visible only while tools are registered with the browser. Opens the panel on Activity. */
+/** Visible only while tools are registered with the browser or linked to the bridge. Opens the panel on Activity. */
 export function AiStatusPill() {
   const registered = useAiPanelStore((s) => s.registeredCount);
+  const bridged = useAiPanelStore((s) => s.bridgeConnected);
   const open = useAiPanelStore((s) => s.open);
   const openPanel = useAiPanelStore((s) => s.openPanel);
   const { isMobile } = useResponsive();
@@ -16,7 +17,7 @@ export function AiStatusPill() {
     return { calls: all.length, running: all.some((c) => c.phase === 'started') };
   }, [events]);
 
-  if (registered === 0 || open) return null;
+  if ((registered === 0 && !bridged) || open) return null;
 
   return (
     <button
