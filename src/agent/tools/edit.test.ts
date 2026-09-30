@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { setAgentMapRef } from '../mapRef';
 import '@/annotations/styles/index';
 import { registerTestStyles, TEST_CARD_STYLE_ID } from '@/annotations/testStyles';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -99,6 +100,46 @@ describe('update_item', () => {
 
     const noTitle = await runAgentTool('update_item', { id: callout.id, patch: { content: { title: null } } });
     expect(noTitle.isError).toBe(true);
+  });
+
+  it('resizes callouts, and bases map sizing on the zoom the user is looking at', async () => {
+    const { callout } = seed();
+    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 14.5 }) } } as never);
+
+    await runAgentTool('update_item', { id: callout.id, patch: { scale: 2 } });
+    expect(state().items[callout.id]).toMatchObject({ scale: 2, sizeMode: 'screen' });
+
+    await runAgentTool('update_item', { id: callout.id, patch: { sizeMode: 'map' } });
+    expect(state().items[callout.id]).toMatchObject({ scale: 2, sizeMode: 'map', referenceZoom: 14.5 });
+
+    // Already sized with the map: the zoom it was set at is kept.
+    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 9 }) } } as never);
+    await runAgentTool('update_item', { id: callout.id, patch: { sizeMode: 'map', scale: 3 } });
+    expect(state().items[callout.id]).toMatchObject({ scale: 3, sizeMode: 'map', referenceZoom: 14.5 });
+
+    await runAgentTool('update_item', { id: callout.id, patch: { sizeMode: 'screen' } });
+    expect(state().items[callout.id]).toMatchObject({ sizeMode: 'screen', referenceZoom: 14.5 });
+  });
+
+  it('falls back to the default zoom for map sizing when the map is not ready', async () => {
+    const { callout } = seed();
+    await runAgentTool('update_item', { id: callout.id, patch: { sizeMode: 'map' } });
+    expect(state().items[callout.id]).toMatchObject({ sizeMode: 'map', referenceZoom: 12 });
+  });
+
+  it('keeps size across a style switch, and rejects sizes and modes out of range', async () => {
+    const { callout } = seed();
+    await runAgentTool('update_item', { id: callout.id, patch: { scale: 2, sizeMode: 'map' } });
+    await runAgentTool('update_item', { id: callout.id, patch: { styleId: TEST_CARD_STYLE_ID } });
+    expect(state().items[callout.id]).toMatchObject({ styleId: TEST_CARD_STYLE_ID, scale: 2, sizeMode: 'map' });
+
+    expect(resultJson(await runAgentTool('update_item', { id: callout.id, patch: { scale: 9 } })).error).toBe('invalid_input');
+    expect(resultJson(await runAgentTool('update_item', { id: callout.id, patch: { sizeMode: 'world' } })).error).toBe('invalid_input');
+  });
+
+  it('does not offer sizeMode for routes', async () => {
+    const { route } = seed();
+    expect(resultJson(await runAgentTool('update_item', { id: route.id, patch: { sizeMode: 'map' } })).error).toBe('invalid_patch');
   });
 
   it('updates callouts: content merge, style switch resets settings, invalid settings rejected', async () => {

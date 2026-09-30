@@ -18,7 +18,9 @@ import { summarizeItem } from '../summaries';
 import {
   anchorSchema,
   boundaryStyleShape,
+  calloutScaleSchema,
   calloutSettingsSchema,
+  calloutSizeModeSchema,
   connectorPatchSchema,
   contentPatchSchema,
   exitAnimationSchema,
@@ -31,6 +33,7 @@ import {
   type LngLat,
   type Location,
   assertTimeRange,
+  currentMapZoom,
   easingSchema,
   getState,
   itemIdSchema,
@@ -72,7 +75,8 @@ const patchSchema = z
     altitude: z.number().min(0).max(500).describe('Callout: height above the ground point in pixels.'),
     offset: z.tuple([z.number().min(-1000).max(1000), z.number().min(-1000).max(1000)]).describe('Callout: [x, y] pixel nudge from the anchor point.'),
     opacity: z.number().min(0).max(1).describe('Callout opacity 0-1.'),
-    scale: z.number().min(0.1).max(5).describe('Callout size multiplier.'),
+    scale: calloutScaleSchema,
+    sizeMode: calloutSizeModeSchema,
     transition: transitionPatchSchema,
     connector: connectorPatchSchema,
     settings: calloutSettingsSchema,
@@ -84,7 +88,7 @@ const TIMING = ['startTime', 'endTime'];
 const ALLOWED_KEYS: Record<'route' | 'boundary' | 'callout', string[]> = {
   route: [...TIMING, 'easing', 'exitAnimation', 'name', 'vehicle', 'points', 'curved', 'sharpness', 'style'],
   boundary: [...TIMING, 'easing', 'exitAnimation', 'placeName', 'style'],
-  callout: [...TIMING, 'content', 'location', 'styleId', 'anchor', 'altitude', 'offset', 'opacity', 'scale', 'transition', 'connector', 'settings', 'linkTitleToLocation'],
+  callout: [...TIMING, 'content', 'location', 'styleId', 'anchor', 'altitude', 'offset', 'opacity', 'scale', 'sizeMode', 'transition', 'connector', 'settings', 'linkTitleToLocation'],
 };
 
 function assertKeysAllowed(kind: keyof typeof ALLOWED_KEYS, patch: Record<string, unknown>, id: string): void {
@@ -221,6 +225,11 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
   if (patch.offset) updates.offset = patch.offset as [number, number];
   if (patch.opacity !== undefined) updates.opacity = patch.opacity;
   if (patch.scale !== undefined) updates.scale = patch.scale;
+  // Turning map sizing on bases it on the zoom the user is looking at; already on, it keeps its base.
+  if (patch.sizeMode !== undefined && patch.sizeMode !== item.sizeMode) {
+    updates.sizeMode = patch.sizeMode;
+    if (patch.sizeMode === 'map') updates.referenceZoom = currentMapZoom();
+  }
   if (patch.transition) updates.transition = { ...item.transition, ...patch.transition };
   if (patch.connector) updates.connector = { ...item.connector, ...patch.connector };
   return updates;
@@ -232,7 +241,7 @@ export const updateItem = defineTool({
   description:
     'Changes fields of an existing route, boundary or callout (not the camera track; see update_camera_keyframe). `patch` holds only the fields to change; `style`, `content`, `transition`, `connector`, `vehicle` and `settings` are merged into the existing values, not replaced. ' +
     'id and kind cannot change. Timing: 0 <= startTime < endTime <= project duration (seconds). Fields differ per kind: route (name, vehicle, style, easing, exitAnimation, and for walk routes points/curved/sharpness), ' +
-    'boundary (placeName, style, easing, exitAnimation), callout (content, location, styleId, anchor, altitude, offset, opacity, scale, transition, connector, settings, linkTitleToLocation). ' +
+    'boundary (placeName, style, easing, exitAnimation), callout (content, location, styleId, anchor, altitude, offset, opacity, scale, sizeMode, transition, connector, settings, linkTitleToLocation). ' +
     'Fields that do not apply to the item\'s kind are rejected with the allowed list. One undo step. To change a car/flight route\'s endpoints, remove_item and add_route again.',
   input: z.strictObject({
     id: itemIdSchema,

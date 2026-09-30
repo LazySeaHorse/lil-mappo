@@ -2,8 +2,10 @@ import { z } from 'zod/v4';
 import { useProjectStore } from '@/store/useProjectStore';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { DEFAULT_ITEM_DURATION } from '@/store/itemFactories';
+import { DEFAULT_VIEW_ZOOM } from '@/annotations/migration';
 import type { CameraItem, EasingName, TimelineItem } from '@/store/types';
 import { ToolError } from '../errors';
+import { getAgentMap } from '../mapRef';
 
 export const EASING_NAMES = [
   'linear',
@@ -36,6 +38,11 @@ export const timeSchema = z.number().min(0).finite().describe('Seconds on the pr
 export const colorSchema = z.string().min(1).max(64).describe('CSS color, e.g. "#3b82f6" or "rgb(59,130,246)".');
 
 export const itemIdSchema = z.string().min(1).describe('Timeline item id from get_project.');
+
+/** Zoom of the map the user is looking at, or the editor's default zoom before the map exists. */
+export function currentMapZoom(): number {
+  return getAgentMap()?.getZoom() ?? DEFAULT_VIEW_ZOOM;
+}
 
 // ---- store access ----------------------------------------------------------
 

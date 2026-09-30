@@ -86,6 +86,8 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
               offset: item.offset,
               opacity: item.opacity,
               scale: item.scale,
+              sizeMode: item.sizeMode,
+              ...(item.sizeMode === 'map' ? { referenceZoom: item.referenceZoom } : {}),
               transition: item.transition,
               connector: item.connector,
               settings: item.settings,

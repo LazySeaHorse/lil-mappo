@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { undo, redo } from '@/store/history';
 import { agentEvents } from '../events';
 import { runAgentTool } from '../runner';
+import { setAgentMapRef } from '../mapRef';
 import { historyPast, resetAgentTestState, resultJson } from '../testHelpers';
 
 const state = () => useProjectStore.getState();
@@ -149,6 +150,24 @@ describe('add tools', () => {
     });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add callout "Hello"' });
+  });
+
+  it('add_callout sizes the callout, with map sizing based on the current map zoom', async () => {
+    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 15.25 }) } } as never);
+    const plain = resultJson<{ created: { id: string } }>(await runAgentTool('add_callout', { title: 'Plain', location: [1, 2] }));
+    expect(state().items[plain.created.id]).toMatchObject({ scale: 1, sizeMode: 'screen' });
+
+    const sized = resultJson<{ created: { id: string } }>(
+      await runAgentTool('add_callout', { title: 'Sized', location: [1, 2], scale: 1.5, sizeMode: 'map' }),
+    );
+    expect(state().items[sized.created.id]).toMatchObject({ scale: 1.5, sizeMode: 'map', referenceZoom: 15.25 });
+  });
+
+  it('add_callout uses the default reference zoom without a map, and rejects bad sizes', async () => {
+    const created = resultJson<{ created: { id: string } }>(await runAgentTool('add_callout', { title: 'x', location: [1, 2], sizeMode: 'map' }));
+    expect(state().items[created.created.id]).toMatchObject({ sizeMode: 'map', referenceZoom: 12 });
+    expect((await runAgentTool('add_callout', { title: 'x', location: [1, 2], scale: 0 })).isError).toBe(true);
+    expect((await runAgentTool('add_callout', { title: 'x', location: [1, 2], sizeMode: 'nope' })).isError).toBe(true);
   });
 
   it('add_callout rejects unknown styles and invalid settings', async () => {

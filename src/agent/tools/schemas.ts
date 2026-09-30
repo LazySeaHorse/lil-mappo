@@ -69,6 +69,17 @@ export const anchorSchema = z
   .enum(['center', 'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'])
   .describe('Which point of the callout sits on the map location.');
 
+export const calloutScaleSchema = z
+  .number().min(0.1).max(5)
+  .describe('Callout size multiplier, 1 = normal (the editor\'s size slider spans 0.25-4). With sizeMode "map" it is the size at the reference zoom.');
+
+export const calloutSizeModeSchema = z
+  .enum(['screen', 'map'])
+  .describe(
+    '"screen" (default): the callout keeps its pixel size at every zoom. "map": it is sized like something printed on the map and grows and shrinks with the camera zoom, ' +
+    'relative to the map zoom at the time it is set (update_item with sizeMode "map" on a callout that already has it keeps its zoom).',
+  );
+
 export const calloutSettingsSchema = z
   .record(z.string(), z.unknown())
   .describe('Style-specific settings, merged over the style defaults and validated by the style. Keys depend on styleId; omit unless needed.');

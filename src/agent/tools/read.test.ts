@@ -22,6 +22,7 @@ describe('read tools', () => {
     expect(text).toContain('leader-line');
     expect(text).toContain('easeInOutCubic');
     expect(text).toContain('[longitude, latitude]');
+    expect(text).toContain('sizeMode');
   });
 
   it('get_project stays compact with a huge route and boundary geometry', async () => {

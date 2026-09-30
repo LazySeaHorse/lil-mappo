@@ -23,7 +23,9 @@ import { summarizeItem } from '../summaries';
 import {
   anchorSchema,
   boundaryStylePatchSchema,
+  calloutScaleSchema,
   calloutSettingsSchema,
+  calloutSizeModeSchema,
   contentShape,
   routeStylePatchSchema,
   vehiclePatchSchema,
@@ -32,6 +34,7 @@ import {
 import {
   type LngLat,
   type Location,
+  currentMapZoom,
   getState,
   lngLatSchema,
   locationSchema,
@@ -191,7 +194,7 @@ export const addCallout = defineTool({
   description:
     'Adds a callout (an animated label or marker) pinned to a map location. `location` is [lng, lat] or a place name (geocoded; see search_place). ' +
     '`styleId` selects the look (default "leader-line"; ids and the content each uses are listed by get_guide). Content: title plus optional subtitle, eyebrow, body, badge, metric (styles show only the slots they support). ' +
-    'Visible between startTime and endTime (seconds; default: playhead to +5s). `anchor` and `altitude` (pixels above ground) fine-tune placement. `settings` are style-specific overrides validated by the style. One undo step. Returns the item id.',
+    'Visible between startTime and endTime (seconds; default: playhead to +5s). `anchor` and `altitude` (pixels above ground) fine-tune placement; `scale` and `sizeMode` set its size. `settings` are style-specific overrides validated by the style. One undo step. Returns the item id.',
   input: z.strictObject({
     title: contentShape.title.min(1),
     subtitle: contentShape.subtitle.optional(),
@@ -204,6 +207,8 @@ export const addCallout = defineTool({
     ...timing,
     anchor: anchorSchema.optional(),
     altitude: z.number().min(0).max(500).optional().describe('Card height above the ground point in screen pixels (styles that support it). Each style has its own default (0 for leader lines and flat markers).'),
+    scale: calloutScaleSchema.optional(),
+    sizeMode: calloutSizeModeSchema.optional(),
     settings: calloutSettingsSchema.optional(),
   }),
   readOnly: false,
@@ -223,7 +228,10 @@ export const addCallout = defineTool({
       lngLat: place.coordinates,
       startTime: 0,
       linkTitleToLocation: false,
+      referenceZoom: currentMapZoom(),
     })!;
+    if (input.scale !== undefined) item.scale = input.scale;
+    if (input.sizeMode) item.sizeMode = input.sizeMode;
     if (input.anchor) item.anchor = input.anchor;
     if (input.altitude !== undefined && item.binding.kind === 'geographic') item.binding = { ...item.binding, altitude: input.altitude };
     if (input.settings) {
