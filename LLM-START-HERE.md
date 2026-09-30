@@ -72,6 +72,13 @@ const { fieldA, fieldB } = useProjectStore(
 
 This is applied to high-frequency components like `InspectorPanel` and `Toolbar` to avoid 60fps thrashing.
 
+**Undo/redo (`src/store/history.ts`)**: zundo `temporal` wraps the store (`useProjectStore.temporal`). UI and shortcuts must call `undo()` / `redo()` from `history.ts`, never zundo directly (they block during export/gestures and clean up stale selection).
+- **Tracked**: the `TRACKED_PROJECT_KEYS` list in `historyKeys.ts` (persisted fields that change exported pixels). `id` and `mapCenter` are excluded (`mapCenter` is written on every pan); all transient UI state is untracked. A type test forces every new `Project` key to be classified. Equality is shallow reference compare; limit 100.
+- **Gestures**: `installGestureTracking()` (mounted by `useHistoryShortcuts`) maps document `pointerdown` -> `beginGesture()` and `pointerup`/`pointercancel`/blur -> `endGesture()`, so drags, sliders and color pickers become one step. Discrete clicks change state after pointerup and are normal steps. Keyboard changes are per-change steps.
+- **Background writes** (async results, search status) must be wrapped in `withoutHistory(fn)`; otherwise they create undo steps.
+- **Metadata**: each step has `{ label, source: 'user' | 'ai', at }` (labels derived by diffing in `historyLabels.ts`). Tag writes with `withHistorySource('ai', fn)`, override with `withHistoryLabel(label, fn)`; read with `useHistoryEntries()` / `getHistoryEntries()`.
+- `loadFullProject` clears history. In tests that reset via `setState`, call `clearHistory()` if you assert on history.
+
 ### 3.1b Authentication & User Data: `src/store/useAuthStore.ts`
 
 Manages user auth state, modal visibility, and checkout flow. Integrates Supabase Auth + Dodo Payments webhooks.
