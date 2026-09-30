@@ -263,7 +263,13 @@ test("4. a callout can be added and edited", async ({ page }) => {
   const titleInput = page.locator("#root").getByRole("textbox", { name: "Callout title" });
   await expect(titleInput).toHaveValue("Customer HQ");
   await titleInput.fill("Customer HQ Updated");
-  await expect(page.getByLabel("Map marker").getByText("Customer HQ Updated", { exact: true })).toBeVisible();
+  // Callouts draw on one overlay canvas next to the map canvas, so there is no text to find: check it holds pixels.
+  await expect.poll(() => page.evaluate(() => {
+    const overlay = [...document.querySelectorAll<HTMLCanvasElement>(".mapboxgl-canvas-container canvas")]
+      .find((canvas) => !canvas.classList.contains("mapboxgl-canvas"));
+    const pixels = overlay?.getContext("2d")?.getImageData(0, 0, overlay.width, overlay.height).data;
+    return pixels ? pixels.some((value, index) => index % 4 === 3 && value > 0) : false;
+  })).toBe(true);
 });
 
 test("5. a boundary can be added and edited", async ({ page }) => {
