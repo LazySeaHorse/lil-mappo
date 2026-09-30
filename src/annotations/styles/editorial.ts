@@ -203,7 +203,7 @@ export const editorialStyle: AnnotationStyleDefinition<EditorialSettings> = {
   id: 'editorial',
   version: 1,
   name: 'Editorial',
-  description: 'Documentary annotation: a rule beside a tracked eyebrow, serif headline and body text',
+  description: 'A vertical rule beside a tracked eyebrow, a serif headline and body text',
   category: 'editorial',
   icon: 'newspaper',
   contentSlots: ['eyebrow', 'title', 'body'],

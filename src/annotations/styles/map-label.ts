@@ -224,7 +224,7 @@ export const mapLabelStyle: AnnotationStyleDefinition<MapLabelSettings> = {
   id: 'map-label',
   version: 1,
   name: 'Map Label',
-  description: 'Cartographic lettering set on the point: tracked capitals, water italics or a wide region name',
+  description: 'Cartographic lettering set on the point as a place, water or region name',
   category: 'label',
   icon: 'type',
   contentSlots: ['title', 'subtitle'],

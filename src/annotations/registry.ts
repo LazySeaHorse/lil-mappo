@@ -5,7 +5,7 @@
  * and export pipeline all look up styles from this registry.
  */
 
-import type { AnnotationStyleDefinition, StyleCategory } from './types';
+import { STYLE_CATEGORIES, type AnnotationStyleDefinition, type StyleCategory } from './types';
 
 const registry = new Map<string, AnnotationStyleDefinition>();
 
@@ -41,13 +41,10 @@ export function getStylesByCategory(category: StyleCategory): AnnotationStyleDef
   return getAllStyles().filter((s) => s.category === category);
 }
 
-/** Get all unique categories that have at least one registered style. */
+/** Categories that have at least one registered style, in picker order. */
 export function getCategories(): StyleCategory[] {
-  const categories = new Set<StyleCategory>();
-  for (const style of registry.values()) {
-    categories.add(style.category);
-  }
-  return Array.from(categories);
+  const used = new Set(Array.from(registry.values(), (style) => style.category));
+  return STYLE_CATEGORIES.filter((category) => used.has(category));
 }
 
 /** Check if a style ID is registered. */

@@ -263,7 +263,10 @@ export interface StyleRenderInput<TSettings = Record<string, unknown>> {
 
 // ─── Style Definition ─────────────────────────────────────────────────────────
 
-export type StyleCategory = 'label' | 'marker' | 'editorial' | 'data' | 'media' | 'sign';
+/** Picker groups, in the order the picker lists them. */
+export const STYLE_CATEGORIES = ['label', 'marker', 'editorial', 'data', 'media', 'sign'] as const;
+
+export type StyleCategory = (typeof STYLE_CATEGORIES)[number];
 
 /**
  * A box in a style's own coordinates, relative to its origin: (x, y) is the

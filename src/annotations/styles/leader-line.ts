@@ -229,7 +229,7 @@ export const leaderLineStyle: AnnotationStyleDefinition<LeaderLineSettings> = {
   id: 'leader-line',
   version: 1,
   name: 'Leader Line',
-  description: 'Ground dot, a line drawn up to a shelf, and a title wiped on above it',
+  description: 'A dot on the point with a line up to a shelf and a title wiped on above it',
   category: 'label',
   icon: 'move-up-right',
   contentSlots: ['title', 'subtitle'],

@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import '@/annotations/styles';
-import { getAllStyles } from '../registry';
+import { getAllStyles, getCategories } from '../registry';
 import { STYLE_ICONS, isStyleIconName } from '../inspector/styleIcons';
 import { measureScene } from '../scene/measure';
 import { STYLE_ANIMATION } from '../animation';
@@ -44,6 +44,12 @@ function inputFor(
 
 const styles = getAllStyles();
 
+describe('picker order', () => {
+  it('lists the categories in their canonical order', () => {
+    expect(getCategories()).toEqual(['label', 'marker', 'editorial', 'data', 'media', 'sign']);
+  });
+});
+
 describe('registered styles', () => {
   it('include at least Leader Line, with unique ids', () => {
     expect(styles.map((s) => s.id)).toContain('leader-line');
@@ -61,6 +67,19 @@ describe('registered styles', () => {
       expect(style.contentSlots.length).toBeGreaterThan(0);
       for (const slot of style.contentSlots) expect(CONTENT_KEYS).toContain(slot);
       expect(style.version).toBeGreaterThanOrEqual(1);
+    });
+
+    it('is described in one short sentence without a trailing full stop', () => {
+      expect(style.description).toMatch(/^[A-Z]/);
+      expect(style.description).not.toMatch(/[.:]/);
+      expect(style.description.length).toBeLessThanOrEqual(100);
+    });
+
+    it('labels shared controls the same way in every style', () => {
+      const labels: Record<string, string> = { halo: 'Soft shadow', side: 'Side' };
+      for (const control of style.controls) {
+        if (control.key in labels) expect(control.label).toBe(labels[control.key]);
+      }
     });
 
     it('has default settings its schema accepts, and controls that point at real settings', () => {

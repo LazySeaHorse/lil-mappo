@@ -374,7 +374,7 @@ export const flagStyle: AnnotationStyleDefinition<FlagSettings> = {
   id: 'flag',
   version: 1,
   name: 'Flag',
-  description: 'A pole planted at the point, with a flag that unfurls from the top',
+  description: 'A pole planted at the point with a flag that unfurls from the top',
   category: 'marker',
   icon: 'flag',
   contentSlots: ['title', 'subtitle'],

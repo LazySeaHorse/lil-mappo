@@ -244,7 +244,7 @@ export const polaroidStyle: AnnotationStyleDefinition<PolaroidSettings> = {
   id: 'polaroid',
   version: 1,
   name: 'Polaroid',
-  description: 'An instant photo print that drops onto the map, develops, and is captioned by hand',
+  description: 'An instant photo print that drops onto the map, develops and gets a handwritten caption',
   category: 'media',
   icon: 'image',
   contentSlots: ['title', 'image'],

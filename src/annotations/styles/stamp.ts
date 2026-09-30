@@ -374,7 +374,7 @@ export const stampStyle: AnnotationStyleDefinition<StampSettings> = {
   id: 'stamp',
   version: 1,
   name: 'Stamp',
-  description: 'A rubber stamp that slams down on the point, round with arced type or rectangular',
+  description: 'A rubber stamp that slams down on the point, round or rectangular',
   category: 'editorial',
   icon: 'stamp',
   contentSlots: ['title', 'subtitle'],

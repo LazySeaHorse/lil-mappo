@@ -268,7 +268,7 @@ export const targetLockStyle: AnnotationStyleDefinition<TargetLockSettings> = {
   id: 'target-lock',
   version: 1,
   name: 'Target Lock',
-  description: 'Corner brackets snap onto the point, with a coordinate readout that scrambles and types in',
+  description: 'Corner brackets that lock onto the point beside a scrambling coordinate readout',
   category: 'data',
   icon: 'crosshair',
   contentSlots: ['eyebrow', 'title', 'subtitle'],

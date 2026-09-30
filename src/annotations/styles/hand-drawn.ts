@@ -12,7 +12,7 @@ import { boundsOf, haloShadow, resolveDirection } from './shared';
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
 export const handDrawnSettingsSchema = z.object({
-  strokeColor: z.string().default('#FF4136'),
+  strokeColor: z.string().default('#FF5A36'),
   textColor: z.string().default('#FFFFFF'),
   circleSize: z.number().default(34),
   halo: z.boolean().default(true),
@@ -22,7 +22,7 @@ export const handDrawnSettingsSchema = z.object({
 export type HandDrawnSettings = z.infer<typeof handDrawnSettingsSchema>;
 
 export const defaultHandDrawnSettings: HandDrawnSettings = {
-  strokeColor: '#FF4136',
+  strokeColor: '#FF5A36',
   textColor: '#FFFFFF',
   circleSize: 34,
   halo: true,
@@ -240,8 +240,8 @@ export function measureHandDrawn(input: StyleRenderInput<HandDrawnSettings>): St
 export const handDrawnStyle: AnnotationStyleDefinition<HandDrawnSettings> = {
   id: 'hand-drawn',
   version: 1,
-  name: 'Hand-drawn',
-  description: 'A marker circle scribbled round the point, an arrow to it, and a handwritten note',
+  name: 'Hand-Drawn',
+  description: 'A marker circle scribbled round the point, an arrow to it and a handwritten note',
   category: 'editorial',
   icon: 'pen-line',
   contentSlots: ['title', 'subtitle'],
@@ -261,7 +261,6 @@ export const handDrawnStyle: AnnotationStyleDefinition<HandDrawnSettings> = {
   controls: [
     { type: 'color', key: 'strokeColor', label: 'Marker color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'slider', key: 'circleSize', label: 'Circle size', min: 20, max: 80, step: 2, unit: 'px' },
     { type: 'switch', key: 'halo', label: 'Soft shadow' },
     {
       type: 'select',
@@ -273,6 +272,7 @@ export const handDrawnStyle: AnnotationStyleDefinition<HandDrawnSettings> = {
         { value: 'right', label: 'Right' },
       ],
     },
+    { type: 'slider', key: 'circleSize', label: 'Circle size', min: 20, max: 80, step: 2, unit: 'px' },
   ],
   render: renderHandDrawn,
   measure: measureHandDrawn,
