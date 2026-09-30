@@ -79,6 +79,18 @@ This is applied to high-frequency components like `InspectorPanel` and `Toolbar`
 - **Metadata**: each step has `{ label, source: 'user' | 'ai', at }` (labels derived by diffing in `historyLabels.ts`). Tag writes with `withHistorySource('ai', fn)`, override with `withHistoryLabel(label, fn)`; read with `useHistoryEntries()` / `getHistoryEntries()`.
 - `loadFullProject` clears history. In tests that reset via `setState`, call `clearHistory()` if you assert on history.
 
+### 3.1a AI tool layer: `src/agent/`
+
+Transport-agnostic tools that let a user's AI agent build and edit the project. It knows nothing about WebMCP; a separate registration layer feeds `getAgentTools()` to `document.modelContext`.
+
+- **Public API** (`src/agent/index.ts`): `getAgentTools()` (name, title, description, JSON Schema `inputSchema`, annotations, `execute`), `runAgentTool(name, input)`, `useAgentStore` (`enabled`, `exportLimits`; the UI drives both), `agentEvents` / `useAgentEvents` / `selectAgentCalls` (activity feed), `setAgentMapRef` / `setAgentRuntimeRef` (wired in `MapStudioEditor`).
+- **Runner contract**: `runAgentTool` never throws. It refuses when `useAgentStore.enabled` is false, refuses write tools while `isExporting` or a user drag gesture is active, validates input with zod (`zod/v4`, strict objects) and returns MCP-style `{ content, isError? }`. Errors are compact JSON `{ error, message, ... }`. Every call emits `started` then `succeeded`/`failed` events (with `affectedItemIds` / `affectedKeyframeIds`); the log keeps the last 200.
+- **Writes**: a tool does its async work (geocoding, directions, Nominatim) first, then writes inside one synchronous `commitAiWrite(label, fn)` (`commit.ts`). That coalesces the store writes into one undo step tagged `source: 'ai'` with an `AI: ...` label. Never write to the store across an `await`. Write and `render_frames` tools run one at a time.
+- **Defaults**: routes, boundaries, callouts and keyframes are built by `src/store/itemFactories.ts`, shared with the toolbar dropdowns, so AI-created items match UI-created ones. Add new default construction there, not in components.
+- **Adding a tool**: `defineTool({ name, title, description, input, readOnly, handler })` in `src/agent/tools/`, register it in `tools/index.ts`, describe units (seconds, `[lng, lat]`, zoom/pitch ranges) and related tools in the description (it is public docs for arbitrary agents), and add a colocated test. Tuple types from zod need explicit casts (`LngLat`, `Location` in `tools/shared.ts`) because `tsconfig.app.json` has `strict: false`.
+- **Not exposed on purpose**: video export, cloud save, project load/delete/new, auth, billing. `update_project_settings` enforces plan limits from `useAgentStore.exportLimits` (set it from `getExportLimits(subscription)`).
+- **`render_frames`** reuses `withFrameCapturer` (`src/services/frameCapture.ts`), the same pipeline as the Snapshot button: it resizes the map to the project resolution off-screen, steps the playhead/camera like `videoExport.ts`, and returns one downscaled JPEG per requested time. Playhead is restored afterwards.
+
 ### 3.1b Authentication & User Data: `src/store/useAuthStore.ts`
 
 Manages user auth state, modal visibility, and checkout flow. Integrates Supabase Auth + Dodo Payments webhooks.
