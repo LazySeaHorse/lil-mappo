@@ -7,6 +7,7 @@ import { DEFAULT_ITEM_DURATION, createCameraKeyframe, createDefaultRouteStyle } 
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
+import { CloudProjectSizeError } from '@/services/cloudProjectLibrary';
 import { isFreeUser, hasByok } from '@/lib/cloudAccess';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -115,7 +116,11 @@ export function useToolbarActions() {
         toast.success('Saved');
         break;
       case 'cloud-failed':
-        toast.success('Saved locally — cloud sync is pending');
+        if (result.error instanceof CloudProjectSizeError) {
+          toast.warning(`Saved locally — ${result.error.message}`);
+        } else {
+          toast.success('Saved locally — cloud sync is pending');
+        }
         break;
       case 'metadata-repair-needed':
         toast.success('Saved to cloud — sync status will be repaired');

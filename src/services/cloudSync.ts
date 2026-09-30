@@ -1,6 +1,4 @@
-import {
-  listCloudProjects,
-} from './cloudProjectLibrary';
+import { listCloudProjects, CloudProjectSizeError } from './cloudProjectLibrary';
 import {
   listSavedProjects,
 } from './projectLibrary';
@@ -82,6 +80,11 @@ export async function syncProjects(canSave: boolean): Promise<SyncResult> {
           localProject.id,
           localProject.updatedAt
         );
+        // An oversize project can never sync as-is; skip it rather than let it
+        // block every other project on each sync.
+        if (result.status === 'cloud-failed' && result.error instanceof CloudProjectSizeError) {
+          continue;
+        }
         if (result.status === 'cloud-failed' || result.status === 'local-failed') {
           throw result.error;
         }

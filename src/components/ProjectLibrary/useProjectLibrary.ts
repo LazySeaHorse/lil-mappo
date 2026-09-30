@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { loadProjectFromLibrary } from '@/services/projectLibrary';
-import { CloudProjectLimitError } from '@/services/cloudProjectLibrary';
+import { CloudProjectLimitError, CloudProjectSizeError } from '@/services/cloudProjectLibrary';
 import {
   projectLibraryCoordinator,
   type LibraryProject,
@@ -22,6 +22,10 @@ export function showUploadResult(result: CloudWriteResult, successMessage = 'Upl
       toast.success(`${successMessage} — sync status will be repaired`);
       break;
     case 'cloud-failed':
+      if (result.error instanceof CloudProjectSizeError) {
+        toast.error(result.error.message);
+        break;
+      }
       toast.error('Cloud upload failed. The local project is preserved and pending sync.');
       break;
     case 'local-failed':
