@@ -13,6 +13,7 @@ import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdo
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
+import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 
 interface DesktopToolbarLayoutProps {
@@ -152,6 +153,9 @@ export function DesktopToolbarLayout({
       </div>
 
       {renderAvatarMenu()}
+      <Divider />
+
+      <HistoryButtons />
       <Divider />
 
       <div className="flex items-center gap-0.5">

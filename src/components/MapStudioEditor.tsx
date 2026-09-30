@@ -9,6 +9,7 @@ import ExportModal from "@/components/ExportModal/ExportModal";
 import ProjectLibraryModal from "@/components/ProjectLibrary/ProjectLibraryModal";
 import { NewProjectModal } from "@/components/ProjectLibrary/NewProjectModal";
 import { usePlayback } from "@/hooks/usePlayback";
+import { useHistoryShortcuts } from "@/hooks/useHistoryShortcuts";
 import { MapRefContext } from "@/hooks/useMapRef";
 import { MapRuntimeContext, type MapSceneRuntimeRef } from "@/hooks/useMapRuntime";
 import FontLoader from "@/components/FontLoader";
@@ -104,6 +105,7 @@ export default function MapStudioEditor() {
   const { isMobile, isTablet } = useResponsive();
   const isWorkingDraftReady = useWorkingProjectDraft();
   usePlayback(mapRef);
+  useHistoryShortcuts();
   const mapLoadGate = useMapLoadGate();
   const { user, openAuthModal } = useAuthStore();
   const isLocked = !user && !hasByok();

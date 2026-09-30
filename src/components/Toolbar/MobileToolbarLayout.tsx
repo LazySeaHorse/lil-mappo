@@ -7,6 +7,7 @@ import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { IconButton } from '@/components/ui/icon-button';
+import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 
 interface MobileToolbarLayoutProps {
@@ -62,6 +63,8 @@ export function MobileToolbarLayout({
           <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('layers')} title="Map Display" data-walkthrough="map-tools">
             <Layers2 size={20} />
           </IconButton>
+          <Divider />
+          <HistoryButtons iconSize={18} />
           <div className="flex-1" />
           <ToolbarButton icon={<Clapperboard size={18} />} label="Export" hideLabel onClick={onExport} walkthroughTarget="render" />
           <div className="w-1" />

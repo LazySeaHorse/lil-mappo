@@ -9,7 +9,7 @@ import { MAP_STYLES } from '@/config/mapbox';
 import { cn } from '@/lib/utils';
 
 export function ToolbarButton({
-  icon, label, onClick, accent, hideLabel, walkthroughTarget, isPulsing, className,
+  icon, label, onClick, accent, hideLabel, walkthroughTarget, isPulsing, className, disabled,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -19,6 +19,7 @@ export function ToolbarButton({
   walkthroughTarget?: string;
   isPulsing?: boolean;
   className?: string;
+  disabled?: boolean;
 }) {
   const pulseClass = isPulsing ? 'animate-pulse ring-2 ring-primary/60' : '';
 
@@ -30,6 +31,7 @@ export function ToolbarButton({
         size="sm"
         onClick={onClick}
         title={label}
+        disabled={disabled}
         data-walkthrough={walkthroughTarget}
         className={cn(pulseClass, className)}
       >
@@ -44,6 +46,7 @@ export function ToolbarButton({
       variant={accent ? "default" : "ghost"}
       size="sm"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         `h-8 px-2.5 flex flex-row items-center gap-1.5 text-xs rounded-lg transition-all ${accent ? 'shadow-lg shadow-primary/20' : ''}`,
         pulseClass,
