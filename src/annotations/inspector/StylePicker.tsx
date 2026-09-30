@@ -6,12 +6,7 @@
 import React from 'react';
 import { getAllStyles, getCategories } from '@/annotations/registry';
 import type { AnnotationStyleDefinition, StyleCategory } from '@/annotations/types';
-import { Square, MoveUpRight } from 'lucide-react';
-
-const ICON_MAP: Record<string, React.ReactNode> = {
-  'square': <Square size={16} />,
-  'move-up-right': <MoveUpRight size={16} />,
-};
+import { StyleIcon } from './styleIcons';
 
 const CATEGORY_LABELS: Record<StyleCategory, string> = {
   label: 'Labels',
@@ -73,7 +68,7 @@ export function StylePicker({ value, onChange, columns = 4 }: StylePickerProps) 
                     title={style.description}
                   >
                     <div className="flex items-center justify-center h-6">
-                      {ICON_MAP[style.icon] || <Square size={16} />}
+                      <StyleIcon name={style.icon} />
                     </div>
                     <span className="text-[10px] font-medium leading-tight truncate w-full">
                       {style.name}
