@@ -10,7 +10,7 @@ import { AgentToolRegistrar } from './AgentToolRegistrar';
 import { AiPanel } from './AiPanel';
 import { AiStatusPill } from './AiStatusPill';
 import { AiToolbarButton } from './AiToolbarButton';
-import { useAiPanelStore } from './useAiPanelStore';
+import { hasAiConsent, useAiPanelStore } from './useAiPanelStore';
 import { PRO, installModelContext, removeModelContext, setSignedIn } from './testUtils';
 
 const sub = vi.hoisted(() => ({ current: null as unknown }));
@@ -136,18 +136,42 @@ describe('Connect tab', () => {
   });
 });
 
+describe('Gating in the panel', () => {
+  const toggle = () => screen.getByRole('switch', { name: 'Allow AI agents to control this project' });
+
+  it('explains the feature to non-Pro users, then sends them to upgrade instead of enabling', () => {
+    sub.current = null;
+    useAiPanelStore.setState({ open: true });
+    render(<AiPanel />);
+    expect(screen.getByTestId('ai-pro-note')).toBeInTheDocument();
+    fireEvent.click(toggle());
+    expect(screen.getByText(/experimental feature/)).toBeInTheDocument();
+    expect(screen.getByText(/small lil-mappo bridge app/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'See Wanderer plan' }));
+    expect(useAuthStore.getState().showUpgradeModal).toBe(true);
+    expect(useAgentStore.getState().enabled).toBe(false);
+    expect(hasAiConsent()).toBe(false);
+  });
+
+  it('sends signed-out users to sign in', () => {
+    act(() => setSignedIn(false));
+    useAiPanelStore.setState({ open: true });
+    render(<AiPanel />);
+    fireEvent.click(toggle());
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(useAuthStore.getState().showAuthModal).toBe(true);
+    expect(useAgentStore.getState().enabled).toBe(false);
+  });
+});
+
 describe('Toolbar button', () => {
-  it('opens the upgrade modal for non-Pro and auth for signed-out', () => {
+  it('opens the panel for everyone and shows the PRO badge to non-Pro users', () => {
     sub.current = null;
     render(<AiToolbarButton />);
     expect(screen.getByText('PRO')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('AI (Experimental)'));
-    expect(useAuthStore.getState().showUpgradeModal).toBe(true);
-    expect(useAiPanelStore.getState().open).toBe(false);
-
-    act(() => setSignedIn(false));
-    fireEvent.click(screen.getByTitle('AI (Experimental)'));
-    expect(useAuthStore.getState().showAuthModal).toBe(true);
+    expect(useAiPanelStore.getState().open).toBe(true);
+    expect(useAuthStore.getState().showUpgradeModal).toBe(false);
   });
 
   it('toggles the panel for Pro users', () => {

@@ -1,25 +1,17 @@
 import { Sparkles } from 'lucide-react';
 import { ToolbarButton } from '@/components/Toolbar/ToolbarPrimitives';
 import { ProBadge } from '@/components/ui/pro-badge';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useAiAccess } from './useAiAccess';
 import { useAiPanelStore } from './useAiPanelStore';
 
-/** Toolbar entry for the Experimental AI panel. Non-Pro users are sent to sign in / upgrade. */
+/** Toolbar entry for the Experimental AI panel. Open to everyone so the feature is discoverable; turning it on is gated in the panel. */
 export function AiToolbarButton({ iconSize = 16 }: { iconSize?: number }) {
-  const { signedIn, isPro } = useAiAccess();
-  const openAuthModal = useAuthStore((s) => s.openAuthModal);
-  const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
+  const { isPro } = useAiAccess();
   const open = useAiPanelStore((s) => s.open);
   const openPanel = useAiPanelStore((s) => s.openPanel);
   const closePanel = useAiPanelStore((s) => s.closePanel);
 
-  const handleClick = () => {
-    if (!signedIn) openAuthModal();
-    else if (!isPro) openUpgradeModal();
-    else if (open) closePanel();
-    else openPanel();
-  };
+  const handleClick = () => (open ? closePanel() : openPanel());
 
   return (
     <ToolbarButton
@@ -33,7 +25,7 @@ export function AiToolbarButton({ iconSize = 16 }: { iconSize?: number }) {
       hideLabel
       onClick={handleClick}
       walkthroughTarget="ai"
-      className={open && isPro ? 'text-primary bg-primary/10' : undefined}
+      className={open ? 'text-primary bg-primary/10' : undefined}
     />
   );
 }

@@ -10,7 +10,6 @@ import {
 import { ConnectTab } from './ConnectTab';
 import { ActivityTab } from './ActivityTab';
 import { belowToolbarTop } from './aiUtils';
-import { useAiAccess } from './useAiAccess';
 import { useAiPanelStore, type AiPanelTab } from './useAiPanelStore';
 
 export function ExperimentalBadge() {
@@ -32,10 +31,9 @@ export function AiPanel() {
   const setTab = useAiPanelStore((s) => s.setTab);
   const closePanel = useAiPanelStore((s) => s.closePanel);
   const isInspectorOpen = useProjectStore((s) => s.isInspectorOpen);
-  const { allowed } = useAiAccess();
   const { isMobile, isTablet } = useResponsive();
 
-  if (!open || !allowed) return null;
+  if (!open) return null;
 
   const width = isTablet ? INSPECTOR_WIDTH_TABLET : INSPECTOR_WIDTH_DESKTOP;
   const right = isMobile ? 8 : isInspectorOpen ? (isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP) : PANEL_MARGIN;
