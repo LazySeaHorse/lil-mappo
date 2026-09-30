@@ -1,0 +1,79 @@
+{
+  "styleId": "road-sign",
+  "variants": [
+    {
+      "name": "shield+sub 2 posts",
+      "offset": [
+        0,
+        0
+      ],
+      "altitude": 70,
+      "content": {
+        "title": "Golden Gate Bridge",
+        "subtitle": "San Francisco 2 mi",
+        "badge": "101"
+      },
+      "ground": [
+        0.5,
+        0.85
+      ]
+    },
+    {
+      "name": "circle 1 post",
+      "offset": [
+        0,
+        0
+      ],
+      "altitude": 70,
+      "settings": {
+        "shield": "circle",
+        "posts": 1
+      },
+      "content": {
+        "title": "Napa Valley",
+        "badge": "29"
+      },
+      "ground": [
+        0.5,
+        0.85
+      ]
+    },
+    {
+      "name": "plain short",
+      "offset": [
+        0,
+        0
+      ],
+      "altitude": 60,
+      "content": {
+        "title": "Exit 12"
+      },
+      "ground": [
+        0.5,
+        0.85
+      ]
+    },
+    {
+      "name": "blue long",
+      "offset": [
+        0,
+        0
+      ],
+      "altitude": 70,
+      "settings": {
+        "signColor": "#0F4C9E",
+        "shield": "none"
+      },
+      "content": {
+        "title": "Mont Saint-Michel Abbey",
+        "subtitle": "Normandy, France"
+      },
+      "ground": [
+        0.5,
+        0.85
+      ]
+    }
+  ],
+  "cellWidth": 420,
+  "samples": 6
+}
