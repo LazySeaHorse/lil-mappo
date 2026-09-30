@@ -243,6 +243,7 @@ test.describe("5 Golden E2E Journeys", () => {
     await expect(upgradeDialog.getByRole("button", { name: "Subscribe to Wanderer" })).toBeVisible();
 
     // 4. Close dialogs cleanly
+    await expect(upgradeDialog.locator(":focus")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(upgradeDialog).not.toBeVisible();
   });

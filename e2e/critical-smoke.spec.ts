@@ -342,6 +342,7 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
   await page.getByRole("menuitem", { name: "New Project" }).click();
   const newProjectDialog = page.getByRole("dialog", { name: "New project" });
   await expect(newProjectDialog).toBeVisible();
+  await expect(newProjectDialog.locator(":focus")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(newProjectDialog).not.toBeVisible();
 
@@ -349,6 +350,7 @@ test("8. main modals open and close without trapping the UI", async ({ page }) =
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settingsDialog = page.getByRole("dialog", { name: "Settings" });
   await expect(settingsDialog).toBeVisible();
+  await expect(settingsDialog.locator(":focus")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(settingsDialog).not.toBeVisible();
 
