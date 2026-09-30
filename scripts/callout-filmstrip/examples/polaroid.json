@@ -1,0 +1,11 @@
+{
+  "styleId": "polaroid",
+  "samples": 6,
+  "cellWidth": 320,
+  "cellHeight": 300,
+  "variants": [
+    { "name": "photo+line", "offset": [90, -100], "ground": [0.16, 0.9], "content": { "title": "Harbour Bridge", "image": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='180'%3E%3Crect width='240' height='180' fill='%2378aad2'/%3E%3Cpolygon points='0,180 0,120 70,60 130,130 170,90 240,150 240,180' fill='%233c6e46'/%3E%3Ccircle cx='190' cy='40' r='20' fill='%23fadc78'/%3E%3C/svg%3E" } },
+    { "name": "pin long caption", "offset": [90, -100], "ground": [0.16, 0.9], "settings": { "attach": "pin", "rotation": -5 }, "content": { "title": "A very long caption for the print", "image": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='180'%3E%3Crect width='240' height='180' fill='%23d9a066'/%3E%3Ccircle cx='120' cy='90' r='50' fill='%23a5482e'/%3E%3C/svg%3E" } },
+    { "name": "tape placeholder", "offset": [90, -100], "ground": [0.16, 0.9], "settings": { "attach": "tape", "size": 100 }, "content": { "title": "Mont Blanc" } }
+  ]
+}
