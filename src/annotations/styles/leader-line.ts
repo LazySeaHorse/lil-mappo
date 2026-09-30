@@ -61,9 +61,9 @@ const BURST_RADIUS = 16;
 const PULSE_RADIUS = 18;
 const PULSE_PERIOD = 2.4;
 
-const HALO_COLOR = 'rgba(0, 0, 0, 0.6)';
-const HALO_TEXT_WIDTH = 5;
-const HALO_LINE_COLOR = 'rgba(0, 0, 0, 0.35)';
+const HALO_COLOR = 'rgba(0, 0, 0, 0.45)';
+const HALO_TEXT_WIDTH = 4;
+const HALO_LINE_COLOR = 'rgba(0, 0, 0, 0.3)';
 const HALO_LINE_EXTRA = 2;
 
 /**
