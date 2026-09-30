@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { EditorUiSlice, ProjectStore } from './types';
 import { writeTimelineHeight } from '../timelineHeightPreference';
 import { CAMERA_TRACK_ID } from '../projectDocument';
+import { DEFAULT_BOUNDARY_STYLE } from '../itemFactories';
 
 export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSlice> = (
   set,
@@ -64,16 +65,7 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
     set({
       previewBoundary: geojson,
       draftBoundaryName: name,
-      previewBoundaryStyle: get().previewBoundaryStyle || {
-        strokeColor: '#a855f7',
-        fillColor: '#a855f7',
-        strokeWidth: 5,
-        glow: true,
-        fillOpacity: 0.1,
-        animateStroke: true,
-        animationStyle: 'draw',
-        traceLength: 0.1,
-      },
+      previewBoundaryStyle: get().previewBoundaryStyle || { ...DEFAULT_BOUNDARY_STYLE },
     }),
 
   setPreviewBoundaryStyle: (updates) =>

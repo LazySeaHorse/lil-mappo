@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { nanoid } from 'nanoid';
 import { importRouteFile } from '@/services/fileImport';
 import type { RouteItem } from '@/store/types';
+import { DEFAULT_ITEM_DURATION, createCameraKeyframe, createDefaultRouteStyle } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
@@ -41,19 +42,8 @@ export function useToolbarActions() {
           name,
           geojson,
           startTime: playheadTime,
-          endTime: playheadTime + 5,
-          style: {
-            color: '#22c55e',
-            width: 4,
-            glow: false,
-            glowColor: '#22c55e',
-            glowWidth: 12,
-            trailFade: false,
-            trailFadeLength: 0.3,
-            dashPattern: null,
-            animationType: 'draw' as const,
-            cometTrailLength: 0.2,
-          },
+          endTime: playheadTime + DEFAULT_ITEM_DURATION,
+          style: createDefaultRouteStyle('import'),
           easing: 'easeInOutCubic',
         };
         addItem(item);
@@ -155,13 +145,7 @@ export function useToolbarActions() {
       bearing = map.getBearing();
     }
 
-    addCameraKeyframe({
-      id: nanoid(),
-      time: playheadTime,
-      camera: { center, zoom, pitch, bearing, altitude: null },
-      easing: 'easeInOutCubic' as const,
-      followRoute: null,
-    });
+    addCameraKeyframe(createCameraKeyframe({ time: playheadTime, center, zoom, pitch, bearing }));
     toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
   };
 

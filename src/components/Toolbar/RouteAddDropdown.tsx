@@ -9,8 +9,8 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
-import { nanoid } from 'nanoid';
-import type { RouteItem, RouteMode } from '@/store/types';
+import type { RouteMode } from '@/store/types';
+import { createEndpointRouteItem, createWalkRouteItem, defaultEndpointRouteName } from '@/store/itemFactories';
 import { SearchField } from '../Search/SearchField';
 import { AirportSearchField } from '../Search/AirportSearchField';
 import { IconButton } from '@/components/ui/icon-button';
@@ -20,7 +20,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import type { SegmentedControlOption } from '@/components/ui/segmented-control';
 import { SectionLabel } from '@/components/ui/field';
 import { arrayMove } from '@dnd-kit/sortable';
-import { buildWalkGeometry, createWalkCalculation } from '@/engine/routeCurves';
+import { createWalkCalculation } from '@/engine/routeCurves';
 import { WalkPointList } from '../Inspector/WalkPointList';
 import { SwitchRow } from '../Inspector/InspectorShared';
 
@@ -219,48 +219,15 @@ export const RouteAddDropdown = ({
   const handleAddCarFlight = () => {
     if (!previewRoute || mode === 'walk') return;
 
-    const id = nanoid();
-    const flightName =
-      startName && endName
-        ? `${startName} → ${endName}`
-        : `${startName || 'Departure'} → ${endName || 'Arrival'}`;
-    const name =
-      mode === 'flight'
-        ? flightName
-        : `${startName || 'Start'} to ${endName || 'End'}`;
-
-    const item: RouteItem = {
-      kind: 'route',
-      id,
-      name,
+    const item = createEndpointRouteItem({
+      mode,
       geojson: previewRoute,
+      start,
+      end,
+      name: defaultEndpointRouteName(mode, startName, endName),
       startTime: playheadTime,
-      endTime: playheadTime + 5,
-      style: {
-        color: mode === 'flight' ? '#f59e0b' : '#3b82f6',
-        width: 4,
-        glow: true,
-        glowColor: mode === 'flight' ? '#fbbf24' : '#3b82f6',
-        glowWidth: 12,
-        trailFade: false,
-        trailFadeLength: 0.3,
-        dashPattern: null,
-        animationType: 'draw' as const,
-        cometTrailLength: 0.2,
-      },
-      calculation: {
-        mode,
-        startPoint: start,
-        endPoint: end,
-        vehicle: {
-          enabled: true,
-          type: mode === 'flight' ? ('plane' as const) : ('dot' as const),
-          modelId: '',
-          scale: 1,
-        },
-      },
-      easing: 'easeInOutQuad',
-    };
+    });
+    const id = item.id;
 
     addItem(item);
     selectItem(id);
@@ -280,35 +247,8 @@ export const RouteAddDropdown = ({
       return;
     }
 
-    const id = nanoid();
-    const calculation = {
-      ...createWalkCalculation(walkPoints, { enabled: true, type: 'dot', modelId: '', scale: 1 }),
-      curved: walkCurved,
-    };
-    const geojson = buildWalkGeometry(calculation);
-
-    const item: RouteItem = {
-      kind: 'route',
-      id,
-      name: 'Walk path',
-      geojson,
-      startTime: playheadTime,
-      endTime: playheadTime + 5,
-      style: {
-        color: '#3b82f6',
-        width: 4,
-        glow: true,
-        glowColor: '#3b82f6',
-        glowWidth: 12,
-        trailFade: false,
-        trailFadeLength: 0.3,
-        dashPattern: null,
-        animationType: 'draw' as const,
-        cometTrailLength: 0.2,
-      },
-      calculation,
-      easing: 'easeInOutQuad',
-    };
+    const item = createWalkRouteItem({ points: walkPoints, curved: walkCurved, startTime: playheadTime });
+    const id = item.id;
 
     addItem(item);
     selectItem(id);

@@ -11,8 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Flag, Plus, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { nanoid } from 'nanoid';
-import type { CalloutItem } from '@/store/types';
+import { createCalloutItem } from '@/store/itemFactories';
 import { SearchField } from '@/components/Search/SearchField';
 import { Switch } from "@/components/ui/switch";
 import { IconButton } from '@/components/ui/icon-button';
@@ -20,7 +19,6 @@ import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SectionLabel, Field } from '@/components/ui/field';
 import { StatusPill } from '@/components/ui/pro-badge';
-import { getStyle, getAllStyles } from '@/annotations/registry';
 import { StylePicker } from '@/annotations/inspector/StylePicker';
 
 export const AnnotationAddDropdown = ({
@@ -88,50 +86,18 @@ export const AnnotationAddDropdown = ({
       return;
     }
 
-    const style = getStyle(styleId);
-    if (!style) {
+    const item = createCalloutItem({
+      styleId,
+      content: { title },
+      lngLat,
+      startTime: playheadTime,
+      linkTitleToLocation: linkTitle,
+    });
+    if (!item) {
       toast.error('Invalid style selected');
       return;
     }
-
-    const id = nanoid();
-    const item: CalloutItem = {
-      kind: 'callout',
-      id,
-      styleId,
-      styleVersion: style.version,
-      content: {
-        title,
-      },
-      binding: {
-        kind: 'geographic',
-        lngLat,
-        altitude: style.supportsAltitude === false ? 0 : 40,
-      },
-      offset: [0, 0],
-      anchor: style.defaultAnchor ?? (style.category === 'marker' ? 'center' : 'bottom'),
-      startTime: playheadTime,
-      endTime: playheadTime + 5,
-      transition: {
-        enter: style.defaultTransition?.enter ?? 'fade',
-        exit: style.defaultTransition?.exit ?? 'fade',
-        enterDuration: style.defaultTransition?.enterDuration ?? 0.4,
-        exitDuration: style.defaultTransition?.exitDuration ?? 0.3,
-      },
-      connector: {
-        visible: style.defaultConnector?.visible ?? true,
-        style: 'dashed',
-        color: '#94a3b8',
-        width: 2,
-        endDot: true,
-        endDotRadius: 3,
-        ...style.defaultConnector,
-      },
-      opacity: 1,
-      scale: 1,
-      settings: { ...style.defaultSettings } as Record<string, unknown>,
-      linkTitleToLocation: linkTitle,
-    };
+    const id = item.id;
 
     addItem(item);
     selectItem(id);

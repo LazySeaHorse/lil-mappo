@@ -6,8 +6,7 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
-import { nanoid } from 'nanoid';
-import type { BoundaryItem } from '@/store/types';
+import { createBoundaryItem } from '@/store/itemFactories';
 import type { NominatimResult } from '@/services/nominatim';
 import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
@@ -81,18 +80,13 @@ export const BoundaryAddDropdown = ({
       return;
     }
 
-    const id = nanoid();
-    const item: BoundaryItem = {
-      kind: 'boundary',
-      id,
+    const item = createBoundaryItem({
       placeName: draftBoundaryName,
       geojson: previewBoundary,
-      resolveStatus: 'resolved',
       startTime: playheadTime,
-      endTime: playheadTime + 5,
-      style: { ...previewBoundaryStyle },
-      easing: 'easeInOutCubic',
-    };
+      style: previewBoundaryStyle,
+    });
+    const id = item.id;
 
     addItem(item);
     selectItem(id);
