@@ -15,7 +15,7 @@ import { computePhase, evaluateTransition, SLIDE_DISTANCE, STYLE_ANIMATION } fro
 import { getStyle, validateSettings } from './registry';
 import { resolveCalloutSizing } from './sizing';
 import { preloadImage, renderScene } from './scene/renderer';
-import { buildFont } from './scene/textMetrics';
+import { buildFont, getTextMetricsEpoch } from './scene/textMetrics';
 
 /** Room around the measured style box for shadows, glow and overshoot. */
 const EFFECT_PADDING = 24;
@@ -191,9 +191,6 @@ export function prepareAnnotationFrame(
     ? styleInput(callout, placement, time, phase, progress, scale)
     : styleInput(callout, placement, time, 'visible', 1, scale);
 
-  // Bounds cover the finished state, so the canvas never resizes mid-animation.
-  const finished = styleInput(callout, placement, time, 'visible', 1, baseScale);
-
   return {
     scene: style.render(input),
     opacity: transition.opacity * callout.opacity * sizing.fade,
@@ -205,8 +202,51 @@ export function prepareAnnotationFrame(
     connector: callout.connector.visible && placement.altitude > 0 && !style.drawsConnector
       ? callout.connector
       : null,
-    bounds: calloutBounds(callout, style.measure(finished), originX, originY, sizing.scale, pixelScale),
+    // Bounds cover the finished state, so the canvas never resizes mid-animation.
+    bounds: memoizedBounds(callout, { size: sizing.scale, placement: sizing.placement, pixelScale }, () => {
+      const finished = styleInput(callout, placement, time, 'visible', 1, baseScale);
+      return calloutBounds(callout, style.measure(finished), originX, originY, sizing.scale, pixelScale);
+    }),
   };
+}
+
+/** What a callout's bounds depend on besides the callout itself. */
+interface BoundsKey {
+  /** Artwork scale in editor pixels. */
+  size: number;
+  /** Factor applied to the offset and altitude. */
+  placement: number;
+  pixelScale: number;
+}
+
+interface BoundsMemo extends BoundsKey {
+  /** Measured text can change when fonts load. */
+  textEpoch: number;
+  bounds: FrameBounds;
+}
+
+/**
+ * The last bounds computed for each callout. They are fixed for a callout's
+ * content, settings, style and scale, but measuring them is not free and they
+ * are needed every frame. The store never mutates a callout, so its identity
+ * stands for its content.
+ */
+const boundsMemo = new WeakMap<CalloutItem, BoundsMemo>();
+
+function memoizedBounds(callout: CalloutItem, key: BoundsKey, compute: () => FrameBounds): FrameBounds {
+  const textEpoch = getTextMetricsEpoch();
+  const memo = boundsMemo.get(callout);
+  if (
+    memo
+    && memo.textEpoch === textEpoch
+    && memo.size === key.size
+    && memo.placement === key.placement
+    && memo.pixelScale === key.pixelScale
+  ) return memo.bounds;
+
+  const bounds = compute();
+  boundsMemo.set(callout, { ...key, textEpoch, bounds });
+  return bounds;
 }
 
 /**

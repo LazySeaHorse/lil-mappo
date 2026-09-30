@@ -4,12 +4,44 @@
  * Styles size their cards from measured text, so measurement must match what
  * the canvas renderer will actually draw. Uses a cached 2D context; falls back
  * to a character-count estimate only where no canvas is available (e.g. jsdom).
+ * Measured widths are cached, and dropped when web fonts finish loading, since
+ * widths measured with a fallback font are wrong.
  */
 
 type MeasureContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 let measureCtx: MeasureContext | null = null;
 let measureCtxUnavailable = false;
+
+/** Most widths kept. Text is measured every frame, but from a small working set. */
+export const TEXT_WIDTH_CACHE_SIZE = 500;
+
+/** Insertion order is recency order: a hit moves its entry to the end, the oldest is evicted first. */
+const widthCache = new Map<string, number>();
+let cacheEpoch = 0;
+let watchingFonts = false;
+
+/**
+ * Changes whenever cached widths are dropped. Anything derived from measured
+ * text can hold on to it and know when it went stale.
+ */
+export function getTextMetricsEpoch(): number {
+  return cacheEpoch;
+}
+
+/** Drops every cached width, e.g. because fonts changed what text measures. */
+export function clearTextWidthCache(): void {
+  widthCache.clear();
+  cacheEpoch += 1;
+}
+
+function watchFontLoading(): void {
+  if (watchingFonts) return;
+  watchingFonts = true;
+  if (typeof document !== 'undefined') {
+    document.fonts?.addEventListener?.('loadingdone', clearTextWidthCache);
+  }
+}
 
 function getMeasureContext(): MeasureContext | null {
   if (measureCtx || measureCtxUnavailable) return measureCtx;
@@ -60,11 +92,25 @@ export function measureTextWidth(
   if (!text) return 0;
   const spacing = letterSpacingToPx(letterSpacing, fontSize) * text.length;
 
+  const font = buildFont(fontSize, fontFamily, fontWeight, fontStyle);
+  const key = `${font}|${letterSpacing ?? ''}|${text}`;
+  const cached = widthCache.get(key);
+  if (cached !== undefined) {
+    widthCache.delete(key);
+    widthCache.set(key, cached);
+    return cached;
+  }
+
   const ctx = getMeasureContext();
   if (ctx) {
-    ctx.font = buildFont(fontSize, fontFamily, fontWeight, fontStyle);
+    ctx.font = font;
     const width = ctx.measureText(text).width;
-    if (width > 0) return width + spacing;
+    if (width > 0) {
+      watchFontLoading();
+      widthCache.set(key, width + spacing);
+      if (widthCache.size > TEXT_WIDTH_CACHE_SIZE) widthCache.delete(widthCache.keys().next().value!);
+      return width + spacing;
+    }
   }
 
   const charRatio = fontWeight >= 700 ? 0.6 : 0.55;

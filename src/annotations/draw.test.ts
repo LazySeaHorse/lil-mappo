@@ -8,6 +8,7 @@ import {
   prepareAnnotationFrame,
   MAX_ALTITUDE_PX,
 } from './draw';
+import { clearTextWidthCache } from './scene/textMetrics';
 import { MAP_SCALE_FADE_START, MAP_SCALE_HIDDEN, MAX_MAP_SCALE } from './sizing';
 import { getStyle, registerStyle } from './registry';
 import { group } from './scene/primitives';
@@ -236,6 +237,60 @@ describe('map size mode', () => {
     const far = prepareAnnotationFrame(makeCallout(), 5, { viewZoom: 2 })!;
     expect(near.scale).toBe(far.scale);
     expect(near.opacity).toBe(far.opacity);
+  });
+});
+
+describe('bounds cache', () => {
+  const measure = () => vi.spyOn(getStyle(TEST_CARD_STYLE_ID)!, 'measure');
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearTextWidthCache();
+  });
+
+  it('measures a callout once however many frames are drawn', () => {
+    const spy = measure();
+    const callout = makeCallout();
+    const first = prepareAnnotationFrame(callout, 0.5)!.bounds;
+    for (const time of [1, 4, 9.5]) expect(prepareAnnotationFrame(callout, time)!.bounds).toEqual(first);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('measures an edited callout again, but not an unrelated one twice', () => {
+    const spy = measure();
+    const callout = makeCallout();
+    prepareAnnotationFrame(callout, 5);
+    const edited = { ...callout, content: { title: 'A much longer harbour name' } };
+    prepareAnnotationFrame(edited, 5);
+    prepareAnnotationFrame(edited, 6);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('measures again when the size, placement or pixel scale changes', () => {
+    const spy = measure();
+    const callout = makeCallout({ sizeMode: 'map', referenceZoom: 12 });
+    prepareAnnotationFrame(callout, 5, { viewZoom: 12 });
+    prepareAnnotationFrame(callout, 5, { viewZoom: 12 });
+    expect(spy).toHaveBeenCalledTimes(1);
+    prepareAnnotationFrame(callout, 5, { viewZoom: 13 });
+    expect(spy).toHaveBeenCalledTimes(2);
+    prepareAnnotationFrame(callout, 5, { viewZoom: 13, pixelScale: 2 });
+    expect(spy).toHaveBeenCalledTimes(3);
+  });
+
+  it('gives the same bounds a fresh measurement would', () => {
+    const callout = makeCallout({ offset: [12, -6] });
+    const cached = prepareAnnotationFrame(callout, 3)!.bounds;
+    expect(prepareAnnotationFrame({ ...callout }, 8)!.bounds).toEqual(cached);
+  });
+
+  it('measures again once measured text may have changed, after fonts load', () => {
+    const spy = measure();
+    const callout = makeCallout();
+    prepareAnnotationFrame(callout, 5);
+    clearTextWidthCache();
+    prepareAnnotationFrame(callout, 5);
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });
 
