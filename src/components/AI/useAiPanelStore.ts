@@ -9,11 +9,14 @@ interface AiPanelState {
   followAi: boolean;
   /** Number of tools currently registered with the browser (0 when not registered). */
   registeredCount: number;
+  /** True while the tab is linked to the local bridge that serves coding agents. */
+  bridgeConnected: boolean;
   openPanel: (tab?: AiPanelTab) => void;
   closePanel: () => void;
   setTab: (tab: AiPanelTab) => void;
   setFollowAi: (v: boolean) => void;
   setRegisteredCount: (n: number) => void;
+  setBridgeConnected: (v: boolean) => void;
 }
 
 /**
@@ -26,11 +29,13 @@ export const useAiPanelStore = create<AiPanelState>()((set) => ({
   tab: 'connect',
   followAi: true,
   registeredCount: 0,
+  bridgeConnected: false,
   openPanel: (tab) => set((s) => ({ open: true, tab: tab ?? s.tab })),
   closePanel: () => set({ open: false }),
   setTab: (tab) => set({ tab }),
   setFollowAi: (followAi) => set({ followAi }),
   setRegisteredCount: (registeredCount) => set({ registeredCount }),
+  setBridgeConnected: (bridgeConnected) => set({ bridgeConnected }),
 }));
 
 const CONSENT_KEY = 'lilmappo.ai.consent.v1';

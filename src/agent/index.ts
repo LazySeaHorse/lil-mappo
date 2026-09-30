@@ -1,5 +1,5 @@
 /**
- * Transport-agnostic AI tool layer. A transport (WebMCP, tests, ...) needs:
+ * Transport-agnostic AI tool layer. A transport (WebMCP, local bridge, tests, ...) needs:
  *  - getAgentTools(): descriptors with JSON Schema inputs and execute()
  *  - runAgentTool(name, input): validated, gated, evented execution
  *  - useAgentStore: enabled switch and plan limits, driven by the UI
@@ -23,3 +23,4 @@ export type {
   AgentToolResult,
 } from './defineTool';
 export { isWebMcpSupported, registerWebMcpTool } from './webmcp';
+export { connectBridge } from './bridge';
