@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import { getStyle } from '@/annotations/registry';
+import type { AnnotationStyleDefinition } from '@/annotations/types';
 import { buildWalkGeometry, createWalkCalculation } from '@/engine/routeCurves';
 import type {
   AnnotationContent,
@@ -165,6 +166,9 @@ export function createBoundaryItem(input: BoundaryInput): BoundaryItem {
   };
 }
 
+/** Style new callouts use unless one is chosen. */
+export const DEFAULT_CALLOUT_STYLE_ID = 'leader-line';
+
 export interface CalloutInput {
   styleId: string;
   content: AnnotationContent;
@@ -175,25 +179,22 @@ export interface CalloutInput {
   id?: string;
 }
 
-/** Returns null when the style is not registered. */
-export function createCalloutItem(input: CalloutInput): CalloutItem | null {
-  const style = getStyle(input.styleId);
-  if (!style) return null;
+/**
+ * The parts of a callout that come from its style: settings, placement,
+ * connector and transition defaults. Shared by new callouts and by migrations
+ * that move a callout onto another style.
+ */
+export function createCalloutStyleDefaults(style: AnnotationStyleDefinition): Pick<
+  CalloutItem,
+  'styleId' | 'styleVersion' | 'settings' | 'offset' | 'anchor' | 'transition' | 'connector'
+> & { altitude: number } {
   return {
-    kind: 'callout',
-    id: input.id ?? nanoid(),
-    styleId: input.styleId,
+    styleId: style.id,
     styleVersion: style.version,
-    content: input.content,
-    binding: {
-      kind: 'geographic',
-      lngLat: input.lngLat,
-      altitude: style.supportsAltitude === false ? 0 : 40,
-    },
-    offset: [0, 0],
+    settings: { ...style.defaultSettings } as Record<string, unknown>,
+    altitude: style.supportsAltitude === false ? 0 : style.defaultAltitude ?? 40,
+    offset: [...(style.defaultOffset ?? [0, 0])],
     anchor: style.defaultAnchor ?? (style.category === 'marker' ? 'center' : 'bottom'),
-    startTime: input.startTime,
-    endTime: input.endTime ?? input.startTime + DEFAULT_ITEM_DURATION,
     transition: {
       enter: style.defaultTransition?.enter ?? 'fade',
       exit: style.defaultTransition?.exit ?? 'fade',
@@ -209,10 +210,25 @@ export function createCalloutItem(input: CalloutInput): CalloutItem | null {
       endDotRadius: 3,
       ...style.defaultConnector,
     },
+  };
+}
+
+/** Returns null when the style is not registered. */
+export function createCalloutItem(input: CalloutInput): CalloutItem | null {
+  const style = getStyle(input.styleId);
+  if (!style) return null;
+  const { altitude, ...defaults } = createCalloutStyleDefaults(style);
+  return {
+    kind: 'callout',
+    id: input.id ?? nanoid(),
+    content: input.content,
+    binding: { kind: 'geographic', lngLat: input.lngLat, altitude },
+    startTime: input.startTime,
+    endTime: input.endTime ?? input.startTime + DEFAULT_ITEM_DURATION,
     opacity: 1,
     scale: 1,
-    settings: { ...style.defaultSettings } as Record<string, unknown>,
     linkTitleToLocation: input.linkTitleToLocation ?? true,
+    ...defaults,
   };
 }
 

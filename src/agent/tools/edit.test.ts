@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import '@/annotations/styles/index';
+import { registerTestStyles, TEST_CARD_STYLE_ID } from '@/annotations/testStyles';
 import { useProjectStore } from '@/store/useProjectStore';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { undo } from '@/store/history';
@@ -13,6 +14,8 @@ import {
 import { runAgentTool } from '../runner';
 import { historyPast, resetAgentTestState, resultJson } from '../testHelpers';
 
+registerTestStyles();
+
 const state = () => useProjectStore.getState();
 const steps = () => useProjectStore.temporal.getState().pastStates.length;
 
@@ -22,7 +25,7 @@ function seed() {
     start: [0, 0], end: [1, 1], name: 'Drive', startTime: 1, endTime: 6,
   });
   const boundary = createBoundaryItem({ placeName: 'Land', geojson: null, startTime: 0 });
-  const callout = createCalloutItem({ styleId: 'topo-label', content: { title: 'Spot', subtitle: 'sub' }, lngLat: [5, 5], startTime: 2 })!;
+  const callout = createCalloutItem({ styleId: 'leader-line', content: { title: 'Spot', subtitle: 'sub' }, lngLat: [5, 5], startTime: 2 })!;
   const walk = createWalkRouteItem({ points: [[0, 0], [0.1, 0.1]], startTime: 0 });
   for (const i of [route, boundary, callout, walk]) state().addItem(i);
   useProjectStore.temporal.getState().clear();
@@ -91,13 +94,32 @@ describe('update_item', () => {
     const c1 = state().items[callout.id];
     expect(c1).toMatchObject({ content: { title: 'New', subtitle: 'sub' }, anchor: 'left', binding: { lngLat: [5, 5], altitude: 10 } });
 
-    await runAgentTool('update_item', { id: callout.id, patch: { styleId: 'modern-pill' } });
-    expect(state().items[callout.id]).toMatchObject({ styleId: 'modern-pill' });
+    await runAgentTool('update_item', { id: callout.id, patch: { styleId: TEST_CARD_STYLE_ID } });
+    expect(state().items[callout.id]).toMatchObject({ styleId: TEST_CARD_STYLE_ID, settings: { color: '#0f172a' } });
 
     const bad = await runAgentTool('update_item', { id: callout.id, patch: { styleId: 'nope' } });
     expect(resultJson(bad).error).toBe('unknown_style');
     const notForCallout = await runAgentTool('update_item', { id: callout.id, patch: { easing: 'linear' } });
     expect(resultJson(notForCallout).error).toBe('invalid_patch');
+  });
+
+  it('switches a callout between style animation and block transitions', async () => {
+    const { callout } = seed();
+    expect(state().items[callout.id]).toMatchObject({ transition: { enter: 'auto', exit: 'auto' } });
+
+    await runAgentTool('update_item', { id: callout.id, patch: { transition: { enter: 'slide-up', exit: 'fade', enterDuration: 0.8 } } });
+    expect(state().items[callout.id]).toMatchObject({
+      transition: { enter: 'slide-up', exit: 'fade', enterDuration: 0.8, exitDuration: 0.5 },
+    });
+
+    await runAgentTool('update_item', { id: callout.id, patch: { transition: { enter: 'auto', exit: 'auto' } } });
+    expect(state().items[callout.id]).toMatchObject({ transition: { enter: 'auto', exit: 'auto' } });
+
+    // An exit name is not valid for the enter slot, and unknown names are refused.
+    const wrongSlot = await runAgentTool('update_item', { id: callout.id, patch: { transition: { enter: 'scale-down' } } });
+    expect(wrongSlot.isError).toBe(true);
+    const unknown = await runAgentTool('update_item', { id: callout.id, patch: { transition: { exit: 'explode' } } });
+    expect(unknown.isError).toBe(true);
   });
 });
 

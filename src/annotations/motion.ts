@@ -32,6 +32,9 @@ export const easeInOutCubic: Easing = (t) =>
 
 /** Overshoots 1 by a few percent, then settles back. Larger `overshoot` swings further. */
 export function easeOutBack(t: number, overshoot = 1.70158): number {
+  // Exact at the ends, so "not started" and "finished" can be tested with ===.
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
   const c = overshoot + 1;
   return 1 + c * Math.pow(t - 1, 3) + overshoot * Math.pow(t - 1, 2);
 }

@@ -138,13 +138,13 @@ describe('add tools', () => {
 
   it('add_callout pins to a geocoded place with the UI defaults', async () => {
     state().setPlayheadTime(3);
-    const result = await runAgentTool('add_callout', { title: 'Hello', subtitle: 'World', location: 'Lisbon', styleId: 'standard-card', anchor: 'top' });
+    const result = await runAgentTool('add_callout', { title: 'Hello', subtitle: 'World', location: 'Lisbon', styleId: 'leader-line', anchor: 'top' });
     const { created } = resultJson<{ created: { id: string } }>(result);
     const item = state().items[created.id];
     expect(item).toMatchObject({
-      kind: 'callout', styleId: 'standard-card', startTime: 3, endTime: 8, anchor: 'top',
+      kind: 'callout', styleId: 'leader-line', startTime: 3, endTime: 8, anchor: 'top',
       content: { title: 'Hello', subtitle: 'World' },
-      binding: { kind: 'geographic', lngLat: [-9.14, 38.72], altitude: 40 },
+      binding: { kind: 'geographic', lngLat: [-9.14, 38.72], altitude: 0 },
       linkTitleToLocation: false,
     });
     expect(steps()).toBe(1);

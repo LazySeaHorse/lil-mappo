@@ -8,6 +8,7 @@ import {
   createBoundaryItem,
   createCalloutItem,
   createEndpointRouteItem,
+  DEFAULT_CALLOUT_STYLE_ID,
   createWalkRouteItem,
   defaultEndpointRouteName,
   wrapGeometry,
@@ -188,8 +189,8 @@ export const addCallout = defineTool({
   name: 'add_callout',
   title: 'Add callout',
   description:
-    'Adds a callout (label card or marker) pinned to a map location. `location` is [lng, lat] or a place name (geocoded; see search_place). ' +
-    '`styleId` selects the look (default "topo-label"; ids and the content each uses are listed by get_guide). Content: title plus optional subtitle, eyebrow, body, badge, metric (styles show only the slots they support). ' +
+    'Adds a callout (an animated label or marker) pinned to a map location. `location` is [lng, lat] or a place name (geocoded; see search_place). ' +
+    '`styleId` selects the look (default "leader-line"; ids and the content each uses are listed by get_guide). Content: title plus optional subtitle, eyebrow, body, badge, metric (styles show only the slots they support). ' +
     'Visible between startTime and endTime (seconds; default: playhead to +5s). `anchor` and `altitude` (pixels above ground) fine-tune placement. `settings` are style-specific overrides validated by the style. One undo step. Returns the item id.',
   input: z.strictObject({
     title: contentShape.title.min(1),
@@ -199,15 +200,15 @@ export const addCallout = defineTool({
     badge: contentShape.badge.optional(),
     metric: contentShape.metric.optional(),
     location: locationSchema,
-    styleId: z.string().max(60).optional().describe('Callout style id. Default "topo-label". See get_guide.'),
+    styleId: z.string().max(60).optional().describe('Callout style id. Default "leader-line". See get_guide.'),
     ...timing,
     anchor: anchorSchema.optional(),
-    altitude: z.number().min(0).max(500).optional().describe('Card height above the ground point in screen pixels (styles that support it). Default 40 for cards, 0 for flat markers.'),
+    altitude: z.number().min(0).max(500).optional().describe('Card height above the ground point in screen pixels (styles that support it). Each style has its own default (0 for leader lines and flat markers).'),
     settings: calloutSettingsSchema.optional(),
   }),
   readOnly: false,
   handler: async (input) => {
-    const styleId = input.styleId ?? 'topo-label';
+    const styleId = input.styleId ?? DEFAULT_CALLOUT_STYLE_ID;
     const style = getStyle(styleId);
     if (!style) {
       throw new ToolError('unknown_style', `Unknown callout styleId "${styleId}".`, { available: getAllStyleIds() });

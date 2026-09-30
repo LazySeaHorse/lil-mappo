@@ -24,6 +24,7 @@ import {
 } from '@/components/Inspector/InspectorShared';
 import { PanelWrapper, InspectorSection, ItemActions } from '@/components/Inspector/InspectorLayout';
 import { getStyle } from '@/annotations/registry';
+import { createCalloutStyleDefaults } from '@/store/itemFactories';
 import { ENTER_TRANSITIONS, EXIT_TRANSITIONS, TRANSITION_LABELS } from '@/annotations/animation';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
@@ -111,21 +112,12 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
             onChange={(newStyleId) => {
               const newStyle = getStyle(newStyleId);
               if (!newStyle) return;
-              const patch: Partial<CalloutItem> = {
-                styleId: newStyleId,
-                styleVersion: newStyle.version,
-                settings: { ...newStyle.defaultSettings } as Record<string, unknown>,
-                connector: {
-                  ...item.connector,
-                  ...newStyle.defaultConnector,
-                },
-                ...(newStyle.defaultTransition ? { transition: { ...item.transition, ...newStyle.defaultTransition } } : {}),
-              };
-              if (newStyle.defaultAnchor) {
-                patch.anchor = newStyle.defaultAnchor;
-              }
-              if (newStyle.supportsAltitude === false && item.binding.kind === 'geographic') {
-                patch.binding = { ...item.binding, altitude: 0 };
+              // Each style is designed around its own placement and motion, so a
+              // new style starts from its own defaults.
+              const { altitude: defaultAltitude, ...defaults } = createCalloutStyleDefaults(newStyle);
+              const patch: Partial<CalloutItem> = { ...defaults };
+              if (item.binding.kind === 'geographic') {
+                patch.binding = { ...item.binding, altitude: defaultAltitude };
               }
               u(patch);
             }}
@@ -180,7 +172,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           </InspectorSection>
         )}
 
-        {supportsAltitude && (
+        {supportsAltitude && !style?.drawsConnector && (
           <InspectorSection value="connector" title="Anchor line">
             <div className="flex flex-col gap-2.5">
               <SwitchRow

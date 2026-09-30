@@ -7,6 +7,7 @@ import { AnnotationInspector } from '@/annotations/inspector/AnnotationInspector
 import { CameraKFInspector } from './CameraKFInspector';
 import { useProjectStore } from '@/store/useProjectStore';
 import '@/annotations/styles/index';
+import { registerTestStyles, TEST_FLAT_STYLE_ID } from '@/annotations/testStyles';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
 
 vi.mock('@/hooks/useSubscription', () => ({
@@ -30,6 +31,30 @@ vi.mock('./BoundarySearch', () => ({
 vi.mock('../Search/SearchField', () => ({
   SearchField: () => <div data-testid="search-field-mock">SearchField Mock</div>,
 }));
+
+function makeInspectorCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
+  return {
+    id: 'callout-anim',
+    kind: 'callout',
+    styleId: 'leader-line',
+    styleVersion: 1,
+    content: { title: 'Pier' },
+    binding: { kind: 'geographic', lngLat: [10, 20], altitude: 0 },
+    offset: [70, -90],
+    anchor: 'bottom',
+    startTime: 0,
+    endTime: 5,
+    transition: { enter: 'fade', exit: 'fade', enterDuration: 0.4, exitDuration: 0.3 },
+    connector: { visible: false, style: 'dashed', color: '#94a3b8', width: 2, endDot: true, endDotRadius: 3 },
+    opacity: 1,
+    scale: 1,
+    settings: {},
+    linkTitleToLocation: false,
+    ...overrides,
+  };
+}
+
+registerTestStyles();
 
 describe('Inspector Components Integration', () => {
   beforeEach(() => {
@@ -144,11 +169,11 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByLabelText('Duration')).toHaveValue(4);
   });
 
-  it('renders AnnotationInspector and updates location, font & timing', () => {
+  it('renders AnnotationInspector with style controls, location and animation', () => {
     const calloutItem: CalloutItem = {
       id: 'callout-1',
       kind: 'callout',
-      styleId: 'standard-card',
+      styleId: 'leader-line',
       styleVersion: 1,
       content: {
         title: 'Golden Gate Bridge',
@@ -158,7 +183,7 @@ describe('Inspector Components Integration', () => {
         lngLat: [-122.4783, 37.8199],
         altitude: 100,
       },
-      offset: [0, 0],
+      offset: [70, -90],
       anchor: 'bottom',
       startTime: 2,
       endTime: 6,
@@ -180,12 +205,13 @@ describe('Inspector Components Integration', () => {
       opacity: 1,
       scale: 1,
       settings: {
-        fontFamily: 'Inter',
-        bgColor: '#1e1e1e',
+        lineColor: '#ffffff',
+        accentColor: '#ff5a36',
         textColor: '#ffffff',
-        borderRadius: 8,
-        shadow: true,
-        maxWidth: 200,
+        halo: true,
+        side: 'auto',
+        lineWidth: 1.5,
+        pulse: false,
       },
     };
 
@@ -197,21 +223,34 @@ describe('Inspector Components Integration', () => {
     render(<AnnotationInspector item={calloutItem} />);
 
     expect(screen.getByDisplayValue('Golden Gate Bridge')).toBeInTheDocument();
-    expect(screen.getByText('Font')).toBeInTheDocument();
-    expect(screen.getByText('Background')).toBeInTheDocument();
-    expect(screen.getByText('Max width')).toBeInTheDocument();
+    expect(screen.getByText('Line color')).toBeInTheDocument();
+    expect(screen.getByText('Dot color')).toBeInTheDocument();
+    expect(screen.getByText('Text halo')).toBeInTheDocument();
+    expect(screen.queryByText('Font')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Longitude')).toHaveValue(-122.4783);
     expect(screen.getByLabelText('Latitude')).toHaveValue(37.8199);
     expect(screen.getByText('Altitude')).toBeInTheDocument();
     expect(screen.getByText('100 px')).toBeInTheDocument();
-    expect(screen.getByText('Anchor line')).toBeInTheDocument();
+    // Leader lines draw their own line to the ground, so there is no generic anchor line to style.
+    expect(screen.queryByText('Anchor line')).not.toBeInTheDocument();
   });
 
-  it('hides Altitude slider and Anchor line section for ripple-marker', () => {
+  it('offers the style animation as a transition, alongside the block transitions', () => {
+    const item = makeInspectorCallout({ transition: { enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 } });
+    useProjectStore.setState({ items: { [item.id]: item }, selectedItemId: item.id });
+    render(<AnnotationInspector item={item} />);
+
+    expect(screen.getByText('Animation')).toBeInTheDocument();
+    expect(screen.getAllByText('Style animation')).toHaveLength(2); // enter and exit
+    expect(screen.getByText('1.2 s')).toBeInTheDocument();
+    expect(screen.getByText('0.5 s')).toBeInTheDocument();
+  });
+
+  it('hides Altitude slider and Anchor line section for a ground-level style', () => {
     const rippleItem: CalloutItem = {
       id: 'ripple-1',
       kind: 'callout',
-      styleId: 'ripple-marker',
+      styleId: TEST_FLAT_STYLE_ID,
       styleVersion: 1,
       content: {
         title: 'Sonar Ping',
@@ -242,17 +281,7 @@ describe('Inspector Components Integration', () => {
       },
       opacity: 1,
       scale: 1,
-      settings: {
-        color: '#3b82f6',
-        dotRadius: 5,
-        rippleRadius: 30,
-        rippleSpeed: 0.8,
-        rippleCount: 2,
-        strokeWidth: 2,
-        textColor: '#f8fafc',
-        fontFamily: 'Outfit',
-        fontSize: 13,
-      },
+      settings: { color: '#3b82f6' },
     };
 
     useProjectStore.setState({

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Flag, Plus, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { createCalloutItem } from '@/store/itemFactories';
+import { createCalloutItem, DEFAULT_CALLOUT_STYLE_ID } from '@/store/itemFactories';
 import { SearchField } from '@/components/Search/SearchField';
 import { Switch } from "@/components/ui/switch";
 import { IconButton } from '@/components/ui/icon-button';
@@ -36,7 +36,7 @@ export const AnnotationAddDropdown = ({
   const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
   const [locationName, setLocationName] = useState('');
   const [title, setTitle] = useState('New Callout');
-  const [styleId, setStyleId] = useState('topo-label');
+  const [styleId, setStyleId] = useState(DEFAULT_CALLOUT_STYLE_ID);
   const [linkTitle, setLinkTitle] = useState(true);
 
   const isPicking = activePicker?.id === 'callout-new';

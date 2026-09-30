@@ -149,7 +149,8 @@ export interface TextNode {
   /** Full outline width; half of it shows outside the glyphs. Default 1. */
   strokeWidth?: number;
   align?: 'left' | 'center' | 'right';
-  baseline?: 'top' | 'middle' | 'bottom';
+  /** 'alphabetic' puts y on the text baseline, for aligning type to lines. Default 'top'. */
+  baseline?: 'top' | 'middle' | 'alphabetic' | 'bottom';
   maxWidth?: number;
   letterSpacing?: string;
   textTransform?: 'uppercase' | 'lowercase' | 'none';
@@ -247,7 +248,19 @@ export interface StyleRenderInput<TSettings = Record<string, unknown>> {
 
 // ─── Style Definition ─────────────────────────────────────────────────────────
 
-export type StyleCategory = 'marker' | 'label' | 'card' | 'media' | 'data' | 'editorial';
+export type StyleCategory = 'label' | 'marker' | 'editorial' | 'data' | 'media' | 'sign';
+
+/**
+ * A box in a style's own coordinates, relative to its origin: (x, y) is the
+ * top-left corner, so a style that grows up and to the right of its origin has
+ * a negative y and a positive x.
+ */
+export interface StyleBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> {
   id: string;
@@ -274,6 +287,12 @@ export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> 
    */
   drawsConnector?: boolean;
 
+  /** Default altitude in pixels for styles that support it. Default 40. */
+  defaultAltitude?: number;
+
+  /** Default [x, y] offset of the origin from the ground point, in pixels. Default [0, 0]. */
+  defaultOffset?: [number, number];
+
   /** Default map anchor point ('center' for ripples/dots, 'bottom' for cards/pins). Default 'bottom'. */
   defaultAnchor?: AnchorPosition;
 
@@ -293,10 +312,14 @@ export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> 
   render(input: StyleRenderInput<TSettings>): SceneNode;
 
   /**
-   * Measure the bounding box of this style's output.
-   * Used for anchor offset calculation and OffscreenCanvas sizing.
+   * Bounds of everything this style can draw, relative to its origin.
+   *
+   * Used to size the canvas, so it must cover the finished state in full (it
+   * is always called with phase 'visible'), including anything drawn towards
+   * `input.ground`, and stay the same for the whole animation. Include stroke
+   * widths and any overshoot; draw adds a margin for shadows and glow.
    */
-  measure(input: StyleRenderInput<TSettings>): { width: number; height: number };
+  measure(input: StyleRenderInput<TSettings>): StyleBounds;
 
   /** Migrate settings from an older style version. */
   migrate?(fromVersion: number, oldSettings: unknown): TSettings;

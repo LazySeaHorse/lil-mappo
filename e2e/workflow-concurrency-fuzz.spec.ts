@@ -239,7 +239,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
       const calloutItem: CalloutItem = {
         kind: 'callout',
         id: 'callout-mid-1',
-        styleId: 'modern-pill',
+        styleId: 'leader-line',
         styleVersion: 1,
         content: {
           title: 'Midpoint Checkpoint',
@@ -363,7 +363,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
       const item: CalloutItem = {
         kind: 'callout',
         id,
-        styleId: 'standard-card',
+        styleId: 'leader-line',
         styleVersion: 1,
         content: {
           title: 'Original Title',

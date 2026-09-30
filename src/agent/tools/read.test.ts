@@ -19,7 +19,7 @@ describe('read tools', () => {
   it('get_guide lists real map styles, callout styles and easings', async () => {
     const text = resultText(await runAgentTool('get_guide', {}));
     for (const key of Object.keys(MAP_STYLES)) expect(text).toContain(key);
-    expect(text).toContain('topo-label');
+    expect(text).toContain('leader-line');
     expect(text).toContain('easeInOutCubic');
     expect(text).toContain('[longitude, latitude]');
   });

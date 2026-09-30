@@ -173,7 +173,7 @@ describe('annotations/animation', () => {
     const callout: CalloutItem = {
       kind: 'callout',
       id: 'callout-1',
-      styleId: 'standard-card',
+      styleId: 'leader-line',
       styleVersion: 1,
       content: { title: 'Test Callout' },
       binding: { kind: 'geographic', lngLat: [10, 20], altitude: 0 },

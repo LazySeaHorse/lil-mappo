@@ -6,33 +6,20 @@
 import React from 'react';
 import { getAllStyles, getCategories } from '@/annotations/registry';
 import type { AnnotationStyleDefinition, StyleCategory } from '@/annotations/types';
-import {
-  Square, Bookmark, Flag, Mountain, CircleDot, Radio, Image, MapPin,
-  Type, Sparkles, Newspaper, Monitor,
-} from 'lucide-react';
+import { Square, MoveUpRight } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   'square': <Square size={16} />,
-  'bookmark': <Bookmark size={16} />,
-  'flag': <Flag size={16} />,
-  'mountain': <Mountain size={16} />,
-  'circle-dot': <CircleDot size={16} />,
-  'radio': <Radio size={16} />,
-  'image': <Image size={16} />,
-  'map-pin': <MapPin size={16} />,
-  'type': <Type size={16} />,
-  'sparkles': <Sparkles size={16} />,
-  'newspaper': <Newspaper size={16} />,
-  'monitor': <Monitor size={16} />,
+  'move-up-right': <MoveUpRight size={16} />,
 };
 
 const CATEGORY_LABELS: Record<StyleCategory, string> = {
-  marker: 'Markers',
   label: 'Labels',
-  card: 'Cards',
-  media: 'Media',
-  data: 'Data',
+  marker: 'Markers',
   editorial: 'Editorial',
+  data: 'Data',
+  media: 'Media',
+  sign: 'Signs',
 };
 
 interface StylePickerProps {

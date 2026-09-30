@@ -24,6 +24,8 @@ type Extent = Pick<BoundingBox, 'minX' | 'minY' | 'maxX' | 'maxY'>;
 
 /** Text box height as a multiple of the font size, matching typical line boxes. */
 const TEXT_LINE_HEIGHT = 1.3;
+/** Share of that box above the alphabetic baseline. */
+const TEXT_ASCENT = 1;
 
 /** Measure the bounding box of a scene tree. Empty scenes measure as a point at the origin. */
 export function measureScene(node: SceneNode): BoundingBox {
@@ -115,7 +117,13 @@ function measureNode(node: SceneNode): Extent | null {
       const halo = node.stroke ? (node.strokeWidth ?? 1) / 2 : 0;
 
       const left = node.align === 'center' ? node.x - width / 2 : node.align === 'right' ? node.x - width : node.x;
-      const top = node.baseline === 'middle' ? node.y - height / 2 : node.baseline === 'bottom' ? node.y - height : node.y;
+      const top = node.baseline === 'middle'
+        ? node.y - height / 2
+        : node.baseline === 'bottom'
+          ? node.y - height
+          : node.baseline === 'alphabetic'
+            ? node.y - node.fontSize * TEXT_ASCENT
+            : node.y;
       return { minX: left - halo, minY: top - halo, maxX: left + width + halo, maxY: top + height + halo };
     }
 

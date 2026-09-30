@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import '@/annotations/styles';
+import { registerTestStyles, TEST_CARD_STYLE_ID } from '@/annotations/testStyles';
 import { AnnotationLayer } from './AnnotationLayer';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { getFrameBounds, prepareAnnotationFrame } from '@/annotations/draw';
@@ -57,6 +58,7 @@ function createRecordingContext(canvas?: HTMLCanvasElement) {
     fillRect: record('fillRect'),
     strokeRect: record('strokeRect'),
     fillText: record('fillText'),
+    strokeText: record('strokeText'),
     setLineDash: record('setLineDash'),
     drawImage: record('drawImage'),
     measureText: (text: string) => ({ width: text.length * 7 }),
@@ -75,7 +77,7 @@ function makeCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
   return {
     id: 'c1',
     kind: 'callout',
-    styleId: 'standard-card',
+    styleId: TEST_CARD_STYLE_ID,
     styleVersion: 1,
     content: { title: 'Harbour' },
     binding: { kind: 'geographic', lngLat: [10, 20], altitude: 40 },
@@ -109,6 +111,8 @@ function drawCallsRelativeTo(calls: Call[], dx: number, dy: number): Call[] {
       return [name, (args[0] as number) - dx, (args[1] as number) - dy, ...args.slice(2)] as Call;
     });
 }
+
+registerTestStyles();
 
 describe('AnnotationLayer', () => {
   beforeEach(() => {
@@ -168,5 +172,28 @@ describe('AnnotationLayer', () => {
 
     expect(preview.filter(([name]) => name === 'fillText')).toHaveLength(1);
     expect(preview).toEqual(exported);
+  });
+
+  it('sizes and positions the canvas for a leader line drawn up and away from the ground point', () => {
+    const callout = makeCallout({
+      styleId: 'leader-line',
+      content: { title: 'Harbour' },
+      binding: { kind: 'geographic', lngLat: [10, 20], altitude: 0 },
+      offset: [70, -90],
+      transition: { enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 },
+    });
+    const { container } = render(<AnnotationLayer callouts={[callout]} selectedCalloutId={null} />);
+
+    const bounds = getFrameBounds(prepareAnnotationFrame(callout, 5)!);
+    const marker = screen.getByTestId('marker');
+    expect(JSON.parse(marker.dataset.offset!)).toEqual([bounds.minX, bounds.minY]);
+    // The canvas reaches from the ground dot up to the label.
+    expect(bounds.maxY - bounds.minY).toBeGreaterThan(90);
+    expect(bounds.maxX - bounds.minX).toBeGreaterThan(70);
+
+    const canvas = container.querySelector('canvas')!;
+    expect(canvas.style.width).toBe(`${bounds.maxX - bounds.minX}px`);
+    const ctx = contexts.get(canvas)!;
+    expect(ctx.calls.some(([name, text]) => name === 'fillText' && text === 'HARBOUR')).toBe(true);
   });
 });

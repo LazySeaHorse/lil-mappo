@@ -55,6 +55,8 @@ describe('easing functions', () => {
     expect(peak).toBeGreaterThan(1.05);
     expect(peak).toBeLessThan(1.15);
     expect(easeOutBack(0.7, 3)).toBeGreaterThan(easeOutBack(0.7, 1));
+    expect(easeOutBack(0)).toBe(0);
+    expect(easeOutBack(1)).toBe(1);
   });
 });
 

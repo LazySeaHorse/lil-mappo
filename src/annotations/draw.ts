@@ -2,24 +2,31 @@
  * Shared annotation drawing, used by both the live preview and the export
  * compositor so the two always produce identical pixels.
  *
- * Coordinate model: every style draws its scene around its own origin, and the
- * origin is the style's anchor (cards and pins put their bottom-centre there,
- * dots and rings put their centre there). The origin sits at the ground point
- * shifted by the callout offset and lifted by the altitude; the connector runs
- * from the origin down to the ground point.
+ * Coordinate model: every style draws its scene around its own origin. The
+ * origin sits at the ground point shifted by the callout offset and lifted by
+ * the altitude. Styles that draw their own line to the ground (leader lines,
+ * poles) find the ground point in `input.ground`; for the rest, draw runs a
+ * generic connector from the origin down to the ground point.
  */
 
 import type { CalloutItem, TimelineItem } from '@/store/types';
-import type { ConnectorConfig, SceneNode } from './types';
-import { computePhase, evaluateTransition, STYLE_ANIMATION } from './animation';
+import type { AnnotationStyleDefinition, ConnectorConfig, SceneNode, StyleBounds, StyleRenderInput } from './types';
+import { computePhase, evaluateTransition, SLIDE_DISTANCE, STYLE_ANIMATION } from './animation';
 import { getStyle, validateSettings } from './registry';
 import { preloadImage, renderScene } from './scene/renderer';
 import { buildFont } from './scene/textMetrics';
 
-/** Room around the measured style box for shadows and glow. */
+/** Room around the measured style box for shadows, glow and overshoot. */
 const EFFECT_PADDING = 24;
 /** Screen-space altitude cap, matching the inspector slider range. */
 export const MAX_ALTITUDE_PX = 300;
+
+export interface FrameBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
 
 export interface AnnotationFrame {
   scene: SceneNode;
@@ -34,15 +41,12 @@ export interface AnnotationFrame {
   originY: number;
   /** Connector to draw from the origin to the ground point, if any. */
   connector: ConnectorConfig | null;
-  /** Half-size of a square around the origin that contains the whole scene. */
-  extent: number;
-}
-
-export interface FrameBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
+  /**
+   * Everything the callout can draw over its whole life, relative to the ground
+   * point and padded for effects. Fixed for the callout, so the canvas never
+   * resizes while it animates.
+   */
+  bounds: FrameBounds;
 }
 
 function formatCoordinates(lngLat: [number, number]): string {
@@ -50,78 +54,6 @@ function formatCoordinates(lngLat: [number, number]): string {
   const ns = lat >= 0 ? 'N' : 'S';
   const ew = lng >= 0 ? 'E' : 'W';
   return `${Math.abs(lat).toFixed(4)}° ${ns}, ${Math.abs(lng).toFixed(4)}° ${ew}`;
-}
-
-/**
- * Resolves everything needed to draw a callout at a playhead time.
- * Returns null when the callout is not shown (outside its time window,
- * unplaced, or using an unknown style). A frame may still be fully transparent,
- * e.g. at the first instant of a fade-in.
- */
-export function prepareAnnotationFrame(callout: CalloutItem, playheadTime: number): AnnotationFrame | null {
-  const { binding } = callout;
-  if (binding.kind !== 'geographic') return null;
-  if (binding.lngLat[0] === 0 && binding.lngLat[1] === 0) return null;
-
-  const phaseResult = computePhase(
-    callout.startTime,
-    callout.endTime,
-    callout.transition.enterDuration,
-    callout.transition.exitDuration,
-    playheadTime,
-  );
-  if (!phaseResult) return null;
-
-  const style = getStyle(callout.styleId);
-  if (!style) return null;
-
-  const { phase, progress } = phaseResult;
-  const transitionName = phase === 'enter' ? callout.transition.enter : callout.transition.exit;
-  const transition = evaluateTransition(transitionName, phase, progress);
-  const opacity = transition.opacity * callout.opacity;
-
-  const altitude = style.supportsAltitude === false
-    ? 0
-    : Math.max(0, Math.min(binding.altitude, MAX_ALTITUDE_PX));
-  const originX = callout.offset[0];
-  const originY = callout.offset[1] - altitude;
-  const scale = transition.scaleX * callout.scale;
-  // The style plays its own entrance and exit only when it owns the transition.
-  const styleAnimates = transitionName === STYLE_ANIMATION;
-
-  const input = {
-    content: {
-      ...callout.content,
-      eyebrow: callout.content.eyebrow || formatCoordinates(binding.lngLat),
-    },
-    settings: validateSettings(callout.styleId, callout.settings),
-    phase: styleAnimates ? phase : 'visible' as const,
-    phaseProgress: styleAnimates ? progress : 1,
-    ground: groundInStyleSpace(originX, originY, scale),
-    itemTime: playheadTime - callout.startTime,
-    playheadTime,
-    pixelRatio: 1,
-  };
-
-  // Bounds are for the finished state, so the canvas never resizes mid-animation.
-  const measured = style.measure({
-    ...input,
-    phase: 'visible',
-    phaseProgress: 1,
-    ground: groundInStyleSpace(originX, originY, callout.scale),
-  });
-
-  return {
-    scene: style.render(input),
-    opacity,
-    scale,
-    translateY: transition.translateY,
-    originX,
-    originY,
-    connector: callout.connector.visible && altitude > 0 && !style.drawsConnector ? callout.connector : null,
-    extent: (Math.max(measured.width, measured.height) + EFFECT_PADDING) * Math.max(scale, 1)
-      + Math.abs(transition.translateY),
-  };
 }
 
 /**
@@ -133,16 +65,137 @@ function groundInStyleSpace(originX: number, originY: number, scale: number): { 
   return { x: -originX / safeScale, y: -originY / safeScale };
 }
 
-/** Bounds of everything a frame draws, relative to the ground point. */
+interface Placement {
+  style: AnnotationStyleDefinition;
+  /** Origin position relative to the ground point. */
+  originX: number;
+  originY: number;
+  /** Screen-space height the origin is lifted above the ground point. */
+  altitude: number;
+  lngLat: [number, number];
+}
+
+/** Where a callout's style origin sits, or null when it can't be shown (unplaced or unknown style). */
+function placeCallout(callout: CalloutItem): Placement | null {
+  const { binding } = callout;
+  if (binding.kind !== 'geographic') return null;
+  if (binding.lngLat[0] === 0 && binding.lngLat[1] === 0) return null;
+
+  const style = getStyle(callout.styleId);
+  if (!style) return null;
+
+  const altitude = style.supportsAltitude === false
+    ? 0
+    : Math.max(0, Math.min(binding.altitude, MAX_ALTITUDE_PX));
+  return {
+    style,
+    originX: callout.offset[0],
+    originY: callout.offset[1] - altitude,
+    altitude,
+    lngLat: binding.lngLat,
+  };
+}
+
+/** Input for the style's render and measure. `scale` is the total scale the scene is drawn at. */
+function styleInput(
+  callout: CalloutItem,
+  placement: Placement,
+  playheadTime: number,
+  phase: StyleRenderInput['phase'],
+  phaseProgress: number,
+  scale: number,
+): StyleRenderInput {
+  return {
+    content: {
+      ...callout.content,
+      eyebrow: callout.content.eyebrow || formatCoordinates(placement.lngLat),
+    },
+    settings: validateSettings(callout.styleId, callout.settings),
+    phase,
+    phaseProgress,
+    ground: groundInStyleSpace(placement.originX, placement.originY, scale),
+    itemTime: playheadTime - callout.startTime,
+    playheadTime,
+    pixelRatio: 1,
+  };
+}
+
+/**
+ * Resolves everything needed to draw a callout at a playhead time.
+ * Returns null when the callout is not shown (outside its time window,
+ * unplaced, or using an unknown style). A frame may still be fully transparent,
+ * e.g. at the first instant of a fade-in.
+ */
+export function prepareAnnotationFrame(callout: CalloutItem, playheadTime: number): AnnotationFrame | null {
+  const placement = placeCallout(callout);
+  if (!placement) return null;
+
+  const phaseResult = computePhase(
+    callout.startTime,
+    callout.endTime,
+    callout.transition.enterDuration,
+    callout.transition.exitDuration,
+    playheadTime,
+  );
+  if (!phaseResult) return null;
+
+  const { style, originX, originY } = placement;
+  const { phase, progress } = phaseResult;
+  const transitionName = phase === 'enter' ? callout.transition.enter : callout.transition.exit;
+  const transition = evaluateTransition(transitionName, phase, progress);
+  const scale = transition.scaleX * callout.scale;
+
+  // The style plays its own entrance and exit only when it owns the transition;
+  // under a block transition it draws its finished state and the block animates.
+  const styleAnimates = transitionName === STYLE_ANIMATION;
+  const input = styleAnimates
+    ? styleInput(callout, placement, playheadTime, phase, progress, scale)
+    : styleInput(callout, placement, playheadTime, 'visible', 1, scale);
+
+  // Bounds cover the finished state, so the canvas never resizes mid-animation.
+  const finished = styleInput(callout, placement, playheadTime, 'visible', 1, callout.scale);
+
+  return {
+    scene: style.render(input),
+    opacity: transition.opacity * callout.opacity,
+    scale,
+    translateY: transition.translateY,
+    originX,
+    originY,
+    connector: callout.connector.visible && placement.altitude > 0 && !style.drawsConnector
+      ? callout.connector
+      : null,
+    bounds: calloutBounds(callout, style.measure(finished), originX, originY),
+  };
+}
+
+/** Pads and positions a style's measured box, relative to the ground point. */
+function calloutBounds(callout: CalloutItem, measured: StyleBounds, originX: number, originY: number): FrameBounds {
+  const { scale } = callout;
+  const blockSlides = callout.transition.enter !== STYLE_ANIMATION || callout.transition.exit !== STYLE_ANIMATION;
+  const padX = EFFECT_PADDING * Math.max(scale, 1);
+  const padY = padX + (blockSlides ? SLIDE_DISTANCE : 0);
+  return {
+    minX: originX + measured.x * scale - padX,
+    minY: originY + measured.y * scale - padY,
+    maxX: originX + (measured.x + measured.width) * scale + padX,
+    maxY: originY + (measured.y + measured.height) * scale + padY,
+  };
+}
+
+/**
+ * Pixel bounds of everything a frame draws, relative to the ground point. Always
+ * includes the ground point (and the connector's end dot around it).
+ */
 export function getFrameBounds(frame: AnnotationFrame): FrameBounds {
   const dotMargin = frame.connector
     ? Math.max(frame.connector.endDotRadius, frame.connector.width) + 1
     : 0;
   return {
-    minX: Math.floor(Math.min(-dotMargin, frame.originX - frame.extent)),
-    minY: Math.floor(Math.min(-dotMargin, frame.originY - frame.extent)),
-    maxX: Math.ceil(Math.max(dotMargin, frame.originX + frame.extent)),
-    maxY: Math.ceil(Math.max(dotMargin, frame.originY + frame.extent)),
+    minX: Math.floor(Math.min(-dotMargin, frame.bounds.minX)),
+    minY: Math.floor(Math.min(-dotMargin, frame.bounds.minY)),
+    maxX: Math.ceil(Math.max(dotMargin, frame.bounds.maxX)),
+    maxY: Math.ceil(Math.max(dotMargin, frame.bounds.maxY)),
   };
 }
 
@@ -237,10 +290,12 @@ export async function loadAnnotationAssets(
   for (const id of itemOrder) {
     const item = items[id];
     if (item?.kind !== 'callout') continue;
-    // Mid-point of the time window: fully entered, so the scene is complete.
-    const frame = prepareAnnotationFrame(item, (item.startTime + item.endTime) / 2);
-    if (!frame) continue;
-    const assets = collectSceneAssets(frame.scene);
+    // The finished scene: an entrance may not have drawn all its text yet.
+    const placement = placeCallout(item);
+    if (!placement) continue;
+    const time = (item.startTime + item.endTime) / 2;
+    const scene = placement.style.render(styleInput(item, placement, time, 'visible', 1, item.scale));
+    const assets = collectSceneAssets(scene);
     assets.fonts.forEach((f) => fonts.add(f));
     assets.images.forEach((src) => images.add(src));
   }

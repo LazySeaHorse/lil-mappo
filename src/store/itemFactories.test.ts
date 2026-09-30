@@ -35,8 +35,15 @@ describe('itemFactories', () => {
     expect(createBoundaryItem({ placeName: 'X', geojson: null, startTime: 1 })).toMatchObject({
       resolveStatus: 'resolved', endTime: 6, style: { strokeColor: '#a855f7' },
     });
-    const callout = createCalloutItem({ styleId: 'topo-label', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 });
-    expect(callout?.binding).toMatchObject({ kind: 'geographic', lngLat: [1, 2] });
+    const callout = createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 });
+    expect(callout?.binding).toMatchObject({ kind: 'geographic', lngLat: [1, 2], altitude: 0 });
+    expect(callout).toMatchObject({
+      styleId: 'leader-line',
+      offset: [70, -90],
+      transition: { enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 },
+      connector: { visible: false },
+      settings: { side: 'auto', accentColor: '#FF5A36' },
+    });
     expect(createCalloutItem({ styleId: 'nope', content: { title: '' }, lngLat: [0, 0], startTime: 0 })).toBeNull();
     expect(createCameraKeyframe({ time: 3, center: [1, 2], zoom: 4 })).toMatchObject({
       time: 3, easing: 'easeInOutCubic', followRoute: null, camera: { pitch: 0, bearing: 0, altitude: null },

@@ -54,7 +54,7 @@ export const contentPatchSchema = z.strictObject(contentShape).partial();
 
 export const anchorSchema = z
   .enum(['center', 'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'])
-  .describe('Which point of the callout sits on the map location. Cards default to "bottom", markers to "center".');
+  .describe('Which point of the callout sits on the map location.');
 
 export const calloutSettingsSchema = z
   .record(z.string(), z.unknown())

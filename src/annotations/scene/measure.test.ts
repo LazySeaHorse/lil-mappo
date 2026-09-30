@@ -43,6 +43,12 @@ describe('measureScene', () => {
     expect(box.minY).toBeCloseTo(-20 * 1.3 - 3);
   });
 
+  it('places alphabetic text on its baseline', () => {
+    const box = measureScene(text({ x: 0, y: 50, text: 'Base', fontSize: 20, fontFamily: 'Outfit', baseline: 'alphabetic' }));
+    expect(box.minY).toBeCloseTo(30);
+    expect(box.maxY).toBeCloseTo(50 + 20 * 0.3);
+  });
+
   it('applies group translation, scale and rotation', () => {
     const child = rect({ x: 0, y: 0, width: 10, height: 10 });
     expect(measureScene(group({ x: 5, y: 7, children: [child] }))).toMatchObject({ minX: 5, minY: 7, maxX: 15, maxY: 17 });

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { z } from 'zod';
 import '@/annotations/styles';
 import {
   collectSceneAssets,
@@ -7,17 +8,19 @@ import {
   prepareAnnotationFrame,
   MAX_ALTITUDE_PX,
 } from './draw';
-import { getStyle, registerStyle } from './registry';
-import { z } from 'zod';
+import { registerStyle } from './registry';
 import { group } from './scene/primitives';
+import { registerTestStyles, TEST_CARD_STYLE_ID, TEST_FLAT_STYLE_ID } from './testStyles';
 import type { AnnotationStyleDefinition, StyleRenderInput } from './types';
 import type { CalloutItem } from '@/store/types';
+
+registerTestStyles();
 
 function makeCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
   return {
     id: 'c1',
     kind: 'callout',
-    styleId: 'standard-card',
+    styleId: TEST_CARD_STYLE_ID,
     styleVersion: 1,
     content: { title: 'Harbour' },
     binding: { kind: 'geographic', lngLat: [10, 20], altitude: 40 },
@@ -33,6 +36,18 @@ function makeCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
     linkTitleToLocation: false,
     ...overrides,
   };
+}
+
+/** A leader-line callout with its own choreography and the default placement. */
+function makeLeaderLine(overrides: Partial<CalloutItem> = {}): CalloutItem {
+  return makeCallout({
+    styleId: 'leader-line',
+    content: { title: 'Harbour', subtitle: 'Old town' },
+    binding: { kind: 'geographic', lngLat: [10, 20], altitude: 0 },
+    offset: [70, -90],
+    transition: { enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 },
+    ...overrides,
+  });
 }
 
 describe('prepareAnnotationFrame', () => {
@@ -64,13 +79,13 @@ describe('prepareAnnotationFrame', () => {
   });
 
   it('ignores altitude and the connector for ground-level styles', () => {
-    const frame = prepareAnnotationFrame(makeCallout({ styleId: 'ripple-marker' }), 5)!;
+    const frame = prepareAnnotationFrame(makeCallout({ styleId: TEST_FLAT_STYLE_ID }), 5)!;
     expect(frame.originY).toBe(0);
     expect(frame.connector).toBeNull();
   });
 
   it('applies style defaults for missing or invalid settings', () => {
-    const frame = prepareAnnotationFrame(makeCallout({ settings: { bgColor: 42 } }), 5)!;
+    const frame = prepareAnnotationFrame(makeCallout({ settings: { color: 42 } }), 5)!;
     const scene = frame.scene;
     expect(scene.type).toBe('group');
     if (scene.type !== 'group') return;
@@ -80,34 +95,58 @@ describe('prepareAnnotationFrame', () => {
 });
 
 describe('getFrameBounds', () => {
-  it('contains the ground point and the whole area around the origin', () => {
-    const frame = prepareAnnotationFrame(makeCallout(), 5)!;
+  it('contains the style box around the origin and the ground point', () => {
+    const frame = prepareAnnotationFrame(makeCallout({ offset: [30, 0] }), 5)!;
     const bounds = getFrameBounds(frame);
-    expect(bounds.minX).toBeLessThanOrEqual(-frame.extent);
-    expect(bounds.maxX).toBeGreaterThanOrEqual(frame.extent);
-    expect(bounds.minY).toBeLessThanOrEqual(frame.originY - frame.extent);
+    // The card measures x -40..40, y -24..0 around the origin (30, -40).
+    expect(bounds.minX).toBeLessThanOrEqual(30 - 40);
+    expect(bounds.maxX).toBeGreaterThanOrEqual(30 + 40);
+    expect(bounds.minY).toBeLessThanOrEqual(-40 - 24);
     // Ground point (0, 0) and the connector end dot fit inside.
     expect(bounds.maxY).toBeGreaterThanOrEqual(3);
+    expect(bounds.minX).toBeLessThanOrEqual(-3);
   });
 
-  it('leaves room above tall cards so their tops are not clipped', () => {
-    const content = { title: 'Summit', body: '4,392 m', eyebrow: '46.85° N, 121.76° W' };
-    const frame = prepareAnnotationFrame(
-      makeCallout({ styleId: 'topo-label', settings: { showMetadata: true }, content }),
+  it('does not reserve room on the side a style never draws to', () => {
+    const bounds = getFrameBounds(prepareAnnotationFrame(makeCallout({ offset: [0, 0] }), 5)!);
+    // Cards sit above their origin: nothing but padding below the ground.
+    expect(bounds.maxY).toBeLessThan(40);
+  });
+
+  it('scales the style box with the callout scale', () => {
+    const one = getFrameBounds(prepareAnnotationFrame(makeCallout({ styleId: TEST_FLAT_STYLE_ID }), 5)!);
+    const two = getFrameBounds(prepareAnnotationFrame(makeCallout({ styleId: TEST_FLAT_STYLE_ID, scale: 2 }), 5)!);
+    expect(two.maxX - two.minX).toBeGreaterThan(one.maxX - one.minX);
+  });
+
+  it('covers the ground point and the whole finished leader line and text', () => {
+    const callout = makeLeaderLine();
+    const bounds = getFrameBounds(prepareAnnotationFrame(callout, 5)!);
+    // Ground (0, 0), elbow (70, -90), shelf running right and the text above it.
+    expect(bounds.minX).toBeLessThanOrEqual(-8);
+    expect(bounds.maxX).toBeGreaterThan(70 + 48);
+    expect(bounds.minY).toBeLessThan(-90 - 22);
+    expect(bounds.maxY).toBeGreaterThanOrEqual(8);
+  });
+
+  it('is identical in every phase, so the canvas never resizes while animating', () => {
+    const callout = makeLeaderLine();
+    const at = (t: number) => getFrameBounds(prepareAnnotationFrame(callout, t)!);
+    const settled = at(5);
+    for (const t of [0, 0.3, 0.9, 9.6, 10]) expect(at(t)).toEqual(settled);
+  });
+
+  it('leaves room for a block slide transition', () => {
+    const auto = getFrameBounds(prepareAnnotationFrame(
+      makeCallout({ styleId: TEST_FLAT_STYLE_ID, transition: { enter: 'auto', exit: 'auto', enterDuration: 1, exitDuration: 1 } }),
       5,
-    )!;
-    const { height } = getStyle('topo-label')!.measure({
-      content,
-      settings: { showMetadata: true, fontFamily: 'Outfit' },
-      phase: 'visible',
-      phaseProgress: 1,
-      itemTime: 5,
-      playheadTime: 5,
-      pixelRatio: 1,
-    });
-    expect(height).toBeGreaterThan(48);
-    // Topo cards sit with their bottom edge on the origin.
-    expect(getFrameBounds(frame).minY).toBeLessThanOrEqual(frame.originY - height);
+    )!);
+    const slide = getFrameBounds(prepareAnnotationFrame(
+      makeCallout({ styleId: TEST_FLAT_STYLE_ID, transition: { enter: 'slide-up', exit: 'slide-down', enterDuration: 1, exitDuration: 1 } }),
+      5,
+    )!);
+    expect(slide.minY).toBeLessThan(auto.minY);
+    expect(slide.maxY).toBeGreaterThan(auto.maxY);
   });
 });
 
@@ -117,26 +156,37 @@ describe('annotation assets', () => {
   });
 
   it('collects the exact fonts and images a scene draws', () => {
-    const frame = prepareAnnotationFrame(
-      makeCallout({ styleId: 'image-circle', content: { title: 'Ana', image: 'https://example.com/a.png' } }),
-      5,
-    )!;
+    const frame = prepareAnnotationFrame(makeLeaderLine(), 5)!;
     const assets = collectSceneAssets(frame.scene);
-    expect(assets.images).toEqual(['https://example.com/a.png']);
-    expect(assets.fonts.length).toBeGreaterThan(0);
-    expect(assets.fonts.every((f) => f.includes("'Outfit'"))).toBe(true);
+    expect(assets.images).toEqual([]);
+    expect(assets.fonts.sort()).toEqual([
+      "500 14px 'Barlow Condensed', sans-serif",
+      "600 22px 'Barlow Condensed', sans-serif",
+    ]);
   });
 
   it('loads fonts for every callout before export, including ones not yet on screen', async () => {
     const load = vi.fn((_font: string) => Promise.resolve([]));
     vi.stubGlobal('document', Object.assign(Object.create(document), { fonts: { load } }));
 
-    const later = makeCallout({ id: 'c2', startTime: 20, endTime: 30, settings: { fontFamily: 'Lexend' } });
-    await loadAnnotationAssets({ c1: makeCallout(), c2: later }, ['c1', 'c2']);
+    const later = makeCallout({ id: 'c2', startTime: 20, endTime: 30 });
+    await loadAnnotationAssets({ c1: makeLeaderLine(), c2: later }, ['c1', 'c2']);
 
     const loaded = load.mock.calls.map(([font]) => font);
+    expect(loaded.some((f) => f.includes("'Barlow Condensed'"))).toBe(true);
     expect(loaded.some((f) => f.includes("'Outfit'"))).toBe(true);
-    expect(loaded.some((f) => f.includes("'Lexend'"))).toBe(true);
+  });
+
+  it('loads the finished scene fonts even when the mid-point falls inside an entrance', async () => {
+    const load = vi.fn((_font: string) => Promise.resolve([]));
+    vi.stubGlobal('document', Object.assign(Object.create(document), { fonts: { load } }));
+
+    // 1s long: its mid-point is half way through a 1.2s entrance, before the text is drawn.
+    const brief = makeLeaderLine({ startTime: 0, endTime: 1 });
+    expect(collectSceneAssets(prepareAnnotationFrame(brief, 0.5)!.scene).fonts).toEqual([]);
+
+    await loadAnnotationAssets({ c1: brief }, ['c1']);
+    expect(load.mock.calls.map(([font]) => font)).toContain("600 22px 'Barlow Condensed', sans-serif");
   });
 });
 
@@ -158,7 +208,7 @@ describe('style-owned choreography', () => {
       seen.push(input);
       return group({});
     },
-    measure: () => ({ width: 10, height: 10 }),
+    measure: () => ({ x: -5, y: -10, width: 10, height: 10 }),
   };
   registerStyle(probe);
 

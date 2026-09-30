@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import '@/annotations/styles';
+import { registerTestStyles, TEST_CARD_STYLE_ID, TEST_FLAT_STYLE_ID } from '../testStyles';
 import { compositeAnnotations } from './renderAnnotation';
 import type { CalloutItem } from '@/store/types';
 import type { Map as MapboxMap } from 'mapbox-gl';
+
+registerTestStyles();
 
 describe('renderAnnotation and compositeAnnotations', () => {
   const createMockCtx = () => {
@@ -20,6 +23,9 @@ describe('renderAnnotation and compositeAnnotations', () => {
       setLineDash: vi.fn(),
       measureText: vi.fn(() => ({ width: 100 })),
       fillText: vi.fn(),
+      strokeText: vi.fn(),
+      clip: vi.fn(),
+      rect: vi.fn(),
       roundRect: vi.fn(),
       clearRect: vi.fn(),
       fillRect: vi.fn(),
@@ -37,14 +43,14 @@ describe('renderAnnotation and compositeAnnotations', () => {
     } as unknown as MapboxMap;
   };
 
-  it('renders standard-card using screen pixels for altitude offset without zoom drift', () => {
+  it('renders a card using screen pixels for altitude offset without zoom drift', () => {
     const ctx = createMockCtx();
     const map = createMockMap(200, 300);
 
     const callout: CalloutItem = {
       id: 'c1',
       kind: 'callout',
-      styleId: 'standard-card',
+      styleId: TEST_CARD_STYLE_ID,
       styleVersion: 1,
       content: { title: 'Test Pin' },
       binding: {
@@ -101,7 +107,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
     const callout: CalloutItem = {
       id: 'c2',
       kind: 'callout',
-      styleId: 'standard-card',
+      styleId: TEST_CARD_STYLE_ID,
       styleVersion: 1,
       content: { title: 'No Drift' },
       binding: {
@@ -147,7 +153,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
     const rippleCallout: CalloutItem = {
       id: 'r1',
       kind: 'callout',
-      styleId: 'ripple-marker',
+      styleId: TEST_FLAT_STYLE_ID,
       styleVersion: 1,
       content: { title: 'Ripple Ground' },
       binding: {
@@ -176,7 +182,74 @@ describe('renderAnnotation and compositeAnnotations', () => {
 
     compositeAnnotations(map, ctx, { r1: rippleCallout }, ['r1'], 5);
 
-    // No connector line should be drawn for ripple-marker because effectiveAltitude is 0
+    // No connector line should be drawn for a flat marker because effectiveAltitude is 0
     expect(ctx.lineTo).not.toHaveBeenCalled();
+  });
+
+  it('draws a leader line from the ground point to the offset origin without the generic connector', () => {
+    const ctx = createMockCtx();
+    const map = createMockMap(200, 300);
+
+    const callout: CalloutItem = {
+      id: 'l1',
+      kind: 'callout',
+      styleId: 'leader-line',
+      styleVersion: 1,
+      content: { title: 'Pier' },
+      binding: { kind: 'geographic', lngLat: [5, 5], altitude: 0 },
+      offset: [70, -90],
+      anchor: 'bottom',
+      startTime: 0,
+      endTime: 10,
+      transition: { enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 },
+      connector: { visible: true, style: 'solid', color: '#ffffff', width: 2, endDot: true, endDotRadius: 3 },
+      opacity: 1,
+      scale: 1,
+      settings: {},
+      linkTitleToLocation: false,
+    };
+
+    compositeAnnotations(map, ctx, { l1: callout }, ['l1'], 5);
+
+    // The scene is drawn at the elbow; its diagonal runs back to the ground point.
+    expect(ctx.translate).toHaveBeenCalledWith(270, 210);
+    expect(ctx.moveTo).toHaveBeenCalledWith(-70, 90);
+    expect(ctx.lineTo).toHaveBeenCalledWith(0, 0);
+    // No absolute-coordinate connector or end dot.
+    expect(ctx.moveTo).not.toHaveBeenCalledWith(270, 210);
+    expect(ctx.arc).not.toHaveBeenCalledWith(200, 300, 3, 0, Math.PI * 2);
+    expect(ctx.fillText).toHaveBeenCalledWith('PIER', expect.any(Number), expect.any(Number), undefined);
+  });
+
+  it('starts a style-animated callout empty and finishes it as the entrance completes', () => {
+    const map = createMockMap(200, 300);
+    const callout: CalloutItem = {
+      id: 'l2',
+      kind: 'callout',
+      styleId: 'leader-line',
+      styleVersion: 1,
+      content: { title: 'Pier' },
+      binding: { kind: 'geographic', lngLat: [5, 5], altitude: 0 },
+      offset: [70, -90],
+      anchor: 'bottom',
+      startTime: 0,
+      endTime: 10,
+      transition: { enter: 'auto', exit: 'auto', enterDuration: 1.2, exitDuration: 0.5 },
+      connector: { visible: false, style: 'solid', color: '#ffffff', width: 2, endDot: true, endDotRadius: 3 },
+      opacity: 1,
+      scale: 1,
+      settings: {},
+      linkTitleToLocation: false,
+    };
+
+    const start = createMockCtx();
+    compositeAnnotations(map, start, { l2: callout }, ['l2'], 0);
+    expect(start.stroke).not.toHaveBeenCalled();
+    expect(start.fillText).not.toHaveBeenCalled();
+
+    const done = createMockCtx();
+    compositeAnnotations(map, done, { l2: callout }, ['l2'], 1.2);
+    expect(done.stroke).toHaveBeenCalled();
+    expect(done.fillText).toHaveBeenCalled();
   });
 });

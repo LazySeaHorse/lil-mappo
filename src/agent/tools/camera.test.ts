@@ -96,7 +96,7 @@ describe('frame_items', () => {
     const cameraForBounds = mockMap({ width: 1000, height: 800 });
     const route = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry({ type: 'LineString', coordinates: [[0, 0], [4, 2]] }), start: [0, 0], end: [4, 2], name: 'r', startTime: 0 });
     const boundary = createBoundaryItem({ placeName: 'b', geojson: { type: 'Polygon', coordinates: [[[-2, -1], [1, -1], [1, 1], [-2, -1]]] }, startTime: 0 });
-    const callout = createCalloutItem({ styleId: 'topo-label', content: { title: 'c' }, lngLat: [6, 3], startTime: 0 })!;
+    const callout = createCalloutItem({ styleId: 'leader-line', content: { title: 'c' }, lngLat: [6, 3], startTime: 0 })!;
     for (const i of [route, boundary, callout]) state().addItem(i);
     useProjectStore.temporal.getState().clear();
 
@@ -119,7 +119,7 @@ describe('frame_items', () => {
 
   it('replaces a keyframe at the same time and expands single points to a minimum span', async () => {
     const cameraForBounds = mockMap();
-    const callout = createCalloutItem({ styleId: 'topo-label', content: { title: 'c' }, lngLat: [6, 3], startTime: 0 })!;
+    const callout = createCalloutItem({ styleId: 'leader-line', content: { title: 'c' }, lngLat: [6, 3], startTime: 0 })!;
     state().addItem(callout);
     await runAgentTool('frame_items', { itemIds: [callout.id], time: 5 });
     const second = resultJson<{ replacedExisting: boolean }>(await runAgentTool('frame_items', { itemIds: [callout.id], time: 5 }));

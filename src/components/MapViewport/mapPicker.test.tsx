@@ -165,7 +165,7 @@ describe('Map Point Picking Architecture', () => {
       const callout: CalloutItem = {
         id: 'callout-1',
         kind: 'callout',
-        styleId: 'standard-card',
+        styleId: 'leader-line',
         styleVersion: 1,
         content: { title: 'Original Title' },
         binding: { kind: 'geographic', lngLat: [0, 0], altitude: 0 },
