@@ -1,0 +1,4 @@
+{"styleId":"hand-drawn","samples":6,"cellWidth":340,"cellHeight":230,"variants":[
+{"name":"right+sub","offset":[80,-100],"ground":[0.16,0.82],"content":{"title":"Harbour Bridge","subtitle":"Sydney, Australia"}},
+{"name":"left","offset":[-80,-100],"ground":[0.84,0.82],"content":{"title":"Mont Blanc"}},
+{"name":"long","offset":[70,-90],"ground":[0.16,0.82],"settings":{"circleSize":54,"strokeColor":"#FFD400"},"content":{"title":"The tallest building in the whole wide world","subtitle":"Dubai"}}]}
