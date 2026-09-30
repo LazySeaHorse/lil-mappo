@@ -1,3 +1,5 @@
+import distance from '@turf/distance';
+import { point } from '@turf/helpers';
 import type { AutoCamConfig } from '@/store/types';
 import {
   blendPoses,
@@ -36,6 +38,16 @@ export interface CameraRig {
   heading: Float64Array;
   /** 0..1 how sharply the route turns around each sample. */
   turn: Float64Array;
+  /**
+   * The route's own vertices, mercator units, with their fraction of the route's geodesic
+   * length. This is how the renderer places the vehicle, so progress `u` lands on the same
+   * spot in the rig as on screen.
+   */
+  routeX: Float64Array;
+  routeY: Float64Array;
+  routeU: Float64Array;
+  /** Distance along the smoothed path, in metres, at each of those vertices. */
+  routeS: Float64Array;
   /** Overview shot framing the whole route. */
   overview: CameraPose;
   /** Mean latitude, for scale conversions. */
@@ -188,13 +200,30 @@ export function buildRig(coords: number[][], config: AutoCamConfig): CameraRig |
   const lat = latSum / coords.length;
   const mpm = metersPerMerc(lat);
 
-  const dense = catmullRom(pts, pts.length < 200 ? 8 : pts.length < 600 ? 3 : 1);
+  const perSegment = pts.length < 200 ? 8 : pts.length < 600 ? 3 : 1;
+  const dense = catmullRom(pts, perSegment);
+  // Every route vertex survives densifying, at a fixed stride.
+  const stride = perSegment <= 1 || pts.length < 3 ? 1 : perSegment;
   const cum = new Float64Array(dense.length);
   for (let i = 1; i < dense.length; i++) {
     cum[i] = cum[i - 1] + Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]) * mpm;
   }
   const total = cum[cum.length - 1];
   if (!(total > 0)) return null;
+
+  const routeX = new Float64Array(pts.length);
+  const routeY = new Float64Array(pts.length);
+  const routeU = new Float64Array(pts.length);
+  const routeS = new Float64Array(pts.length);
+  let geodesic = 0;
+  for (let i = 0; i < pts.length; i++) {
+    routeX[i] = pts[i][0];
+    routeY[i] = pts[i][1];
+    routeS[i] = cum[Math.min(dense.length - 1, i * stride)];
+    if (i > 0) geodesic += distance(point(mercToLngLat(pts[i - 1][0], pts[i - 1][1])), point(mercToLngLat(pts[i][0], pts[i][1])), { units: 'kilometers' });
+    routeU[i] = geodesic;
+  }
+  if (geodesic > 0) for (let i = 0; i < pts.length; i++) routeU[i] /= geodesic;
 
   const L = viewScaleM(config, lat);
   const n = clamp(Math.ceil(total / (L / 20)), MIN_SAMPLES, MAX_SAMPLES);
@@ -242,7 +271,7 @@ export function buildRig(coords: number[][], config: AutoCamConfig): CameraRig |
   }
   const turn = gaussianSmooth(rawTurn, (L * 0.2) / step);
 
-  return { total, step, ax, ay, heading, turn, overview: overviewPose(x, y, lat), lat };
+  return { total, step, ax, ay, heading, turn, routeX, routeY, routeU, routeS, overview: overviewPose(x, y, lat), lat };
 }
 
 // ─── Sampling ─────────────────────────────────────────────────────────────────
@@ -252,6 +281,32 @@ function sampleArray(arr: Float64Array, index: number): number {
   const lo = Math.floor(i);
   const hi = Math.min(arr.length - 1, lo + 1);
   return lerp(arr[lo], arr[hi], i - lo);
+}
+
+/** Index of the route segment containing `value`, and how far through it (0..1). */
+function locate(knots: Float64Array, value: number): [number, number] {
+  const last = knots.length - 2;
+  let lo = 0;
+  let hi = last;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (knots[mid] <= value) lo = mid;
+    else hi = mid - 1;
+  }
+  const span = knots[lo + 1] - knots[lo];
+  return [lo, span > 0 ? clamp((value - knots[lo]) / span, 0, 1) : 0];
+}
+
+/** Where the vehicle is at route progress `u`, mercator units, matching the renderer. */
+export function vehicleAt(rig: CameraRig, u: number): [number, number] {
+  const [i, w] = locate(rig.routeU, clamp(u, 0, 1));
+  return [lerp(rig.routeX[i], rig.routeX[i + 1], w), lerp(rig.routeY[i], rig.routeY[i + 1], w)];
+}
+
+/** Distance along the smoothed path, in metres, that corresponds to route progress `u`. */
+export function pathDistanceAt(rig: CameraRig, u: number): number {
+  const [i, w] = locate(rig.routeU, clamp(u, 0, 1));
+  return lerp(rig.routeS[i], rig.routeS[i + 1], w);
 }
 
 export interface RigSampleParams {
@@ -295,7 +350,7 @@ const OUTRO_FRACTION = 0.2;
 function followPose(rig: CameraRig, config: AutoCamConfig, { u, p, speed }: RigSampleParams): CameraPose {
   const dynamics = clamp(resolve(config.dynamics, 0.5), 0, 1);
   const orbit = clamp(resolve(config.orbit, 0), 0, 1);
-  const s = clamp(u, 0, 1) * rig.total;
+  const s = pathDistanceAt(rig, u);
   const st = stateAt(rig, s, config.distance * 0.35);
 
   // Reacts to the route: pulls back and rises through turns, and eases out at speed.
@@ -337,7 +392,7 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
   }
 
   const dynamics = clamp(resolve(config.dynamics, 0.5), 0, 1);
-  const s = clamp(params.u, 0, 1) * rig.total;
+  const s = pathDistanceAt(rig, params.u);
   // Frame the route ahead: the vehicle sits low in the view and the map turns with the route.
   const st = stateAt(rig, s, config.lookAhead * 0.5);
   const speedDelta = clamp(params.speed, 0.5, 1.6) - 1;

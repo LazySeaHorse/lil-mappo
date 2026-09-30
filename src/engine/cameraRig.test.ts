@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { AutoCamConfig, CameraKeyframe, RouteItem } from '@/store/types';
 import { blendPoses, poseFromFreeCam, poseFromJumpTo, poseToFreeCam, poseToJumpTo, type CameraPose } from './cameraPose';
-import { buildRig, gaussianSmooth, sampleRig } from './cameraRig';
+import { buildRig, gaussianSmooth, pathDistanceAt, sampleRig, vehicleAt } from './cameraRig';
+import { getLineSegment } from './lineAnimation';
+import { lngLatToMerc } from './cameraPose';
 import { getCameraAtTime } from './cameraInterpolation';
 
 const config: AutoCamConfig = {
@@ -76,6 +78,20 @@ describe('camera rig', () => {
         expect(out.position[2]).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('places the vehicle where the renderer does', () => {
+    const route = [[0, 0], [0.001, 0], [0.02, 0.0], [0.02, 0.02], [0.03, 0.02]];
+    const rig = buildRig(route, config)!;
+    for (const u of [0, 0.1, 0.37, 0.5, 0.83, 1]) {
+      const seg = getLineSegment(route, 0, u);
+      const [lng, lat] = seg[seg.length - 1];
+      const [x, y] = lngLatToMerc(lng, lat);
+      const [vx, vy] = vehicleAt(rig, u);
+      expect(Math.hypot(vx - x, vy - y)).toBeLessThan(1e-9);
+    }
+    expect(pathDistanceAt(rig, 0)).toBe(0);
+    expect(pathDistanceAt(rig, 1)).toBeCloseTo(rig.total, 6);
   });
 
   it('is deterministic for the same progress', () => {
