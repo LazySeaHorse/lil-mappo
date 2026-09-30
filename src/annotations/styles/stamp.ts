@@ -6,7 +6,7 @@ import { hashInts, seededRandom } from '../random';
 import { polylineLength, trimPolyline, type Point } from '../scene/geometry';
 import { arcGlyphGroups, layoutGlyphs, layoutGlyphsOnArc } from '../scene/glyphs';
 import { measureScene } from '../scene/measure';
-import { circle, group, line, path, polyline, rect, text } from '../scene/primitives';
+import { circle, group, path, polyline, rect, text } from '../scene/primitives';
 import { roughRect } from '../scene/rough';
 import { measureTextWidth } from '../scene/textMetrics';
 
@@ -233,7 +233,7 @@ function drawRound(l: RoundLayout, ink: string, seed: number, shadow?: ShadowCon
     const rule = l.innerRadius * 0.62;
     const offset = ROUND_SUBTITLE_SIZE * 0.72;
     for (const y of [-offset, offset]) {
-      nodes.push(line({ x1: -rule, y1: y, x2: rule, y2: y, stroke: ink, strokeWidth: 1.2, shadow }));
+      nodes.push(polyline({ points: [[-rule, y], [rule, y]], stroke: ink, strokeWidth: 1.2, shadow }));
     }
     nodes.push(text({
       x: 0,
