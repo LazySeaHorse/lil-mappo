@@ -10,6 +10,7 @@ import ProjectLibraryModal from "@/components/ProjectLibrary/ProjectLibraryModal
 import { NewProjectModal } from "@/components/ProjectLibrary/NewProjectModal";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useHistoryShortcuts } from "@/hooks/useHistoryShortcuts";
+import { setAgentMapRef, setAgentRuntimeRef } from "@/agent/mapRef";
 import { MapRefContext } from "@/hooks/useMapRef";
 import { MapRuntimeContext, type MapSceneRuntimeRef } from "@/hooks/useMapRuntime";
 import FontLoader from "@/components/FontLoader";
@@ -99,6 +100,15 @@ function ZenModeControls({
 export default function MapStudioEditor() {
   const mapRef = useRef<MapRef | null>(null);
   const runtimeRef: MapSceneRuntimeRef = useRef(null);
+  // The AI tool layer runs outside React and needs the live map and scene runtime.
+  useEffect(() => {
+    setAgentMapRef(mapRef);
+    setAgentRuntimeRef(runtimeRef);
+    return () => {
+      setAgentMapRef(null);
+      setAgentRuntimeRef(null);
+    };
+  }, []);
   const [showExport, setShowExport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
