@@ -1,0 +1,11 @@
+{
+  "styleId": "radius-ring",
+  "samples": 6,
+  "cellWidth": 300,
+  "cellHeight": 260,
+  "variants": [
+    { "name": "title+sub", "offset": [0, 0], "ground": [0.5, 0.5], "content": { "title": "Blast radius", "subtitle": "5 km" } },
+    { "name": "title small", "offset": [0, 0], "ground": [0.5, 0.5], "settings": { "radius": 45, "spin": true }, "content": { "title": "Evacuation zone alpha" } },
+    { "name": "solid no fill", "offset": [0, 0], "ground": [0.5, 0.5], "settings": { "dashed": false, "fill": false, "ringColor": "#FFD400" }, "content": { "title": "Range", "subtitle": "120 nautical miles" } }
+  ]
+}
