@@ -4,7 +4,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 
 ## 1. Project Identity & Purpose
 
-**li'l Mappo** (`http://mappo.lazycatto.tech/`) is a browser-based "motion graphics" tool specifically for maps. Users can:
+**li'l Mappo** (`https://app.lilmappo.tech`) is a browser-based "motion graphics" tool specifically for maps. Users can:
 - **Import & Plan Routes**: Auto-generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math.
 - **Interactive Callouts & Boundaries**: Search-based placement workflow with "Pick on Map" and unified drafting tools.
 - **Choreograph**: Camera movements via keyframe-based timeline.

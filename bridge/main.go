@@ -36,7 +36,7 @@ const (
 )
 
 // Pages allowed to connect, on top of any localhost dev server.
-var defaultOrigins = []string{"app.lilmappo.tech", "mappo.lazycatto.tech", "localhost:*", "127.0.0.1:*"}
+var defaultOrigins = []string{"app.lilmappo.tech", "preview.lilmappo.tech", "localhost:*", "127.0.0.1:*"}
 
 type bridge struct {
 	mu      sync.Mutex
