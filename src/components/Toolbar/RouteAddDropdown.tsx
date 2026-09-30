@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useMapPicker } from '@/hooks/useMapPicker';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,7 @@ export const RouteAddDropdown = ({
 }) => {
   const {
     addItem, selectItem, playheadTime, previewRoute, setPreviewRoute,
-    activePicker, startPicking, stopPicking, setDraftWalk,
+    setDraftWalk,
   } = useProjectStore();
 
   const [mode, setMode] = useState<RouteMode>('car');
@@ -120,10 +121,6 @@ export const RouteAddDropdown = ({
     if (!isOpen) {
       abortControllerRef.current?.abort();
       calculationSeqRef.current++;
-      const currentId = useProjectStore.getState().activePicker?.id;
-      if (currentId === 'route-start' || currentId === 'route-end' || currentId === 'walk-append') {
-        useProjectStore.getState().stopPicking();
-      }
       if (useProjectStore.getState().previewRoute) {
         useProjectStore.getState().setPreviewRoute(null);
       }
@@ -136,10 +133,6 @@ export const RouteAddDropdown = ({
       abortControllerRef.current?.abort();
       // eslint-disable-next-line react-hooks/exhaustive-deps
       calculationSeqRef.current++;
-      const currentId = useProjectStore.getState().activePicker?.id;
-      if (currentId === 'route-start' || currentId === 'route-end' || currentId === 'walk-append') {
-        useProjectStore.getState().stopPicking();
-      }
       if (useProjectStore.getState().previewRoute) {
         useProjectStore.getState().setPreviewRoute(null);
       }
@@ -150,32 +143,24 @@ export const RouteAddDropdown = ({
   // Car / flight calculate + add
   // ---------------------------------------------------------------------------
 
-  const isPickingStart = activePicker?.id === 'route-start';
-  const isPickingEnd = activePicker?.id === 'route-end';
-
-  const handleTogglePickStart = () => {
-    if (isPickingStart) {
-      stopPicking();
-    } else {
-      startPicking({
-        id: 'route-start',
-        prompt: 'Start',
-        onPick: (result) => handleStartChange(result.lngLat, result.name),
-      });
-    }
-  };
-
-  const handleTogglePickEnd = () => {
-    if (isPickingEnd) {
-      stopPicking();
-    } else {
-      startPicking({
-        id: 'route-end',
-        prompt: 'End',
-        onPick: (result) => handleEndChange(result.lngLat, result.name),
-      });
-    }
-  };
+  const { isPicking: isAppending, toggle: toggleAppend } = useMapPicker('walk-append', {
+    prompt: 'Point',
+    enabled: isOpen,
+    onPick: (result) => {
+      setWalkPoints((pts) => [...pts, result.lngLat]);
+      toast.success('Point added');
+    },
+  });
+  const { isPicking: isPickingStart, toggle: handleTogglePickStart } = useMapPicker('route-start', {
+    prompt: 'Start',
+    enabled: isOpen,
+    onPick: (result) => handleStartChange(result.lngLat, result.name),
+  });
+  const { isPicking: isPickingEnd, toggle: handleTogglePickEnd } = useMapPicker('route-end', {
+    prompt: 'End',
+    enabled: isOpen,
+    onPick: (result) => handleEndChange(result.lngLat, result.name),
+  });
 
   const calculate = async () => {
     if (start[0] === 0 || end[0] === 0) {
@@ -239,7 +224,6 @@ export const RouteAddDropdown = ({
   // Walk — append-only, insert straight into timeline
   // ---------------------------------------------------------------------------
 
-  const isAppending = activePicker?.id === 'walk-append';
 
   const handleAddWalk = () => {
     if (walkPoints.length < 2) {
@@ -374,20 +358,7 @@ export const RouteAddDropdown = ({
             onReorder={(from, to) => setWalkPoints((pts) => arrayMove(pts, from, to))}
             onRemove={(index) => setWalkPoints((pts) => pts.filter((_, i) => i !== index))}
             isAppending={isAppending}
-            onToggleAppend={() => {
-              if (isAppending) {
-                stopPicking();
-              } else {
-                startPicking({
-                  id: 'walk-append',
-                  prompt: 'Point',
-                  onPick: (result) => {
-                    setWalkPoints((pts) => [...pts, result.lngLat]);
-                    toast.success('Point added');
-                  },
-                });
-              }
-            }}
+            onToggleAppend={toggleAppend}
           />
         </div>
       ) : (

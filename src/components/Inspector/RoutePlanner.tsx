@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useMapPicker } from '@/hooks/useMapPicker';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,32 +41,12 @@ const InspectorSearchField = ({
   pointType,
   item,
 }: InspectorSearchFieldProps) => {
-  const { activePicker, startPicking, stopPicking } = useProjectStore();
   const pickerId = `route-${item.id}-${pointType}`;
-  const isPicking = activePicker?.id === pickerId;
-
-  const handleTogglePick = () => {
-    if (isPicking) {
-      stopPicking();
-    } else {
-      startPicking({
-        id: pickerId,
-        ownerId: item.id,
-        prompt: pointType === 'start' ? 'Start' : 'End',
-        onPick: (result) => {
-          onSelect(result.lngLat);
-        },
-      });
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (useProjectStore.getState().activePicker?.id === pickerId) {
-        useProjectStore.getState().stopPicking();
-      }
-    };
-  }, [pickerId]);
+  const { isPicking, toggle: handleTogglePick } = useMapPicker(pickerId, {
+    ownerId: item.id,
+    prompt: pointType === 'start' ? 'Start' : 'End',
+    onPick: (result) => onSelect(result.lngLat),
+  });
 
   const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, clear } =
     useLocationSearch({

@@ -5,9 +5,10 @@
  * No switch(variant) anywhere — controls are generated from the style definition.
  */
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useMapPicker } from '@/hooks/useMapPicker';
 import type { CalloutItem } from '@/store/types';
 import { Button } from "@/components/ui/button";
 import { Accordion } from "@/components/ui/accordion";
@@ -40,47 +41,28 @@ function transitionOptions(names: readonly string[], current: string) {
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const {
     updateItem, isMoveModeActive, setMoveModeActive,
-    activePicker, startPicking, stopPicking,
   } = useProjectStore();
 
-  const pickerId = `callout-${item.id}`;
-  const isPicking = activePicker?.id === pickerId;
-
-  const handleTogglePick = () => {
-    if (isPicking) {
-      stopPicking();
-    } else {
-      startPicking({
-        id: pickerId,
-        ownerId: item.id,
-        prompt: 'Callout',
-        onPick: (result) => {
-          // Read the latest item: it may have been edited since picking started.
-          const current = useProjectStore.getState().items[item.id];
-          if (current?.kind !== 'callout') return;
-          const patch: Partial<CalloutItem> = {
-            binding: {
-              kind: 'geographic',
-              lngLat: result.lngLat,
-              altitude: current.binding.kind === 'geographic' ? current.binding.altitude : 0,
-            },
-          };
-          if (current.linkTitleToLocation) {
-            patch.content = { ...current.content, title: result.name };
-          }
-          u(patch);
+  const { isPicking, toggle: handleTogglePick } = useMapPicker(`callout-${item.id}`, {
+    ownerId: item.id,
+    prompt: 'Callout',
+    onPick: (result) => {
+      // Read the latest item: it may have been edited since picking started.
+      const current = useProjectStore.getState().items[item.id];
+      if (current?.kind !== 'callout') return;
+      const patch: Partial<CalloutItem> = {
+        binding: {
+          kind: 'geographic',
+          lngLat: result.lngLat,
+          altitude: current.binding.kind === 'geographic' ? current.binding.altitude : 0,
         },
-      });
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (useProjectStore.getState().activePicker?.id === pickerId) {
-        useProjectStore.getState().stopPicking();
+      };
+      if (current.linkTitleToLocation) {
+        patch.content = { ...current.content, title: result.name };
       }
-    };
-  }, [pickerId]);
+      updateItem(item.id, patch);
+    },
+  });
 
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates);
   const updateSettings = (key: string, value: unknown) => {

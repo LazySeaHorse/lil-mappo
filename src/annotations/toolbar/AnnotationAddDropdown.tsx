@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useMapPicker } from '@/hooks/useMapPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Flag, Plus, Link as LinkIcon } from 'lucide-react';
@@ -29,7 +30,6 @@ export const AnnotationAddDropdown = ({
 }) => {
   const {
     addItem, selectItem, playheadTime,
-    activePicker, startPicking, stopPicking,
   } = useProjectStore();
 
   const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
@@ -37,40 +37,15 @@ export const AnnotationAddDropdown = ({
   const [title, setTitle] = useState('New Callout');
   const [linkTitle, setLinkTitle] = useState(true);
 
-  const isPicking = activePicker?.id === 'callout-new';
-
-  const handleTogglePick = () => {
-    if (isPicking) {
-      stopPicking();
-    } else {
-      startPicking({
-        id: 'callout-new',
-        prompt: 'Callout',
-        onPick: (result) => {
-          setLngLat(result.lngLat);
-          setLocationName(result.name);
-          if (linkTitle) setTitle(result.name);
-        },
-      });
-    }
-  };
-
-  // Clean up picker if this component closes or unmounts while picking
-  useEffect(() => {
-    if (!isOpen) {
-      if (useProjectStore.getState().activePicker?.id === 'callout-new') {
-        useProjectStore.getState().stopPicking();
-      }
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (useProjectStore.getState().activePicker?.id === 'callout-new') {
-        useProjectStore.getState().stopPicking();
-      }
-    };
-  }, []);
+  const { isPicking, toggle: handleTogglePick } = useMapPicker('callout-new', {
+    prompt: 'Callout',
+    enabled: isOpen,
+    onPick: (result) => {
+      setLngLat(result.lngLat);
+      setLocationName(result.name);
+      if (linkTitle) setTitle(result.name);
+    },
+  });
 
   const handleSelect = (coords: [number, number], name: string) => {
     setLngLat(coords);
