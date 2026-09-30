@@ -27,6 +27,10 @@ export const locationSchema = z
   .union([lngLatSchema, z.string().min(2).max(200)])
   .describe('Either [longitude, latitude] or a place name / address / "lng,lat" string that is geocoded (same as search_place, first result).');
 
+/** Explicit types: zod's tuple inference degrades when tsconfig has strict off. */
+export type LngLat = [number, number];
+export type Location = LngLat | string;
+
 export const timeSchema = z.number().min(0).finite().describe('Seconds on the project timeline.');
 
 export const colorSchema = z.string().min(1).max(64).describe('CSS color, e.g. "#3b82f6" or "rgb(59,130,246)".');
