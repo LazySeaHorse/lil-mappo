@@ -316,6 +316,21 @@ export interface RigSampleParams {
   p: number;
   /** Rate of route progress relative to constant speed (1 = steady). */
   speed: number;
+  /** Highest `speed` the route's easing reaches (1 for a steady pace). */
+  peakSpeed?: number;
+}
+
+/** 0..1 share of the easing's top speed the vehicle is doing right now. */
+function paceOf({ speed, peakSpeed = 1 }: RigSampleParams): number {
+  return clamp(speed / Math.max(1, peakSpeed), 0, 1);
+}
+
+/** -1..1 change of pace around the route's average speed, so it reads the same for any easing. */
+function speedDeltaOf(params: RigSampleParams): number {
+  const peak = Math.max(1, params.peakSpeed ?? 1);
+  if (peak <= 1.001) return 0;
+  const average = 1 / peak;
+  return clamp((paceOf(params) - average) / (1 - average), -1, 1);
 }
 
 interface AnchorState {
@@ -325,16 +340,27 @@ interface AnchorState {
   turn: number;
 }
 
-function stateAt(rig: CameraRig, s: number, leadM: number): AnchorState {
+/**
+ * The shot's subject: the vehicle itself, pushed toward the road ahead by `leadM`.
+ * The push is measured on the smoothed path, where smoothing that cuts a corner
+ * cancels out, so it can never carry the framing away from the vehicle. It scales
+ * with `pace`, so a vehicle easing to a stop is framed on its own rather than on
+ * empty road in front of it.
+ */
+function stateAt(rig: CameraRig, s: number, u: number, leadM: number, pace: number): AnchorState {
   const idx = (m: number) => clamp(m, 0, rig.total) / rig.step;
   // Let the lead taper off near the end so the look-at settles onto the finish.
   const remaining = rig.total - s;
-  const lead = leadM * smootherstep(remaining / Math.max(1, leadM));
+  const lead = leadM * pace * smootherstep(remaining / Math.max(1, leadM));
   const i = idx(s);
   const j = idx(s + lead);
+  const [vx, vy] = vehicleAt(rig, u);
   return {
-    anchor: mercToLngLat(sampleArray(rig.ax, i), sampleArray(rig.ay, i)),
-    ahead: mercToLngLat(sampleArray(rig.ax, j), sampleArray(rig.ay, j)),
+    anchor: mercToLngLat(vx, vy),
+    ahead: mercToLngLat(
+      vx + sampleArray(rig.ax, j) - sampleArray(rig.ax, i),
+      vy + sampleArray(rig.ay, j) - sampleArray(rig.ay, i),
+    ),
     heading: sampleArray(rig.heading, i),
     turn: sampleArray(rig.turn, i),
   };
@@ -347,14 +373,15 @@ function resolve<T>(v: T | undefined, fallback: T): T {
 const INTRO_FRACTION = 0.2;
 const OUTRO_FRACTION = 0.2;
 
-function followPose(rig: CameraRig, config: AutoCamConfig, { u, p, speed }: RigSampleParams): CameraPose {
+function followPose(rig: CameraRig, config: AutoCamConfig, params: RigSampleParams): CameraPose {
+  const { u, p } = params;
   const dynamics = clamp(resolve(config.dynamics, 0.5), 0, 1);
   const orbit = clamp(resolve(config.orbit, 0), 0, 1);
   const s = pathDistanceAt(rig, u);
-  const st = stateAt(rig, s, config.distance * 0.35);
+  const st = stateAt(rig, s, u, config.distance * 0.35, paceOf(params));
 
   // Reacts to the route: pulls back and rises through turns, and eases out at speed.
-  const speedDelta = clamp(speed, 0.5, 1.6) - 1;
+  const speedDelta = speedDeltaOf(params);
   const breathe = Math.sin(p * Math.PI * 2 * 3);
   const distance = config.distance * (1 + dynamics * (0.35 * st.turn + 0.25 * speedDelta + 0.04 * breathe));
   const height = config.height * (1 + dynamics * (0.5 * st.turn + 0.3 * speedDelta + 0.05 * breathe));
@@ -394,8 +421,8 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
   const dynamics = clamp(resolve(config.dynamics, 0.5), 0, 1);
   const s = pathDistanceAt(rig, params.u);
   // Frame the route ahead: the vehicle sits low in the view and the map turns with the route.
-  const st = stateAt(rig, s, config.lookAhead * 0.5);
-  const speedDelta = clamp(params.speed, 0.5, 1.6) - 1;
+  const st = stateAt(rig, s, params.u, config.lookAhead * 0.5, paceOf(params));
+  const speedDelta = speedDeltaOf(params);
   const zoom = config.zoom - dynamics * (0.9 * st.turn + 0.5 * speedDelta);
   return {
     type: 'jumpTo',

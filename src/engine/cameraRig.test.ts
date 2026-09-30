@@ -3,7 +3,7 @@ import type { AutoCamConfig, CameraKeyframe, RouteItem } from '@/store/types';
 import { blendPoses, poseFromFreeCam, poseFromJumpTo, poseToFreeCam, poseToJumpTo, type CameraPose } from './cameraPose';
 import { buildRig, gaussianSmooth, pathDistanceAt, sampleRig, vehicleAt } from './cameraRig';
 import { getLineSegment } from './lineAnimation';
-import { lngLatToMerc } from './cameraPose';
+import { lngLatToMerc, metersPerMerc } from './cameraPose';
 import { getCameraAtTime } from './cameraInterpolation';
 
 const config: AutoCamConfig = {
@@ -92,6 +92,21 @@ describe('camera rig', () => {
     }
     expect(pathDistanceAt(rig, 0)).toBe(0);
     expect(pathDistanceAt(rig, 1)).toBeCloseTo(rig.total, 6);
+  });
+
+  it('looks at the vehicle when easing has it stopped, and ahead of it at speed', () => {
+    const route = [[0, 0], [0.02, 0]];
+    const rig = buildRig(route, config)!;
+    const dist = (u: number, speed: number) => {
+      const out = sampleRig(rig, config, { u, p: u, speed, peakSpeed: 3 });
+      if (out.type !== 'freeCam') throw new Error('expected a free camera');
+      const [vx, vy] = vehicleAt(rig, u);
+      const [lx, ly] = lngLatToMerc(out.lookAt[0], out.lookAt[1]);
+      return Math.hypot(lx - vx, ly - vy) * metersPerMerc(0);
+    };
+    expect(dist(0.4, 0)).toBeLessThan(1);
+    expect(dist(0.4, 3)).toBeGreaterThan(100);
+    expect(dist(0.4, 1.5)).toBeGreaterThan(dist(0.4, 0.5));
   });
 
   it('is deterministic for the same progress', () => {

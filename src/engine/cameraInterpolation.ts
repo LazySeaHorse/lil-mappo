@@ -1,5 +1,5 @@
 import type { CameraKeyframe, EasingName, RouteItem } from '@/store/types';
-import { applyEasing } from './easings';
+import { applyEasing, easingPeakSpeed } from './easings';
 import along from '@turf/along';
 import length from '@turf/length';
 import { lineString } from '@turf/helpers';
@@ -190,7 +190,7 @@ function autoCamAt(route: RouteItem, coords: number[][], progress: number): Plai
   if (!rig) return null;
   const p = Math.max(0, Math.min(1, progress));
   const easing = route.easing ?? 'easeInOutSine';
-  return sampleRig(rig, config, { u: applyEasing(easing, p), p, speed: progressSpeed(easing, p) });
+  return sampleRig(rig, config, { u: applyEasing(easing, p), p, speed: progressSpeed(easing, p), peakSpeed: easingPeakSpeed(easing) });
 }
 
 export function getCameraAtTime(
