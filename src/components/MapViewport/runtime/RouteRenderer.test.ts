@@ -231,6 +231,18 @@ describe("RouteRenderer vehicle type switching", () => {
     expect(layer?.type).toBe("model");
     expect(layer?.layout?.["model-id"]).toBe(to);
   });
+
+  it("recolors the dot vehicle when the route color changes", () => {
+    const double = createMapDouble();
+    const route = routeWithVehicle("dot");
+    const renderer = new RouteRenderer(double.map, route);
+    renderer.mount();
+    expect(double.layers.get("vehicle-layer-switch-route")?.paint?.["circle-color"]).toBe("#3b82f6");
+
+    renderer.setRoute({ ...route, style: { ...route.style, color: "#ef4444" } });
+
+    expect(double.layers.get("vehicle-layer-switch-route")?.paint?.["circle-color"]).toBe("#ef4444");
+  });
 });
 
 describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {

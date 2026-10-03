@@ -122,6 +122,7 @@ export class RouteRenderer {
     if (route.id !== this.route.id) throw new Error('RouteRenderer cannot change route ids');
     const geometryChanged = route.geojson !== this.route.geojson;
     const vehicleChanged = route.calculation?.vehicle !== this.route.calculation?.vehicle;
+    const colorChanged = route.style.color !== this.route.style.color;
     this.route = route;
     if (geometryChanged) {
       this.coordinates = extractLineCoords(route.geojson);
@@ -129,7 +130,7 @@ export class RouteRenderer {
       this.lastGlowState = '';
       this.uploadGeometry();
     }
-    if (vehicleChanged) this.ensureVehicleResources();
+    if (vehicleChanged || colorChanged) this.ensureVehicleResources();
   }
 
   render = (playheadTime: number): void => {
