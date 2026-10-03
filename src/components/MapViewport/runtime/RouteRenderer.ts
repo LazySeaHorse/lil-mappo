@@ -332,6 +332,13 @@ export class RouteRenderer {
     }
     if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(vehicle);
 
+    if (vehicle.type !== 'dot' && this.map.getLayoutProperty(this.ids.vehicleLayer, 'model-id') !== vehicle.type) {
+      const modelId = vehicle.type;
+      this.layers.mutate('setLayoutProperty:model-id', this.ids.vehicleLayer, () => {
+        this.map.setLayoutProperty(this.ids.vehicleLayer, 'model-id', modelId);
+      });
+    }
+
     if (vehicle.type === 'dot') {
       this.layers.mutate('setPaintProperty:vehicle-dot', this.ids.vehicleLayer, () => {
         this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', DOT_BASE_RADIUS * vehicle.scale);

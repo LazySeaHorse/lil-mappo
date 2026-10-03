@@ -179,6 +179,60 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
   });
 });
 
+describe("RouteRenderer vehicle type switching", () => {
+  function routeWithVehicle(type: "car" | "plane" | "dot"): RouteItem {
+    return {
+      kind: "route",
+      id: "switch-route",
+      name: "Switch",
+      geojson: {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] },
+        }],
+      },
+      startTime: 0,
+      endTime: 10,
+      style: {
+        color: "#3b82f6",
+        width: 3,
+        glow: false,
+        glowColor: "#3b82f6",
+        glowWidth: 6,
+        trailFade: false,
+        trailFadeLength: 0.2,
+        dashPattern: null,
+        animationType: "draw",
+      },
+      easing: "linear",
+      calculation: {
+        mode: "car",
+        startPoint: [0, 0],
+        endPoint: [1, 1],
+        vehicle: { enabled: true, type, modelId: "", scale: 1 },
+      },
+    };
+  }
+
+  it.each([
+    ["car", "plane"],
+    ["plane", "car"],
+  ] as const)("renders the %s -> %s model after switching the vehicle type", (from, to) => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, routeWithVehicle(from));
+    renderer.mount();
+    expect(double.layers.get("vehicle-layer-switch-route")?.layout?.["model-id"]).toBe(from);
+
+    renderer.setRoute(routeWithVehicle(to));
+
+    const layer = double.layers.get("vehicle-layer-switch-route");
+    expect(layer?.type).toBe("model");
+    expect(layer?.layout?.["model-id"]).toBe(to);
+  });
+});
+
 describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {
   const sampleRoute: RouteItem = {
     kind: "route",
