@@ -76,7 +76,6 @@ export interface RouteStyle {
   color: string;
   width: number;
   glow: boolean;
-  glowColor: string;
   glowWidth: number;
   trailFade: boolean;
   trailFadeLength: number;

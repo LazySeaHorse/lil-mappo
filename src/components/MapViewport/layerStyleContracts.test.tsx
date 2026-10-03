@@ -64,7 +64,6 @@ const route: RouteItem = {
     color: '#123456',
     width: 4,
     glow: true,
-    glowColor: '#abcdef',
     glowWidth: 18,
     trailFade: false,
     trailFadeLength: 0.3,
@@ -115,7 +114,7 @@ describe('Mapbox layer style contracts', () => {
       'line-width': 4,
     });
     expect(map.layers.get('route-glow-layer-flight-route')?.paint).toMatchObject({
-      'line-color': '#abcdef',
+      'line-color': '#123456',
       'line-width': 18,
       'line-blur': 9,
     });

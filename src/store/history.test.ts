@@ -33,7 +33,7 @@ function route(id: string, name = `Route ${id}`): RouteItem {
     kind: 'route', id, name, startTime: 0, endTime: 5,
     geojson: { type: 'FeatureCollection', features: [] },
     style: {
-      color: '#3b82f6', width: 4, glow: true, glowColor: '#3b82f6', glowWidth: 12,
+      color: '#3b82f6', width: 4, glow: true, glowWidth: 12,
       trailFade: false, trailFadeLength: 0.2, dashPattern: null,
     },
     easing: 'linear',

@@ -197,7 +197,7 @@ export class RouteRenderer {
 
         if (glowVisible) {
           const glowOpacity = 0.35 * opacity;
-          this.layers.setPaint(this.ids.glowLayer, 'line-color', resolvedPaint.glowColor, 'glowColor', resolvedPaint.glowColor);
+          this.layers.setPaint(this.ids.glowLayer, 'line-color', routeColor, 'glowColor', routeColor);
           this.layers.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
           if (this.layers.cache.glowWidth !== resolvedPaint.glowWidth) {
             if (this.layers.mutate('setPaintProperty:glow-size', this.ids.glowLayer, () => {
@@ -286,7 +286,7 @@ export class RouteRenderer {
         source: this.ids.glowSource,
         layout: { 'line-cap': 'round', 'line-join': 'round', visibility: 'none' },
         paint: {
-          'line-color': resolvedPaint.glowColor,
+          'line-color': resolvedPaint.lineColor,
           'line-width': resolvedPaint.glowWidth,
           'line-opacity': 0.35,
           'line-blur': resolvedPaint.glowBlur,

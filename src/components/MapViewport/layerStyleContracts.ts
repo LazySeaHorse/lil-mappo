@@ -2,7 +2,6 @@ import type { BoundaryStyle, RouteItem } from '@/store/types';
 
 export interface ResolvedRoutePaint {
   lineColor: string;
-  glowColor: string;
   glowWidth: number;
   glowBlur: number;
 }
@@ -11,7 +10,6 @@ export interface ResolvedRoutePaint {
 export function resolveRoutePaint(route: Pick<RouteItem, 'style'>): ResolvedRoutePaint {
   return {
     lineColor: route.style.color,
-    glowColor: route.style.glowColor,
     glowWidth: route.style.glowWidth,
     glowBlur: route.style.glowWidth / 2,
   };

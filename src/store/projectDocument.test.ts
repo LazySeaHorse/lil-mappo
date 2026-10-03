@@ -65,6 +65,33 @@ describe('project document persistence boundary', () => {
     expect(parsed).not.toHaveProperty('setDuration');
   });
 
+  it('drops the retired route glowColor from current-version saves', () => {
+    const project = createProject({ id: 'glow-project' });
+    const route = {
+      kind: 'route', id: 'r1', name: 'Route',
+      geojson: { type: 'FeatureCollection', features: [] },
+      startTime: 0, endTime: 10,
+      style: {
+        color: '#ef4444', width: 4, glow: true, glowColor: '#00ff00', glowWidth: 12,
+        trailFade: false, trailFadeLength: 0.3, dashPattern: null,
+      },
+      easing: 'linear',
+    };
+    const parsed = parseProjectDocument({
+      ...project,
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      items: { ...project.items, r1: route },
+      itemOrder: [...project.itemOrder, 'r1'],
+    });
+
+    const loaded = parsed.items.r1;
+    expect(loaded.kind).toBe('route');
+    if (loaded.kind === 'route') {
+      expect(loaded.style.color).toBe('#ef4444');
+      expect(loaded.style).not.toHaveProperty('glowColor');
+    }
+  });
+
   it('loads polluted input without allowing it to replace store actions', () => {
     const project = createProject({ id: 'safe-load' });
 
@@ -278,7 +305,7 @@ describe('project document persistence boundary', () => {
     const callout = parsed.items[legacyCallout.id];
     expect(route.kind).toBe('route');
     if (route.kind === 'route') {
-      expect(route.style.glowColor).toBe('#abcdef');
+      expect(route.style).not.toHaveProperty('glowColor');
     }
     expect(boundary.kind).toBe('boundary');
     if (boundary.kind === 'boundary') {
@@ -367,7 +394,7 @@ describe('project document persistence boundary', () => {
         geojson: { type: 'FeatureCollection', features: [] },
         startTime: 0, endTime: 10,
         style: {
-          color: '#fff', width: 4, glow: false, glowColor: '#fff', glowWidth: 12,
+          color: '#fff', width: 4, glow: false, glowWidth: 12,
           trailFade: false, trailFadeLength: 0.3, dashPattern: null,
         },
         easing: 'linear',
@@ -418,7 +445,7 @@ describe('project document persistence boundary', () => {
         geojson: routedGeometry,
         startTime: 0, endTime: 10,
         style: {
-          color: '#fff', width: 4, glow: false, glowColor: '#fff', glowWidth: 12,
+          color: '#fff', width: 4, glow: false, glowWidth: 12,
           trailFade: false, trailFadeLength: 0.3, dashPattern: null,
         },
         easing: 'linear',

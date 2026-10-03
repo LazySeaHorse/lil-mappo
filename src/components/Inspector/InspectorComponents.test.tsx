@@ -96,7 +96,6 @@ describe('Inspector Components Integration', () => {
         color: '#ff0000',
         width: 4,
         glow: false,
-        glowColor: '#ffff00',
         glowWidth: 8,
         trailFade: false,
         trailFadeLength: 0.2,

@@ -22,7 +22,6 @@ const routeStyle: RouteStyle = {
   color: '#123456',
   width: 4,
   glow: true,
-  glowColor: '#abcdef',
   glowWidth: 18,
   trailFade: false,
   trailFadeLength: 0.3,
@@ -69,7 +68,6 @@ describe('canonical domain contracts', () => {
 
     expect(paint).toEqual({
       lineColor: '#123456',
-      glowColor: '#abcdef',
       glowWidth: 18,
       glowBlur: 9,
     });

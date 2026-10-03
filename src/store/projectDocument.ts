@@ -52,7 +52,6 @@ const routeStyleSchema = z.object({
   color: z.string(),
   width: z.number(),
   glow: z.boolean(),
-  glowColor: z.string(),
   glowWidth: z.number(),
   trailFade: z.boolean(),
   trailFadeLength: z.number(),
@@ -233,17 +232,7 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
     const styledItemResult = legacyStyleItemSchema.safeParse(value);
     if (styledItemResult.success) {
       const item = styledItemResult.data;
-      if (item.kind === 'route') {
-        return [id, {
-          ...item,
-          style: {
-            ...item.style,
-            glowColor: item.style.glowColor === undefined
-              ? item.style.color
-              : item.style.glowColor,
-          },
-        }];
-      }
+      if (item.kind === 'route') return [id, item];
 
       return [id, {
         ...item,

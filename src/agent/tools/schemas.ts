@@ -9,7 +9,6 @@ export const routeStyleShape = {
   color: colorSchema.describe('Line color.'),
   width: z.number().min(0.5).max(30).describe('Line width in pixels.'),
   glow: z.boolean().describe('Soft glow around the line.'),
-  glowColor: colorSchema.describe('Glow color.'),
   glowWidth: z.number().min(0).max(60).describe('Glow width in pixels.'),
   trailFade: z.boolean().describe('Fade the tail of the line behind the head as it draws.'),
   trailFadeLength: z.number().min(0).max(1).describe('Fraction of the route (0-1) over which the tail fades.'),

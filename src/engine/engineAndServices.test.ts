@@ -75,7 +75,6 @@ describe('geoUtils & cameraUtils', () => {
         color: '#ff0000',
         width: 3,
         glow: false,
-        glowColor: '#ff0000',
         glowWidth: 6,
         trailFade: false,
         trailFadeLength: 0.3,
