@@ -375,11 +375,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     store.setPreviewRoute(null);
 
     const next = convertRouteCalculation(calc, mode);
-    const currentVehicle = next.vehicle ?? { enabled: false, type: 'dot' as const, modelId: '', scale: 1 };
-    const vehicle =
-      mode === 'flight' && currentVehicle.type === 'dot'
-        ? { ...currentVehicle, enabled: true, type: 'plane' as const }
-        : currentVehicle;
+    const vehicle = next.vehicle ?? { enabled: false, type: 'dot' as const, modelId: '', scale: 1 };
 
     const patch = vehicleChangePatch(activeItem, next, vehicle);
     if (next.mode === 'walk') {
