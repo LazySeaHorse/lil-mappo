@@ -148,8 +148,8 @@ export function DesktopToolbarLayout({
 
   return (
     <>
-      <div className="flex items-center gap-2 mr-2 pl-1 shrink-0">
-        <img src={`${import.meta.env.BASE_URL}logo-mark.svg`} className="w-7 h-7" alt="li'l Mappo Logo" />
+      <div className="flex items-center gap-2 mr-2 shrink-0">
+        <img src={`${import.meta.env.BASE_URL}logo-mark.svg`} className="h-7 w-auto shrink-0" alt="li'l Mappo Logo" />
         {!isTablet && <span className="font-medium text-sm tracking-tight hidden xl:inline-block">li'l Mappo</span>}
       </div>
 
