@@ -15,6 +15,8 @@ export const PLAN_CONFIG: Record<
     name: string;
     price: string;
     priceMonthly: number;
+    /** Pre-discount price, shown struck through while a limited-time discount runs. */
+    originalPriceMonthly?: number;
     monthlyCredits: number;
     parallelRenders: number;
   }
@@ -23,6 +25,7 @@ export const PLAN_CONFIG: Record<
     name: "Wanderer",
     price: "$7/mo",
     priceMonthly: 7,
+    originalPriceMonthly: 12,
     monthlyCredits: 100,
     parallelRenders: 1,
   },
