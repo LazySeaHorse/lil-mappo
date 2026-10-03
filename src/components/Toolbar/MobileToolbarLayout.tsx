@@ -54,7 +54,7 @@ export function MobileToolbarLayout({
     <div className="w-full flex items-center h-full relative overflow-hidden">
       {mobileMode === 'default' && (
         <div className="flex items-center w-full animate-in slide-in-from-left-4 duration-300 fill-mode-both">
-          <img src={`${import.meta.env.BASE_URL}logo.svg`} className="w-6 h-6 mr-1" alt="Logo" />
+          <img src={`${import.meta.env.BASE_URL}logo-mark.svg`} className="w-6 h-6 mr-1" alt="Logo" />
           {renderAvatarMenu()}
           <Divider />
           <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('add')} title="Add New Track" data-walkthrough="add-menu">
