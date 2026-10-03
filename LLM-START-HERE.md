@@ -17,6 +17,12 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 
 ---
 
+## 1.1 Git Workflow
+
+Work directly on the `preview` branch. Do not create feature branches unless the maintainer asks; merge `preview` into `main` only when asked.
+
+---
+
 ## 2. Tech Stack
 
 - **Framework**: React 18+ (Vite) + Zustand (state management)
@@ -587,6 +593,8 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 ### 7.4 3D Vehicles, Flight Arcs & Airport Picker
 
 - **3D Vehicles**: Gated as PRO feature in Inspector (toggle + scale controls disabled for free users).
+- **Route marker vs route mode**: Drive/Walk/Flight (`calculation.mode`) and the route marker (`calculation.vehicle`: `enabled`, `type` = dot/car/plane, `scale`) are independent; changing the mode never changes the marker. New Flight routes default to a plane marker, others to a dot.
+- **Route colors**: The route `color` is the only route color. The glow layer and the dot marker follow it; there is no separate glow or dot color (the old `glowColor` field was removed and is stripped when loading old saves).
 - **Flight Arcs**: Generated via `@turf/great-circle` with parabolic altitude curve.
 - **Land Routes**: Use Mapbox Directions v5.
 - **Built-in IATA/ICAO Airport Picker**: Uses an integrated database of 7,697 global airports (`src/data/airports.json`), code-split on demand via dynamic import. Powered by `cmdk` in `AirportSearchField.tsx` with instant in-memory lookup across IATA, ICAO, city, and airport names, snapping departure and arrival coordinates to runways and automatically configuring 3D airplane models.
