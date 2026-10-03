@@ -130,7 +130,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(addedRoute.calculation?.vehicle?.type).toBe('plane');
     expect(addedRoute.name).toContain('→');
     expect(addedRoute.style.color).toBe('#f59e0b');
-    expect(addedRoute.style.glowColor).toBe('#fbbf24');
+    expect(addedRoute.style).not.toHaveProperty('glowColor');
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 

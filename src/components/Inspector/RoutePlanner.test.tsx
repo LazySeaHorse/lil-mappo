@@ -48,7 +48,6 @@ describe('RoutePlanner in Inspector', () => {
       color: '#3b82f6',
       width: 4,
       glow: true,
-      glowColor: '#3b82f6',
       glowWidth: 12,
       trailFade: false,
       trailFadeLength: 0.3,
@@ -90,7 +89,7 @@ describe('RoutePlanner in Inspector', () => {
     expect(screen.getAllByPlaceholderText('Search address or coordinates').length).toBe(2);
   });
 
-  it('switches to AirportSearchField and auto-sets vehicle to plane when Flight mode is chosen', async () => {
+  it('switches to flight mode without changing the route marker', async () => {
     const route = createBaseRouteItem('car');
     render(<RoutePlanner item={route} />);
 
@@ -101,7 +100,21 @@ describe('RoutePlanner in Inspector', () => {
 
     const updatedItem = useProjectStore.getState().items['route-test-1'] as RouteItem;
     expect(updatedItem.calculation?.mode).toBe('flight');
-    expect(updatedItem.calculation?.vehicle?.type).toBe('plane');
+    expect(updatedItem.calculation?.vehicle).toEqual({ enabled: true, type: 'dot', modelId: '', scale: 1 });
+  });
+
+  it('keeps a disabled route marker disabled when Flight mode is chosen', () => {
+    const route = createBaseRouteItem('car');
+    route.calculation!.vehicle!.enabled = false;
+    useProjectStore.setState({ items: { [route.id]: route } });
+    render(<RoutePlanner item={route} />);
+
+    act(() => {
+      fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
+    });
+
+    const updatedItem = useProjectStore.getState().items['route-test-1'] as RouteItem;
+    expect(updatedItem.calculation?.vehicle?.enabled).toBe(false);
   });
 
   it('allows picking airports and applying flight arc', async () => {

@@ -65,13 +65,11 @@ export function AuthModal() {
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
             <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="p-2 bg-primary/10 rounded-xl shadow-inner border border-primary/20">
-                <img
-                  src={`${import.meta.env.BASE_URL}logo.svg`}
-                  className="w-8 h-8 drop-shadow-sm"
-                  alt="li'l Mappo"
-                />
-              </div>
+              <img
+                src={`${import.meta.env.BASE_URL}logo.svg`}
+                className="h-16 w-auto"
+                alt="li'l Mappo"
+              />
             </div>
             <DialogTitle className="text-2xl font-medium tracking-tight text-center">
               {isSignup ? "Create account" : "Sign in"}

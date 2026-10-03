@@ -40,7 +40,6 @@ describe('RouteWaypointMarkers', () => {
       color: '#3b82f6',
       width: 4,
       glow: true,
-      glowColor: '#3b82f6',
       glowWidth: 12,
       trailFade: false,
       trailFadeLength: 0.3,

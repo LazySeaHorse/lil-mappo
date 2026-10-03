@@ -122,6 +122,7 @@ export class RouteRenderer {
     if (route.id !== this.route.id) throw new Error('RouteRenderer cannot change route ids');
     const geometryChanged = route.geojson !== this.route.geojson;
     const vehicleChanged = route.calculation?.vehicle !== this.route.calculation?.vehicle;
+    const colorChanged = route.style.color !== this.route.style.color;
     this.route = route;
     if (geometryChanged) {
       this.coordinates = extractLineCoords(route.geojson);
@@ -129,7 +130,7 @@ export class RouteRenderer {
       this.lastGlowState = '';
       this.uploadGeometry();
     }
-    if (vehicleChanged) this.ensureVehicleResources();
+    if (vehicleChanged || colorChanged) this.ensureVehicleResources();
   }
 
   render = (playheadTime: number): void => {
@@ -196,7 +197,7 @@ export class RouteRenderer {
 
         if (glowVisible) {
           const glowOpacity = 0.35 * opacity;
-          this.layers.setPaint(this.ids.glowLayer, 'line-color', resolvedPaint.glowColor, 'glowColor', resolvedPaint.glowColor);
+          this.layers.setPaint(this.ids.glowLayer, 'line-color', routeColor, 'glowColor', routeColor);
           this.layers.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
           if (this.layers.cache.glowWidth !== resolvedPaint.glowWidth) {
             if (this.layers.mutate('setPaintProperty:glow-size', this.ids.glowLayer, () => {
@@ -285,7 +286,7 @@ export class RouteRenderer {
         source: this.ids.glowSource,
         layout: { 'line-cap': 'round', 'line-join': 'round', visibility: 'none' },
         paint: {
-          'line-color': resolvedPaint.glowColor,
+          'line-color': resolvedPaint.lineColor,
           'line-width': resolvedPaint.glowWidth,
           'line-opacity': 0.35,
           'line-blur': resolvedPaint.glowBlur,
@@ -331,6 +332,13 @@ export class RouteRenderer {
       });
     }
     if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(vehicle);
+
+    if (vehicle.type !== 'dot' && this.map.getLayoutProperty(this.ids.vehicleLayer, 'model-id') !== vehicle.type) {
+      const modelId = vehicle.type;
+      this.layers.mutate('setLayoutProperty:model-id', this.ids.vehicleLayer, () => {
+        this.map.setLayoutProperty(this.ids.vehicleLayer, 'model-id', modelId);
+      });
+    }
 
     if (vehicle.type === 'dot') {
       this.layers.mutate('setPaintProperty:vehicle-dot', this.ids.vehicleLayer, () => {

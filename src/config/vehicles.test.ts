@@ -10,7 +10,7 @@ const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): R
   startTime: 0,
   endTime: 10,
   style: {
-    color: '#fff', width: 4, glow: false, glowColor: '#fff', glowWidth: 12,
+    color: '#fff', width: 4, glow: false, glowWidth: 12,
     trailFade: false, trailFadeLength: 0.3, dashPattern: null,
   },
   easing: 'linear',

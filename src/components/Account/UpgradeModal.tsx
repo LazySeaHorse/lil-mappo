@@ -94,12 +94,22 @@ export function UpgradeModal() {
           <div className="flex items-end justify-between gap-4 pb-5">
             <p className="text-sm font-medium text-foreground">Wanderer</p>
             <div className="flex items-baseline gap-1 shrink-0">
+              {PLAN_CONFIG.wanderer.originalPriceMonthly && (
+                <span className="text-lg text-muted-foreground line-through mr-1">
+                  ${PLAN_CONFIG.wanderer.originalPriceMonthly}
+                </span>
+              )}
               <span className="text-3xl font-medium tracking-tight">
                 ${PLAN_CONFIG.wanderer.priceMonthly}
               </span>
               <span className="text-sm text-muted-foreground">/month</span>
             </div>
           </div>
+          {PLAN_CONFIG.wanderer.originalPriceMonthly && (
+            <p className="text-xs font-medium text-primary -mt-3 pb-4 text-right">
+              Limited-time discount
+            </p>
+          )}
 
           <div className="rounded-xl border border-border/50 overflow-hidden bg-secondary/10">
             <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_120px_170px] items-center px-4 py-2.5 bg-secondary/30 border-b border-border/40 text-[11px] font-medium text-muted-foreground">

@@ -174,11 +174,6 @@ export function RouteInspector({ item }: { item: RouteItem }) {
 
             {item.style.glow && (
               <>
-                <ColorRow
-                  label="Glow color"
-                  value={item.style.glowColor}
-                  onChange={(v) => us({ glowColor: v })}
-                />
                 <SliderRow
                   label="Glow width"
                   value={item.style.glowWidth}

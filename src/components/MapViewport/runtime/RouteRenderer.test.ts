@@ -68,7 +68,6 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         color: "#3b82f6",
         width: 3,
         glow: false,
-        glowColor: "#3b82f6",
         glowWidth: 6,
         trailFade: false,
         trailFadeLength: 0.2,
@@ -142,7 +141,6 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         color: "#ff0000",
         width: 4,
         glow: false,
-        glowColor: "#ff0000",
         glowWidth: 6,
         trailFade: false,
         trailFadeLength: 0.2,
@@ -179,6 +177,71 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
   });
 });
 
+describe("RouteRenderer vehicle type switching", () => {
+  function routeWithVehicle(type: "car" | "plane" | "dot"): RouteItem {
+    return {
+      kind: "route",
+      id: "switch-route",
+      name: "Switch",
+      geojson: {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] },
+        }],
+      },
+      startTime: 0,
+      endTime: 10,
+      style: {
+        color: "#3b82f6",
+        width: 3,
+        glow: false,
+        glowWidth: 6,
+        trailFade: false,
+        trailFadeLength: 0.2,
+        dashPattern: null,
+        animationType: "draw",
+      },
+      easing: "linear",
+      calculation: {
+        mode: "car",
+        startPoint: [0, 0],
+        endPoint: [1, 1],
+        vehicle: { enabled: true, type, modelId: "", scale: 1 },
+      },
+    };
+  }
+
+  it.each([
+    ["car", "plane"],
+    ["plane", "car"],
+  ] as const)("renders the %s -> %s model after switching the vehicle type", (from, to) => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, routeWithVehicle(from));
+    renderer.mount();
+    expect(double.layers.get("vehicle-layer-switch-route")?.layout?.["model-id"]).toBe(from);
+
+    renderer.setRoute(routeWithVehicle(to));
+
+    const layer = double.layers.get("vehicle-layer-switch-route");
+    expect(layer?.type).toBe("model");
+    expect(layer?.layout?.["model-id"]).toBe(to);
+  });
+
+  it("recolors the dot vehicle when the route color changes", () => {
+    const double = createMapDouble();
+    const route = routeWithVehicle("dot");
+    const renderer = new RouteRenderer(double.map, route);
+    renderer.mount();
+    expect(double.layers.get("vehicle-layer-switch-route")?.paint?.["circle-color"]).toBe("#3b82f6");
+
+    renderer.setRoute({ ...route, style: { ...route.style, color: "#ef4444" } });
+
+    expect(double.layers.get("vehicle-layer-switch-route")?.paint?.["circle-color"]).toBe("#ef4444");
+  });
+});
+
 describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {
   const sampleRoute: RouteItem = {
     kind: "route",
@@ -205,7 +268,6 @@ describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {
       color: "#ff6600",
       width: 4,
       glow: true,
-      glowColor: "#ffaa00",
       glowWidth: 10,
       trailFade: false,
       trailFadeLength: 0.2,

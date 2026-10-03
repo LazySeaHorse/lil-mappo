@@ -57,7 +57,6 @@ function route(
       color: '#000000',
       width: 4,
       glow: false,
-      glowColor: '#000000',
       glowWidth: 0,
       trailFade: false,
       trailFadeLength: 0,

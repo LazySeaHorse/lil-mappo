@@ -22,7 +22,6 @@ const route: RouteItem = {
     color: '#123456',
     width: 4,
     glow: false,
-    glowColor: '#abcdef',
     glowWidth: 12,
     trailFade: false,
     trailFadeLength: 0.3,

@@ -10,6 +10,7 @@ import { Coins, Layers, CloudUpload, Package, Timer } from "lucide-react";
 function TierCard({
   name,
   price,
+  originalPrice,
   creditsCount,
   parallel,
   saves,
@@ -21,6 +22,7 @@ function TierCard({
 }: {
   name: string;
   price: string;
+  originalPrice?: string;
   creditsCount: number;
   parallel: string;
   saves: string;
@@ -67,8 +69,18 @@ function TierCard({
           {name}
         </h4>
         <div className="mt-1 flex items-baseline gap-1">
+          {originalPrice && (
+            <span className="text-sm text-muted-foreground line-through mr-1">
+              {originalPrice}
+            </span>
+          )}
           <span className="text-xl font-medium">{price}</span>
         </div>
+        {originalPrice && (
+          <p className="mt-0.5 text-[11px] font-medium text-primary">
+            Limited-time discount
+          </p>
+        )}
       </div>
 
       <div className="space-y-3 mb-6 flex-1">
@@ -159,6 +171,11 @@ export function SubscriptionTiers({
         <TierCard
           name={PLAN_CONFIG.wanderer.name}
           price={PLAN_CONFIG.wanderer.price}
+          originalPrice={
+            PLAN_CONFIG.wanderer.originalPriceMonthly
+              ? `$${PLAN_CONFIG.wanderer.originalPriceMonthly}/mo`
+              : undefined
+          }
           creditsCount={PLAN_CONFIG.wanderer.monthlyCredits}
           parallel={`No parallel cloud renders`}
           saves="Unlimited cloud projects"
