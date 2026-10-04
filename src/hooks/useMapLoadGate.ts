@@ -121,7 +121,7 @@ export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {
         setReason('quota_error');
         setReady(true);
       });
-  }, [authLoading, session, subLoading, subscription]);
+  }, [authLoading, session, subLoading, subscription, deepLinkEntry]);
 
   const onMapLoaded = () => {
     // For guests: increment the secureLocalStorage counter after the map loads
