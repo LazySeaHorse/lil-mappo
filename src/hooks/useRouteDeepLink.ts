@@ -40,6 +40,8 @@ export function useRouteDeepLink(
   );
   const [settled, setSettled] = useState(request === null);
   const startedRef = useRef(false);
+  // Toasts wait for the editor: its <Sonner /> only mounts once `settled`, and earlier toasts are dropped.
+  const toastsRef = useRef<Array<() => void>>([]);
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
 
@@ -54,20 +56,30 @@ export function useRouteDeepLink(
 
       if (hasWork) {
         // Keep a copy under a new id so the library entry the draft came from is not overwritten.
-        saveProjectToLibrary({ ...current, id: nanoid(), name: `${current.name} (backup)` })
-          .then(() => toast.info('Your previous project was saved to your project library.'))
-          .catch(() => toast.warning("Couldn't back up your previous project."));
+        const backup = saveProjectToLibrary({ ...current, id: nanoid(), name: `${current.name} (backup)` })
+          .then(() => 'Your previous project was saved to your project library.')
+          .catch(() => null);
+        toastsRef.current.push(() => {
+          void backup.then((message) =>
+            message ? toast.info(message) : toast.warning("Couldn't back up your previous project."),
+          );
+        });
       }
 
       store.loadFullProject(result.project);
-      toast.success(`Opened ${result.fromCode} to ${result.toCode}`);
+      toastsRef.current.push(() => toast.success(`Opened ${result.fromCode} to ${result.toCode}`));
     } else {
-      toast.error(result.message);
+      toastsRef.current.push(() => toast.error(result.message));
     }
 
     setSettled(true);
     onSettledRef.current();
   }, [result, draftReady]);
+
+  useEffect(() => {
+    if (!settled) return;
+    toastsRef.current.splice(0).forEach((show) => show());
+  }, [settled]);
 
   return { ready: settled, isEntry: result?.ok === true };
 }
