@@ -123,6 +123,7 @@ export function isMapLoadTracked(
 
 const GUEST_LOAD_KEY = 'mapbox.styler';
 const GUEST_SESSION_KEY = 'mappo-session-counted';
+const DEEP_LINK_EXEMPTION_KEY = 'mappo-deeplink-exempt';
 export const GUEST_LOAD_LIMIT = 3;
 
 /** How many loads the guest has used so far. */
@@ -158,4 +159,21 @@ export function incrementGuestLoadCount(): number {
 export function isGuestBlocked(): boolean {
   if (hasByok()) return false;
   return getGuestLoadCount() >= GUEST_LOAD_LIMIT;
+}
+
+/**
+ * Lets a guest who arrived through an airport-route deep link past the guest
+ * load cap, once per browser session (tab). The first call in a session returns
+ * true and records the grant; later calls return false, so reloading or reusing
+ * the tab falls back to the normal cap. Fails closed when sessionStorage is
+ * unavailable. Only the cap is lifted: the guest load is still counted.
+ */
+export function claimDeepLinkGuestExemption(): boolean {
+  try {
+    if (sessionStorage.getItem(DEEP_LINK_EXEMPTION_KEY)) return false;
+    sessionStorage.setItem(DEEP_LINK_EXEMPTION_KEY, '1');
+    return true;
+  } catch {
+    return false;
+  }
 }
