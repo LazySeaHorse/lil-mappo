@@ -600,6 +600,26 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **Built-in IATA/ICAO Airport Picker**: Uses an integrated database of 7,697 global airports (`src/data/airports.json`), code-split on demand via dynamic import. Powered by `cmdk` in `AirportSearchField.tsx` with instant in-memory lookup across IATA, ICAO, city, and airport names, snapping departure and arrival coordinates to runways and automatically configuring 3D airplane models.
 
 
+### 7.4a Airport Route Deep Links (`/routes/:slug`)
+
+SEO landing pages on the separate static site (`lilmappo.tech`) link their "edit and export" button here. **This is the contract the landing site depends on; change it deliberately.**
+
+**URL**: `https://app.lilmappo.tech/routes/{from}-to-{to}[?autocam=chase|drone|reveal|topdown]`
+- `{from}`/`{to}`: an IATA (3 letters) or ICAO (4 letters/digits) airport code from `src/data/airports.json`, case-insensitive, e.g. `jfk-to-lhr`, `KJFK-to-egll`. No city names. Whitespace is trimmed.
+- `autocam`: AutoCam preset, default `chase`; unknown values fall back to `chase`. Any other query params (e.g. `utm_*`) are ignored.
+- **Result**: a new project named `JFK to LHR` with one flight route built by the same factories as the Plan Route dropdown (`createEndpointRouteItem`, `calculateFlightArc`, airport names in the route name, plane marker, default 5s duration), `autoCam` enabled with the chosen preset (`autoCamPresetPatch(preset, 'plane')`), playhead at 0, ready to play. Not an undoable step: `loadFullProject` is the baseline.
+- **Invalid links** (malformed slug, unknown code, same airport on both ends): error toast and the editor opens as it would at `/`. No 404, no crash. Paths with extra segments (`/routes/a-to-b/c`) fall through to the 404 page.
+
+**Code**: `src/services/routeSlug.ts` (pure slug/param parsing), `src/services/routeDeepLink.ts` (pure project builder), `src/hooks/useRouteDeepLink.ts` (applies it), mounted in `MapStudioEditor`. `pages/Index.tsx` serves both `/` and `/routes/:slug` from the same element so the URL replacement below does not remount the editor.
+
+**Draft handling**: the arrival waits for `useWorkingProjectDraft` to hydrate, then replaces the project the same way New Project does (`loadFullProject`), so autosave keeps the deep-linked project. New Project never confirms, but a link a user did not choose must not destroy work: if the restored draft has content (anything beyond an empty camera track) that is not just an unedited deep-link project, it is first copied to the project library under a new id as `"<name> (backup)"` (best effort, toasted). Guests cannot open the library until they sign in or add a BYOK key, but the copy is kept in IndexedDB.
+
+**URL**: replaced with `/` (`navigate('/', { replace: true })`) once the link is applied or rejected, so a reload restores the autosaved working draft instead of regenerating the route over the user's edits. The request is captured on first render and never re-read.
+
+**Guest exemption**: a guest (not signed in, no BYOK) over `GUEST_LOAD_LIMIT` is not shown the "Sign in to continue" wall when the page arrived through a *valid* deep link, once per browser session (tab): `claimDeepLinkGuestExemption()` in `cloudAccess.ts` records a `sessionStorage` flag, so reloads and later visits in the same tab hit the normal cap. The load is still counted. Signed-in free users still go through `/api/track-map-load` (the server quota is unchanged), and `isLocked` (the guest lock on library, save, import and project-file export) is deliberately unchanged: it never gated editor access or video export. Abuse note: each fresh tab session can get one map load on the app's Mapbox token per deep link, but the existing guest cap is a localStorage counter that clearing site data already resets, so this adds a documented, narrow, session-limited path rather than a new bypass class.
+
+**Hosting** (`vercel.json`): `rewrites` maps exactly `/routes/:slug` to `/index.html` (assets, `/api/*` and everything else keep their behaviour), and `/routes/:path*` gets `X-Robots-Tag: noindex` on top of the global headers/CSP. The landing pages are the indexable surface, not these URLs.
+
 ### 7.4 Map Sync Engine
 
 The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the Export Engine to force-synchronize styles during frame capture (necessary for consistent rendering across multiple frames).
