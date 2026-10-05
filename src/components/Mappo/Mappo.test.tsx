@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Mappo } from './Mappo';
-import { accountMood } from './moods';
+import { accountMood, authMood } from './moods';
 import type { MappoMood } from './moods';
 import type { Subscription } from '@/lib/database.types';
 
@@ -38,5 +38,34 @@ describe('<Mappo />', () => {
   it('is hidden from assistive tech unless titled', () => {
     expect(render(<Mappo />).container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(render(<Mappo title="Mappo" />).getByRole('img', { name: 'Mappo' })).toBeTruthy();
+  });
+});
+
+describe('authMood', () => {
+  const base = { isSignup: false, email: '', password: '', phase: 'editing' as const };
+
+  it('sign-in warms up from inquisitive through email and password', () => {
+    expect(authMood(base)).toBe('inquisitive');
+    expect(authMood({ ...base, email: 'a' })).toBe('inquisitive');
+    expect(authMood({ ...base, email: 'a@b.co' })).toBe('curious');
+    expect(authMood({ ...base, email: 'a@b.co', password: 'x' })).toBe('happy');
+  });
+
+  it('sign-up starts curious and ends sparkly', () => {
+    const up = { ...base, isSignup: true };
+    expect(authMood(up)).toBe('curious');
+    expect(authMood({ ...up, email: 'a@b.co' })).toBe('happy');
+    expect(authMood({ ...up, email: 'a@b.co', password: 'x' })).toBe('sparkle');
+  });
+
+  it('lands on the signed-in face on success and winces on error', () => {
+    expect(authMood({ ...base, phase: 'success' })).toBe('blush');
+    expect(authMood({ ...base, isSignup: true, phase: 'success' })).toBe('blush');
+    expect(authMood({ ...base, email: 'a@b.co', password: 'x', phase: 'error' })).toBe('worried');
+  });
+
+  it('waits happily while submitting and while the confirmation email is out', () => {
+    expect(authMood({ ...base, phase: 'submitting' })).toBe('happy');
+    expect(authMood({ ...base, phase: 'confirm_email' })).toBe('curious');
   });
 });
