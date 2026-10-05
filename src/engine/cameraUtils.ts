@@ -57,9 +57,10 @@ function viewportHeight(map: mapboxgl.Map, zoomOffset: number): number {
 }
 
 function toPose(cam: PlainCamera, refHeight: number): CameraPose {
-  return cam.type === 'freeCam'
-    ? poseFromFreeCam(cam.position, cam.lookAt)
-    : poseFromJumpTo(cam, refHeight);
+  if (cam.type === 'jumpTo') return poseFromJumpTo(cam, refHeight);
+  const pose = poseFromFreeCam(cam.position, cam.lookAt);
+  // The camera's own unwrapped bearing, when it has one, rather than the one re-derived from its position.
+  return cam.bearing === undefined ? pose : { ...pose, bearing: cam.bearing };
 }
 
 /** The pose a blend shows, as the renderer computes it. */

@@ -26,7 +26,13 @@ import {
 
 export type AutoCamOutput =
   | { type: 'jumpTo'; center: [number, number]; zoom: number; pitch: number; bearing: number }
-  | { type: 'freeCam'; position: [number, number, number]; lookAt: [number, number] };
+  | {
+      type: 'freeCam';
+      position: [number, number, number];
+      lookAt: [number, number];
+      /** Facing in degrees, unwrapped so it varies continuously along the route. */
+      bearing?: number;
+    };
 
 export interface CameraRig {
   total: number;
@@ -397,7 +403,8 @@ function followPose(rig: CameraRig, config: AutoCamConfig, params: RigSamplePara
   const position = destinationPoint(st.ahead, distance, bearing + 180);
   const pose = poseFromFreeCam([position[0], position[1], Math.max(1, height)], st.ahead);
   // The vehicle's own heading fixes the facing even when the camera sits directly above it.
-  pose.bearing = ((bearing % 360) + 360) % 360;
+  // Left unwrapped so a blend can follow it without flipping direction as it crosses 360.
+  pose.bearing = bearing;
   return pose;
 }
 
@@ -421,7 +428,7 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
   if (config.mode === 'cinematic') {
     const pose = withShots(rig, config, params, followPose(rig, config, params));
     const { position, lookAt } = poseToFreeCam(pose);
-    return { type: 'freeCam', position, lookAt };
+    return { type: 'freeCam', position, lookAt, bearing: pose.bearing };
   }
 
   const dynamics = clamp(resolve(config.dynamics, 0.5), 0, 1);
@@ -435,7 +442,8 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
     center: st.ahead,
     zoom: clamp(zoom, 0, 22),
     pitch: config.pitch,
-    bearing: ((st.heading % 360) + 360) % 360,
+    // Unwrapped, like the free camera's, so blends to and from it stay continuous.
+    bearing: st.heading,
   };
 }
 
