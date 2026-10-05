@@ -135,6 +135,19 @@ describe('ProjectLibrary Sub-components', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('offers an upgrade from CloudSlotQuotaDialog only when onUpgrade is given', () => {
+    const onUpgrade = vi.fn();
+    const props = { pendingProject: baseProject, projects: [], onCancel: vi.fn(), onReplaceAndUpload: vi.fn() };
+
+    const { unmount } = render(<CloudSlotQuotaDialog {...props} />);
+    expect(screen.queryByText('Upgrade for unlimited projects')).toBeNull();
+    unmount();
+
+    render(<CloudSlotQuotaDialog {...props} onUpgrade={onUpgrade} />);
+    fireEvent.click(screen.getByText('Upgrade for unlimited projects'));
+    expect(onUpgrade).toHaveBeenCalledTimes(1);
+  });
+
   it('handles confirmation in DeleteProjectDialog', () => {
     const onCancel = vi.fn();
     const onConfirm = vi.fn();

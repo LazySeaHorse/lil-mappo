@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Mappo } from '@/components/Mappo/Mappo';
 import { FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
 import type { LibraryProject } from '@/services/projectLibraryCoordinator';
 
@@ -8,6 +9,8 @@ interface CloudSlotQuotaDialogProps {
   projects: LibraryProject[];
   isMutating?: boolean;
   onCancel: () => void;
+  /** Offers the paid plan as a way out of the full slots. */
+  onUpgrade?: () => void;
   onReplaceAndUpload: (cloudProjectToDelete: LibraryProject) => void;
 }
 
@@ -16,6 +19,7 @@ export function CloudSlotQuotaDialog({
   projects,
   isMutating,
   onCancel,
+  onUpgrade,
   onReplaceAndUpload,
 }: CloudSlotQuotaDialogProps) {
   if (!pendingProject) return null;
@@ -56,7 +60,20 @@ export function CloudSlotQuotaDialog({
             </div>
           ))}
         </div>
-        <div className="px-5 py-3 border-t border-border bg-secondary/20 flex justify-end">
+        <div className="px-5 py-3 border-t border-border bg-secondary/20 flex items-center justify-between gap-2">
+          {onUpgrade ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1.5 text-primary hover:text-primary hover:bg-primary/10"
+              onClick={onUpgrade}
+            >
+              <Mappo mood="explorer" className="h-4 w-auto mt-1.5" />
+              Upgrade for unlimited projects
+            </Button>
+          ) : (
+            <span />
+          )}
           <Button
             variant="ghost"
             size="sm"
