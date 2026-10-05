@@ -56,12 +56,12 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         <Button
           variant="ghost"
           size="sm"
-          className="group h-9 px-1.5 flex items-center gap-1.5 text-sm font-medium tracking-tight focus-visible:ring-0 transition-all hover:bg-primary/5 hover:text-primary data-[state=open]:bg-primary/5"
+          className="group h-10 px-1.5 flex items-center gap-1.5 text-sm font-medium tracking-tight focus-visible:ring-0 transition-all hover:bg-primary/5 hover:text-primary data-[state=open]:bg-primary/5"
           title="li'l Mappo menu"
         >
           <Mappo
             mood={mood}
-            className={`${isMobile ? 'h-6' : 'h-7'} w-auto shrink-0 origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1`}
+            className={`${isMobile ? 'h-8' : 'h-9'} w-auto shrink-0 origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1`}
           />
           {!isMobile && !isTablet && (
             <span className="hidden xl:inline-block">li'l Mappo</span>
