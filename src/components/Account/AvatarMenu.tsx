@@ -31,7 +31,7 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
-  const { user, openAuthModal, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
+  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
   const { selectItem, setProjectSettingsTab } = useProjectStore();
   const actions = useToolbarActions();
   const { data: subscription } = useSubscription();
@@ -45,8 +45,8 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
   const afterCloseRef = useRef<(() => void) | null>(null);
   const afterClose = (fn: () => void) => () => { afterCloseRef.current = fn; };
 
-  const gatedClick = (fn: () => void) => {
-    if (isLocked) openAuthModal();
+  const gatedClick = (reason: string, fn: () => void) => {
+    if (isLocked) requestSignIn(reason);
     else fn();
   };
 
@@ -126,7 +126,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
             <FileJson size={14} /> Export Project File
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => gatedClick(onImportProjectClick)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={() => gatedClick('Sign in to import a project file.', onImportProjectClick)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Upload size={14} /> Import Project File
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>

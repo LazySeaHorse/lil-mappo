@@ -45,6 +45,8 @@ interface AuthStore {
   showAuthModal: boolean;
   /** 'signin' = sign-in only flow; 'signup' = account creation during checkout */
   authModalMode: "signin" | "signup";
+  /** What the user was trying to do when sign-in was required, shown in the auth modal. */
+  authModalReason: string | null;
   showSettingsModal: boolean;
   showCreditsModal: boolean;
   showUpgradeModal: boolean;
@@ -56,6 +58,8 @@ interface AuthStore {
   setIsLoading: (v: boolean) => void;
 
   openAuthModal: () => void;
+  /** Opens sign-in with a line explaining what the user was trying to do. */
+  requestSignIn: (reason: string) => void;
   /** Opens the auth modal in signup mode (used by the checkout flow). */
   openSignupModal: () => void;
   closeAuthModal: () => void;
@@ -93,6 +97,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   showAuthModal: false,
   authModalMode: "signin",
+  authModalReason: null,
   showSettingsModal: false,
   showCreditsModal: false,
   showUpgradeModal: false,
@@ -106,13 +111,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     void flushWorkingProjectDraft().catch(() => {
       // Autosave retries on its regular interval if storage is temporarily unavailable.
     });
-    set({ showAuthModal: true, authModalMode: "signin" });
+    set({ showAuthModal: true, authModalMode: "signin", authModalReason: null });
+  },
+  requestSignIn: (reason) => {
+    get().openAuthModal();
+    set({ authModalReason: reason });
   },
   openSignupModal: () => {
     void flushWorkingProjectDraft().catch(() => {
       // Autosave retries on its regular interval if storage is temporarily unavailable.
     });
-    set({ showAuthModal: true, authModalMode: "signup" });
+    set({ showAuthModal: true, authModalMode: "signup", authModalReason: null });
   },
   closeAuthModal: () => set({ showAuthModal: false }),
   openSettingsModal: () => set({ showSettingsModal: true }),

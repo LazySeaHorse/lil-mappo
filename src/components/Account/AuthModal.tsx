@@ -52,7 +52,7 @@ function AppleIcon() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AuthModal() {
-  const { showAuthModal, authModalMode, closeAuthModal, openAuthModal, openSignupModal } =
+  const { showAuthModal, authModalMode, authModalReason, closeAuthModal, openAuthModal, openSignupModal } =
     useAuthStore();
 
   const handleOpenChange = (open: boolean) => {
@@ -81,7 +81,7 @@ export function AuthModal() {
             <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
               {isSignup
                 ? "Create an account to continue to payment."
-                : "Sign in to continue."}
+                : authModalReason ?? "Sign in to continue."}
             </DialogDescription>
           </DialogHeader>
         </div>

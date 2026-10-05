@@ -41,10 +41,10 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     }))
   );
 
-  const { session, openAuthModal, openUpgradeModal } = useAuthStore(
+  const { session, requestSignIn, openUpgradeModal } = useAuthStore(
     useShallow((s) => ({
       session: s.session,
-      openAuthModal: s.openAuthModal,
+      requestSignIn: s.requestSignIn,
       openUpgradeModal: s.openUpgradeModal,
     }))
   );
@@ -103,7 +103,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     exportPlan,
     showWatermark,
     name,
-    openAuthModal,
+    () => requestSignIn('Sign in to export your video.'),
     isLimitedGuest
   );
 

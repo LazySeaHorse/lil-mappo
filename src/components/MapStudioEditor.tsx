@@ -128,7 +128,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   usePlayback(mapRef);
   useHistoryShortcuts();
   const mapLoadGate = useMapLoadGate({ deepLinkEntry: deepLink.isEntry });
-  const { user, openAuthModal } = useAuthStore();
+  const { user, requestSignIn } = useAuthStore();
   const isLocked = !user && !hasByok();
   const { data: subscription } = useSubscription();
   // Track whether we've synced for this user session to avoid repeat syncs
@@ -206,7 +206,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
               useWalkthroughStore.getState().recordExportOpened();
             }}
             onLibrary={() => {
-              if (isLocked) openAuthModal();
+              if (isLocked) requestSignIn('Sign in to open your projects.');
               else setShowLibrary(true);
             }}
             onWalkthrough={() => {
