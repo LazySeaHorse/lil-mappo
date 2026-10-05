@@ -5,6 +5,7 @@ import { buildRig, gaussianSmooth, pathDistanceAt, sampleRig, vehicleAt } from '
 import { getLineSegment } from './lineAnimation';
 import { lngLatToMerc, metersPerMerc } from './cameraPose';
 import { getCameraAtTime } from './cameraInterpolation';
+import { blendedPose } from './cameraUtils';
 
 const config: AutoCamConfig = {
   enabled: true, mode: 'cinematic', pitch: 65, smoothing: 0.4, distance: 500, height: 300,
@@ -276,5 +277,44 @@ describe('getCameraAtTime with an auto camera', () => {
   it('holds the final shot after the block when no keyframe follows', () => {
     const cam = getCameraAtTime([kf('a', 0)], 25, coords, [route]);
     expect(cam?.type).toBe('freeCam');
+  });
+});
+
+describe('bearing through a lead-in and lead-out', () => {
+  // A long road heading roughly south that wiggles, so its heading crosses the bearing
+  // directly opposite the keyframes' while the camera is still blending.
+  const wiggle: number[][] = Array.from({ length: 400 }, (_, i) => [
+    -111.9 - 0.0005 * i + 0.1 * Math.sin(i / 30),
+    40.7 - 0.0045 * i,
+  ]);
+  const route = {
+    kind: 'route', id: 'r1', startTime: 3, endTime: 117.5, easing: 'easeInOutQuad',
+    autoCam: { ...config, pitch: 65, smoothing: 0.5, distance: 550, height: 420, zoom: 17, orbit: 0.2, intro: 1, outro: 1 },
+  } as unknown as RouteItem;
+  const kf = (id: string, time: number, bearing: number, center: [number, number]): CameraKeyframe => ({
+    id, time, camera: { center, zoom: 3, pitch: 0, bearing, altitude: null }, easing: 'easeInOutCubic', followRoute: null,
+  });
+
+  const maxBearingStep = (kfs: CameraKeyframe[], from: number, to: number) => {
+    let max = 0;
+    let prev: number | null = null;
+    for (let time = from; time <= to; time += 0.02) {
+      const cam = getCameraAtTime(kfs, time, () => wiggle, [route]);
+      if (cam?.type !== 'blend') throw new Error(`expected a blend at ${time}`);
+      const { bearing } = blendedPose(cam, 800);
+      if (prev !== null) max = Math.max(max, Math.abs(wrap(bearing - prev)));
+      prev = bearing;
+    }
+    return max;
+  };
+
+  it('does not flip while leading in to a route the keyframe faces away from', () => {
+    const kfs = [kf('a', 0, -17, [-96.9, 31.7]), kf('b', 122.7, -26.3, [-85.8, 39.2])];
+    expect(maxBearingStep(kfs, 0, 25.9)).toBeLessThan(2);
+  });
+
+  it('does not flip while leading out to a keyframe that faces away from the route', () => {
+    const kfs = [kf('a', 0, 8.767, [-96.9, 31.7]), kf('b', 122.7, -26.3, [-85.8, 39.2])];
+    expect(maxBearingStep(kfs, 100, 122.7)).toBeLessThan(2);
   });
 });
