@@ -76,11 +76,11 @@ test("a deep link gets past the guest map-load cap that blocks a normal visit", 
   const blocked = await context.newPage();
   await stubExternalServices(blocked);
   await blocked.goto("/");
-  await expect(blocked.getByText("Sign in to continue")).toBeVisible();
+  await expect(blocked.getByText("Mappo is napping")).toBeVisible();
   await blocked.close();
 
   const deepLinked = await context.newPage();
   await openPath(deepLinked, "/routes/jfk-to-lhr");
   await expect(deepLinked.locator(".mapboxgl-canvas")).toBeVisible();
-  await expect(deepLinked.getByText("Sign in to continue")).toHaveCount(0);
+  await expect(deepLinked.getByText("Mappo is napping")).toHaveCount(0);
 });
