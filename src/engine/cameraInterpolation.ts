@@ -69,6 +69,18 @@ function findLeadInKF(
   return between ? null : kf;
 }
 
+/** The keyframe a block leads out to: the first one after it, unless another block sits between. */
+function findLeadOutKF(
+  keyframes: CameraKeyframe[],
+  block: RouteItem,
+  autoCamRoutes: RouteItem[],
+): CameraKeyframe | null {
+  const kf = findNextKFAfterBlock(keyframes, block.endTime, autoCamRoutes);
+  if (!kf) return null;
+  const between = autoCamRoutes.some((r) => r !== block && r.startTime > block.endTime && r.endTime < kf.time);
+  return between ? null : kf;
+}
+
 // ─── Standard keyframe interpolation ──────────────────────────────────────────
 
 export function clampCameraState(state: CameraState): CameraState {
@@ -252,6 +264,20 @@ function leadInBlend(prevKF: CameraKeyframe, to: Plain, route: RouteItem, time: 
   return { type: 'blend', from, to, t: Math.max(0, Math.min(1, t)) };
 }
 
+/** When the move out to the next keyframe starts, a stretch before the block ends. */
+function exitStart(route: RouteItem): number {
+  const duration = route.endTime - route.startTime;
+  return route.endTime - transitionSeconds(duration, route.autoCam!.outro ?? 0, OUTRO_FRACTION);
+}
+
+/** The one move from a block out to the next keyframe, spanning the gap after it. */
+function leadOutBlend(from: Plain, nextKF: CameraKeyframe, route: RouteItem, time: number): CameraOutput {
+  const to: Plain = { type: 'jumpTo', ...nextKF.camera };
+  const start = exitStart(route);
+  const t = (time - start) / (nextKF.time - start);
+  return { type: 'blend', from, to, t: Math.max(0, Math.min(1, t)) };
+}
+
 export function getCameraAtTime(
   keyframes: CameraKeyframe[],
   time: number,
@@ -271,17 +297,14 @@ export function getCameraAtTime(
       const blockEnd = activeRoute.endTime;
       const blockDuration = blockEnd - blockStart;
       const progress = blockDuration > 0 ? (time - blockStart) / blockDuration : 0;
-      const config = activeRoute.autoCam;
       const prevKF = findLeadInKF(keyframes, activeRoute, autoCamRoutes);
-      const nextKF = findNextKFAfterBlock(keyframes, blockEnd, autoCamRoutes);
+      const nextKF = findLeadOutKF(keyframes, activeRoute, autoCamRoutes);
       const autoCam = autoCamAt(activeRoute, coords, progress, blockSkipShots(activeRoute, prevKF, nextKF));
 
       if (autoCam) {
-        // Exit blend: last stretch of the block → ease toward the next manual KF
-        const exit = transitionSeconds(blockDuration, config.outro ?? 0, OUTRO_FRACTION);
-        if (nextKF && exit > 0 && time > blockEnd - exit) {
-          const nextCam: Plain = { type: 'jumpTo', ...nextKF.camera };
-          return { type: 'blend', from: autoCam, to: nextCam, t: (time - (blockEnd - exit)) / exit };
+        // Exit blend: from the last stretch of the block through to the next manual KF
+        if (nextKF && time > exitStart(activeRoute)) {
+          return leadOutBlend(autoCam, nextKF, activeRoute, time);
         }
 
         // Entry blend: from the previous manual KF through the first stretch of the block
@@ -308,22 +331,33 @@ export function getCameraAtTime(
     }
   }
 
+  // After a block, keep moving toward the keyframe it leads out to rather than arriving
+  // there as the block ends and holding still.
+  const passed = autoCamRoutes
+    .filter((r) => r.endTime < time && getRouteCoords(r.id))
+    .sort((a, b) => b.endTime - a.endTime)[0];
+  if (passed) {
+    const nextKF = findLeadOutKF(keyframes, passed, autoCamRoutes);
+    if (nextKF && time < nextKF.time) {
+      const prevKF = findLeadInKF(keyframes, passed, autoCamRoutes);
+      const end = autoCamAt(passed, getRouteCoords(passed.id)!, 1, blockSkipShots(passed, prevKF, nextKF));
+      if (end) return leadOutBlend(end, nextKF, passed, time);
+    }
+  }
+
   // Standard keyframe interpolation — skip KFs inside any auto-cam block
   const activeKeyframes = keyframes.filter((kf) => !isTimeInBlock(kf.time, autoCamRoutes));
 
   // After a block with no keyframe following it, hold the camera where the block ended
   // rather than snapping back to a keyframe from before it.
-  const finished = autoCamRoutes
-    .filter((r) => r.endTime < time && getRouteCoords(r.id))
-    .sort((a, b) => b.endTime - a.endTime)[0];
-  if (finished) {
+  if (passed) {
     const lastKF = activeKeyframes.reduce<CameraKeyframe | null>(
       (best, kf) => (kf.time <= time && (!best || kf.time > best.time) ? kf : best),
       null,
     );
     const nextKF = activeKeyframes.find((kf) => kf.time > time);
-    if (!nextKF && (!lastKF || lastKF.time < finished.endTime)) {
-      const held = autoCamAt(finished, getRouteCoords(finished.id)!, 1);
+    if (!nextKF && (!lastKF || lastKF.time < passed.endTime)) {
+      const held = autoCamAt(passed, getRouteCoords(passed.id)!, 1);
       if (held) return held;
     }
   }

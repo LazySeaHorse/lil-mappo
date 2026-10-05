@@ -177,8 +177,9 @@ describe('getCameraAtTime with an auto camera', () => {
     it('starts and ends the move exactly on the keyframe pose', () => {
       const entry = getCameraAtTime(kfs, 0, coords, [shots(1, 1)]);
       expect(entry).toMatchObject({ type: 'blend', t: 0, from: { type: 'jumpTo', zoom: 10 } });
-      const exit = getCameraAtTime(kfs, 20, coords, [shots(1, 1)]);
-      expect(exit).toMatchObject({ type: 'blend', t: 1, to: { type: 'jumpTo', zoom: 10 } });
+      const exit = getCameraAtTime(kfs, 29.999, coords, [shots(1, 1)]);
+      expect(exit).toMatchObject({ type: 'blend', to: { type: 'jumpTo', zoom: 10 } });
+      expect((exit as { t: number }).t).toBeCloseTo(1, 3);
     });
 
     it('takes longer the stronger the intro and outro are', () => {
@@ -226,6 +227,39 @@ describe('getCameraAtTime with an auto camera', () => {
 
     it('leaves a keyframe-to-keyframe move before the block alone', () => {
       const cam = getCameraAtTime([kf('a', 0), kf('b', 6, 4)], 3, coords, [route]);
+      expect(cam).toMatchObject({ type: 'jumpTo', zoom: 7 });
+    });
+  });
+
+  describe('leading out to the next keyframe', () => {
+    const blendT = (cam: ReturnType<typeof getCameraAtTime>) => {
+      if (cam?.type !== 'blend') throw new Error(`expected a blend, got ${cam?.type}`);
+      return cam.t;
+    };
+
+    it('keeps moving after the block until the keyframe arrives', () => {
+      const kfs = [kf('b', 30, 4)];
+      const t = blendT(getCameraAtTime(kfs, 25, coords, [route]));
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThan(1);
+      expect(getCameraAtTime(kfs, 30, coords, [route])).toMatchObject({ type: 'jumpTo', zoom: 4 });
+    });
+
+    it('carries one move across the end of the block', () => {
+      const kfs = [kf('b', 30, 4)];
+      const before = blendT(getCameraAtTime(kfs, 19.99, coords, [route]));
+      const after = blendT(getCameraAtTime(kfs, 20.01, coords, [route]));
+      expect(after).toBeGreaterThan(before);
+      expect(after - before).toBeLessThan(0.01);
+    });
+
+    it('leaves from the block, not a keyframe before it', () => {
+      const cam = getCameraAtTime([kf('a', 0), kf('b', 30, 4)], 25, coords, [route]);
+      expect(cam).toMatchObject({ type: 'blend', from: { type: 'freeCam' }, to: { type: 'jumpTo', zoom: 4 } });
+    });
+
+    it('leaves a keyframe-to-keyframe move after the block alone', () => {
+      const cam = getCameraAtTime([kf('b', 24, 10), kf('c', 30, 4)], 27, coords, [route]);
       expect(cam).toMatchObject({ type: 'jumpTo', zoom: 7 });
     });
   });
