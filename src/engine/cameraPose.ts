@@ -173,6 +173,11 @@ const RHO = Math.SQRT2;
  * (the curve behind Mapbox's flyTo): the camera rises while it travels a long
  * way and settles as it arrives, instead of sliding in a straight line.
  * `t` is the raw 0..1 progress; easing is applied inside.
+ *
+ * Bearings are interpolated as plain numbers, so the turn goes the way the two given values
+ * lie apart: callers lift `b.bearing` (see `liftBearing`) to pick the direction, once, from
+ * a fixed reference. Choosing the shortest way on every call would flip it whenever a moving
+ * endpoint crossed the point opposite the other.
  */
 export function blendPoses(a: CameraPose, b: CameraPose, t: number): CameraPose {
   const tt = smootherstep(t);
@@ -215,6 +220,6 @@ export function blendPoses(a: CameraPose, b: CameraPose, t: number): CameraPose 
     target: [lng, lat],
     range: clamp(range, MIN_RANGE_M, MAX_RANGE_M),
     pitch: lerp(a.pitch, b.pitch, tt),
-    bearing: lerpAngle(a.bearing, b.bearing, tt),
+    bearing: lerp(a.bearing, b.bearing, tt),
   };
 }
