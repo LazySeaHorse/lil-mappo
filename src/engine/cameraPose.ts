@@ -194,8 +194,9 @@ export function blendPoses(a: CameraPose, b: CameraPose, t: number): CameraPose 
     const rho4 = rho2 * rho2;
     const b0 = (w1 * w1 - w0 * w0 + rho4 * u1 * u1) / (2 * w0 * rho2 * u1);
     const b1 = (w1 * w1 - w0 * w0 - rho4 * u1 * u1) / (2 * w1 * rho2 * u1);
-    const r0 = Math.log(Math.sqrt(b0 * b0 + 1) - b0);
-    const r1 = Math.log(Math.sqrt(b1 * b1 + 1) - b1);
+    // ln(√(b²+1) − b) is −asinh(b); asinh stays finite where the subtraction cancels to log(0).
+    const r0 = -Math.asinh(b0);
+    const r1 = -Math.asinh(b1);
     const S = (r1 - r0) / RHO;
     const s = tt * S;
     const u = (w0 / rho2) * Math.cosh(r0) * Math.tanh(RHO * s + r0) - (w0 / rho2) * Math.sinh(r0);
