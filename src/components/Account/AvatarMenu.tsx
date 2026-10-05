@@ -31,12 +31,14 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
-  const { user, openAuthModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
+  const { user, openAuthModal, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
   const { selectItem, setProjectSettingsTab } = useProjectStore();
   const actions = useToolbarActions();
   const { data: subscription } = useSubscription();
   const isLocked = !user && !hasByok();
   const mood = accountMood({ signedIn: !!user, subscription });
+  const tierLabel = !user ? 'Guest' : mood === 'explorer' ? 'Wanderer' : 'Free';
+  const accountName = user ? (user.displayName || user.email) : "Exploring as a guest";
 
   // Run an action once the menu has finished closing. Radix refocuses the menu content
   // as the pointer leaves an item, which steals focus from a dialog that opened alongside it.
@@ -77,6 +79,32 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         }}
         className="w-56 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl"
       >
+        {/* ─── Who's driving ─── */}
+        <div className="flex items-center gap-2.5 px-3 pt-3 pb-2.5">
+          <Mappo mood={mood} className="h-9 w-auto shrink-0 mt-2" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium leading-tight">{accountName}</div>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="rounded-full bg-primary/10 px-1.5 py-px font-medium text-primary">{tierLabel}</span>
+              {!user && (
+                <DropdownMenuItem asChild onClick={afterClose(openAuthModal)}>
+                  <button type="button" className="cursor-pointer outline-none hover:text-primary hover:underline focus-visible:text-primary focus-visible:underline">
+                    Sign in
+                  </button>
+                </DropdownMenuItem>
+              )}
+              {user && mood !== 'explorer' && (
+                <DropdownMenuItem asChild onClick={afterClose(openUpgradeModal)}>
+                  <button type="button" className="cursor-pointer outline-none hover:text-primary hover:underline focus-visible:text-primary focus-visible:underline">
+                    Upgrade
+                  </button>
+                </DropdownMenuItem>
+              )}
+            </div>
+          </div>
+        </div>
+        <DropdownMenuSeparator className="bg-border/50 mx-1" />
+
         {/* ─── Project Section ─── */}
         <DropdownMenuLabel className="text-xs font-medium text-foreground/80 px-3 pt-2.5 pb-1">
           Project
