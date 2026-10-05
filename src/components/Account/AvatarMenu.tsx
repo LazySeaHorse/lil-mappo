@@ -55,13 +55,13 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         {/* Plain <button>: the shared Button forces every child svg to 16px with no pointer events. */}
         <button
           type="button"
-          className={`group relative h-10 ${isMobile ? 'pl-[44px]' : 'pl-[50px]'} pr-1.5 inline-flex shrink-0 items-center gap-1.5 rounded-lg text-sm font-medium tracking-tight outline-none transition-all hover:bg-primary/5 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:bg-primary/5`}
+          className={`group relative h-10 ${isMobile ? 'pl-[38px]' : 'pl-[42px]'} pr-1.5 inline-flex shrink-0 items-center gap-1.5 rounded-lg text-sm font-medium tracking-tight outline-none transition-all hover:bg-primary/5 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:bg-primary/5`}
           title="li'l Mappo menu"
         >
           {/* Sits outside the button's layout so it can outgrow it; clicks still bubble to the trigger. */}
           <Mappo
             mood={mood}
-            className={`absolute left-1 top-1/2 w-auto origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1 ${isMobile ? 'h-11 -mt-[22px]' : 'h-[52px] -mt-[26px]'}`}
+            className={`absolute left-1.5 top-1/2 w-auto origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1 ${isMobile ? 'h-7 -mt-3.5' : 'h-8 -mt-4'}`}
           />
           {!isMobile && !isTablet && (
             <span className="hidden xl:inline-block">li'l Mappo</span>
