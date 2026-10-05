@@ -46,6 +46,11 @@ export function lerpAngle(a: number, b: number, t: number): number {
   return (((a + wrapDegrees(b - a) * t) % 360) + 360) % 360;
 }
 
+/** The equivalent of `bearing` (a whole number of turns away) that lies nearest `reference`. */
+export function liftBearing(bearing: number, reference: number): number {
+  return bearing + 360 * Math.round((reference - bearing) / 360);
+}
+
 export function smootherstep(t: number): number {
   const x = clamp(t, 0, 1);
   return x * x * x * (x * (x * 6 - 15) + 10);

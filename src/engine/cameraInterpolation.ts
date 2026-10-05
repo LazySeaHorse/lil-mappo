@@ -3,6 +3,7 @@ import { applyEasing, easingPeakSpeed } from './easings';
 import along from '@turf/along';
 import length from '@turf/length';
 import { lineString } from '@turf/helpers';
+import { liftBearing, poseFromFreeCam } from './cameraPose';
 import { getRig, sampleRig, INTRO_FRACTION, OUTRO_FRACTION, type AutoCamOutput, type RigSampleParams } from './cameraRig';
 
 export interface CameraState {
@@ -257,9 +258,27 @@ function entryEnd(route: RouteItem): number {
   return route.startTime + transitionSeconds(duration, route.autoCam!.intro ?? 0, INTRO_FRACTION);
 }
 
-/** The one move from the previous keyframe into a block, spanning the gap before it. */
-function leadInBlend(prevKF: CameraKeyframe, to: Plain, route: RouteItem, time: number): CameraOutput {
-  const from: Plain = { type: 'jumpTo', ...prevKF.camera };
+/** Which way a shot faces, in unwrapped degrees. */
+function shotBearing(shot: Plain): number {
+  if (shot.type === 'jumpTo') return shot.bearing;
+  return shot.bearing ?? poseFromFreeCam(shot.position, shot.lookAt).bearing;
+}
+
+/**
+ * The keyframe's camera with its bearing turned a whole number of times to sit nearest
+ * `reference`. A blend interpolates bearings as plain numbers, so this one choice, made
+ * against a fixed shot rather than the moving one, decides which way it turns.
+ */
+function keyframeCamera(kf: CameraKeyframe, reference: Plain): Plain {
+  return { type: 'jumpTo', ...kf.camera, bearing: liftBearing(kf.camera.bearing, shotBearing(reference)) };
+}
+
+/**
+ * The one move from the previous keyframe into a block, spanning the gap before it.
+ * `start` is the block's opening shot, which fixes the way the bearing turns.
+ */
+function leadInBlend(prevKF: CameraKeyframe, to: Plain, start: Plain, route: RouteItem, time: number): CameraOutput {
+  const from = keyframeCamera(prevKF, start);
   const t = (time - prevKF.time) / (entryEnd(route) - prevKF.time);
   return { type: 'blend', from, to, t: Math.max(0, Math.min(1, t)) };
 }
@@ -270,9 +289,18 @@ function exitStart(route: RouteItem): number {
   return route.endTime - transitionSeconds(duration, route.autoCam!.outro ?? 0, OUTRO_FRACTION);
 }
 
-/** The one move from a block out to the next keyframe, spanning the gap after it. */
-function leadOutBlend(from: Plain, nextKF: CameraKeyframe, route: RouteItem, time: number): CameraOutput {
-  const to: Plain = { type: 'jumpTo', ...nextKF.camera };
+/** Progress through a block (0..1) at which the move out to the next keyframe starts. */
+function exitProgress(route: RouteItem): number {
+  const duration = route.endTime - route.startTime;
+  return duration > 0 ? (exitStart(route) - route.startTime) / duration : 1;
+}
+
+/**
+ * The one move from a block out to the next keyframe, spanning the gap after it.
+ * `exit` is the shot the move leaves from, which fixes the way the bearing turns.
+ */
+function leadOutBlend(from: Plain, exit: Plain, nextKF: CameraKeyframe, route: RouteItem, time: number): CameraOutput {
+  const to = keyframeCamera(nextKF, exit);
   const start = exitStart(route);
   const t = (time - start) / (nextKF.time - start);
   return { type: 'blend', from, to, t: Math.max(0, Math.min(1, t)) };
@@ -304,12 +332,14 @@ export function getCameraAtTime(
       if (autoCam) {
         // Exit blend: from the last stretch of the block through to the next manual KF
         if (nextKF && time > exitStart(activeRoute)) {
-          return leadOutBlend(autoCam, nextKF, activeRoute, time);
+          const exit = autoCamAt(activeRoute, coords, exitProgress(activeRoute), blockSkipShots(activeRoute, prevKF, nextKF));
+          return leadOutBlend(autoCam, exit ?? autoCam, nextKF, activeRoute, time);
         }
 
         // Entry blend: from the previous manual KF through the first stretch of the block
         if (prevKF && time < entryEnd(activeRoute)) {
-          return leadInBlend(prevKF, autoCam, activeRoute, time);
+          const start = autoCamAt(activeRoute, coords, 0, blockSkipShots(activeRoute, prevKF, nextKF));
+          return leadInBlend(prevKF, autoCam, start ?? autoCam, activeRoute, time);
         }
 
         return autoCam;
@@ -327,7 +357,7 @@ export function getCameraAtTime(
     if (prevKF && prevKF.time <= time) {
       const nextKF = findNextKFAfterBlock(keyframes, upcoming.endTime, autoCamRoutes);
       const start = autoCamAt(upcoming, getRouteCoords(upcoming.id)!, 0, blockSkipShots(upcoming, prevKF, nextKF));
-      if (start) return leadInBlend(prevKF, start, upcoming, time);
+      if (start) return leadInBlend(prevKF, start, start, upcoming, time);
     }
   }
 
@@ -341,7 +371,8 @@ export function getCameraAtTime(
     if (nextKF && time < nextKF.time) {
       const prevKF = findLeadInKF(keyframes, passed, autoCamRoutes);
       const end = autoCamAt(passed, getRouteCoords(passed.id)!, 1, blockSkipShots(passed, prevKF, nextKF));
-      if (end) return leadOutBlend(end, nextKF, passed, time);
+      const exit = autoCamAt(passed, getRouteCoords(passed.id)!, exitProgress(passed), blockSkipShots(passed, prevKF, nextKF));
+      if (end) return leadOutBlend(end, exit ?? end, nextKF, passed, time);
     }
   }
 
