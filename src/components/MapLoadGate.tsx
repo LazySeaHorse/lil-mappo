@@ -26,7 +26,7 @@ export function MapLoadGate({
   gate,
   children,
 }: MapLoadGateProps & { gate: ReturnType<typeof useMapLoadGate> }) {
-  const { openAuthModal } = useAuthStore();
+  const { openAuthModal, openUpgradeModal } = useAuthStore();
 
   // While auth is loading, render nothing (map stays unmounted — no API call)
   if (!gate.ready) return null;
@@ -37,6 +37,7 @@ export function MapLoadGate({
         reason={gate.reason!}
         guestLoadsUsed={gate.guestLoadsUsed}
         onSignIn={openAuthModal}
+        onUpgrade={openUpgradeModal}
       />
     );
   }
@@ -50,10 +51,12 @@ function MapLoadBlockedScreen({
   reason,
   guestLoadsUsed,
   onSignIn,
+  onUpgrade,
 }: {
   reason: 'guest_limit' | 'daily_throttled' | 'monthly_exhausted' | 'quota_error';
   guestLoadsUsed: number;
   onSignIn: () => void;
+  onUpgrade: () => void;
 }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm z-50 gap-6 p-6 text-center">
@@ -88,7 +91,7 @@ function MapLoadBlockedScreen({
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-lg px-6 h-10 font-medium" onClick={onSignIn}>
+            <Button variant="outline" className="rounded-lg px-6 h-10 font-medium" onClick={onUpgrade}>
               Upgrade
             </Button>
           </div>
@@ -105,7 +108,7 @@ function MapLoadBlockedScreen({
             </p>
           </div>
           <div className="flex gap-3">
-            <Button className="rounded-lg px-6 h-10 font-medium" onClick={onSignIn}>
+            <Button className="rounded-lg px-6 h-10 font-medium" onClick={onUpgrade}>
               Upgrade
             </Button>
             <BYOKQuickEntry />
