@@ -61,7 +61,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         >
           <Mappo
             mood={mood}
-            className={`${isMobile ? 'h-8' : 'h-9'} w-auto shrink-0 origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1`}
+            className={`${isMobile ? 'h-10' : 'h-12'} -my-2 w-auto shrink-0 origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1`}
           />
           {!isMobile && !isTablet && (
             <span className="hidden xl:inline-block">li'l Mappo</span>
