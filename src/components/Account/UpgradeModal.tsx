@@ -1,4 +1,5 @@
 import React from "react";
+import { Mappo } from "@/components/Mappo/Mappo";
 import {
   Check,
   Cloud,
@@ -82,7 +83,7 @@ export function UpgradeModal() {
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
             <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2 pr-8">
-              <Crown className="text-primary h-5 w-5" /> Upgrade to Wanderer
+              <Mappo mood="explorer" className="h-8 w-auto mt-2 shrink-0" /> Upgrade to Wanderer
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm mt-1">
               Compare the Free plan with the Wanderer plan.
