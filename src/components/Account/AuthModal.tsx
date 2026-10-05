@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Mappo } from "@/components/Mappo/Mappo";
 import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
-import { Loader2, Eye, EyeOff, Mail } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── OAuth icon components ────────────────────────────────────────────────────
@@ -61,6 +61,8 @@ export function AuthModal() {
 
   const isSignup = authModalMode === "signup";
   const [mood, setMood] = useState<MappoMood>(isSignup ? "curious" : "inquisitive");
+  // Set once a confirmation link has been sent; swaps the header copy to match.
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
@@ -76,12 +78,20 @@ export function AuthModal() {
               />
             </div>
             <DialogTitle className="text-2xl font-medium tracking-tight text-center">
-              {isSignup ? "Create account" : "Sign in"}
+              {confirmEmail ? "Check your email" : isSignup ? "Create account" : "Sign in"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
-              {isSignup
-                ? "Create an account to continue to payment."
-                : authModalReason ?? "Sign in to continue."}
+              {confirmEmail ? (
+                <>
+                  We sent a link to{" "}
+                  <span className="font-medium text-foreground">{confirmEmail}</span>.
+                  Open it to finish creating your account and continue to payment.
+                </>
+              ) : isSignup ? (
+                "Create an account to continue to payment."
+              ) : (
+                authModalReason ?? "Sign in to continue."
+              )}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -90,6 +100,7 @@ export function AuthModal() {
           <AuthModalBody
             isSignup={isSignup}
             onMoodChange={setMood}
+            onConfirmEmailChange={setConfirmEmail}
             onSwitchToSignin={() => {
               closeAuthModal();
               setTimeout(() => openAuthModal(), 150);
@@ -110,11 +121,13 @@ export function AuthModal() {
 function AuthModalBody({
   isSignup,
   onMoodChange,
+  onConfirmEmailChange,
   onSwitchToSignin,
   onSwitchToSignup,
 }: {
   isSignup: boolean;
   onMoodChange: (mood: MappoMood) => void;
+  onConfirmEmailChange: (email: string | null) => void;
   onSwitchToSignin: () => void;
   onSwitchToSignup: () => void;
 }) {
@@ -132,6 +145,10 @@ function AuthModalBody({
     phase: sentState === "confirm_email" ? "confirm_email" : phase,
   });
   useEffect(() => onMoodChange(mood), [mood, onMoodChange]);
+  useEffect(
+    () => onConfirmEmailChange(sentState === "confirm_email" ? email.trim() : null),
+    [sentState, email, onConfirmEmailChange],
+  );
 
   const canSubmit = email.trim() !== "" && password !== "";
 
@@ -194,20 +211,13 @@ function AuthModalBody({
 
   if (sentState === "confirm_email") {
     return (
-      <div className="flex flex-col items-center gap-4 py-6">
-        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-          <Mail size={24} className="text-primary" />
-        </div>
-        <div className="text-center">
-          <p className="font-medium text-sm">Confirm your email</p>
-          <p className="text-muted-foreground text-xs mt-1 max-w-[260px]">
-            We sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{email}</span>. Open
-            the link to confirm your email. Then return to this page.
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" className="text-xs" onClick={handleReset}>
-          Use another email
+      <div className="flex flex-col items-center gap-4 pt-2">
+        <p className="text-muted-foreground text-xs text-center max-w-[300px]">
+          Can't find it? Check your spam folder. After you open the link you can
+          close this tab.
+        </p>
+        <Button variant="outline" size="sm" className="text-xs" onClick={handleReset}>
+          Use a different email
         </Button>
       </div>
     );
