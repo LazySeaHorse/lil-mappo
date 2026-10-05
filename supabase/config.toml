@@ -260,6 +260,18 @@ content_path = "./supabase/magic_link.html"
 subject = "Reset your li'l Mappo password"
 content_path = "./supabase/reset_password.html"
 
+[auth.email.template.invite]
+subject = "You're invited to li'l Mappo"
+content_path = "./supabase/invite.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new li'l Mappo email"
+content_path = "./supabase/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "Your li'l Mappo confirmation code"
+content_path = "./supabase/reauthentication.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
