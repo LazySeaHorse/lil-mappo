@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
 import { Button } from "@/components/ui/button";
 import { IconButton } from '@/components/ui/icon-button';
@@ -41,6 +42,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
     handleDelete,
     handleConfirmDelete,
   } = useProjectLibrary(open, onClose);
+  const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
 
   return (
     <>
@@ -145,6 +147,10 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
         projects={projects}
         isMutating={isMutating}
         onCancel={() => setPendingUploadProject(null)}
+        onUpgrade={() => {
+          setPendingUploadProject(null);
+          openUpgradeModal();
+        }}
         onReplaceAndUpload={handleDeleteAndRetryUpload}
       />
 

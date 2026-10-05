@@ -6,6 +6,7 @@ import {
   clamp,
   destinationPoint,
   lerp,
+  liftBearing,
   lngLatToMerc,
   mercToLngLat,
   metersPerMerc,
@@ -26,7 +27,13 @@ import {
 
 export type AutoCamOutput =
   | { type: 'jumpTo'; center: [number, number]; zoom: number; pitch: number; bearing: number }
-  | { type: 'freeCam'; position: [number, number, number]; lookAt: [number, number] };
+  | {
+      type: 'freeCam';
+      position: [number, number, number];
+      lookAt: [number, number];
+      /** Facing in degrees, unwrapped so it varies continuously along the route. */
+      bearing?: number;
+    };
 
 export interface CameraRig {
   total: number;
@@ -397,7 +404,8 @@ function followPose(rig: CameraRig, config: AutoCamConfig, params: RigSamplePara
   const position = destinationPoint(st.ahead, distance, bearing + 180);
   const pose = poseFromFreeCam([position[0], position[1], Math.max(1, height)], st.ahead);
   // The vehicle's own heading fixes the facing even when the camera sits directly above it.
-  pose.bearing = ((bearing % 360) + 360) % 360;
+  // Left unwrapped so a blend can follow it without flipping direction as it crosses 360.
+  pose.bearing = bearing;
   return pose;
 }
 
@@ -405,14 +413,20 @@ function withShots(rig: CameraRig, config: AutoCamConfig, params: RigSampleParam
   const intro = clamp(resolve(config.intro, 0), 0, 1);
   const outro = clamp(resolve(config.outro, 0), 0, 1);
   let out = pose;
+  // The overview turns the way that is shortest at the shot's fixed end, not wherever the
+  // follow shot happens to face this frame, so the turn can't change direction mid-blend.
+  const overviewAt = (edge: 0 | 1): CameraPose => ({
+    ...rig.overview,
+    bearing: liftBearing(rig.overview.bearing, followPose(rig, config, { ...params, u: edge, p: edge }).bearing),
+  });
   if (intro > 0 && !params.skipShots?.intro && params.p < INTRO_FRACTION) {
     // Start wide and settle into the follow shot.
     const t = 1 - smootherstep(params.p / INTRO_FRACTION);
-    out = blendPoses(out, rig.overview, t * intro);
+    out = blendPoses(out, overviewAt(0), t * intro);
   }
   if (outro > 0 && !params.skipShots?.outro && params.p > 1 - OUTRO_FRACTION) {
     const t = smootherstep((params.p - (1 - OUTRO_FRACTION)) / OUTRO_FRACTION);
-    out = blendPoses(out, rig.overview, t * outro);
+    out = blendPoses(out, overviewAt(1), t * outro);
   }
   return out;
 }
@@ -421,7 +435,7 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
   if (config.mode === 'cinematic') {
     const pose = withShots(rig, config, params, followPose(rig, config, params));
     const { position, lookAt } = poseToFreeCam(pose);
-    return { type: 'freeCam', position, lookAt };
+    return { type: 'freeCam', position, lookAt, bearing: pose.bearing };
   }
 
   const dynamics = clamp(resolve(config.dynamics, 0.5), 0, 1);
@@ -435,7 +449,8 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
     center: st.ahead,
     zoom: clamp(zoom, 0, 22),
     pitch: config.pitch,
-    bearing: ((st.heading % 360) + 360) % 360,
+    // Unwrapped, like the free camera's, so blends to and from it stay continuous.
+    bearing: st.heading,
   };
 }
 

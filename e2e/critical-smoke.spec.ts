@@ -118,7 +118,7 @@ async function pickMapPoint(page: Page, pickerIndex = 0, position = { x: 720, y:
 }
 
 async function openMenu(page: Page) {
-  await page.getByTitle("Menu").click();
+  await page.getByTitle("li'l Mappo menu").click();
 }
 
 async function unlockLocalProjects(page: Page) {
@@ -144,7 +144,7 @@ test("1. app opens without a blank screen or fatal browser errors", async ({ pag
 
   await openEditor(page);
 
-  await expect(page.getByAltText("li'l Mappo Logo")).toBeVisible();
+  await expect(page.getByTitle("li'l Mappo menu")).toBeVisible();
   await expect(page.getByTitle("Export")).toBeVisible();
   expect(fatalErrors).toEqual([]);
 });

@@ -56,4 +56,23 @@ describe('auth modal working-draft handoff', () => {
       authModalMode: 'signup',
     });
   });
+
+  it('keeps the reason from requestSignIn and clears it on a plain open', () => {
+    useAuthStore.getState().requestSignIn('Sign in to export your video.');
+    expect(useAuthStore.getState()).toMatchObject({
+      showAuthModal: true,
+      authModalMode: 'signin',
+      authModalReason: 'Sign in to export your video.',
+    });
+    expect(flushWorkingProjectDraft).toHaveBeenCalledOnce();
+
+    useAuthStore.getState().openAuthModal();
+    expect(useAuthStore.getState().authModalReason).toBeNull();
+  });
+
+  it('drops a stale reason when sign-up opens', () => {
+    useAuthStore.getState().requestSignIn('Sign in to export your video.');
+    useAuthStore.getState().openSignupModal();
+    expect(useAuthStore.getState().authModalReason).toBeNull();
+  });
 });

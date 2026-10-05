@@ -24,12 +24,12 @@ export function useToolbarActions() {
   } = projectState;
 
   const { data: subscription } = useSubscription();
-  const { user, openAuthModal } = useAuthStore();
+  const { user, requestSignIn } = useAuthStore();
   const isLocked = !user && !hasByok();
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {
-      openAuthModal();
+      requestSignIn('Sign in to import a route.');
       e.target.value = '';
       return;
     }
@@ -59,11 +59,11 @@ export function useToolbarActions() {
       }
     }
     e.target.value = '';
-  }, [playheadTime, addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, openAuthModal]);
+  }, [playheadTime, addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn]);
 
   const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {
-      openAuthModal();
+      requestSignIn('Sign in to import a project file.');
       e.target.value = '';
       return;
     }
@@ -82,7 +82,7 @@ export function useToolbarActions() {
 
   const handleExportProject = () => {
     if (isLocked) {
-      openAuthModal();
+      requestSignIn('Sign in to export a project file.');
       return;
     }
     const data = JSON.stringify(toProjectDocument(projectState), null, 2);
@@ -93,7 +93,7 @@ export function useToolbarActions() {
 
   const handleSaveToLibrary = async () => {
     if (isLocked) {
-      openAuthModal();
+      requestSignIn('Sign in to save to your library.');
       return;
     }
     const project = toProjectDocument(projectState);

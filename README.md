@@ -11,6 +11,7 @@ li'l Mappo is a browser-based application for creating cinematic map animations 
 - **Automated Routing**: Generate car, walking, or flight paths with Mapbox Directions and Great Circle math.
 - **Freeform Walking Paths**: Multi-point routes with interactive waypoints, drag-to-reorder, and Bezier spline curve smoothing.
 - **Airport Search**: Search 7,697 global airports by IATA or ICAO code with automatic runway snapping.
+- **Airport Route Links**: `/routes/jfk-to-lhr` opens a new project with a 3D flight route between two airports and AutoCam on (see `LLM-START-HERE.md`).
 - **3D Vehicles**: Display animated 3D cars and airplanes that follow route paths and orientation.
 - **Animated Lines**: Draw lines progressively over time with customizable width, colors, and glow effects.
 

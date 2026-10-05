@@ -91,7 +91,7 @@ async function openEditor(page: Page, options: { dismissWalkthrough?: boolean } 
 }
 
 async function openMenu(page: Page) {
-  await page.getByTitle("Menu").click();
+  await page.getByTitle("li'l Mappo menu").click();
 }
 
 async function unlockLocalProjects(page: Page) {

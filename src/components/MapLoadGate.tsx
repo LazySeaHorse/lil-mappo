@@ -1,9 +1,9 @@
 import React from 'react';
-import { MapPin, Calendar, RefreshCw } from 'lucide-react';
+import { Mappo } from '@/components/Mappo/Mappo';
+import type { MappoMood } from '@/components/Mappo/moods';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMapLoadGate } from '@/hooks/useMapLoadGate';
-import { GUEST_LOAD_LIMIT } from '@/lib/cloudAccess';
 import { isAppOwnKey, BYOK_STORAGE_KEY } from '@/config/mapbox';
 import secureLocalStorage from "react-secure-storage";
 
@@ -26,7 +26,7 @@ export function MapLoadGate({
   gate,
   children,
 }: MapLoadGateProps & { gate: ReturnType<typeof useMapLoadGate> }) {
-  const { openAuthModal } = useAuthStore();
+  const { openAuthModal, openUpgradeModal } = useAuthStore();
 
   // While auth is loading, render nothing (map stays unmounted — no API call)
   if (!gate.ready) return null;
@@ -35,8 +35,8 @@ export function MapLoadGate({
     return (
       <MapLoadBlockedScreen
         reason={gate.reason!}
-        guestLoadsUsed={gate.guestLoadsUsed}
         onSignIn={openAuthModal}
+        onUpgrade={openUpgradeModal}
       />
     );
   }
@@ -46,31 +46,31 @@ export function MapLoadGate({
 
 // ─── Blocked screen ───────────────────────────────────────────────────────────
 
+const BLOCKED_MOOD: Record<'guest_limit' | 'daily_throttled' | 'monthly_exhausted' | 'quota_error', MappoMood> = {
+  guest_limit: 'sleepy',
+  daily_throttled: 'sleepy',
+  monthly_exhausted: 'sleepy',
+  quota_error: 'inquisitive',
+};
+
 function MapLoadBlockedScreen({
   reason,
-  guestLoadsUsed,
   onSignIn,
+  onUpgrade,
 }: {
   reason: 'guest_limit' | 'daily_throttled' | 'monthly_exhausted' | 'quota_error';
-  guestLoadsUsed: number;
   onSignIn: () => void;
+  onUpgrade: () => void;
 }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm z-50 gap-6 p-6 text-center">
-      <div className="p-4 bg-primary/10 rounded-2xl border border-primary/20 shadow-lg">
-        {reason === 'monthly_exhausted' ? (
-          <Calendar className="w-10 h-10 text-primary" />
-        ) : reason === 'quota_error' ? (
-          <RefreshCw className="w-10 h-10 text-primary" />
-        ) : (
-          <MapPin className="w-10 h-10 text-primary" />
-        )}
-      </div>
+      <Mappo mood={BLOCKED_MOOD[reason]} title="Mappo" className="h-24 w-auto drop-shadow-lg" />
 
       {reason === 'guest_limit' && (
         <>
           <div className="space-y-2 max-w-sm">
-            <h2 className="text-xl font-medium tracking-tight">Sign in to continue</h2>
+            <h2 className="text-xl font-medium tracking-tight">Mappo is napping</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">Sign in to wake them up.</p>
           </div>
           <Button className="rounded-lg px-8 h-11 font-medium" onClick={onSignIn}>
             Sign in / Create account
@@ -88,7 +88,7 @@ function MapLoadBlockedScreen({
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-lg px-6 h-10 font-medium" onClick={onSignIn}>
+            <Button variant="outline" className="rounded-lg px-6 h-10 font-medium" onClick={onUpgrade}>
               Upgrade
             </Button>
           </div>
@@ -105,7 +105,7 @@ function MapLoadBlockedScreen({
             </p>
           </div>
           <div className="flex gap-3">
-            <Button className="rounded-lg px-6 h-10 font-medium" onClick={onSignIn}>
+            <Button className="rounded-lg px-6 h-10 font-medium" onClick={onUpgrade}>
               Upgrade
             </Button>
             <BYOKQuickEntry />

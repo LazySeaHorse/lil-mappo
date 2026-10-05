@@ -42,8 +42,9 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-export function lerpAngle(a: number, b: number, t: number): number {
-  return (((a + wrapDegrees(b - a) * t) % 360) + 360) % 360;
+/** The equivalent of `bearing` (a whole number of turns away) that lies nearest `reference`. */
+export function liftBearing(bearing: number, reference: number): number {
+  return bearing + 360 * Math.round((reference - bearing) / 360);
 }
 
 export function smootherstep(t: number): number {
@@ -168,6 +169,11 @@ const RHO = Math.SQRT2;
  * (the curve behind Mapbox's flyTo): the camera rises while it travels a long
  * way and settles as it arrives, instead of sliding in a straight line.
  * `t` is the raw 0..1 progress; easing is applied inside.
+ *
+ * Bearings are interpolated as plain numbers, so the turn goes the way the two given values
+ * lie apart: callers lift `b.bearing` (see `liftBearing`) to pick the direction, once, from
+ * a fixed reference. Choosing the shortest way on every call would flip it whenever a moving
+ * endpoint crossed the point opposite the other.
  */
 export function blendPoses(a: CameraPose, b: CameraPose, t: number): CameraPose {
   const tt = smootherstep(t);
@@ -194,8 +200,9 @@ export function blendPoses(a: CameraPose, b: CameraPose, t: number): CameraPose 
     const rho4 = rho2 * rho2;
     const b0 = (w1 * w1 - w0 * w0 + rho4 * u1 * u1) / (2 * w0 * rho2 * u1);
     const b1 = (w1 * w1 - w0 * w0 - rho4 * u1 * u1) / (2 * w1 * rho2 * u1);
-    const r0 = Math.log(Math.sqrt(b0 * b0 + 1) - b0);
-    const r1 = Math.log(Math.sqrt(b1 * b1 + 1) - b1);
+    // ln(√(b²+1) − b) is −asinh(b); asinh stays finite where the subtraction cancels to log(0).
+    const r0 = -Math.asinh(b0);
+    const r1 = -Math.asinh(b1);
     const S = (r1 - r0) / RHO;
     const s = tt * S;
     const u = (w0 / rho2) * Math.cosh(r0) * Math.tanh(RHO * s + r0) - (w0 / rho2) * Math.sinh(r0);
@@ -209,6 +216,6 @@ export function blendPoses(a: CameraPose, b: CameraPose, t: number): CameraPose 
     target: [lng, lat],
     range: clamp(range, MIN_RANGE_M, MAX_RANGE_M),
     pitch: lerp(a.pitch, b.pitch, tt),
-    bearing: lerpAngle(a.bearing, b.bearing, tt),
+    bearing: lerp(a.bearing, b.bearing, tt),
   };
 }

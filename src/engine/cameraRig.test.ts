@@ -5,6 +5,7 @@ import { buildRig, gaussianSmooth, pathDistanceAt, sampleRig, vehicleAt } from '
 import { getLineSegment } from './lineAnimation';
 import { lngLatToMerc, metersPerMerc } from './cameraPose';
 import { getCameraAtTime } from './cameraInterpolation';
+import { blendedPose } from './cameraUtils';
 
 const config: AutoCamConfig = {
   enabled: true, mode: 'cinematic', pitch: 65, smoothing: 0.4, distance: 500, height: 300,
@@ -29,6 +30,15 @@ describe('camera pose', () => {
     const back = poseToJumpTo(poseFromJumpTo(j, 640), 640);
     expect(back.zoom).toBeCloseTo(13.2, 6);
     expect(back.pitch).toBeCloseTo(50, 6);
+  });
+
+  it('stays finite blending a tight shot to a distant wide one', () => {
+    const a: CameraPose = { target: [0, 40], range: 1, pitch: 45, bearing: 0 };
+    const b: CameraPose = { target: [0.01, 40], range: 500000, pitch: 60, bearing: 90 };
+    for (let t = 0.05; t < 1; t += 0.05) {
+      const p = blendPoses(a, b, t);
+      expect([p.range, ...p.target].every(Number.isFinite)).toBe(true);
+    }
   });
 
   it('blends between exact endpoints and stays finite in between', () => {
@@ -146,8 +156,8 @@ describe('getCameraAtTime with an auto camera', () => {
   const route = {
     kind: 'route', id: 'r1', startTime: 10, endTime: 20, easing: 'linear', autoCam: config,
   } as unknown as RouteItem;
-  const kf = (id: string, time: number): CameraKeyframe => ({
-    id, time, camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null }, easing: 'linear', followRoute: null,
+  const kf = (id: string, time: number, zoom = 10): CameraKeyframe => ({
+    id, time, camera: { center: [0, 0], zoom, pitch: 0, bearing: 0, altitude: null }, easing: 'linear', followRoute: null,
   });
   const coords = () => corner;
 
@@ -175,10 +185,11 @@ describe('getCameraAtTime with an auto camera', () => {
     });
 
     it('starts and ends the move exactly on the keyframe pose', () => {
-      const entry = getCameraAtTime(kfs, 10, coords, [shots(1, 1)]);
+      const entry = getCameraAtTime(kfs, 0, coords, [shots(1, 1)]);
       expect(entry).toMatchObject({ type: 'blend', t: 0, from: { type: 'jumpTo', zoom: 10 } });
-      const exit = getCameraAtTime(kfs, 20, coords, [shots(1, 1)]);
-      expect(exit).toMatchObject({ type: 'blend', t: 1, to: { type: 'jumpTo', zoom: 10 } });
+      const exit = getCameraAtTime(kfs, 29.999, coords, [shots(1, 1)]);
+      expect(exit).toMatchObject({ type: 'blend', to: { type: 'jumpTo', zoom: 10 } });
+      expect((exit as { t: number }).t).toBeCloseTo(1, 3);
     });
 
     it('takes longer the stronger the intro and outro are', () => {
@@ -197,8 +208,113 @@ describe('getCameraAtTime with an auto camera', () => {
     });
   });
 
+  describe('leading in from the previous keyframe', () => {
+    const blendT = (cam: ReturnType<typeof getCameraAtTime>) => {
+      if (cam?.type !== 'blend') throw new Error(`expected a blend, got ${cam?.type}`);
+      return cam.t;
+    };
+
+    it('starts moving toward the block as soon as the keyframe passes', () => {
+      const kfs = [kf('a', 0)];
+      expect(getCameraAtTime(kfs, 0, coords, [route])).toMatchObject({ type: 'blend', t: 0, from: { type: 'jumpTo', zoom: 10 } });
+      const t = blendT(getCameraAtTime(kfs, 5, coords, [route]));
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThan(1);
+    });
+
+    it('carries one move across the start of the block', () => {
+      const kfs = [kf('a', 0)];
+      const before = blendT(getCameraAtTime(kfs, 9.99, coords, [route]));
+      const after = blendT(getCameraAtTime(kfs, 10.01, coords, [route]));
+      expect(after).toBeGreaterThan(before);
+      expect(after - before).toBeLessThan(0.01);
+    });
+
+    it('aims at the block, not a keyframe on the far side of it', () => {
+      const cam = getCameraAtTime([kf('a', 0), kf('b', 30, 4)], 5, coords, [route]);
+      expect(cam).toMatchObject({ type: 'blend', from: { type: 'jumpTo', zoom: 10 }, to: { type: 'freeCam' } });
+    });
+
+    it('leaves a keyframe-to-keyframe move before the block alone', () => {
+      const cam = getCameraAtTime([kf('a', 0), kf('b', 6, 4)], 3, coords, [route]);
+      expect(cam).toMatchObject({ type: 'jumpTo', zoom: 7 });
+    });
+  });
+
+  describe('leading out to the next keyframe', () => {
+    const blendT = (cam: ReturnType<typeof getCameraAtTime>) => {
+      if (cam?.type !== 'blend') throw new Error(`expected a blend, got ${cam?.type}`);
+      return cam.t;
+    };
+
+    it('keeps moving after the block until the keyframe arrives', () => {
+      const kfs = [kf('b', 30, 4)];
+      const t = blendT(getCameraAtTime(kfs, 25, coords, [route]));
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThan(1);
+      expect(getCameraAtTime(kfs, 30, coords, [route])).toMatchObject({ type: 'jumpTo', zoom: 4 });
+    });
+
+    it('carries one move across the end of the block', () => {
+      const kfs = [kf('b', 30, 4)];
+      const before = blendT(getCameraAtTime(kfs, 19.99, coords, [route]));
+      const after = blendT(getCameraAtTime(kfs, 20.01, coords, [route]));
+      expect(after).toBeGreaterThan(before);
+      expect(after - before).toBeLessThan(0.01);
+    });
+
+    it('leaves from the block, not a keyframe before it', () => {
+      const cam = getCameraAtTime([kf('a', 0), kf('b', 30, 4)], 25, coords, [route]);
+      expect(cam).toMatchObject({ type: 'blend', from: { type: 'freeCam' }, to: { type: 'jumpTo', zoom: 4 } });
+    });
+
+    it('leaves a keyframe-to-keyframe move after the block alone', () => {
+      const cam = getCameraAtTime([kf('b', 24, 10), kf('c', 30, 4)], 27, coords, [route]);
+      expect(cam).toMatchObject({ type: 'jumpTo', zoom: 7 });
+    });
+  });
+
   it('holds the final shot after the block when no keyframe follows', () => {
     const cam = getCameraAtTime([kf('a', 0)], 25, coords, [route]);
     expect(cam?.type).toBe('freeCam');
+  });
+});
+
+describe('bearing through a lead-in and lead-out', () => {
+  // A long road heading roughly south that wiggles, so its heading crosses the bearing
+  // directly opposite the keyframes' while the camera is still blending.
+  const wiggle: number[][] = Array.from({ length: 400 }, (_, i) => [
+    -111.9 - 0.0005 * i + 0.1 * Math.sin(i / 30),
+    40.7 - 0.0045 * i,
+  ]);
+  const route = {
+    kind: 'route', id: 'r1', startTime: 3, endTime: 117.5, easing: 'easeInOutQuad',
+    autoCam: { ...config, pitch: 65, smoothing: 0.5, distance: 550, height: 420, zoom: 17, orbit: 0.2, intro: 1, outro: 1 },
+  } as unknown as RouteItem;
+  const kf = (id: string, time: number, bearing: number, center: [number, number]): CameraKeyframe => ({
+    id, time, camera: { center, zoom: 3, pitch: 0, bearing, altitude: null }, easing: 'easeInOutCubic', followRoute: null,
+  });
+
+  const maxBearingStep = (kfs: CameraKeyframe[], from: number, to: number) => {
+    let max = 0;
+    let prev: number | null = null;
+    for (let time = from; time <= to; time += 0.02) {
+      const cam = getCameraAtTime(kfs, time, () => wiggle, [route]);
+      if (cam?.type !== 'blend') throw new Error(`expected a blend at ${time}`);
+      const { bearing } = blendedPose(cam, 800);
+      if (prev !== null) max = Math.max(max, Math.abs(wrap(bearing - prev)));
+      prev = bearing;
+    }
+    return max;
+  };
+
+  it('does not flip while leading in to a route the keyframe faces away from', () => {
+    const kfs = [kf('a', 0, -17, [-96.9, 31.7]), kf('b', 122.7, -26.3, [-85.8, 39.2])];
+    expect(maxBearingStep(kfs, 0, 25.9)).toBeLessThan(2);
+  });
+
+  it('does not flip while leading out to a keyframe that faces away from the route', () => {
+    const kfs = [kf('a', 0, 8.767, [-96.9, 31.7]), kf('b', 122.7, -26.3, [-85.8, 39.2])];
+    expect(maxBearingStep(kfs, 100, 122.7)).toBeLessThan(2);
   });
 });

@@ -301,4 +301,26 @@ describe('TimingControls', () => {
     expect(screen.getByText('After end')).toBeInTheDocument();
     expect(screen.getByText('Fade out')).toBeInTheDocument();
   });
+
+  it('sends plan-locked options to onLockedSelect instead of onChange', () => {
+    const onChange = vi.fn();
+    const onLockedSelect = vi.fn();
+    render(
+      <VisualCardSelect
+        options={[
+          { value: 'dot', label: 'Dot' },
+          { value: 'car', label: 'Car', badge: 'PRO', locked: true },
+        ]}
+        value="dot"
+        onChange={onChange}
+        onLockedSelect={onLockedSelect}
+      />
+    );
+
+    const car = screen.getByText('Car').closest('button')!;
+    expect(car).not.toBeDisabled();
+    fireEvent.click(car);
+    expect(onLockedSelect).toHaveBeenCalledWith('car');
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

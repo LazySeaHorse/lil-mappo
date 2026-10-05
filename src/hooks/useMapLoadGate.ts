@@ -8,6 +8,7 @@ import {
   isGuestBlocked,
   incrementGuestLoadCount,
   getGuestLoadCount,
+  claimDeepLinkGuestExemption,
   GUEST_LOAD_LIMIT,
 } from '@/lib/cloudAccess';
 import { BYOK_STORAGE_KEY, MAPBOX_TOKEN, isAppOwnKey } from '@/config/mapbox';
@@ -38,7 +39,16 @@ export interface MapLoadGateState {
   mapboxToken: string;
 }
 
-export function useMapLoadGate(): MapLoadGateState {
+export interface MapLoadGateOptions {
+  /**
+   * True when this page load arrived through a valid airport-route deep link.
+   * A guest over the load cap is let through once per browser session instead
+   * of being shown the sign-in wall. Has no effect on signed-in users.
+   */
+  deepLinkEntry?: boolean;
+}
+
+export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {}): MapLoadGateState {
   const { isLoading: authLoading, session } = useAuthStore();
   const { data: subscription, isLoading: subLoading } = useSubscription();
 
@@ -75,7 +85,7 @@ export function useMapLoadGate(): MapLoadGateState {
     if (!session) {
       const count = getGuestLoadCount();
       setGuestLoadsUsed(count);
-      if (count >= GUEST_LOAD_LIMIT) {
+      if (count >= GUEST_LOAD_LIMIT && !(deepLinkEntry && claimDeepLinkGuestExemption())) {
         setBlocked(true);
         setReason('guest_limit');
       }
@@ -111,7 +121,7 @@ export function useMapLoadGate(): MapLoadGateState {
         setReason('quota_error');
         setReady(true);
       });
-  }, [authLoading, session, subLoading, subscription]);
+  }, [authLoading, session, subLoading, subscription, deepLinkEntry]);
 
   const onMapLoaded = () => {
     // For guests: increment the secureLocalStorage counter after the map loads

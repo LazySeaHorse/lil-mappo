@@ -4,15 +4,16 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hasByok } from '@/lib/cloudAccess';
 import { useToolbarActions } from '@/components/Toolbar/useToolbarActions';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Mappo } from '@/components/Mappo/Mappo';
+import { accountMood } from '@/components/Mappo/moods';
+import { useSubscription } from '@/hooks/useSubscription';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
-  ChevronDown, Settings2, Clapperboard, LogIn, LogOut, UserCircle, Lock,
+  ChevronDown, Settings2, Clapperboard, LogIn, LogOut, Lock,
   Compass,
 } from 'lucide-react';
 
@@ -29,46 +30,44 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
-  const { user, openAuthModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
+  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
   const { selectItem, setProjectSettingsTab } = useProjectStore();
   const actions = useToolbarActions();
+  const { data: subscription } = useSubscription();
   const isLocked = !user && !hasByok();
+  const mood = accountMood({ signedIn: !!user, subscription });
+  const tierLabel = !user ? 'Guest' : mood === 'explorer' ? 'Wanderer' : 'Free';
+  const accountName = user ? (user.displayName || user.email) : "Exploring as a guest";
 
   // Run an action once the menu has finished closing. Radix refocuses the menu content
   // as the pointer leaves an item, which steals focus from a dialog that opened alongside it.
   const afterCloseRef = useRef<(() => void) | null>(null);
   const afterClose = (fn: () => void) => () => { afterCloseRef.current = fn; };
 
-  const gatedClick = (fn: () => void) => {
-    if (isLocked) openAuthModal();
+  const gatedClick = (reason: string, fn: () => void) => {
+    if (isLocked) requestSignIn(reason);
     else fn();
   };
-
-  const initials = user?.displayName
-    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : user?.email
-      ? user.email[0].toUpperCase()
-      : null;
 
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-8 ${isMobile || isTablet ? 'px-1' : 'px-1.5'} flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0 transition-all hover:bg-primary/5 hover:text-primary`}
-          title="Menu"
+        {/* Plain <button>: the shared Button forces every child svg to 16px with no pointer events. */}
+        <button
+          type="button"
+          className={`group relative h-10 ${isMobile ? 'pl-[34px]' : 'pl-[38px]'} pr-1.5 inline-flex shrink-0 items-center gap-1.5 rounded-lg text-sm font-medium tracking-tight outline-none transition-all hover:bg-primary/5 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:bg-primary/5`}
+          title="li'l Mappo menu"
         >
-          <Avatar className="h-6 w-6 border border-border/50">
-            {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName || user.email} />}
-            <AvatarFallback className="text-[10px] font-medium bg-primary/10 text-primary">
-              {initials || <UserCircle size={14} className="text-muted-foreground" />}
-            </AvatarFallback>
-          </Avatar>
+          {/* Sits outside the button's layout so it can outgrow it; clicks still bubble to the trigger. */}
+          <Mappo
+            mood={mood}
+            className={`absolute left-1.5 top-1/2 w-auto origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1 ${isMobile ? 'h-6 -mt-3' : 'h-7 -mt-3.5'}`}
+          />
           {!isMobile && !isTablet && (
-            <ChevronDown size={14} className="opacity-50" />
+            <span className="hidden xl:inline-block">li'l Mappo</span>
           )}
-        </Button>
+          <ChevronDown size={14} className="opacity-50 transition-transform group-data-[state=open]:rotate-180" />
+        </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
@@ -80,6 +79,25 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         }}
         className="w-56 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl"
       >
+        {/* ─── Who's driving ─── */}
+        <div className="flex items-center gap-2.5 px-3 pt-3 pb-2.5">
+          <Mappo mood={mood} className="h-11 w-auto shrink-0 mt-2" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium leading-tight">{accountName}</div>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="rounded-full bg-primary/10 px-1.5 py-px font-medium text-primary">{tierLabel}</span>
+              {user && mood !== 'explorer' && (
+                <DropdownMenuItem asChild onClick={afterClose(openUpgradeModal)}>
+                  <button type="button" className="cursor-pointer outline-none hover:text-primary hover:underline focus-visible:text-primary focus-visible:underline">
+                    Upgrade
+                  </button>
+                </DropdownMenuItem>
+              )}
+            </div>
+          </div>
+        </div>
+        <DropdownMenuSeparator className="bg-border/50 mx-1" />
+
         {/* ─── Project Section ─── */}
         <DropdownMenuLabel className="text-xs font-medium text-foreground/80 px-3 pt-2.5 pb-1">
           Project
@@ -101,7 +119,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
             <FileJson size={14} /> Export Project File
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => gatedClick(onImportProjectClick)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={() => gatedClick('Sign in to import a project file.', onImportProjectClick)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Upload size={14} /> Import Project File
             {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
           </DropdownMenuItem>

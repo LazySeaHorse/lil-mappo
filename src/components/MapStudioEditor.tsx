@@ -39,6 +39,8 @@ import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
+import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
+import type { RouteDeepLinkRequest } from "@/services/routeDeepLink";
 import type { Subscription } from "@/lib/database.types";
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
@@ -98,7 +100,14 @@ function ZenModeControls({
   );
 }
 
-export default function MapStudioEditor() {
+interface MapStudioEditorProps {
+  /** Set when the page was opened from an airport-route deep link (`/routes/:slug`). */
+  routeDeepLink?: RouteDeepLinkRequest | null;
+  /** Called once the deep link has been applied or rejected, so the URL can be cleaned up. */
+  onRouteDeepLinkSettled?: () => void;
+}
+
+export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkSettled }: MapStudioEditorProps = {}) {
   const mapRef = useRef<MapRef | null>(null);
   const runtimeRef: MapSceneRuntimeRef = useRef(null);
   // The AI tool layer runs outside React and needs the live map and scene runtime.
@@ -115,10 +124,11 @@ export default function MapStudioEditor() {
   const [isMapReady, setIsMapReady] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   const isWorkingDraftReady = useWorkingProjectDraft();
+  const deepLink = useRouteDeepLink(routeDeepLink, isWorkingDraftReady, onRouteDeepLinkSettled ?? (() => {}));
   usePlayback(mapRef);
   useHistoryShortcuts();
-  const mapLoadGate = useMapLoadGate();
-  const { user, openAuthModal } = useAuthStore();
+  const mapLoadGate = useMapLoadGate({ deepLinkEntry: deepLink.isEntry });
+  const { user, requestSignIn } = useAuthStore();
   const isLocked = !user && !hasByok();
   const { data: subscription } = useSubscription();
   // Track whether we've synced for this user session to avoid repeat syncs
@@ -159,7 +169,7 @@ export default function MapStudioEditor() {
 
   const sonnerStyle = useSonnerPosition({ isMobile });
 
-  if (!isWorkingDraftReady) {
+  if (!isWorkingDraftReady || !deepLink.ready) {
     return <div className="h-dvh w-screen bg-background" />;
   }
 
@@ -196,7 +206,7 @@ export default function MapStudioEditor() {
               useWalkthroughStore.getState().recordExportOpened();
             }}
             onLibrary={() => {
-              if (isLocked) openAuthModal();
+              if (isLocked) requestSignIn('Sign in to open your projects.');
               else setShowLibrary(true);
             }}
             onWalkthrough={() => {

@@ -8,6 +8,7 @@ interface VercelHeader {
 }
 
 interface VercelConfig {
+  rewrites?: Array<{ source: string; destination: string }>;
   headers?: Array<{
     source: string;
     headers: VercelHeader[];
@@ -73,5 +74,20 @@ describe('Vercel Content-Security-Policy', () => {
     expect(directives.get('base-uri')).toEqual(["'self'"]);
     expect(directives.get('frame-ancestors')).toEqual(["'none'"]);
     expect(directives.get('form-action')).toEqual(["'self'"]);
+  });
+});
+
+describe('Vercel airport-route deep links', () => {
+  const config = () => JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as VercelConfig;
+
+  it('serves the SPA shell for /routes/:slug and nothing broader', () => {
+    expect(config().rewrites).toEqual([{ source: '/routes/:slug', destination: '/index.html' }]);
+  });
+
+  it('marks /routes/* noindex without touching the global security headers', () => {
+    const entries = config().headers ?? [];
+    const routes = entries.find(({ source }) => source === '/routes/:path*');
+    expect(routes?.headers).toEqual([{ key: 'X-Robots-Tag', value: 'noindex' }]);
+    expect(entries.find(({ source }) => source === '/(.*)')).toBeDefined();
   });
 });

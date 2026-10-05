@@ -57,9 +57,15 @@ function viewportHeight(map: mapboxgl.Map, zoomOffset: number): number {
 }
 
 function toPose(cam: PlainCamera, refHeight: number): CameraPose {
-  return cam.type === 'freeCam'
-    ? poseFromFreeCam(cam.position, cam.lookAt)
-    : poseFromJumpTo(cam, refHeight);
+  if (cam.type === 'jumpTo') return poseFromJumpTo(cam, refHeight);
+  const pose = poseFromFreeCam(cam.position, cam.lookAt);
+  // The camera's own unwrapped bearing, when it has one, rather than the one re-derived from its position.
+  return cam.bearing === undefined ? pose : { ...pose, bearing: cam.bearing };
+}
+
+/** The pose a blend shows, as the renderer computes it. */
+export function blendedPose(cam: Extract<CameraOutput, { type: 'blend' }>, refHeight: number): CameraPose {
+  return blendPoses(toPose(cam.from, refHeight), toPose(cam.to, refHeight), cam.t);
 }
 
 function applyJumpTo(
@@ -77,7 +83,7 @@ export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0
   if (cam.type === 'blend') {
     if (!isFiniteCamera(cam.from) || !isFiniteCamera(cam.to) || !Number.isFinite(cam.t)) return;
     const refHeight = viewportHeight(map, zoomOffset);
-    const pose = blendPoses(toPose(cam.from, refHeight), toPose(cam.to, refHeight), cam.t);
+    const pose = blendedPose(cam, refHeight);
     if (cam.from.type === 'jumpTo' && cam.to.type === 'jumpTo') {
       applyJumpTo(map, poseToJumpTo(pose, refHeight), zoomOffset);
     } else {

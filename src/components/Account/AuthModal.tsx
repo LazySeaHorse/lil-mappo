@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { isAllowedEmailDomain } from "@/lib/emailAllowlist";
 import {
@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
+import { Mappo } from "@/components/Mappo/Mappo";
+import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
 import { Loader2, Eye, EyeOff, Mail } from "lucide-react";
 import { toast } from "sonner";
 
@@ -50,7 +52,7 @@ function AppleIcon() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AuthModal() {
-  const { showAuthModal, authModalMode, closeAuthModal, openAuthModal, openSignupModal } =
+  const { showAuthModal, authModalMode, authModalReason, closeAuthModal, openAuthModal, openSignupModal } =
     useAuthStore();
 
   const handleOpenChange = (open: boolean) => {
@@ -58,6 +60,7 @@ export function AuthModal() {
   };
 
   const isSignup = authModalMode === "signup";
+  const [mood, setMood] = useState<MappoMood>(isSignup ? "curious" : "inquisitive");
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
@@ -65,10 +68,11 @@ export function AuthModal() {
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
           <DialogHeader>
             <div className="flex items-center justify-center gap-3 mb-2">
-              <img
-                src={`${import.meta.env.BASE_URL}logo.svg`}
-                className="h-16 w-auto"
-                alt="li'l Mappo"
+              <Mappo
+                key={mood}
+                mood={mood}
+                title="li'l Mappo"
+                className="h-16 w-auto animate-in zoom-in-95 duration-200"
               />
             </div>
             <DialogTitle className="text-2xl font-medium tracking-tight text-center">
@@ -77,7 +81,7 @@ export function AuthModal() {
             <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
               {isSignup
                 ? "Create an account to continue to payment."
-                : "Sign in to continue."}
+                : authModalReason ?? "Sign in to continue."}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -85,6 +89,7 @@ export function AuthModal() {
         <div className="px-6 pb-6">
           <AuthModalBody
             isSignup={isSignup}
+            onMoodChange={setMood}
             onSwitchToSignin={() => {
               closeAuthModal();
               setTimeout(() => openAuthModal(), 150);
@@ -104,10 +109,12 @@ export function AuthModal() {
 
 function AuthModalBody({
   isSignup,
+  onMoodChange,
   onSwitchToSignin,
   onSwitchToSignup,
 }: {
   isSignup: boolean;
+  onMoodChange: (mood: MappoMood) => void;
   onSwitchToSignin: () => void;
   onSwitchToSignup: () => void;
 }) {
@@ -116,6 +123,15 @@ function AuthModalBody({
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sentState, setSentState] = useState<"idle" | "confirm_email">("idle");
+  const [phase, setPhase] = useState<AuthFormPhase>("editing");
+
+  const mood = authMood({
+    isSignup,
+    email,
+    password,
+    phase: sentState === "confirm_email" ? "confirm_email" : phase,
+  });
+  useEffect(() => onMoodChange(mood), [mood, onMoodChange]);
 
   const canSubmit = email.trim() !== "" && password !== "";
 
@@ -123,6 +139,7 @@ function AuthModalBody({
     e.preventDefault();
     if (!canSubmit) return;
     setIsSubmitting(true);
+    setPhase("submitting");
 
     try {
       if (isSignup) {
@@ -130,6 +147,7 @@ function AuthModalBody({
         // but this gives immediate feedback before the network round-trip.
         if (!isAllowedEmailDomain(email.trim())) {
           toast.error("This email cannot be used.");
+          setPhase("error");
           setIsSubmitting(false);
           return;
         }
@@ -144,6 +162,7 @@ function AuthModalBody({
         if (!data.session) {
           setSentState("confirm_email");
         }
+        setPhase("success");
         // If session exists, onAuthStateChange fires → modal auto-closes
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -151,12 +170,14 @@ function AuthModalBody({
           password,
         });
         if (error) throw error;
+        setPhase("success");
         // onAuthStateChange → SIGNED_IN → modal auto-closes
       }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Authentication failed";
       toast.error(message);
+      setPhase("error");
     } finally {
       setIsSubmitting(false);
     }
@@ -166,6 +187,7 @@ function AuthModalBody({
     setEmail("");
     setPassword("");
     setSentState("idle");
+    setPhase("editing");
   };
 
   // ── Sent / confirm states ──────────────────────────────────────────────────
@@ -235,7 +257,7 @@ function AuthModalBody({
           type="email"
           placeholder="you@email.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => { setEmail(e.target.value); setPhase("editing"); }}
           className="h-10 rounded-lg bg-secondary/30 border-border/50 text-sm placeholder:text-muted-foreground/50"
           autoFocus
         />
@@ -245,7 +267,7 @@ function AuthModalBody({
             type={showPassword ? "text" : "password"}
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => { setPassword(e.target.value); setPhase("editing"); }}
             className="h-10 rounded-lg bg-secondary/30 border-border/50 text-sm pr-10 placeholder:text-muted-foreground/50"
           />
           <button
