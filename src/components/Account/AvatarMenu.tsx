@@ -4,7 +4,9 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hasByok } from '@/lib/cloudAccess';
 import { useToolbarActions } from '@/components/Toolbar/useToolbarActions';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Mappo } from '@/components/Mappo/Mappo';
+import { accountMood } from '@/components/Mappo/moods';
+import { useSubscription } from '@/hooks/useSubscription';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup, DropdownMenuLabel,
@@ -12,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
-  ChevronDown, Settings2, Clapperboard, LogIn, LogOut, UserCircle, Lock,
+  ChevronDown, Settings2, Clapperboard, LogIn, LogOut, Lock,
   Compass,
 } from 'lucide-react';
 
@@ -32,7 +34,9 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
   const { user, openAuthModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
   const { selectItem, setProjectSettingsTab } = useProjectStore();
   const actions = useToolbarActions();
+  const { data: subscription } = useSubscription();
   const isLocked = !user && !hasByok();
+  const mood = accountMood({ signedIn: !!user, subscription });
 
   // Run an action once the menu has finished closing. Radix refocuses the menu content
   // as the pointer leaves an item, which steals focus from a dialog that opened alongside it.
@@ -44,30 +48,23 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
     else fn();
   };
 
-  const initials = user?.displayName
-    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : user?.email
-      ? user.email[0].toUpperCase()
-      : null;
-
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
-          className={`h-8 ${isMobile || isTablet ? 'px-1' : 'px-1.5'} flex items-center gap-1.5 text-xs font-medium focus-visible:ring-0 transition-all hover:bg-primary/5 hover:text-primary`}
-          title="Menu"
+          className="group h-9 px-1.5 flex items-center gap-1.5 text-sm font-medium tracking-tight focus-visible:ring-0 transition-all hover:bg-primary/5 hover:text-primary data-[state=open]:bg-primary/5"
+          title="li'l Mappo menu"
         >
-          <Avatar className="h-6 w-6 border border-border/50">
-            {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName || user.email} />}
-            <AvatarFallback className="text-[10px] font-medium bg-primary/10 text-primary">
-              {initials || <UserCircle size={14} className="text-muted-foreground" />}
-            </AvatarFallback>
-          </Avatar>
+          <Mappo
+            mood={mood}
+            className={`${isMobile ? 'h-6' : 'h-7'} w-auto shrink-0 origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1`}
+          />
           {!isMobile && !isTablet && (
-            <ChevronDown size={14} className="opacity-50" />
+            <span className="hidden xl:inline-block">li'l Mappo</span>
           )}
+          <ChevronDown size={14} className="opacity-50 transition-transform group-data-[state=open]:rotate-180" />
         </Button>
       </DropdownMenuTrigger>
 
