@@ -11,7 +11,6 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
   ChevronDown, Settings2, Clapperboard, LogIn, LogOut, Lock,
@@ -53,21 +52,22 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="group h-10 px-1.5 flex items-center gap-1.5 text-sm font-medium tracking-tight focus-visible:ring-0 transition-all hover:bg-primary/5 hover:text-primary data-[state=open]:bg-primary/5"
+        {/* Plain <button>: the shared Button forces every child svg to 16px with no pointer events. */}
+        <button
+          type="button"
+          className={`group relative h-10 ${isMobile ? 'pl-[44px]' : 'pl-[50px]'} pr-1.5 inline-flex shrink-0 items-center gap-1.5 rounded-lg text-sm font-medium tracking-tight outline-none transition-all hover:bg-primary/5 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:bg-primary/5`}
           title="li'l Mappo menu"
         >
+          {/* Sits outside the button's layout so it can outgrow it; clicks still bubble to the trigger. */}
           <Mappo
             mood={mood}
-            className={`${isMobile ? 'h-10' : 'h-12'} -my-2 w-auto shrink-0 origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1`}
+            className={`absolute left-1 top-1/2 w-auto origin-bottom transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:-rotate-3 group-data-[state=open]:-translate-y-1 ${isMobile ? 'h-11 -mt-[22px]' : 'h-[52px] -mt-[26px]'}`}
           />
           {!isMobile && !isTablet && (
             <span className="hidden xl:inline-block">li'l Mappo</span>
           )}
           <ChevronDown size={14} className="opacity-50 transition-transform group-data-[state=open]:rotate-180" />
-        </Button>
+        </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
@@ -81,18 +81,11 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
       >
         {/* ─── Who's driving ─── */}
         <div className="flex items-center gap-2.5 px-3 pt-3 pb-2.5">
-          <Mappo mood={mood} className="h-9 w-auto shrink-0 mt-2" />
+          <Mappo mood={mood} className="h-11 w-auto shrink-0 mt-2" />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium leading-tight">{accountName}</div>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="rounded-full bg-primary/10 px-1.5 py-px font-medium text-primary">{tierLabel}</span>
-              {!user && (
-                <DropdownMenuItem asChild onClick={afterClose(openAuthModal)}>
-                  <button type="button" className="cursor-pointer outline-none hover:text-primary hover:underline focus-visible:text-primary focus-visible:underline">
-                    Sign in
-                  </button>
-                </DropdownMenuItem>
-              )}
               {user && mood !== 'explorer' && (
                 <DropdownMenuItem asChild onClick={afterClose(openUpgradeModal)}>
                   <button type="button" className="cursor-pointer outline-none hover:text-primary hover:underline focus-visible:text-primary focus-visible:underline">
