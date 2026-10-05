@@ -31,6 +31,15 @@ describe('camera pose', () => {
     expect(back.pitch).toBeCloseTo(50, 6);
   });
 
+  it('stays finite blending a tight shot to a distant wide one', () => {
+    const a: CameraPose = { target: [0, 40], range: 1, pitch: 45, bearing: 0 };
+    const b: CameraPose = { target: [0.01, 40], range: 500000, pitch: 60, bearing: 90 };
+    for (let t = 0.05; t < 1; t += 0.05) {
+      const p = blendPoses(a, b, t);
+      expect([p.range, ...p.target].every(Number.isFinite)).toBe(true);
+    }
+  });
+
   it('blends between exact endpoints and stays finite in between', () => {
     const a: CameraPose = { target: [0, 0], range: 500, pitch: 60, bearing: 10 };
     const b: CameraPose = { target: [0.5, 0.2], range: 800, pitch: 20, bearing: 350 };
