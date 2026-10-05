@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/store/useAuthStore';
 import { extractLineCoords } from '@/engine/geoUtils';
 import React from 'react';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ type RouteAnimationType = NonNullable<RouteItem['style']['animationType']>;
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
+  const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const { data: sub } = useSubscription();
   const isPro = sub && (sub.tier === 'wanderer' || sub.tier === 'cartographer' || sub.tier === 'pioneer');
 
@@ -215,11 +217,12 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                     <VisualCardSelect
                       options={[
                         { value: 'dot', label: 'Dot', icon: <Circle size={14} /> },
-                        { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, disabled: !isPro },
-                        { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, disabled: !isPro },
+                        { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
+                        { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
                       ]}
                       value={calc.vehicle?.type || 'dot'}
                       onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
+                      onLockedSelect={openUpgradeModal}
                       columns={3}
                     />
                   </div>

@@ -461,17 +461,21 @@ export interface VisualCardOption<T extends string> {
   icon?: React.ReactNode;
   badge?: string;
   disabled?: boolean;
+  /** Plan-gated: stays clickable, but selecting it calls `onLockedSelect` instead of `onChange`. */
+  locked?: boolean;
 }
 
 export function VisualCardSelect<T extends string>({
   options,
   value,
   onChange,
+  onLockedSelect,
   columns = 4,
 }: {
   options: readonly VisualCardOption<T>[];
   value: T;
   onChange: (v: T) => void;
+  onLockedSelect?: (v: T) => void;
   columns?: number;
 }) {
   const colClass = 
@@ -488,13 +492,15 @@ export function VisualCardSelect<T extends string>({
             key={opt.value}
             type="button"
             disabled={opt.disabled}
-            onClick={() => onChange(opt.value)}
+            aria-disabled={opt.locked || undefined}
+            onClick={() => (opt.locked ? onLockedSelect?.(opt.value) : onChange(opt.value))}
             className={cn(
               "relative flex flex-col items-center justify-center gap-1.5 p-2 py-3 min-h-[58px] rounded-xl border text-center transition-all cursor-pointer select-none",
               isSelected
                 ? "bg-primary/10 border-primary text-primary font-medium shadow-sm ring-1 ring-primary/20"
                 : "bg-secondary/40 hover:bg-secondary/70 border-border/40 text-muted-foreground hover:text-foreground",
-              opt.disabled && "opacity-40 cursor-not-allowed pointer-events-none"
+              opt.disabled && "opacity-40 cursor-not-allowed pointer-events-none",
+              opt.locked && "opacity-60"
             )}
           >
             {opt.icon && (
