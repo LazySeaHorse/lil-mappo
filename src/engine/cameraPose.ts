@@ -42,10 +42,6 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-export function lerpAngle(a: number, b: number, t: number): number {
-  return (((a + wrapDegrees(b - a) * t) % 360) + 360) % 360;
-}
-
 /** The equivalent of `bearing` (a whole number of turns away) that lies nearest `reference`. */
 export function liftBearing(bearing: number, reference: number): number {
   return bearing + 360 * Math.round((reference - bearing) / 360);
