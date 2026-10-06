@@ -46,6 +46,10 @@ export default defineConfig(({ mode }) => {
       ...(mode === 'production'
         ? [
             obfuscatorPlugin({
+              // The analytics module lazy-loads posthog-js via dynamic import(); string-array
+              // encoding would turn that specifier into a runtime expression Rollup cannot
+              // split into a chunk. It carries no limits worth hiding, so skip it.
+              exclude: ['node_modules/**', 'src/lib/analytics/**'],
               options: {
                 compact: true,
                 identifierNamesGenerator: 'hexadecimal',

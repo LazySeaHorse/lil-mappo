@@ -111,7 +111,7 @@ const TimelineTrackRow = React.memo(({
   return (
     <div
       data-agent-item={item.id}
-      className={`flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
+      className={`ph-no-capture flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
       onClick={handleSelect}
     >
       <div className={`w-[160px] shrink-0 sticky left-0 z-10 flex items-center px-4 gap-2.5 border-r border-border/50 bg-background/90 backdrop-blur-sm transition-colors ${isSelected ? 'border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'}`}>

@@ -21,6 +21,8 @@ export interface AuthUser {
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  /** ISO timestamp of account creation (analytics: signed_up_at, date only). */
+  createdAt?: string;
 }
 
 function toAuthUser(user: User): AuthUser {
@@ -33,6 +35,7 @@ function toAuthUser(user: User): AuthUser {
       user.user_metadata?.avatar_url ||
       user.user_metadata?.picture ||
       undefined,
+    createdAt: user.created_at || undefined,
   };
 }
 

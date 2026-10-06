@@ -49,7 +49,7 @@ export const SearchField = ({
   }, [name, setQuery]);
 
   const renderResults = () => (
-    <div className="flex flex-col p-1 max-h-[300px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div className="ph-no-capture flex flex-col p-1 max-h-[300px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {suggestions.map((s) => (
         <button
           key={s.mapbox_id}

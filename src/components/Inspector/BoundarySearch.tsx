@@ -142,7 +142,7 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
             <span className="text-xs font-medium text-foreground/80">Search results</span>
             <Button variant="ghost" size="sm" onClick={() => setResults([])} className="h-5 text-[10px] font-medium text-muted-foreground hover:text-foreground">Clear</Button>
           </div>
-          <div className="max-h-[160px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="ph-no-capture max-h-[160px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {results.map((r, i) => (
               <button 
                 key={i} 

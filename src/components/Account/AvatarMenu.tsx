@@ -80,7 +80,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         className="w-56 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl"
       >
         {/* ─── Who's driving ─── */}
-        <div className="flex items-center gap-2.5 px-3 pt-3 pb-2.5">
+        <div className="ph-no-capture flex items-center gap-2.5 px-3 pt-3 pb-2.5">
           <Mappo mood={mood} className="h-11 w-auto shrink-0 mt-2" />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium leading-tight">{accountName}</div>
