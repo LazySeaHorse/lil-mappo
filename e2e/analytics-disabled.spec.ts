@@ -1,11 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Analytics must stay silent under Playwright: the dev server is not a
- * production build, has no VITE_POSTHOG_KEY, runs on an unlisted host and the
- * browser is automated, so any of those alone keeps PostHog off. This guards
- * against a regression in the gate (including the anonymous guest counters,
- * which bypass the SDK and use a plain fetch to /_m).
+ * Dev-build silence check. Under Playwright the app runs on the dev server:
+ * not a production build, no VITE_POSTHOG_KEY, an unlisted host and an
+ * automated browser, so every gate is closed at once and this test CANNOT tell
+ * which gate (or whether the gate logic) is working. What it does guard is the
+ * observable side effects in a real browser: no request to /_m or PostHog (SDK
+ * or the plain-fetch counters), no SDK chunk download, and no attribution
+ * params consumed from the URL. The individual gates are proven by
+ * src/lib/analytics/gates.test.ts (real resolver, one gate flipped at a time
+ * from an enabled baseline).
  */
 
 const TEST_STYLE = {
@@ -30,7 +34,7 @@ const isAnalyticsRequest = (url: string) => {
   return pathname === "/_m" || pathname.startsWith("/_m/") || /posthog/i.test(hostname) || /posthog/i.test(pathname);
 };
 
-test("sends no analytics traffic during a guest smoke flow", async ({ page }) => {
+test("dev build: no analytics traffic or URL side effects during a guest smoke flow", async ({ page }) => {
   const analyticsRequests: string[] = [];
   page.on("request", (request) => {
     if (isAnalyticsRequest(request.url())) analyticsRequests.push(`${request.method()} ${request.url()}`);
