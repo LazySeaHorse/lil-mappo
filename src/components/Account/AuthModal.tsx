@@ -163,6 +163,8 @@ function AuthModalBody({
     phase: sentState === "confirm_email" ? "confirm_email" : phase,
   });
   useEffect(() => onMoodChange(mood), [mood, onMoodChange]);
+  // A signup intent must not outlive the modal, or a later plain sign-in could be reported as signed_up.
+  useEffect(() => cancelExpectedSignup, []);
   useEffect(
     () => onConfirmEmailChange(sentState === "confirm_email" ? email.trim() : null),
     [sentState, email, onConfirmEmailChange],

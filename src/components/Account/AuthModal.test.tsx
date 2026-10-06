@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -94,6 +94,18 @@ describe('AuthModal anonymous counters', () => {
     render(<AuthModal />);
     submit('a@gmail.com', 'hunter22');
     await waitFor(() => expect(mocks.trackAnonymous).toHaveBeenCalledWith('signup_submitted', { outcome: 'confirm_email' }));
+    expect(consumeExpectedSignup()).toBe(false);
+  });
+
+  it('clears a dangling new-account flag when the modal closes, so a later sign-in is not reported as signed_up', async () => {
+    useAuthStore.setState({ showAuthModal: true, authModalMode: 'signup' });
+    // signUp returns a session but SIGNED_IN never arrives (nothing consumes the flag).
+    mocks.signUp.mockResolvedValue({ data: { session: { access_token: 't' } }, error: null });
+    render(<AuthModal />);
+    submit('a@gmail.com', 'hunter22');
+    await waitFor(() => expect(mocks.trackAnonymous).toHaveBeenCalledWith('signup_submitted', { outcome: 'signed_in' }));
+    act(() => useAuthStore.setState({ showAuthModal: false }));
+    await waitFor(() => expect(document.querySelector('form')).toBeNull());
     expect(consumeExpectedSignup()).toBe(false);
   });
 });

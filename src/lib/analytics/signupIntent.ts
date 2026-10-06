@@ -7,19 +7,26 @@
  * still in flight, so the flag is raised before calling `signUp` and withdrawn
  * if no session comes back.
  */
-let expected = false;
+let expectedAt: number | null = null;
+
+/**
+ * SIGNED_IN arrives during the signUp() call, so an intent older than this is
+ * stale (signUp returned a session whose event never came) and must not turn a
+ * later plain sign-in into `signed_up`.
+ */
+export const SIGNUP_INTENT_TTL_MS = 60_000;
 
 export function expectSignup(): void {
-  expected = true;
+  expectedAt = Date.now();
 }
 
 export function cancelExpectedSignup(): void {
-  expected = false;
+  expectedAt = null;
 }
 
-/** True once per expected signup. */
+/** True once per expected signup, and only while the intent is fresh. */
 export function consumeExpectedSignup(): boolean {
-  const was = expected;
-  expected = false;
-  return was;
+  const at = expectedAt;
+  expectedAt = null;
+  return at !== null && Date.now() - at <= SIGNUP_INTENT_TTL_MS;
 }
