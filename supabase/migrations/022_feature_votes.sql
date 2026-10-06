@@ -117,12 +117,13 @@ BEGIN
 
   SELECT p.max_votes_per_user INTO v_max_ids FROM public.feature_vote_params() p;
 
-  SELECT COALESCE(array_agg(DISTINCT i), '{}') INTO v_ids
-  FROM unnest(COALESCE(p_feature_ids, '{}')) AS i;
-
-  IF cardinality(v_ids) > v_max_ids THEN
+  -- Reject oversized input before doing any work on it (the DISTINCT below is O(n log n)).
+  IF cardinality(p_feature_ids) > v_max_ids THEN
     RAISE EXCEPTION 'too many feature ids' USING ERRCODE = '22023';
   END IF;
+
+  SELECT COALESCE(array_agg(DISTINCT i), '{}') INTO v_ids
+  FROM unnest(COALESCE(p_feature_ids, '{}')) AS i;
   IF EXISTS (
     SELECT 1 FROM unnest(v_ids) AS i
     WHERE i IS NULL OR i !~ '^[a-z0-9]+(-[a-z0-9]+)*$' OR length(i) > 48

@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(36);
+SELECT plan(39);
 
 -- Fixtures. Seed users 1 (free) and 2 (active Wanderer) are made "recently
 -- active"; 18 more free users bring the active total to 24 (weight 1 + 5 + 18),
@@ -299,6 +299,25 @@ SELECT is(
    WHERE feature_id = 'feat-d'),
   false,
   'too few voters never earns most requested'
+);
+
+-- ── Oversized input is rejected before any work on it ────────
+
+SELECT throws_ok(
+  $$SELECT * FROM public.get_feature_vote_summaries(
+      (SELECT array_agg('feat-' || n) FROM generate_series(1, 51) AS n))$$,
+  '22023', 'too many feature ids',
+  'more than 50 ids is rejected'
+);
+SELECT throws_ok(
+  $$SELECT * FROM public.get_feature_vote_summaries(array_fill('feat-a'::text, ARRAY[51]))$$,
+  '22023', 'too many feature ids',
+  'an oversized array is rejected as-is, even when it dedupes to a single id'
+);
+SELECT lives_ok(
+  $$SELECT * FROM public.get_feature_vote_summaries(
+      (SELECT array_agg('feat-' || n) FROM generate_series(1, 50) AS n))$$,
+  'exactly 50 ids is accepted'
 );
 
 -- ── Anonymous callers ───────────────────────────────────────
