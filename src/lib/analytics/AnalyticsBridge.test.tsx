@@ -157,6 +157,26 @@ describe('AnalyticsBridge', () => {
       expect(mocks.posthog.startSessionRecording).toHaveBeenCalledWith(true);
     });
 
+    it('an export that starts while the SDK is still loading defers the sampled-in replay to the export end', async () => {
+      vi.mocked(Math.random).mockReturnValue(0.1);
+      mount();
+      act(() => useProjectStore.setState({ isExporting: true }));
+      act(() => useAuthStore.setState({ user: alice }));
+      await flush();
+      expect(mocks.posthog.startSessionRecording).not.toHaveBeenCalled();
+      act(() => useProjectStore.setState({ isExporting: false }));
+      expect(mocks.posthog.startSessionRecording).toHaveBeenCalledWith(true);
+    });
+
+    it('a sampled-out session stays unrecorded after an export that began during loading', async () => {
+      mount();
+      act(() => useProjectStore.setState({ isExporting: true }));
+      act(() => useAuthStore.setState({ user: alice }));
+      await flush();
+      act(() => useProjectStore.setState({ isExporting: false }));
+      expect(mocks.posthog.startSessionRecording).not.toHaveBeenCalled();
+    });
+
     it('does not resume after export when it was not recording', async () => {
       await signIn();
       act(() => useProjectStore.setState({ isExporting: true }));

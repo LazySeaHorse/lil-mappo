@@ -149,7 +149,11 @@ export function start(options: StartOptions): void {
       posthog.register(superProps);
       instance = posthog;
       // Sampling is decided here (project-level sampling stays at 100%) so it is never applied twice.
-      if (!replayPaused && Math.random() < REPLAY_SAMPLE_RATE) posthog.startSessionRecording(true);
+      if (Math.random() < REPLAY_SAMPLE_RATE) {
+        // A local export that began while the SDK was still loading: start once it finishes (resumeReplay).
+        if (replayPaused) replayWasRecording = true;
+        else posthog.startSessionRecording(true);
+      }
       options.onReady?.(posthog);
       const pending = queue.splice(0);
       for (const action of pending) {
