@@ -91,7 +91,7 @@ test("signed in: voting toggles and calls set_feature_vote", async ({ page }) =>
   await expect.poll(() => setCalls).toEqual([{ p_feature_id: "cloud-render", p_voted: true }]);
   await expect(featureDialog.getByText("A few people want this")).toBeVisible();
   // The trigger behind the dialog already shows the filled heart.
-  await expect(exportDialog.locator('[data-voted="true"]')).toHaveCount(1);
+  await expect(page.getByRole("dialog", { name: "Export", includeHidden: true }).locator('[data-voted="true"]')).toHaveCount(1);
 
   await featureDialog.getByRole("button", { name: "I'd like this" }).click();
   await expect(featureDialog.getByRole("button", { name: "I'd like this" })).toHaveAttribute("aria-pressed", "false");
