@@ -22,7 +22,7 @@ import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 type BoundaryAnimationMode = 'none' | BoundaryItem['style']['animationStyle'];
 
 export function BoundaryInspector({ item }: { item: BoundaryItem }) {
-  const { updateItem } = useProjectStore();
+  const updateItem = useProjectStore(s => s.updateItem);
 
   const u = (updates: Partial<BoundaryItem>) => updateItem(item.id, updates);
   const us = (updates: Partial<BoundaryItem['style']>) => u({ style: { ...item.style, ...updates } });

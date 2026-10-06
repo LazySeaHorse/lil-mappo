@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Button } from '@/components/ui/button';
@@ -143,7 +144,14 @@ const InspectorSearchField = ({
 // ---------------------------------------------------------------------------
 
 const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalculation }) => {
-  const { updateWalkRoute, activePicker, startPicking, stopPicking } = useProjectStore();
+  const { updateWalkRoute, activePicker, startPicking, stopPicking } = useProjectStore(
+    useShallow(s => ({
+      updateWalkRoute: s.updateWalkRoute,
+      activePicker: s.activePicker,
+      startPicking: s.startPicking,
+      stopPicking: s.stopPicking,
+    }))
+  );
   const appendPickerId = `route-${routeId}-append`;
   const movePickerPrefix = `route-${routeId}-move-`;
   const movingIndex = activePicker?.id.startsWith(movePickerPrefix)
@@ -238,7 +246,15 @@ const EndpointPlanner = ({
   calc: EndpointRouteCalculation;
   path: ReturnType<typeof useEndpointRoutePath>;
 }) => {
-  const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore();
+  const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore(
+    useShallow(s => ({
+      updateItem: s.updateItem,
+      setPreviewRoute: s.setPreviewRoute,
+      activePicker: s.activePicker,
+      startPicking: s.startPicking,
+      stopPicking: s.stopPicking,
+    }))
+  );
 
   const isPickingStart = activePicker?.id === `route-${item.id}-start`;
   const isPickingEnd = activePicker?.id === `route-${item.id}-end`;

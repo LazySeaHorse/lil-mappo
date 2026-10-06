@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hasByok } from '@/lib/cloudAccess';
 import { useToolbarActions } from '@/components/Toolbar/useToolbarActions';
@@ -31,7 +32,12 @@ interface AvatarMenuProps {
 export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
   const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
-  const { selectItem, setProjectSettingsTab } = useProjectStore();
+  const { selectItem, setProjectSettingsTab } = useProjectStore(
+    useShallow(s => ({
+      selectItem: s.selectItem,
+      setProjectSettingsTab: s.setProjectSettingsTab,
+    }))
+  );
   const actions = useToolbarActions();
   const { data: subscription } = useSubscription();
   const isLocked = !user && !hasByok();

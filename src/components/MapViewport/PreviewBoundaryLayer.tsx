@@ -1,10 +1,16 @@
 import React from 'react';
 import { Source, Layer } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { resolveBoundaryFillColor } from './layerStyleContracts';
 
 export function PreviewBoundaryLayer() {
-  const { previewBoundary, previewBoundaryStyle } = useProjectStore();
+  const { previewBoundary, previewBoundaryStyle } = useProjectStore(
+    useShallow(s => ({
+      previewBoundary: s.previewBoundary,
+      previewBoundaryStyle: s.previewBoundaryStyle,
+    }))
+  );
 
   if (!previewBoundary || !previewBoundaryStyle) return null;
 

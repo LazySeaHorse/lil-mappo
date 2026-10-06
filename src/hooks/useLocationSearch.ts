@@ -48,7 +48,7 @@ export function useLocationSearch({
   const [suggestions, setSuggestions] = useState<SearchBoxSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { mapCenter } = useProjectStore();
+  const mapCenter = useProjectStore(s => s.mapCenter);
 
   const sessionRef = useRef<SearchBoxSession | null>(null);
   const mapCenterRef = useRef(mapCenter);
