@@ -1,6 +1,6 @@
 # lil-mappo-bridge
 
-Lets local coding agents (Claude Code, Codex, Gemini CLI, Antigravity, ...) use the lil' Mappo tab open in your browser.
+Lets local coding agents (Claude Code, Codex, Antigravity CLI / agy, ...) use the lil' Mappo tab open in your browser.
 
 ```
 agent --MCP over HTTP--> bridge <--WebSocket-- app tab
