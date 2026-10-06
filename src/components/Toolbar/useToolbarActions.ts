@@ -14,6 +14,9 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { extractLineCoords } from '@/engine/geoUtils';
+import { track } from '@/lib/analytics';
+import { importSourceOf } from '@/lib/analytics/classify';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
 
 export function useToolbarActions() {
   const mapRef = useMapRef();
@@ -53,6 +56,7 @@ export function useToolbarActions() {
         setBuildingsEnabled(false);
         selectItem(item.id);
         const pointCount = extractLineCoords(geojson).length;
+        reportRouteAdded(importSourceOf(file.name), pointCount);
         toast.success(`Imported "${name}" (${pointCount} points)`);
       } catch {
         toast.error(`Failed to import ${file.name}`);
@@ -73,6 +77,7 @@ export function useToolbarActions() {
       const text = await file.text();
       const project = parseProjectDocument(JSON.parse(text));
       projectState.loadFullProject(project);
+      track('project_created', { source: 'import_file' });
       toast.success('Project imported successfully');
     } catch {
       toast.error('Failed to parse project file');
@@ -103,12 +108,15 @@ export function useToolbarActions() {
     const result = await projectLibraryCoordinator.saveProject(project, cloudEnabled);
     switch (result.status) {
       case 'saved-locally':
+        track('project_saved', { storage: 'local' });
         toast.success('Saved to library');
         break;
       case 'uploaded':
+        track('project_saved', { storage: 'cloud' });
         toast.success('Saved');
         break;
       case 'cloud-failed':
+        track('project_saved', { storage: 'local' });
         if (result.error instanceof CloudProjectSizeError) {
           toast.warning(`Saved locally — ${result.error.message}`);
         } else {
@@ -116,6 +124,7 @@ export function useToolbarActions() {
         }
         break;
       case 'metadata-repair-needed':
+        track('project_saved', { storage: 'cloud' });
         toast.success('Saved to cloud — sync status will be repaired');
         break;
       case 'local-failed':
@@ -144,6 +153,7 @@ export function useToolbarActions() {
     }
 
     addCameraKeyframe(createCameraKeyframe({ time: playheadTime, center, zoom, pitch, bearing }));
+    track('keyframe_added', { source: 'toolbar' });
     toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
   };
 

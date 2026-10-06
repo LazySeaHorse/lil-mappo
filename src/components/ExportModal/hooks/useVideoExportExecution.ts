@@ -4,6 +4,8 @@ import { runExport } from '@/services/videoExport';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { ExportPlan } from '../exportPlan';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
+import { bucketDuration, setPersonProps, track, type ExportEventProps } from '@/lib/analytics';
+import { classifyExportError } from '@/lib/analytics/classify';
 
 function getErrorMessage(error: unknown, fallback = 'Export failed'): string {
   return error instanceof Error ? error.message : fallback;
@@ -28,6 +30,12 @@ export function useVideoExportExecution(
       return;
     }
 
+    const exportProps: ExportEventProps = {
+      resolution: exportPlan.renderConfig.exportResolution,
+      fps: exportPlan.renderConfig.fps,
+      duration_bucket: bucketDuration(exportPlan.endTime - exportPlan.startTime),
+    };
+    track('export_started', exportProps);
     const initialPlaybackState = useProjectStore.getState().isPlaying;
     useProjectStore.getState().setIsExporting(true);
     setProgress(0);
@@ -52,10 +60,14 @@ export function useVideoExportExecution(
       const fileName = `${sanitizedName}.mp4`;
       saveAs(blob, fileName);
       setProgress(100);
+      track('export_succeeded', exportProps);
+      setPersonProps({ has_exported: true });
     } catch (err: unknown) {
       if (controller.signal.aborted) {
         setProgress(0);
+        track('export_cancelled', exportProps);
       } else {
+        track('export_failed', { ...exportProps, error_class: classifyExportError(err) });
         setError(getErrorMessage(err));
       }
     } finally {

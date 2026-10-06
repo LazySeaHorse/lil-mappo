@@ -166,3 +166,29 @@ describe('AnalyticsBridge', () => {
     });
   });
 });
+
+describe('preview_played', () => {
+  it('fires once per project per page load and ignores export-driven playback', async () => {
+    mocks.runtime.mockReturnValue({ environment: 'preview', key: 'phc_test' });
+    useAuthStore.setState({ user: alice });
+    useProjectStore.setState({ id: 'proj-1', isPlaying: false, isExporting: false });
+    mount();
+    await flush();
+    mocks.posthog.capture.mockClear();
+    const played = () => mocks.posthog.capture.mock.calls.filter(([e]) => e === 'preview_played').length;
+
+    act(() => useProjectStore.setState({ isPlaying: true }));
+    expect(played()).toBe(1);
+    act(() => useProjectStore.setState({ isPlaying: false }));
+    act(() => useProjectStore.setState({ isPlaying: true }));
+    expect(played()).toBe(1);
+
+    act(() => useProjectStore.setState({ id: 'proj-2', isPlaying: false }));
+    act(() => useProjectStore.setState({ isExporting: true }));
+    act(() => useProjectStore.setState({ isPlaying: true }));
+    expect(played()).toBe(1);
+    act(() => useProjectStore.setState({ isExporting: false, isPlaying: false }));
+    act(() => useProjectStore.setState({ isPlaying: true }));
+    expect(played()).toBe(2);
+  });
+});

@@ -71,6 +71,17 @@ function Bridge() {
     });
   }, []);
 
+  // preview_played: once per project per page load. Export drives playback too, so ignore it.
+  useEffect(() => {
+    const played = new Set<string>();
+    return useProjectStore.subscribe((state, prev) => {
+      if (!state.isPlaying || prev.isPlaying || state.isExporting) return;
+      if (played.has(state.id)) return;
+      played.add(state.id);
+      track('preview_played');
+    });
+  }, []);
+
   useEffect(() => {
     if (!plan) return;
     client.register({ plan });

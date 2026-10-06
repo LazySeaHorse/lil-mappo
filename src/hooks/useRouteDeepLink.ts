@@ -11,6 +11,10 @@ import {
 } from '@/services/routeDeepLink';
 import { toProjectDocument } from '@/store/projectDocument';
 import { useProjectStore } from '@/store/useProjectStore';
+import { track } from '@/lib/analytics';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
+import { extractLineCoords } from '@/engine/geoUtils';
+import { isRouteItem } from '@/store/typeGuards';
 
 export interface RouteDeepLinkState {
   /** False until the arrival has been applied (or rejected); the editor should not render before then. */
@@ -67,6 +71,10 @@ export function useRouteDeepLink(
       }
 
       store.loadFullProject(result.project);
+      track('project_created', { source: 'deep_link' });
+      for (const item of Object.values(result.project.items)) {
+        if (isRouteItem(item)) reportRouteAdded('deep_link', extractLineCoords(item.geojson).length);
+      }
       toastsRef.current.push(() => toast.success(`Opened ${result.fromCode} to ${result.toCode}`));
     } else {
       toastsRef.current.push(() => toast.error(result.message));

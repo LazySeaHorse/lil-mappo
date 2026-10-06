@@ -19,6 +19,7 @@ import {
 } from './InspectorShared';
 import { formatMultiplier } from './inspectorValues';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { track } from '@/lib/analytics';
 import { 
   Navigation, 
   Clapperboard, 
@@ -88,6 +89,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
           enabled: true,
         },
       });
+      track('autocam_enabled');
     } else {
       u({ autoCam: item.autoCam ? { ...item.autoCam, enabled: false } : undefined });
     }

@@ -19,6 +19,8 @@ import { ToolError } from '../errors';
 import { commitAiWrite } from '../commit';
 import { geoStats } from '../geo';
 import { resolveLocation } from '../geocode';
+import { extractLineCoords } from '@/engine/geoUtils';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { summarizeItem } from '../summaries';
 import {
   anchorSchema,
@@ -127,6 +129,7 @@ export const addRoute = defineTool({
       }
       getState().addItem(item);
     });
+    reportRouteAdded('ai', extractLineCoords(item.geojson).length);
 
     return {
       data: { created: summarizeItem(item, { detail: false }), ...extra },

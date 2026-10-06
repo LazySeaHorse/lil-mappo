@@ -16,6 +16,7 @@ import {
   timeSchema,
 } from './shared';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
+import { track } from '@/lib/analytics';
 
 const KEYFRAME_TIME_EPSILON = 1e-3;
 
@@ -81,6 +82,7 @@ export const addCameraKeyframe = defineTool({
     assertKeyframeTime(time);
     const kf = createCameraKeyframe({ time, center: center as LngLat, zoom, pitch, bearing, easing });
     commitAiWrite(`AI: add camera keyframe at ${round(time, 2)}s`, () => getState().addCameraKeyframe(kf));
+    track('keyframe_added', { source: 'ai' });
     return {
       data: { created: keyframeView(kf), warnings: cameraWarnings() },
       summary: `Added camera keyframe at ${round(time, 2)}s`,
@@ -261,6 +263,7 @@ export const frameItems = defineTool({
         getState().addCameraKeyframe(kf);
       }
     });
+    if (!replaced) track('keyframe_added', { source: 'ai' });
 
     return {
       data: { keyframe: keyframeView(kf!), replacedExisting: replaced, framedBbox: bbox.map((n) => round(n, 4)), warnings: cameraWarnings() },

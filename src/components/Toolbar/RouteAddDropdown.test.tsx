@@ -5,6 +5,7 @@ import { RouteAddDropdown } from './RouteAddDropdown';
 import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
 import type { RouteItem } from '@/store/types';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
 
 vi.mock('react-secure-storage', () => ({
   default: {
@@ -14,6 +15,8 @@ vi.mock('react-secure-storage', () => ({
     clear: vi.fn(),
   },
 }));
+
+vi.mock('@/lib/analytics/reporters', () => ({ reportRouteAdded: vi.fn() }));
 
 vi.mock('@/hooks/useSubscription', () => ({
   useSubscription: () => ({
@@ -39,6 +42,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
   });
 
   beforeEach(() => {
+    vi.mocked(reportRouteAdded).mockClear();
     useProjectStore.setState({
       items: {},
       itemOrder: [],
@@ -132,6 +136,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(addedRoute.style.color).toBe('#f59e0b');
     expect(addedRoute.style).not.toHaveProperty('glowColor');
     expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(reportRouteAdded).toHaveBeenCalledWith('flight', expect.any(Number));
   });
 
   it('allows map picking while in flight mode', () => {
@@ -176,5 +181,6 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(added.calculation).toMatchObject({ mode: 'walk', points: [[0, 0.5], [1, 1], [2, 0.5]], curved: true });
     expect((added.geojson.features[0].geometry as GeoJSON.LineString).coordinates.length).toBeGreaterThan(3);
     expect(getDirections).not.toHaveBeenCalled();
+    expect(reportRouteAdded).toHaveBeenLastCalledWith('walk', 3);
   });
 });

@@ -17,6 +17,7 @@ import { Plus, Smartphone, Monitor, Sparkles } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { createProject } from '@/store/projectDocument';
+import { track } from '@/lib/analytics';
 
 export function NewProjectModal() {
   const showNewProjectModal = useProjectStore((s) => s.showNewProjectModal);
@@ -41,6 +42,7 @@ export function NewProjectModal() {
     });
 
     loadFullProject(project);
+    track('project_created', { source: 'blank' });
     toast.success('New project created');
     close();
   };

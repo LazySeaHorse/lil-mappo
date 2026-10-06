@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { toast } from 'sonner';
 import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
+import { track } from '@/lib/analytics';
 import {
   createWalkthroughState,
   walkthroughReducer,
@@ -216,6 +217,7 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
       isRunning: true,
     });
     storeStatus('started');
+    track('walkthrough_started');
     startProjectSubscriptions();
   },
 

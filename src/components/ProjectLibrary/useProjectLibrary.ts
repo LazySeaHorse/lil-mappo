@@ -12,6 +12,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { canCloudSave, isFreeUser } from '@/lib/cloudAccess';
+import { bucketCount, setPersonProps, track } from '@/lib/analytics';
 
 export function showUploadResult(result: CloudWriteResult, successMessage = 'Uploaded to cloud') {
   switch (result.status) {
@@ -52,7 +53,9 @@ export function useProjectLibrary(open: boolean, onClose: () => void) {
   const refreshList = useCallback(async () => {
     setIsLoading(true);
     try {
-      setProjects(await projectLibraryCoordinator.listProjects(!!user));
+      const list = await projectLibraryCoordinator.listProjects(!!user);
+      setProjects(list);
+      if (user) setPersonProps({ project_count_bucket: bucketCount(list.length) });
     } catch {
       toast.error('Failed to load project library');
     } finally {
@@ -141,9 +144,11 @@ export function useProjectLibrary(open: boolean, onClose: () => void) {
       if (!project.local && project.cloud) {
         const full = await projectLibraryCoordinator.downloadCloudProject(project.cloud);
         useProjectStore.getState().loadFullProject(full);
+        track('project_opened', { storage: 'cloud' });
       } else {
         const full = await loadProjectFromLibrary(project.id);
         useProjectStore.getState().loadFullProject(full);
+        track('project_opened', { storage: 'local' });
       }
 
       toast.success(`Loaded: ${project.name}`);
