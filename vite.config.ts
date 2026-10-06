@@ -21,6 +21,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "/",
+    define: {
+      // Build identifier attached to analytics events (package.json stays at 0.0.0).
+      __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev'),
+    },
     server: {
       host: "::",
       port: 8080,
