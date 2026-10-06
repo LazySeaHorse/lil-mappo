@@ -22,6 +22,8 @@ import type { SegmentedControlOption } from '@/components/ui/segmented-control';
 import { SectionLabel } from '@/components/ui/field';
 import { arrayMove } from '@dnd-kit/sortable';
 import { createWalkCalculation } from '@/engine/routeCurves';
+import { extractLineCoords } from '@/engine/geoUtils';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { WalkPointList } from '../Inspector/WalkPointList';
 import { SwitchRow } from '../Inspector/InspectorShared';
 
@@ -216,6 +218,7 @@ export const RouteAddDropdown = ({
 
     addItem(item);
     selectItem(id);
+    reportRouteAdded(mode === 'flight' ? 'flight' : 'car', extractLineCoords(previewRoute).length);
     resetAll();
     onOpenChange(false);
   };
@@ -236,6 +239,7 @@ export const RouteAddDropdown = ({
 
     addItem(item);
     selectItem(id);
+    reportRouteAdded('walk', walkPoints.length);
     resetAll();
     onOpenChange(false);
   };

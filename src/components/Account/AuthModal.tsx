@@ -15,6 +15,23 @@ import { Mappo } from "@/components/Mappo/Mappo";
 import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { trackAnonymous } from "@/lib/analytics/anonymous";
+import { getSignupAttribution } from "@/lib/analytics/attribution";
+
+/** Supabase error code as a short snake_case token (never the message, which can echo the email). */
+function signupErrorClass(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === "string" && /^[a-z0-9_]{1,40}$/.test(code) ? code : "other";
+}
+
+/** Maps a Supabase auth error to a low-cardinality class for the anonymous funnel counters. */
+function signinErrorClass(err: unknown): "invalid_credentials" | "email_not_confirmed" | "rate_limited" | "other" {
+  const { code, status } = (err ?? {}) as { code?: string; status?: number };
+  if (code === "invalid_credentials") return "invalid_credentials";
+  if (code === "email_not_confirmed") return "email_not_confirmed";
+  if (status === 429 || (typeof code === "string" && code.includes("rate_limit"))) return "rate_limited";
+  return "other";
+}
 
 // ─── OAuth icon components ────────────────────────────────────────────────────
 
@@ -84,7 +101,7 @@ export function AuthModal() {
               {confirmEmail ? (
                 <>
                   We sent a link to{" "}
-                  <span className="font-medium text-foreground">{confirmEmail}</span>.
+                  <span className="ph-no-capture font-medium text-foreground">{confirmEmail}</span>.
                   Open it to finish creating your account and continue to payment.
                 </>
               ) : isSignup ? (
@@ -163,20 +180,30 @@ function AuthModalBody({
         // Frontend domain check — server-side hook is the authoritative guard,
         // but this gives immediate feedback before the network round-trip.
         if (!isAllowedEmailDomain(email.trim())) {
+          trackAnonymous("signup_submitted", { outcome: "blocked_domain" });
           toast.error("This email cannot be used.");
           setPhase("error");
           setIsSubmitting(false);
           return;
         }
 
+        const attribution = getSignupAttribution();
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            // Whitelisted utm/ref values only (empty unless analytics is enabled); attribution, never trusted.
+            ...(Object.keys(attribution).length > 0 ? { data: { signup_attribution: attribution } } : {}),
+          },
         });
-        if (error) throw error;
+        if (error) {
+          trackAnonymous("signup_submitted", { outcome: "error", error_class: signupErrorClass(error) });
+          throw error;
+        }
         // If email confirmation is required, data.session will be null
         if (!data.session) {
+          trackAnonymous("signup_submitted", { outcome: "confirm_email" });
           setSentState("confirm_email");
         }
         setPhase("success");
@@ -186,7 +213,10 @@ function AuthModalBody({
           email: email.trim(),
           password,
         });
-        if (error) throw error;
+        if (error) {
+          trackAnonymous("signin_failed", { error_class: signinErrorClass(error) });
+          throw error;
+        }
         setPhase("success");
         // onAuthStateChange → SIGNED_IN → modal auto-closes
       }

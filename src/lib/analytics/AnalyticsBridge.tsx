@@ -3,11 +3,29 @@ import { useLocation } from 'react-router-dom';
 import { useAuthStore, type AuthUser } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useSubscription } from '@/hooks/useSubscription';
+import { initialAuthCallbackType } from '@/lib/supabase';
 import * as client from './client';
+import { track } from './index';
 import { currentAnalyticsRuntime } from './config';
+import type { PersonProps } from './events';
 
 /** Matches the `isMobile` breakpoint in useResponsive. */
 const MOBILE_QUERY = '(max-width: 706px)';
+
+/** True once `signed_up` has fired for this page load (the confirmation hash is only present on landing). */
+let signedUpReported = false;
+
+function reportSignedUp(user: AuthUser): void {
+  if (signedUpReported || initialAuthCallbackType !== 'signup') return;
+  signedUpReported = true;
+  const attribution = user.signupAttribution ?? {};
+  track('signed_up', attribution);
+  const initial: PersonProps = {};
+  for (const [key, value] of Object.entries(attribution)) {
+    (initial as Record<string, string>)[`initial_${key}`] = value;
+  }
+  if (Object.keys(initial).length > 0) client.setPersonProps({}, initial);
+}
 
 function startFor(user: AuthUser): void {
   client.start({
@@ -18,6 +36,7 @@ function startFor(user: AuthUser): void {
     // Date only: the exact signup time adds nothing and is more identifying.
     client.setPersonProps({}, { signed_up_at: user.createdAt.slice(0, 10) });
   }
+  reportSignedUp(user);
 }
 
 /**

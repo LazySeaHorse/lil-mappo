@@ -30,7 +30,7 @@ export function DeleteProjectDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete project</AlertDialogTitle>
           <AlertDialogDescription>
-            Delete <span className="font-medium text-foreground">"{project?.name || 'Untitled project'}"</span>? This action cannot be undone.
+            Delete <span className="ph-no-capture font-medium text-foreground">"{project?.name || 'Untitled project'}"</span>? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

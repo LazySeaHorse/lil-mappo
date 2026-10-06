@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Mappo } from '@/components/Mappo/Mappo';
 import type { MappoMood } from '@/components/Mappo/moods';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMapLoadGate } from '@/hooks/useMapLoadGate';
 import { isAppOwnKey, BYOK_STORAGE_KEY } from '@/config/mapbox';
+import { trackAnonymous } from '@/lib/analytics/anonymous';
 import secureLocalStorage from "react-secure-storage";
 
 interface MapLoadGateProps {
@@ -62,6 +63,11 @@ function MapLoadBlockedScreen({
   onSignIn: () => void;
   onUpgrade: () => void;
 }) {
+  // A guest ran into the map-load limit (anonymous aggregate counter).
+  useEffect(() => {
+    if (reason === 'guest_limit') trackAnonymous('guest_gate_hit', { where: 'map_load' });
+  }, [reason]);
+
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm z-50 gap-6 p-6 text-center">
       <Mappo mood={BLOCKED_MOOD[reason]} title="Mappo" className="h-24 w-auto drop-shadow-lg" />

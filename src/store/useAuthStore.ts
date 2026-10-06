@@ -14,6 +14,9 @@ import {
 } from "@/services/checkout";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "sonner";
+import { trackAnonymous } from "@/lib/analytics/anonymous";
+import { sanitizeAttribution } from "@/lib/analytics/privacy";
+import type { AttributionProps } from "@/lib/analytics/events";
 import { flushWorkingProjectDraft } from "@/services/workingProjectDraft";
 
 export interface AuthUser {
@@ -23,6 +26,8 @@ export interface AuthUser {
   avatarUrl?: string;
   /** ISO timestamp of account creation (analytics: signed_up_at, date only). */
   createdAt?: string;
+  /** Sanitized signup attribution stored in user_metadata at signUp (analytics only). */
+  signupAttribution?: AttributionProps;
 }
 
 function toAuthUser(user: User): AuthUser {
@@ -36,6 +41,7 @@ function toAuthUser(user: User): AuthUser {
       user.user_metadata?.picture ||
       undefined,
     createdAt: user.created_at || undefined,
+    signupAttribution: sanitizeAttribution(user.user_metadata?.signup_attribution),
   };
 }
 
@@ -117,6 +123,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ showAuthModal: true, authModalMode: "signin", authModalReason: null });
   },
   requestSignIn: (reason) => {
+    // A guest hit a sign-in gate (anonymous aggregate counter; the reason text is never sent).
+    if (!get().user) trackAnonymous('guest_gate_hit', { where: 'sign_in' });
     get().openAuthModal();
     set({ authModalReason: reason });
   },

@@ -7,6 +7,7 @@ import * as client from './client';
 import type { AnalyticsEventMap, EventArgs, PersonProps } from './events';
 
 export * from './events';
+export { trackAnonymous } from './anonymous';
 
 /** Records a typed product event for the signed-in user. */
 export function track<E extends keyof AnalyticsEventMap>(event: E, ...args: EventArgs<AnalyticsEventMap[E]>): void {
