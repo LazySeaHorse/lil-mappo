@@ -4,6 +4,9 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { BasemapController } from './BasemapController';
+import { track } from '@/lib/analytics';
+
+vi.mock('@/lib/analytics', () => ({ track: vi.fn() }));
 
 function createMapDouble() {
   const listeners = new Map<string, Set<(event: unknown) => void>>();
@@ -313,5 +316,39 @@ describe('BasemapController', () => {
     controller.reconcile();
     expect(double.getStyle).not.toHaveBeenCalled();
     controller.dispose();
+  });
+
+  describe('map_style_load_failed', () => {
+    const fireError = (double: ReturnType<typeof createMapDouble>, event: Record<string, unknown>) => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      for (const listener of double.listeners.get('error') ?? []) listener(event);
+    };
+    const styleError = () => Object.assign(new Error('Forbidden'), { url: 'https://api.mapbox.com/styles/v1/x/y?access_token=pk.secret', status: 403 });
+
+    it('reports style-level failures once per style, without URLs or tokens', () => {
+      const double = createMapDouble();
+      new BasemapController(double.map, vi.fn()).mount();
+      useProjectStore.setState({ mapStyle: 'dark' });
+
+      fireError(double, { error: styleError() });
+      fireError(double, { error: styleError() });
+
+      expect(track).toHaveBeenCalledTimes(1);
+      expect(track).toHaveBeenCalledWith('map_style_load_failed', { style: 'dark' });
+      expect(JSON.stringify(vi.mocked(track).mock.calls)).not.toContain('pk.secret');
+    });
+
+    it('ignores tile and source errors', () => {
+      vi.mocked(track).mockClear();
+      const double = createMapDouble();
+      new BasemapController(double.map, vi.fn()).mount();
+      useProjectStore.setState({ mapStyle: 'satellite' });
+
+      fireError(double, { error: styleError(), sourceId: 'mapbox-dem' });
+      fireError(double, { error: styleError(), tile: {} });
+      fireError(double, { error: Object.assign(new Error('x'), { url: 'https://api.mapbox.com/v4/tiles/1.pbf' }) });
+
+      expect(track).not.toHaveBeenCalled();
+    });
   });
 });

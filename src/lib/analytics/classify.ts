@@ -3,7 +3,7 @@
  * Raw messages are never sent: they can contain file names, device details or
  * user content.
  */
-import type { ExportErrorClass, RouteSource } from './events';
+import type { ExportErrorClass, ImportErrorClass, ImportFormat, RouteSource } from './events';
 
 export function classifyExportError(err: unknown): ExportErrorClass {
   const name = err instanceof Error ? err.name : '';
@@ -21,4 +21,19 @@ export function importSourceOf(fileName: string): Extract<RouteSource, 'import_g
   if (ext === 'gpx') return 'import_gpx';
   if (ext === 'kml') return 'import_kml';
   return 'import_geojson';
+}
+
+/** Route import format from the file extension only. */
+export function importFormatOf(fileName: string): ImportFormat {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (ext === 'gpx' || ext === 'kml') return ext;
+  if (ext === 'geojson' || ext === 'json') return 'geojson';
+  return 'unknown';
+}
+
+export function classifyImportError(err: unknown): ImportErrorClass {
+  const message = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase();
+  if (/empty/.test(message)) return 'empty';
+  if (/invalid|malformed|binary|unsupported|not valid/.test(message)) return 'parse';
+  return 'other';
 }

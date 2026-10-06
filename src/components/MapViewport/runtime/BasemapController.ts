@@ -4,12 +4,16 @@ import type {
   MapSourceDataEvent,
 } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import { LABEL_CATEGORIES, isDarkMapStyle } from '@/config/mapbox';
+import { LABEL_CATEGORIES, MAP_STYLES, isDarkMapStyle } from '@/config/mapbox';
+import { track } from '@/lib/analytics';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
 
 const BUILDINGS_LAYER_ID = '3d-buildings';
+
+/** Styles already reported this page load, so a retry loop cannot flood analytics. */
+const reportedStyleFailures = new Set<string>();
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -310,7 +314,23 @@ export class BasemapController {
     if (!state.isPlaying && state.terrainLoading) this.schedule(() => this.updateTerrainLoading());
   };
 
-  private readonly handleError = (event: { error: Error }) => {
+  private readonly handleError = (event: { error: Error; sourceId?: string; tile?: unknown }) => {
     console.error('[map:error]', event.error);
+    this.reportStyleLoadFailure(event);
   };
+
+  /**
+   * Only style-level failures (the style document or its fonts/sprites could not be
+   * loaded), not tile or source errors, which are routine on flaky networks.
+   */
+  private reportStyleLoadFailure(event: { error: Error; sourceId?: string; tile?: unknown }): void {
+    if (event.sourceId || event.tile) return;
+    const { url } = event.error as Error & { url?: string };
+    if (typeof url !== 'string' || !url.includes('/styles/')) return;
+    const selected = useProjectStore.getState().mapStyle;
+    const style = selected in MAP_STYLES ? selected : 'custom';
+    if (reportedStyleFailures.has(style)) return;
+    reportedStyleFailures.add(style);
+    track('map_style_load_failed', { style });
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyExportError, importSourceOf } from './classify';
+import { classifyExportError, classifyImportError, importFormatOf, importSourceOf } from './classify';
 
 describe('classifyExportError', () => {
   it.each([
@@ -22,5 +22,19 @@ describe('importSourceOf', () => {
     expect(importSourceOf('a.kml')).toBe('import_kml');
     expect(importSourceOf('a.json')).toBe('import_geojson');
     expect(importSourceOf('noext')).toBe('import_geojson');
+  });
+});
+
+describe('import classification', () => {
+  it('derives the format from the extension only', () => {
+    expect([importFormatOf('a.GPX'), importFormatOf('a.kml'), importFormatOf('a.json'), importFormatOf('a.geojson'), importFormatOf('a.zip')])
+      .toEqual(['gpx', 'kml', 'geojson', 'geojson', 'unknown']);
+  });
+
+  it('maps parser errors to coarse classes without keeping the message', () => {
+    expect(classifyImportError(new Error('File is empty (0 bytes)'))).toBe('empty');
+    expect(classifyImportError(new Error('Invalid GPX: line 3'))).toBe('parse');
+    expect(classifyImportError(new Error('Unsupported file type: .zip'))).toBe('parse');
+    expect(classifyImportError(new Error('Failed to read file'))).toBe('other');
   });
 });

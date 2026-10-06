@@ -32,7 +32,8 @@ export type UpgradeWhere =
 
 export type ExportErrorClass = 'unsupported' | 'encoder' | 'capture' | 'oom' | 'other';
 
-export type ImportErrorClass = 'parse' | 'empty' | 'too_large' | 'other';
+export type ImportErrorClass = 'parse' | 'empty' | 'other';
+export type ImportFormat = 'gpx' | 'kml' | 'geojson' | 'unknown';
 
 export type StorageKind = 'local' | 'cloud';
 
@@ -101,7 +102,7 @@ export interface AnalyticsEventMap {
   upgrade_prompt_shown: { where: UpgradeWhere };
   checkout_started: { plan: string; resumed: boolean };
   map_style_load_failed: { style: string };
-  route_import_failed: { format: 'gpx' | 'kml' | 'geojson' | 'unknown'; error_class: ImportErrorClass };
+  route_import_failed: { format: ImportFormat; error_class: ImportErrorClass };
   project_opened: { storage: StorageKind };
   project_saved: { storage: StorageKind };
   walkthrough_started: NoProps;

@@ -15,7 +15,7 @@ import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { track } from '@/lib/analytics';
-import { importSourceOf } from '@/lib/analytics/classify';
+import { classifyImportError, importFormatOf, importSourceOf } from '@/lib/analytics/classify';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
 
 export function useToolbarActions() {
@@ -58,7 +58,8 @@ export function useToolbarActions() {
         const pointCount = extractLineCoords(geojson).length;
         reportRouteAdded(importSourceOf(file.name), pointCount);
         toast.success(`Imported "${name}" (${pointCount} points)`);
-      } catch {
+      } catch (err) {
+        track('route_import_failed', { format: importFormatOf(file.name), error_class: classifyImportError(err) });
         toast.error(`Failed to import ${file.name}`);
       }
     }
