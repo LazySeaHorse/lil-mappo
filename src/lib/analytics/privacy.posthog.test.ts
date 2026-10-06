@@ -11,6 +11,16 @@ import { scrubEvent } from './privacy';
 
 const SECRETS = ['secret-slug', 'a%40b.com', 'a@b.com', 'email=', 'steven', 'grey', 'q=', 'search?', 'Grandma', 'Elm St', 'secret-cta', '#x'];
 
+/** Request bodies are `data=<base64 json>` (or plain JSON); returns the decoded text plus the raw body. */
+function decodeBody(body: string): string {
+  const raw = body.startsWith('data=') ? decodeURIComponent(body.slice(5)) : body;
+  try {
+    return `${body}\n${Buffer.from(raw, 'base64').toString('utf8')}`;
+  } catch {
+    return body;
+  }
+}
+
 function strings(value: unknown, out: string[] = []): string[] {
   if (typeof value === 'string') out.push(value);
   else if (Array.isArray(value)) value.forEach((v) => strings(v, out));
@@ -25,12 +35,40 @@ function strings(value: unknown, out: string[] = []): string[] {
 
 describe('real posthog-js with the production config', () => {
   const captured: Array<{ event: string; properties: Record<string, unknown> }> = [];
+  /** Every request the SDK actually sent (fetch and XHR), URL plus raw body. */
+  const requests: Array<{ url: string; body: string }> = [];
   let posthog: PostHog;
 
   beforeAll(async () => {
     window.history.pushState({}, '', '/routes/secret-slug?email=a%40b.com&utm_term=steven+grey#x');
     Object.defineProperty(document, 'referrer', { configurable: true, value: 'https://www.google.com/search?q=steven+grey&hl=en' });
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+    // Remote config deliberately omits `hasFeatureFlags`, so the SDK would load feature flags by default.
+    const respond = (url: string) => (url.includes('/array/') ? JSON.stringify({ autocapture_opt_out: false }) : '{}');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input instanceof Request ? input.url : input);
+        requests.push({ url, body: typeof init?.body === 'string' ? init.body : '' });
+        return new Response(respond(url), { status: 200 });
+      }),
+    );
+    class FakeXhr {
+      status = 200;
+      responseText = '{}';
+      readyState = 4;
+      url = '';
+      onreadystatechange: (() => void) | null = null;
+      open(_method: string, url: string) {
+        this.url = url;
+      }
+      setRequestHeader() {}
+      send(body?: unknown) {
+        requests.push({ url: this.url, body: typeof body === 'string' ? body : '' });
+        this.responseText = respond(this.url);
+        setTimeout(() => this.onreadystatechange?.(), 0);
+      }
+    }
+    //XX
     document.body.innerHTML =
       '<div title="Grandma\'s house trip" aria-label="Route: 12 Elm St"><button id="b" data-attr="secret-cta" title="Grandma">Delete</button></div>';
     const mod = await import('posthog-js/dist/module.full.no-external');
@@ -41,17 +79,22 @@ describe('real posthog-js with the production config', () => {
         (e) => scrubEvent(e),
         (e) => {
           captured.push(JSON.parse(JSON.stringify(e)));
-          return null; // nothing leaves the test
+          return e; // sent to the stubbed fetch/XHR only, so the real request bodies can be scanned
         },
       ],
-      advanced_disable_flags: true,
       disable_session_recording: true,
+      // Send each event immediately so the test does not wait for the 3s batch timer.
+      request_batching: false,
     });
+    // Autocapture starts once remote config has answered (as in production).
+    await new Promise((r) => setTimeout(r, 300));
     posthog.capture('$pageview');
+    // The bridge sets person properties after the first pageview; with flags enabled this reloads flags with the $initial_* props.
+    posthog.setPersonProperties({ plan: 'free' }, { signed_up_at: '2026-01-01' });
     document.getElementById('b')!.click();
     posthog.capture('route_added', { source: 'car', point_bucket: '2-10' });
     posthog.captureException(new Error('Unexpected token \'h\', "hello grey" is not valid JSON at https://app.lilmappo.tech/routes/secret-slug?email=a%40b.com'));
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 1500));
   });
 
   afterAll(() => {
@@ -73,6 +116,21 @@ describe('real posthog-js with the production config', () => {
       const hit = all.find((s) => s.toLowerCase().includes(secret.toLowerCase()));
       expect(hit, `leaked "${secret}" in: ${hit}`).toBeUndefined();
     }
+  });
+
+  it('never puts the slug, query, referrer path or search terms in ANY outgoing request body', () => {
+    expect(requests.length).toBeGreaterThan(0);
+    const bodies = requests.map(({ body }) => decodeBody(body));
+    // At least one body must be the event batch, otherwise this scan proves nothing.
+    expect(bodies.some((b) => b.includes('route_added'))).toBe(true);
+    for (const secret of SECRETS) {
+      const hit = requests.find(({ url, body }) => `${url} ${decodeBody(body)}`.toLowerCase().includes(secret.toLowerCase()));
+      expect(hit, `leaked "${secret}" in request ${hit?.url}: ${hit?.body.slice(0, 300)}`).toBeUndefined();
+    }
+  });
+
+  it('makes no feature-flags request even when remote config does not disable flags', () => {
+    expect(requests.map(({ url }) => url).filter((url) => /\/flags\b|\/decide\b/.test(url))).toEqual([]);
   });
 
   it('keeps the useful, scrubbed values', () => {

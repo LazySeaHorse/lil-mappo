@@ -60,6 +60,11 @@ export function buildInitConfig(userId: string, beforeSend: BeforeSend): Partial
     mask_all_element_attributes: true,
     // UTM/click-id params are read from the URL by the SDK; attribution is handled by attribution.ts instead.
     save_campaign_params: false,
+    // Feature flags are never used. The flags request body carries the person's
+    // $initial_* properties (full URL with slug/query/fragment, referrer with
+    // search terms), which before_send never sees. Not `advanced_disable_flags`:
+    // that also disables remote config, and replay would never start.
+    advanced_disable_feature_flags: true,
     capture_pageview: false,
     capture_pageleave: true,
     capture_exceptions: true,
