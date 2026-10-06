@@ -245,17 +245,7 @@ test.describe("5 Golden E2E Journeys", () => {
     // 4. Close dialogs cleanly
     await expect(upgradeDialog.locator(":focus")).toHaveCount(1);
     await page.keyboard.press("Escape");
-    try {
-      await expect(upgradeDialog).not.toBeVisible({ timeout: 2000 });
-    } catch {
-      const closeBtn = upgradeDialog.getByRole("button", { name: "Close" });
-      if (await closeBtn.isVisible().catch(() => false)) {
-        await closeBtn.click();
-      } else {
-        await page.keyboard.press("Escape");
-      }
-      await expect(upgradeDialog).not.toBeVisible();
-    }
+    await expect(upgradeDialog).not.toBeVisible();
   });
 
   // ---------------------------------------------------------------------------
