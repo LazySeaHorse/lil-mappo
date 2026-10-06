@@ -13,7 +13,9 @@ import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/store/useProjectStore';
 import { AspectRatio, ExportResolution } from '@/types/render';
-import { Plus, Smartphone, Monitor, Sparkles } from 'lucide-react';
+import { Plus, Smartphone, Monitor } from 'lucide-react';
+import { Mappo } from '@/components/Mappo/Mappo';
+import { FeatureVoteButton } from '@/components/FeatureVotes/FeatureVoteButton';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { createProject } from '@/store/projectDocument';
@@ -153,13 +155,15 @@ export function NewProjectModal() {
               Examples
             </h3>
             
-            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border/50 rounded-xl p-8 text-center bg-secondary/5">
-              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3">
-                <Sparkles size={20} />
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 border border-dashed border-border/50 rounded-xl p-8 text-center bg-secondary/5">
+              <Mappo mood="sleepy" title="A sleepy Mappo" className="h-20 w-auto drop-shadow-md" />
+              <div className="space-y-1 max-w-xs" data-ph-unmask>
+                <p className="text-sm font-medium text-foreground">No example projects at the moment</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Mappo is napping on this one. Would you like to have some?
+                </p>
               </div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Example projects are not available yet.
-              </p>
+              <FeatureVoteButton featureId="example-projects" />
             </div>
           </div>
         </div>

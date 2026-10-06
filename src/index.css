@@ -276,3 +276,42 @@ html:not(.hide-ui-active) .mapboxgl-ctrl-attrib {
   .agent-pulse-ring { animation: none; box-shadow: 0 0 0 3px hsl(var(--primary) / 0.5); }
   .agent-dot-active { animation: none; }
 }
+
+/* Text-less skeleton previews for upcoming-feature dialogs (FeatureVotes/). */
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background-color: hsl(var(--muted));
+}
+.skeleton-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg, transparent, hsl(var(--background) / 0.55), transparent);
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+  animation-delay: var(--skeleton-delay, 0s);
+}
+.skeleton-progress-fill {
+  transform-origin: left center;
+  animation: skeleton-progress 3.2s ease-in-out infinite;
+}
+.skeleton-card-in {
+  animation: skeleton-card-in 0.5s ease-out both;
+  animation-delay: var(--skeleton-delay, 0s);
+}
+@keyframes skeleton-shimmer { to { transform: translateX(100%); } }
+@keyframes skeleton-progress {
+  0% { transform: scaleX(0.08); }
+  80%, 100% { transform: scaleX(0.92); }
+}
+@keyframes skeleton-card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block::after { animation: none; display: none; }
+  .skeleton-progress-fill { animation: none; transform: scaleX(0.55); }
+  .skeleton-card-in { animation: none; }
+}
