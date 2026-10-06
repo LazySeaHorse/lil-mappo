@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { nanoid } from 'nanoid';
 import { importRouteFile } from '@/services/fileImport';
 import type { RouteItem } from '@/store/types';
@@ -20,11 +21,15 @@ import { reportRouteAdded } from '@/lib/analytics/reporters';
 
 export function useToolbarActions() {
   const mapRef = useMapRef();
-  const projectState = useProjectStore();
-  const {
-    playheadTime, addItem, addCameraKeyframe, selectItem,
-    setTerrainEnabled, setBuildingsEnabled,
-  } = projectState;
+  const { addItem, addCameraKeyframe, selectItem, setTerrainEnabled, setBuildingsEnabled } = useProjectStore(
+    useShallow(s => ({
+      addItem: s.addItem,
+      addCameraKeyframe: s.addCameraKeyframe,
+      selectItem: s.selectItem,
+      setTerrainEnabled: s.setTerrainEnabled,
+      setBuildingsEnabled: s.setBuildingsEnabled,
+    }))
+  );
 
   const { data: subscription } = useSubscription();
   const { user, requestSignIn } = useAuthStore();
@@ -41,6 +46,7 @@ export function useToolbarActions() {
     for (const file of Array.from(files)) {
       try {
         const { name, geojson } = await importRouteFile(file);
+        const playheadTime = useProjectStore.getState().playheadTime;
         const item: RouteItem = {
           kind: 'route',
           id: nanoid(),
@@ -64,7 +70,7 @@ export function useToolbarActions() {
       }
     }
     e.target.value = '';
-  }, [playheadTime, addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn]);
+  }, [addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn]);
 
   const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {
@@ -77,7 +83,7 @@ export function useToolbarActions() {
     try {
       const text = await file.text();
       const project = parseProjectDocument(JSON.parse(text));
-      projectState.loadFullProject(project);
+      useProjectStore.getState().loadFullProject(project);
       track('project_created', { source: 'import_file' });
       toast.success('Project imported successfully');
     } catch {
@@ -91,6 +97,7 @@ export function useToolbarActions() {
       requestSignIn('Sign in to export a project file.');
       return;
     }
+    const projectState = useProjectStore.getState();
     const data = JSON.stringify(toProjectDocument(projectState), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.lilmap`;
@@ -102,7 +109,7 @@ export function useToolbarActions() {
       requestSignIn('Sign in to save to your library.');
       return;
     }
-    const project = toProjectDocument(projectState);
+    const project = toProjectDocument(useProjectStore.getState());
     // Free users always save locally; Wanderer subscribers also push to cloud.
     const cloudEnabled = !isFreeUser(subscription);
 
@@ -135,10 +142,11 @@ export function useToolbarActions() {
   };
 
   const handleNewProject = () => {
-    projectState.setShowNewProjectModal(true);
+    useProjectStore.getState().setShowNewProjectModal(true);
   };
 
   const handleAddCameraKF = () => {
+    const playheadTime = useProjectStore.getState().playheadTime;
     const map = mapRef.current?.getMap?.();
     let center: [number, number] = [0, 20];
     let zoom = 2;

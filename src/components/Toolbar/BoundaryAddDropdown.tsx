@@ -1,6 +1,7 @@
 import { geometryBounds } from '@/engine/geoUtils';
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import {
   Hexagon, Plus, Check, Search, MapPin
@@ -27,12 +28,23 @@ export const BoundaryAddDropdown = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const { 
-    addItem, selectItem, playheadTime, 
+  const {
+    addItem, selectItem,
     previewBoundary, setPreviewBoundary,
     previewBoundaryStyle, setPreviewBoundaryStyle,
     draftBoundaryName, clearPreviewBoundary
-  } = useProjectStore();
+  } = useProjectStore(
+    useShallow(s => ({
+      addItem: s.addItem,
+      selectItem: s.selectItem,
+      previewBoundary: s.previewBoundary,
+      setPreviewBoundary: s.setPreviewBoundary,
+      previewBoundaryStyle: s.previewBoundaryStyle,
+      setPreviewBoundaryStyle: s.setPreviewBoundaryStyle,
+      draftBoundaryName: s.draftBoundaryName,
+      clearPreviewBoundary: s.clearPreviewBoundary,
+    }))
+  );
   
   const mapRef = useMapRef();
 
@@ -72,7 +84,7 @@ export const BoundaryAddDropdown = ({
     const item = createBoundaryItem({
       placeName: draftBoundaryName,
       geojson: previewBoundary,
-      startTime: playheadTime,
+      startTime: useProjectStore.getState().playheadTime,
       style: previewBoundaryStyle,
     });
     const id = item.id;

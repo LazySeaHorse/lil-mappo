@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { getDirections } from '@/services/directions';
 import { calculateFlightArc } from '@/services/flightPath';
@@ -50,10 +51,15 @@ export const RouteAddDropdown = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const {
-    addItem, selectItem, playheadTime, previewRoute, setPreviewRoute,
-    setDraftWalk,
-  } = useProjectStore();
+  const { addItem, selectItem, previewRoute, setPreviewRoute, setDraftWalk } = useProjectStore(
+    useShallow(s => ({
+      addItem: s.addItem,
+      selectItem: s.selectItem,
+      previewRoute: s.previewRoute,
+      setPreviewRoute: s.setPreviewRoute,
+      setDraftWalk: s.setDraftWalk,
+    }))
+  );
 
   const [mode, setMode] = useState<RouteMode>('car');
 
@@ -212,7 +218,7 @@ export const RouteAddDropdown = ({
       start,
       end,
       name: defaultEndpointRouteName(mode, startName, endName),
-      startTime: playheadTime,
+      startTime: useProjectStore.getState().playheadTime,
     });
     const id = item.id;
 
@@ -234,7 +240,7 @@ export const RouteAddDropdown = ({
       return;
     }
 
-    const item = createWalkRouteItem({ points: walkPoints, curved: walkCurved, startTime: playheadTime });
+    const item = createWalkRouteItem({ points: walkPoints, curved: walkCurved, startTime: useProjectStore.getState().playheadTime });
     const id = item.id;
 
     addItem(item);
