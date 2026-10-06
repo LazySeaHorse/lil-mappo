@@ -81,7 +81,8 @@ describe('Vercel airport-route deep links', () => {
   const config = () => JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as VercelConfig;
 
   it('serves the SPA shell for /routes/:slug and nothing broader', () => {
-    expect(config().rewrites).toEqual([{ source: '/routes/:slug', destination: '/index.html' }]);
+    const spa = config().rewrites?.filter(({ destination }) => destination === '/index.html');
+    expect(spa).toEqual([{ source: '/routes/:slug', destination: '/index.html' }]);
   });
 
   it('marks /routes/* noindex without touching the global security headers', () => {
@@ -89,5 +90,29 @@ describe('Vercel airport-route deep links', () => {
     const routes = entries.find(({ source }) => source === '/routes/:path*');
     expect(routes?.headers).toEqual([{ key: 'X-Robots-Tag', value: 'noindex' }]);
     expect(entries.find(({ source }) => source === '/(.*)')).toBeDefined();
+  });
+});
+
+describe('Vercel first-party analytics proxy', () => {
+  const config = () => JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as VercelConfig;
+
+  it('rewrites /_m to PostHog EU, static assets first, before the SPA rewrite', () => {
+    expect(config().rewrites).toEqual([
+      { source: '/_m/static/:path*', destination: 'https://eu-assets.i.posthog.com/static/:path*' },
+      { source: '/_m/:path*', destination: 'https://eu.i.posthog.com/:path*' },
+      { source: '/routes/:slug', destination: '/index.html' },
+    ]);
+  });
+
+  it('keeps the proxy path outside /routes so it is not marked noindex or shadowed', () => {
+    for (const { source } of config().rewrites ?? []) {
+      if (source.startsWith('/_m')) expect(source.startsWith('/routes')).toBe(false);
+    }
+  });
+
+  it('needs no CSP change: the SDK talks to the same origin only', () => {
+    const connect = parseDirectives(getContentSecurityPolicy()).get('connect-src') ?? [];
+    expect(connect.some((value) => value.includes('posthog'))).toBe(false);
+    expect(connect).toContain("'self'");
   });
 });
