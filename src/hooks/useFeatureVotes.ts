@@ -17,8 +17,9 @@ const queryKey = (userId: string | undefined) => ['feature_votes', userId] as co
 
 /**
  * Vote tiers for every configured upcoming feature, fetched in one call.
- * Pass `enabled: false` until someone opens a feature preview so the app makes
- * no vote requests for people who never look.
+ * Signed-out users never trigger a request. Trigger components read it on mount
+ * (via `useFeatureVoted`) so signed-in users see their own vote; every consumer
+ * shares one cached query (5 minute stale time).
  */
 export function useFeatureVotes(enabled: boolean) {
   const user = useAuthStore((s) => s.user);
@@ -35,6 +36,12 @@ export function useFeatureVotes(enabled: boolean) {
     },
     staleTime: 5 * 60_000,
   });
+}
+
+/** Whether the signed-in user has voted for a feature (false while loading or signed out). Needs a QueryClient. */
+export function useFeatureVoted(featureId: string): boolean {
+  const votes = useFeatureVotes(true);
+  return votes.data?.find((r) => r.feature_id === featureId)?.has_voted ?? false;
 }
 
 const MUTATION_KEY = ['set_feature_vote'] as const;

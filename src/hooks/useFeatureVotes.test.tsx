@@ -11,7 +11,7 @@ vi.mock('sonner', () => ({ toast: { error: toastError } }));
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc: rpcMock } }));
 
 import { useAuthStore } from '@/store/useAuthStore';
-import { useFeatureVotes, useSetFeatureVote } from './useFeatureVotes';
+import { useFeatureVotes, useFeatureVoted, useSetFeatureVote } from './useFeatureVotes';
 
 const rows = [
   { feature_id: 'cloud-render', tier: 'some', most_requested: false, has_voted: false },
@@ -45,6 +45,28 @@ describe('feature vote hooks', () => {
     expect(rpcMock).toHaveBeenCalledWith('get_feature_vote_summaries', {
       p_feature_ids: ['cloud-render', 'example-projects'],
     });
+  });
+
+  it('useFeatureVoted fetches on mount for signed-in users and reports their vote', async () => {
+    rpcMock.mockResolvedValue({ data: [{ ...rows[0], has_voted: true }, rows[1]], error: null });
+    const { wrapper } = setup();
+    const { result } = renderHook(
+      () => ({ a: useFeatureVoted('cloud-render'), b: useFeatureVoted('example-projects') }),
+      { wrapper },
+    );
+    expect(result.current).toEqual({ a: false, b: false });
+    await waitFor(() => expect(result.current.a).toBe(true));
+    expect(result.current.b).toBe(false);
+    // Two triggers share one batched request.
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('useFeatureVoted makes no request when signed out', () => {
+    useAuthStore.setState({ user: null });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useFeatureVoted('cloud-render'), { wrapper });
+    expect(result.current).toBe(false);
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it('does not call the server when signed out', () => {

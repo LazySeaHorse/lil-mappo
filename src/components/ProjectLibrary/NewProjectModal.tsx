@@ -15,11 +15,33 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { AspectRatio, ExportResolution } from '@/types/render';
 import { Plus, Smartphone, Monitor } from 'lucide-react';
 import { Mappo } from '@/components/Mappo/Mappo';
-import { FeatureVoteButton } from '@/components/FeatureVotes/FeatureVoteButton';
+import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
+import { useFeatureVoted } from '@/hooks/useFeatureVotes';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { createProject } from '@/store/projectDocument';
 import { track } from '@/lib/analytics';
+
+/** Examples are not built yet: sleepy Mappo, perks up (curious) once the signed-in user has asked for them. */
+export function ExamplesPlaceholder() {
+  const voted = useFeatureVoted('example-projects');
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-3 border border-dashed border-border/50 rounded-xl p-8 text-center bg-secondary/5">
+      <Mappo
+        mood={voted ? 'curious' : 'sleepy'}
+        title={voted ? 'A curious Mappo' : 'A sleepy Mappo'}
+        className="h-20 w-auto drop-shadow-md"
+      />
+      <div className="space-y-1 max-w-xs" data-ph-unmask>
+        <p className="text-sm font-medium text-foreground">No example projects yet</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Mappo is napping on this one. Would you like some?
+        </p>
+      </div>
+      <UpcomingFeature featureId="example-projects" variant="inline" />
+    </div>
+  );
+}
 
 export function NewProjectModal() {
   const showNewProjectModal = useProjectStore((s) => s.showNewProjectModal);
@@ -155,16 +177,7 @@ export function NewProjectModal() {
               Examples
             </h3>
             
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 border border-dashed border-border/50 rounded-xl p-8 text-center bg-secondary/5">
-              <Mappo mood="sleepy" title="A sleepy Mappo" className="h-20 w-auto drop-shadow-md" />
-              <div className="space-y-1 max-w-xs" data-ph-unmask>
-                <p className="text-sm font-medium text-foreground">No example projects at the moment</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Mappo is napping on this one. Would you like to have some?
-                </p>
-              </div>
-              <FeatureVoteButton featureId="example-projects" />
-            </div>
+            <ExamplesPlaceholder />
           </div>
         </div>
       </DialogContent>

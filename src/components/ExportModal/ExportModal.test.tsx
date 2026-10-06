@@ -70,6 +70,27 @@ describe('ExportModal Sub-components', () => {
       expect(onCancel).toHaveBeenCalledTimes(1);
     });
 
+    it('shows Cloud render as an enabled split control beside Export, with no "Not available yet" text', () => {
+      render(
+        <ExportModalFooter
+          isExporting={false}
+          cloudSubmitted={false}
+          progress={0}
+          localExportCapability={{ status: 'ready' } as never}
+          onExport={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+      const cloud = screen.getByRole('button', { name: 'Cloud render, not built yet' });
+      const exportBtn = screen.getByRole('button', { name: /Export locally/i });
+      expect(cloud.hasAttribute('disabled')).toBe(false);
+      expect(cloud.parentElement).toBe(exportBtn.parentElement);
+      expect(cloud.className).toContain('h-11');
+      expect(exportBtn.className).toContain('h-11');
+      expect(screen.queryByText(/Not available yet/)).toBeNull();
+      expect(screen.queryByRole('button', { name: /I'd like this/ })).toBeNull();
+    });
+
     it('disables export button when local export is unsupported', () => {
       render(
         <ExportModalFooter
