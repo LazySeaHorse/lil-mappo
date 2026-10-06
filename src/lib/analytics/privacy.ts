@@ -49,16 +49,38 @@ export function sanitizeAttribution(input: unknown): AttributionProps {
   return out;
 }
 
-const URL_PROPS = [
-  '$current_url',
-  '$pathname',
-  '$referrer',
-  '$initial_current_url',
-  '$initial_pathname',
-  '$initial_referrer',
-  '$exception_source',
-  '$prev_pageview_pathname',
-] as const;
+/**
+ * Any property that holds a URL or path. Matched by name (not a fixed list) so
+ * the SDK's own families are covered: `$current_url`, `$pathname`,
+ * `$referrer`, `$session_entry_url`, `$initial_current_url`,
+ * `$prev_pageview_pathname`, `$exception_source`, ...
+ */
+const URL_KEY = /(url|pathname|referrer|href|exception_source)$/i;
+/** Search terms and search engine of the referring page (`ph_keyword`, `$initial_ph_keyword`, `$session_entry_search_engine`, ...). */
+const SEARCH_KEY = /(ph_keyword|search_engine)$/i;
+/** Campaign params the SDK copies from the URL into `$session_entry_*` / `$initial_*` props. Same trust rule as sanitizeAttribution. */
+const UTM_KEY = /(^|_)utm_[a-z]+$/i;
+/** Ad-network click ids: opaque per-user tokens, never needed. */
+const CLICK_ID_KEY = /(gclid|gbraid|wbraid|fbclid|msclkid|dclid|twclid|ttclid|li_fat_id|igshid|rdt_cid|epik|gad_source|gad_campaignid)$/i;
+/** Free-text exception fields. */
+const EXCEPTION_TEXT_KEY = /^\$exception_(message|values?)$/i;
+
+const MAX_EXCEPTION_TEXT = 200;
+
+/**
+ * Makes an exception message safe to send: URLs and quoted substrings (which
+ * is where parser errors, selectors, file names and user text end up) are
+ * removed and the result is truncated.
+ */
+export function sanitizeExceptionText(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const clean = raw
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S*/gi, '<url>')
+    .replace(/"[^"]*"|`[^`]*`/g, '""')
+    // Single quotes only when they open a quoted span, so "Can't read property" survives.
+    .replace(/(^|[^\w])'[^']*'(?!\w)/g, "$1''");
+  return clean.length > MAX_EXCEPTION_TEXT ? `${clean.slice(0, MAX_EXCEPTION_TEXT)}...` : clean;
+}
 
 interface ExceptionFrame {
   filename?: unknown;
@@ -68,6 +90,14 @@ interface ExceptionFrame {
 function scrubExceptionList(list: unknown): void {
   if (!Array.isArray(list)) return;
   for (const entry of list) {
+    if (entry && typeof entry === 'object') {
+      const text = entry as { value?: unknown; type?: unknown };
+      if ('value' in text) {
+        const clean = sanitizeExceptionText(text.value);
+        if (clean === undefined) delete text.value;
+        else text.value = clean;
+      }
+    }
     const frames = (entry as { stacktrace?: { frames?: ExceptionFrame[] } } | null)?.stacktrace?.frames;
     if (!Array.isArray(frames)) continue;
     for (const frame of frames) {
@@ -80,13 +110,27 @@ function scrubExceptionList(list: unknown): void {
   }
 }
 
-function scrubUrlBag(bag: Record<string, unknown> | undefined): void {
+function scrubBag(bag: Record<string, unknown> | undefined): void {
   if (!bag) return;
-  for (const key of URL_PROPS) {
-    if (!(key in bag)) continue;
-    const clean = sanitizeUrl(bag[key]);
-    if (clean === undefined) delete bag[key];
-    else bag[key] = clean;
+  for (const key of Object.keys(bag)) {
+    if (SEARCH_KEY.test(key) || CLICK_ID_KEY.test(key)) {
+      delete bag[key];
+    } else if (UTM_KEY.test(key)) {
+      const value = bag[key];
+      if (typeof value !== 'string' || !ATTRIBUTION_VALUE.test(value)) delete bag[key];
+    } else if (URL_KEY.test(key)) {
+      const clean = sanitizeUrl(bag[key]);
+      if (clean === undefined) delete bag[key];
+      else bag[key] = clean;
+    } else if (EXCEPTION_TEXT_KEY.test(key)) {
+      const value = bag[key];
+      if (Array.isArray(value)) bag[key] = value.map((v) => sanitizeExceptionText(v) ?? '');
+      else {
+        const clean = sanitizeExceptionText(value);
+        if (clean === undefined) delete bag[key];
+        else bag[key] = clean;
+      }
+    }
   }
 }
 
@@ -96,14 +140,14 @@ interface ScrubbableEvent {
   $set_once?: Record<string, unknown>;
 }
 
-/** `before_send` implementation: URL scrubbing on properties, `$set`, `$set_once` and exception frames. */
+/** `before_send` implementation: URL, search-term and exception-text scrubbing on properties, `$set`, `$set_once` and exception frames. */
 export function scrubEvent<T extends ScrubbableEvent>(event: T | null): T | null {
   if (!event) return null;
-  scrubUrlBag(event.properties);
-  scrubUrlBag(event.properties?.$set as Record<string, unknown> | undefined);
-  scrubUrlBag(event.properties?.$set_once as Record<string, unknown> | undefined);
-  scrubUrlBag(event.$set);
-  scrubUrlBag(event.$set_once);
+  scrubBag(event.properties);
+  scrubBag(event.properties?.$set as Record<string, unknown> | undefined);
+  scrubBag(event.properties?.$set_once as Record<string, unknown> | undefined);
+  scrubBag(event.$set);
+  scrubBag(event.$set_once);
   scrubExceptionList(event.properties?.$exception_list);
   return event;
 }
@@ -116,4 +160,26 @@ export function scrubEvent<T extends ScrubbableEvent>(event: T | null): T | null
 export function maskReplayText(text: string, element?: Element | null): string {
   if (element?.closest?.('[data-ph-unmask]') && !element.closest('.ph-no-capture')) return text;
   return text.replace(/\S/g, '\u2022');
+}
+
+const REPLAY_ATTRIBUTES_KEPT = /^(?!data-|aria-|title$|alt$|placeholder$|href$|src$|srcset$|value$|content$|name$|label$|download$|action$|poster$)/i;
+
+/**
+ * Session-replay `maskAttributeFn`: attributes that can carry user text or
+ * URLs (title, aria-*, alt, placeholder, href, src, value, data-*) are bulleted;
+ * layout attributes (class, id, style, ...) stay so the replay still looks right.
+ */
+export function maskReplayAttribute(name: string, value: string): string {
+  return REPLAY_ATTRIBUTES_KEPT.test(name) ? value : value.replace(/\S/g, '\u2022');
+}
+
+/**
+ * Session-replay `maskCapturedNetworkRequestFn`. The SDK passes every network
+ * entry through it and also the page URL of replay Meta events (`name`), so it
+ * reduces them to origin + templated path. Entries whose URL cannot be
+ * reduced are dropped.
+ */
+export function maskReplayUrlRequest<T extends { name?: string }>(request: T): T | null {
+  const name = sanitizeUrl(request.name);
+  return name === undefined ? null : { ...request, name };
 }

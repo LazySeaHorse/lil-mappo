@@ -7,10 +7,10 @@
  *
  * Every export is safe to call when analytics is disabled or not started.
  */
-import type { PostHog, Properties } from 'posthog-js/dist/module.full.no-external';
+import type { PostHog, PostHogConfig, Properties } from 'posthog-js/dist/module.full.no-external';
 import { APP_VERSION, PROXY_PATH, REPLAY_SAMPLE_RATE, UI_HOST, currentAnalyticsRuntime } from './config';
 import type { PersonProps } from './events';
-import { maskReplayText, scrubEvent } from './privacy';
+import { maskReplayAttribute, maskReplayText, maskReplayUrlRequest, scrubEvent } from './privacy';
 
 type Instance = PostHog;
 
@@ -36,6 +36,66 @@ let replayWasRecording = false;
 /** Bumped on every start/stop so a slow dynamic import for a stale user is discarded. */
 let generation = 0;
 const queue: Array<(posthog: Instance) => void> = [];
+
+type BeforeSend = Extract<NonNullable<PostHogConfig['before_send']>, (...args: never[]) => unknown>;
+
+/**
+ * Every SDK option that matters for privacy, in one place. Exported so the
+ * real-SDK test can run the exact production config with a collecting
+ * `before_send`. Options that remote config could otherwise switch on
+ * (network/console capture, performance timing) are pinned off explicitly.
+ */
+export function buildInitConfig(userId: string, beforeSend: BeforeSend): Partial<PostHogConfig> {
+  return {
+    api_host: `${window.location.origin}${PROXY_PATH}`,
+    ui_host: UI_HOST,
+    // Cookieless: nothing is written to cookies or storage. Every reload is a new PostHog session.
+    persistence: 'memory',
+    bootstrap: { distinctID: userId, isIdentifiedID: true },
+    person_profiles: 'identified_only',
+    ip: false,
+    autocapture: true,
+    // Autocapture: no element text and no attribute values (title, aria-label, alt, href, ...); tag and position only.
+    mask_all_text: true,
+    mask_all_element_attributes: true,
+    // UTM/click-id params are read from the URL by the SDK; attribution is handled by attribution.ts instead.
+    save_campaign_params: false,
+    capture_pageview: false,
+    capture_pageleave: true,
+    capture_exceptions: true,
+    capture_heatmaps: false,
+    capture_dead_clicks: false,
+    // Network timing/requests and console logs carry URLs and free text; never record them, whatever the project says.
+    capture_performance: false,
+    enable_recording_console_log: false,
+    rageclick: false,
+    disable_scroll_properties: true,
+    disable_session_recording: true,
+    disable_surveys: true,
+    disable_product_tours: true,
+    disable_conversations: true,
+    disable_web_experiments: true,
+    disable_external_dependency_loading: true,
+    // Default-deny masking: every text node is masked unless it sits inside a
+    // [data-ph-unmask] region, all inputs are masked, and the map is not recorded at all.
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: '*',
+      maskTextFn: maskReplayText,
+      maskAttributeFn: maskReplayAttribute,
+      blockSelector: '.mapboxgl-map',
+      // The SDK also routes the page URL of replay Meta events through this function.
+      maskCapturedNetworkRequestFn: maskReplayUrlRequest,
+    },
+    before_send: beforeSend,
+  };
+}
+
+function beforeSend(event: Parameters<BeforeSend>[0]) {
+  if (!activeUser) return null;
+  if (event?.event === '$exception') forceReplay('error');
+  return scrubEvent(event);
+}
 
 /** True while a signed-in session is being tracked (loading or ready). */
 export function isActive(): boolean {
@@ -75,43 +135,7 @@ export function start(options: StartOptions): void {
     .then(({ default: posthog }) => {
       if (current !== generation || activeUser !== options.userId) return;
       if (!initialised) {
-        posthog.init(runtime.key, {
-          api_host: `${window.location.origin}${PROXY_PATH}`,
-          ui_host: UI_HOST,
-          // Cookieless: nothing is written to cookies or storage. Every reload is a new PostHog session.
-          persistence: 'memory',
-          bootstrap: { distinctID: options.userId, isIdentifiedID: true },
-          person_profiles: 'identified_only',
-          ip: false,
-          autocapture: true,
-          mask_all_text: true,
-          capture_pageview: false,
-          capture_pageleave: true,
-          capture_exceptions: true,
-          capture_heatmaps: false,
-          capture_dead_clicks: false,
-          rageclick: false,
-          disable_scroll_properties: true,
-          disable_session_recording: true,
-          disable_surveys: true,
-          disable_product_tours: true,
-          disable_conversations: true,
-          disable_web_experiments: true,
-          disable_external_dependency_loading: true,
-          // Default-deny masking: every text node is masked unless it sits inside a
-          // [data-ph-unmask] region, all inputs are masked, and the map is not recorded at all.
-          session_recording: {
-            maskAllInputs: true,
-            maskTextSelector: '*',
-            maskTextFn: maskReplayText,
-            blockSelector: '.mapboxgl-map',
-          },
-          before_send: (event) => {
-            if (!activeUser) return null;
-            if (event?.event === '$exception') forceReplay('error');
-            return scrubEvent(event);
-          },
-        });
+        posthog.init(runtime.key, buildInitConfig(options.userId, beforeSend));
         initialised = true;
       } else {
         posthog.reset(true);

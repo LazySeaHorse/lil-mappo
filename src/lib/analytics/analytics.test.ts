@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveAnalyticsEnvironment } from './config';
 import { bucketCount, bucketDuration, bucketPointCount, type AnalyticsEventMap } from './events';
-import { maskReplayText, sanitizeAttribution, sanitizeUrl, scrubEvent } from './privacy';
+import { buildInitConfig } from './client';
+import { maskReplayAttribute, maskReplayText, maskReplayUrlRequest, sanitizeAttribution, sanitizeExceptionText, sanitizeUrl, scrubEvent } from './privacy';
 import { track } from './index';
 
 const prodHost = { hostname: 'app.lilmappo.tech', search: '' };
@@ -73,6 +74,100 @@ describe('scrubEvent', () => {
     expect(out.properties.$exception_list[0].stacktrace.frames[0].filename).toBe(`${origin}/assets/a.js`);
     expect(out.properties.keep).toBe('me');
     expect(scrubEvent(null)).toBeNull();
+  });
+});
+
+describe('scrubEvent (SDK property families)', () => {
+  const origin = window.location.origin;
+
+  it('scrubs every url-like key by name, in properties, $set and $set_once', () => {
+    const event = {
+      properties: {
+        $session_entry_url: `${origin}/routes/secret?email=a%40b.c`,
+        $session_entry_pathname: '/routes/secret',
+        $session_entry_referrer: 'https://google.com/search?q=steven+grey',
+        $prev_pageview_pathname: '/routes/secret',
+        $set_once: { $initial_referrer: 'https://google.com/search?q=x', $initial_current_url: `${origin}/routes/s?x=1` },
+      },
+      $set: { $current_url: `${origin}/routes/s?x=1` },
+    };
+    const out = scrubEvent(event)!;
+    expect(out.properties.$session_entry_url).toBe(`${origin}/routes/:slug`);
+    expect(out.properties.$session_entry_pathname).toBe('/routes/:slug');
+    expect(out.properties.$session_entry_referrer).toBe('https://google.com');
+    expect(out.properties.$prev_pageview_pathname).toBe('/routes/:slug');
+    expect(out.properties.$set_once.$initial_referrer).toBe('https://google.com');
+    expect(out.properties.$set_once.$initial_current_url).toBe(`${origin}/routes/:slug`);
+    expect(out.$set.$current_url).toBe(`${origin}/routes/:slug`);
+  });
+
+  it('drops search terms, search engines and click ids, and only keeps well-formed utm values', () => {
+    const out = scrubEvent({
+      properties: {
+        ph_keyword: 'steven grey',
+        $session_entry_ph_keyword: 'x',
+        $search_engine: 'google',
+        $session_entry_search_engine: 'google',
+        $gclid: 'abc',
+        utm_source: 'news-letter',
+        $session_entry_utm_term: 'steven grey',
+        source: 'car',
+        $set_once: { $initial_ph_keyword: 'x', $initial_search_engine: 'bing' },
+      },
+    })!;
+    expect(out.properties).toEqual({ utm_source: 'news-letter', source: 'car', $set_once: {} });
+  });
+
+  it('cleans exception messages', () => {
+    const out = scrubEvent({
+      properties: {
+        $exception_list: [{ type: 'Error', value: 'Failed to load https://x.test/img/Grandma.png?sig=1' }],
+        $exception_message: 'Bad "user text"',
+      },
+    })!;
+    expect(out.properties.$exception_list[0].value).toBe('Failed to load <url>');
+    expect(out.properties.$exception_message).toBe('Bad ""');
+  });
+});
+
+describe('sanitizeExceptionText', () => {
+  it('removes quoted JSON snippets and keeps contractions and property names', () => {
+    expect(sanitizeExceptionText(`Unexpected token 'h', "hello world" is not valid JSON`)).toBe(`Unexpected token '', "" is not valid JSON`);
+    expect(sanitizeExceptionText("Can't read properties of undefined (reading 'lat')")).toBe("Can't read properties of undefined (reading '')");
+  });
+  it('removes image sources and truncates', () => {
+    expect(sanitizeExceptionText('Image error src=https://cdn.test/me.png?x=1 end')).toBe('Image error src=<url> end');
+    expect(sanitizeExceptionText('x'.repeat(500))!.length).toBe(203);
+    expect(sanitizeExceptionText(undefined)).toBeUndefined();
+  });
+});
+
+describe('replay masking hooks', () => {
+  it('bullets text-carrying attributes and keeps layout ones', () => {
+    expect(maskReplayAttribute('aria-label', 'Route 12 Elm')).toBe('\u2022\u2022\u2022\u2022\u2022 \u2022\u2022 \u2022\u2022\u2022');
+    expect(maskReplayAttribute('data-id', 'ab')).toBe('\u2022\u2022');
+    expect(maskReplayAttribute('class', 'flex gap-2')).toBe('flex gap-2');
+  });
+  it('reduces request and page URLs, dropping unusable ones', () => {
+    expect(maskReplayUrlRequest({ name: `${window.location.origin}/routes/abc?email=a%40b.c` })).toEqual({ name: `${window.location.origin}/routes/:slug` });
+    expect(maskReplayUrlRequest({ name: 'blob:xyz' })).toBeNull();
+  });
+});
+
+describe('production SDK config', () => {
+  it('pins capture channels that remote config could otherwise enable', () => {
+    const cfg = buildInitConfig('u', () => null);
+    expect(cfg).toMatchObject({
+      capture_performance: false,
+      enable_recording_console_log: false,
+      mask_all_element_attributes: true,
+      mask_all_text: true,
+      persistence: 'memory',
+      save_campaign_params: false,
+    });
+    expect(cfg.session_recording).toMatchObject({ maskAllInputs: true, maskTextSelector: '*' });
+    expect(cfg.session_recording?.maskCapturedNetworkRequestFn).toBe(maskReplayUrlRequest);
+    expect(cfg.session_recording?.maskAttributeFn).toBe(maskReplayAttribute);
   });
 });
 
