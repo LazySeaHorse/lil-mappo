@@ -47,16 +47,16 @@ const TEST_DIRECTIONS = {
     },
   ],
 };
-
 async function stubExternalServices(page: Page) {
-  await page.route('https://api.mapbox.com/styles/v1/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_STYLE) }),
+  // 1. Mapbox styles, telemetry, tiles, directions & search (100% mocked, $0 cost)
+  await page.route('https://api.mapbox.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
   );
   await page.route('https://api.mapbox.com/directions/v5/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_DIRECTIONS) }),
   );
-  await page.route('https://api.mapbox.com/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  await page.route('https://api.mapbox.com/styles/v1/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_STYLE) }),
   );
   await page.route('https://events.mapbox.com/**', (route) => route.fulfill({ status: 204, body: '' }));
   await page.route('https://nominatim.openstreetmap.org/**', (route) =>
