@@ -78,6 +78,12 @@ describe('scrubEvent', () => {
 });
 
 describe('scrubEvent (SDK property families)', () => {
+  it('drops the page title (free text such as a project name)', () => {
+    const out = scrubEvent({ properties: { title: "Grandma's trip", $title: 'Elm St', $pathname: '/' }, $set: { $title: 'x' } })!;
+    expect(out.properties).toEqual({ $pathname: '/' });
+    expect(out.$set).toEqual({});
+  });
+
   const origin = window.location.origin;
 
   it('scrubs every url-like key by name, in properties, $set and $set_once', () => {
@@ -139,6 +145,12 @@ describe('sanitizeExceptionText', () => {
     expect(sanitizeExceptionText('Image error src=https://cdn.test/me.png?x=1 end')).toBe('Image error src=<url> end');
     expect(sanitizeExceptionText('x'.repeat(500))!.length).toBe(203);
     expect(sanitizeExceptionText(undefined)).toBeUndefined();
+  });
+  it('removes email addresses and bare user file names', () => {
+    expect(sanitizeExceptionText('Invalid email a@b.com')).toBe('Invalid email <email>');
+    expect(sanitizeExceptionText('Failed to parse trip-to-grandma.gpx')).toBe('Failed to parse <file>');
+    expect(sanitizeExceptionText('Cannot read my.route.v2.GeoJSON: bad; also cover.PNG and clip.mp4')).toBe('Cannot read <file>: bad; also <file> and <file>');
+    expect(sanitizeExceptionText('Unexpected end of JSON input')).toBe('Unexpected end of JSON input');
   });
 });
 

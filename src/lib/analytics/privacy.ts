@@ -62,13 +62,19 @@ const SEARCH_KEY = /(ph_keyword|search_engine)$/i;
 const UTM_KEY = /(^|_)utm_[a-z]+$/i;
 /** Ad-network click ids: opaque per-user tokens, never needed. */
 const CLICK_ID_KEY = /(gclid|gbraid|wbraid|fbclid|msclkid|dclid|twclid|ttclid|li_fat_id|igshid|rdt_cid|epik|gad_source|gad_campaignid)$/i;
+/** Page title (`title`, `$title`): free text such as a project name. */
+const TITLE_KEY = /^\$?title$/i;
 /** Free-text exception fields. */
 const EXCEPTION_TEXT_KEY = /^\$exception_(message|values?)$/i;
 
 const MAX_EXCEPTION_TEXT = 200;
+const EMAIL = /[^\s@"'<>()[\]]+@[^\s@"'<>()[\]]+\.[a-z]{2,}/gi;
+/** Bare file names a user could have chosen (imports, exports, media). */
+const USER_FILE = /[^\s"'`/\\<>()[\]]+\.(?:gpx|kml|kmz|json|geojson|csv|tcx|fit|png|jpe?g|webp|gif|svg|mp4|webm|mov|zip)\b/gi;
 
 /**
- * Makes an exception message safe to send: URLs and quoted substrings (which
+ * Makes an exception message safe to send: URLs, email addresses, file names
+ * with user-data extensions and quoted substrings (which
  * is where parser errors, selectors, file names and user text end up) are
  * removed and the result is truncated.
  */
@@ -76,6 +82,8 @@ export function sanitizeExceptionText(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const clean = raw
     .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S*/gi, '<url>')
+    .replace(EMAIL, '<email>')
+    .replace(USER_FILE, '<file>')
     .replace(/"[^"]*"|`[^`]*`/g, '""')
     // Single quotes only when they open a quoted span, so "Can't read property" survives.
     .replace(/(^|[^\w])'[^']*'(?!\w)/g, "$1''");
@@ -113,7 +121,7 @@ function scrubExceptionList(list: unknown): void {
 function scrubBag(bag: Record<string, unknown> | undefined): void {
   if (!bag) return;
   for (const key of Object.keys(bag)) {
-    if (SEARCH_KEY.test(key) || CLICK_ID_KEY.test(key)) {
+    if (SEARCH_KEY.test(key) || CLICK_ID_KEY.test(key) || TITLE_KEY.test(key)) {
       delete bag[key];
     } else if (UTM_KEY.test(key)) {
       const value = bag[key];
