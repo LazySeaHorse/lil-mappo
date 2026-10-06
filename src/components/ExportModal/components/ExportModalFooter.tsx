@@ -35,7 +35,7 @@ export function ExportModalFooter({
         <Button
           onClick={onCancel}
           variant="outline"
-          className="flex-1 h-11 text-sm font-medium border-destructive/30 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/50 transition-all"
+          className="flex-1 min-w-0 h-11 text-sm font-medium border-destructive/30 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/50 transition-all"
         >
           Cancel
         </Button>
@@ -43,7 +43,7 @@ export function ExportModalFooter({
         <Button
           onClick={onExport}
           disabled={isExportDisabled}
-          className="flex-1 h-11 text-sm font-medium flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all shadow-lg shadow-primary/10"
+          className="flex-1 min-w-0 h-11 px-3 text-sm font-medium flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all shadow-lg shadow-primary/10"
         >
           {progress === 100 ? (
             <>

@@ -107,12 +107,12 @@ function Trigger({ featureId, variant, className, voted }: TriggerProps) {
               className,
             )}
           >
-            <span className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap px-2 sm:px-3">
+            <span className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap px-1.5 sm:px-3">
               {feature.title}
             </span>
             <span
               className={cn(
-                'flex w-10 shrink-0 sm:w-11 items-center justify-center border-l',
+                'flex w-9 shrink-0 sm:w-11 items-center justify-center border-l',
                 voted
                   ? 'border-wish/45 bg-wish/10 group-hover:bg-wish/15'
                   : 'border-muted-foreground/50 group-hover:bg-accent',
