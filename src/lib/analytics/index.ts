@@ -4,6 +4,8 @@
  * started the client (see AnalyticsBridge). Never import posthog-js directly.
  */
 import * as client from './client';
+import { currentAnalyticsRuntime } from './config';
+import { postKeepalive } from './keepalive';
 import type { AnalyticsEventMap, EventArgs, PersonProps } from './events';
 
 export * from './events';
@@ -17,11 +19,17 @@ export function track<E extends keyof AnalyticsEventMap>(event: E, ...args: Even
 }
 
 /**
- * Like {@link track} but sent with `navigator.sendBeacon`, for events fired
- * right before the page navigates away (checkout redirect).
+ * Like {@link track} but for events fired right before the page navigates away
+ * (checkout redirect). Sent as a keepalive fetch that does not wait for the
+ * SDK chunk (which may still be downloading right after sign-in), so it
+ * survives the navigation. Same gates as {@link track}: needs analytics enabled
+ * and a signed-in user; `ip=0` mirrors the SDK's `ip: false`.
  */
 export function trackBeacon<E extends keyof AnalyticsEventMap>(event: E, ...args: EventArgs<AnalyticsEventMap[E]>): void {
-  client.capture(event, args[0] as Record<string, unknown> | undefined, { beacon: true });
+  const runtime = currentAnalyticsRuntime();
+  const userId = client.activeUserId();
+  if (!runtime || !userId) return;
+  postKeepalive(runtime, event, userId, { ...(args[0] as Record<string, unknown> | undefined) }, '?ip=0');
 }
 
 /** Sets person properties (`once` entries are only written if unset). */
