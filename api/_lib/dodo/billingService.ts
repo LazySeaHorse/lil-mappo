@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DunningEventData, PaymentEventData, PlanConfig, SubEventData } from "./types.js";
+import type { DunningEventData, PaymentEventData, PlanConfig, ProvisionResult, SubEventData } from "./types.js";
 
 /** ISO timestamp → YYYY-MM-DD date string for Postgres `date` columns. */
 export function toDateString(iso: string | null | undefined): string | null {
@@ -10,11 +10,15 @@ export function toDateString(iso: string | null | undefined): string | null {
 export class BillingService {
   constructor(private readonly supabase: SupabaseClient) {}
 
-  async provisionSubscription(sub: SubEventData, plan: PlanConfig): Promise<void> {
+  /**
+   * Returns `firstTime: false` when the idempotency key already existed (a retried
+   * delivery), so callers can avoid double-reporting. Null when there was nothing to provision.
+   */
+  async provisionSubscription(sub: SubEventData, plan: PlanConfig): Promise<ProvisionResult | null> {
     const uid = sub.metadata?.supabase_uid;
     if (!uid) {
       console.warn("[dodo-webhook] subscription.active: missing supabase_uid in metadata");
-      return;
+      return null;
     }
 
     const renewalDate = toDateString(sub.next_billing_date);
@@ -83,6 +87,7 @@ export class BillingService {
     }
 
     console.log("[dodo-webhook] Provisioned subscription for user", uid, "→", plan.tier);
+    return { userId: uid, firstTime: !idempotencyError };
   }
 
   async creditTopupPayment(payment: PaymentEventData): Promise<void> {

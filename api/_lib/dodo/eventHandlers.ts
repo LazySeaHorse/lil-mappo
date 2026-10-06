@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BillingService } from "./billingService.js";
-import type { DunningEventData, PaymentEventData, Plans, SubEventData, WebhookEvent } from "./types.js";
+import type { DispatchResult, DunningEventData, PaymentEventData, Plans, SubEventData, WebhookEvent } from "./types.js";
 
 function getBillingService(target: SupabaseClient | BillingService): BillingService {
   return target instanceof BillingService ? target : new BillingService(target);
@@ -10,14 +10,15 @@ export async function handleSubscriptionActive(
   sub: SubEventData,
   clientOrService: SupabaseClient | BillingService,
   plans: Plans
-): Promise<void> {
+): Promise<DispatchResult> {
   const plan = plans[sub.product_id];
   if (!plan) {
     console.warn("[dodo-webhook] subscription.active: unknown product_id:", sub.product_id);
-    return;
+    return {};
   }
   const service = getBillingService(clientOrService);
-  await service.provisionSubscription(sub, plan);
+  const provisioned = await service.provisionSubscription(sub, plan);
+  return provisioned ? { provisioned: { ...provisioned, tier: plan.tier } } : {};
 }
 
 export async function handlePaymentSucceeded(
@@ -75,11 +76,10 @@ export async function dispatchWebhookEvent(
   event: WebhookEvent,
   clientOrService: SupabaseClient | BillingService,
   plans: Plans
-): Promise<void> {
+): Promise<DispatchResult> {
   switch (event.type) {
     case "subscription.active":
-      await handleSubscriptionActive(event.data as SubEventData, clientOrService, plans);
-      break;
+      return handleSubscriptionActive(event.data as SubEventData, clientOrService, plans);
     case "payment.succeeded":
       await handlePaymentSucceeded(event.data as PaymentEventData, clientOrService);
       break;
@@ -105,4 +105,5 @@ export async function dispatchWebhookEvent(
       // Payment failures and other informational events must not grant access.
       break;
   }
+  return {};
 }

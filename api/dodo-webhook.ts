@@ -13,6 +13,7 @@ import {
   handleSubscriptionUnavailable,
   handleDunningRecovered,
 } from "./_lib/dodo/eventHandlers.js";
+import { lookupSubscriptionOwner, reportSubscriptionEvent } from "./_lib/dodo/analyticsEvents.js";
 
 // Re-export types and functions for test compatibility & consumer flexibility
 export type { PlanConfig, Plans, SubEventData, PaymentEventData, DunningEventData, WebhookEvent } from "./_lib/dodo/types.js";
@@ -73,13 +74,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const billingService = new BillingService(supabase);
   const planCatalogue = buildPlanFromProduct();
 
+  // Analytics only: who owns a subscription that is about to be cancelled/expired (the row is deleted on expiry).
+  const owner = await lookupSubscriptionOwner(supabase, event);
+
+  let result;
   try {
-    await dispatchWebhookEvent(event, billingService, planCatalogue);
+    result = await dispatchWebhookEvent(event, billingService, planCatalogue);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal handler error";
     console.error("[dodo-webhook] Handler error for event", event.type, ":", err);
     return res.status(500).json({ error: message });
   }
+
+  // Only after the handler succeeded; bounded and never throws, so Dodo still gets its 200.
+  await reportSubscriptionEvent({ event, result, owner, headers: req.headers });
 
   return res.status(200).json({ received: true });
 }
