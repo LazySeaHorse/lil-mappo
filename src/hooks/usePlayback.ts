@@ -51,8 +51,17 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
       }
     });
 
+    // rAF stops while the tab is hidden but the wall clock does not, so pause
+    // to keep the playhead from jumping forward on return.
+    const onVisibilityChange = () => {
+      const store = useProjectStore.getState();
+      if (document.hidden && store.isPlaying && !store.isExporting) store.setIsPlaying(false);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     return () => {
       unsub();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       cancelAnimationFrame(rafRef.current);
     };
   }, [mapRef]);
