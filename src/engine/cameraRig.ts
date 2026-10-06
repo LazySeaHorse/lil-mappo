@@ -473,8 +473,18 @@ function fingerprint(coords: number[][], config: AutoCamConfig): string {
   return [coords.length, h >>> 0, config.mode, config.smoothing, scale].join(':');
 }
 
+// Skips re-hashing every coordinate when called again with the same arrays/config objects.
+const keyMemo = new WeakMap<number[][], { config: AutoCamConfig; key: string }>();
+
 export function getRig(coords: number[][], config: AutoCamConfig): CameraRig | null {
-  const key = fingerprint(coords, config);
+  const memo = keyMemo.get(coords);
+  let key: string;
+  if (memo && memo.config === config) {
+    key = memo.key;
+  } else {
+    key = fingerprint(coords, config);
+    keyMemo.set(coords, { config, key });
+  }
   if (cache.has(key)) {
     const hit = cache.get(key)!;
     cache.delete(key);

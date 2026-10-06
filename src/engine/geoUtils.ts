@@ -37,11 +37,17 @@ export function extractLineStringsFromGeometry(geometry: GeoJSON.Geometry): numb
   return lineStrings;
 }
 
+// Store items are immutable (geojson is replaced on edit), so results are memoized by
+// feature-collection identity. Callers must treat the returned array as read-only.
+const lineCoordsCache = new WeakMap<object, number[][]>();
+
 /**
  * Flattens every LineString / MultiLineString in a feature collection into one
  * coordinate list. Other geometry types and malformed coordinates are skipped.
  */
 export function extractLineCoords(fc: { features: GeoJSON.Feature[] }): number[][] {
+  const cached = lineCoordsCache.get(fc);
+  if (cached) return cached;
   const coords: number[][] = [];
   for (const feature of fc.features) {
     const geom = feature.geometry;
@@ -53,6 +59,7 @@ export function extractLineCoords(fc: { features: GeoJSON.Feature[] }): number[]
       }
     }
   }
+  lineCoordsCache.set(fc, coords);
   return coords;
 }
 
