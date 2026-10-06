@@ -320,7 +320,7 @@ test("7. export reaches the correct free-plan and upgrade state", async ({ page 
   const exportDialog = page.getByRole("dialog", { name: "Export" });
   await expect(exportDialog).toBeVisible();
   await expect(exportDialog.getByText(/Free plan limit:.*720p, 30 FPS, and 30 seconds/)).toBeVisible();
-  await expect(exportDialog.getByRole("button", { name: /Cloud render.*Not available yet/ })).toBeDisabled();
+  await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" })).toBeEnabled();
 
   await exportDialog.getByRole("button", { name: /Use a paid plan/ }).click();
   const upgradeDialog = page.getByRole("dialog", { name: "Upgrade to Wanderer" });

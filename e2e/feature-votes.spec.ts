@@ -28,10 +28,18 @@ async function openExport(page: Page) {
   return exportDialog;
 }
 
-test("signed out: the Cloud render pill previews the feature and sends voters to sign-in", async ({ page }) => {
+test("signed out: the Cloud render control previews the feature and sends voters to sign-in", async ({ page }) => {
   const exportDialog = await openExport(page);
 
-  await exportDialog.getByRole("button", { name: "I'd like this" }).click();
+  const trigger = exportDialog.getByRole("button", { name: "Cloud render, not built yet" });
+  await expect(trigger).toBeEnabled();
+  await expect(exportDialog.getByText("Not available yet")).toHaveCount(0);
+  // Same height as the Export button, side by side.
+  const exportButton = exportDialog.getByRole("button", { name: /Export locally/ });
+  const [t, e] = [await trigger.boundingBox(), await exportButton.boundingBox()];
+  expect(t!.height).toBeCloseTo(e!.height, 0);
+  expect(t!.y).toBeCloseTo(e!.y, 0);
+  await trigger.click();
   const featureDialog = page.getByRole("dialog", { name: "Cloud render" });
   await expect(featureDialog).toBeVisible();
   await expect(featureDialog.getByTestId("feature-skeleton")).toBeVisible();
@@ -69,16 +77,28 @@ test("signed in: voting toggles and calls set_feature_vote", async ({ page }) =>
   });
 
   const exportDialog = await openExport(page);
-  await exportDialog.getByRole("button", { name: "I'd like this" }).click();
+  // Signed in: the trigger loads the vote on mount; nothing voted yet.
+  const trigger = exportDialog.getByRole("button", { name: "Cloud render, not built yet" });
+  await expect(trigger).toBeVisible();
+  await expect(trigger.locator('[data-voted="false"]')).toBeVisible();
+  await trigger.click();
   const featureDialog = page.getByRole("dialog", { name: "Cloud render" });
   await expect(featureDialog.getByText("Be the first to ask for this")).toBeVisible();
 
   await featureDialog.getByRole("button", { name: "I'd like this" }).click();
   await expect(featureDialog.getByRole("button", { name: "I'd like this" })).toHaveAttribute("aria-pressed", "true");
+  await expect(featureDialog.getByRole("button", { name: "I'd like this" })).toHaveText("You asked for this");
   await expect.poll(() => setCalls).toEqual([{ p_feature_id: "cloud-render", p_voted: true }]);
   await expect(featureDialog.getByText("A few people want this")).toBeVisible();
+  // The trigger behind the dialog already shows the filled heart.
+  await expect(exportDialog.locator('[data-voted="true"]')).toHaveCount(1);
 
   await featureDialog.getByRole("button", { name: "I'd like this" }).click();
   await expect(featureDialog.getByRole("button", { name: "I'd like this" })).toHaveAttribute("aria-pressed", "false");
   await expect.poll(() => setCalls.at(-1)).toEqual({ p_feature_id: "cloud-render", p_voted: false });
+
+  // Unvoted again: closing the dialog leaves the outline heart and the plain name.
+  await page.keyboard.press("Escape");
+  await expect(featureDialog).toBeHidden();
+  await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" }).locator('[data-voted="false"]')).toBeVisible();
 });

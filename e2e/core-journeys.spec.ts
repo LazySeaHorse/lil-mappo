@@ -234,7 +234,7 @@ test.describe("5 Golden E2E Journeys", () => {
 
     // 2. Verify Free Plan constraints are enforced in UI
     await expect(exportDialog.getByText(/Free plan limit:.*720p, 30 FPS, and 30 seconds/)).toBeVisible();
-    await expect(exportDialog.getByRole("button", { name: /Cloud render.*Not available yet/ })).toBeDisabled();
+    await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" })).toBeEnabled();
 
     // 3. Click Upgrade trigger
     await exportDialog.getByRole("button", { name: /Use a paid plan/ }).click();
