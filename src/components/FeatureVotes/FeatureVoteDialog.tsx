@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Check, ThumbsUp, Star } from 'lucide-react';
+import { Heart, TrendingUp } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -102,7 +102,7 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
         <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent border-b border-border/40">
           <DialogHeader className="pr-6">
             <DialogTitle className="text-xl font-medium tracking-tight">{feature.title}</DialogTitle>
-            <DialogDescription className="text-sm mt-1">Not available yet</DialogDescription>
+            <DialogDescription className="text-sm mt-1">Not built yet</DialogDescription>
           </DialogHeader>
         </div>
 
@@ -144,7 +144,7 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
                     <span className="text-muted-foreground">{TIER_COPY[summary.tier]}</span>
                     {summary.most_requested && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
-                        <Star size={12} aria-hidden="true" /> {MOST_REQUESTED_LABEL}
+                        <TrendingUp size={12} aria-hidden="true" /> {MOST_REQUESTED_LABEL}
                       </span>
                     )}
                   </div>
@@ -152,19 +152,25 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
                   <span className="text-muted-foreground">Loading votes…</span>
                 )}
               </div>
-              {/* One stable label; the pressed state is carried by aria-pressed (and the check icon).
+              {/* One stable accessible name; the pressed state is carried by aria-pressed, and the visible
+                  text and heart show it too ("You asked for this" + filled pink heart).
                   aria-disabled (not `disabled`) so keyboard focus stays on the button while a vote is saved;
                   handleToggle ignores activation in that state. */}
               <Button
                 type="button"
                 variant={summary?.has_voted ? 'outline' : 'default'}
+                aria-label="I'd like this"
                 aria-pressed={summary?.has_voted ?? false}
                 aria-disabled={!summary || setVote.isPending}
                 onClick={handleToggle}
-                className="h-10 rounded-lg gap-2 w-full sm:w-auto aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
+                className="h-10 rounded-lg gap-2 w-full sm:w-auto aria-pressed:border-wish/45 aria-pressed:bg-wish/10 aria-pressed:hover:bg-wish/15 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
               >
-                {summary?.has_voted ? <Check size={16} aria-hidden="true" /> : <ThumbsUp size={16} aria-hidden="true" />}
-                I'd like this
+                <Heart
+                  size={16}
+                  aria-hidden="true"
+                  className={summary?.has_voted ? 'fill-wish text-wish' : undefined}
+                />
+                {summary?.has_voted ? 'You asked for this' : "I'd like this"}
               </Button>
             </>
           ) : (
