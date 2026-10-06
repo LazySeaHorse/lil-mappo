@@ -108,7 +108,7 @@ Event list, masking conventions, required PostHog project settings and the exact
 
 ## Upcoming feature votes
 
-Features that are not built yet (currently Cloud render and Example projects) show an "I'd like this" pill. Signed-in users can vote for them; the app only ever sees a coarse tier ("A few people want this" and so on), never counts. The feature list is `src/config/upcomingFeatures.ts`, the tunables (vote weights, tier thresholds) are in `feature_vote_params()` in migration 022, and production and preview share one set of votes. See [`LLM-START-HERE.md`](LLM-START-HERE.md) section 7.8, including how to add a feature.
+Features that are not built yet (currently Cloud render and Example projects) sit in their usual place as a quiet control with a pink heart ("I'd like this" / "You asked"). Clicking opens a preview where signed-in users can vote; the app only ever sees a coarse tier ("A few people want this" and so on), never counts. The feature list is `src/config/upcomingFeatures.ts`, the tunables (vote weights, tier thresholds) are in `feature_vote_params()` in migration 022, and production and preview share one set of votes. See [`LLM-START-HERE.md`](LLM-START-HERE.md) section 7.8, including how to add a feature.
 
 ## Local Supabase
 

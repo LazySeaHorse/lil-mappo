@@ -1,8 +1,9 @@
 import type { FeatureVoteTier } from '@/lib/database.types';
 
 /**
- * Features we are considering building. Each one shows up as an "I'd like this"
- * pill on the surface that is currently "Not available yet" (see FeatureVotes/).
+ * Features we are considering building. Each one is shown by an `UpcomingFeature`
+ * trigger (a pink heart; "I'd like this" / "You asked") on the surface that would
+ * hold the feature once built (see FeatureVotes/).
  *
  * `id` is what gets stored in `public.feature_votes`, so it must match the SQL
  * check in migration 022 (lowercase words joined by single hyphens, max 48 chars)
