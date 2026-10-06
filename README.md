@@ -61,6 +61,7 @@ li'l Mappo is a browser-based application for creating cinematic map animations 
 - **AI & MCP**: WebMCP browser protocol and Go WebSocket MCP bridge
 - **Backend & Auth**: Supabase (PostgreSQL, Auth, Storage) and Vercel Serverless Functions
 - **Payments**: Dodo Payments (hosted checkout and webhooks)
+- **Analytics**: Optional PostHog (EU, first-party proxy, lazy-loaded, signed-in only)
 - **UI & Styling**: Radix UI primitives, Tailwind CSS, Lucide React
 - **Testing**: Vitest, Playwright, and fast-check property-based fuzzing
 
@@ -96,6 +97,12 @@ npm run test:ui
 # Run property-based smart monkey fuzzing
 npm run test:fuzz
 ```
+
+## Analytics (PostHog)
+
+Product analytics is optional and **off unless `VITE_POSTHOG_KEY` is set at build time**. Even with a key it only runs on `app.lilmappo.tech` and `preview.lilmappo.tech` (never in dev, under Playwright or in automated browsers). It loads only after sign-in, is cookieless, goes through a first-party `/_m` proxy (Vercel rewrites to PostHog EU), identifies by user id only, and never sends coordinates, project names or other user content. Session replay is signed-in only, sampled at 50%, and masks all text by default (opt in static UI with `data-ph-unmask`, hide user content with `ph-no-capture`). Signed-out visitors only produce four anonymous aggregate counters. The webhook also sends `subscription_*` events when the key is set on the server.
+
+Event list, masking conventions, required PostHog project settings and the exact signed-out behaviour are in [`LLM-START-HERE.md`](LLM-START-HERE.md) section 7.7.
 
 ## Local Supabase
 

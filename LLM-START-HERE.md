@@ -639,6 +639,50 @@ The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the
     - **Server-side**: Supabase "Before user creation" Auth Hook (Migration 016) rejects signups from blacklisted domains.
 - **Obfuscation**: Production builds use `rollup-plugin-obfuscator` to make reverse-engineering client-side limits harder (Phase 10).
 
+### 7.7 Product Analytics (PostHog)
+
+Code: `src/lib/analytics/`, `api/_lib/analytics.ts`, `api/_lib/dodo/analyticsEvents.ts`. It is a **total no-op** unless every gate passes (`resolveAnalyticsEnvironment` in `config.ts`): production build, `VITE_POSTHOG_KEY` set, host in the allow-list (`app.lilmappo.tech` → `environment=production`, `preview.lilmappo.tech` → `environment=preview`), not `navigator.webdriver`, and no `?render_job=` (cloud-render capture). Dev, Playwright and Vercel branch URLs therefore never send anything. Both hosts share one Supabase project and one PostHog project; filter by the `environment` property.
+
+**Architecture**
+- **PostHog EU cloud, first-party proxy.** `vercel.json` rewrites `/_m/static/*` → `eu-assets.i.posthog.com` and `/_m/*` → `eu.i.posthog.com` (neutral path so ad blockers do not match it; no serverless function). The CSP is unchanged: `api_host` is the same origin and the recorder/exception chunks are bundled (`posthog-js/dist/module.full.no-external` + `disable_external_dependency_loading`). `src/test/vercelConfig.test.ts` pins the rewrites.
+- **Lazy and session-gated.** `AnalyticsBridge` (mounted inside `BrowserRouter` in `App.tsx`) starts PostHog only when `useAuthStore.user` exists, via a dynamic `import()`, so signed-out visitors never download the SDK. Identity is `identify(user.id)` only (no email, no name). Sign-out or a user switch calls `reset` + stop. `src/lib/analytics` is excluded from the obfuscator in `vite.config.ts`; string-array encoding would otherwise rewrite the dynamic import specifier and break code splitting.
+- **Cookieless.** `persistence: 'memory'`, nothing written to cookies or storage, IP not stored (also discard client IP data in the project settings). Consequence: every page reload is a new PostHog session.
+- **Public API** (`import { track } from '@/lib/analytics'`): `track(event, props)`, `trackBeacon` (for events fired right before navigation, e.g. `checkout_started`), `setPersonProps`, `forceReplay`, `pauseReplay`/`resumeReplay`, `trackAnonymous`. Event names and property types live in `events.ts` (`AnalyticsEventMap`); unknown events or wrong props fail `tsc`. To add an event: add it to the map, call `track` at the call site, add it to the table below.
+- **Privacy rules.** Properties are enums, booleans, ids or coarse buckets (`bucketPointCount`, `bucketDuration`, `bucketCount`). NEVER send coordinates, route geometry, project names, search queries, addresses, file names, raw error messages or free text. `before_send` (`scrubEvent`) rewrites `$current_url`/`$pathname`/`$referrer`/exception frames to origin + templated path (`/routes/:slug`) and drops query strings and hashes (Dodo return URLs carry `email=`; render mode carries `render_job`/`render_secret`). `src/lib/analytics/classify.ts` maps errors/files to enums.
+- **Session replay.** Signed-in only, sampled in code at `REPLAY_SAMPLE_RATE` (50%, `config.ts`; the PostHog project sample rate must stay 100% so sampling is not applied twice). Forced on for the rest of the session (forward-looking only) after an `$exception` or `upgrade_prompt_shown`. Stopped while a local MP4 export runs (`isExporting`) and resumed afterwards. **Default-deny masking:** all text is masked (`maskTextSelector: '*'` with `maskTextFn`) except inside a `[data-ph-unmask]` region; all inputs are masked; `.mapboxgl-map` is blocked. Static chrome opts in with `data-ph-unmask` (toolbar root, timeline header, `DialogTitle`/`DialogDescription`/`AlertDialogTitle`/`AlertDialogDescription`). **Never put user content (names, emails) inside an unmasked region**; wrap it in `ph-no-capture` (already on the project library list, search results, timeline items, the account menu header, the delete-project name and the sign-in email). Autocapture runs with `mask_all_text: true`.
+- **Anonymous counters (signed-out).** `signup_submitted`, `signin_failed`, `guest_route_added`, `guest_gate_hit` go out through `trackAnonymous`: one `fetch` POST to `/_m/i/v0/e/` with a throwaway `distinct_id`, `$process_person_profile: false`, no SDK, no storage. They exist only to measure the sign-up funnel and guest friction.
+- **Signup attribution.** `attribution.ts` reads whitelisted `utm_source|medium|campaign|content|term` and `ref` on landing, sanitizes values to `[A-Za-z0-9._-]{1,64}`, keeps them in `sessionStorage` for the tab (first touch wins) and strips them from the address bar. They are sent in `supabase.auth.signUp({ options: { data: { signup_attribution } } })` so they survive confirming on another device. `signed_up` fires once, on the first session after the confirmation redirect: `initialAuthCallbackType` in `src/lib/supabase.ts` reads `type=signup` from the URL hash *before* `createClient` (supabase-js clears it asynchronously). Treat attribution as untrusted, analytics only.
+- **Server events** (`api/dodo-webhook.ts`): `subscription_started` (first delivery only: `provisionSubscription` returns `{ firstTime, userId }`), `subscription_cancelled` (Dodo `cancelled` = scheduled to end), `subscription_ended` (Dodo `expired`). Sent only after the handler succeeded, with `uuid` derived from the `webhook-id` header and `timestamp` from `webhook-timestamp` so redeliveries de-duplicate. `captureServerEvent` is a no-op without the key, bounded to 1.5 s, and never throws; the webhook always answers as before. The server reads the same `VITE_POSTHOG_KEY`; `DODO_ENVIRONMENT=live_mode` maps to `environment=production`, otherwise `preview`.
+
+**Events**
+
+| Event | Properties | Where |
+| --- | --- | --- |
+| `$pageview`, `$pageleave`, `$exception` | scrubbed URL | bridge / SDK |
+| `signed_up` | `utm_*`, `ref` | bridge (first session after confirmation) |
+| `project_created` | `source`: blank, import_file, deep_link | NewProjectModal, import, route deep link |
+| `route_added` | `source`: car, flight, walk, import_gpx/kml/geojson, ai, deep_link; `point_bucket` | `reportRouteAdded` (route dropdown, import, AI tool, deep link) |
+| `keyframe_added` | `source`: toolbar, ai | toolbar, AI tools |
+| `autocam_enabled`, `preview_played` (once per project per page load), `walkthrough_started` | none | RouteInspector, bridge, walkthrough store |
+| `export_started` / `export_succeeded` / `export_cancelled` | `resolution`, `fps`, `duration_bucket` | `useVideoExportExecution` |
+| `export_failed` | same + `error_class`: unsupported, encoder, capture, oom, other | same |
+| `upgrade_prompt_shown` | `where` (`UpgradeWhere`) | `openUpgradeModal(where)` |
+| `checkout_started` | `plan`, `resumed` (sent with `sendBeacon`) | `useAuthStore` |
+| `map_style_load_failed` | `style` (once per style per page load, style-level errors only) | BasemapController |
+| `route_import_failed` | `format`, `error_class`: parse, empty, other | useToolbarActions |
+| `project_opened`, `project_saved` | `storage`: local, cloud | library, toolbar |
+| `feature_preview_opened`, `feature_voted`, `feature_unvoted` | `feature_id` | feature votes UI |
+| `subscription_started`, `subscription_cancelled`, `subscription_ended` | `tier`, `environment` | server (Dodo webhook) |
+| `signup_submitted`, `signin_failed`, `guest_route_added`, `guest_gate_hit` | `outcome`/`error_class`/`source`/`where` | anonymous counters |
+
+Person properties: `plan`, `signed_up_at` (date only), `project_count_bucket`, `has_exported`, `initial_utm_*`/`initial_ref`. Super properties on every event: `environment`, `app_version` (short git SHA from `VERCEL_GIT_COMMIT_SHA`, `dev` locally), `is_mobile`, `plan`.
+
+**Required PostHog project settings** (not enforceable from code): EU cloud project; **discard client IP data** on; session replay on with **minimum session duration 5 s** and **project sample rate 100%** (the app samples in code); error tracking on with a suppression rule for `AbortError`; set a **$0 billing cap** so a traffic spike cannot bill; leave surveys, heatmaps and the toolbar off (the SDK also disables them; the toolbar cannot load because external scripts are disabled). Set `VITE_POSTHOG_KEY` in Vercel for both the production and preview environments (it is a public client key, but it is read at build time for the client and at run time by the webhook).
+
+**What "signed out" means, accurately.** PostHog is not loaded and sets no cookies or storage for signed-out visitors. Vercel Web Analytics and Speed Insights already run for everyone (separate from PostHog). The only signed-out data is the four anonymous counters above (no identifier that links events together; the client IP is not stored when the project setting above is on), plus a tab-scoped `sessionStorage` copy of utm/ref when a campaign link was used. A matching privacy-policy update belongs in the marketing-site repo and is **TODO** (separate PR, not part of this codebase).
+
+**Verifying in a real deployment** (not covered by unit tests): open the preview site signed in and check that requests go to `/_m/...` (not `posthog.com`), that no PostHog request appears while signed out except the anonymous counters, that replays show bullets instead of text outside `data-ph-unmask`, and that the map area is blocked.
+
 ---
 
 ## 8. For Future Maintainers
