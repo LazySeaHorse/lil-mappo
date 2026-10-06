@@ -73,14 +73,19 @@ describe('FeatureVoteDialog', () => {
     expect(mutate).toHaveBeenLastCalledWith({ featureId: 'cloud-render', voted: false });
   });
 
-  it('keeps one stable label and disables the button while a vote is being saved', () => {
+  it('keeps one stable label and makes the button inert (aria-disabled, focus kept) while a vote is being saved', () => {
     useAuthStore.setState({ user: { id: 'u1' } as never });
     votesState.value = { data: [summary()], isError: false };
     pending.value = true;
     const { rerender } = render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
     const button = screen.getByRole('button', { name: "I'd like this" }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    // Not natively disabled: a disabled button drops keyboard focus to <body> in Chromium.
+    expect(button.disabled).toBe(false);
+    button.focus();
+    expect(document.activeElement).toBe(button);
     fireEvent.click(button);
+    expect(document.activeElement).toBe(button);
     fireEvent.click(button);
     expect(mutate).not.toHaveBeenCalled();
 
@@ -88,6 +93,7 @@ describe('FeatureVoteDialog', () => {
     votesState.value = { data: [summary({ has_voted: true })], isError: false };
     rerender(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
     expect(screen.getByRole('button', { name: "I'd like this" }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: "I'd like this" }).getAttribute('aria-disabled')).toBe('false');
   });
 
   it('announces loading and tier text in a polite live region', () => {

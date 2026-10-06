@@ -152,14 +152,16 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
                   <span className="text-muted-foreground">Loading votes…</span>
                 )}
               </div>
-              {/* One stable label; the pressed state is carried by aria-pressed (and the check icon). */}
+              {/* One stable label; the pressed state is carried by aria-pressed (and the check icon).
+                  aria-disabled (not `disabled`) so keyboard focus stays on the button while a vote is saved;
+                  handleToggle ignores activation in that state. */}
               <Button
                 type="button"
                 variant={summary?.has_voted ? 'outline' : 'default'}
                 aria-pressed={summary?.has_voted ?? false}
-                disabled={!summary || setVote.isPending}
+                aria-disabled={!summary || setVote.isPending}
                 onClick={handleToggle}
-                className="h-10 rounded-lg gap-2 w-full sm:w-auto"
+                className="h-10 rounded-lg gap-2 w-full sm:w-auto aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
               >
                 {summary?.has_voted ? <Check size={16} aria-hidden="true" /> : <ThumbsUp size={16} aria-hidden="true" />}
                 I'd like this
