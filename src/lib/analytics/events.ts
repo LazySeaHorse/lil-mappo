@@ -125,7 +125,7 @@ export interface ServerEventMap {
  * person profile; the only events that can fire for signed-out visitors.
  */
 export interface AnonymousEventMap {
-  signup_submitted: { outcome: 'confirm_email' | 'error' | 'blocked_domain'; error_class?: string };
+  signup_submitted: { outcome: 'confirm_email' | 'signed_in' | 'error' | 'blocked_domain'; error_class?: string };
   signin_failed: { error_class: 'invalid_credentials' | 'email_not_confirmed' | 'rate_limited' | 'other' };
   guest_route_added: { source: RouteSource };
   guest_gate_hit: { where: UpgradeWhere | 'sign_in' | 'map_load' };

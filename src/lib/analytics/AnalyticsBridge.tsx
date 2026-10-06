@@ -7,6 +7,7 @@ import { initialAuthCallbackType } from '@/lib/supabase';
 import * as client from './client';
 import { track } from './index';
 import { currentAnalyticsRuntime } from './config';
+import { consumeExpectedSignup } from './signupIntent';
 import type { PersonProps } from './events';
 
 /** Matches the `isMobile` breakpoint in useResponsive. */
@@ -16,7 +17,10 @@ const MOBILE_QUERY = '(max-width: 706px)';
 let signedUpReported = false;
 
 function reportSignedUp(user: AuthUser): void {
-  if (signedUpReported || initialAuthCallbackType !== 'signup') return;
+  // Two ways to be a new account: the confirmation link (hash, once per page load) or an
+  // immediate session from signUp() when email confirmation is off (flag set by AuthModal).
+  const immediate = consumeExpectedSignup();
+  if (!immediate && (signedUpReported || initialAuthCallbackType !== 'signup')) return;
   signedUpReported = true;
   const attribution = user.signupAttribution ?? {};
   track('signed_up', attribution);

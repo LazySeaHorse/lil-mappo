@@ -17,6 +17,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { trackAnonymous } from "@/lib/analytics/anonymous";
 import { getSignupAttribution } from "@/lib/analytics/attribution";
+import { cancelExpectedSignup, expectSignup } from "@/lib/analytics/signupIntent";
 
 /** Supabase error code as a short snake_case token (never the message, which can echo the email). */
 function signupErrorClass(err: unknown): string {
@@ -188,6 +189,8 @@ function AuthModalBody({
         }
 
         const attribution = getSignupAttribution();
+        // Without email confirmation SIGNED_IN fires during signUp(); flag it so analytics reports signed_up.
+        expectSignup();
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -198,13 +201,17 @@ function AuthModalBody({
           },
         });
         if (error) {
+          cancelExpectedSignup();
           trackAnonymous("signup_submitted", { outcome: "error", error_class: signupErrorClass(error) });
           throw error;
         }
         // If email confirmation is required, data.session will be null
         if (!data.session) {
+          cancelExpectedSignup();
           trackAnonymous("signup_submitted", { outcome: "confirm_email" });
           setSentState("confirm_email");
+        } else {
+          trackAnonymous("signup_submitted", { outcome: "signed_in" });
         }
         setPhase("success");
         // If session exists, onAuthStateChange fires → modal auto-closes
@@ -221,6 +228,7 @@ function AuthModalBody({
         // onAuthStateChange → SIGNED_IN → modal auto-closes
       }
     } catch (err: unknown) {
+      cancelExpectedSignup();
       const message =
         err instanceof Error ? err.message : "Authentication failed";
       toast.error(message);

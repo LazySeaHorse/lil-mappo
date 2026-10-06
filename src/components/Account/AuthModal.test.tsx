@@ -18,6 +18,14 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { useAuthStore } from '@/store/useAuthStore';
 import { AuthModal } from './AuthModal';
+import { consumeExpectedSignup, expectSignup } from '@/lib/analytics/signupIntent';
+
+/** Reads the flag without consuming it. */
+function consumeFlagPeek() {
+  const was = consumeExpectedSignup();
+  if (was) expectSignup();
+  return was;
+}
 
 function submit(email: string, password: string) {
   fireEvent.change(screen.getByPlaceholderText(/email/i), { target: { value: email } });
@@ -65,5 +73,27 @@ describe('AuthModal anonymous counters', () => {
     submit('a@gmail.com', 'hunter22');
     await waitFor(() => expect(mocks.trackAnonymous).toHaveBeenCalledWith('signup_submitted', { outcome: 'error', error_class: 'weak_password' }));
     expect(mocks.signUp.mock.calls[0][0].options).not.toHaveProperty('data');
+  });
+
+  it('counts an immediate session (email confirmation off) and flags the new account for signed_up', async () => {
+    useAuthStore.setState({ showAuthModal: true, authModalMode: 'signup' });
+    mocks.signUp.mockImplementation(async () => {
+      // supabase-js emits SIGNED_IN while signUp is still in flight.
+      expect(consumeFlagPeek()).toBe(true);
+      return { data: { session: { access_token: 't' } }, error: null };
+    });
+    render(<AuthModal />);
+    submit('a@gmail.com', 'hunter22');
+    await waitFor(() => expect(mocks.trackAnonymous).toHaveBeenCalledWith('signup_submitted', { outcome: 'signed_in' }));
+    expect(consumeExpectedSignup()).toBe(true);
+  });
+
+  it('withdraws the new-account flag when confirmation is required or signUp fails', async () => {
+    useAuthStore.setState({ showAuthModal: true, authModalMode: 'signup' });
+    mocks.signUp.mockResolvedValue({ data: { session: null }, error: null });
+    render(<AuthModal />);
+    submit('a@gmail.com', 'hunter22');
+    await waitFor(() => expect(mocks.trackAnonymous).toHaveBeenCalledWith('signup_submitted', { outcome: 'confirm_email' }));
+    expect(consumeExpectedSignup()).toBe(false);
   });
 });
