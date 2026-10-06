@@ -155,7 +155,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
             progress={progress}
             error={error}
             cloudSubmitted={false}
-            onOpenUpgrade={openUpgradeModal}
+            onOpenUpgrade={() => openUpgradeModal('export_limits')}
           />
         </div>
 

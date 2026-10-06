@@ -16,6 +16,14 @@ export function track<E extends keyof AnalyticsEventMap>(event: E, ...args: Even
   if (event === 'upgrade_prompt_shown') client.forceReplay('upgrade_gate');
 }
 
+/**
+ * Like {@link track} but sent with `navigator.sendBeacon`, for events fired
+ * right before the page navigates away (checkout redirect).
+ */
+export function trackBeacon<E extends keyof AnalyticsEventMap>(event: E, ...args: EventArgs<AnalyticsEventMap[E]>): void {
+  client.capture(event, args[0] as Record<string, unknown> | undefined, { beacon: true });
+}
+
 /** Sets person properties (`once` entries are only written if unset). */
 export function setPersonProps(props: PersonProps, once?: PersonProps): void {
   client.setPersonProps(props, once);

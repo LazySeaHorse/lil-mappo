@@ -155,8 +155,11 @@ export function stop(): void {
   }
 }
 
-export function capture(event: string, props?: Record<string, unknown>): void {
-  run((posthog) => posthog.capture(event, props));
+export function capture(event: string, props?: Record<string, unknown>, options?: { beacon?: boolean }): void {
+  run((posthog) => {
+    if (options?.beacon) posthog.capture(event, props, { transport: 'sendBeacon' });
+    else posthog.capture(event, props);
+  });
 }
 
 export function register(props: Properties): void {

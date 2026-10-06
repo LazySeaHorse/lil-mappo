@@ -118,7 +118,7 @@ function AccountSettingsModalBody() {
         onRefetch={() => refetchSub()}
         onOpenUpgrade={() => {
           closeSettingsModal();
-          openUpgradeModal();
+          openUpgradeModal('account_settings');
         }}
       />
     );
@@ -207,7 +207,7 @@ function AccountSettingsModalBody() {
             <PremiumUpsellCard
               onClick={() => {
                 closeSettingsModal();
-                openUpgradeModal();
+                openUpgradeModal('account_settings');
               }}
             />
           )}

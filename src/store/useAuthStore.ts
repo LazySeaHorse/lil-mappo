@@ -15,8 +15,9 @@ import {
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "sonner";
 import { trackAnonymous } from "@/lib/analytics/anonymous";
+import { trackBeacon, track } from "@/lib/analytics";
 import { sanitizeAttribution } from "@/lib/analytics/privacy";
-import type { AttributionProps } from "@/lib/analytics/events";
+import type { AttributionProps, UpgradeWhere } from "@/lib/analytics/events";
 import { flushWorkingProjectDraft } from "@/services/workingProjectDraft";
 
 export interface AuthUser {
@@ -76,7 +77,8 @@ interface AuthStore {
   closeSettingsModal: () => void;
   openCreditsModal: () => void;
   closeCreditsModal: () => void;
-  openUpgradeModal: () => void;
+  /** `where` records which surface asked for an upgrade (analytics only). */
+  openUpgradeModal: (where: UpgradeWhere) => void;
   closeUpgradeModal: () => void;
   openRendersModal: () => void;
   closeRendersModal: () => void;
@@ -139,7 +141,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   closeSettingsModal: () => set({ showSettingsModal: false }),
   openCreditsModal: () => set({ showCreditsModal: true }),
   closeCreditsModal: () => set({ showCreditsModal: false }),
-  openUpgradeModal: () => set({ showUpgradeModal: true }),
+  openUpgradeModal: (where) => {
+    // Guests only feed the anonymous counter; signed-in users get the product event (and a replay).
+    if (get().user) track("upgrade_prompt_shown", { where });
+    else trackAnonymous("guest_gate_hit", { where });
+    set({ showUpgradeModal: true });
+  },
   closeUpgradeModal: () => set({ showUpgradeModal: false }),
   openRendersModal: () => set({ showRendersModal: true }),
   closeRendersModal: () => set({ showRendersModal: false }),
@@ -161,6 +168,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     const toastId = "checkout-loading";
     toast.loading("Preparing checkout…", { id: toastId });
+    // The page navigates to the payment provider right after, so use a beacon.
+    trackBeacon("checkout_started", { plan, resumed: false });
 
     try {
       await initiateDodoCheckout(plan, session.access_token, { quantity });
@@ -213,6 +222,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           clearPendingPlan();
           const toastId = "checkout-loading";
           toast.loading("Preparing checkout…", { id: toastId });
+          trackBeacon("checkout_started", { plan: pendingPlan, resumed: true });
           initiateDodoCheckout(pendingPlan, session.access_token).catch(
             (err: unknown) => {
               toast.dismiss(toastId);
@@ -228,6 +238,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           clearPendingTopup();
           const toastId = "checkout-loading";
           toast.loading("Preparing checkout…", { id: toastId });
+          trackBeacon("checkout_started", { plan: "topup", resumed: true });
           initiateDodoCheckout("topup", session.access_token, {
             quantity: pendingTopup,
           }).catch((err: unknown) => {

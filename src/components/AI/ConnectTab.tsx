@@ -115,7 +115,7 @@ export function ConnectTab() {
             <AlertDialogAction
               onClick={() => {
                 if (!signedIn) return openAuthModal();
-                if (!allowed) return openUpgradeModal();
+                if (!allowed) return openUpgradeModal('ai');
                 recordAiConsent();
                 setEnabled(true);
               }}

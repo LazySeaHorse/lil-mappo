@@ -224,7 +224,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                       ]}
                       value={calc.vehicle?.type || 'dot'}
                       onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
-                      onLockedSelect={openUpgradeModal}
+                      onLockedSelect={() => openUpgradeModal('vehicle_lock')}
                       columns={3}
                     />
                   </div>

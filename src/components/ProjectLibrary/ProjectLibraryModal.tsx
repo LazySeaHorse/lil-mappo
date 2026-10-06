@@ -149,7 +149,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
         onCancel={() => setPendingUploadProject(null)}
         onUpgrade={() => {
           setPendingUploadProject(null);
-          openUpgradeModal();
+          openUpgradeModal('cloud_slots');
         }}
         onReplaceAndUpload={handleDeleteAndRetryUpload}
       />

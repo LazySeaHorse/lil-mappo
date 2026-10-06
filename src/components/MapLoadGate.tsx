@@ -37,7 +37,7 @@ export function MapLoadGate({
       <MapLoadBlockedScreen
         reason={gate.reason!}
         onSignIn={openAuthModal}
-        onUpgrade={openUpgradeModal}
+        onUpgrade={() => openUpgradeModal('map_load_gate')}
       />
     );
   }

@@ -87,7 +87,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="rounded-full bg-primary/10 px-1.5 py-px font-medium text-primary">{tierLabel}</span>
               {user && mood !== 'explorer' && (
-                <DropdownMenuItem asChild onClick={afterClose(openUpgradeModal)}>
+                <DropdownMenuItem asChild onClick={afterClose(() => openUpgradeModal('account_menu'))}>
                   <button type="button" className="cursor-pointer outline-none hover:text-primary hover:underline focus-visible:text-primary focus-visible:underline">
                     Upgrade
                   </button>

@@ -192,3 +192,18 @@ describe('preview_played', () => {
     expect(played()).toBe(2);
   });
 });
+
+describe('upgrade_prompt_shown', () => {
+  it('forces replay for the rest of the session', async () => {
+    mocks.runtime.mockReturnValue({ environment: 'preview', key: 'phc_test' });
+    useAuthStore.setState({ user: alice });
+    mount();
+    await flush();
+    mocks.posthog.startSessionRecording.mockClear();
+    mocks.posthog.sessionRecordingStarted.mockReturnValue(false);
+    const { track } = await import('./index');
+    track('upgrade_prompt_shown', { where: 'ai' });
+    expect(mocks.posthog.capture).toHaveBeenCalledWith('upgrade_prompt_shown', { where: 'ai' });
+    expect(mocks.posthog.startSessionRecording).toHaveBeenCalledWith(true);
+  });
+});
