@@ -117,6 +117,7 @@ function AlertDialogTitle({
   return (
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
+      data-ph-unmask
       className={cn("text-lg font-medium", className)}
       {...props}
     />
@@ -130,6 +131,7 @@ function AlertDialogDescription({
   return (
     <AlertDialogPrimitive.Description
       data-slot="alert-dialog-description"
+      data-ph-unmask
       className={cn("text-muted-foreground text-sm", className)}
       {...props}
     />

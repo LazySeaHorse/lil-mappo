@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => {
     capture: vi.fn(),
     setPersonProperties: vi.fn(),
     stopSessionRecording: vi.fn(),
+    startSessionRecording: vi.fn(),
+    sessionRecordingStarted: vi.fn(() => false),
   };
   return { posthog, loaded: vi.fn(), runtime: vi.fn() };
 });
@@ -30,6 +32,7 @@ vi.mock('@/hooks/useSubscription', () => ({
   useSubscription: () => ({ isSuccess: true, data: null }),
 }));
 
+import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AnalyticsBridge } from './AnalyticsBridge';
 import * as client from './client';
@@ -52,6 +55,8 @@ describe('AnalyticsBridge', () => {
   beforeEach(() => {
     client.stop();
     Object.values(mocks.posthog).forEach((fn) => fn.mockClear());
+    mocks.posthog.sessionRecordingStarted.mockReturnValue(false);
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
     mocks.runtime.mockReturnValue({ environment: 'preview', key: 'phc_test' });
     useAuthStore.setState({ user: null });
   });
@@ -76,6 +81,7 @@ describe('AnalyticsBridge', () => {
       disable_session_recording: true,
       capture_pageview: false,
       mask_all_text: true,
+      session_recording: { maskAllInputs: true, maskTextSelector: '*', blockSelector: '.mapboxgl-map' },
     });
     expect(JSON.stringify(mocks.posthog.init.mock.calls)).not.toContain('a@example.com');
     expect(mocks.posthog.register).toHaveBeenCalledWith(expect.objectContaining({ environment: 'preview', is_mobile: false }));
@@ -111,5 +117,52 @@ describe('AnalyticsBridge', () => {
     act(() => useAuthStore.setState({ user: alice }));
     await flush();
     expect(mocks.posthog.init).not.toHaveBeenCalled();
+  });
+
+  describe('session replay', () => {
+    const signIn = async () => {
+      mount();
+      act(() => useAuthStore.setState({ user: alice }));
+      await flush();
+    };
+
+    it('samples signed-in sessions with the single REPLAY_SAMPLE_RATE constant', async () => {
+      await signIn();
+      expect(mocks.posthog.startSessionRecording).not.toHaveBeenCalled();
+      client.stop();
+      vi.mocked(Math.random).mockReturnValue(0.1);
+      act(() => useAuthStore.setState({ user: null }));
+      act(() => useAuthStore.setState({ user: { ...alice, id: 'user-c' } }));
+      await flush();
+      expect(mocks.posthog.startSessionRecording).toHaveBeenCalledWith(true);
+    });
+
+    it('forces replay on $exception and upgrade prompts, once', async () => {
+      await signIn();
+      client.forceReplay('error');
+      expect(mocks.posthog.startSessionRecording).toHaveBeenCalledTimes(1);
+      mocks.posthog.sessionRecordingStarted.mockReturnValue(true);
+      client.forceReplay('upgrade_gate');
+      expect(mocks.posthog.startSessionRecording).toHaveBeenCalledTimes(1);
+    });
+
+    it('pauses during export and resumes only if it was recording', async () => {
+      await signIn();
+      mocks.posthog.sessionRecordingStarted.mockReturnValue(true);
+      act(() => useProjectStore.setState({ isExporting: true }));
+      expect(mocks.posthog.stopSessionRecording).toHaveBeenCalledTimes(1);
+      client.forceReplay('error'); // ignored while paused
+      expect(mocks.posthog.startSessionRecording).not.toHaveBeenCalled();
+      act(() => useProjectStore.setState({ isExporting: false }));
+      expect(mocks.posthog.startSessionRecording).toHaveBeenCalledWith(true);
+    });
+
+    it('does not resume after export when it was not recording', async () => {
+      await signIn();
+      act(() => useProjectStore.setState({ isExporting: true }));
+      act(() => useProjectStore.setState({ isExporting: false }));
+      expect(mocks.posthog.stopSessionRecording).not.toHaveBeenCalled();
+      expect(mocks.posthog.startSessionRecording).not.toHaveBeenCalled();
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuthStore, type AuthUser } from '@/store/useAuthStore';
+import { useProjectStore } from '@/store/useProjectStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import * as client from './client';
 import { currentAnalyticsRuntime } from './config';
@@ -38,6 +39,16 @@ function Bridge() {
       if (state.user?.id === prev.user?.id) return;
       if (state.user) startFor(state.user);
       else client.stop();
+    });
+  }, []);
+
+  // Local MP4 export saturates the main thread; replay must not compete with it.
+  useEffect(() => {
+    if (useProjectStore.getState().isExporting) client.pauseReplay();
+    return useProjectStore.subscribe((state, prev) => {
+      if (state.isExporting === prev.isExporting) return;
+      if (state.isExporting) client.pauseReplay();
+      else client.resumeReplay();
     });
   }, []);
 

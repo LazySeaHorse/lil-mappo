@@ -107,3 +107,13 @@ export function scrubEvent<T extends ScrubbableEvent>(event: T | null): T | null
   scrubExceptionList(event.properties?.$exception_list);
   return event;
 }
+
+/**
+ * Session-replay `maskTextFn`: text stays readable only inside a
+ * `[data-ph-unmask]` region (static app chrome). Everything else, including all
+ * user content, is replaced by bullets of the same length.
+ */
+export function maskReplayText(text: string, element?: Element | null): string {
+  if (element?.closest?.('[data-ph-unmask]')) return text;
+  return text.replace(/\S/g, '\u2022');
+}
