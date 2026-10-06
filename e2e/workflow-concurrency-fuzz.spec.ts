@@ -47,6 +47,7 @@ const TEST_DIRECTIONS = {
     },
   ],
 };
+
 async function stubExternalServices(page: Page) {
   // 1. Mapbox styles, telemetry, tiles, directions & search (100% mocked, $0 cost)
   await page.route('https://api.mapbox.com/**', (route) =>
