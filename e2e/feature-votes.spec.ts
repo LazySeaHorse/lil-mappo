@@ -74,11 +74,11 @@ test("signed in: voting toggles and calls set_feature_vote", async ({ page }) =>
   await expect(featureDialog.getByText("Be the first to ask for this")).toBeVisible();
 
   await featureDialog.getByRole("button", { name: "I'd like this" }).click();
-  await expect(featureDialog.getByRole("button", { name: "You'd like this" })).toHaveAttribute("aria-pressed", "true");
+  await expect(featureDialog.getByRole("button", { name: "I'd like this" })).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => setCalls).toEqual([{ p_feature_id: "cloud-render", p_voted: true }]);
   await expect(featureDialog.getByText("A few people want this")).toBeVisible();
 
-  await featureDialog.getByRole("button", { name: "You'd like this" }).click();
+  await featureDialog.getByRole("button", { name: "I'd like this" }).click();
   await expect(featureDialog.getByRole("button", { name: "I'd like this" })).toHaveAttribute("aria-pressed", "false");
   await expect.poll(() => setCalls.at(-1)).toEqual({ p_feature_id: "cloud-render", p_voted: false });
 });

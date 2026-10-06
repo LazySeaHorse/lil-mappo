@@ -91,10 +91,9 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
   };
 
   const handleToggle = () => {
-    if (!summary) return;
-    const voted = !summary.has_voted;
-    setVote.mutate({ featureId, voted });
-    track(voted ? 'feature_voted' : 'feature_unvoted', { feature_id: featureId });
+    if (!summary || setVote.isPending) return;
+    // The feature_voted/unvoted event is tracked by the hook once the vote is saved.
+    setVote.mutate({ featureId, voted: !summary.has_voted });
   };
 
   return (
@@ -128,9 +127,18 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
         <div className="px-6 py-4 border-t border-border/40 bg-secondary/10 flex flex-col sm:flex-row sm:items-center gap-3" data-ph-unmask>
           {user ? (
             <>
-              <div className="flex-1 min-w-0 text-sm">
+              <div className="flex-1 min-w-0 text-sm" aria-live="polite">
                 {votes.isError ? (
-                  <span className="text-muted-foreground">Could not load votes right now.</span>
+                  <span className="text-muted-foreground">
+                    Could not load votes right now.{' '}
+                    <button
+                      type="button"
+                      onClick={() => void votes.refetch()}
+                      className="text-primary underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                    >
+                      Try again
+                    </button>
+                  </span>
                 ) : summary ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-muted-foreground">{TIER_COPY[summary.tier]}</span>
@@ -144,23 +152,17 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
                   <span className="text-muted-foreground">Loading votes…</span>
                 )}
               </div>
+              {/* One stable label; the pressed state is carried by aria-pressed (and the check icon). */}
               <Button
                 type="button"
                 variant={summary?.has_voted ? 'outline' : 'default'}
                 aria-pressed={summary?.has_voted ?? false}
-                disabled={!summary}
+                disabled={!summary || setVote.isPending}
                 onClick={handleToggle}
                 className="h-10 rounded-lg gap-2 w-full sm:w-auto"
               >
-                {summary?.has_voted ? (
-                  <>
-                    <Check size={16} aria-hidden="true" /> You'd like this
-                  </>
-                ) : (
-                  <>
-                    <ThumbsUp size={16} aria-hidden="true" /> I'd like this
-                  </>
-                )}
+                {summary?.has_voted ? <Check size={16} aria-hidden="true" /> : <ThumbsUp size={16} aria-hidden="true" />}
+                I'd like this
               </Button>
             </>
           ) : (

@@ -3,14 +3,16 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 const votesState = vi.hoisted(() => ({
-  value: { data: undefined, isError: false } as { data: unknown; isError: boolean },
+  value: { data: undefined, isError: false } as { data: unknown; isError: boolean; refetch?: () => void },
 }));
 const mutate = vi.hoisted(() => vi.fn());
+const refetch = vi.hoisted(() => vi.fn());
+const pending = vi.hoisted(() => ({ value: false }));
 const track = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useFeatureVotes', () => ({
   useFeatureVotes: () => votesState.value,
-  useSetFeatureVote: () => ({ mutate }),
+  useSetFeatureVote: () => ({ mutate, isPending: pending.value }),
 }));
 vi.mock('@/lib/analytics', () => ({ track }));
 
@@ -25,6 +27,8 @@ const summary = (over: Record<string, unknown> = {}) => ({
 describe('FeatureVoteDialog', () => {
   beforeEach(() => {
     mutate.mockReset();
+    refetch.mockReset();
+    pending.value = false;
     track.mockReset();
     votesState.value = { data: undefined, isError: false };
     useAuthStore.setState({ user: null });
@@ -50,7 +54,7 @@ describe('FeatureVoteDialog', () => {
     votesState.value = { data: [summary({ tier: 'many', most_requested: true })], isError: false };
     render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
     expect(screen.getByText('Lots of people want this')).toBeTruthy();
-    expect(screen.getByText('Most requested')).toBeTruthy();
+    expect(screen.getByText('Top request')).toBeTruthy();
   });
 
   it('signed in: toggles the vote and tracks it', () => {
@@ -60,15 +64,45 @@ describe('FeatureVoteDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /I'd like this/ }));
     expect(mutate).toHaveBeenCalledWith({ featureId: 'cloud-render', voted: true });
-    expect(track).toHaveBeenCalledWith('feature_voted', { feature_id: 'cloud-render' });
 
     votesState.value = { data: [summary({ has_voted: true })], isError: false };
     rerender(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
-    const pressed = screen.getByRole('button', { name: /You'd like this/ });
+    const pressed = screen.getByRole('button', { name: /I'd like this/ });
     expect(pressed.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(pressed);
     expect(mutate).toHaveBeenLastCalledWith({ featureId: 'cloud-render', voted: false });
-    expect(track).toHaveBeenCalledWith('feature_unvoted', { feature_id: 'cloud-render' });
+  });
+
+  it('keeps one stable label and disables the button while a vote is being saved', () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    votesState.value = { data: [summary()], isError: false };
+    pending.value = true;
+    const { rerender } = render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
+    const button = screen.getByRole('button', { name: "I'd like this" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(mutate).not.toHaveBeenCalled();
+
+    pending.value = false;
+    votesState.value = { data: [summary({ has_voted: true })], isError: false };
+    rerender(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
+    expect(screen.getByRole('button', { name: "I'd like this" }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('announces loading and tier text in a polite live region', () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
+    expect(screen.getByText('Loading votes…').closest('[aria-live="polite"]')).toBeTruthy();
+  });
+
+  it('shows a retry when the votes cannot be loaded', () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    votesState.value = { data: undefined, isError: true, refetch };
+    render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
+    expect(screen.getByText(/Could not load votes/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it('tracks feature_preview_opened once per opening', () => {

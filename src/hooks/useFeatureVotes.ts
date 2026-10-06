@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type { FeatureVoteRpcs, FeatureVoteSummary } from '@/lib/database.types';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -35,30 +37,52 @@ export function useFeatureVotes(enabled: boolean) {
   });
 }
 
-/** Votes or unvotes. The toggle flips immediately and rolls back if the call fails. */
+const MUTATION_KEY = ['set_feature_vote'] as const;
+
+/**
+ * Votes or unvotes. The toggle flips immediately; if the call fails only that
+ * feature's row is put back (and only if nothing newer changed it), so a
+ * failure never clobbers other optimistic state. The analytics event fires on
+ * success only, so failed votes are not counted.
+ */
 export function useSetFeatureVote() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const key = queryKey(user?.id);
 
   return useMutation({
+    mutationKey: MUTATION_KEY,
     mutationFn: async ({ featureId, voted }: { featureId: string; voted: boolean }) => {
       const { error } = await rpc('set_feature_vote', { p_feature_id: featureId, p_voted: voted });
       if (error) throw error;
     },
     onMutate: async ({ featureId, voted }) => {
       await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<FeatureVoteSummary[]>(key);
+      const before = queryClient.getQueryData<FeatureVoteSummary[]>(key)?.find((r) => r.feature_id === featureId);
       queryClient.setQueryData<FeatureVoteSummary[]>(key, (rows) =>
         rows?.map((r) => (r.feature_id === featureId ? { ...r, has_voted: voted } : r)),
       );
-      return { previous };
+      return { previousHasVoted: before?.has_voted };
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    onSuccess: (_data, { featureId, voted }) => {
+      track(voted ? 'feature_voted' : 'feature_unvoted', { feature_id: featureId });
+    },
+    onError: (_err, { featureId, voted }, context) => {
+      if (context?.previousHasVoted !== undefined) {
+        queryClient.setQueryData<FeatureVoteSummary[]>(key, (rows) =>
+          rows?.map((r) =>
+            // Only undo our own optimistic flip, never a newer state.
+            r.feature_id === featureId && r.has_voted === voted ? { ...r, has_voted: context.previousHasVoted! } : r,
+          ),
+        );
+      }
+      toast.error("Couldn't save your vote. Please try again.");
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key });
+      // Refetch once the last in-flight vote lands, so a refetch never overwrites a pending optimistic flip.
+      if (queryClient.isMutating({ mutationKey: MUTATION_KEY }) <= 1) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }

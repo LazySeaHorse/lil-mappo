@@ -49,4 +49,5 @@ export const TIER_COPY: Record<FeatureVoteTier, string> = {
   most: 'Most people want this',
 };
 
-export const MOST_REQUESTED_LABEL = 'Most requested';
+/** Relative to the other upcoming features, so worded to sit next to any tier ("A few people want this" + "Top request"). */
+export const MOST_REQUESTED_LABEL = 'Top request';
