@@ -33,7 +33,7 @@ describe('trackBeacon (checkout_started)', () => {
     expect(posthog.capture).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('/_m/i/v0/e/?ip=0');
+    expect(url).toBe('/_m/i/v0/e/');
     expect(init).toMatchObject({ method: 'POST', keepalive: true, credentials: 'omit' });
     expect(JSON.parse(init.body)).toMatchObject({
       api_key: 'phc_test',

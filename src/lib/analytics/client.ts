@@ -53,7 +53,6 @@ export function buildInitConfig(userId: string, beforeSend: BeforeSend): Partial
     persistence: 'memory',
     bootstrap: { distinctID: userId, isIdentifiedID: true },
     person_profiles: 'identified_only',
-    ip: false,
     autocapture: true,
     // Autocapture: no element text and no attribute values (title, aria-label, alt, href, ...); tag and position only.
     mask_all_text: true,

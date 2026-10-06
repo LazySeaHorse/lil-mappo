@@ -23,13 +23,14 @@ export function track<E extends keyof AnalyticsEventMap>(event: E, ...args: Even
  * (checkout redirect). Sent as a keepalive fetch that does not wait for the
  * SDK chunk (which may still be downloading right after sign-in), so it
  * survives the navigation. Same gates as {@link track}: needs analytics enabled
- * and a signed-in user; `ip=0` mirrors the SDK's `ip: false`.
+ * and a signed-in user. Client IP handling is a PostHog project setting
+ * ("Discard client IP data"); neither the SDK's `ip` option nor an `?ip=0` param does anything.
  */
 export function trackBeacon<E extends keyof AnalyticsEventMap>(event: E, ...args: EventArgs<AnalyticsEventMap[E]>): void {
   const runtime = currentAnalyticsRuntime();
   const userId = client.activeUserId();
   if (!runtime || !userId) return;
-  postKeepalive(runtime, event, userId, { ...(args[0] as Record<string, unknown> | undefined) }, '?ip=0');
+  postKeepalive(runtime, event, userId, { ...(args[0] as Record<string, unknown> | undefined) });
 }
 
 /** Sets person properties (`once` entries are only written if unset). */

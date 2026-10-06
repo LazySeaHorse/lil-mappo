@@ -102,6 +102,8 @@ npm run test:fuzz
 
 Product analytics is optional and **off unless `VITE_POSTHOG_KEY` is set at build time**. Even with a key it only runs on `app.lilmappo.tech` and `preview.lilmappo.tech` (never in dev, under Playwright or in automated browsers). It loads only after sign-in, is cookieless, goes through a first-party `/_m` proxy (Vercel rewrites to PostHog EU), identifies by user id only, and never sends coordinates, project names or other user content. Session replay is signed-in only, sampled at 50%, and masks all text by default (opt in static UI with `data-ph-unmask`, hide user content with `ph-no-capture`). Signed-out visitors only produce four anonymous aggregate counters. The webhook also sends `subscription_*` events when the key is set on the server.
 
+Required deploy prerequisite: enable "Discard client IP data" in the PostHog project settings (the app cannot do it; the proxy forwards client IPs and the anonymous counters rely on it too).
+
 Event list, masking conventions, required PostHog project settings and the exact signed-out behaviour are in [`LLM-START-HERE.md`](LLM-START-HERE.md) section 7.7.
 
 ## Upcoming feature votes
