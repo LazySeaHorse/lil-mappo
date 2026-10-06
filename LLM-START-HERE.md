@@ -683,6 +683,20 @@ Person properties: `plan`, `signed_up_at` (date only), `project_count_bucket`, `
 
 **Verifying in a real deployment** (not covered by unit tests): open the preview site signed in and check that requests go to `/_m/...` (not `posthog.com`), that no PostHog request appears while signed out except the anonymous counters, that replays show bullets instead of text outside `data-ph-unmask`, and that the map area is blocked.
 
+### 7.8 Upcoming Feature Votes
+
+Signed-in users can say which unbuilt features they want via an "I'd like this" pill on the two "Not available yet" surfaces: Cloud render (`ExportModalFooter`) and Example projects (`NewProjectModal`). The pill opens a dialog with an explanation and an animated, text-less skeleton preview, plus the vote toggle.
+
+- **Config.** `src/config/upcomingFeatures.ts` is the single list (`UPCOMING_FEATURES`, `TIER_COPY`, "Most requested" label). It is a typed file, not a DB table. Ids are stored in the database, so they must match the SQL check (lowercase words joined by single hyphens, max 48 chars) and must never be renamed after launch.
+- **UI.** `src/components/FeatureVotes/`: `FeatureVoteButton` (pill, mounts the dialog on first click), `FeatureVoteDialog` (copy and skeleton per feature live in its `PREVIEWS` map), `FeatureSkeletons` (CSS-only shimmer, classes `.skeleton-*` in `index.css`, disabled under `prefers-reduced-motion`; keep them free of text). Hooks: `src/hooks/useFeatureVotes.ts` (one batched query for every configured id, only enabled once a dialog has opened; optimistic toggle with rollback).
+- **Server.** Migration 022: `get_feature_vote_summaries(p_feature_ids)` returns a coarse `tier` (`none|few|some|many|most`), `most_requested` and the caller's own `has_voted`; `set_feature_vote(p_feature_id, p_voted)` is idempotent. The table has RLS with no policies, so clients can only use the two RPCs. No counts, weights or identities ever reach the client.
+- **Tunables** all live in `public.feature_vote_params()` (paid and free vote weight, denominator floor, active-user window, tier thresholds, minimum voters per tier, votes per user). Change them with a new migration that replaces that function. A tier is capped to the highest one whose voter minimum is met, so one paid vote cannot make a feature look popular. `none` means zero voters, not zero weight.
+- **Signed out.** The dialog shows the preview and a "Sign in to vote" button (closes the dialog, then `requestSignIn`). Nothing is recorded and no tier is shown.
+- **Analytics.** `feature_preview_opened`, `feature_voted`, `feature_unvoted` (each `{feature_id}`).
+- **Adding a feature.** Add an entry to `UPCOMING_FEATURES`, add its preview to `PREVIEWS` in `FeatureVoteDialog.tsx`, drop a `<FeatureVoteButton featureId="..." />` on the surface. No migration needed (the query reads the ids from config).
+- **Shared data.** Production and preview use the same Supabase project, so they share one set of votes.
+- **Tests.** `FeatureVoteDialog.test.tsx`, `useFeatureVotes.test.tsx`, `upcomingFeatures.test.ts`; `e2e/feature-votes.spec.ts` covers signed-out and signed-in flows (the latter seeds a fake session via `e2e/support/supabaseSession.ts` and stubs the RPCs).
+
 ---
 
 ## 8. For Future Maintainers
