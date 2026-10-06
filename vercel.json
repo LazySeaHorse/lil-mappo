@@ -6,12 +6,16 @@
   "crons": [],
   "rewrites": [
     {
-      "source": "/_m/static/:path*",
-      "destination": "https://eu-assets.i.posthog.com/static/:path*"
+      "source": "/_m/static/:path(.*)",
+      "destination": "https://eu-assets.i.posthog.com/static/:path"
     },
     {
-      "source": "/_m/:path*",
-      "destination": "https://eu.i.posthog.com/:path*"
+      "source": "/_m/array/:path(.*)",
+      "destination": "https://eu-assets.i.posthog.com/array/:path"
+    },
+    {
+      "source": "/_m/:path(.*)",
+      "destination": "https://eu.i.posthog.com/:path"
     },
     {
       "source": "/routes/:slug",

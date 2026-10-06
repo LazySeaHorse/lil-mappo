@@ -96,10 +96,12 @@ describe('Vercel airport-route deep links', () => {
 describe('Vercel first-party analytics proxy', () => {
   const config = () => JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as VercelConfig;
 
-  it('rewrites /_m to PostHog EU, static assets first, before the SPA rewrite', () => {
+  it('rewrites /_m to PostHog EU: static and array (remote config) assets first, then the API catch-all, before the SPA rewrite', () => {
+    // `:path(.*)` (PostHog's documented form) keeps trailing slashes such as /_m/i/v0/e/ and /_m/e/.
     expect(config().rewrites).toEqual([
-      { source: '/_m/static/:path*', destination: 'https://eu-assets.i.posthog.com/static/:path*' },
-      { source: '/_m/:path*', destination: 'https://eu.i.posthog.com/:path*' },
+      { source: '/_m/static/:path(.*)', destination: 'https://eu-assets.i.posthog.com/static/:path' },
+      { source: '/_m/array/:path(.*)', destination: 'https://eu-assets.i.posthog.com/array/:path' },
+      { source: '/_m/:path(.*)', destination: 'https://eu.i.posthog.com/:path' },
       { source: '/routes/:slug', destination: '/index.html' },
     ]);
   });
