@@ -41,17 +41,3 @@ export function getNormalizedProgress(playhead: number, start: number, end: numb
   const t = (playhead - start) / (end - start);
   return applyEasing(easing, t);
 }
-
-const peakSpeeds = new Map<EasingName, number>();
-
-/** Highest rate of progress the easing reaches, relative to a steady pace (1 for linear). */
-export function easingPeakSpeed(name: EasingName): number {
-  let peak = peakSpeeds.get(name);
-  if (peak === undefined) {
-    const steps = 200;
-    peak = 1;
-    for (let i = 0; i < steps; i++) peak = Math.max(peak, (applyEasing(name, (i + 1) / steps) - applyEasing(name, i / steps)) * steps);
-    peakSpeeds.set(name, peak);
-  }
-  return peak;
-}
