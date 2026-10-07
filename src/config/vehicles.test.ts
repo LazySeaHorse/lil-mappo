@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RouteItem } from '@/store/types';
-import { defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, vehicleChangePatch } from './vehicles';
+import { autoCamForRoute, autoCamPresetPatch, defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, vehicleChangePatch } from './vehicles';
 
 const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): RouteItem => ({
   kind: 'route',
@@ -25,8 +25,8 @@ const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): R
 
 describe('auto-camera ranges', () => {
   it('scales plane ranges and defaults with the plane model', () => {
-    expect(getAutoCamRanges('car').distance).toEqual({ min: 100, max: 3000, step: 50 });
-    expect(getAutoCamRanges('plane').distance).toEqual({ min: 10000, max: 300000, step: 5000 });
+    expect(getAutoCamRanges('car').distance).toEqual({ min: 100, max: 20000, step: 50 });
+    expect(getAutoCamRanges('plane').distance).toEqual({ min: 10000, max: 2000000, step: 5000 });
     expect(defaultAutoCamFor('car').distance).toBe(500);
     expect(defaultAutoCamFor('plane').distance).toBe(50000);
     expect(defaultAutoCamFor('plane').height).toBe(30000);
@@ -58,8 +58,8 @@ describe('rescaleAutoCam', () => {
   });
 
   it('clamps into the target range', () => {
-    const tooFar = { ...defaultAutoCamFor('plane'), distance: 300000 * 2 };
-    expect(rescaleAutoCam(tooFar, 'plane', 'car').distance).toBe(3000);
+    const tooFar = { ...defaultAutoCamFor('plane'), distance: 2000000 * 2 };
+    expect(rescaleAutoCam(tooFar, 'plane', 'car').distance).toBe(20000);
   });
 });
 
@@ -85,5 +85,38 @@ describe('vehicleChangePatch', () => {
       enabled: true, type: 'plane', modelId: '', scale: 1,
     });
     expect(patch).not.toHaveProperty('autoCam');
+  });
+});
+
+describe('fitting the auto-camera to the route', () => {
+  it('keeps the default framing for a route that plays slowly', () => {
+    expect(autoCamPresetPatch('chase', 'car', { lengthM: 2000, duration: 30 })).toMatchObject({ distance: 500, height: 300 });
+  });
+
+  it('pulls back so a long, fast route reads at its pace', () => {
+    // 87 km in 15 s: the vehicle crosses the shot in about two seconds.
+    const fit = autoCamPresetPatch('chase', 'car', { lengthM: 87000, duration: 15 });
+    expect(Math.hypot(fit.distance!, fit.height!) / (87000 / 15)).toBeCloseTo(2, 1);
+    expect(fit.distance! % 50).toBe(0);
+  });
+
+  it('keeps each preset\'s shape and stays in range', () => {
+    const chase = autoCamPresetPatch('chase', 'car', { lengthM: 87000, duration: 15 });
+    const drone = autoCamPresetPatch('drone', 'car', { lengthM: 87000, duration: 15 });
+    expect(drone.height! / drone.distance!).toBeGreaterThan(chase.height! / chase.distance!);
+    const extreme = autoCamPresetPatch('topdown', 'car', { lengthM: 1e7, duration: 1 });
+    expect(extreme.height).toBe(getAutoCamRanges('car').height.max);
+  });
+
+  it('fits a newly enabled auto-camera to its route', () => {
+    const r = route('car');
+    r.geojson = {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[8, 46], [8, 46.8]] } }],
+    };
+    r.endTime = 15;
+    const cam = autoCamForRoute(r);
+    expect(cam).toMatchObject({ enabled: true, preset: 'chase' });
+    expect(cam.distance).toBeGreaterThan(5000);
   });
 });

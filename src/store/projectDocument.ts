@@ -9,7 +9,7 @@ import {
   migrateCalloutV1ToV2,
 } from '@/annotations/migration';
 import type { Project, RouteItem } from './types';
-import { getAutoCamRanges, rescaleAutoCam } from '@/config/vehicles';
+import { rescaleAutoCam } from '@/config/vehicles';
 import { MAP_STYLES } from '@/config/mapbox';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
@@ -271,12 +271,14 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
  * auto-camera 100x further out. Plane routes saved before that change still
  * have follow distances in the ground range, which would put the camera inside
  * the enlarged model. Distances already in the plane range were saved after
- * the change and are left alone; the two ranges do not overlap.
+ * the change and are left alone; v1's car range topped out below the plane range.
  */
+const V1_MAX_CAR_DISTANCE = 3000;
+
 function migratePlaneAutoCam(value: unknown): unknown {
   const route = value as Partial<RouteItem> | null;
   if (route?.kind !== 'route' || route.calculation?.vehicle?.type !== 'plane' || !route.autoCam) return value;
-  if (route.autoCam.distance > getAutoCamRanges('car').distance.max) return value;
+  if (route.autoCam.distance > V1_MAX_CAR_DISTANCE) return value;
   return { ...route, autoCam: rescaleAutoCam(route.autoCam, 'car', 'plane') };
 }
 

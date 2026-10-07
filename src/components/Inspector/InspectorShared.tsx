@@ -123,6 +123,7 @@ export function SliderRow({
   unit = '',
   formatValue,
   onReset,
+  logarithmic = false,
   className,
 }: {
   label: string;
@@ -136,9 +137,15 @@ export function SliderRow({
   formatValue?: (v: number) => string;
   /** Called on double-click, to return the slider to its default. */
   onReset?: () => void;
+  /** Spreads a range spanning orders of magnitude evenly; `min` must be positive. */
+  logarithmic?: boolean;
   className?: string;
 }) {
   const displayVal = formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ''}`;
+  // A log slider runs over ln(value); its values snap back to `step` on the way out.
+  const toSlider = (v: number) => (logarithmic ? Math.log(Math.max(min, v)) : v);
+  const fromSlider = (v: number) =>
+    logarithmic ? Math.min(max, Math.max(min, Math.round(Math.exp(v) / step) * step)) : v;
   return (
     <div className={cn("flex items-center justify-between gap-3 text-xs py-0.5", className)}>
       <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 flex items-center gap-1.5 truncate">
@@ -146,11 +153,11 @@ export function SliderRow({
         <span className="truncate">{label}</span>
       </span>
       <Slider
-        min={min}
-        max={max}
-        step={step}
-        value={[value]}
-        onValueChange={([v]) => onChange(v)}
+        min={toSlider(min)}
+        max={toSlider(max)}
+        step={logarithmic ? (toSlider(max) - toSlider(min)) / 500 : step}
+        value={[toSlider(value)]}
+        onValueChange={([v]) => onChange(fromSlider(v))}
         onDoubleClick={onReset}
         title={onReset ? 'Double-click to reset' : undefined}
         className="flex-1 py-1"

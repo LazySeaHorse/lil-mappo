@@ -4,7 +4,7 @@ import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
-import { defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
+import { autoCamForRoute, defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
 import { useSubscription } from '@/hooks/useSubscription';
@@ -82,12 +82,11 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         return;
       }
 
+      // Turning it back on keeps the settings it had; the first time, it is fitted to the route.
       u({
-        autoCam: {
-          ...defaultAutoCamFor(calc.vehicle?.type),
-          ...(item.autoCam ?? {}),
-          enabled: true,
-        },
+        autoCam: item.autoCam
+          ? { ...defaultAutoCamFor(calc.vehicle?.type), ...item.autoCam, enabled: true }
+          : autoCamForRoute(item),
       });
       track('autocam_enabled');
     } else {

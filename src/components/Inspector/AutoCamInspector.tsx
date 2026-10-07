@@ -9,7 +9,7 @@ import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIll
 import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { Video, VideoOff, Compass, Activity, Car, Plane, ArrowUpToLine, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges } from '@/config/vehicles';
+import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges, routeFitOf } from '@/config/vehicles';
 import type { AutoCamPreset } from '@/store/types';
 
 function ModeCard({ selected, onSelect, illustration, title, description }: {
@@ -64,7 +64,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
   const vehicleType = item.calculation?.vehicle?.type;
   const isPlane = vehicleType === 'plane';
   const ranges = getAutoCamRanges(vehicleType);
-  const formatDistance = (v: number) => (isPlane ? `${(v / 1000).toLocaleString()} km` : `${v} m`);
+  const formatDistance = (v: number) => (isPlane || v >= 10000 ? `${(v / 1000).toLocaleString()} km` : `${v} m`);
 
 
   const footer = (
@@ -108,7 +108,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
               <button
                 key={key}
                 type="button"
-                onClick={() => u(autoCamPresetPatch(key, vehicleType))}
+                onClick={() => u(autoCamPresetPatch(key, vehicleType, routeFitOf(item)))}
                 className={cn(
                   'px-2.5 py-2 rounded-lg border text-left transition-all cursor-pointer select-none',
                   config.preset === key
@@ -121,6 +121,9 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
               </button>
             ))}
           </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            Presets fit the camera distance to this route's length and duration.
+          </p>
         </div>
       )}
 
@@ -161,6 +164,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
                 min={ranges.distance.min}
                 max={ranges.distance.max}
                 step={ranges.distance.step}
+                logarithmic
                 unit={isPlane ? '' : 'm'}
                 formatValue={formatDistance}
               />
@@ -172,6 +176,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
                 min={ranges.height.min}
                 max={ranges.height.max}
                 step={ranges.height.step}
+                logarithmic
                 unit={isPlane ? '' : 'm'}
                 formatValue={formatDistance}
               />
