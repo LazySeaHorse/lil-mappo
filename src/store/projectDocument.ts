@@ -9,13 +9,12 @@ import {
   migrateCalloutV1ToV2,
 } from '@/annotations/migration';
 import type { Project, RouteItem } from './types';
-import { rescaleAutoCam } from '@/config/vehicles';
 import { MAP_STYLES } from '@/config/mapbox';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
 import { createCalloutStyleDefaults } from './itemFactories';
 
-export const PROJECT_SCHEMA_VERSION = 4 as const;
+export const PROJECT_SCHEMA_VERSION = 5 as const;
 export const CAMERA_TRACK_ID = 'camera-track';
 
 export type ProjectDocument = Project & {
@@ -101,7 +100,6 @@ const routeItemSchema = z.object({
     pitch: z.number(),
     smoothing: z.number(),
     distance: z.number(),
-    height: z.number(),
     zoom: z.number(),
     lookAhead: z.number(),
     easing: easingSchema.optional(),
@@ -274,12 +272,37 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
  * the change and are left alone; v1's car range topped out below the plane range.
  */
 const V1_MAX_CAR_DISTANCE = 3000;
+/** v2's plane ranges, which the 100x rescale was clamped into. */
+const V2_PLANE_DISTANCE = { min: 10000, max: 300000 };
+const V2_PLANE_HEIGHT = { min: 5000, max: 200000 };
+
+interface LegacyAutoCam {
+  mode?: string;
+  pitch?: number;
+  distance?: number;
+  height?: number;
+}
+
+type LegacyRoute = {
+  kind?: string;
+  calculation?: { vehicle?: { type?: string } };
+  autoCam?: LegacyAutoCam;
+} | null;
 
 function migratePlaneAutoCam(value: unknown): unknown {
-  const route = value as Partial<RouteItem> | null;
-  if (route?.kind !== 'route' || route.calculation?.vehicle?.type !== 'plane' || !route.autoCam) return value;
-  if (route.autoCam.distance > V1_MAX_CAR_DISTANCE) return value;
-  return { ...route, autoCam: rescaleAutoCam(route.autoCam, 'car', 'plane') };
+  const route = value as LegacyRoute;
+  const autoCam = route?.autoCam;
+  if (route?.kind !== 'route' || route.calculation?.vehicle?.type !== 'plane' || !autoCam) return value;
+  if (typeof autoCam.distance !== 'number' || autoCam.distance > V1_MAX_CAR_DISTANCE) return value;
+  const scale = (v: number, { min, max }: { min: number; max: number }) => Math.min(max, Math.max(min, Math.round(v * 100)));
+  return {
+    ...route,
+    autoCam: {
+      ...autoCam,
+      distance: scale(autoCam.distance, V2_PLANE_DISTANCE),
+      ...(typeof autoCam.height === 'number' ? { height: scale(autoCam.height, V2_PLANE_HEIGHT) } : {}),
+    },
+  };
 }
 
 /** Migrates schema v1 callout items to the annotation-based v2 format. */
@@ -436,11 +459,41 @@ const migrateProjectV3ToV4: ProjectMigration = (input) => {
   return { ...document, schemaVersion: 4, items };
 };
 
+/**
+ * v5 frames the follow view by straight-line distance and pitch instead of distance behind
+ * and height (which left the pitch slider doing nothing there). A follow-view camera keeps
+ * its exact position; a navigation-view one keeps its pitch, which that view already used.
+ */
+function migrateFollowFramingV4ToV5(value: unknown): unknown {
+  const route = value as LegacyRoute;
+  if (route?.kind !== 'route' || !route.autoCam) return value;
+  const { height, ...autoCam } = route.autoCam;
+  if (typeof height !== 'number' || typeof autoCam.distance !== 'number') return { ...route, autoCam };
+  const pitch = Math.min(85, (Math.atan2(autoCam.distance, height) * 180) / Math.PI);
+  return {
+    ...route,
+    autoCam: {
+      ...autoCam,
+      distance: Math.round(Math.hypot(autoCam.distance, height)),
+      pitch: autoCam.mode === 'navigation' ? autoCam.pitch : Math.round(pitch * 10) / 10,
+    },
+  };
+}
+
+const migrateProjectV4ToV5: ProjectMigration = (input) => {
+  const document = legacyDocumentEnvelopeSchema.parse(input);
+  const items = Object.fromEntries(
+    Object.entries(document.items).map(([id, value]) => [id, migrateFollowFramingV4ToV5(value)]),
+  );
+  return { ...document, schemaVersion: 5, items };
+};
+
 const projectMigrations: Record<number, ProjectMigration> = {
   0: migrateProjectV0ToV1,
   1: migrateProjectV1ToV2,
   2: migrateProjectV2ToV3,
   3: migrateProjectV3ToV4,
+  4: migrateProjectV4ToV5,
 };
 
 function migrateProjectDocument(input: unknown): unknown {

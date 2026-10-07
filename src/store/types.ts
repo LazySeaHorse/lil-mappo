@@ -37,10 +37,11 @@ export interface AutoCamConfig {
    * pulls back to frame the route.
    */
   outro?: number;
+  /** Degrees from looking straight down, in both views. */
   pitch: number;
   smoothing: number;
+  /** Follow view: straight-line metres from the camera to what it looks at. */
   distance: number;
-  height: number;
   zoom: number;
   lookAhead: number;
   easing?: EasingName;

@@ -166,7 +166,7 @@ function autoCamBounds(route: RouteItem, coords: number[][]): Bounds {
   }
   const config = route.autoCam!;
   // Dynamics can pull the camera back by a third or so beyond its set distance.
-  const reachM = 1.5 * (config.distance + config.height);
+  const reachM = 1.5 * config.distance;
   const dLat = reachM / 111320;
   const dLng = dLat / Math.max(0.05, Math.cos((((south + north) / 2) * Math.PI) / 180));
   return [west - dLng, Math.max(-85, south - dLat), east + dLng, Math.min(85, north + dLat)];

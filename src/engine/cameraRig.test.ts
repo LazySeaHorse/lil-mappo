@@ -9,7 +9,7 @@ import { getCameraAtTime } from './cameraInterpolation';
 import { blendedPose } from './cameraUtils';
 
 const config: AutoCamConfig = {
-  enabled: true, mode: 'cinematic', pitch: 65, smoothing: 0.4, distance: 500, height: 300,
+  enabled: true, mode: 'cinematic', pitch: 59, smoothing: 0.4, distance: 583,
   zoom: 14, lookAhead: 300, dynamics: 0.5, orbit: 0, intro: 0, outro: 0,
 };
 
@@ -134,7 +134,7 @@ describe('camera rig', () => {
     // Hairpins climbing 18 km up a valley: 60 km of road, ±110 m either side, crossed in 10 s.
     const zigzag = Array.from({ length: 300 }, (_, i) => [0.00054 * i, (i % 2 ? 1 : -1) * 0.001]);
     const fast: RigTiming = { duration: 10, easing: 'easeInOutSine' };
-    const wide = { ...config, distance: 3000, height: 2000 };
+    const wide = { ...config, distance: 3600, pitch: 56 };
     const rig = buildRig(zigzag, wide, fast)!;
     const frames = Array.from({ length: 301 }, (_, f) => f / 300);
 
@@ -151,7 +151,7 @@ describe('camera rig', () => {
     });
 
     it('keeps the vehicle in frame', () => {
-      const view = Math.hypot(wide.distance, wide.height);
+      const view = wide.distance;
       for (const p of frames) {
         const out = sampleRig(rig, wide, { p });
         if (out.type !== 'freeCam') throw new Error('expected a free camera');
@@ -203,7 +203,7 @@ describe('camera rig over terrain', () => {
   // 20 km due east at 46°N, crossed in 10 s.
   const east = [[8, 46], [8.26, 46]];
   const timing: RigTiming = { duration: 10, easing: 'linear' };
-  const wide = { ...config, distance: 3000, height: 1500 };
+  const wide = { ...config, distance: 3350, pitch: 63 };
   const model = (elevation: (lng: number, lat: number) => number): GroundModel => ({ key: 'test', elevation });
   const frames = Array.from({ length: 301 }, (_, f) => f / 300);
   const shots = (rig: NonNullable<ReturnType<typeof buildRig>>) => frames.map((p) => {
@@ -387,7 +387,7 @@ describe('bearing through a lead-in and lead-out', () => {
   ]);
   const route = {
     kind: 'route', id: 'r1', startTime: 3, endTime: 117.5, easing: 'easeInOutQuad',
-    autoCam: { ...config, pitch: 65, smoothing: 0.5, distance: 550, height: 420, zoom: 17, orbit: 0.2, intro: 1, outro: 1 },
+    autoCam: { ...config, pitch: 53, smoothing: 0.5, distance: 692, zoom: 17, orbit: 0.2, intro: 1, outro: 1 },
   } as unknown as RouteItem;
   const kf = (id: string, time: number, bearing: number, center: [number, number]): CameraKeyframe => ({
     id, time, camera: { center, zoom: 3, pitch: 0, bearing, altitude: null }, easing: 'easeInOutCubic', followRoute: null,

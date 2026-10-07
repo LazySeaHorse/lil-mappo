@@ -7,7 +7,7 @@ import { SliderRow } from './InspectorShared';
 import { formatPercent } from './inspectorValues';
 import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIllustrations';
 import { PanelWrapper, InspectorSection } from './InspectorLayout';
-import { Video, VideoOff, Compass, Activity, Car, Plane, ArrowUpToLine, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
+import { Video, VideoOff, Compass, Activity, Car, Plane, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges, routeFitOf } from '@/config/vehicles';
 import type { AutoCamPreset } from '@/store/types';
@@ -164,18 +164,6 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
                 min={ranges.distance.min}
                 max={ranges.distance.max}
                 step={ranges.distance.step}
-                logarithmic
-                unit={isPlane ? '' : 'm'}
-                formatValue={formatDistance}
-              />
-              <SliderRow
-                label="Camera height"
-                icon={<ArrowUpToLine size={13} />}
-                value={config.height}
-                onChange={(v) => u({ height: v })}
-                min={ranges.height.min}
-                max={ranges.height.max}
-                step={ranges.height.step}
                 logarithmic
                 unit={isPlane ? '' : 'm'}
                 formatValue={formatDistance}

@@ -48,7 +48,6 @@ function route(
           pitch: 65,
           smoothing: 0.3,
           distance: 500,
-          height: 300,
           zoom: 14,
           lookAhead: 300,
         }

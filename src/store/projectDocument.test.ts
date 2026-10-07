@@ -387,7 +387,7 @@ describe('project document persistence boundary', () => {
   });
 
   describe('v1 → v2 plane auto-camera migration', () => {
-    function v1DocumentWithRoute(type: 'car' | 'plane', distance: number, height: number) {
+    function v1DocumentWithRoute(type: 'car' | 'plane', distance: number, height: number, mode = 'cinematic', version = 1) {
       const { items: _items, itemOrder: _order, ...rest } = toProjectDocument(createProject());
       const routeItem = {
         kind: 'route', id: 'r1', name: 'Flight',
@@ -403,13 +403,13 @@ describe('project document persistence boundary', () => {
           vehicle: { enabled: true, type, modelId: '', scale: 1 },
         },
         autoCam: {
-          enabled: true, mode: 'cinematic', pitch: 65, smoothing: 0.3,
+          enabled: true, mode, pitch: 65, smoothing: 0.3,
           distance, height, zoom: 14, lookAhead: 300,
         },
       };
       return {
         ...rest,
-        schemaVersion: 1,
+        schemaVersion: version,
         items: { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] }, r1: routeItem },
         itemOrder: ['r1'],
       };
@@ -420,16 +420,29 @@ describe('project document persistence boundary', () => {
       return r.kind === 'route' ? r.autoCam : undefined;
     };
 
+    // Each ends up as v5 framing: 50 km back and 30 km up is 58.3 km away at 59° from straight down.
     it('scales plane follow framing saved before the plane model was enlarged', () => {
-      expect(autoCamOf(v1DocumentWithRoute('plane', 500, 300))).toMatchObject({ distance: 50000, height: 30000 });
+      expect(autoCamOf(v1DocumentWithRoute('plane', 500, 300))).toMatchObject({ distance: 58310, pitch: 59 });
     });
 
     it('leaves plane framing already in the plane range untouched', () => {
-      expect(autoCamOf(v1DocumentWithRoute('plane', 50000, 30000))).toMatchObject({ distance: 50000, height: 30000 });
+      expect(autoCamOf(v1DocumentWithRoute('plane', 50000, 30000))).toMatchObject({ distance: 58310, pitch: 59 });
     });
 
     it('leaves car routes untouched', () => {
-      expect(autoCamOf(v1DocumentWithRoute('car', 500, 300))).toMatchObject({ distance: 500, height: 300 });
+      expect(autoCamOf(v1DocumentWithRoute('car', 500, 300))).toMatchObject({ distance: 583, pitch: 59 });
+    });
+
+    describe('v4 → v5 follow framing', () => {
+      it('keeps a follow camera exactly where it was, as distance and pitch', () => {
+        const cam = autoCamOf(v1DocumentWithRoute('car', 400, 400, 'cinematic', 4))!;
+        expect(cam).toMatchObject({ distance: 566, pitch: 45 });
+        expect(cam).not.toHaveProperty('height');
+      });
+
+      it('keeps the pitch a navigation camera was already using', () => {
+        expect(autoCamOf(v1DocumentWithRoute('car', 400, 400, 'navigation', 4))).toMatchObject({ distance: 566, pitch: 65 });
+      });
     });
   });
   describe('v2 → v3 route calculation migration', () => {

@@ -28,20 +28,18 @@ interface SliderRange {
 
 export interface AutoCamRanges {
   distance: SliderRange;
-  height: SliderRange;
 }
 
 // Wide enough for a long route played fast, where fitting the camera to the route puts it km out.
 const BASE_AUTO_CAM_RANGES: AutoCamRanges = {
-  distance: { min: 100, max: 20000, step: 50 },
-  height: { min: 50, max: 15000, step: 50 },
+  distance: { min: 100, max: 25000, step: 50 },
 };
 
-/** Follow distance and height ranges (metres) for a vehicle type. */
+/** Follow distance range (metres) for a vehicle type. */
 export function getAutoCamRanges(type: VehicleType | undefined): AutoCamRanges {
   const scale = autoCamScaleFor(type);
-  const scaled = (r: SliderRange): SliderRange => ({ min: r.min * scale, max: r.max * scale, step: r.step * scale });
-  return { distance: scaled(BASE_AUTO_CAM_RANGES.distance), height: scaled(BASE_AUTO_CAM_RANGES.height) };
+  const { min, max, step } = BASE_AUTO_CAM_RANGES.distance;
+  return { distance: { min: min * scale, max: max * scale, step: step * scale } };
 }
 
 const BASE_AUTO_CAM_DEFAULTS: AutoCamConfig = {
@@ -52,10 +50,9 @@ const BASE_AUTO_CAM_DEFAULTS: AutoCamConfig = {
   orbit: 0,
   intro: 0,
   outro: 0,
-  pitch: 65,
+  pitch: 60,
   smoothing: 0.3,
-  distance: 500,
-  height: 300,
+  distance: 600,
   zoom: 14,
   lookAhead: 300,
   easing: 'easeInOutSine' as EasingName,
@@ -67,16 +64,16 @@ export function defaultAutoCamFor(type: VehicleType | undefined): AutoCamConfig 
   return {
     ...BASE_AUTO_CAM_DEFAULTS,
     distance: BASE_AUTO_CAM_DEFAULTS.distance * scale,
-    height: BASE_AUTO_CAM_DEFAULTS.height * scale,
   };
 }
 
 interface AutoCamPresetSpec {
   label: string;
   description: string;
-  /** Multipliers on the vehicle's default follow distance and height. */
+  /** Multiplier on the vehicle's default follow distance. */
   distance: number;
-  height: number;
+  /** Degrees from looking straight down. */
+  pitch: number;
   smoothing: number;
   dynamics: number;
   orbit: number;
@@ -88,22 +85,22 @@ export const AUTO_CAM_PRESETS: Record<AutoCamPreset, AutoCamPresetSpec> = {
   chase: {
     label: 'Chase',
     description: 'Steady camera behind the vehicle.',
-    distance: 1, height: 1, smoothing: 0.4, dynamics: 0.5, orbit: 0, intro: 0, outro: 0,
+    distance: 1, pitch: 60, smoothing: 0.4, dynamics: 0.5, orbit: 0, intro: 0, outro: 0,
   },
   drone: {
     label: 'Drone',
     description: 'Higher and wider, drifting around the route.',
-    distance: 1.4, height: 2.2, smoothing: 0.55, dynamics: 0.6, orbit: 0.6, intro: 0.4, outro: 0.3,
+    distance: 1.6, pitch: 47, smoothing: 0.55, dynamics: 0.6, orbit: 0.6, intro: 0.4, outro: 0.3,
   },
   reveal: {
     label: 'Reveal',
     description: 'Swoops in from a wide shot, pulls back to frame the route.',
-    distance: 1.1, height: 1.4, smoothing: 0.5, dynamics: 0.7, orbit: 0.2, intro: 1, outro: 1,
+    distance: 1.15, pitch: 53, smoothing: 0.5, dynamics: 0.7, orbit: 0.2, intro: 1, outro: 1,
   },
   topdown: {
     label: 'Top-down',
     description: 'Almost straight overhead, turning with the route.',
-    distance: 0.2, height: 5, smoothing: 0.7, dynamics: 0.3, orbit: 0, intro: 0, outro: 0.4,
+    distance: 2.5, pitch: 4, smoothing: 0.7, dynamics: 0.3, orbit: 0, intro: 0, outro: 0.4,
   },
 };
 
@@ -134,12 +131,12 @@ const SECONDS_ACROSS_VIEW = 2;
 function routeScale(type: VehicleType | undefined, fit: RouteFit | undefined): number {
   if (!fit || !(fit.lengthM > 0) || !(fit.duration > 0)) return 1;
   const base = defaultAutoCamFor(type);
-  return Math.max(1, ((fit.lengthM / fit.duration) * SECONDS_ACROSS_VIEW) / Math.hypot(base.distance, base.height));
+  return Math.max(1, ((fit.lengthM / fit.duration) * SECONDS_ACROSS_VIEW) / base.distance);
 }
 
 /**
  * Item patch that switches a follow-view auto-camera to a preset for a vehicle type, with its
- * distance and height fitted to the route when `fit` is given.
+ * distance fitted to the route when `fit` is given.
  */
 export function autoCamPresetPatch(
   preset: AutoCamPreset,
@@ -153,7 +150,7 @@ export function autoCamPresetPatch(
   return {
     preset,
     distance: fitRange(base.distance * spec.distance * scale, ranges.distance),
-    height: fitRange(base.height * spec.height * scale, ranges.height),
+    pitch: spec.pitch,
     smoothing: spec.smoothing,
     dynamics: spec.dynamics,
     orbit: spec.orbit,
@@ -169,7 +166,7 @@ export function autoCamForRoute(route: RouteItem): AutoCamConfig {
 }
 
 /**
- * Rescales follow distance and height when a route's vehicle type changes,
+ * Rescales follow distance when a route's vehicle type changes,
  * keeping the same framing relative to the model and staying within the new
  * type's slider range.
  */
@@ -180,12 +177,7 @@ export function rescaleAutoCam(
 ): AutoCamConfig {
   const factor = autoCamScaleFor(to) / autoCamScaleFor(from);
   if (factor === 1) return config;
-  const ranges = getAutoCamRanges(to);
-  return {
-    ...config,
-    distance: clamp(Math.round(config.distance * factor), ranges.distance),
-    height: clamp(Math.round(config.height * factor), ranges.height),
-  };
+  return { ...config, distance: clamp(Math.round(config.distance * factor), getAutoCamRanges(to).distance) };
 }
 
 /**

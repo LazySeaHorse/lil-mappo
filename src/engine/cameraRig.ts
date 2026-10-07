@@ -204,7 +204,7 @@ function unwrapDegrees(values: ArrayLike<number>): Float64Array {
 
 /** How much ground the shot spans around its subject, in metres: what framing is relative to. */
 function viewScaleM(config: AutoCamConfig, lat: number): number {
-  if (config.mode === 'cinematic') return Math.max(20, Math.hypot(config.distance, config.height));
+  if (config.mode === 'cinematic') return Math.max(20, config.distance);
   const mpp = (40075016.686 / 512) * Math.cos(clamp(lat, -85, 85) * DEG) / 2 ** config.zoom;
   return Math.max(20, mpp * 350);
 }
@@ -362,14 +362,16 @@ function planGround(rig: CameraRig, config: AutoCamConfig, model: GroundModel, l
     if (g === null) return null;
     under[k] = g;
     floor[k] = -Infinity;
-    const clearance = 0.1 * Math.hypot(f.distance, f.height);
+    const back = f.range * Math.sin(f.pitch * DEG);
+    const height = f.range * Math.cos(f.pitch * DEG);
+    const clearance = 0.1 * f.range;
     // The camera itself, then two points down its line of sight, which runs `height · (1 − along)`
     // above the aim's ground `along` of the way from the camera to the aim.
     for (const along of [0, 1 / 3, 2 / 3]) {
-      const [lng, lat] = destinationPoint(f.aim, f.distance * (1 - along), f.bearing + 180);
+      const [lng, lat] = destinationPoint(f.aim, back * (1 - along), f.bearing + 180);
       const h = model.elevation(lng, lat);
       if (h === null) return null;
-      floor[k] = Math.max(floor[k], h + (clearance - f.height) * (1 - along));
+      floor[k] = Math.max(floor[k], h + (clearance - height) * (1 - along));
     }
   }
   return smoothAbove(under, floor, lambda);
@@ -432,6 +434,9 @@ function stateAt(rig: CameraRig, p: number): RigState {
   };
 }
 
+/** Steepest the follow camera tilts towards the horizon, in degrees from looking straight down. */
+const MAX_FOLLOW_PITCH = 85;
+
 /** Share of the block the wide intro / outro shots span at full strength. */
 export const INTRO_FRACTION = 0.2;
 export const OUTRO_FRACTION = 0.2;
@@ -439,8 +444,10 @@ export const OUTRO_FRACTION = 0.2;
 interface Framing {
   aim: [number, number];
   ground?: number;
-  distance: number;
-  height: number;
+  /** Straight-line metres from the camera to the aim. */
+  range: number;
+  /** Degrees from looking straight down. */
+  pitch: number;
   bearing: number;
 }
 
@@ -450,25 +457,20 @@ function framingAt(rig: CameraRig, config: AutoCamConfig, p: number): Framing {
   const orbit = clamp(config.orbit ?? 0, 0, 1);
   const st = stateAt(rig, p);
 
-  // Reacts to the route: pulls back and rises through turns, and eases out at speed.
+  // Reacts to the route: pulls back and looks down more steeply through bends, and eases out at speed.
   const breathe = Math.sin(p * Math.PI * 2 * 3);
-  const distance = config.distance * (1 + dynamics * (0.35 * st.turn + 0.25 * st.speedDelta + 0.04 * breathe));
-  const height = config.height * (1 + dynamics * (0.5 * st.turn + 0.3 * st.speedDelta + 0.05 * breathe));
+  const range = config.distance * (1 + dynamics * (0.4 * st.turn + 0.27 * st.speedDelta + 0.045 * breathe));
+  const pitch = clamp(config.pitch - dynamics * 10 * st.turn, 0, MAX_FOLLOW_PITCH);
   const azimuth = orbit * 50 * Math.sin(p * Math.PI * 2 * 0.85 + 0.6);
 
-  return { aim: st.aim, ground: st.ground, distance, height, bearing: st.heading + azimuth };
+  return { aim: st.aim, ground: st.ground, range: Math.max(1, range), pitch, bearing: st.heading + azimuth };
 }
 
 function followPose(rig: CameraRig, config: AutoCamConfig, p: number): CameraPose {
   const f = framingAt(rig, config, p);
-  const position = destinationPoint(f.aim, f.distance, f.bearing + 180);
-  return {
-    ...poseFromFreeCam([position[0], position[1], Math.max(1, f.height)], f.aim),
-    // The heading fixes the facing even when the camera sits directly above its subject.
-    // Left unwrapped so a blend can follow it without flipping direction as it crosses 360.
-    bearing: f.bearing,
-    ground: f.ground,
-  };
+  // The heading fixes the facing even when the camera sits directly above its subject.
+  // Left unwrapped so a blend can follow it without flipping direction as it crosses 360.
+  return { target: f.aim, range: f.range, pitch: f.pitch, bearing: f.bearing, ground: f.ground };
 }
 
 function withShots(rig: CameraRig, config: AutoCamConfig, params: RigSampleParams, pose: CameraPose): CameraPose {
@@ -530,9 +532,9 @@ function fingerprint(coords: number[][], config: AutoCamConfig, timing: RigTimin
     }
   }
   // Only what the plan depends on, so dragging the other sliders doesn't rebuild it.
-  const shape = config.mode === 'cinematic' ? [config.distance, config.height] : [config.zoom, config.lookAhead];
+  const shape = config.mode === 'cinematic' ? [config.distance] : [config.zoom, config.lookAhead];
   // Planning over terrain follows the whole framing, so it depends on the motion sliders too.
-  const terrain = ground && config.mode === 'cinematic' ? [ground.key, config.dynamics, config.orbit] : [];
+  const terrain = ground && config.mode === 'cinematic' ? [ground.key, config.pitch, config.dynamics, config.orbit] : [];
   return [coords.length, h >>> 0, config.mode, config.smoothing, ...shape, timing.duration, timing.easing, ...terrain].join(':');
 }
 
