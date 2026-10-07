@@ -69,9 +69,22 @@ function toPose(cam: PlainCamera, refHeight: number): CameraPose {
   return { ...pose, bearing: cam.bearing ?? pose.bearing, ground: cam.ground };
 }
 
-/** The pose a blend shows, as the renderer computes it. */
-export function blendedPose(cam: Extract<CameraOutput, { type: 'blend' }>, refHeight: number): CameraPose {
-  return blendPoses(toPose(cam.from, refHeight), toPose(cam.to, refHeight), cam.t);
+/**
+ * The pose a blend shows, as the renderer computes it. When one end planned its ground, the other
+ * end's comes from `groundAt` (the terrain under its target), so the hand-off stays continuous.
+ */
+export function blendedPose(
+  cam: Extract<CameraOutput, { type: 'blend' }>,
+  refHeight: number,
+  groundAt: (target: [number, number]) => number = () => 0,
+): CameraPose {
+  let from = toPose(cam.from, refHeight);
+  let to = toPose(cam.to, refHeight);
+  if (from.ground !== undefined || to.ground !== undefined) {
+    from = { ...from, ground: from.ground ?? groundAt(from.target) };
+    to = { ...to, ground: to.ground ?? groundAt(to.target) };
+  }
+  return blendPoses(from, to, cam.t);
 }
 
 function applyJumpTo(
@@ -89,14 +102,7 @@ export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0
   if (cam.type === 'blend') {
     if (!isFiniteCamera(cam.from) || !isFiniteCamera(cam.to) || !Number.isFinite(cam.t)) return;
     const refHeight = viewportHeight(map, zoomOffset);
-    let from = toPose(cam.from, refHeight);
-    let to = toPose(cam.to, refHeight);
-    // A planned ground blends with the terrain under the other end, so the hand-off stays continuous.
-    if (from.ground !== undefined || to.ground !== undefined) {
-      from = { ...from, ground: from.ground ?? groundElevation(map, from.target) };
-      to = { ...to, ground: to.ground ?? groundElevation(map, to.target) };
-    }
-    const pose = blendPoses(from, to, cam.t);
+    const pose = blendedPose(cam, refHeight, (target) => groundElevation(map, target));
     if (cam.from.type === 'jumpTo' && cam.to.type === 'jumpTo') {
       applyJumpTo(map, poseToJumpTo(pose, refHeight), zoomOffset);
     } else {

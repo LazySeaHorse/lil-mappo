@@ -25,7 +25,7 @@ li'l Mappo is a browser-based application for creating cinematic map animations 
 
 ### 3. Camera and Timeline
 - **Keyframe Timeline**: Control position, zoom, pitch, bearing, and altitude across time.
-- **AutoCam Engine**: Track routes with a precomputed, look-ahead-smoothed camera: navigation and follow views, Chase / Drone / Reveal / Top-down presets, turn- and speed-reactive framing, intro swoop and outro pull-back, and terrain-aware clearance.
+- **AutoCam Engine**: Track routes with a camera path planned in screen time, so long, jagged routes played fast stay smooth: navigation and follow views, Chase / Drone / Reveal / Top-down presets fitted to the route's length and duration, turn- and speed-reactive framing, intro swoop and outro pull-back, and heights planned over terrain.
 - **Interpolation**: Apply easing functions (Linear, Quad, Cubic, Sine) for smooth transitions.
 - **Orbit Tool**: Generate keyframes to rotate the camera 360 degrees around a central point.
 - **Undo / Redo History**: Multi-step history powered by Zundo with pointer gesture coalescing and source tracking (`user` vs `ai`).

@@ -543,6 +543,19 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Key Lesson**: When adding complex automated behaviors that override manual defaults, implement a dedicated "blend" layer rather than binary switching to avoid jarring "camera jerks" at transition boundaries.
 
+### 6.14a AutoCam: Planned Camera Path (October 2026)
+
+**Problem**: On long, jagged routes played fast (e.g. 87 km of mountain switchbacks in 15 s) the follow camera shook. The look-at was pinned to the vehicle, so every jag in the road went straight into the shot; the smoothing windows were in metres, so a fast route chewed through them in a fraction of a second; and the camera's height followed the terrain under its target frame by frame, bobbing over every ridge.
+
+**Solution**: `src/engine/cameraRig.ts` plans the block's whole camera path once (cached by `getRig`) and samples it by linear block progress `p`:
+- **Video time, not distance.** Samples are evenly spaced in screen time (60/s) with the route's easing applied, so "smooth" means smooth on screen however fast the route plays. `getRig` takes the block's `{ duration, easing }`.
+- **Aim** = `smoothWithin`: the smoothest path (Whittaker smoother, least acceleration, one banded LDLᵀ solve) through a lead point on the road ahead, re-weighted until it stays within a safe zone of it. The vehicle wanders in frame while the camera glides; no clamps, so no kinks.
+- **Facing** = the road's direction across one view width (bends smaller than the shot cancel out), averaged over a few seconds of screen time as direction vectors (stays defined when the vehicle stops).
+- **Height over terrain**: with terrain on, `cameraUtils` passes a `GroundModel` backed by `src/services/terrainDem.ts`, which downloads Mapbox `terrain-dem-v1` tiles (`.pngraw`) for each auto-camera's area and answers heights synchronously. The rig plans a smoothed ground reference (`smoothAbove`) raised wherever the camera or its sightline would dip into terrain, and poses carry it as `CameraPose.ground`. `applyPose` uses it instead of `queryTerrainElevation` (kept only as a clearance safety net). Export awaits `loadProjectTerrain()` before capturing so every frame sees the same plan; paused preview re-syncs on `onDemLoaded`.
+- **Fitted framing**: enabling AutoCam and clicking a preset size distance/height from the route (`autoCamPresetPatch(preset, type, routeFitOf(route))`) so the vehicle takes ~2 s to cross the shot at average speed, never closer than the vehicle's default framing.
+
+**Key Lesson**: A camera that must be smooth on screen should be planned in screen time, as an optimisation with constraints (stay smooth, keep the subject in frame, clear the ground), rather than built from distance-based blurs and clamps. Anything the plan depends on (route, easing, duration, terrain) goes into the rig fingerprint.
+
 ### 6.15 Duplicate Code Consolidation (April 2026)
 
 **Problem 1: Camera utility duplication** — `applyCamera`, `getRouteCoords`, and `getRoutes` were defined identically in both `usePlayback.ts` and `videoExport.ts`. These utilities drive the 60fps playback loop and the offline export engine, but they shared the same logic.
