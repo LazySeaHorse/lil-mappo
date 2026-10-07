@@ -62,8 +62,8 @@ export interface CameraRig {
   aimY: Float64Array;
   /** Facing in degrees, unwrapped so it can be interpolated linearly. */
   heading: Float64Array;
-  /** 0..1 how quickly the camera is turning. */
-  turn: Float64Array;
+  /** 0..1 how much the road winds across the shot: 0 straight, about 0.6 round a right angle. */
+  winding: Float64Array;
   /** 0..1 share of its top speed the vehicle is doing. */
   pace: Float64Array;
   /** The easing's top rate of progress relative to a steady pace (1 when steady). */
@@ -89,8 +89,8 @@ const DEG = Math.PI / 180;
 const SAMPLES_PER_SECOND = 60;
 const MIN_SAMPLES = 64;
 const MAX_SAMPLES = 6000;
-/** Turning this fast, in degrees per second, counts as a full turn for the framing. */
-const FULL_TURN_RATE = 45;
+/** Road this much longer than the straight line across the shot counts as fully winding. */
+const FULL_WINDING = 0.5;
 
 // ─── Smoothing ────────────────────────────────────────────────────────────────
 
@@ -311,32 +311,32 @@ export function buildRig(
   // few seconds of screen time, so it turns at a pace that reads as a pan however fast the
   // route plays. Averaging directions rather than positions keeps it defined as the vehicle
   // slows to a stop. Shorter chords (near the ends, or across a hairpin) count for less.
+  //
+  // The same chord says how much the road winds across the shot: how much shorter it is than
+  // the road it spans. Dynamics pulls back to show a winding stretch, bend or hairpin alike.
   const reach = (view * 0.5) / lengthM;
   const dirX = new Float64Array(n);
   const dirY = new Float64Array(n);
+  const rawWinding = new Float64Array(n);
   for (let k = 0; k < n; k++) {
     const [bx, by] = vehicleAt(route, u[k] - reach);
     const [fx, fy] = vehicleAt(route, u[k] + reach);
     dirX[k] = ((fx - bx) * mpm) / view;
     dirY[k] = ((fy - by) * mpm) / view;
+    const roadM = (Math.min(1, u[k] + reach) - Math.max(0, u[k] - reach)) * lengthM;
+    const chordM = Math.hypot(fx - bx, fy - by) * mpm;
+    rawWinding[k] = roadM > 0 ? clamp((1 - chordM / roadM) / FULL_WINDING, 0, 1) : 0;
   }
   const [hx, hy] = whittaker([dirX, dirY], new Float64Array(n).fill(1), lambdaFor(2 + 10 * smoothing, rate));
   const heading = unwrapDegrees(Array.from(hx, (x, k) => Math.atan2(x, -hy[k]) / DEG));
-
-  const turnRate = new Float64Array(n);
-  for (let k = 0; k < n; k++) {
-    const a = Math.max(0, k - 1);
-    const b = Math.min(n - 1, k + 1);
-    turnRate[k] = clamp((Math.abs(heading[b] - heading[a]) * rate) / (b - a) / FULL_TURN_RATE, 0, 1);
-  }
-  const [smoothTurn] = whittaker([turnRate], new Float64Array(n).fill(1), lambdaFor(1, rate));
-  const turn = smoothTurn.map((t) => clamp(t, 0, 1));
+  const [smoothWinding] = whittaker([rawWinding], new Float64Array(n).fill(1), lambdaFor(1.5, rate));
+  const winding = smoothWinding.map((w) => clamp(w, 0, 1));
 
   const rig: CameraRig = {
     aimX,
     aimY,
     heading,
-    turn,
+    winding,
     pace,
     peakSpeed: Math.max(1, peak),
     ground: null,
@@ -413,7 +413,7 @@ interface RigState {
   aim: [number, number];
   ground?: number;
   heading: number;
-  turn: number;
+  winding: number;
   /** -1..1 change of pace around the route's average speed, so it reads the same for any easing. */
   speedDelta: number;
 }
@@ -429,7 +429,7 @@ function stateAt(rig: CameraRig, p: number): RigState {
     aim: mercToLngLat(at(rig.aimX), at(rig.aimY)),
     ground: rig.ground ? at(rig.ground) : undefined,
     heading: at(rig.heading),
-    turn: at(rig.turn),
+    winding: at(rig.winding),
     speedDelta: rig.peakSpeed <= 1.001 ? 0 : clamp((at(rig.pace) - average) / (1 - average), -1, 1),
   };
 }
@@ -459,8 +459,8 @@ function framingAt(rig: CameraRig, config: AutoCamConfig, p: number): Framing {
 
   // Reacts to the route: pulls back and looks down more steeply through bends, and eases out at speed.
   const breathe = Math.sin(p * Math.PI * 2 * 3);
-  const range = config.distance * (1 + dynamics * (0.4 * st.turn + 0.27 * st.speedDelta + 0.045 * breathe));
-  const pitch = clamp(config.pitch - dynamics * 10 * st.turn, 0, MAX_FOLLOW_PITCH);
+  const range = config.distance * (1 + dynamics * (0.4 * st.winding + 0.27 * st.speedDelta + 0.045 * breathe));
+  const pitch = clamp(config.pitch - dynamics * 10 * st.winding, 0, MAX_FOLLOW_PITCH);
   const azimuth = orbit * 50 * Math.sin(p * Math.PI * 2 * 0.85 + 0.6);
 
   return { aim: st.aim, ground: st.ground, range: Math.max(1, range), pitch, bearing: st.heading + azimuth };
@@ -505,7 +505,7 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
   // Frame the route ahead: the vehicle sits low in the view and the map turns with the route.
   const dynamics = clamp(config.dynamics ?? 0.5, 0, 1);
   const st = stateAt(rig, params.p);
-  const zoom = config.zoom - dynamics * (0.9 * st.turn + 0.5 * st.speedDelta);
+  const zoom = config.zoom - dynamics * (0.9 * st.winding + 0.5 * st.speedDelta);
   return {
     type: 'jumpTo',
     center: st.aim,

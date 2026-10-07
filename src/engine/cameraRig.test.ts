@@ -168,6 +168,19 @@ describe('camera rig', () => {
     });
   });
 
+  it('pulls back through a bend with dynamics, and holds steady on a straight', () => {
+    const rangeAt = (route: number[][], dynamics: number, p: number) => {
+      const cfg = { ...config, dynamics };
+      const out = sampleRig(buildRig(route, cfg, steady)!, cfg, { p });
+      if (out.type !== 'freeCam') throw new Error('expected a free camera');
+      return poseFromFreeCam(out.position, out.lookAt).range;
+    };
+    const straight = [[0, 0], [0.04, 0]];
+    // The corner is half way along; at a steady pace the vehicle reaches it at p = 0.5.
+    expect(rangeAt(corner, 1, 0.5) / rangeAt(corner, 0, 0.5)).toBeGreaterThan(1.15);
+    expect(Math.abs(rangeAt(straight, 1, 0.5) / rangeAt(straight, 0, 0.5) - 1)).toBeLessThan(0.05);
+  });
+
   it('is deterministic for the same progress', () => {
     const rig = buildRig(corner, config, steady)!;
     expect(sampleRig(rig, config, { p: 0.42 })).toEqual(sampleRig(rig, config, { p: 0.42 }));
