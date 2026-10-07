@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import { syncMapToProject } from '@/engine/cameraUtils';
+import { loadProjectTerrain, syncMapToProject } from '@/engine/cameraUtils';
+import { onDemLoaded } from '@/services/terrainDem';
 
 export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.MutableRefObject<MapRef | null>) {
   const rafRef = useRef<number>(0);
@@ -42,6 +43,14 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
       }
 
       if (
+        state.items !== prev.items ||
+        state.terrainEnabled !== prev.terrainEnabled ||
+        state.terrainExaggeration !== prev.terrainExaggeration
+      ) {
+        void loadProjectTerrain();
+      }
+
+      if (
         !state.isPlaying &&
         (state.playheadTime !== prev.playheadTime ||
           state.id !== prev.id ||
@@ -49,6 +58,13 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
       ) {
         driveCamera(state.playheadTime);
       }
+    });
+
+    // The auto-camera replans once terrain arrives; show it without waiting for the playhead to move.
+    void loadProjectTerrain();
+    const unsubDem = onDemLoaded(() => {
+      const { isPlaying, isExporting, playheadTime } = useProjectStore.getState();
+      if (!isPlaying && !isExporting) driveCamera(playheadTime);
     });
 
     // rAF stops while the tab is hidden but the wall clock does not, so pause
@@ -61,6 +77,7 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
 
     return () => {
       unsub();
+      unsubDem();
       document.removeEventListener('visibilitychange', onVisibilityChange);
       cancelAnimationFrame(rafRef.current);
     };

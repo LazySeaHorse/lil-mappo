@@ -3,6 +3,9 @@ import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 import { extractLineCoords } from './geoUtils';
 import { getCameraAtTime, type CameraOutput } from './cameraInterpolation';
+import type { GroundModel } from './cameraRig';
+import { demElevation, demVersion, loadDem, type Bounds } from '@/services/terrainDem';
+import { getEffectiveMapboxToken } from '@/config/mapbox';
 import {
   blendPoses,
   poseFromFreeCam,
@@ -30,10 +33,13 @@ function groundElevation(map: mapboxgl.Map, lngLat: [number, number]): number {
   return typeof e === 'number' && Number.isFinite(e) ? e : 0;
 }
 
-/** Places a free camera for a pose, keeping it clear of terrain and aimed at the ground below the target. */
+/**
+ * Places a free camera for a pose, measured from the ground the pose planned or else the terrain
+ * under its target, kept clear of the terrain under the camera, and aimed at the target.
+ */
 function applyPose(map: mapboxgl.Map, pose: CameraPose): void {
   const { lngLat, horizontal, altitude } = poseToPosition(pose);
-  const groundTarget = groundElevation(map, pose.target);
+  const groundTarget = pose.ground ?? groundElevation(map, pose.target);
   const groundCamera = groundElevation(map, lngLat);
   let cameraAltitude = groundTarget + altitude;
   if (groundCamera !== 0 || groundTarget !== 0) {
@@ -60,7 +66,7 @@ function toPose(cam: PlainCamera, refHeight: number): CameraPose {
   if (cam.type === 'jumpTo') return poseFromJumpTo(cam, refHeight);
   const pose = poseFromFreeCam(cam.position, cam.lookAt);
   // The camera's own unwrapped bearing, when it has one, rather than the one re-derived from its position.
-  return cam.bearing === undefined ? pose : { ...pose, bearing: cam.bearing };
+  return { ...pose, bearing: cam.bearing ?? pose.bearing, ground: cam.ground };
 }
 
 /** The pose a blend shows, as the renderer computes it. */
@@ -83,7 +89,14 @@ export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0
   if (cam.type === 'blend') {
     if (!isFiniteCamera(cam.from) || !isFiniteCamera(cam.to) || !Number.isFinite(cam.t)) return;
     const refHeight = viewportHeight(map, zoomOffset);
-    const pose = blendedPose(cam, refHeight);
+    let from = toPose(cam.from, refHeight);
+    let to = toPose(cam.to, refHeight);
+    // A planned ground blends with the terrain under the other end, so the hand-off stays continuous.
+    if (from.ground !== undefined || to.ground !== undefined) {
+      from = { ...from, ground: from.ground ?? groundElevation(map, from.target) };
+      to = { ...to, ground: to.ground ?? groundElevation(map, to.target) };
+    }
+    const pose = blendPoses(from, to, cam.t);
     if (cam.from.type === 'jumpTo' && cam.to.type === 'jumpTo') {
       applyJumpTo(map, poseToJumpTo(pose, refHeight), zoomOffset);
     } else {
@@ -93,7 +106,7 @@ export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0
   }
   if (!isFiniteCamera(cam)) return;
   if (cam.type === 'freeCam') {
-    applyPose(map, poseFromFreeCam(cam.position, cam.lookAt));
+    applyPose(map, { ...poseFromFreeCam(cam.position, cam.lookAt), ground: cam.ground });
   } else {
     applyJumpTo(map, cam, zoomOffset);
   }
@@ -110,10 +123,64 @@ export function getRoutes(): RouteItem[] {
   return Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route') as RouteItem[];
 }
 
+let groundMemo: GroundModel | null = null;
+
+/** The project's terrain as the auto-camera plans over it, or null with terrain off. */
+function projectGround(): GroundModel | null {
+  const { terrainEnabled, terrainExaggeration } = useProjectStore.getState();
+  if (!terrainEnabled) return null;
+  const key = `${terrainExaggeration}:${demVersion()}`;
+  // Kept while unchanged, so the rig cache can match it by identity.
+  if (groundMemo?.key !== key) {
+    groundMemo = {
+      key,
+      elevation: (lng, lat) => {
+        const e = demElevation(lng, lat);
+        return e === null ? null : e * terrainExaggeration;
+      },
+    };
+  }
+  return groundMemo;
+}
+
 /** The camera the project's camera track shows at `time`, or null if it has none. */
 export function getProjectCameraAt(time: number): CameraOutput | null {
   const camera = useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem | undefined;
-  return getCameraAtTime(camera?.keyframes ?? [], time, getRouteCoords, getRoutes());
+  return getCameraAtTime(camera?.keyframes ?? [], time, getRouteCoords, getRoutes(), projectGround());
+}
+
+/** Area an auto-camera route's shots can see the ground of: the route, plus the camera's reach. */
+function autoCamBounds(route: RouteItem, coords: number[][]): Bounds {
+  let [west, south, east, north] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [lng, lat] of coords) {
+    west = Math.min(west, lng);
+    east = Math.max(east, lng);
+    south = Math.min(south, lat);
+    north = Math.max(north, lat);
+  }
+  const config = route.autoCam!;
+  // Dynamics can pull the camera back by a third or so beyond its set distance.
+  const reachM = 1.5 * (config.distance + config.height);
+  const dLat = reachM / 111320;
+  const dLng = dLat / Math.max(0.05, Math.cos((((south + north) / 2) * Math.PI) / 180));
+  return [west - dLng, Math.max(-85, south - dLat), east + dLng, Math.min(85, north + dLat)];
+}
+
+/**
+ * Downloads the terrain the project's auto-cameras plan over, when terrain is on. Resolves once
+ * it has arrived (or failed), so callers that need a settled plan, like export, can wait for it.
+ */
+export async function loadProjectTerrain(): Promise<void> {
+  if (!useProjectStore.getState().terrainEnabled) return;
+  const token = getEffectiveMapboxToken();
+  await Promise.all(
+    getRoutes()
+      .filter((route) => route.autoCam?.enabled && route.autoCam.mode === 'cinematic')
+      .map((route) => {
+        const coords = getRouteCoords(route.id);
+        return coords ? loadDem(autoCamBounds(route, coords), token) : undefined;
+      }),
+  );
 }
 
 /** Whether a saved map centre has been set ([0, 0] means never set). */

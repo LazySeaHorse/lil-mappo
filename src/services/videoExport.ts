@@ -1,10 +1,8 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
-import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import type { CameraItem, RouteItem } from '@/store/types';
-import { getCameraAtTime } from '@/engine/cameraInterpolation';
-import { applyCamera, getRouteCoords, getRoutes } from '@/engine/cameraUtils';
+import { useProjectStore } from '@/store/useProjectStore';
+import { applyCamera, getProjectCameraAt, loadProjectTerrain } from '@/engine/cameraUtils';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { loadAnnotationAssets } from '@/annotations/draw';
 import type { RenderConfig } from '@/types/render';
@@ -224,8 +222,6 @@ async function initEncoder(
 
 async function prewarmTileCache(
   map: MapboxMap,
-  getRouteCoords: (id: string) => number[][] | null,
-  getRoutes: () => RouteItem[],
   totalDuration: number,
   startTime: number,
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void,
@@ -234,7 +230,6 @@ async function prewarmTileCache(
 ) {
   const STEPS = 24;
   const freshStore = useProjectStore.getState();
-  const camItem = freshStore.items[CAMERA_TRACK_ID] as CameraItem | undefined;
 
   for (let i = 0; i < STEPS; i++) {
     if (abortSignal.aborted) return;
@@ -242,10 +237,8 @@ async function prewarmTileCache(
     const t = startTime + (totalDuration / (STEPS - 1)) * i;
     const clampedT = Math.min(t, freshStore.duration);
 
-    if (camItem) {
-      const cam = getCameraAtTime(camItem.keyframes, clampedT, getRouteCoords, getRoutes());
-      if (cam) applyCamera(map, cam, zoomOffset);
-    }
+    const cam = getProjectCameraAt(clampedT);
+    if (cam) applyCamera(map, cam, zoomOffset);
 
     // Wait for map to settle, max 2s.
     await waitForMapIdle(map, {
@@ -258,10 +251,8 @@ async function prewarmTileCache(
   }
 
   // Reset to start position
-  if (camItem) {
-    const cam = getCameraAtTime(camItem.keyframes, startTime, getRouteCoords, getRoutes());
-    if (cam) applyCamera(map, cam, zoomOffset);
-  }
+  const start = getProjectCameraAt(startTime);
+  if (start) applyCamera(map, start, zoomOffset);
 }
 
 // ─── Single frame capture ─────────────────────────────────────────────────────
@@ -275,8 +266,6 @@ async function captureFrame(
   frameIndex: number,
   fps: number,
   clampedTime: number,
-  getRouteCoords: (id: string) => number[][] | null,
-  getRoutes: () => RouteItem[],
   showWatermark: boolean,
   zoomOffset: number,
 ) {
@@ -287,12 +276,8 @@ async function captureFrame(
   useProjectStore.getState().setPlayheadTime(clampedTime);
 
   // Drive camera
-  const freshStore = useProjectStore.getState();
-  const camItem = freshStore.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-  if (camItem) {
-    const cam = getCameraAtTime(camItem.keyframes, clampedTime, getRouteCoords, getRoutes());
-    if (cam) applyCamera(map, cam, zoomOffset);
-  }
+  const cam = getProjectCameraAt(clampedTime);
+  if (cam) applyCamera(map, cam, zoomOffset);
 
   // Sync map engine and trigger repaint
   runtime.sync();
@@ -322,7 +307,8 @@ async function captureFrame(
   await encoder.waitForMuxer();
 
   // Composite: map canvas + callouts
-  compositeFrame(map, compCtx, width, height, freshStore.items, freshStore.itemOrder, clampedTime, showWatermark, zoomOffset);
+  const { items, itemOrder } = useProjectStore.getState();
+  compositeFrame(map, compCtx, width, height, items, itemOrder, clampedTime, showWatermark, zoomOffset);
 
   const frameDuration = Math.round(1_000_000 / fps);
   const videoFrame = new VideoFrame(compCanvas, {
@@ -403,8 +389,11 @@ export async function runExport(
         const { items: annotationItems, itemOrder: annotationOrder } = useProjectStore.getState();
         await loadAnnotationAssets(annotationItems, annotationOrder);
 
+        // The auto-camera plans its heights over downloaded terrain; every frame must see the same plan.
+        await loadProjectTerrain();
+
         // Phase 1: pre-warm tile cache
-        await prewarmTileCache(map, getRouteCoords, getRoutes, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
+        await prewarmTileCache(map, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
         if (abortSignal.aborted) throw new DOMException('Export cancelled', 'AbortError');
 
         // Phase 2: capture frames
@@ -416,7 +405,7 @@ export async function runExport(
           const currentTime = (startFrame + frameIndex) / fps;
           const clampedTime = Math.min(currentTime, duration);
 
-          await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, getRouteCoords, getRoutes, options.showWatermark, zoomOffset);
+          await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, options.showWatermark, zoomOffset);
           const encoderError = encoderState.getEncoderError();
           if (encoderError) throw encoderError;
           onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');

@@ -12,6 +12,11 @@ export interface CameraPose {
   /** Degrees away from looking straight down (0 = top-down). */
   pitch: number;
   bearing: number;
+  /**
+   * Height in metres of the ground the range and pitch are measured from, when the camera
+   * planned it. Otherwise the renderer reads the terrain under the target.
+   */
+  ground?: number;
 }
 
 export interface JumpToLike {
@@ -217,5 +222,6 @@ export function blendPoses(a: CameraPose, b: CameraPose, t: number): CameraPose 
     range: clamp(range, MIN_RANGE_M, MAX_RANGE_M),
     pitch: lerp(a.pitch, b.pitch, tt),
     bearing: lerp(a.bearing, b.bearing, tt),
+    ground: a.ground !== undefined && b.ground !== undefined ? lerp(a.ground, b.ground, tt) : undefined,
   };
 }

@@ -3,7 +3,7 @@ import type mapboxgl from 'mapbox-gl';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
 import type { CameraItem, CameraKeyframe } from '@/store/types';
-import { syncMapToProject } from './cameraUtils';
+import { applyCamera, syncMapToProject } from './cameraUtils';
 
 const keyframe = (time: number, zoom: number): CameraKeyframe => ({
   id: `kf-${time}`,
@@ -49,5 +49,38 @@ describe('syncMapToProject', () => {
     useProjectStore.setState({ isCameraEnabled: false });
     syncMapToProject(map as unknown as mapboxgl.Map, 5);
     expect(map.jumpTo).not.toHaveBeenCalled();
+  });
+});
+
+describe('applyCamera over terrain', () => {
+  const map = () => ({
+    queryTerrainElevation: vi.fn(() => 777),
+    setFreeCameraOptions: vi.fn(),
+    jumpTo: vi.fn(),
+    transform: { height: 800 },
+  });
+  const altitude = (m: ReturnType<typeof map>) => m.setFreeCameraOptions.mock.calls[0][0].position.toAltitude();
+  const shot = { type: 'freeCam' as const, position: [8, 46, 1000] as [number, number, number], lookAt: [8.01, 46] as [number, number] };
+
+  it('measures a planned shot from its planned ground, not the terrain under it this frame', () => {
+    const m = map();
+    applyCamera(m as unknown as mapboxgl.Map, { ...shot, ground: 200 });
+    expect(altitude(m)).toBeCloseTo(1200, 0);
+  });
+
+  it('reads the terrain under an unplanned shot', () => {
+    const m = map();
+    applyCamera(m as unknown as mapboxgl.Map, shot);
+    expect(altitude(m)).toBeCloseTo(1777, 0);
+  });
+
+  it('blends a planned shot with the terrain under a keyframe', () => {
+    const keyframe = { type: 'jumpTo' as const, center: [8.01, 46] as [number, number], zoom: 12, pitch: 40, bearing: 0 };
+    const atKeyframe = map();
+    applyCamera(atKeyframe as unknown as mapboxgl.Map, { type: 'blend', from: keyframe, to: { ...shot, ground: 200 }, t: 0 });
+    const plain = map();
+    applyCamera(plain as unknown as mapboxgl.Map, { type: 'blend', from: keyframe, to: shot, t: 0 });
+    // At the keyframe end the planned ground has no say: it starts where the keyframe is.
+    expect(altitude(atKeyframe)).toBeCloseTo(altitude(plain), 3);
   });
 });

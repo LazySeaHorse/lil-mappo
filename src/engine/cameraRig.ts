@@ -38,7 +38,17 @@ export type AutoCamOutput =
       lookAt: [number, number];
       /** Facing in degrees, unwrapped so it varies continuously along the route. */
       bearing?: number;
+      /** Ground height the position's altitude is measured from, when the rig planned it. */
+      ground?: number;
     };
+
+/** Terrain the camera is planned over. */
+export interface GroundModel {
+  /** Ground height in metres, exaggerated as drawn, or null where it isn't known yet. */
+  elevation(lng: number, lat: number): number | null;
+  /** Changes whenever the answers might, so plans built on old answers are rebuilt. */
+  key: string;
+}
 
 /** How long the block lasts and how the route's progress eases through it. */
 export interface RigTiming {
@@ -58,6 +68,11 @@ export interface CameraRig {
   pace: Float64Array;
   /** The easing's top rate of progress relative to a steady pace (1 when steady). */
   peakSpeed: number;
+  /**
+   * Ground height in metres the shot is measured from at each sample, or null with no terrain
+   * (or none loaded for the whole shot yet), when it is read from the map frame by frame.
+   */
+  ground: Float64Array | null;
   /**
    * The route's own vertices, mercator units, with their fraction of the route's geodesic
    * length. This is how the renderer places the vehicle, so progress `u` lands on the same
@@ -159,6 +174,26 @@ export function smoothWithin(
   return [sx, sy];
 }
 
+/** The smoothest path near `y` that keeps above `floor`, re-weighting wherever it dips under. */
+export function smoothAbove(y: Float64Array, floor: Float64Array, lambda: number): Float64Array {
+  const n = y.length;
+  const target = Float64Array.from(y, (v, i) => Math.max(v, floor[i]));
+  const w = new Float64Array(n).fill(1);
+  let [z] = whittaker([target], w, lambda);
+  for (let iteration = 0; iteration < 30; iteration++) {
+    let above = true;
+    for (let i = 0; i < n; i++) {
+      if (z[i] < floor[i] - 0.5) {
+        above = false;
+        w[i] *= 4;
+      }
+    }
+    if (above) break;
+    [z] = whittaker([target], w, lambda);
+  }
+  return z;
+}
+
 function unwrapDegrees(values: ArrayLike<number>): Float64Array {
   const out = new Float64Array(values.length);
   for (let i = 0; i < values.length; i++) out[i] = i === 0 ? values[0] : out[i - 1] + wrapDegrees(values[i] - out[i - 1]);
@@ -197,7 +232,12 @@ function overviewPose(x: Float64Array, y: Float64Array, lat: number): CameraPose
   };
 }
 
-export function buildRig(coords: number[][], config: AutoCamConfig, timing: RigTiming): CameraRig | null {
+export function buildRig(
+  coords: number[][],
+  config: AutoCamConfig,
+  timing: RigTiming,
+  ground: GroundModel | null = null,
+): CameraRig | null {
   // Project to mercator, keeping longitude continuous across the antimeridian.
   const xs: number[] = [];
   const ys: number[] = [];
@@ -292,16 +332,47 @@ export function buildRig(coords: number[][], config: AutoCamConfig, timing: RigT
   const [smoothTurn] = whittaker([turnRate], new Float64Array(n).fill(1), lambdaFor(1, rate));
   const turn = smoothTurn.map((t) => clamp(t, 0, 1));
 
-  return {
+  const rig: CameraRig = {
     aimX,
     aimY,
     heading,
     turn,
     pace,
     peakSpeed: Math.max(1, peak),
+    ground: null,
     ...route,
     overview: overviewPose(routeX, routeY, lat),
   };
+  if (ground && config.mode === 'cinematic') rig.ground = planGround(rig, config, ground, lambdaFor(1 + 3 * smoothing, rate));
+  return rig;
+}
+
+/**
+ * The ground the shot is measured from: the terrain under the aim, smoothed so the camera
+ * doesn't bob over every ridge and gully, and raised wherever the camera, or its line of sight
+ * down to the aim, would otherwise dip into the terrain. Null until the terrain covers the shot.
+ */
+function planGround(rig: CameraRig, config: AutoCamConfig, model: GroundModel, lambda: number): Float64Array | null {
+  const n = rig.aimX.length;
+  const under = new Float64Array(n);
+  const floor = new Float64Array(n);
+  for (let k = 0; k < n; k++) {
+    const f = framingAt(rig, config, k / (n - 1));
+    const g = model.elevation(f.aim[0], f.aim[1]);
+    if (g === null) return null;
+    under[k] = g;
+    floor[k] = -Infinity;
+    const clearance = 0.1 * Math.hypot(f.distance, f.height);
+    // The camera itself, then two points down its line of sight, which runs `height · (1 − along)`
+    // above the aim's ground `along` of the way from the camera to the aim.
+    for (const along of [0, 1 / 3, 2 / 3]) {
+      const [lng, lat] = destinationPoint(f.aim, f.distance * (1 - along), f.bearing + 180);
+      const h = model.elevation(lng, lat);
+      if (h === null) return null;
+      floor[k] = Math.max(floor[k], h + (clearance - f.height) * (1 - along));
+    }
+  }
+  return smoothAbove(under, floor, lambda);
 }
 
 // ─── Sampling ─────────────────────────────────────────────────────────────────
@@ -338,6 +409,7 @@ export interface RigSampleParams {
 
 interface RigState {
   aim: [number, number];
+  ground?: number;
   heading: number;
   turn: number;
   /** -1..1 change of pace around the route's average speed, so it reads the same for any easing. */
@@ -353,6 +425,7 @@ function stateAt(rig: CameraRig, p: number): RigState {
   const average = 1 / rig.peakSpeed;
   return {
     aim: mercToLngLat(at(rig.aimX), at(rig.aimY)),
+    ground: rig.ground ? at(rig.ground) : undefined,
     heading: at(rig.heading),
     turn: at(rig.turn),
     speedDelta: rig.peakSpeed <= 1.001 ? 0 : clamp((at(rig.pace) - average) / (1 - average), -1, 1),
@@ -363,7 +436,16 @@ function stateAt(rig: CameraRig, p: number): RigState {
 export const INTRO_FRACTION = 0.2;
 export const OUTRO_FRACTION = 0.2;
 
-function followPose(rig: CameraRig, config: AutoCamConfig, p: number): CameraPose {
+interface Framing {
+  aim: [number, number];
+  ground?: number;
+  distance: number;
+  height: number;
+  bearing: number;
+}
+
+/** Where the follow camera sits relative to its subject at progress `p`. */
+function framingAt(rig: CameraRig, config: AutoCamConfig, p: number): Framing {
   const dynamics = clamp(config.dynamics ?? 0.5, 0, 1);
   const orbit = clamp(config.orbit ?? 0, 0, 1);
   const st = stateAt(rig, p);
@@ -374,13 +456,19 @@ function followPose(rig: CameraRig, config: AutoCamConfig, p: number): CameraPos
   const height = config.height * (1 + dynamics * (0.5 * st.turn + 0.3 * st.speedDelta + 0.05 * breathe));
   const azimuth = orbit * 50 * Math.sin(p * Math.PI * 2 * 0.85 + 0.6);
 
-  const bearing = st.heading + azimuth;
-  const position = destinationPoint(st.aim, distance, bearing + 180);
-  const pose = poseFromFreeCam([position[0], position[1], Math.max(1, height)], st.aim);
-  // The heading fixes the facing even when the camera sits directly above its subject.
-  // Left unwrapped so a blend can follow it without flipping direction as it crosses 360.
-  pose.bearing = bearing;
-  return pose;
+  return { aim: st.aim, ground: st.ground, distance, height, bearing: st.heading + azimuth };
+}
+
+function followPose(rig: CameraRig, config: AutoCamConfig, p: number): CameraPose {
+  const f = framingAt(rig, config, p);
+  const position = destinationPoint(f.aim, f.distance, f.bearing + 180);
+  return {
+    ...poseFromFreeCam([position[0], position[1], Math.max(1, f.height)], f.aim),
+    // The heading fixes the facing even when the camera sits directly above its subject.
+    // Left unwrapped so a blend can follow it without flipping direction as it crosses 360.
+    bearing: f.bearing,
+    ground: f.ground,
+  };
 }
 
 function withShots(rig: CameraRig, config: AutoCamConfig, params: RigSampleParams, pose: CameraPose): CameraPose {
@@ -389,10 +477,10 @@ function withShots(rig: CameraRig, config: AutoCamConfig, params: RigSampleParam
   let out = pose;
   // The overview turns the way that is shortest at the shot's fixed end, not wherever the
   // follow shot happens to face this frame, so the turn can't change direction mid-blend.
-  const overviewAt = (edge: 0 | 1): CameraPose => ({
-    ...rig.overview,
-    bearing: liftBearing(rig.overview.bearing, followPose(rig, config, edge).bearing),
-  });
+  const overviewAt = (edge: 0 | 1): CameraPose => {
+    const follow = followPose(rig, config, edge);
+    return { ...rig.overview, bearing: liftBearing(rig.overview.bearing, follow.bearing), ground: follow.ground };
+  };
   if (intro > 0 && !params.skipShots?.intro && params.p < INTRO_FRACTION) {
     // Start wide and settle into the follow shot.
     const t = 1 - smootherstep(params.p / INTRO_FRACTION);
@@ -409,7 +497,7 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
   if (config.mode === 'cinematic') {
     const pose = withShots(rig, config, params, followPose(rig, config, params.p));
     const { position, lookAt } = poseToFreeCam(pose);
-    return { type: 'freeCam', position, lookAt, bearing: pose.bearing };
+    return { type: 'freeCam', position, lookAt, bearing: pose.bearing, ground: pose.ground };
   }
 
   // Frame the route ahead: the vehicle sits low in the view and the map turns with the route.
@@ -431,7 +519,7 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
 const cache = new Map<string, CameraRig | null>();
 const CACHE_LIMIT = 8;
 
-function fingerprint(coords: number[][], config: AutoCamConfig, timing: RigTiming): string {
+function fingerprint(coords: number[][], config: AutoCamConfig, timing: RigTiming, ground: GroundModel | null): string {
   // FNV-1a over the coordinate values: cheap next to rebuilding, and catches any edit.
   let h = 2166136261;
   for (const c of coords) {
@@ -443,20 +531,36 @@ function fingerprint(coords: number[][], config: AutoCamConfig, timing: RigTimin
   }
   // Only what the plan depends on, so dragging the other sliders doesn't rebuild it.
   const shape = config.mode === 'cinematic' ? [config.distance, config.height] : [config.zoom, config.lookAhead];
-  return [coords.length, h >>> 0, config.mode, config.smoothing, ...shape, timing.duration, timing.easing].join(':');
+  // Planning over terrain follows the whole framing, so it depends on the motion sliders too.
+  const terrain = ground && config.mode === 'cinematic' ? [ground.key, config.dynamics, config.orbit] : [];
+  return [coords.length, h >>> 0, config.mode, config.smoothing, ...shape, timing.duration, timing.easing, ...terrain].join(':');
 }
 
 // Skips re-hashing every coordinate when called again with the same arrays/config objects.
-const keyMemo = new WeakMap<number[][], { config: AutoCamConfig; timing: RigTiming; key: string }>();
+interface KeyMemo {
+  config: AutoCamConfig;
+  timing: RigTiming;
+  ground: GroundModel | null;
+  key: string;
+}
+const keyMemo = new WeakMap<number[][], KeyMemo>();
 
-export function getRig(coords: number[][], config: AutoCamConfig, timing: RigTiming): CameraRig | null {
+export function getRig(
+  coords: number[][],
+  config: AutoCamConfig,
+  timing: RigTiming,
+  ground: GroundModel | null = null,
+): CameraRig | null {
   const memo = keyMemo.get(coords);
   let key: string;
-  if (memo && memo.config === config && memo.timing.duration === timing.duration && memo.timing.easing === timing.easing) {
+  if (
+    memo && memo.config === config && memo.ground === ground &&
+    memo.timing.duration === timing.duration && memo.timing.easing === timing.easing
+  ) {
     key = memo.key;
   } else {
-    key = fingerprint(coords, config, timing);
-    keyMemo.set(coords, { config, timing, key });
+    key = fingerprint(coords, config, timing, ground);
+    keyMemo.set(coords, { config, timing, ground, key });
   }
   if (cache.has(key)) {
     const hit = cache.get(key)!;
@@ -464,7 +568,7 @@ export function getRig(coords: number[][], config: AutoCamConfig, timing: RigTim
     cache.set(key, hit);
     return hit;
   }
-  const rig = buildRig(coords, config, timing);
+  const rig = buildRig(coords, config, timing, ground);
   cache.set(key, rig);
   if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
   return rig;

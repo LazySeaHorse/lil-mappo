@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AutoCamConfig, CameraKeyframe, RouteItem } from '@/store/types';
 import { blendPoses, poseFromFreeCam, poseFromJumpTo, poseToFreeCam, poseToJumpTo, type CameraPose } from './cameraPose';
-import { buildRig, sampleRig, smoothWithin, vehicleAt, whittaker, type RigTiming } from './cameraRig';
+import { buildRig, sampleRig, smoothAbove, smoothWithin, vehicleAt, whittaker, type GroundModel, type RigTiming } from './cameraRig';
 import { applyEasing } from './easings';
 import { getLineSegment } from './lineAnimation';
 import { lngLatToMerc, metersPerMerc } from './cameraPose';
@@ -196,6 +196,57 @@ describe('camera rig', () => {
     const nav = { ...config, mode: 'navigation' as const };
     const rig = buildRig(corner, nav, steady)!;
     expect(sampleRig(rig, nav, { p: 0.5 }).type).toBe('jumpTo');
+  });
+});
+
+describe('camera rig over terrain', () => {
+  // 20 km due east at 46°N, crossed in 10 s.
+  const east = [[8, 46], [8.26, 46]];
+  const timing: RigTiming = { duration: 10, easing: 'linear' };
+  const wide = { ...config, distance: 3000, height: 1500 };
+  const model = (elevation: (lng: number, lat: number) => number): GroundModel => ({ key: 'test', elevation });
+  const frames = Array.from({ length: 301 }, (_, f) => f / 300);
+  const shots = (rig: NonNullable<ReturnType<typeof buildRig>>) => frames.map((p) => {
+    const out = sampleRig(rig, wide, { p });
+    if (out.type !== 'freeCam') throw new Error('expected a free camera');
+    return out;
+  });
+
+  it('keeps above the floor it is given', () => {
+    const n = 200;
+    const y = new Float64Array(n);
+    const floor = Float64Array.from({ length: n }, (_, i) => (i > 90 && i < 110 ? 50 : -Infinity));
+    const z = smoothAbove(y, floor, 1e5);
+    for (let i = 0; i < n; i++) expect(z[i]).toBeGreaterThan(floor[i] - 1);
+  });
+
+  it('glides over corrugated ground instead of bobbing with it', () => {
+    // ±300 m ridges every 300 m or so.
+    const bumpy = (lng: number) => 1000 + 300 * Math.sin((lng * 2 * Math.PI) / 0.004);
+    const out = shots(buildRig(east, wide, timing, model(bumpy))!);
+    let planned = 0;
+    let raw = 0;
+    for (let f = 2; f < out.length; f++) {
+      planned = Math.max(planned, Math.abs(out[f].ground! - 2 * out[f - 1].ground! + out[f - 2].ground!));
+      raw = Math.max(raw, Math.abs(bumpy(out[f].lookAt[0]) - 2 * bumpy(out[f - 1].lookAt[0]) + bumpy(out[f - 2].lookAt[0])));
+    }
+    expect(raw).toBeGreaterThan(100);
+    expect(planned).toBeLessThan(raw / 50);
+  });
+
+  it('rises to clear a ridge the camera passes over', () => {
+    // A 2.5 km ridge across the route, well above the camera's usual 1.5 km.
+    const ridge = (lng: number) => 500 + 2500 * Math.exp(-(((lng - 8.13) / 0.01) ** 2));
+    for (const cam of shots(buildRig(east, wide, timing, model(ridge))!)) {
+      expect(cam.position[2] + cam.ground!).toBeGreaterThan(ridge(cam.position[0]) + 100);
+    }
+  });
+
+  it('leaves heights to the map until the terrain covers the whole shot', () => {
+    const partial: GroundModel = { key: 'test', elevation: (lng) => (lng < 8.2 ? 100 : null) };
+    const rig = buildRig(east, wide, timing, partial)!;
+    expect(rig.ground).toBeNull();
+    expect(shots(rig)[150].ground).toBeUndefined();
   });
 });
 
