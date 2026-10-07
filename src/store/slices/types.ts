@@ -85,24 +85,21 @@ export interface PlaybackSlice {
 }
 
 export interface ProjectSettingsSlice {
+  setProjectName: (name: string) => void;
   setResolution: (r: [number, number]) => void;
   setAspectRatio: (v: AspectRatio) => void;
   setExportResolution: (v: ExportResolution) => void;
   setIsVertical: (v: boolean) => void;
   setProjection: (v: 'globe' | 'mercator') => void;
   setLightPreset: (v: Project['lightPreset']) => void;
-  setStarIntensity: (v: number) => void;
-  setFogColor: (v: string) => void;
+  setAtmosphere: (updates: Partial<Pick<Project, 'starIntensity' | 'fogColor'>>) => void;
   setTerrainExaggeration: (v: number) => void;
-  setCustomMapStyle: (url?: string, label?: string) => void;
-  resetProjectSettings: () => void;
   /** Replaces the project with a parsed document and resets transient editor state. */
   loadFullProject: (input: unknown) => void;
 }
 
 export interface MapEnvironmentSlice {
   setMapStyle: (s: string) => void;
-  toggleLabelGroup: (groupId: string) => void;
   setLabelGroupVisibility: (groupId: string, visible: boolean) => void;
   setAllLabelsVisibility: (visible: boolean) => void;
   set3dDetails: (key: 'landmarks' | 'trees' | 'facades', visible: boolean) => void;

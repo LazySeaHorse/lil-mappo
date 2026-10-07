@@ -2,7 +2,6 @@ import { z } from 'zod/v4';
 import { LABEL_CATEGORIES, MAP_STYLES } from '@/config/mapbox';
 import { getExportLimits } from '@/lib/cloudAccess';
 import type { AspectRatio, ExportResolution } from '@/types/render';
-import type { Project } from '@/store/types';
 import { defineTool } from '../defineTool';
 import { ToolError } from '../errors';
 import { commitAiWrite } from '../commit';
@@ -13,12 +12,6 @@ import { getState } from './shared';
 const RESOLUTIONS = ['480p', '720p', '1080p', '1440p', '2160p'] as const satisfies readonly ExportResolution[];
 const MAP_STYLE_KEYS = Object.keys(MAP_STYLES) as [string, ...string[]];
 const LABEL_IDS = LABEL_CATEGORIES.map((c) => c.id);
-
-/** Setters that exist at runtime but are missing from the ProjectStore type. */
-interface UntypedSetters {
-  setProjectName: (name: string) => void;
-  setAtmosphere: (updates: Partial<Pick<Project, 'starIntensity' | 'fogColor'>>) => void;
-}
 
 const settingsShape = {
   name: z.string().min(1).max(120).describe('Project name.'),
@@ -76,9 +69,8 @@ export const updateProjectSettings = defineTool({
 
     commitAiWrite(`AI: update project settings (${fields.join(', ')})`, () => {
       const s = getState();
-      const setters = s as unknown as UntypedSetters;
       const start = { ...s };
-      if (patch.name !== undefined) setters.setProjectName(patch.name);
+      if (patch.name !== undefined) s.setProjectName(patch.name);
       if (patch.duration !== undefined) s.setDuration(patch.duration);
       if (patch.fps !== undefined) s.setFps(patch.fps);
       if (patch.aspectRatio !== undefined) s.setAspectRatio(patch.aspectRatio as AspectRatio);
@@ -86,8 +78,8 @@ export const updateProjectSettings = defineTool({
       if (patch.isVertical !== undefined) s.setIsVertical(patch.isVertical);
       if (patch.projection !== undefined) s.setProjection(patch.projection);
       if (patch.lightPreset !== undefined) s.setLightPreset(patch.lightPreset);
-      if (patch.starIntensity !== undefined) setters.setAtmosphere({ starIntensity: patch.starIntensity });
-      if (patch.fogColor !== undefined) setters.setAtmosphere({ fogColor: patch.fogColor });
+      if (patch.starIntensity !== undefined) s.setAtmosphere({ starIntensity: patch.starIntensity });
+      if (patch.fogColor !== undefined) s.setAtmosphere({ fogColor: patch.fogColor });
       if (patch.terrainExaggeration !== undefined) s.setTerrainExaggeration(patch.terrainExaggeration);
       if (patch.mapStyle !== undefined && patch.mapStyle !== start.mapStyle) s.setMapStyle(patch.mapStyle);
       if (patch.terrainEnabled !== undefined) s.setTerrainEnabled(patch.terrainEnabled);

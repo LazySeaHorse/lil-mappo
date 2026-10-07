@@ -1,4 +1,4 @@
-import type { FreeCameraOptions, Map as MapboxMap } from 'mapbox-gl';
+import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import { withTemporaryMapViewport } from './mapCapture';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -7,7 +7,7 @@ function createMapDouble() {
   const container = document.createElement('div');
   container.style.cssText = 'width: 50%; height: 40%; position: absolute; opacity: 0.75;';
   const originalStyles = container.style.cssText;
-  const camera = { position: { x: 1, y: 2, z: 3 } } as unknown as FreeCameraOptions;
+  const camera = { position: { x: 1, y: 2, z: 3 } } as unknown as ReturnType<MapboxMap['getFreeCameraOptions']>;
   const map = {
     getContainer: vi.fn(() => container),
     getFreeCameraOptions: vi.fn(() => camera),

@@ -98,7 +98,7 @@ export class MapSceneController implements MapSceneRuntime {
     ) return;
     const timeFor = (id: string) => {
       const item = items[id];
-      return item ? selectionPreviewTime(item, time, id === selectedId) : time;
+      return item && item.kind !== 'camera' ? selectionPreviewTime(item, time, id === selectedId) : time;
     };
     this.routes.forEach((renderer, id) => renderer.render(timeFor(id)));
     this.boundaries.forEach((renderer, id) => renderer.render(timeFor(id)));

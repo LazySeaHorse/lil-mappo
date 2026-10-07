@@ -22,7 +22,7 @@ import type { RouteItem } from '@/store/types';
 function createMockFile(content: string | Uint8Array, filename: string): File {
   const blob = typeof content === 'string'
     ? new Blob([content], { type: 'text/plain' })
-    : new Blob([content], { type: 'application/octet-stream' });
+    : new Blob([new Uint8Array(content)], { type: 'application/octet-stream' });
   return new File([blob], filename);
 }
 

@@ -11,17 +11,13 @@ describe('ExportModal Sub-components', () => {
     maxResolution: '720p',
     maxFps: 30,
     maxDuration: 30,
-    allowedResolutions: ['720p'],
-    allowedFps: [30],
   };
 
   const proLimits: ExportLimits = {
     limited: false,
-    maxResolution: '4k',
+    maxResolution: '2160p',
     maxFps: 60,
     maxDuration: 300,
-    allowedResolutions: ['720p', '1080p', '4k'],
-    allowedFps: [30, 60],
   };
 
   describe('ExportModalFooter', () => {
@@ -34,7 +30,7 @@ describe('ExportModal Sub-components', () => {
           isExporting={false}
           cloudSubmitted={false}
           progress={0}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           onExport={onExport}
           onCancel={onCancel}
         />
@@ -57,7 +53,7 @@ describe('ExportModal Sub-components', () => {
           isExporting={true}
           cloudSubmitted={false}
           progress={45}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           onExport={onExport}
           onCancel={onCancel}
         />
@@ -121,7 +117,7 @@ describe('ExportModal Sub-components', () => {
           effectiveHeight={720}
           effectiveFps={30}
           totalFrames={450}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           phase="capture"
           progress={0}
           error={null}
@@ -149,7 +145,7 @@ describe('ExportModal Sub-components', () => {
           effectiveHeight={1080}
           effectiveFps={60}
           totalFrames={600}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           phase="capture"
           progress={65}
           error={null}
@@ -173,7 +169,7 @@ describe('ExportModal Sub-components', () => {
           effectiveHeight={1080}
           effectiveFps={60}
           totalFrames={600}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           phase="capture"
           progress={0}
           error="Out of WebCodecs memory"
