@@ -177,7 +177,10 @@ export function ProjectSettings() {
           </InspectorSection>
 
           <InspectorSection value="atmos" title="Atmosphere">
-            <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
+            {/* Mercator draws no stars; the fog color still tints its horizon haze */}
+            {projection === 'globe' && (
+              <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
+            )}
             <Field label="Fog color">
               <div className="flex gap-2 items-center">
                 <ColorPicker
