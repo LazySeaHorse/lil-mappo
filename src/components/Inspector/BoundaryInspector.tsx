@@ -6,6 +6,9 @@ import { NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
 import { Accordion } from "@/components/ui/accordion";
 import { BoundarySearch } from './BoundarySearch';
+import { FlagPicker } from './FlagPicker';
+import { Field } from '@/components/ui/field';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { 
   EditableTitle, 
   SliderRow, 
@@ -108,6 +111,31 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
               onChange={(v) => us({ glow: v })} 
             />
             
+            <Field label="Fill">
+              <SegmentedControl
+                options={[{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }]}
+                value={item.style.fillMode}
+                onValueChange={(v) => us({ fillMode: v })}
+              />
+            </Field>
+
+            {item.style.fillMode === 'flag' ? (
+              <div className="flex flex-col gap-1.5">
+                <FlagPicker value={item.style.flagCode} onChange={(code) => us({ flagCode: code })} />
+                {!item.style.flagCode && (
+                  <span className="text-[11px] text-muted-foreground leading-tight">
+                    Choose a country to fill this boundary with its flag.
+                  </span>
+                )}
+              </div>
+            ) : (
+              <ColorRow
+                label="Fill color"
+                value={item.style.fillColor ?? item.style.strokeColor}
+                onChange={(v) => us({ fillColor: v })}
+              />
+            )}
+
             <SliderRow 
               label="Fill opacity" 
               value={item.style.fillOpacity} 

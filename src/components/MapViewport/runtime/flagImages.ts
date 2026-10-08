@@ -13,7 +13,7 @@ export const FLAG_ASPECT = 4 / 3;
 
 export type FlagImage = CanvasImageSource & { width: number; height: number };
 
-const flagModules = import.meta.glob('/node_modules/flag-icons/flags/4x3/*.svg', {
+const flagModules = import.meta.glob('/node_modules/flag-icons/flags/4x3/[a-z][a-z].svg', {
   query: '?raw',
   import: 'default',
 }) as Record<string, () => Promise<string>>;
@@ -63,18 +63,30 @@ export function createFlagImages({ loaders, rasterize }: FlagImageDeps) {
     if (code) byCode.set(code, loader);
   }
   const cache = new Map<string, Promise<FlagImage>>();
+  const svgCache = new Map<string, Promise<string>>();
   const codes = [...byCode.keys()].sort();
 
   return {
     availableFlagCodes: (): readonly string[] => codes,
     hasFlag: (code: string | null | undefined): code is string => Boolean(code) && byCode.has(code as string),
+    /** Raw SVG text, for small thumbnails. Cached per code; failures are retried. */
+    loadFlagSvg(code: string): Promise<string> {
+      const cached = svgCache.get(code);
+      if (cached) return cached;
+      const loader = byCode.get(code);
+      if (!loader) return Promise.reject(new Error(`No flag for "${code}"`));
+      const promise = loader();
+      svgCache.set(code, promise);
+      promise.catch(() => svgCache.delete(code));
+      return promise;
+    },
     /** Decoded flag, cached per code. A failed load is not cached so it can be retried. */
     loadFlagImage(code: string): Promise<FlagImage> {
       const cached = cache.get(code);
       if (cached) return cached;
       const loader = byCode.get(code);
       if (!loader) return Promise.reject(new Error(`No flag for "${code}"`));
-      const promise = loader().then(rasterize);
+      const promise = this.loadFlagSvg(code).then(rasterize);
       cache.set(code, promise);
       promise.catch(() => cache.delete(code));
       return promise;
@@ -85,6 +97,7 @@ export function createFlagImages({ loaders, rasterize }: FlagImageDeps) {
 const flags = createFlagImages({ loaders: flagModules, rasterize: rasterizeSvg });
 
 export const loadFlagImage = flags.loadFlagImage;
+export const loadFlagSvg = flags.loadFlagSvg;
 export const hasFlag = flags.hasFlag;
 export const availableFlagCodes = flags.availableFlagCodes;
 
