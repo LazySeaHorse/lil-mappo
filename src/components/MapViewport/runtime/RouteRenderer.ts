@@ -11,6 +11,7 @@ import { resolveRoutePaint } from '../layerStyleContracts';
 import {
   getGeoJSONSource,
   LayerPropertyWriter,
+  noPaintTransitions,
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
@@ -276,6 +277,7 @@ export class RouteRenderer {
           'line-color': resolvedPaint.lineColor,
           'line-width': this.route.style.width,
           'line-opacity': 1,
+          ...noPaintTransitions('line-color', 'line-width', 'line-opacity'),
         },
       });
     }
@@ -290,6 +292,7 @@ export class RouteRenderer {
           'line-width': resolvedPaint.glowWidth,
           'line-opacity': 0.35,
           'line-blur': resolvedPaint.glowBlur,
+          ...noPaintTransitions('line-color', 'line-width', 'line-opacity', 'line-blur'),
         },
       }, this.ids.mainLayer);
     }
@@ -302,6 +305,7 @@ export class RouteRenderer {
         paint: {
           'line-width': this.route.style.width,
           'line-gradient': gradient(this.route.style.color),
+          ...noPaintTransitions('line-width'),
         },
       });
     }
@@ -365,6 +369,7 @@ export class RouteRenderer {
           'circle-stroke-color': '#FFFFFF',
           'circle-stroke-width': 2.5,
           'circle-stroke-opacity': 1,
+          ...noPaintTransitions('circle-radius', 'circle-color', 'circle-opacity'),
         },
       });
       return;
@@ -380,6 +385,7 @@ export class RouteRenderer {
         'model-scale': [s, s, s],
         'model-rotation': [0, 0, 0],
         'model-translation': [0, 0, 0],
+        ...noPaintTransitions('model-opacity', 'model-rotation', 'model-scale', 'model-translation'),
       },
     });
   }

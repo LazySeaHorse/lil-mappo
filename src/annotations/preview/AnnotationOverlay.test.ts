@@ -106,6 +106,9 @@ function createFakeMap(size = { width: 400, height: 300 }) {
     }),
     off: vi.fn((event: string, fn: Handler) => handlers.get(event)?.delete(fn)),
     triggerRepaint: vi.fn(),
+    // Mapbox's private repaint bookkeeping, which the overlay reads (see isRepaintPending).
+    _frame: null as number | null,
+    _renderNextFrame: false,
     getZoom: vi.fn(() => 12),
     project: vi.fn(() => ({ x: 400, y: 300 })),
     getContainer: () => ({ clientWidth: size.width, clientHeight: size.height }),
@@ -265,6 +268,34 @@ describe('AnnotationOverlay', () => {
     useProjectStore.setState({ playheadTime: 6 });
     fire('render');
     expect(frames.pending()).toBe(0);
+    frames.flush();
+    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
+  });
+
+  it('leaves the redraw to the render event when the map has a repaint queued for the same frame', () => {
+    const { raw, fire, ctx } = mount();
+    frames.flush();
+    ctx.calls.length = 0;
+
+    // The playback loop sets the playhead, then moves the camera: the map's frame is queued after ours.
+    useProjectStore.setState({ playheadTime: 6 });
+    raw._frame = 1;
+    raw._renderNextFrame = true;
+    frames.flush();
+    expect(ctx.calls).toEqual([]);
+
+    fire('render');
+    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
+  });
+
+  it('still redraws on its own when the map has a frame queued that will not render', () => {
+    const { raw, ctx } = mount();
+    frames.flush();
+    ctx.calls.length = 0;
+
+    useProjectStore.setState({ playheadTime: 6 });
+    raw._frame = 1;
+    raw._renderNextFrame = false;
     frames.flush();
     expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
   });

@@ -14,6 +14,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { loadAnnotationAssets } from '@/annotations/draw';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
+import { isRepaintPending } from '@/components/MapViewport/runtime/mapboxResources';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -75,6 +76,10 @@ export class AnnotationOverlay {
     if (this.frame !== undefined) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = undefined;
+      // Playback sets the playhead before it moves the camera, so our frame runs ahead of
+      // the map's. Drawing now would paint against the old camera only for the render
+      // event to draw again; let that one do it.
+      if (isRepaintPending(this.map)) return;
       this.draw();
     });
   }

@@ -240,6 +240,24 @@ describe("RouteRenderer vehicle type switching", () => {
 
     expect(double.layers.get("vehicle-layer-switch-route")?.paint?.["circle-color"]).toBe("#ef4444");
   });
+
+  it.each(["dot", "car"] as const)("creates the %s route layers without paint transitions", (type) => {
+    const double = createMapDouble();
+    new RouteRenderer(double.map, routeWithVehicle(type)).mount();
+    const none = { duration: 0, delay: 0 };
+
+    for (const id of ["route-layer-switch-route", "route-glow-layer-switch-route"]) {
+      const paint = double.layers.get(id)?.paint;
+      for (const prop of ["line-opacity", "line-color", "line-width"]) {
+        expect(paint?.[`${prop}-transition`], `${id} ${prop}`).toEqual(none);
+      }
+    }
+    const vehicle = double.layers.get("vehicle-layer-switch-route")?.paint;
+    const props = type === "dot"
+      ? ["circle-radius", "circle-color", "circle-opacity"]
+      : ["model-opacity", "model-rotation", "model-scale", "model-translation"];
+    for (const prop of props) expect(vehicle?.[`${prop}-transition`], prop).toEqual(none);
+  });
 });
 
 describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {

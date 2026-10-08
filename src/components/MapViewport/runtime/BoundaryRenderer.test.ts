@@ -69,6 +69,79 @@ const sampleBoundary: BoundaryItem = {
   easing: "linear",
 };
 
+describe("BoundaryRenderer paint transitions", () => {
+  it("creates every layer without paint transitions", () => {
+    const { map, layers } = createMapDouble();
+    new BoundaryRenderer(map, sampleBoundary).mount();
+    const none = { duration: 0, delay: 0 };
+
+    const fill = layers.get("boundary-fill-layer-test-boundary")?.paint;
+    for (const prop of ["fill-color", "fill-opacity"]) expect(fill?.[`${prop}-transition`], prop).toEqual(none);
+    for (const id of ["boundary-stroke-layer-test-boundary", "boundary-glow-layer-test-boundary"]) {
+      const paint = layers.get(id)?.paint;
+      for (const prop of ["line-color", "line-width", "line-opacity", "line-blur"]) {
+        if (prop === "line-blur" && id.includes("stroke")) continue;
+        expect(paint?.[`${prop}-transition`], `${id} ${prop}`).toEqual(none);
+      }
+    }
+  });
+});
+
+describe("BoundaryRenderer animated stroke uploads", () => {
+  function setup(style: Partial<BoundaryItem["style"]> = {}) {
+    const { map, sources } = createMapDouble();
+    const boundary: BoundaryItem = { ...sampleBoundary, style: { ...sampleBoundary.style, ...style } };
+    const renderer = new BoundaryRenderer(map, boundary);
+    renderer.mount();
+    return { renderer, boundary, setData: sources.get("boundary-stroke-test-boundary")!.setData };
+  }
+
+  it("uploads once for repeated renders at the same time", () => {
+    const { renderer, setData } = setup();
+    renderer.render(5);
+    renderer.render(5);
+    expect(setData).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-upload while the boundary holds at full progress or before it starts", () => {
+    const { renderer, setData } = setup();
+    renderer.render(0);
+    renderer.render(-1);
+    expect(setData).toHaveBeenCalledTimes(1);
+    renderer.render(10);
+    renderer.render(12);
+    expect(setData).toHaveBeenCalledTimes(2);
+  });
+
+  it("uploads when progress changes", () => {
+    const { renderer, setData } = setup();
+    renderer.render(2);
+    renderer.render(3);
+    expect(setData).toHaveBeenCalledTimes(2);
+  });
+
+  it("uploads when the animation style or trace length changes", () => {
+    const { renderer, boundary, setData } = setup({ animationStyle: "trace" });
+    renderer.render(5);
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, animationStyle: "trace", traceLength: 0.3 } });
+    renderer.render(5);
+    expect(setData).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-uploads when switching static -> animated and when the geometry changes", () => {
+    const { renderer, boundary, setData } = setup();
+    renderer.render(5);
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, animateStroke: false } });
+    renderer.render(5);
+    renderer.setBoundary(boundary);
+    renderer.render(5);
+    expect(setData).toHaveBeenCalledTimes(3);
+    renderer.setBoundary({ ...boundary, geojson: { type: "Polygon", coordinates: [[[0, 0], [5, 0], [5, 5], [0, 0]]] } });
+    renderer.render(5);
+    expect(setData).toHaveBeenCalledTimes(4);
+  });
+});
+
 describe("BoundaryRenderer animation style switching and state management", () => {
   it("updates stroke source to full geometry when switching mid-draw to Off", () => {
     const { map, sources } = createMapDouble();

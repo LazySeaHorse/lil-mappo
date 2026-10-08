@@ -56,6 +56,29 @@ export function isStyleReady(map: MapboxMap): boolean {
   return Boolean(style && style._loaded);
 }
 
+/**
+ * Mapbox eases a changed paint property over 300 ms by default. Our layers are driven
+ * frame by frame, so the ease would trail the playhead (and stall export frames waiting
+ * for idle). Spread this into a layer's `paint` for the properties we write at runtime.
+ */
+export function noPaintTransitions(...props: string[]): PaintSpecification {
+  return Object.fromEntries(
+    props.map((prop) => [`${prop}-transition`, { duration: 0, delay: 0 }]),
+  ) as PaintSpecification;
+}
+
+/**
+ * Whether Mapbox has a render queued for the current animation frame, i.e. a
+ * 'render' event is about to fire. Mapbox has no public equivalent (`isMoving()`
+ * is false after a jumpTo, `loaded()` says nothing about repaints), so this reads
+ * the private `_frame` / `_renderNextFrame` pair that `triggerRepaint` sets. Re-check
+ * this when upgrading mapbox-gl.
+ */
+export function isRepaintPending(map: MapboxMap): boolean {
+  const internal = map as unknown as { _frame?: unknown; _renderNextFrame?: unknown };
+  return Boolean(internal._frame && internal._renderNextFrame);
+}
+
 export function getGeoJSONSource(map: MapboxMap, sourceId: string): GeoJSONSource | undefined {
   const source = map.getSource(sourceId);
   if (!source || source.type !== 'geojson') return undefined;
