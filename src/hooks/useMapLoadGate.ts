@@ -46,9 +46,17 @@ export interface MapLoadGateOptions {
    * of being shown the sign-in wall. Has no effect on signed-in users.
    */
   deepLinkEntry?: boolean;
+  /**
+   * True while a route deep link is still resolving asynchronously.
+   * Gate evaluation is deferred until the arrival result is known.
+   */
+  deepLinkPending?: boolean;
 }
 
-export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {}): MapLoadGateState {
+export function useMapLoadGate({
+  deepLinkEntry = false,
+  deepLinkPending = false,
+}: MapLoadGateOptions = {}): MapLoadGateState {
   const { isLoading: authLoading, session } = useAuthStore();
   const { data: subscription, isLoading: subLoading } = useSubscription();
 
@@ -60,8 +68,9 @@ export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {
   const checkedRef = useRef(false);
 
   useEffect(() => {
-    // Don't evaluate until auth + subscription are resolved
+    // Don't evaluate until auth + subscription are resolved and deep link is settled
     if (authLoading || (session && subLoading)) return;
+    if (deepLinkPending) return;
     if (checkedRef.current) return;
     checkedRef.current = true;
 
@@ -121,7 +130,7 @@ export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {
         setReason('quota_error');
         setReady(true);
       });
-  }, [authLoading, session, subLoading, subscription, deepLinkEntry]);
+  }, [authLoading, session, subLoading, subscription, deepLinkEntry, deepLinkPending]);
 
   const onMapLoaded = () => {
     // For guests: increment the secureLocalStorage counter after the map loads

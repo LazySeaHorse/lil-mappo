@@ -69,6 +69,21 @@ describe('useMapLoadGate guest cap', () => {
     expect(result.current.blocked).toBe(false);
     expect(claimDeepLinkGuestExemption()).toBe(true);
   });
+
+  it('waits for deepLinkPending before evaluating the cap', async () => {
+    let pending = true;
+    let entry = false;
+    const { result, rerender } = renderHook(() =>
+      useMapLoadGate({ deepLinkEntry: entry, deepLinkPending: pending }),
+    );
+    expect(result.current.ready).toBe(false);
+
+    pending = false;
+    entry = true;
+    rerender();
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.blocked).toBe(false);
+  });
 });
 
 describe('useMapLoadGate signed-in users', () => {

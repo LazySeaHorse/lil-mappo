@@ -129,7 +129,10 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   const deepLink = useRouteDeepLink(routeDeepLink, isWorkingDraftReady, onRouteDeepLinkSettled ?? (() => {}));
   usePlayback(mapRef);
   useHistoryShortcuts();
-  const mapLoadGate = useMapLoadGate({ deepLinkEntry: deepLink.isEntry });
+  const mapLoadGate = useMapLoadGate({
+    deepLinkEntry: deepLink.isEntry,
+    deepLinkPending: routeDeepLink !== null && !deepLink.ready,
+  });
   const { user, requestSignIn } = useAuthStore();
   const isLocked = !user && !hasByok();
   const { data: subscription } = useSubscription();
