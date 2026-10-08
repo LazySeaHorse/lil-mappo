@@ -49,7 +49,20 @@ export default defineConfig(({ mode }) => {
               // The analytics module lazy-loads posthog-js via dynamic import(); string-array
               // encoding would turn that specifier into a runtime expression Rollup cannot
               // split into a chunk. It carries no limits worth hiding, so skip it.
-              exclude: ['node_modules/**', 'src/lib/analytics/**'],
+              // Per-frame rendering/animation code is excluded too: string-array decoding makes
+              // its property access ~5x slower and it holds no limits. overlays/resolve.ts stays
+              // obfuscated since it applies the free-tier brand mark.
+              exclude: [
+                'node_modules/**',
+                'src/lib/analytics/**',
+                'src/engine/**',
+                'src/components/MapViewport/runtime/**',
+                'src/annotations/**',
+                'src/overlays/drawOverlays.ts',
+                'src/overlays/layout.ts',
+                'src/overlays/assets.ts',
+                'src/hooks/usePlayback.ts',
+              ],
               options: {
                 compact: true,
                 identifierNamesGenerator: 'hexadecimal',
