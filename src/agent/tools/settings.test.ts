@@ -58,7 +58,7 @@ describe('update_project_settings', () => {
     await runAgentTool('add_camera_keyframe', { time: 1, center: [0, 0], zoom: 3 });
     const { addItem } = state();
     addItem({ kind: 'boundary', id: 'b1', placeName: 'x', geojson: null, resolveStatus: 'resolved', startTime: 10, endTime: 25, easing: 'linear',
-      style: { strokeColor: '#fff', fillColor: '#fff', strokeWidth: 1, glow: false, fillOpacity: 0, animateStroke: false, animationStyle: 'fade', traceLength: 0.1, maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85 } });
+      style: { strokeColor: '#fff', fillColor: '#fff', strokeWidth: 1, glow: false, fillOpacity: 0, animateStroke: false, animationStyle: 'fade', traceLength: 0.1, maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null } });
     const body = resultJson<{ warnings: string[] }>(await runAgentTool('update_project_settings', { duration: 20 }));
     expect(body.warnings[0]).toContain('b1');
   });

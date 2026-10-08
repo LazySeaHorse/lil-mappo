@@ -48,6 +48,7 @@ function boundary(id: string, placeName = 'Paris'): BoundaryItem {
       strokeColor: '#fff', fillColor: '#fff', strokeWidth: 2, glow: false, fillOpacity: 0.2,
       animateStroke: false, animationStyle: 'draw', traceLength: 0.1,
       maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85,
+      fillMode: 'color', flagCode: null,
     },
     easing: 'linear',
   };

@@ -101,6 +101,10 @@ export interface BoundaryStyle {
   maskColor: string;
   /** 0-1, scaled by the boundary's fill progress. */
   maskOpacity: number;
+  /** 'flag' fills the boundary with the flag of `flagCode` instead of the fill colour. */
+  fillMode: 'color' | 'flag';
+  /** Lowercase ISO 3166-1 alpha-2 code of the flag to fill with; null when none is chosen. */
+  flagCode: string | null;
 }
 
 export interface RouteItem {

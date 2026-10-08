@@ -101,6 +101,8 @@ const boundary: BoundaryItem = {
     maskOutside: false,
     maskColor: '#0b0f19',
     maskOpacity: 0.85,
+    fillMode: 'color',
+    flagCode: null,
   },
   easing: 'linear',
 };

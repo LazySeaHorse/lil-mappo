@@ -311,7 +311,7 @@ describe('project document persistence boundary', () => {
     if (boundary.kind === 'boundary') {
       expect(boundary.style.fillColor).toBe('#123456');
       expect(boundary.style.traceLength).toBe(0.1);
-      expect(boundary.style).toMatchObject({ maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85 });
+      expect(boundary.style).toMatchObject({ maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null });
     }
     expect(callout.kind).toBe('callout');
     if (callout.kind === 'callout') {
