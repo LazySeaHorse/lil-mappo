@@ -1,4 +1,4 @@
-import { truncateCoordinates } from "@/engine/geoUtils";
+import { optimizeGeometry, ROUTE_SIMPLIFY_TOLERANCE_M } from "@/engine/geoUtils";
 
 const TO_RAD = Math.PI / 180;
 const TO_DEG = 180 / Math.PI;
@@ -61,5 +61,5 @@ export function calculateFlightArc(
     coordinates,
   };
 
-  return truncateCoordinates(rawLine, 4);
+  return optimizeGeometry(rawLine, { toleranceM: ROUTE_SIMPLIFY_TOLERANCE_M, precision: 6 });
 }
