@@ -3,8 +3,7 @@ import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import type { BoundaryItem } from '@/store/types';
 import { resolveBoundaryFillColor } from '../layerStyleContracts';
-import { BoundaryFlagLayer, preloadFlag } from './BoundaryFlagLayer';
-import type { MaskPlacement } from './BoundaryMaskRenderer';
+import { BoundaryFlagLayer, type FlagPlacement, preloadFlag } from './BoundaryFlagLayer';
 import { resolveBoundaryTiming } from './boundaryTiming';
 import {
   getGeoJSONSource,
@@ -67,11 +66,11 @@ export class BoundaryRenderer {
   private readonly flag: BoundaryFlagLayer;
   private disposed = false;
 
-  /** `getPlacement` is where flag fills go (the same spot as the outside mask, below labels). */
+  /** `getPlacement` is where flag fills go (under the basemap's roads and labels). */
   constructor(
     private readonly map: MapboxMap,
     boundary: BoundaryItem,
-    getPlacement: () => MaskPlacement = () => ({}),
+    getPlacement: () => FlagPlacement = () => ({}),
   ) {
     this.layers = new LayerPropertyWriter(map, createPaintCache);
     this.flag = new BoundaryFlagLayer(map, boundary.id, getPlacement);

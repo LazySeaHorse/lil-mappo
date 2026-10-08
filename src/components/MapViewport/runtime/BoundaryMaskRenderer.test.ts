@@ -44,28 +44,22 @@ function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, ex
   };
 }
 
-function setup(placement: { slot?: 'middle'; beforeId?: string } = { slot: 'middle' }) {
+function setup() {
   const double = createMapDouble();
-  const renderer = new BoundaryMaskRenderer(double.map, () => placement);
+  const renderer = new BoundaryMaskRenderer(double.map);
   renderer.mount();
   return { ...double, renderer, setData: double.sources.get(SOURCE)!.setData };
 }
 
 describe('BoundaryMaskRenderer', () => {
-  it('adds a transition-free fill layer in the requested slot', () => {
-    const { layers, addLayer } = setup({ slot: 'middle' });
+  it('adds a transition-free fill layer on top of the basemap (no slot, no beforeId), so labels are covered', () => {
+    const { layers, addLayer } = setup();
     const layer = layers.get(LAYER) as { type?: string; slot?: string; paint?: Record<string, unknown> };
     expect(layer.type).toBe('fill');
-    expect(layer.slot).toBe('middle');
+    expect(layer).not.toHaveProperty('slot');
     expect(layer.paint?.['fill-opacity-transition']).toEqual({ duration: 0, delay: 0 });
     expect(layer.paint?.['fill-color-transition']).toEqual({ duration: 0, delay: 0 });
     expect(addLayer.mock.calls[0][1]).toBeUndefined();
-  });
-
-  it('passes beforeId for classic styles and no slot', () => {
-    const { layers, addLayer } = setup({ beforeId: 'road-label' });
-    expect(addLayer.mock.calls[0][1]).toBe('road-label');
-    expect((layers.get(LAYER) as { slot?: string }).slot).toBeUndefined();
   });
 
   it('uploads only when the active set changes', () => {

@@ -8,7 +8,12 @@ import {
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
-import type { MaskPlacement } from './BoundaryMaskRenderer';
+
+/** Where the flag layer goes: a Standard slot, or before a classic style layer. */
+export interface FlagPlacement {
+  slot?: 'bottom' | 'middle' | 'top';
+  beforeId?: string;
+}
 
 /** What a boundary wants drawn this frame. */
 export interface FlagFillState {
@@ -31,9 +36,8 @@ export function preloadFlag(enabled: boolean, code: string | null): void {
 
 /**
  * One boundary's flag fill: a custom raster source plus a raster layer, created only
- * while the boundary is in flag mode with a known flag. The layer goes where the shared
- * outside mask goes (below map labels); because the mask is mounted first, a layer added
- * later in the same slot / before the same symbol layer lands above it.
+ * while the boundary is in flag mode with a known flag. The layer goes under the
+ * basemap's roads and labels (`BasemapController.getFlagPlacement`).
  */
 export class BoundaryFlagLayer {
   readonly sourceId: string;
@@ -44,7 +48,7 @@ export class BoundaryFlagLayer {
   constructor(
     private readonly map: MapboxMap,
     boundaryId: string,
-    private readonly getPlacement: () => MaskPlacement,
+    private readonly getPlacement: () => FlagPlacement,
   ) {
     this.sourceId = `boundary-flag-${boundaryId}`;
     this.layerId = `boundary-flag-layer-${boundaryId}`;

@@ -304,7 +304,7 @@ describe("BoundaryRenderer flag fill", () => {
   const FLAG_SOURCE = "boundary-flag-test-boundary";
   const FILL_LAYER = "boundary-fill-layer-test-boundary";
 
-  function setup(style: Partial<BoundaryItem["style"]> = {}, placement: { slot?: "middle"; beforeId?: string } = { slot: "middle" }) {
+  function setup(style: Partial<BoundaryItem["style"]> = {}, placement: { slot?: "bottom"; beforeId?: string } = { slot: "bottom" }) {
     const double = createMapDouble();
     const boundary: BoundaryItem = {
       ...sampleBoundary,
@@ -315,35 +315,22 @@ describe("BoundaryRenderer flag fill", () => {
     return { ...double, renderer, boundary };
   }
 
-  it("adds a custom flag source and a raster layer with the mask's placement", () => {
-    const { renderer, layers, sources, addLayer } = setup({}, { slot: "middle" });
+  it("adds a custom flag source and a raster layer at the flag placement", () => {
+    const { renderer, layers, sources, addLayer } = setup({}, { slot: "bottom" });
     renderer.render(5);
     expect(sources.get(FLAG_SOURCE)?.spec).toBeInstanceOf(FlagTileSource);
-    expect(layers.get(FLAG_LAYER)).toMatchObject({ type: "raster", source: FLAG_SOURCE, slot: "middle" });
+    expect(layers.get(FLAG_LAYER)).toMatchObject({ type: "raster", source: FLAG_SOURCE, slot: "bottom" });
     expect(layers.get(FLAG_LAYER)?.paint).toMatchObject({ "raster-fade-duration": 0, "raster-opacity-transition": { duration: 0, delay: 0 } });
     const call = addLayer.mock.calls.find(([layer]) => layer.id === FLAG_LAYER)!;
     expect(call[1]).toBeUndefined();
   });
 
   it("inserts before the anchor on classic styles", () => {
-    const { renderer, addLayer, layers } = setup({}, { beforeId: "first-symbol" });
+    const { renderer, addLayer, layers } = setup({}, { beforeId: "road-street" });
     renderer.render(5);
     const call = addLayer.mock.calls.find(([layer]) => layer.id === FLAG_LAYER)!;
-    expect(call[1]).toBe("first-symbol");
+    expect(call[1]).toBe("road-street");
     expect(layers.get(FLAG_LAYER)).not.toHaveProperty("slot");
-  });
-
-  it("lands above a mask mounted earlier with the same placement", async () => {
-    const { BoundaryMaskRenderer } = await import("./BoundaryMaskRenderer");
-    const double = createMapDouble();
-    const placement = { beforeId: "first-symbol" };
-    new BoundaryMaskRenderer(double.map, () => placement).mount();
-    const renderer = new BoundaryRenderer(double.map, { ...sampleBoundary, style: { ...sampleBoundary.style, fillMode: "flag", flagCode: "fr" } }, () => placement);
-    renderer.mount();
-    renderer.render(5);
-    const order = double.addLayer.mock.calls.map(([layer]) => layer.id);
-    expect(order.indexOf("boundary-mask-layer")).toBeLessThan(order.indexOf(FLAG_LAYER));
-    expect(double.addLayer.mock.calls.find(([layer]) => layer.id === FLAG_LAYER)![1]).toBe("first-symbol");
   });
 
   it("scales raster opacity by fill opacity and the timing factor, and hides the colour fill", () => {

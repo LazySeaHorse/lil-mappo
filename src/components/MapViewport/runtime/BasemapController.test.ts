@@ -306,6 +306,47 @@ describe('BasemapController', () => {
     store.setAllLabelsVisibility(true);
   });
 
+  describe('flag placement', () => {
+    it('uses the bottom slot on Standard, under roads and labels', () => {
+      const double = createMapDouble();
+      useProjectStore.getState().setMapStyle('standard');
+      const controller = new BasemapController(double.map, vi.fn());
+      expect(controller.getFlagPlacement()).toEqual({ slot: 'bottom' });
+      controller.dispose();
+    });
+
+    it('goes before the first road layer on classic styles, else the first symbol layer', () => {
+      const store = useProjectStore.getState();
+      store.setMapStyle('streets');
+      const withRoads = createMapDouble();
+      withRoads.getStyle.mockReturnValue({
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'land', type: 'background' },
+          { id: 'water', type: 'fill', source: 'composite', 'source-layer': 'water' },
+          { id: 'tunnel-street', type: 'line', source: 'composite', 'source-layer': 'road' },
+          { id: 'road-street', type: 'line', source: 'composite', 'source-layer': 'road' },
+          { id: 'road-label', type: 'symbol', source: 'composite', 'source-layer': 'road' },
+        ],
+      } as never);
+      const roads = new BasemapController(withRoads.map, vi.fn());
+      expect(roads.getFlagPlacement()).toEqual({ beforeId: 'tunnel-street' });
+      roads.dispose();
+
+      const noRoads = createMapDouble();
+      noRoads.getStyle.mockReturnValue({
+        version: 8,
+        sources: {},
+        layers: [{ id: 'satellite', type: 'raster', source: 'mapbox' }, { id: 'place-label', type: 'symbol', source: 'composite', 'source-layer': 'place_label' }],
+      } as never);
+      const satellite = new BasemapController(noRoads.map, vi.fn());
+      expect(satellite.getFlagPlacement()).toEqual({ beforeId: 'place-label' });
+      satellite.dispose();
+      store.setMapStyle('standard');
+    });
+  });
+
   it('skips the layer scan entirely on Standard', () => {
     const double = createMapDouble();
     const store = useProjectStore.getState();

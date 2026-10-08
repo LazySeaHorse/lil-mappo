@@ -70,7 +70,7 @@ export class BasemapController {
   private disposed = false;
   private readonly animationFrames = new Set<number>();
   /** Label-relevant classic layer ids and the first symbol layer, scanned once per style load (getStyle() serializes the whole style). */
-  private styleScan: { labelLayerIds: string[]; firstSymbolId: string | undefined } | undefined;
+  private styleScan: { labelLayerIds: string[]; firstSymbolId: string | undefined; firstRoadId: string | undefined } | undefined;
   private unsubscribeInteractive: (() => void) | undefined;
 
   constructor(
@@ -108,16 +108,16 @@ export class BasemapController {
   }
 
   /**
-   * Where the shared boundary mask layer goes: above the map but beneath its labels and
-   * under the boundary/route layers, which are added without a slot (so they sit above
-   * every slot). Standard has three slots: `bottom` (land, water, below roads), `middle`
-   * (above roads, buildings and 3D objects, below place/POI labels) and `top` (above
-   * labels). `middle` masks the whole basemap while leaving labels readable. Classic
-   * styles insert before the first symbol layer instead.
+   * Where boundary flag fills go: over land and water but under roads, buildings and
+   * labels, so the country's streets and place names read on top of its flag. Standard's
+   * `bottom` slot is exactly that (`middle` is above roads, `top` above POI labels).
+   * Classic styles insert before the first road layer, or the first symbol layer when a
+   * style has no roads (satellite).
    */
-  getMaskPlacement = (): { slot?: 'middle'; beforeId?: string } => {
-    if (useProjectStore.getState().mapStyle === 'standard') return { slot: 'middle' };
-    return { beforeId: this.getStyleScan().firstSymbolId };
+  getFlagPlacement = (): { slot?: 'bottom'; beforeId?: string } => {
+    if (useProjectStore.getState().mapStyle === 'standard') return { slot: 'bottom' };
+    const scan = this.getStyleScan();
+    return { beforeId: scan.firstRoadId ?? scan.firstSymbolId };
   };
 
   reconcile = (): void => {
@@ -266,7 +266,7 @@ export class BasemapController {
     if (this.styleScan) return this.styleScan;
     // Standard's layers live inside the basemap import and are driven by config properties, so skip the scan
     if (useProjectStore.getState().mapStyle === 'standard') {
-      return { labelLayerIds: [], firstSymbolId: undefined };
+      return { labelLayerIds: [], firstSymbolId: undefined, firstRoadId: undefined };
     }
     const layers = this.map.getStyle()?.layers ?? [];
     const patterns = LABEL_CATEGORIES.flatMap((category) => category.layerPatterns.map((p) => p.toLowerCase()));
@@ -274,6 +274,8 @@ export class BasemapController {
     this.styleScan = {
       labelLayerIds: layers.filter((layer) => patterns.some((p) => layer.id.toLowerCase().includes(p))).map((layer) => layer.id),
       firstSymbolId: layers.find((layer) => layer.type === 'symbol')?.id,
+      // Mapbox Streets puts roads, tunnels and bridges in the `road` source layer
+      firstRoadId: layers.find((layer) => 'source-layer' in layer && layer['source-layer'] === 'road')?.id,
     };
     return this.styleScan;
   }

@@ -22,12 +22,6 @@ const LAYER_ID = 'boundary-mask-layer';
 /** Unions already built, so scrubbing back and forth over the same sets does not recompute. */
 const GEOMETRY_CACHE_SIZE = 8;
 
-/** Where the mask layer goes: a Standard slot, or before a classic style's first symbol layer. */
-export interface MaskPlacement {
-  slot?: 'bottom' | 'middle' | 'top';
-  beforeId?: string;
-}
-
 interface MaskPaintCache {
   color: string;
   opacity: number;
@@ -45,10 +39,7 @@ export class BoundaryMaskRenderer {
   private uploadedKey = '';
   private disposed = false;
 
-  constructor(
-    private readonly map: MapboxMap,
-    private readonly getPlacement: () => MaskPlacement,
-  ) {
+  constructor(private readonly map: MapboxMap) {
     this.layers = new LayerPropertyWriter(map, () => ({ color: '', opacity: -1 }));
   }
 
@@ -102,19 +93,19 @@ export class BoundaryMaskRenderer {
       this.map.addSource(SOURCE_ID, { type: 'geojson', data: EMPTY_FC });
     }
     if (this.map.getLayer(LAYER_ID)) return;
-    const { slot, beforeId } = this.getPlacement();
+    // No slot and no beforeId: above the whole basemap, labels included, so nothing outside
+    // shows through. It is added before any boundary/route layer, so those still draw over it.
     mutateMap(this.map, { operation: 'addLayer', phase: 'setup', resourceId: LAYER_ID }, () => {
       this.map.addLayer({
         id: LAYER_ID,
         type: 'fill',
         source: SOURCE_ID,
-        ...(slot ? { slot } : {}),
         paint: {
           'fill-color': DEFAULT_MASK_COLOR,
           'fill-opacity': 0,
           ...noPaintTransitions('fill-color', 'fill-opacity'),
         },
-      }, beforeId);
+      });
     });
   }
 }

@@ -54,7 +54,7 @@ export class MapSceneController implements MapSceneRuntime {
     setStyleLoaded: (loaded: boolean) => void,
   ) {
     this.basemap = new BasemapController(map, setStyleLoaded, this.rebuildAfterStyleLoad);
-    this.mask = new BoundaryMaskRenderer(map, this.basemap.getMaskPlacement);
+    this.mask = new BoundaryMaskRenderer(map);
   }
 
   mount(): void {
@@ -135,7 +135,7 @@ export class MapSceneController implements MapSceneRuntime {
     this.lastItems = state.items;
     this.lastItemOrder = state.itemOrder;
 
-    // Mounted before any route/boundary layer so it sits beneath them even when a style has no symbol layer to anchor to
+    // Mounted before any route/boundary layer: it goes on top of the basemap, and those are added above it
     if (!this.maskMounted) {
       this.mask.mount();
       this.maskMounted = true;
@@ -175,7 +175,7 @@ export class MapSceneController implements MapSceneRuntime {
       if (existing) {
         existing.setBoundary(boundary);
       } else {
-        const renderer = new BoundaryRenderer(this.map, boundary, this.basemap.getMaskPlacement);
+        const renderer = new BoundaryRenderer(this.map, boundary, this.basemap.getFlagPlacement);
         renderer.mount();
         this.boundaries.set(boundary.id, renderer);
       }
