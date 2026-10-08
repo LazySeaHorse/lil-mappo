@@ -16,7 +16,7 @@ vi.mock('react-secure-storage', () => ({
 
 vi.mock('../Inspector/BoundarySearch', () => ({
   BoundarySearch: ({ onSelect }: { onSelect: (r: unknown) => void }) => (
-    <button onClick={() => onSelect({ display_name: 'Isola, Italia', type: 'island', geojson: island })}>pick-result</button>
+    <button onClick={() => onSelect({ display_name: 'Isola, Italia', type: 'island', geojson: island, countryCode: 'it' })}>pick-result</button>
   ),
 }));
 
@@ -69,6 +69,12 @@ describe('BoundaryAddDropdown detail levels', () => {
     fireEvent.click(screen.getByRole('radio', { name: /light/i }));
     fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
     expect(added().geojson).toEqual(applyBoundaryDetail(island, 'light'));
+  });
+
+  it('prefills the flag code from the picked result and leaves the fill mode alone', () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
+    expect(added().style).toMatchObject({ flagCode: 'it', fillMode: 'color' });
   });
 
   it('remembers the last choice for the session', () => {

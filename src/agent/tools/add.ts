@@ -170,7 +170,7 @@ export const addBoundary = defineTool({
       throw new ToolError('boundary_not_found', `No region outline found for "${query}". Try a broader or differently spelled name (regions, cities and countries work; addresses and POIs do not).`, { query });
     }
     const placeName = best.display_name.split(',')[0];
-    const item = createBoundaryItem({ placeName, geojson: applyBoundaryDetail(best.geojson, detail), startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style } });
+    const item = createBoundaryItem({ placeName, geojson: applyBoundaryDetail(best.geojson, detail), startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style }, countryCode: best.countryCode });
 
     commitAiWrite(`AI: add boundary "${placeName}"`, () => {
       const [s, e] = resolveNewTimeRange(startTime, endTime);

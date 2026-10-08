@@ -61,11 +61,12 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
   setPreviewRoute: (v) => set({ previewRoute: v }),
   setDraftWalk: (v) => set({ draftWalk: v }),
 
-  setPreviewBoundary: (geojson, name) =>
+  setPreviewBoundary: (geojson, name, countryCode = null) =>
     set({
       previewBoundary: geojson,
       draftBoundaryName: name,
-      previewBoundaryStyle: get().previewBoundaryStyle || { ...DEFAULT_BOUNDARY_STYLE },
+      // The flag follows the searched place; the rest of the style is kept across searches
+      previewBoundaryStyle: { ...(get().previewBoundaryStyle || DEFAULT_BOUNDARY_STYLE), flagCode: countryCode },
     }),
 
   setPreviewBoundaryStyle: (updates) =>

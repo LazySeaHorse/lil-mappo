@@ -30,6 +30,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
 
   const handleSelect = (r: NominatimResult) => {
     u({
+      ...(r.countryCode ? { style: { ...item.style, flagCode: r.countryCode } } : {}),
       geojson: applyBoundaryDetail(r.geojson),
       resolveStatus: 'resolved',
       placeName: r.display_name.split(',')[0],

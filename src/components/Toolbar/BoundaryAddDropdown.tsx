@@ -70,7 +70,7 @@ export const BoundaryAddDropdown = ({
   }, []);
 
   const handleSelect = (r: NominatimResult) => {
-    setPreviewBoundary(r.geojson, r.display_name.split(',')[0]);
+    setPreviewBoundary(r.geojson, r.display_name.split(',')[0], r.countryCode);
     
     // Zoom to boundary
     const map = mapRef.current?.getMap();

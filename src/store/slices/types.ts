@@ -128,7 +128,7 @@ export interface EditorUiSlice {
   stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
   setDraftWalk: (v: WalkRouteCalculation | null) => void;
-  setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string) => void;
+  setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string, countryCode?: string | null) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;
   setBoundaryDetail: (id: BoundaryDetailId) => void;

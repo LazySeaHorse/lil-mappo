@@ -153,6 +153,8 @@ export interface BoundaryInput {
   startTime: number;
   endTime?: number;
   style?: BoundaryStyle;
+  /** Country code of the search result; becomes `style.flagCode` unless the style already has one. */
+  countryCode?: string | null;
   id?: string;
 }
 
@@ -165,7 +167,10 @@ export function createBoundaryItem(input: BoundaryInput): BoundaryItem {
     resolveStatus: 'resolved',
     startTime: input.startTime,
     endTime: input.endTime ?? input.startTime + DEFAULT_ITEM_DURATION,
-    style: { ...(input.style ?? DEFAULT_BOUNDARY_STYLE) },
+    style: {
+      ...(input.style ?? DEFAULT_BOUNDARY_STYLE),
+      flagCode: input.style?.flagCode ?? input.countryCode ?? null,
+    },
     easing: 'easeInOutCubic',
   };
 }

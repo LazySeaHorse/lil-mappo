@@ -30,7 +30,7 @@ function stubNetwork() {
       return new Response(JSON.stringify({
         type: 'FeatureCollection',
         features: [{
-          type: 'Feature', properties: { display_name: 'Portugal, Europe', type: 'administrative' },
+          type: 'Feature', properties: { display_name: 'Portugal, Europe', type: 'administrative', extratags: { 'ISO3166-1': 'PT' } },
           geometry: { type: 'Polygon', coordinates: [[[-9, 37], [-6, 37], [-6, 42], [-9, 42], [-9, 37]]] },
         }],
       }));
@@ -130,6 +130,11 @@ describe('add tools', () => {
     expect(item).toMatchObject({ kind: 'boundary', resolveStatus: 'resolved', startTime: 1, endTime: 6, style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add boundary "Portugal"' });
+  });
+
+  it('add_boundary prefills flagCode from the search result without switching to flag fill', async () => {
+    const body = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal' }));
+    expect(state().items[body.created.id]).toMatchObject({ style: { flagCode: 'pt', fillMode: 'color' } });
   });
 
   it('add_boundary accepts the outside-mask style fields and defaults them off', async () => {
