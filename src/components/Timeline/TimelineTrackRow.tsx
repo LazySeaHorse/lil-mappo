@@ -157,6 +157,7 @@ const TimelineTrackRow = React.memo(({
             item={item as RouteItem | BoundaryItem | CalloutItem}
             pixelsPerSecond={pixelsPerSecond}
             colorClass={colorClass}
+            isSelected={isSelected}
             onSelect={handleSelect}
           />
         )}

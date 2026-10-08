@@ -113,6 +113,16 @@ describe('TimelinePanel', () => {
     expect(screen.getByTitle('Play / Pause (Space)')).toBeInTheDocument();
   });
 
+  it('rings only the selected clip', () => {
+    renderTimeline(route('first', 1, 3), route('second', 4, 6));
+
+    expect(screen.getByTestId('timeline-item-first')).not.toHaveClass('ring-primary');
+
+    act(() => useProjectStore.getState().selectItem('first'));
+    expect(screen.getByTestId('timeline-item-first')).toHaveClass('ring-2', 'ring-primary');
+    expect(screen.getByTestId('timeline-item-second')).not.toHaveClass('ring-primary');
+  });
+
   it('scrubs to the pointer time and clears scrubbing on release', () => {
     renderTimeline();
     const ruler = screen.getByTestId('timeline-ruler');
