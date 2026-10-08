@@ -87,6 +87,7 @@
     "dodopayments-checkout": "^1.8.0",
     "embla-carousel-react": "^8.6.0",
     "file-saver": "^2.0.5",
+    "flag-icons": "^7.5.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
     "mapbox-gl": "^3.20.0",
