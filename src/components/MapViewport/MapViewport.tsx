@@ -15,6 +15,7 @@ import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
 import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
 import { DraftWalkLayer } from './DraftWalkLayer';
 import { SelectionPreviewPill } from './SelectionPreviewPill';
+import { isEscapeHandledElsewhere } from './escapeDeselect';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
 import type { MapGesture } from '@/components/Onboarding/walkthroughState';
@@ -83,6 +84,11 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         const s = useProjectStore.getState();
         if (s.activePicker) {
           s.stopPicking();
+        } else if (s.selectedItemId && !isEscapeHandledElsewhere(e)) {
+          // Like the delete path, this leaves the inspector on project settings; a closed one stays closed.
+          const wasInspectorOpen = s.isInspectorOpen;
+          s.selectItem(null);
+          if (!wasInspectorOpen) s.setIsInspectorOpen(false);
         }
       }
     };
