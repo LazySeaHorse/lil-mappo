@@ -1,9 +1,9 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { getNormalizedProgress } from '@/engine/easings';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import type { BoundaryItem } from '@/store/types';
 import { resolveBoundaryFillColor } from '../layerStyleContracts';
+import { resolveBoundaryTiming } from './boundaryTiming';
 import {
   getGeoJSONSource,
   LayerPropertyWriter,
@@ -13,7 +13,6 @@ import {
 } from './mapboxResources';
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
-const EXIT_DURATION = 0.5;
 
 interface BoundaryResourceIds {
   fillSource: string;
@@ -95,13 +94,7 @@ export class BoundaryRenderer {
     if (!fillSource || !strokeSource) return;
 
     const style = boundary.style;
-    const progress = getNormalizedProgress(playheadTime, boundary.startTime, boundary.endTime, boundary.easing);
-    const isExiting = boundary.exitAnimation !== 'none' && playheadTime > boundary.endTime;
-    const exitProgress = isExiting ? Math.min((playheadTime - boundary.endTime) / EXIT_DURATION, 1) : 0;
-    const reverseProgress = 1 - exitProgress;
-    const fadeExit = boundary.exitAnimation === 'fade' && isExiting;
-    const reverseExit = boundary.exitAnimation === 'reverse' && isExiting;
-    const animationStyle = style.animationStyle ?? 'fade';
+    const { progress, exitProgress, reverseProgress, fadeExit, reverseExit, animationStyle, fillFactor } = resolveBoundaryTiming(boundary, playheadTime);
     const geometryChanged = this.lastGeometry !== geometry;
 
     const fillColor = resolveBoundaryFillColor(style);
@@ -111,20 +104,7 @@ export class BoundaryRenderer {
     const glowVisible = style.glow && !reverseExit;
     this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
 
-    let fillProgress: number;
-    if (reverseExit) {
-      fillProgress = (!style.animateStroke || animationStyle !== 'draw')
-        ? reverseProgress
-        : Math.max(0, (reverseProgress - 0.7) / 0.3);
-    } else if (!style.animateStroke) {
-      fillProgress = progress > 0 ? 1 : 0;
-    } else if (animationStyle === 'fade') {
-      fillProgress = progress;
-    } else {
-      fillProgress = Math.max(0, (progress - 0.7) / 0.3);
-    }
-    let fillOpacity = style.fillOpacity * fillProgress;
-    if (fadeExit) fillOpacity *= reverseProgress;
+    const fillOpacity = style.fillOpacity * fillFactor;
 
     if (geometryChanged) {
       fillSource.setData({
