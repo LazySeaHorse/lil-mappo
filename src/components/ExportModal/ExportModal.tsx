@@ -7,7 +7,7 @@ import { useMapRuntime } from '@/hooks/useMapRuntime';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
-import { getExportLimits, shouldShowWatermark } from '@/lib/cloudAccess';
+import { getExportLimits, brandingFor } from '@/lib/cloudAccess';
 import { resolveExportPlan } from './exportPlan';
 import { useLocalExportCapability } from './hooks/useLocalExportCapability';
 import { useVideoExportExecution } from './hooks/useVideoExportExecution';
@@ -90,7 +90,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   );
 
   // Hook 2: Video export lifecycle
-  const showWatermark = shouldShowWatermark(subscription);
+  const branding = brandingFor(subscription);
   const isLimitedGuest = !session && limits.limited;
   const {
     progress,
@@ -101,7 +101,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   } = useVideoExportExecution(
     runtimeRef,
     exportPlan,
-    showWatermark,
+    branding,
     name,
     () => requestSignIn('Sign in to export your video.'),
     isLimitedGuest

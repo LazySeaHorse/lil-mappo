@@ -1,6 +1,7 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
+import { preloadOverlayAssets, type OverlayLayer } from '@/overlays';
 import { loadAnnotationAssets } from '@/annotations/draw';
 import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
 
@@ -8,7 +9,8 @@ export interface FrameCaptureOptions {
   /** Target frame size in pixels; the map is temporarily resized to it. */
   width: number;
   height: number;
-  showWatermark: boolean;
+  /** Overlays drawn on top of every captured frame (none for the AI agent). */
+  overlays: OverlayLayer[];
 }
 
 export interface FrameCapturer {
@@ -34,9 +36,10 @@ export interface FrameCapturer {
  */
 export async function withFrameCapturer<T>(
   map: MapboxMap,
-  { width, height, showWatermark }: FrameCaptureOptions,
+  { width, height, overlays }: FrameCaptureOptions,
   run: (capturer: FrameCapturer) => Promise<T>,
 ): Promise<T> {
+  await preloadOverlayAssets();
   const previewWidth = map.getContainer().getBoundingClientRect().width;
   const previewZoom = map.getZoom();
   const zoomOffset = Math.log2(width / previewWidth);
@@ -56,7 +59,7 @@ export async function withFrameCapturer<T>(
         canvas.height = height;
         const ctx = canvas.getContext('2d')!;
         const fresh = useProjectStore.getState();
-        compositeFrame(map, ctx, width, height, fresh.items, fresh.itemOrder, fresh.playheadTime, showWatermark, zoomOffset);
+        compositeFrame(map, ctx, width, height, fresh.items, fresh.itemOrder, fresh.playheadTime, overlays, zoomOffset);
         return canvas;
       },
     }),

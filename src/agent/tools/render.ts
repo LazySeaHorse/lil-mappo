@@ -69,7 +69,7 @@ export const renderFrames = defineTool({
     const images: { data: string; mimeType: string }[] = [];
 
     await withTemporaryProjectPlayhead(() =>
-      withFrameCapturer(map, { width: captureWidth, height: captureHeight, showWatermark: false }, async ({ zoomOffset, captureNow }) => {
+      withFrameCapturer(map, { width: captureWidth, height: captureHeight, overlays: [] }, async ({ zoomOffset, captureNow }) => {
         for (const [index, time] of times.entries()) {
           getState().setPlayheadTime(time);
           // Same stepping as the video exporter: drive the camera, sync layers, wait for tiles.

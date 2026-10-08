@@ -13,7 +13,7 @@ import {
   getExportLimits,
   isFreeUser,
   isMapLoadTracked,
-  shouldShowWatermark,
+  brandingFor,
 } from "./cloudAccess";
 
 function subscription(overrides: Partial<Subscription> = {}): Subscription {
@@ -40,7 +40,7 @@ describe("subscription entitlements", () => {
     const active = subscription();
 
     expect(isFreeUser(active)).toBe(false);
-    expect(shouldShowWatermark(active)).toBe(false);
+    expect(brandingFor(active)).toBe('paid');
     expect(getExportLimits(active).limited).toBe(false);
     expect(isMapLoadTracked(active)).toBe(false);
   });
@@ -51,7 +51,7 @@ describe("subscription entitlements", () => {
     const cancelling = subscription({ status: "cancelling" });
 
     expect(isFreeUser(cancelling)).toBe(false);
-    expect(shouldShowWatermark(cancelling)).toBe(false);
+    expect(brandingFor(cancelling)).toBe('paid');
   });
 
   it("removes features after the cancellation period even if the expiry webhook is delayed", () => {
@@ -60,7 +60,7 @@ describe("subscription entitlements", () => {
     const cancelling = subscription({ status: "cancelling" });
 
     expect(isFreeUser(cancelling)).toBe(true);
-    expect(shouldShowWatermark(cancelling)).toBe(true);
+    expect(brandingFor(cancelling)).toBe('free');
     expect(getExportLimits(cancelling).limited).toBe(true);
     expect(isMapLoadTracked(cancelling)).toBe(true);
   });

@@ -1,6 +1,7 @@
 import secureLocalStorage from "react-secure-storage";
 import type { Subscription } from './database.types';
 import type { ExportResolution } from '@/types/render';
+import type { Branding } from '@/overlays';
 import { BYOK_STORAGE_KEY, isAppOwnKey } from '@/config/mapbox';
 
 // ─── Tier helpers ─────────────────────────────────────────────────────────────
@@ -24,12 +25,12 @@ export function isFreeUser(subscription: Subscription | null | undefined): boole
   return !isWanderer(subscription);
 }
 
-/** 
- * Returns true if the product watermark ("made with li'l Mappo") should be shown.
- * Watermarks are hidden ONLY for paid users. BYOK and Free users still see it.
+/**
+ * Branding for exports and snapshots. The li'l Mappo mark is hidden ONLY for paid
+ * users; BYOK and Free users still get it.
  */
-export function shouldShowWatermark(subscription: Subscription | null | undefined): boolean {
-  return !isWanderer(subscription);
+export function brandingFor(subscription: Subscription | null | undefined): Branding {
+  return isWanderer(subscription) ? 'paid' : 'free';
 }
 
 // ─── BYOK ─────────────────────────────────────────────────────────────────────

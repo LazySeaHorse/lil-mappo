@@ -18,10 +18,10 @@ vi.mock('@/services/frameCapture', () => ({
   canvasToBlob: async (_c: unknown, type: string) => new Blob(['jpegbytes'], { type }),
   withFrameCapturer: async (
     _map: unknown,
-    opts: { width: number; height: number; showWatermark: boolean },
+    opts: { width: number; height: number; overlays: unknown[] },
     run: (c: { zoomOffset: number; previewZoom: number; captureNow: () => Promise<HTMLCanvasElement> }) => Promise<unknown>,
   ) => {
-    expect(opts).toEqual({ width: 1280, height: 720, showWatermark: false });
+    expect(opts).toEqual({ width: 1280, height: 720, overlays: [] });
     return run({
       zoomOffset: 0.5,
       previewZoom: 3,

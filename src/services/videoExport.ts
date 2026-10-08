@@ -3,6 +3,7 @@ import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneR
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyCamera, getProjectCameraAt, loadProjectTerrain } from '@/engine/cameraUtils';
+import { preloadOverlayAssets, resolveSystemOverlays, type Branding, type OverlayLayer } from '@/overlays';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { loadAnnotationAssets } from '@/annotations/draw';
 import type { RenderConfig } from '@/types/render';
@@ -36,7 +37,7 @@ export interface ExportOptions {
   endTime?: number;
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void;
   abortSignal: AbortSignal;
-  showWatermark: boolean;
+  branding: Branding;
 }
 
 interface EncoderState {
@@ -266,7 +267,7 @@ async function captureFrame(
   frameIndex: number,
   fps: number,
   clampedTime: number,
-  showWatermark: boolean,
+  overlays: OverlayLayer[],
   zoomOffset: number,
 ) {
   const { videoEncoder } = encoder;
@@ -308,7 +309,7 @@ async function captureFrame(
 
   // Composite: map canvas + callouts
   const { items, itemOrder } = useProjectStore.getState();
-  compositeFrame(map, compCtx, width, height, items, itemOrder, clampedTime, showWatermark, zoomOffset);
+  compositeFrame(map, compCtx, width, height, items, itemOrder, clampedTime, overlays, zoomOffset);
 
   const frameDuration = Math.round(1_000_000 / fps);
   const videoFrame = new VideoFrame(compCanvas, {
@@ -343,6 +344,8 @@ export async function runExport(
   options: ExportOptions,
 ): Promise<Blob> {
   const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, abortSignal } = options;
+  const overlays = resolveSystemOverlays({ mode: 'export', branding: options.branding });
+  await preloadOverlayAssets();
   const [width, height] = renderConfig.resolution;
   const { fps } = renderConfig;
 
@@ -405,7 +408,7 @@ export async function runExport(
           const currentTime = (startFrame + frameIndex) / fps;
           const clampedTime = Math.min(currentTime, duration);
 
-          await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, options.showWatermark, zoomOffset);
+          await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, overlays, zoomOffset);
           const encoderError = encoderState.getEncoderError();
           if (encoderError) throw encoderError;
           onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');

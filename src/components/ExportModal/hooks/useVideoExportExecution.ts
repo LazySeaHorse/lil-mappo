@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { saveAs } from 'file-saver';
 import { runExport } from '@/services/videoExport';
 import { useProjectStore } from '@/store/useProjectStore';
+import type { Branding } from '@/overlays';
 import type { ExportPlan } from '../exportPlan';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { bucketDuration, setPersonProps, track, type ExportEventProps } from '@/lib/analytics';
@@ -14,7 +15,7 @@ function getErrorMessage(error: unknown, fallback = 'Export failed'): string {
 export function useVideoExportExecution(
   runtimeRef: MapSceneRuntimeRef,
   exportPlan: ExportPlan,
-  showWatermark: boolean,
+  branding: Branding,
   projectName: string,
   onRequireAuth?: () => void,
   isLimitedGuest?: boolean
@@ -48,7 +49,7 @@ export function useVideoExportExecution(
     try {
       const blob = await runExport(runtimeRef, {
         ...exportPlan,
-        showWatermark,
+        branding,
         onProgress: (pct, p) => {
           setProgress(pct);
           setPhase(p);

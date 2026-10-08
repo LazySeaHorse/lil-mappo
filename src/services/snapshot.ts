@@ -1,5 +1,6 @@
 import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
+import { resolveSystemOverlays, type Branding } from '@/overlays';
 import { canvasToBlob, withFrameCapturer } from './frameCapture';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
@@ -11,7 +12,7 @@ import { toast } from 'sonner';
  * waits for tiles to settle, composites callouts, then downloads as PNG.
  * Uses current playhead position (not interpolated camera).
  */
-export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>, showWatermark: boolean) {
+export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>, branding: Branding) {
   const map = mapRef.current?.getMap?.();
   if (!map) {
     toast.error('Snapshot failed: Map not initialized');
@@ -23,7 +24,7 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
   const id = toast.loading('Preparing high-res snapshot...');
 
   try {
-    await withFrameCapturer(map, { width, height, showWatermark }, async ({ zoomOffset, previewZoom, captureNow }) => {
+    await withFrameCapturer(map, { width, height, overlays: resolveSystemOverlays({ mode: 'export', branding }) }, async ({ zoomOffset, previewZoom, captureNow }) => {
       // Restore equivalent framing at the new resolution.
       if (zoomOffset !== 0) map.jumpTo({ zoom: previewZoom + zoomOffset });
 

@@ -10,6 +10,12 @@ vi.mock('@/annotations/draw', () => ({ loadAnnotationAssets: vi.fn(async () => {
 const waitForMapIdle = vi.fn(async () => 'idle');
 vi.mock('@/components/MapViewport/runtime/mapWait', () => ({ waitForMapIdle: (...a: unknown[]) => waitForMapIdle(...(a as [])) }));
 
+vi.mock('@/overlays', async (orig) => ({
+  ...(await orig<typeof import('@/overlays')>()),
+  preloadOverlayAssets: vi.fn(async () => {}),
+}));
+
+import { resolveSystemOverlays } from '@/overlays';
 import { canvasToBlob, withFrameCapturer } from './frameCapture';
 import { useProjectStore } from '@/store/useProjectStore';
 
@@ -17,6 +23,8 @@ const fakeMap = {
   getContainer: () => ({ getBoundingClientRect: () => ({ width: 640 }) }),
   getZoom: () => 3,
 } as never;
+
+const overlays = resolveSystemOverlays({ mode: 'export', branding: 'free' });
 
 describe('withFrameCapturer', () => {
   beforeEach(() => {
@@ -27,7 +35,7 @@ describe('withFrameCapturer', () => {
 
   it('exposes zoom offset and composites at the current playhead', async () => {
     useProjectStore.getState().setPlayheadTime(4);
-    const result = await withFrameCapturer(fakeMap, { width: 1280, height: 720, showWatermark: true }, async (c) => {
+    const result = await withFrameCapturer(fakeMap, { width: 1280, height: 720, overlays }, async (c) => {
       expect(c.zoomOffset).toBe(1);
       expect(c.previewZoom).toBe(3);
       const canvas = await c.captureNow();
@@ -36,7 +44,7 @@ describe('withFrameCapturer', () => {
     expect(result).toEqual({ w: 1280, h: 720 });
     expect(withTemporaryMapViewport).toHaveBeenCalledWith(fakeMap, 1280, 720, expect.any(Function));
     expect(waitForMapIdle).toHaveBeenCalled();
-    expect(compositeFrame).toHaveBeenCalledWith(fakeMap, expect.anything(), 1280, 720, expect.anything(), expect.anything(), 4, true, 1);
+    expect(compositeFrame).toHaveBeenCalledWith(fakeMap, expect.anything(), 1280, 720, expect.anything(), expect.anything(), 4, overlays, 1);
   });
 
   it('rejects when canvas conversion fails', async () => {

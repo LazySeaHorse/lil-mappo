@@ -112,7 +112,8 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
             setStatus(`${phase === 'prewarm' ? 'Warming cache' : 'Rendering'}: ${pct}%`);
           },
           abortSignal: abortController.signal,
-          showWatermark: jobData!.showWatermark,
+          // Server's trusted flag: true = free tier.
+          branding: jobData!.showWatermark ? 'free' : 'paid',
         });
 
         // Trigger a browser download so Playwright can intercept and save

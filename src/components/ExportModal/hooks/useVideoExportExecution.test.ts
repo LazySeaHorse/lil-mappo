@@ -45,7 +45,7 @@ describe('useVideoExportExecution', () => {
       finishExport = resolve;
     }));
     const { result } = renderHook(() => (
-      useVideoExportExecution(runtimeRef, exportPlan, false, 'Project')
+      useVideoExportExecution(runtimeRef, exportPlan, 'paid', 'Project')
     ));
 
     let exporting!: Promise<void>;
@@ -75,7 +75,7 @@ describe('useVideoExportExecution', () => {
     useProjectStore.setState({ isPlaying: true, hideUI: true });
     mockedRunExport.mockRejectedValue(new Error('encoder failed'));
     const { result } = renderHook(() => (
-      useVideoExportExecution(runtimeRef, exportPlan, false, 'Project')
+      useVideoExportExecution(runtimeRef, exportPlan, 'paid', 'Project')
     ));
 
     await act(async () => {
@@ -95,7 +95,7 @@ describe('useVideoExportExecution', () => {
 
     it('reports started and succeeded with coarse settings, and marks has_exported', async () => {
       mockedRunExport.mockResolvedValue(new Blob());
-      const { result } = renderHook(() => useVideoExportExecution(runtimeRef, exportPlan, false, 'My secret trip'));
+      const { result } = renderHook(() => useVideoExportExecution(runtimeRef, exportPlan, 'paid', 'My secret trip'));
       await act(async () => { await result.current.startExport(); });
       expect(track).toHaveBeenNthCalledWith(1, 'export_started', props);
       expect(track).toHaveBeenNthCalledWith(2, 'export_succeeded', props);
@@ -105,7 +105,7 @@ describe('useVideoExportExecution', () => {
 
     it('reports failures by error class only, never the raw message', async () => {
       mockedRunExport.mockRejectedValue(new Error('VideoEncoder error: bad config for /home/me/file.mp4'));
-      const { result } = renderHook(() => useVideoExportExecution(runtimeRef, exportPlan, false, 'Project'));
+      const { result } = renderHook(() => useVideoExportExecution(runtimeRef, exportPlan, 'paid', 'Project'));
       await act(async () => { await result.current.startExport(); });
       expect(track).toHaveBeenLastCalledWith('export_failed', { ...props, error_class: 'encoder' });
       expect(JSON.stringify(vi.mocked(track).mock.calls)).not.toContain('/home/me');
@@ -115,7 +115,7 @@ describe('useVideoExportExecution', () => {
       mockedRunExport.mockImplementation((_runtime, options) => new Promise((_resolve, reject) => {
         options.abortSignal.addEventListener('abort', () => reject(new DOMException('Export cancelled', 'AbortError')));
       }));
-      const { result } = renderHook(() => useVideoExportExecution(runtimeRef, exportPlan, false, 'Project'));
+      const { result } = renderHook(() => useVideoExportExecution(runtimeRef, exportPlan, 'paid', 'Project'));
       let exporting!: Promise<void>;
       act(() => { exporting = result.current.startExport(); });
       await act(async () => { result.current.cancelExport(); await exporting; });

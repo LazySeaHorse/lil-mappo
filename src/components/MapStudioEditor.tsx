@@ -18,7 +18,7 @@ import { useEffect } from "react";
 import { useProjectStore, CAMERA_TRACK_ID } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
-import { isFreeUser, hasByok, shouldShowWatermark } from "@/lib/cloudAccess";
+import { isFreeUser, hasByok, brandingFor } from "@/lib/cloudAccess";
 import { useMapLoadGate } from "@/hooks/useMapLoadGate";
 import { syncProjects } from "@/services/cloudSync";
 import { toast } from "sonner";
@@ -88,7 +88,7 @@ function ZenModeControls({
       <IconButton 
         variant="zen" 
         size="lg" 
-        onClick={() => takeSnapshot(mapRef, shouldShowWatermark(subscription))} 
+        onClick={() => takeSnapshot(mapRef, brandingFor(subscription))} 
         title="Take High-Res Snapshot"
       >
         <Camera size={20} />
