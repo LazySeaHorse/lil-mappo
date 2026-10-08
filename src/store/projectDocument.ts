@@ -110,12 +110,15 @@ const routeItemSchema = z.object({
   calculation: routeCalculationSchema.optional(),
 });
 
+/** 0-1 for opacities. Older documents stored whatever the slider or an agent wrote, so out-of-range values are clamped, not rejected. */
+const unitIntervalSchema = z.number().transform((value) => Math.min(1, Math.max(0, value)));
+
 const boundaryStyleSchema = z.object({
   strokeColor: z.string(),
   fillColor: z.string(),
   strokeWidth: z.number(),
   glow: z.boolean(),
-  fillOpacity: z.number(),
+  fillOpacity: unitIntervalSchema,
   animateStroke: z.boolean(),
   animationStyle: z.enum(['fade', 'draw', 'trace']),
   traceLength: z.number(),

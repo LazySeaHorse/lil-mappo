@@ -321,6 +321,50 @@ describe('project document persistence boundary', () => {
     expect(toProjectDocument(parsed).schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
   });
 
+  describe('boundary fillOpacity', () => {
+    function parseWithFillOpacity(fillOpacity: number) {
+      const boundary = {
+        kind: 'boundary' as const,
+        id: 'b1',
+        placeName: 'Testland',
+        geojson: null,
+        resolveStatus: 'resolved' as const,
+        startTime: 0,
+        endTime: 5,
+        style: {
+          strokeColor: '#123456',
+          fillColor: '#123456',
+          strokeWidth: 3,
+          glow: false,
+          fillOpacity,
+          animateStroke: true,
+          animationStyle: 'draw' as const,
+          traceLength: 0.1,
+        },
+        easing: 'linear' as const,
+      };
+      const document = toProjectDocument(createProject());
+      const parsed = parseProjectDocument({
+        ...document,
+        items: { ...document.items, b1: boundary },
+        itemOrder: [...document.itemOrder, 'b1'],
+      });
+      const item = parsed.items.b1;
+      if (item.kind !== 'boundary') throw new Error('expected a boundary');
+      return item.style.fillOpacity;
+    }
+
+    it('clamps an out-of-range value from an old document instead of rejecting it', () => {
+      expect(parseWithFillOpacity(1.5)).toBe(1);
+      expect(parseWithFillOpacity(-0.2)).toBe(0);
+      expect(parseWithFillOpacity(Infinity)).toBe(1);
+    });
+
+    it('keeps an in-range value as it is', () => {
+      for (const value of [0, 0.1, 0.5, 1]) expect(parseWithFillOpacity(value)).toBe(value);
+    });
+  });
+
   it('rejects project files from newer unsupported schema versions', () => {
     const document = toProjectDocument(createProject());
     expect(() => parseProjectDocument({ ...document, schemaVersion: 999 }))
