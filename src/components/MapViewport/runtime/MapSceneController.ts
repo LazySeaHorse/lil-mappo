@@ -4,6 +4,7 @@ import type { BoundaryItem, RouteItem } from '@/store/types';
 import type { MapSceneRuntime } from './MapSceneRuntime';
 import { waitForMapRender } from './MapSceneRuntime';
 import { BasemapController } from './BasemapController';
+import { BoundaryMaskRenderer } from './BoundaryMaskRenderer';
 import { BoundaryRenderer } from './BoundaryRenderer';
 import { RouteRenderer } from './RouteRenderer';
 import { isStyleReady } from './mapboxResources';
@@ -32,6 +33,10 @@ export class MapSceneController implements MapSceneRuntime {
   private readonly basemap: BasemapController;
   private readonly routes = new Map<string, RouteRenderer>();
   private readonly boundaries = new Map<string, BoundaryRenderer>();
+  /** Boundaries in item order (topmost first) that the shared mask is drawn from. */
+  private maskBoundaries: BoundaryItem[] = [];
+  private readonly mask: BoundaryMaskRenderer;
+  private maskMounted = false;
   private unsubscribe: (() => void) | undefined;
   private lastItems: ProjectState['items'] | undefined;
   private lastItemOrder: ProjectState['itemOrder'] | undefined;
@@ -49,6 +54,7 @@ export class MapSceneController implements MapSceneRuntime {
     setStyleLoaded: (loaded: boolean) => void,
   ) {
     this.basemap = new BasemapController(map, setStyleLoaded, this.rebuildAfterStyleLoad);
+    this.mask = new BoundaryMaskRenderer(map, this.basemap.getMaskPlacement);
   }
 
   mount(): void {
@@ -101,6 +107,7 @@ export class MapSceneController implements MapSceneRuntime {
       return item && item.kind !== 'camera' ? selectionPreviewTime(item, time, id === selectedId) : time;
     };
     this.routes.forEach((renderer, id) => renderer.render(timeFor(id)));
+    this.mask.render(this.maskBoundaries, timeFor);
     this.boundaries.forEach((renderer, id) => renderer.render(timeFor(id)));
     this.lastRenderedTime = time;
     this.lastRenderedSelection = selectedId;
@@ -128,6 +135,11 @@ export class MapSceneController implements MapSceneRuntime {
     this.lastItems = state.items;
     this.lastItemOrder = state.itemOrder;
 
+    // Mounted before any route/boundary layer so it sits beneath them even when a style has no symbol layer to anchor to
+    if (!this.maskMounted) {
+      this.mask.mount();
+      this.maskMounted = true;
+    }
     const nextRouteIds = new Set<string>();
     const nextBoundaryIds = new Set<string>();
     const routes: RouteItem[] = [];
@@ -137,6 +149,8 @@ export class MapSceneController implements MapSceneRuntime {
       if (item?.kind === 'route') routes.push(item);
       if (item?.kind === 'boundary' && item.resolveStatus === 'resolved' && item.geojson) boundaries.push(item);
     }
+
+    this.maskBoundaries = boundaries;
 
     for (const route of routes) {
       nextRouteIds.add(route.id);
@@ -179,6 +193,9 @@ export class MapSceneController implements MapSceneRuntime {
   private disposeRenderers(): void {
     this.routes.forEach((renderer) => renderer.dispose());
     this.boundaries.forEach((renderer) => renderer.dispose());
+    this.mask.dispose();
+    this.maskMounted = false;
+    this.maskBoundaries = [];
     this.routes.clear();
     this.boundaries.clear();
   }

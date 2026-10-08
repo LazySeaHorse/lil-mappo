@@ -107,6 +107,19 @@ export class BasemapController {
     if (isStyleReady(this.map)) this.handleStyleLoad();
   }
 
+  /**
+   * Where the shared boundary mask layer goes: above the map but beneath its labels and
+   * under the boundary/route layers, which are added without a slot (so they sit above
+   * every slot). Standard has three slots: `bottom` (land, water, below roads), `middle`
+   * (above roads, buildings and 3D objects, below place/POI labels) and `top` (above
+   * labels). `middle` masks the whole basemap while leaving labels readable. Classic
+   * styles insert before the first symbol layer instead.
+   */
+  getMaskPlacement = (): { slot?: 'middle'; beforeId?: string } => {
+    if (useProjectStore.getState().mapStyle === 'standard') return { slot: 'middle' };
+    return { beforeId: this.getStyleScan().firstSymbolId };
+  };
+
   reconcile = (): void => {
     if (this.disposed || !isStyleReady(this.map)) return;
     const state = useProjectStore.getState();
