@@ -2,17 +2,23 @@ import type { Map as MapboxMap } from "mapbox-gl";
 import { describe, expect, it, vi } from "vitest";
 import type { BoundaryItem } from "@/store/types";
 import { BoundaryRenderer } from "./BoundaryRenderer";
+import { FlagTileSource } from "./FlagTileSource";
+
+vi.mock("./flagImages", () => ({
+  hasFlag: (code: string | null) => code === "fr" || code === "de",
+  loadFlagImage: vi.fn(async () => ({ width: 1280, height: 960 })),
+}));
 
 function createMapDouble() {
   const layers = new Map<string, { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> }>();
-  const sources = new Map<string, { type: "geojson"; setData: ReturnType<typeof vi.fn> }>();
+  const sources = new Map<string, { type: string; setData: ReturnType<typeof vi.fn>; spec?: unknown }>();
 
   const map = {
     layers,
     sources,
     isStyleLoaded: vi.fn(() => true),
     getLayer: vi.fn((id: string) => layers.get(id)),
-    addLayer: vi.fn((layer: { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> }) => {
+    addLayer: vi.fn((layer: { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> }, _beforeId?: string) => {
       layers.set(layer.id, layer);
     }),
     removeLayer: vi.fn((id: string) => layers.delete(id)),
@@ -30,7 +36,7 @@ function createMapDouble() {
       }
     }),
     getSource: vi.fn((id: string) => sources.get(id)),
-    addSource: vi.fn((id: string) => sources.set(id, { type: "geojson", setData: vi.fn() })),
+    addSource: vi.fn((id: string, spec?: { type?: string }) => sources.set(id, { type: spec?.type ?? "geojson", setData: vi.fn(), spec })),
     removeSource: vi.fn((id: string) => sources.delete(id)),
   };
 
@@ -290,5 +296,155 @@ describe("BoundaryRenderer animation style switching and state management", () =
 
     // Should NOT have called setData on subsequent frames while remaining static
     expect(strokeSource.setData.mock.calls.length).toBe(countAfterFirstRender);
+  });
+});
+
+describe("BoundaryRenderer flag fill", () => {
+  const FLAG_LAYER = "boundary-flag-layer-test-boundary";
+  const FLAG_SOURCE = "boundary-flag-test-boundary";
+  const FILL_LAYER = "boundary-fill-layer-test-boundary";
+
+  function setup(style: Partial<BoundaryItem["style"]> = {}, placement: { slot?: "middle"; beforeId?: string } = { slot: "middle" }) {
+    const double = createMapDouble();
+    const boundary: BoundaryItem = {
+      ...sampleBoundary,
+      style: { ...sampleBoundary.style, animateStroke: false, fillOpacity: 0.8, fillMode: "flag", flagCode: "fr", ...style },
+    };
+    const renderer = new BoundaryRenderer(double.map, boundary, () => placement);
+    renderer.mount();
+    return { ...double, renderer, boundary };
+  }
+
+  it("adds a custom flag source and a raster layer with the mask's placement", () => {
+    const { renderer, layers, sources, addLayer } = setup({}, { slot: "middle" });
+    renderer.render(5);
+    expect(sources.get(FLAG_SOURCE)?.spec).toBeInstanceOf(FlagTileSource);
+    expect(layers.get(FLAG_LAYER)).toMatchObject({ type: "raster", source: FLAG_SOURCE, slot: "middle" });
+    expect(layers.get(FLAG_LAYER)?.paint).toMatchObject({ "raster-fade-duration": 0, "raster-opacity-transition": { duration: 0, delay: 0 } });
+    const call = addLayer.mock.calls.find(([layer]) => layer.id === FLAG_LAYER)!;
+    expect(call[1]).toBeUndefined();
+  });
+
+  it("inserts before the anchor on classic styles", () => {
+    const { renderer, addLayer, layers } = setup({}, { beforeId: "first-symbol" });
+    renderer.render(5);
+    const call = addLayer.mock.calls.find(([layer]) => layer.id === FLAG_LAYER)!;
+    expect(call[1]).toBe("first-symbol");
+    expect(layers.get(FLAG_LAYER)).not.toHaveProperty("slot");
+  });
+
+  it("lands above a mask mounted earlier with the same placement", async () => {
+    const { BoundaryMaskRenderer } = await import("./BoundaryMaskRenderer");
+    const double = createMapDouble();
+    const placement = { beforeId: "first-symbol" };
+    new BoundaryMaskRenderer(double.map, () => placement).mount();
+    const renderer = new BoundaryRenderer(double.map, { ...sampleBoundary, style: { ...sampleBoundary.style, fillMode: "flag", flagCode: "fr" } }, () => placement);
+    renderer.mount();
+    renderer.render(5);
+    const order = double.addLayer.mock.calls.map(([layer]) => layer.id);
+    expect(order.indexOf("boundary-mask-layer")).toBeLessThan(order.indexOf(FLAG_LAYER));
+    expect(double.addLayer.mock.calls.find(([layer]) => layer.id === FLAG_LAYER)![1]).toBe("first-symbol");
+  });
+
+  it("scales raster opacity by fill opacity and the timing factor, and hides the colour fill", () => {
+    const { renderer, layers } = setup({ animateStroke: false });
+    renderer.render(-1);
+    expect(layers.get(FLAG_LAYER)?.paint?.["raster-opacity"]).toBe(0);
+    renderer.render(5);
+    expect(layers.get(FLAG_LAYER)?.paint?.["raster-opacity"]).toBeCloseTo(0.8);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBe(0);
+  });
+
+  it("follows the fade exit", () => {
+    const { renderer, layers, boundary } = setup();
+    renderer.setBoundary({ ...boundary, exitAnimation: "fade" });
+    renderer.render(10.25);
+    expect(layers.get(FLAG_LAYER)?.paint?.["raster-opacity"]).toBeCloseTo(0.4);
+  });
+
+  it("uses the colour fill only in colour mode and creates no flag layer", () => {
+    const { renderer, layers, sources } = setup({ fillMode: "color" });
+    renderer.render(5);
+    expect(layers.has(FLAG_LAYER)).toBe(false);
+    expect(sources.has(FLAG_SOURCE)).toBe(false);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBeCloseTo(0.8);
+  });
+
+  it("creates no flag layer for a missing or unknown flag", () => {
+    for (const flagCode of [null, "zz"]) {
+      const { renderer, layers } = setup({ flagCode });
+      renderer.render(5);
+      expect(layers.has(FLAG_LAYER)).toBe(false);
+    }
+  });
+
+  it("switches modes: removes the flag and restores the colour fill, and back", () => {
+    const { renderer, layers, sources, boundary } = setup();
+    renderer.render(5);
+    expect(layers.has(FLAG_LAYER)).toBe(true);
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, fillMode: "color" } });
+    renderer.render(5);
+    expect(layers.has(FLAG_LAYER)).toBe(false);
+    expect(sources.has(FLAG_SOURCE)).toBe(false);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBeCloseTo(0.8);
+    renderer.setBoundary(boundary);
+    renderer.render(5);
+    expect(layers.has(FLAG_LAYER)).toBe(true);
+    expect(layers.get(FLAG_LAYER)?.paint?.["raster-opacity"]).toBeCloseTo(0.8);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBe(0);
+  });
+
+  it("reloads tiles when the flag or the geometry changes, not on every frame", () => {
+    const { renderer, sources, boundary } = setup();
+    renderer.render(5);
+    const source = sources.get(FLAG_SOURCE)!.spec as FlagTileSource;
+    const update = vi.fn();
+    source.update = update;
+    source.onAdd();
+    renderer.render(6);
+    expect(update).not.toHaveBeenCalled();
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, flagCode: "de" } });
+    renderer.render(6);
+    expect(update).toHaveBeenCalledTimes(1);
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, flagCode: "de" }, geojson: { type: "Polygon", coordinates: [[[0, 0], [5, 0], [5, 5], [0, 0]]] } });
+    renderer.render(6);
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  it("preloads the flag when mounted in flag mode and when the mode switches", async () => {
+    const { loadFlagImage } = await import("./flagImages");
+    const load = vi.mocked(loadFlagImage);
+    load.mockClear();
+    const { renderer, boundary } = setup({ fillMode: "color" });
+    expect(load).not.toHaveBeenCalled();
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, fillMode: "flag", flagCode: "de" } });
+    expect(load).toHaveBeenCalledWith("de");
+    load.mockClear();
+    setup();
+    expect(load).toHaveBeenCalledWith("fr");
+  });
+
+  it("removes the flag layer and source on dispose, and recreates them after a remount", () => {
+    const { renderer, layers, sources } = setup();
+    renderer.render(5);
+    renderer.dispose();
+    expect(layers.has(FLAG_LAYER)).toBe(false);
+    expect(sources.has(FLAG_SOURCE)).toBe(false);
+    expect(layers.size).toBe(0);
+    renderer.mount();
+    renderer.render(5);
+    expect(layers.has(FLAG_LAYER)).toBe(true);
+  });
+
+  it("rebuilds the flag resources after the style was replaced under it", () => {
+    const { renderer, layers, sources, map } = setup();
+    renderer.render(5);
+    layers.clear();
+    sources.clear();
+    renderer.mount();
+    renderer.render(5);
+    expect(layers.has(FLAG_LAYER)).toBe(true);
+    expect(sources.get(FLAG_SOURCE)?.spec).toBeInstanceOf(FlagTileSource);
+    expect(map.addSource).toHaveBeenCalled();
   });
 });

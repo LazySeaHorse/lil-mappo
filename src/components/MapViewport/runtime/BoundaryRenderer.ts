@@ -3,6 +3,8 @@ import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import type { BoundaryItem } from '@/store/types';
 import { resolveBoundaryFillColor } from '../layerStyleContracts';
+import { BoundaryFlagLayer, preloadFlag } from './BoundaryFlagLayer';
+import type { MaskPlacement } from './BoundaryMaskRenderer';
 import { resolveBoundaryTiming } from './boundaryTiming';
 import {
   getGeoJSONSource,
@@ -62,10 +64,17 @@ export class BoundaryRenderer {
   private strokeSourceMode: 'static' | 'animated' | null = null;
   /** Inputs of the last animated stroke upload; an identical frame skips the (large) setData. */
   private lastAnimatedStroke: { geometry: GeoJSON.Geometry; key: string } | null = null;
+  private readonly flag: BoundaryFlagLayer;
   private disposed = false;
 
-  constructor(private readonly map: MapboxMap, boundary: BoundaryItem) {
+  /** `getPlacement` is where flag fills go (the same spot as the outside mask, below labels). */
+  constructor(
+    private readonly map: MapboxMap,
+    boundary: BoundaryItem,
+    getPlacement: () => MaskPlacement = () => ({}),
+  ) {
     this.layers = new LayerPropertyWriter(map, createPaintCache);
+    this.flag = new BoundaryFlagLayer(map, boundary.id, getPlacement);
     this.boundary = boundary;
     this.ids = createIds(boundary.id);
   }
@@ -76,12 +85,17 @@ export class BoundaryRenderer {
     this.lastGeometry = null;
     this.strokeSourceMode = null;
     this.lastAnimatedStroke = null;
+    this.flag.reset();
     this.ensureResources();
+    preloadFlag(this.boundary.style.fillMode === 'flag', this.boundary.style.flagCode);
   }
 
   setBoundary(boundary: BoundaryItem): void {
     if (boundary.id !== this.boundary.id) throw new Error('BoundaryRenderer cannot change boundary ids');
+    const previous = this.boundary.style;
     this.boundary = boundary;
+    const { fillMode, flagCode } = boundary.style;
+    if (fillMode !== previous.fillMode || flagCode !== previous.flagCode) preloadFlag(fillMode === 'flag', flagCode);
   }
 
   render = (playheadTime: number): void => {
@@ -104,7 +118,15 @@ export class BoundaryRenderer {
     const glowVisible = style.glow && !reverseExit;
     this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
 
-    const fillOpacity = style.fillOpacity * fillFactor;
+    // In flag mode the colour fill stays invisible and the raster flag layer carries the opacity
+    const flagMode = style.fillMode === 'flag';
+    const fillOpacity = flagMode ? 0 : style.fillOpacity * fillFactor;
+    this.flag.sync({
+      enabled: flagMode,
+      code: style.flagCode,
+      geometry,
+      opacity: style.fillOpacity * fillFactor,
+    });
 
     if (geometryChanged) {
       fillSource.setData({
@@ -161,6 +183,7 @@ export class BoundaryRenderer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.flag.dispose();
     [this.ids.glowLayer, this.ids.strokeLayer, this.ids.fillLayer]
       .forEach((id) => removeLayerIfPresent(this.map, id));
     [this.ids.strokeSource, this.ids.fillSource]

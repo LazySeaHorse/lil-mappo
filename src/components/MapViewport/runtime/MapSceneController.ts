@@ -175,7 +175,7 @@ export class MapSceneController implements MapSceneRuntime {
       if (existing) {
         existing.setBoundary(boundary);
       } else {
-        const renderer = new BoundaryRenderer(this.map, boundary);
+        const renderer = new BoundaryRenderer(this.map, boundary, this.basemap.getMaskPlacement);
         renderer.mount();
         this.boundaries.set(boundary.id, renderer);
       }
