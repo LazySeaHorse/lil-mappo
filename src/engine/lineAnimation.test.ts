@@ -3,6 +3,7 @@ import length from '@turf/length';
 import distance from '@turf/distance';
 import { lineString, point } from '@turf/helpers';
 import { getAnimatedLine, getLineSegment } from './lineAnimation';
+import { lngLatToMerc, mercToLngLat } from './cameraPose';
 
 describe('engine/lineAnimation', () => {
   const straightLine = [
@@ -91,9 +92,13 @@ describe('engine/lineAnimation', () => {
   });
 });
 
+/** Straight in mercator, as Mapbox draws a segment, with longitude taken the short way round. */
 function interp(a: number[], b: number[], f: number): number[] {
-  const x = a[0] + f * (b[0] - a[0]);
-  const y = a[1] + f * (b[1] - a[1]);
+  const bLng = b[0] + 360 * Math.round((a[0] - b[0]) / 360);
+  const [ax, ay] = lngLatToMerc(a[0], a[1]);
+  const by = lngLatToMerc(bLng, b[1])[1];
+  const x = a[0] + f * (bLng - a[0]);
+  const y = mercToLngLat(ax, ay + f * (by - ay))[1];
   if (a[2] !== undefined && b[2] !== undefined) return [x, y, a[2] + f * (b[2] - a[2])];
   return [x, y];
 }
@@ -134,6 +139,12 @@ function referenceSegment(full: number[][], startT: number, endT: number): numbe
   return out;
 }
 
+// Zero-length segments may or may not repeat a vertex at the start of a slice; the drawn line is the same.
+function dedupe(line: number[][]): number[][] {
+  const out = line.filter((c, i) => i === 0 || c.some((v, k) => v !== line[i - 1][k]));
+  return out.length === 1 ? [out[0], out[0]] : out;
+}
+
 describe('engine/lineAnimation cumulative table parity', () => {
   const routes: Record<string, number[][]> = {
     zigzag: [[-122.4, 37.7], [-121.9, 38.1], [-120.5, 37.2], [-119.0, 39.0], [-118.2, 34.0]],
@@ -148,8 +159,8 @@ describe('engine/lineAnimation cumulative table parity', () => {
     it(`matches reference for ${name}`, () => {
       for (const a of ts) {
         for (const b of ts) {
-          const got = getLineSegment(coords, a, b);
-          const want = referenceSegment(coords, a, b);
+          const got = dedupe(getLineSegment(coords, a, b));
+          const want = dedupe(referenceSegment(coords, a, b));
           expect(got).toHaveLength(want.length);
           got.forEach((c, i) => {
             expect(c).toHaveLength(want[i].length);

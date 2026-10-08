@@ -1,9 +1,7 @@
 import type { CameraKeyframe, RouteItem } from '@/store/types';
 import { applyEasing } from './easings';
-import along from '@turf/along';
-import length from '@turf/length';
-import { lineString } from '@turf/helpers';
 import { liftBearing, poseFromFreeCam } from './cameraPose';
+import { getRoutePath } from './routePath';
 import { getRig, sampleRig, INTRO_FRACTION, OUTRO_FRACTION, type AutoCamOutput, type GroundModel, type RigSampleParams } from './cameraRig';
 
 export interface CameraState {
@@ -125,10 +123,8 @@ export function interpolateTwoKeyframes(
   if (kfB.followRoute && getRouteCoords) {
     const coords = getRouteCoords(kfB.followRoute);
     if (coords && coords.length >= 2) {
-      const line = lineString(coords);
-      const totalLen = length(line, { units: 'kilometers' });
-      const pt = along(line, Math.max(0, Math.min(1, et)) * totalLen, { units: 'kilometers' });
-      center = pt.geometry.coordinates as [number, number];
+      const [lng, lat] = getRoutePath(coords).pointAt(et);
+      center = [lng, lat];
     } else {
       center = lerpLngLat(kfA.camera.center, kfB.camera.center, et);
     }

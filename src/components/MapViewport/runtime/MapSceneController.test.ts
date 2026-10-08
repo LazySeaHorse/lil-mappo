@@ -157,7 +157,7 @@ describe('MapSceneController', () => {
                 type: 'LineString',
                 coordinates: [
                   [0, 0],
-                  [0.5, 0.5],
+                  [0.5, expect.closeTo(0.5, 3)],
                 ],
               }),
             }),
@@ -270,7 +270,7 @@ describe('MapSceneController', () => {
       const { double, restore } = setup(4);
       try {
         useProjectStore.getState().selectItem(route.id);
-        expect(lastCoords(double)).toEqual([[0, 0], [0.5, 0.5]]);
+        expect(lastCoords(double)).toEqual([[0, 0], [0.5, expect.closeTo(0.5, 3)]]);
       } finally {
         restore();
       }

@@ -6,6 +6,7 @@ import type {
 import { getNormalizedProgress } from '@/engine/easings';
 import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getAnimatedLine, getLineSegment } from '@/engine/lineAnimation';
+import { getRoutePath } from '@/engine/routePath';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
 import { resolveRoutePaint } from '../layerStyleContracts';
 import {
@@ -423,28 +424,26 @@ export class RouteRenderer {
     const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
     if (!visible || !source) return;
 
-    const head = getAnimatedLine(this.coordinates, progress);
-    if (head.length < 2) return;
-    const current = head[head.length - 1];
-    const previous = head[head.length - 2];
+    const path = getRoutePath(this.coordinates);
+    if (path.coords.length < 2) return;
+    const [lng, lat] = path.pointAt(progress);
     source.setData({
       type: 'Feature',
       properties: {},
-      geometry: { type: 'Point', coordinates: [current[0], current[1]] },
+      geometry: { type: 'Point', coordinates: [lng, lat] },
     });
     const opacity = this.route.exitAnimation === 'fade' && exitActive ? 1 - exitProgress : 1;
     const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 
     if (vehicle.type !== 'dot') {
-      const coord0 = this.coordinates[0] ?? [0, 0];
-      const coord1 = this.coordinates[1] ?? coord0;
-      const [prevForAngle, currForAngle] =
-        previous[0] === current[0] && previous[1] === current[1]
-          ? [coord0, coord1]
-          : [previous, current];
-      const bearing = calculateBearing(prevForAngle, currForAngle);
-      const pitch = calculatePitch(prevForAngle, currForAngle);
+      // Face along the segment the vehicle is on; a zero-length one falls back to the first.
+      const [i] = path.locate(progress);
+      let from = path.coords[i];
+      let to = path.coords[i + 1];
+      if (from[0] === to[0] && from[1] === to[1]) [from, to] = path.coords;
+      const bearing = calculateBearing(from, to);
+      const pitch = calculatePitch(from, to);
       this.layers.mutate('setPaintProperty:model-transform', this.ids.vehicleLayer, () => {
         this.map.setPaintProperty(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing]);
         this.map.setPaintProperty(this.ids.vehicleLayer, 'model-translation', [0, 0, 0]);

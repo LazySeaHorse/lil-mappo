@@ -1,7 +1,6 @@
-import distance from '@turf/distance';
-import { point } from '@turf/helpers';
 import type { AutoCamConfig, EasingName } from '@/store/types';
 import { applyEasing } from './easings';
+import { getRoutePath, type RoutePath } from './routePath';
 import {
   blendPoses,
   clamp,
@@ -73,14 +72,8 @@ export interface CameraRig {
    * (or none loaded for the whole shot yet), when it is read from the map frame by frame.
    */
   ground: Float64Array | null;
-  /**
-   * The route's own vertices, mercator units, with their fraction of the route's geodesic
-   * length. This is how the renderer places the vehicle, so progress `u` lands on the same
-   * spot in the rig as on screen.
-   */
-  routeX: Float64Array;
-  routeY: Float64Array;
-  routeU: Float64Array;
+  /** The route, which places the vehicle exactly as the renderer does. */
+  route: RoutePath;
   /** Overview shot framing the whole route. */
   overview: CameraPose;
 }
@@ -238,39 +231,11 @@ export function buildRig(
   timing: RigTiming,
   ground: GroundModel | null = null,
 ): CameraRig | null {
-  // Project to mercator, keeping longitude continuous across the antimeridian.
-  const xs: number[] = [];
-  const ys: number[] = [];
-  const lngLats: [number, number][] = [];
-  let prevLng: number | null = null;
-  let latSum = 0;
-  for (const c of coords) {
-    if (!Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
-    let lng = c[0];
-    if (prevLng !== null) lng += 360 * Math.round((prevLng - lng) / 360);
-    prevLng = lng;
-    const [mx, my] = lngLatToMerc(lng, c[1]);
-    const last = xs.length - 1;
-    if (last >= 0 && Math.abs(xs[last] - mx) < 1e-12 && Math.abs(ys[last] - my) < 1e-12) continue;
-    xs.push(mx);
-    ys.push(my);
-    lngLats.push([lng, c[1]]);
-    latSum += c[1];
-  }
-  if (xs.length < 2) return null;
-  const lat = latSum / xs.length;
+  const route = getRoutePath(coords);
+  const { x: routeX, y: routeY, lengthM } = route;
+  if (routeX.length < 2 || !(lengthM > 0)) return null;
+  const lat = route.coords.reduce((sum, c) => sum + c[1], 0) / routeX.length;
   const mpm = metersPerMerc(lat);
-
-  const routeX = Float64Array.from(xs);
-  const routeY = Float64Array.from(ys);
-  const routeU = new Float64Array(xs.length);
-  for (let i = 1; i < xs.length; i++) {
-    routeU[i] = routeU[i - 1] + distance(point(lngLats[i - 1]), point(lngLats[i]), { units: 'meters' });
-  }
-  const lengthM = routeU[routeU.length - 1];
-  if (!(lengthM > 0)) return null;
-  for (let i = 0; i < routeU.length; i++) routeU[i] /= lengthM;
-  const route = { routeX, routeY, routeU };
 
   const duration = Number.isFinite(timing.duration) && timing.duration > 0 ? timing.duration : 1;
   const n = clamp(Math.round(duration * SAMPLES_PER_SECOND) + 1, MIN_SAMPLES, MAX_SAMPLES);
@@ -294,7 +259,7 @@ export function buildRig(
   const tx = new Float64Array(n);
   const ty = new Float64Array(n);
   for (let k = 0; k < n; k++) {
-    [tx[k], ty[k]] = vehicleAt(route, u[k] + (leadM * pace[k]) / lengthM);
+    [tx[k], ty[k]] = vehicleAt({ route }, u[k] + (leadM * pace[k]) / lengthM);
   }
 
   const view = viewScaleM(config, lat);
@@ -319,8 +284,8 @@ export function buildRig(
   const dirY = new Float64Array(n);
   const rawWinding = new Float64Array(n);
   for (let k = 0; k < n; k++) {
-    const [bx, by] = vehicleAt(route, u[k] - reach);
-    const [fx, fy] = vehicleAt(route, u[k] + reach);
+    const [bx, by] = vehicleAt({ route }, u[k] - reach);
+    const [fx, fy] = vehicleAt({ route }, u[k] + reach);
     dirX[k] = ((fx - bx) * mpm) / view;
     dirY[k] = ((fy - by) * mpm) / view;
     const roadM = (Math.min(1, u[k] + reach) - Math.max(0, u[k] - reach)) * lengthM;
@@ -340,7 +305,7 @@ export function buildRig(
     pace,
     peakSpeed: Math.max(1, peak),
     ground: null,
-    ...route,
+    route,
     overview: overviewPose(routeX, routeY, lat),
   };
   if (ground && config.mode === 'cinematic') rig.ground = planGround(rig, config, ground, lambdaFor(1 + 3 * smoothing, rate));
@@ -379,24 +344,10 @@ function planGround(rig: CameraRig, config: AutoCamConfig, model: GroundModel, l
 
 // ─── Sampling ─────────────────────────────────────────────────────────────────
 
-/** Index of the route segment containing progress `u`, and how far through it (0..1). */
-function locate(routeU: Float64Array, u: number): [number, number] {
-  const value = clamp(u, 0, 1);
-  let lo = 0;
-  let hi = routeU.length - 2;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (routeU[mid] <= value) lo = mid;
-    else hi = mid - 1;
-  }
-  const span = routeU[lo + 1] - routeU[lo];
-  return [lo, span > 0 ? clamp((value - routeU[lo]) / span, 0, 1) : 0];
-}
-
 /** Where the vehicle is at route progress `u`, mercator units, matching the renderer. */
-export function vehicleAt(rig: Pick<CameraRig, 'routeX' | 'routeY' | 'routeU'>, u: number): [number, number] {
-  const [i, w] = locate(rig.routeU, u);
-  return [lerp(rig.routeX[i], rig.routeX[i + 1], w), lerp(rig.routeY[i], rig.routeY[i + 1], w)];
+export function vehicleAt({ route }: Pick<CameraRig, 'route'>, u: number): [number, number] {
+  const [i, w] = route.locate(u);
+  return [lerp(route.x[i], route.x[i + 1], w), lerp(route.y[i], route.y[i + 1], w)];
 }
 
 export interface RigSampleParams {

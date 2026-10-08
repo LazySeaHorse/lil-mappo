@@ -2,6 +2,7 @@ import type { Map as MapboxMap } from "mapbox-gl";
 import { describe, expect, it, vi } from "vitest";
 import type { RouteItem } from "@/store/types";
 import { RouteRenderer } from "./RouteRenderer";
+import { getRoutePath } from "@/engine/routePath";
 
 function createMapDouble() {
   const layers = new Map<string, { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> }>();
@@ -456,3 +457,33 @@ describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {
   });
 });
 
+
+describe("RouteRenderer vehicle placement", () => {
+  it("sits on the drawn (mercator) line: the vehicle is at RoutePath.pointAt(progress)", () => {
+    const coordinates = [[0, 0], [40, 60]];
+    const route = {
+      kind: "route",
+      id: "merc-route",
+      name: "Merc",
+      geojson: {
+        type: "FeatureCollection",
+        features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } }],
+      },
+      startTime: 0,
+      endTime: 10,
+      style: { color: "#f00", width: 4, glow: false, glowWidth: 10, trailFade: false, trailFadeLength: 0.2, dashPattern: null, animationType: "draw" },
+      easing: "linear",
+      calculation: { mode: "car", startPoint: [0, 0], endPoint: [40, 60], vehicle: { enabled: true, type: "dot", modelId: "", scale: 1 } },
+    } as unknown as RouteItem;
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, route);
+    renderer.mount();
+    renderer.render(5);
+    const placed = double.sources.get("vehicle-source-merc-route")!.setData.mock.calls.at(-1)?.[0].geometry.coordinates;
+    const want = getRoutePath(coordinates).pointAt(0.5);
+    expect(placed[0]).toBeCloseTo(want[0], 9);
+    expect(placed[1]).toBeCloseTo(want[1], 9);
+    expect(Math.abs(placed[1] - 30)).toBeGreaterThan(1);
+    renderer.dispose();
+  });
+});
