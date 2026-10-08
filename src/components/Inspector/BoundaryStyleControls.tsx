@@ -51,6 +51,32 @@ export function BoundaryStyleControls({ style, onChange }: BoundaryStyleControls
         max={1} 
         step={0.01} 
       />
+
+      <SwitchField
+        checked={style.maskOutside}
+        onChange={(v) => onChange({ maskOutside: v })}
+        label="Mask outside"
+      />
+
+      {style.maskOutside && (
+        <div className="space-y-3 mt-2 pl-2 border-l-2 border-primary/20">
+          <Field label="Mask color">
+            <ColorPicker
+              value={style.maskColor}
+              onChange={(v) => onChange({ maskColor: v })}
+            />
+          </Field>
+
+          <SliderField
+            label="Mask opacity"
+            value={style.maskOpacity}
+            onChange={(v) => onChange({ maskOpacity: v })}
+            min={0}
+            max={1}
+            step={0.01}
+          />
+        </div>
+      )}
       
       <SwitchField 
         checked={style.animateStroke} 

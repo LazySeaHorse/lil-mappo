@@ -116,6 +116,32 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
               step={0.01} 
               formatValue={formatPercent}
             />
+
+            <SwitchRow
+              label="Mask outside"
+              sublabel="Cover everything outside the boundary"
+              checked={item.style.maskOutside}
+              onChange={(v) => us({ maskOutside: v })}
+            />
+
+            {item.style.maskOutside && (
+              <div className="flex flex-col gap-3 pl-2 border-l-2 border-primary/20">
+                <ColorRow
+                  label="Mask color"
+                  value={item.style.maskColor}
+                  onChange={(v) => us({ maskColor: v })}
+                />
+                <SliderRow
+                  label="Mask opacity"
+                  value={item.style.maskOpacity}
+                  onChange={(v) => us({ maskOpacity: v })}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  formatValue={formatPercent}
+                />
+              </div>
+            )}
           </div>
         </InspectorSection>
 
