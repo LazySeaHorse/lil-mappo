@@ -40,6 +40,18 @@ describe('useWorkingProjectDraft', () => {
     expect(draftManager.start).toHaveBeenCalledOnce();
   });
 
+  it('ignores playhead and export-state churn but marks dirty for persisted fields', async () => {
+    const { result } = renderHook(() => useWorkingProjectDraft());
+    await waitFor(() => expect(result.current).toBe(true));
+
+    act(() => useProjectStore.setState({ playheadTime: 1.5 }));
+    act(() => useProjectStore.setState({ isExporting: true }));
+    expect(draftManager.markDirty).not.toHaveBeenCalled();
+
+    act(() => useProjectStore.setState({ mapCenter: [10, 20] }));
+    expect(draftManager.markDirty).toHaveBeenCalledOnce();
+  });
+
   it('marks the draft dirty after store mutations and flushes on pagehide', async () => {
     const { result } = renderHook(() => useWorkingProjectDraft());
     await waitFor(() => expect(result.current).toBe(true));

@@ -95,6 +95,7 @@ export const browserWorkingDraftStorage: WorkingDraftStorage = {
  */
 export class WorkingProjectDraftManager {
   private getProject: (() => Project) | null = null;
+  private shouldDefer: (() => boolean) | null = null;
   private dirty = false;
   private lastSaved = '';
   private queued: { document: ProjectDocument; serialized: string } | null = null;
@@ -109,10 +110,13 @@ export class WorkingProjectDraftManager {
     return project;
   }
 
-  start(getProject: () => Project): void {
+  /** `shouldDefer` skips interval ticks (e.g. while exporting) and leaves the draft dirty. */
+  start(getProject: () => Project, shouldDefer?: () => boolean): void {
     this.stop();
     this.getProject = getProject;
+    this.shouldDefer = shouldDefer ?? null;
     this.intervalId = setInterval(() => {
+      if (this.shouldDefer?.()) return;
       void this.saveIfChanged().catch(() => {
         // Keep the draft dirty so a temporary storage failure retries next tick.
         this.dirty = true;
@@ -124,6 +128,7 @@ export class WorkingProjectDraftManager {
     if (this.intervalId) clearInterval(this.intervalId);
     this.intervalId = null;
     this.getProject = null;
+    this.shouldDefer = null;
   }
 
   markDirty(): void {

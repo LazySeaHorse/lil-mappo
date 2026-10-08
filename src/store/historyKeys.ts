@@ -37,6 +37,9 @@ export const TRACKED_PROJECT_KEYS = [
  */
 export const HISTORY_EXCLUDED_PROJECT_KEYS = ['id', 'mapCenter'] as const satisfies readonly (keyof Project)[];
 
+/** Every key `toProjectDocument` serialises: what the working draft must save. */
+export const PERSISTED_PROJECT_KEYS = [...TRACKED_PROJECT_KEYS, ...HISTORY_EXCLUDED_PROJECT_KEYS] as const;
+
 export type TrackedKey = (typeof TRACKED_PROJECT_KEYS)[number];
 export type TrackedState = Pick<Project, TrackedKey>;
 
@@ -58,4 +61,10 @@ export function partializeHistory(state: Partial<TrackedState>): TrackedState {
 export function trackedStatesEqual(a: Partial<TrackedState>, b: Partial<TrackedState>): boolean {
   for (const key of TRACKED_PROJECT_KEYS) if (!Object.is(a[key], b[key])) return false;
   return true;
+}
+
+/** True when any persisted document field differs by reference (ignores playhead, UI state). */
+export function projectDocumentChanged(state: Project, prev: Project): boolean {
+  for (const key of PERSISTED_PROJECT_KEYS) if (!Object.is(state[key], prev[key])) return true;
+  return false;
 }

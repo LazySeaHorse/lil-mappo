@@ -54,6 +54,22 @@ describe('WorkingProjectDraftManager', () => {
     manager.stop();
   });
 
+  it('defers ticks while shouldDefer is true and saves once it clears', async () => {
+    let busy = true;
+    const project = createProject({ id: 'draft', name: 'Busy' });
+    const manager = new WorkingProjectDraftManager(storage);
+    manager.start(() => project, () => busy);
+
+    manager.markDirty();
+    await vi.advanceTimersByTimeAsync(WORKING_DRAFT_SAVE_INTERVAL_MS);
+    expect(storage.save).not.toHaveBeenCalled();
+
+    busy = false;
+    await vi.advanceTimersByTimeAsync(WORKING_DRAFT_SAVE_INTERVAL_MS);
+    expect(storage.save).toHaveBeenCalledTimes(1);
+    manager.stop();
+  });
+
   it('does not rewrite an unchanged durable document', async () => {
     const project = createProject({ id: 'draft' });
     const manager = new WorkingProjectDraftManager(storage);
