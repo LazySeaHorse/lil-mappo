@@ -15,7 +15,7 @@ import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
 import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
 import { DraftWalkLayer } from './DraftWalkLayer';
 import { SelectionPreviewPill } from './SelectionPreviewPill';
-import { isEscapeHandledElsewhere } from './escapeDeselect';
+import { handleEscapeKey } from './escapeDeselect';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
 import type { MapGesture } from '@/components/Onboarding/walkthroughState';
@@ -79,21 +79,8 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
   }, [updateItem]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        const s = useProjectStore.getState();
-        if (s.activePicker) {
-          s.stopPicking();
-        } else if (s.selectedItemId && !isEscapeHandledElsewhere(e)) {
-          // Like the delete path, this leaves the inspector on project settings; a closed one stays closed.
-          const wasInspectorOpen = s.isInspectorOpen;
-          s.selectItem(null);
-          if (!wasInspectorOpen) s.setIsInspectorOpen(false);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleEscapeKey);
+    return () => window.removeEventListener('keydown', handleEscapeKey);
   }, []);
 
   useEffect(() => {
