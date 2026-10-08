@@ -1,6 +1,7 @@
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { BoundaryItem } from '@/store/types';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
 import { Accordion } from "@/components/ui/accordion";
@@ -29,7 +30,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
 
   const handleSelect = (r: NominatimResult) => {
     u({
-      geojson: r.geojson,
+      geojson: applyBoundaryDetail(r.geojson),
       resolveStatus: 'resolved',
       placeName: r.display_name.split(',')[0],
     });

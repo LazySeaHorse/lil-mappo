@@ -1,4 +1,6 @@
 import { geometryBounds } from '@/engine/geoUtils';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
+import { BoundaryDetailPicker } from './BoundaryDetailPicker';
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -32,7 +34,8 @@ export const BoundaryAddDropdown = ({
     addItem, selectItem,
     previewBoundary, setPreviewBoundary,
     previewBoundaryStyle, setPreviewBoundaryStyle,
-    draftBoundaryName, clearPreviewBoundary
+    draftBoundaryName, clearPreviewBoundary,
+    boundaryDetail, setBoundaryDetail
   } = useProjectStore(
     useShallow(s => ({
       addItem: s.addItem,
@@ -43,6 +46,8 @@ export const BoundaryAddDropdown = ({
       setPreviewBoundaryStyle: s.setPreviewBoundaryStyle,
       draftBoundaryName: s.draftBoundaryName,
       clearPreviewBoundary: s.clearPreviewBoundary,
+      boundaryDetail: s.boundaryDetail,
+      setBoundaryDetail: s.setBoundaryDetail,
     }))
   );
   
@@ -83,7 +88,7 @@ export const BoundaryAddDropdown = ({
 
     const item = createBoundaryItem({
       placeName: draftBoundaryName,
-      geojson: previewBoundary,
+      geojson: applyBoundaryDetail(previewBoundary, boundaryDetail),
       startTime: useProjectStore.getState().playheadTime,
       style: previewBoundaryStyle,
     });
@@ -158,6 +163,11 @@ export const BoundaryAddDropdown = ({
               </div>
               <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-[10px] font-medium text-muted-foreground hover:text-foreground">Change</Button>
             </div>
+          </div>
+
+          <div>
+            <SectionLabel>Detail</SectionLabel>
+            <BoundaryDetailPicker value={boundaryDetail} onChange={setBoundaryDetail} />
           </div>
 
           <div className="space-y-4">

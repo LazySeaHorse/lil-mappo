@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import { getDirections } from '@/services/directions';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { searchBoundary } from '@/services/nominatim';
 import { calculateFlightArc } from '@/services/flightPath';
 import { getAllStyles, getStyle } from '@/annotations/registry';
@@ -147,14 +148,16 @@ export const addBoundary = defineTool({
   description:
     'Adds an outlined region (country, state, city, district) found by name via OpenStreetMap Nominatim; the best polygon match is used. ' +
     'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace...). ' +
+    '`detail` sets outline accuracy: detailed (~1 m, cities and neighbourhoods, close-ups), standard (~10 m, default, most regions) or light (~50 m, countries and continents, wide shots). ' +
     'One undo step. Returns the item id, resolved place name and bbox [west, south, east, north] (pass the id to frame_items to frame it).',
   input: z.strictObject({
     query: z.string().min(2).max(200).describe('Region name, e.g. "Portugal", "Manhattan, New York", "Bavaria".'),
+    detail: z.enum(['detailed', 'standard', 'light']).optional().describe('Outline detail. Default "standard".'),
     ...timing,
     style: boundaryStylePatchSchema.optional().describe('Partial boundary style merged over the defaults.'),
   }),
   readOnly: false,
-  handler: async ({ query, startTime, endTime, style }) => {
+  handler: async ({ query, detail, startTime, endTime, style }) => {
     resolveNewTimeRange(startTime, endTime);
     let results;
     try {
@@ -167,7 +170,7 @@ export const addBoundary = defineTool({
       throw new ToolError('boundary_not_found', `No region outline found for "${query}". Try a broader or differently spelled name (regions, cities and countries work; addresses and POIs do not).`, { query });
     }
     const placeName = best.display_name.split(',')[0];
-    const item = createBoundaryItem({ placeName, geojson: best.geojson, startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style } });
+    const item = createBoundaryItem({ placeName, geojson: applyBoundaryDetail(best.geojson, detail), startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style } });
 
     commitAiWrite(`AI: add boundary "${placeName}"`, () => {
       const [s, e] = resolveNewTimeRange(startTime, endTime);

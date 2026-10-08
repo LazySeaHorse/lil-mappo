@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
+import { DEFAULT_BOUNDARY_DETAIL } from '@/engine/boundaryDetail';
 import { readTimelineHeight } from '../timelineHeightPreference';
 import type { MapEnvironmentSlice, ProjectStore, TransientProjectState } from './types';
 
@@ -29,6 +30,7 @@ export function createTransientState(): TransientProjectState {
     previewBoundary: null,
     previewBoundaryStyle: null,
     draftBoundaryName: '',
+    boundaryDetail: DEFAULT_BOUNDARY_DETAIL,
   };
 }
 

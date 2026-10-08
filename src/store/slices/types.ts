@@ -6,6 +6,7 @@ import type {
   BoundaryItem,
   WalkRouteCalculation,
 } from '../types';
+import type { BoundaryDetailId } from '@/engine/boundaryDetail';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution } from '@/types/render';
@@ -53,6 +54,8 @@ export interface TransientProjectState {
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
   draftBoundaryName: string;
+  /** Detail level for the next boundary added; remembered for the session only. */
+  boundaryDetail: BoundaryDetailId;
 }
 
 export interface ItemsSlice {
@@ -128,6 +131,7 @@ export interface EditorUiSlice {
   setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;
+  setBoundaryDetail: (id: BoundaryDetailId) => void;
 }
 
 export type ProjectStore = Project &

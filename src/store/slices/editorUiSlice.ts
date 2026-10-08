@@ -75,6 +75,8 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
         : null,
     })),
 
+  setBoundaryDetail: (id) => set({ boundaryDetail: id }),
+
   clearPreviewBoundary: () =>
     set({
       previewBoundary: null,

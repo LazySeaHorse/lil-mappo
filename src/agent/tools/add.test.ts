@@ -4,6 +4,8 @@ import { undo, redo } from '@/store/history';
 import { agentEvents } from '../events';
 import { runAgentTool } from '../runner';
 import { setAgentMapRef } from '../mapRef';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
+import { syntheticIsland } from '@/test/syntheticGeometry';
 import { historyPast, resetAgentTestState, resultJson } from '../testHelpers';
 
 const state = () => useProjectStore.getState();
@@ -128,6 +130,19 @@ describe('add tools', () => {
     expect(item).toMatchObject({ kind: 'boundary', resolveStatus: 'resolved', startTime: 1, endTime: 6, style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add boundary "Portugal"' });
+  });
+
+  it('add_boundary simplifies at Standard by default and honours an optional detail level', async () => {
+    const island = syntheticIsland();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: { display_name: 'Isola, Italia', type: 'island' }, geometry: island }],
+    }))));
+    const ringOf = (id: string) => ((state().items[id] as { geojson: GeoJSON.Polygon }).geojson.coordinates[0]);
+    const std = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola' }));
+    expect(ringOf(std.created.id)).toEqual((applyBoundaryDetail(island, 'standard') as GeoJSON.Polygon).coordinates[0]);
+    const light = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola', detail: 'light' }));
+    expect(ringOf(light.created.id).length).toBeLessThan(ringOf(std.created.id).length);
   });
 
   it('add_boundary reports when nothing matches', async () => {

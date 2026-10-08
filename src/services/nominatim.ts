@@ -1,5 +1,6 @@
-import { optimizeGeometry } from '@/engine/geoUtils';
+import { truncateCoordinates } from '@/engine/geoUtils';
 
+/** Search results keep the raw outline; the chosen detail level is applied when a boundary is added (see boundaryDetail). */
 export interface NominatimResult {
   display_name: string;
   type: string;
@@ -22,7 +23,7 @@ export async function searchBoundary(query: string, signal?: AbortSignal): Promi
     .map((f) => ({
       display_name: f.properties?.display_name || query,
       type: f.properties?.type || 'unknown',
-      geojson: optimizeGeometry(f.geometry, { simplify: true, tolerance: 0.0005, precision: 4 }),
+      geojson: truncateCoordinates(f.geometry, 6),
     }));
 }
 
