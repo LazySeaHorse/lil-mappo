@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import { colorSchema, easingSchema, lngLatSchema } from './shared';
+import { hasFlag } from '@/components/MapViewport/runtime/flagImages';
 import { ENTER_TRANSITIONS, EXIT_TRANSITIONS } from '@/annotations/animation';
 
 // Style/field schemas shared by the add_* and update_item tools. Patch objects
@@ -30,6 +31,14 @@ export const boundaryStyleShape = {
   maskOutside: z.boolean().describe('Spotlight look: paint everything on the map outside this boundary with maskColor at maskOpacity. Several masked boundaries visible at once are all spotlit together. Default false.'),
   maskColor: colorSchema.describe('Color painted outside the boundary when maskOutside is on. Default "#0b0f19" (near black).'),
   maskOpacity: z.number().min(0).max(1).describe('Opacity of the outside mask, 0-1, when maskOutside is on. It fades in and out with the boundary fill. Default 0.85.'),
+  fillMode: z.enum(['color', 'flag']).describe('color = fill with fillColor (default); flag = fill the region with a country flag (see flagCode), cropped to cover, below the map labels. fillOpacity still applies.'),
+  flagCode: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((code) => hasFlag(code), 'Unknown flag code; use a lowercase ISO 3166-1 alpha-2 country code such as "fr".')
+    .nullable()
+    .describe('Country flag used when fillMode is "flag": lowercase ISO 3166-1 alpha-2 code, e.g. "fr", "jp", "br". add_boundary pre-fills it for countries found by search; null = none chosen. Country flags only (no states or cities). Setting it does not switch fillMode.'),
 };
 export const boundaryStylePatchSchema = z.strictObject(boundaryStyleShape).partial();
 

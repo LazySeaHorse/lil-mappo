@@ -66,6 +66,19 @@ describe('update_item', () => {
     expect(state().items[boundary.id]).toMatchObject({ style: { maskOutside: true, maskOpacity: 0.6, maskColor: '#0b0f19' } });
   });
 
+  it('update_item sets fillMode and a validated, lowercased flagCode on a boundary', async () => {
+    const { boundary } = seed();
+    const ok = await runAgentTool('update_item', { id: boundary.id, patch: { style: { fillMode: 'flag', flagCode: ' FR ' } } });
+    expect(ok.isError).toBeFalsy();
+    expect(state().items[boundary.id]).toMatchObject({ style: { fillMode: 'flag', flagCode: 'fr' } });
+    expect((await runAgentTool('update_item', { id: boundary.id, patch: { style: { flagCode: null } } })).isError).toBeFalsy();
+    expect(state().items[boundary.id]).toMatchObject({ style: { fillMode: 'flag', flagCode: null } });
+    for (const bad of [{ flagCode: 'zz' }, { flagCode: 'gb-eng' }, { fillMode: 'pattern' }]) {
+      const result = await runAgentTool('update_item', { id: boundary.id, patch: { style: bad } });
+      expect(result.isError).toBe(true);
+    }
+  });
+
   it('rejects id/kind changes, unknown fields, wrong-kind fields, empty patches and the camera track', async () => {
     const { route, boundary } = seed();
     const idChange = await runAgentTool('update_item', { id: route.id, patch: { id: 'x', kind: 'callout' } });

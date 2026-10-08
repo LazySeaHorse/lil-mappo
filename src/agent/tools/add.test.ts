@@ -137,6 +137,13 @@ describe('add tools', () => {
     expect(state().items[body.created.id]).toMatchObject({ style: { flagCode: 'pt', fillMode: 'color' } });
   });
 
+  it('add_boundary accepts fillMode flag with an explicit flagCode and rejects unknown codes', async () => {
+    const flagged = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal', style: { fillMode: 'flag', flagCode: 'ES' } }));
+    expect(state().items[flagged.created.id]).toMatchObject({ style: { fillMode: 'flag', flagCode: 'es' } });
+    const bad = await runAgentTool('add_boundary', { query: 'Portugal', style: { fillMode: 'flag', flagCode: 'xx' } });
+    expect(bad.isError).toBe(true);
+  });
+
   it('add_boundary accepts the outside-mask style fields and defaults them off', async () => {
     const masked = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal', style: { maskOutside: true, maskColor: '#112233', maskOpacity: 0.5 } }));
     expect(state().items[masked.created.id]).toMatchObject({ style: { maskOutside: true, maskColor: '#112233', maskOpacity: 0.5 } });
