@@ -235,20 +235,9 @@
   }
 }
 
-/* Mapbox overrides */
-.mapboxgl-ctrl-logo {
-  display: block !important;
-}
-
-html:not(.hide-ui-active) .mapboxgl-ctrl-logo {
-  display: none !important;
-}
-
+/* Mapbox overrides: its logo/attribution never show; hide-UI mode renders SystemOverlays instead */
+.mapboxgl-ctrl-logo,
 .mapboxgl-ctrl-attrib {
-  display: block !important;
-}
-
-html:not(.hide-ui-active) .mapboxgl-ctrl-attrib {
   display: none !important;
 }
 

@@ -37,6 +37,7 @@ import { RendersModal } from "@/components/Account/RendersModal";
 import type { CameraItem } from "@/store/types";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
+import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
@@ -221,6 +222,10 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
           <TimelinePanel />
           <AiOverlays />
         </div>
+
+        {hideUI && (
+          <SystemOverlays layers={resolveSystemOverlays({ mode: "present", branding: brandingFor(subscription) })} />
+        )}
 
         {hideUI && (
           <ZenModeControls

@@ -2,6 +2,8 @@
  * Overlay geometry shared by every backend, in CSS px at scale 1. Multiply by
  * `overlayScale(width, height)` for the output size.
  */
+export const SYSTEM_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
 export const OVERLAY_LAYOUT = {
   margin: 12,
   /** Same size as Mapbox's own `.mapboxgl-ctrl-logo`. */

@@ -1,8 +1,6 @@
 import { getOverlayImages, type OverlayImages } from './assets';
-import { OVERLAY_LAYOUT as L, overlayScale } from './layout';
+import { OVERLAY_LAYOUT as L, SYSTEM_FONT as FALLBACK_FONT, overlayScale } from './layout';
 import type { OverlayAnchor, OverlayLayer } from './types';
-
-const FALLBACK_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 /**
  * Canvas backend: draws each layer at its anchor, scaled for the output size.

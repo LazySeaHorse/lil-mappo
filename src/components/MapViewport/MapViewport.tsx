@@ -148,6 +148,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         mapboxAccessToken={mapboxToken}
         transformRequest={transformMapboxRequest}
         RTLTextPlugin={false}
+        attributionControl={false}
         styleDiffing={false}
         initialViewState={initialViewState}
         style={{ width: '100%', height: '100%' }}
