@@ -119,4 +119,43 @@ describe('route geometry agreement', () => {
     expect(cam.center[0]).toBeCloseTo(lng, 9);
     expect(cam.center[1]).toBeCloseTo(lat, 9);
   });
+  describe('lineProgressAt (Mapbox line-progress of geodesic progress)', () => {
+    const bent = [[0, 0], [10, 70], [20, 0], [30, 5]];
+
+    it('maps the ends to the ends and is monotonic', () => {
+      const path = getRoutePath(bent);
+      expect(path.lineProgressAt(0)).toBe(0);
+      expect(path.lineProgressAt(1)).toBe(1);
+      expect(path.lineProgressAt(-2)).toBe(0);
+      expect(path.lineProgressAt(9)).toBe(1);
+      let prev = 0;
+      for (let u = 0; u <= 1; u += 0.01) {
+        const v = path.lineProgressAt(u);
+        expect(v).toBeGreaterThanOrEqual(prev);
+        prev = v;
+      }
+    });
+
+    it('equals the mercator cumulative fraction at the vertices', () => {
+      const path = getRoutePath(bent);
+      const cum = [0];
+      for (let i = 1; i < bent.length; i++) cum.push(cum[i - 1] + Math.hypot(path.x[i] - path.x[i - 1], path.y[i] - path.y[i - 1]));
+      path.u.forEach((u, i) => expect(path.lineProgressAt(u)).toBeCloseTo(cum[i] / cum[cum.length - 1], 12));
+    });
+
+    it('differs from geodesic progress on a route spanning a large latitude range', () => {
+      const path = getRoutePath([[0, 0], [0, 10], [0, 80]]);
+      expect(path.u[1]).toBeCloseTo(0.125, 2);
+      expect(path.lineProgressAt(path.u[1])).toBeCloseTo(0.072, 2);
+    });
+
+    it('is continuous across the antimeridian', () => {
+      const path = getRoutePath([[170, 0], [-170, 0]]);
+      expect(path.lineProgressAt(0.5)).toBeCloseTo(0.5, 9);
+    });
+
+    it('is 0 for a path with no mercator length', () => {
+      expect(getRoutePath([[3, 3], [3, 3]]).lineProgressAt(0.5)).toBe(0);
+    });
+  });
 });

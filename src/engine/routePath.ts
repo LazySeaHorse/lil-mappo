@@ -20,6 +20,11 @@ export interface RoutePath {
   lengthM: number;
   /** Segment index and fraction through it for progress `u` (clamped to 0..1). Needs two vertices. */
   locate(u: number): [number, number];
+  /**
+   * Mapbox `line-progress` (fraction of the line's projected length, 0..1) of the point at geodesic
+   * progress `u`, for driving `line-trim-offset`. 0 for a path with no projected length.
+   */
+  lineProgressAt(u: number): number;
   /** [lng, lat(, altitude)] at progress `u`, longitude within [-180, 180]. */
   pointAt(u: number): number[];
   /** The line between progress `u0` and `u1`: interpolated ends, original vertices between. */
@@ -68,6 +73,12 @@ function build(input: number[][]): RoutePath {
     prevLng = lng;
     [x[i], y[i]] = lngLatToMerc(lng, coords[i][1]);
   }
+  // Cumulative mercator length per vertex as a 0..1 fraction: what Mapbox's lineMetrics measures.
+  const m = new Float64Array(n);
+  for (let i = 1; i < n; i++) m[i] = m[i - 1] + Math.hypot(x[i] - x[i - 1], y[i] - y[i - 1]);
+  const mercLength = n > 1 ? m[n - 1] : 0;
+  if (mercLength > 0) for (let i = 1; i < n; i++) m[i] /= mercLength;
+
   const lengthM = n > 1 ? u[n - 1] : 0;
   if (lengthM > 0) for (let i = 1; i < n; i++) u[i] /= lengthM;
 
@@ -93,6 +104,11 @@ function build(input: number[][]): RoutePath {
     u,
     lengthM,
     locate: (value) => (n > 1 ? locateSegment(u, value) : [0, 0]),
+    lineProgressAt(value) {
+      if (!(mercLength > 0)) return 0;
+      const [i, w] = locateSegment(u, value);
+      return m[i] + w * (m[i + 1] - m[i]);
+    },
     pointAt(value) {
       if (n === 0) return [0, 0];
       const [i, w] = n > 1 ? locateSegment(u, value) : [0, 0];

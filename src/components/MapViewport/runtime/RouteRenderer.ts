@@ -5,7 +5,7 @@ import type {
 } from 'mapbox-gl';
 import { getNormalizedProgress } from '@/engine/easings';
 import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
-import { getAnimatedLine, getLineSegment } from '@/engine/lineAnimation';
+import { getLineSegment } from '@/engine/lineAnimation';
 import { getRoutePath } from '@/engine/routePath';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
 import { resolveRoutePaint } from '../layerStyleContracts';
@@ -29,7 +29,6 @@ const MODELS: Record<'car' | 'plane', string> = {
 interface RouteResourceIds {
   mainSource: string;
   mainLayer: string;
-  glowSource: string;
   glowLayer: string;
   cometSource: string;
   cometLayer: string;
@@ -42,10 +41,12 @@ interface PaintCache {
   mainWidth: number;
   mainOpacity: number;
   mainVisible: boolean;
+  mainTrim: string;
   glowColor: string;
   glowWidth: number;
   glowOpacity: number;
   glowVisible: boolean;
+  glowTrim: string;
   cometColor: string;
   cometWidth: number;
   lastAnimationType: string;
@@ -58,7 +59,6 @@ function createIds(routeId: string): RouteResourceIds {
   return {
     mainSource: `route-${routeId}`,
     mainLayer: `route-layer-${routeId}`,
-    glowSource: `route-glow-${routeId}`,
     glowLayer: `route-glow-layer-${routeId}`,
     cometSource: `route-comet-${routeId}`,
     cometLayer: `route-comet-layer-${routeId}`,
@@ -69,8 +69,8 @@ function createIds(routeId: string): RouteResourceIds {
 
 function createPaintCache(): PaintCache {
   return {
-    mainColor: '', mainWidth: -1, mainOpacity: -1, mainVisible: true,
-    glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false,
+    mainColor: '', mainWidth: -1, mainOpacity: -1, mainVisible: true, mainTrim: '',
+    glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false, glowTrim: '',
     cometColor: '', cometWidth: -1,
     lastAnimationType: '',
     vehicleVisible: true, vehicleOpacity: -1,
@@ -86,6 +86,21 @@ function coordsToFeatureCollection(coords: number[][]): GeoJSON.FeatureCollectio
   };
 }
 
+/**
+ * The whole route as ONE LineString (a MultiLineString or several features would each get their own
+ * 0..1 line-progress), longitude unwrapped so an antimeridian crossing stays continuous; Mapbox's
+ * GeoJSON tiler wraps the world copies itself and keeps the progress continuous across the seam.
+ */
+function routeLine(coords: number[][]): GeoJSON.FeatureCollection {
+  if (coords.length < 2) return EMPTY_FC;
+  let prevLng = coords[0][0];
+  const line = coords.map((c) => {
+    prevLng = c[0] + 360 * Math.round((prevLng - c[0]) / 360);
+    return [prevLng, ...c.slice(1)];
+  });
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line } }] };
+}
+
 function geoJSONSource(lineMetrics = false): GeoJSONSourceSpecification {
   return { type: 'geojson', data: EMPTY_FC, ...(lineMetrics ? { lineMetrics: true } : {}) };
 }
@@ -99,8 +114,7 @@ export class RouteRenderer {
   private coordinates: number[][];
   private readonly ids: RouteResourceIds;
   private readonly layers: LayerPropertyWriter<PaintCache>;
-  private lastGeometryState = '';
-  private lastGlowState = '';
+  private lastCometState = '';
   private disposed = false;
 
   constructor(private readonly map: MapboxMap, route: RouteItem) {
@@ -113,8 +127,7 @@ export class RouteRenderer {
   mount(): void {
     this.disposed = false;
     this.layers.reset();
-    this.lastGeometryState = '';
-    this.lastGlowState = '';
+    this.lastCometState = '';
     this.ensureRouteResources();
     this.ensureVehicleResources();
     this.uploadGeometry();
@@ -128,8 +141,6 @@ export class RouteRenderer {
     this.route = route;
     if (geometryChanged) {
       this.coordinates = extractLineCoords(route.geojson);
-      this.lastGeometryState = '';
-      this.lastGlowState = '';
       this.uploadGeometry();
     }
     if (vehicleChanged || colorChanged) this.ensureVehicleResources();
@@ -149,6 +160,7 @@ export class RouteRenderer {
 
     if (this.layers.cache.lastAnimationType === 'comet' && animationType !== 'comet') {
       getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
+      this.lastCometState = '';
     }
     this.layers.cache.lastAnimationType = animationType;
 
@@ -161,17 +173,17 @@ export class RouteRenderer {
       this.layers.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
       this.layers.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
       if (isBeforeStart || isAfterExit) {
-        if (this.lastGeometryState !== 'comet:empty') {
+        if (this.lastCometState !== 'comet:empty') {
           getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
-          this.lastGeometryState = 'comet:empty';
+          this.lastCometState = 'comet:empty';
         }
       } else {
         const state = `comet:${progress}`;
-        if (this.lastGeometryState !== state) {
+        if (this.lastCometState !== state) {
           const trailLength = route.style.cometTrailLength ?? 0.2;
           const trail = getLineSegment(coordinates, Math.max(0, progress - trailLength), progress);
           getGeoJSONSource(this.map, this.ids.cometSource)?.setData(coordsToFeatureCollection(trail));
-          this.lastGeometryState = state;
+          this.lastCometState = state;
         }
         this.layers.setPaint(this.ids.cometLayer, 'line-gradient', gradient(routeColor), 'cometColor', routeColor);
         this.layers.setPaint(this.ids.cometLayer, 'line-width', route.style.width, 'cometWidth', route.style.width);
@@ -180,12 +192,6 @@ export class RouteRenderer {
       if (isBeforeStart || isAfterExit) {
         this.layers.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
         this.layers.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
-        if (this.lastGeometryState !== 'empty') {
-          mainSource.setData(EMPTY_FC);
-          getGeoJSONSource(this.map, this.ids.glowSource)?.setData(EMPTY_FC);
-          this.lastGeometryState = 'empty';
-          this.lastGlowState = 'empty';
-        }
       } else {
         this.layers.setLayout(this.ids.mainLayer, 'visibility', 'visible', 'mainVisible', true);
         const glowVisible = Boolean(route.style.glow);
@@ -209,44 +215,16 @@ export class RouteRenderer {
           }
         }
 
-        let state: string;
-        let getGeoData: () => GeoJSON.FeatureCollection;
-
-        if (animationType === 'navigation') {
-          state = `nav:${progress}`;
-          getGeoData = () => {
-            const activeCoords = getLineSegment(coordinates, progress, 1);
-            return coordsToFeatureCollection(activeCoords);
-          };
-        } else if (exitActive && route.exitAnimation === 'reverse') {
-          state = `rev:${exitProgress}`;
-          getGeoData = () => {
-            const activeCoords = getLineSegment(coordinates, exitProgress, 1);
-            return coordsToFeatureCollection(activeCoords);
-          };
-        } else if (progress >= 1) {
-          state = 'full';
-          getGeoData = () => route.geojson;
-        } else {
-          state = `draw:${progress}`;
-          getGeoData = () => {
-            const activeCoords = getAnimatedLine(coordinates, progress);
-            return coordsToFeatureCollection(activeCoords);
-          };
-        }
-
-        if (this.lastGeometryState !== state) {
-          const geoData = getGeoData();
-          mainSource.setData(geoData);
-          this.lastGeometryState = state;
-          if (glowVisible) {
-            getGeoJSONSource(this.map, this.ids.glowSource)?.setData(geoData);
-            this.lastGlowState = state;
-          }
-        } else if (glowVisible && this.lastGlowState !== state) {
-          getGeoJSONSource(this.map, this.ids.glowSource)?.setData(getGeoData());
-          this.lastGlowState = state;
-        }
+        // The full line is uploaded once; the animation only moves the trim, which hides [start, end]
+        // of the line-progress. Progress is geodesic, line-progress is mercator, hence lineProgressAt.
+        const path = getRoutePath(coordinates);
+        let trim: [number, number] = [0, 0];
+        if (animationType === 'navigation') trim = [0, path.lineProgressAt(progress)];
+        else if (exitActive && route.exitAnimation === 'reverse') trim = [0, path.lineProgressAt(exitProgress)];
+        else if (progress < 1) trim = [path.lineProgressAt(progress), 1];
+        const key = `${trim[0]},${trim[1]}`;
+        this.layers.setPaint(this.ids.mainLayer, 'line-trim-offset', trim, 'mainTrim', key);
+        if (glowVisible) this.layers.setPaint(this.ids.glowLayer, 'line-trim-offset', trim, 'glowTrim', key);
       }
     }
 
@@ -258,13 +236,12 @@ export class RouteRenderer {
     this.disposed = true;
     [this.ids.vehicleLayer, this.ids.glowLayer, this.ids.cometLayer, this.ids.mainLayer]
       .forEach((id) => removeLayerIfPresent(this.map, id));
-    [this.ids.vehicleSource, this.ids.glowSource, this.ids.cometSource, this.ids.mainSource]
+    [this.ids.vehicleSource, this.ids.cometSource, this.ids.mainSource]
       .forEach((id) => removeSourceIfPresent(this.map, id));
   }
 
   private ensureRouteResources(): void {
     if (!this.map.getSource(this.ids.mainSource)) this.map.addSource(this.ids.mainSource, geoJSONSource(true));
-    if (!this.map.getSource(this.ids.glowSource)) this.map.addSource(this.ids.glowSource, geoJSONSource(true));
     if (!this.map.getSource(this.ids.cometSource)) this.map.addSource(this.ids.cometSource, geoJSONSource(true));
 
     const resolvedPaint = resolveRoutePaint(this.route);
@@ -286,7 +263,7 @@ export class RouteRenderer {
       this.map.addLayer({
         id: this.ids.glowLayer,
         type: 'line',
-        source: this.ids.glowSource,
+        source: this.ids.mainSource,
         layout: { 'line-cap': 'round', 'line-join': 'round', visibility: 'none' },
         paint: {
           'line-color': resolvedPaint.lineColor,
@@ -392,11 +369,7 @@ export class RouteRenderer {
   }
 
   private uploadGeometry(): void {
-    const data: GeoJSON.FeatureCollection = this.coordinates.length >= 2
-      ? this.route.geojson
-      : EMPTY_FC;
-    getGeoJSONSource(this.map, this.ids.mainSource)?.setData(data);
-    getGeoJSONSource(this.map, this.ids.glowSource)?.setData(data);
+    getGeoJSONSource(this.map, this.ids.mainSource)?.setData(routeLine(getRoutePath(this.coordinates).coords));
   }
 
   private resolveOpacity(playheadTime: number): number {

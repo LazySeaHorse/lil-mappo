@@ -261,25 +261,15 @@ describe("RouteRenderer vehicle type switching", () => {
   });
 });
 
-describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {
+describe("RouteRenderer trim-driven line", () => {
+  const COORDS = [[0, 0], [0, 10], [0, 80]]; // large latitude span: mercator progress != geodesic progress
   const sampleRoute: RouteItem = {
     kind: "route",
     id: "sync-test-route",
     name: "Sync Test Route",
     geojson: {
       type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: [
-            [-73.9851, 40.7488], // Empire State
-            [-73.9800, 40.7550],
-            [-73.9712, 40.7614], // Central Park
-          ],
-        },
-      }],
+      features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: COORDS } }],
     },
     startTime: 0,
     endTime: 10,
@@ -296,164 +286,218 @@ describe("RouteRenderer GeoJSON-driven line head and vehicle alignment", () => {
     easing: "linear",
     calculation: {
       mode: "car",
-      startPoint: [-73.9851, 40.7488],
-      endPoint: [-73.9712, 40.7614],
-      vehicle: {
-        enabled: true,
-        type: "dot",
-        modelId: "",
-        scale: 1,
-      },
+      startPoint: [0, 0],
+      endPoint: [0, 80],
+      vehicle: { enabled: true, type: "dot", modelId: "", scale: 1 },
     },
   };
-
-  it("positions vehicle dot at coordinates[0] at progress 0 (never at [0, 0])", () => {
+  const MAIN = "route-layer-sync-test-route";
+  const GLOW = "route-glow-layer-sync-test-route";
+  const lp = (u: number) => getRoutePath(COORDS).lineProgressAt(u);
+  const withStyle = (style: Partial<RouteItem["style"]>, extra: Partial<RouteItem> = {}): RouteItem =>
+    ({ ...sampleRoute, ...extra, style: { ...sampleRoute.style, ...style } });
+  const trimOf = (double: ReturnType<typeof createMapDouble>, id = MAIN) => double.layers.get(id)?.paint?.["line-trim-offset"];
+  const mounted = (route: RouteItem) => {
     const double = createMapDouble();
-    const renderer = new RouteRenderer(double.map, sampleRoute);
+    const renderer = new RouteRenderer(double.map, route);
     renderer.mount();
+    return { double, renderer, main: double.sources.get("route-sync-test-route")! };
+  };
 
-    // Render at progress 0
-    renderer.render(0);
+  it("uploads the whole line once, to a lineMetrics source shared by the main and glow layers", () => {
+    const { double, renderer, main } = mounted(sampleRoute);
+    expect(double.addSource).toHaveBeenCalledWith("route-sync-test-route", expect.objectContaining({ lineMetrics: true }));
+    expect(double.sources.has("route-glow-sync-test-route")).toBe(false);
+    expect(double.layers.get(GLOW)?.source).toBe("route-sync-test-route");
+    expect(main.setData).toHaveBeenCalledTimes(1);
+    const uploaded = main.setData.mock.calls[0][0];
+    expect(uploaded.features).toHaveLength(1);
+    expect(uploaded.features[0].geometry).toEqual({ type: "LineString", coordinates: COORDS });
 
-    const vehicleSource = double.sources.get("vehicle-source-sync-test-route");
-    expect(vehicleSource).toBeDefined();
-
-    const lastVehicleCall = vehicleSource!.setData.mock.calls.at(-1)?.[0];
-    expect(lastVehicleCall).toBeDefined();
-    expect(lastVehicleCall.geometry.type).toBe("Point");
-    expect(lastVehicleCall.geometry.coordinates[0]).toBeCloseTo(-73.9851, 4);
-    expect(lastVehicleCall.geometry.coordinates[1]).toBeCloseTo(40.7488, 4);
-
-    const mainSource = double.sources.get("route-sync-test-route");
-    const lastMainCall = mainSource!.setData.mock.calls.at(-1)?.[0];
-    expect(lastMainCall).toBeDefined();
-    const coords = lastMainCall.features[0].geometry.coordinates;
-    // Main source line ends at the exact same coordinate
-    const lineHead = coords[coords.length - 1];
-    expect(lineHead[0]).toBeCloseTo(lastVehicleCall.geometry.coordinates[0], 5);
-    expect(lineHead[1]).toBeCloseTo(lastVehicleCall.geometry.coordinates[1], 5);
-
+    for (let t = 0; t <= 12; t += 0.25) renderer.render(t);
+    expect(main.setData).toHaveBeenCalledTimes(1);
     renderer.dispose();
   });
 
-  it("locks vehicle position to the exact line head coordinate at progress 0.5", () => {
-    const double = createMapDouble();
-    const renderer = new RouteRenderer(double.map, sampleRoute);
-    renderer.mount();
-
-    // Render midway (progress 0.5)
+  it("draw hides [trimAt(p), 1] on the main and glow layers", () => {
+    const { double, renderer } = mounted(sampleRoute);
     renderer.render(5);
-
-    const vehicleSource = double.sources.get("vehicle-source-sync-test-route");
-    const mainSource = double.sources.get("route-sync-test-route");
-
-    const vehicleData = vehicleSource!.setData.mock.calls.at(-1)?.[0];
-    const mainData = mainSource!.setData.mock.calls.at(-1)?.[0];
-
-    const vehiclePos = vehicleData.geometry.coordinates;
-    const lineCoords = mainData.features[0].geometry.coordinates;
-    const lineEnd = lineCoords[lineCoords.length - 1];
-
-    expect(vehiclePos[0]).toBeCloseTo(lineEnd[0], 6);
-    expect(vehiclePos[1]).toBeCloseTo(lineEnd[1], 6);
-
-    // Verify glowSource received the exact same sliced data
-    const glowSource = double.sources.get("route-glow-sync-test-route");
-    const glowData = glowSource!.setData.mock.calls.at(-1)?.[0];
-    expect(glowData.features[0].geometry.coordinates).toEqual(lineCoords);
-
+    expect(lp(0.5)).not.toBeCloseTo(0.5, 2);
+    expect(trimOf(double)).toEqual([lp(0.5), 1]);
+    expect(trimOf(double, GLOW)).toEqual([lp(0.5), 1]);
+    renderer.render(0);
+    expect(trimOf(double)).toEqual([0, 1]);
     renderer.dispose();
   });
 
-  it("hides line and vehicle before route startTime", () => {
-    const double = createMapDouble();
-    const delayedRoute = { ...sampleRoute, startTime: 5, endTime: 15 };
-    const renderer = new RouteRenderer(double.map, delayedRoute);
-    renderer.mount();
-
-    // Render before startTime
-    renderer.render(2);
-
-    expect(double.setLayoutProperty).toHaveBeenCalledWith(
-      "route-layer-sync-test-route",
-      "visibility",
-      "none"
-    );
-    expect(double.setLayoutProperty).toHaveBeenCalledWith(
-      "vehicle-layer-sync-test-route",
-      "visibility",
-      "none"
-    );
-
-    const mainSource = double.sources.get("route-sync-test-route");
-    const lastCall = mainSource!.setData.mock.calls.at(-1)?.[0];
-    expect(lastCall.features).toHaveLength(0);
-
+  it("does not write the glow trim while the glow is off", () => {
+    const { double, renderer } = mounted(withStyle({ glow: false }));
+    renderer.render(5);
+    expect(trimOf(double)).toEqual([lp(0.5), 1]);
+    expect(trimOf(double, GLOW)).toBeUndefined();
     renderer.dispose();
   });
 
-  it("supports navigation animation type slicing remaining route", () => {
-    const navRoute: RouteItem = {
-      ...sampleRoute,
-      style: {
-        ...sampleRoute.style,
-        animationType: "navigation",
-      },
-    };
-    const double = createMapDouble();
-    const renderer = new RouteRenderer(double.map, navRoute);
-    renderer.mount();
-
-    renderer.render(5); // progress = 0.5
-
-    const mainSource = double.sources.get("route-sync-test-route");
-    const vehicleSource = double.sources.get("vehicle-source-sync-test-route");
-
-    const lineData = mainSource!.setData.mock.calls.at(-1)?.[0];
-    const vehicleData = vehicleSource!.setData.mock.calls.at(-1)?.[0];
-
-    const lineCoords = lineData.features[0].geometry.coordinates;
-    const lineStart = lineCoords[0];
-    const vehiclePos = vehicleData.geometry.coordinates;
-
-    // In navigation mode, line starts at vehicle and ends at destination
-    expect(lineStart[0]).toBeCloseTo(vehiclePos[0], 5);
-    expect(lineStart[1]).toBeCloseTo(vehiclePos[1], 5);
-    expect(lineCoords[lineCoords.length - 1][0]).toBeCloseTo(-73.9712, 4);
-
-    renderer.dispose();
-  });
-
-  it("handles reverse exit animation by shrinking route towards end", () => {
-    const reverseRoute: RouteItem = {
-      ...sampleRoute,
-      exitAnimation: "reverse",
-      endTime: 10,
-    };
-    const double = createMapDouble();
-    const renderer = new RouteRenderer(double.map, reverseRoute);
-    renderer.mount();
-
-    // Full line at endTime
+  it("clears the trim once progress reaches 1", () => {
+    const { double, renderer } = mounted(sampleRoute);
+    renderer.render(5);
     renderer.render(10);
-    const fullMainData = double.sources.get("route-sync-test-route")!.setData.mock.calls.at(-1)?.[0];
-    expect(fullMainData).toEqual(reverseRoute.geojson);
-
-    // 50% exit progress (EXIT_DURATION = 0.5, so at time 10.25 exitProgress = 0.5)
-    renderer.render(10.25);
-    const exitData = double.sources.get("route-sync-test-route")!.setData.mock.calls.at(-1)?.[0];
-    const exitCoords = exitData.features[0].geometry.coordinates;
-
-    // Route should end at destination but start midway
-    expect(exitCoords[exitCoords.length - 1][0]).toBeCloseTo(-73.9712, 4);
-    expect(exitCoords[0][0]).not.toBeCloseTo(-73.9851, 3);
-
-    // After exit completes (at 10.6), source is cleared
-    renderer.render(10.6);
-    const clearedData = double.sources.get("route-sync-test-route")!.setData.mock.calls.at(-1)?.[0];
-    expect(clearedData.features).toHaveLength(0);
-
+    expect(trimOf(double)).toEqual([0, 0]);
+    expect(trimOf(double, GLOW)).toEqual([0, 0]);
     renderer.dispose();
+  });
+
+  it("skips trim writes when the trim has not changed", () => {
+    const { double, renderer } = mounted(sampleRoute);
+    renderer.render(5);
+    double.setPaintProperty.mockClear();
+    renderer.render(5);
+    expect(double.setPaintProperty).not.toHaveBeenCalledWith(MAIN, "line-trim-offset", expect.anything());
+    renderer.dispose();
+  });
+
+  it("navigation hides [0, trimAt(p)] and ends fully hidden", () => {
+    const { double, renderer } = mounted(withStyle({ animationType: "navigation" }));
+    renderer.render(0);
+    expect(trimOf(double)).toEqual([0, 0]);
+    renderer.render(5);
+    expect(trimOf(double)).toEqual([0, lp(0.5)]);
+    expect(trimOf(double, GLOW)).toEqual([0, lp(0.5)]);
+    renderer.render(10);
+    expect(trimOf(double)).toEqual([0, 1]);
+    renderer.dispose();
+  });
+
+  it("reverse exit hides [0, trimAt(e)] until the exit completes", () => {
+    const { double, renderer, main } = mounted(withStyle({}, { exitAnimation: "reverse" }));
+    renderer.render(10);
+    expect(trimOf(double)).toEqual([0, 0]);
+    renderer.render(10.25); // EXIT_DURATION 0.5 -> exitProgress 0.5
+    expect(trimOf(double)).toEqual([0, lp(0.5)]);
+    double.setLayoutProperty.mockClear();
+    renderer.render(10.6);
+    expect(double.setLayoutProperty).toHaveBeenCalledWith(MAIN, "visibility", "none");
+    expect(main.setData).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+  });
+
+  it("hides the layers (without touching the data) before the start", () => {
+    const { double, renderer, main } = mounted(withStyle({}, { startTime: 5, endTime: 15 }));
+    renderer.render(2);
+    expect(double.setLayoutProperty).toHaveBeenCalledWith(MAIN, "visibility", "none");
+    expect(double.setLayoutProperty).toHaveBeenCalledWith("vehicle-layer-sync-test-route", "visibility", "none");
+    expect(main.setData).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+  });
+
+  it("puts the vehicle at the line tip: the trim is the vehicle's mercator progress", () => {
+    const { double, renderer } = mounted(sampleRoute);
+    renderer.render(5);
+    const [lng, lat] = double.sources.get("vehicle-source-sync-test-route")!.setData.mock.calls.at(-1)![0].geometry.coordinates;
+    const want = getRoutePath(COORDS).pointAt(0.5);
+    expect(lng).toBeCloseTo(want[0], 9);
+    expect(lat).toBeCloseTo(want[1], 9);
+    renderer.dispose();
+  });
+
+  it("re-uploads once when the geometry changes", () => {
+    const { double, renderer, main } = mounted(sampleRoute);
+    renderer.render(5);
+    const coordinates = [[0, 0], [30, 30]];
+    renderer.setRoute({ ...sampleRoute, geojson: { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } }] } });
+    expect(main.setData).toHaveBeenCalledTimes(2);
+    expect(main.setData.mock.calls[1][0].features[0].geometry.coordinates).toEqual(coordinates);
+    renderer.render(5);
+    expect(trimOf(double)).toEqual([getRoutePath(coordinates).lineProgressAt(0.5), 1]);
+    expect(main.setData).toHaveBeenCalledTimes(2);
+    renderer.dispose();
+  });
+
+  it("re-uploads and re-applies the trim after the style is reloaded", () => {
+    const { double, renderer } = mounted(sampleRoute);
+    renderer.render(5);
+    double.layers.clear();
+    double.sources.clear();
+    renderer.mount();
+    const main = double.sources.get("route-sync-test-route")!;
+    expect(main.setData).toHaveBeenCalledTimes(1);
+    renderer.render(5);
+    expect(trimOf(double)).toEqual([lp(0.5), 1]);
+    renderer.dispose();
+  });
+
+  it("draws a multi-feature route as one concatenated line", () => {
+    const geojson: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } },
+        { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: [[[2, 2], [3, 3]], [[4, 4], [5, 5]]] } },
+      ],
+    };
+    const { main } = mounted({ ...sampleRoute, geojson });
+    const data = main.setData.mock.calls[0][0];
+    expect(data.features).toHaveLength(1);
+    expect(data.features[0].geometry.type).toBe("LineString");
+    expect(data.features[0].geometry.coordinates).toEqual([[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5]]);
+  });
+
+  it("keeps an antimeridian-crossing route one continuous line by unwrapping longitude, and keeps altitude", () => {
+    const geojson: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [[170, 0, 5], [-170, 10, 6], [-160, 20, 7]] } }],
+    };
+    const { main } = mounted({ ...sampleRoute, geojson });
+    expect(main.setData.mock.calls[0][0].features[0].geometry.coordinates).toEqual([[170, 0, 5], [190, 10, 6], [200, 20, 7]]);
+  });
+
+  it("comet keeps streaming its trail through its own source and hides the main layers", () => {
+    const { double, renderer, main } = mounted(withStyle({ animationType: "comet", cometTrailLength: 0.2 }));
+    const comet = double.sources.get("route-comet-sync-test-route")!;
+    renderer.render(5);
+    expect(comet.setData).toHaveBeenCalledTimes(1);
+    renderer.render(6);
+    expect(comet.setData).toHaveBeenCalledTimes(2);
+    expect(double.setLayoutProperty).toHaveBeenCalledWith(MAIN, "visibility", "none");
+    expect(main.setData).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+  });
+
+  it("switching comet -> draw clears the trail and applies the trim; back to comet redraws it", () => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, withStyle({ animationType: "comet" }));
+    renderer.mount();
+    const comet = double.sources.get("route-comet-sync-test-route")!;
+    renderer.render(5);
+    comet.setData.mockClear();
+
+    renderer.setRoute(withStyle({ animationType: "draw" }));
+    renderer.render(5);
+    expect(comet.setData).toHaveBeenCalledWith({ type: "FeatureCollection", features: [] });
+    expect(trimOf(double)).toEqual([lp(0.5), 1]);
+    expect(double.setLayoutProperty).toHaveBeenCalledWith(GLOW, "visibility", "visible");
+
+    comet.setData.mockClear();
+    renderer.setRoute(withStyle({ animationType: "comet" }));
+    renderer.render(5);
+    expect(comet.setData).toHaveBeenCalledTimes(1);
+    expect(comet.setData.mock.calls[0][0].features.length).toBeGreaterThan(0);
+    renderer.dispose();
+  });
+
+  it("switching draw -> navigation rewrites the trim for the same progress", () => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, sampleRoute);
+    renderer.mount();
+    renderer.render(5);
+    renderer.setRoute(withStyle({ animationType: "navigation" }));
+    renderer.render(5);
+    expect(trimOf(double)).toEqual([0, lp(0.5)]);
+    renderer.dispose();
+  });
+
+  it("never gives line-trim-offset a paint transition", () => {
+    const { double } = mounted(sampleRoute);
+    expect(double.layers.get(MAIN)?.paint).not.toHaveProperty("line-trim-offset-transition");
   });
 });
 
