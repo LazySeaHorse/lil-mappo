@@ -132,6 +132,15 @@ describe('add tools', () => {
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add boundary "Portugal"' });
   });
 
+  it('add_boundary accepts the outside-mask style fields and defaults them off', async () => {
+    const masked = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal', style: { maskOutside: true, maskColor: '#112233', maskOpacity: 0.5 } }));
+    expect(state().items[masked.created.id]).toMatchObject({ style: { maskOutside: true, maskColor: '#112233', maskOpacity: 0.5 } });
+    const plain = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal' }));
+    expect(state().items[plain.created.id]).toMatchObject({ style: { maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85 } });
+    const bad = await runAgentTool('add_boundary', { query: 'Portugal', style: { maskOpacity: 2 } });
+    expect(bad.isError).toBe(true);
+  });
+
   it('add_boundary simplifies at Standard by default and honours an optional detail level', async () => {
     const island = syntheticIsland();
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({

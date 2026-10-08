@@ -65,7 +65,7 @@ const patchSchema = z
       .partial()
       .describe(
         'Partial style merged into the existing style (other fields are kept). Route keys: color (also used for the glow and vehicle dot), width, glow, glowWidth, trailFade, trailFadeLength, dashPattern, animationType, cometTrailLength. ' +
-          'Boundary keys: strokeColor, fillColor, strokeWidth, glow, fillOpacity, animateStroke, animationStyle, traceLength.',
+          'Boundary keys: strokeColor, fillColor, strokeWidth, glow, fillOpacity, animateStroke, animationStyle, traceLength, maskOutside (spotlight: paint everything outside the region), maskColor, maskOpacity.',
       ),
     // callout
     content: contentPatchSchema.describe('Callout content fields merged into the existing content. Set an optional slot (subtitle, eyebrow, body, badge, metric) to null to clear it. Images cannot be set by agents.'),

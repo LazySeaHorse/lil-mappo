@@ -59,6 +59,13 @@ describe('update_item', () => {
     expect(steps()).toBe(1);
   });
 
+  it('update_item merges the outside-mask style fields on a boundary', async () => {
+    const { boundary } = seed();
+    const result = await runAgentTool('update_item', { id: boundary.id, patch: { style: { maskOutside: true, maskOpacity: 0.6 } } });
+    expect(result.isError).toBeFalsy();
+    expect(state().items[boundary.id]).toMatchObject({ style: { maskOutside: true, maskOpacity: 0.6, maskColor: '#0b0f19' } });
+  });
+
   it('rejects id/kind changes, unknown fields, wrong-kind fields, empty patches and the camera track', async () => {
     const { route, boundary } = seed();
     const idChange = await runAgentTool('update_item', { id: route.id, patch: { id: 'x', kind: 'callout' } });

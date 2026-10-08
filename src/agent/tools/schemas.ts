@@ -27,6 +27,9 @@ export const boundaryStyleShape = {
   animateStroke: z.boolean().describe('Animate the outline in.'),
   animationStyle: z.enum(['fade', 'draw', 'trace']).describe('fade = fade in; draw = outline draws around the region; trace = a bright segment travels around it.'),
   traceLength: z.number().min(0).max(1).describe('Length of the trace segment as a fraction of the outline (0-1).'),
+  maskOutside: z.boolean().describe('Spotlight look: paint everything on the map outside this boundary with maskColor at maskOpacity. Several masked boundaries visible at once are all spotlit together. Default false.'),
+  maskColor: colorSchema.describe('Color painted outside the boundary when maskOutside is on. Default "#0b0f19" (near black).'),
+  maskOpacity: z.number().min(0).max(1).describe('Opacity of the outside mask, 0-1, when maskOutside is on. It fades in and out with the boundary fill. Default 0.85.'),
 };
 export const boundaryStylePatchSchema = z.strictObject(boundaryStyleShape).partial();
 

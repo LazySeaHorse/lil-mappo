@@ -147,7 +147,7 @@ export const addBoundary = defineTool({
   title: 'Add boundary',
   description:
     'Adds an outlined region (country, state, city, district) found by name via OpenStreetMap Nominatim; the best polygon match is used. ' +
-    'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace...). ' +
+    'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace, maskOutside + maskColor + maskOpacity to dim everything outside the region as a spotlight...). ' +
     '`detail` sets outline accuracy: detailed (~1 m, cities and neighbourhoods, close-ups), standard (~10 m, default, most regions) or light (~50 m, countries and continents, wide shots). ' +
     'One undo step. Returns the item id, resolved place name and bbox [west, south, east, north] (pass the id to frame_items to frame it).',
   input: z.strictObject({

@@ -128,6 +128,7 @@ Drives the 60fps animation loop. Updates `playheadTime` and synchronizes all cam
 Manages the Mapbox instance. Hosts:
 - **RouteLayerGroup**: Imperative syncing of Mapbox layers (draw/nav lines, vehicles, dasharrays, opacity).
 - **BoundaryLayerGroup**: Polygon rendering with animation phases (fade, reverse "eraser").
+- **Boundary mask** (`maskOutside`/`maskColor`/`maskOpacity` on `BoundaryStyle`): one shared `BoundaryMaskRenderer` (owned by `MapSceneController`, not per boundary) paints a world polygon minus the union of all visible masked boundaries, timed like the fill (`boundaryTiming.ts`). Standard `middle` slot / before the first symbol layer on classic styles, so labels, boundaries and routes stay above it.
 - **CalloutGroup**: Screen-space projection and Canvas 2D rendering.
 - **CameraController**: Interpolates camera keyframes.
 
