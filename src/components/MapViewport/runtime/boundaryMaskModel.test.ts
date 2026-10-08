@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BoundaryItem } from '@/store/types';
 import { DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
 import {
-  buildMaskFeature,
+  type ActiveMask,
+  buildMaskRegions,
   maskSetKey,
+  type MaskRegions,
   resolveActiveMasks,
-  resolveMaskPaint,
+  resolveRegionPaint,
 } from './boundaryMaskModel';
 
 function square(x: number, y: number, size: number): GeoJSON.Position[] {
@@ -22,56 +24,88 @@ function ringArea(ring: GeoJSON.Position[]): number {
 function polygonArea(rings: GeoJSON.Position[][]): number {
   return ringArea(rings[0]) - rings.slice(1).reduce((total, ring) => total + ringArea(ring), 0);
 }
-function maskArea(feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null): number {
-  if (!feature) return 0;
-  const g = feature.geometry;
-  return g.type === 'Polygon' ? polygonArea(g.coordinates) : g.coordinates.reduce((t, p) => t + polygonArea(p), 0);
+function area(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon | undefined): number {
+  if (!geometry) return 0;
+  return geometry.type === 'Polygon' ? polygonArea(geometry.coordinates) : geometry.coordinates.reduce((t, p) => t + polygonArea(p), 0);
 }
 const WORLD_AREA = 360 * 2 * 85.0511;
 
-describe('buildMaskFeature', () => {
-  it('cuts a hole for a single polygon', () => {
-    const feature = buildMaskFeature([poly(0, 0, 10)]);
-    expect(feature?.geometry.type).toBe('Polygon');
-    expect(maskArea(feature)).toBeCloseTo(WORLD_AREA - 100);
+const holes = (...geometries: GeoJSON.Geometry[]) => geometries.map((geometry, i) => ({ id: String.fromCharCode(97 + i), geometry }));
+const featureById = (built: MaskRegions | null, id: number) => built?.data.features.find((f) => f.id === id);
+/** Total area of the regions inside exactly this set of boundaries. */
+function areaInside(built: MaskRegions | null, inside: string[]): number {
+  return (built?.regions ?? [])
+    .filter((r) => r.inside.length === inside.length && inside.every((id) => r.inside.includes(id)))
+    .reduce((total, r) => total + area(featureById(built, r.id)?.geometry), 0);
+}
+
+describe('buildMaskRegions', () => {
+  it('is the world minus the hole (id 0) plus the hole itself', () => {
+    const built = buildMaskRegions(holes(poly(0, 0, 10)));
+    expect(built?.regions).toEqual([{ id: 0, inside: [] }, { id: 1, inside: ['a'] }]);
+    expect(area(featureById(built, 0)?.geometry)).toBeCloseTo(WORLD_AREA - 100);
+    expect(area(featureById(built, 1)?.geometry)).toBeCloseTo(100);
   });
 
   it('cuts every part of a multipolygon', () => {
     const multi: GeoJSON.MultiPolygon = { type: 'MultiPolygon', coordinates: [[square(0, 0, 10)], [square(50, 50, 10)]] };
-    expect(maskArea(buildMaskFeature([multi]))).toBeCloseTo(WORLD_AREA - 200);
+    expect(area(featureById(buildMaskRegions(holes(multi)), 0)?.geometry)).toBeCloseTo(WORLD_AREA - 200);
   });
 
-  it('unions overlapping boundaries so the holes do not overlap', () => {
-    const feature = buildMaskFeature([poly(0, 0, 10), poly(5, 5, 10)]);
+  it('unions overlapping boundaries for the outside, so its holes do not overlap', () => {
+    const outside = featureById(buildMaskRegions(holes(poly(0, 0, 10), poly(5, 5, 10))), 0);
     // 10x10 + 10x10 - 5x5 overlap
-    expect(maskArea(feature)).toBeCloseTo(WORLD_AREA - 175);
-    expect(feature?.geometry.type).toBe('Polygon');
-    if (feature?.geometry.type === 'Polygon') expect(feature.geometry.coordinates).toHaveLength(2);
+    expect(area(outside?.geometry)).toBeCloseTo(WORLD_AREA - 175);
+    expect(outside?.geometry.type).toBe('Polygon');
+    if (outside?.geometry.type === 'Polygon') expect(outside.geometry.coordinates).toHaveLength(2);
   });
 
-  it('keeps disjoint boundaries as separate holes', () => {
-    const feature = buildMaskFeature([poly(0, 0, 10), poly(50, 50, 10)]);
-    expect(maskArea(feature)).toBeCloseTo(WORLD_AREA - 200);
-    if (feature?.geometry.type === 'Polygon') expect(feature.geometry.coordinates).toHaveLength(3);
+  it('splits overlapping boundaries into pieces that know every boundary they are in', () => {
+    const built = buildMaskRegions(holes(poly(0, 0, 10), poly(5, 5, 10)));
+    expect(areaInside(built, ['a'])).toBeCloseTo(75);
+    expect(areaInside(built, ['b'])).toBeCloseTo(75);
+    expect(areaInside(built, ['a', 'b'])).toBeCloseTo(25);
+  });
+
+  it('keeps a boundary nested in another as its own piece', () => {
+    const built = buildMaskRegions(holes(poly(0, 0, 10), poly(2, 2, 2)));
+    expect(areaInside(built, ['a'])).toBeCloseTo(96);
+    expect(areaInside(built, ['a', 'b'])).toBeCloseTo(4);
+    expect(areaInside(built, ['b'])).toBe(0);
+  });
+
+  it('does not split neighbours whose outlines overlap by a sliver', () => {
+    // 10x10 squares overlapping by 0.05 degrees along a shared border
+    const built = buildMaskRegions(holes(poly(0, 0, 10), poly(9.95, 0, 10)));
+    expect(built?.regions.map((r) => r.inside)).toEqual([[], ['a'], ['b']]);
+    expect(area(featureById(built, 1)?.geometry)).toBeCloseTo(100);
+  });
+
+  it('keeps disjoint boundaries as separate pieces and holes', () => {
+    const built = buildMaskRegions(holes(poly(0, 0, 10), poly(50, 50, 10)));
+    expect(built?.regions.map((r) => r.inside)).toEqual([[], ['a'], ['b']]);
+    const outside = featureById(built, 0);
+    expect(area(outside?.geometry)).toBeCloseTo(WORLD_AREA - 200);
+    if (outside?.geometry.type === 'Polygon') expect(outside.geometry.coordinates).toHaveLength(3);
   });
 
   it('leaves an interior hole (enclave) masked', () => {
     const withHole: GeoJSON.Polygon = { type: 'Polygon', coordinates: [square(0, 0, 10), square(4, 4, 2).reverse()] };
-    const feature = buildMaskFeature([withHole]);
-    expect(maskArea(feature)).toBeCloseTo(WORLD_AREA - 100 + 4);
+    const outside = featureById(buildMaskRegions(holes(withHole)), 0);
+    expect(area(outside?.geometry)).toBeCloseTo(WORLD_AREA - 100 + 4);
     // the enclave comes back as its own polygon
-    expect(feature?.geometry.type).toBe('MultiPolygon');
+    expect(outside?.geometry.type).toBe('MultiPolygon');
   });
 
   it('returns null for an empty set and for non-area geometries', () => {
-    expect(buildMaskFeature([])).toBeNull();
-    expect(buildMaskFeature([{ type: 'Point', coordinates: [0, 0] }])).toBeNull();
+    expect(buildMaskRegions([])).toBeNull();
+    expect(buildMaskRegions(holes({ type: 'Point', coordinates: [0, 0] }))).toBeNull();
   });
 
   it('returns null instead of throwing on unusable geometry', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const broken = { type: 'Polygon', coordinates: [[[0, 0]]] } as GeoJSON.Polygon;
-    expect(() => buildMaskFeature([broken])).not.toThrow();
+    expect(() => buildMaskRegions(holes(broken, poly(0, 0, 1)))).not.toThrow();
     warn.mockRestore();
   });
 });
@@ -91,7 +125,7 @@ function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, ge
   };
 }
 
-describe('resolveActiveMasks / resolveMaskPaint', () => {
+describe('resolveActiveMasks', () => {
   const at = (time: number) => () => time;
 
   it('excludes boundaries that are unmasked, unresolved, geometry-less or not yet drawing', () => {
@@ -106,27 +140,60 @@ describe('resolveActiveMasks / resolveMaskPaint', () => {
     expect(resolveActiveMasks(items, at(1)).map((m) => m.id)).toEqual(['on']);
   });
 
-  it('scales opacity by the fill factor, including the fade exit', () => {
+  it('reports the clamped mask opacity and the fill factor (including the fade exit) as reveal', () => {
     const b = { ...boundary('a', { maskOpacity: 0.8 }), exitAnimation: 'fade' as const };
-    expect(resolveActiveMasks([b], at(5))[0].opacity).toBeCloseTo(0.8);
-    expect(resolveActiveMasks([b], at(10.25))[0].opacity).toBeCloseTo(0.4);
+    expect(resolveActiveMasks([b], at(5))[0]).toMatchObject({ opacity: 0.8, reveal: 1 });
+    expect(resolveActiveMasks([b], at(10.25))[0].reveal).toBeCloseTo(0.5);
     expect(resolveActiveMasks([b], at(11))).toEqual([]);
+    expect(resolveActiveMasks([boundary('c', { maskOpacity: 3 })], at(1))[0].opacity).toBe(1);
+    expect(resolveActiveMasks([boundary('d', { maskOpacity: 0 })], at(1))).toEqual([]);
+  });
+});
+
+describe('resolveRegionPaint', () => {
+  const mask = (id: string, opacity: number, reveal: number, color = '#000000'): ActiveMask =>
+    ({ id, geometry: poly(0, 0, 1), color, opacity, reveal });
+
+  it('paints the outside as dark as the darkest mask, in the strongest mask\'s color; the topmost wins a tie', () => {
+    const top = mask('top', 0.3, 1, '#ff0000');
+    const below = mask('below', 0.9, 1, '#00ff00');
+    expect(resolveRegionPaint([], [top, below])).toEqual({ opacity: 0.9, color: '#00ff00' });
+    expect(resolveRegionPaint([], [mask('x', 0.5, 1, '#111111'), mask('y', 0.5, 1, '#222222')]).color).toBe('#111111');
   });
 
-  it('uses the strongest opacity and the topmost (first) active color', () => {
-    const top = boundary('top', { maskColor: '#ff0000', maskOpacity: 0.3 });
-    const below = boundary('below', { maskColor: '#00ff00', maskOpacity: 0.9 });
-    expect(resolveMaskPaint(resolveActiveMasks([top, below], at(1)))).toEqual({ color: '#ff0000', opacity: 0.9 });
+  it('fades the outside in with a single boundary and keeps its own area clear', () => {
+    expect(resolveRegionPaint([], [mask('a', 0.8, 0.5)]).opacity).toBeCloseTo(0.4);
+    expect(resolveRegionPaint(['a'], [mask('a', 0.85, 0.5)]).opacity).toBe(0);
   });
 
-  it('takes the color of the next active boundary when the topmost is inactive', () => {
-    const top = { ...boundary('top', { maskColor: '#ff0000' }), startTime: 5, endTime: 6 };
-    const below = boundary('below', { maskColor: '#00ff00', maskOpacity: 0.5 });
-    expect(resolveMaskPaint(resolveActiveMasks([top, below], at(1)))).toEqual({ color: '#00ff00', opacity: 0.5 });
+  it('keeps the outside dark while one boundary hands over to the next', () => {
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      const leaving = mask('a', 0.8, 1 - t);
+      const arriving = mask('b', 0.8, t);
+      expect(resolveRegionPaint([], [leaving, arriving].filter((m) => m.reveal > 0)).opacity).toBeCloseTo(0.8);
+    }
+    // a lighter mask taking over eases down to its own opacity
+    expect(resolveRegionPaint([], [mask('a', 0.8, 0.25), mask('b', 0.4, 1)]).opacity).toBeCloseTo(0.6);
   });
 
-  it('is transparent when nothing is active', () => {
-    expect(resolveMaskPaint([]).opacity).toBe(0);
+  it('opens a second boundary\'s area as its fill comes in, from the other mask\'s darkness', () => {
+    const a = mask('a', 0.8, 1);
+    expect(resolveRegionPaint(['b'], [a, mask('b', 0.8, 0.5)]).opacity).toBeCloseTo(0.4);
+    expect(resolveRegionPaint(['b'], [a, mask('b', 0.8, 1)]).opacity).toBe(0);
+    // ...and the first boundary's area closes the same way as it leaves
+    expect(resolveRegionPaint(['a'], [mask('a', 0.8, 0.25), mask('b', 0.8, 1)]).opacity).toBeCloseTo(0.6);
+  });
+
+  it('keeps an overlap clear while any boundary it lies in is fully shown', () => {
+    const country = mask('country', 0.8, 0.1);
+    const region = mask('region', 0.8, 1);
+    expect(resolveRegionPaint(['country', 'region'], [country, region]).opacity).toBe(0);
+    expect(resolveRegionPaint(['country'], [country, region]).opacity).toBeCloseTo(0.8 * 0.9);
+  });
+
+  it('is transparent when no mask lies outside the region', () => {
+    expect(resolveRegionPaint([], []).opacity).toBe(0);
+    expect(resolveRegionPaint(['a'], [mask('a', 1, 1)]).opacity).toBe(0);
   });
 });
 

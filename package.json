@@ -71,6 +71,7 @@
     "@turf/distance": "^7.3.4",
     "@turf/great-circle": "^7.3.4",
     "@turf/helpers": "^7.3.4",
+    "@turf/intersect": "^7.4.0",
     "@turf/length": "^7.3.4",
     "@turf/simplify": "^7.3.4",
     "@turf/union": "^7.4.0",

@@ -5,35 +5,64 @@ import { DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
 import { BoundaryMaskRenderer } from './BoundaryMaskRenderer';
 
 const LAYER = 'boundary-mask-layer';
+const CLIP = 'boundary-mask-clip';
 const SOURCE = 'boundary-mask';
 
+interface LayerDouble {
+  id: string;
+  type?: string;
+  source?: string;
+  slot?: string;
+  paint?: Record<string, unknown>;
+  layout?: Record<string, unknown>;
+}
+
 function createMapDouble() {
-  const layers = new Map<string, { id: string; paint?: Record<string, unknown>; slot?: string }>();
-  const sources = new Map<string, { type: 'geojson'; setData: ReturnType<typeof vi.fn> }>();
+  const layers = new Map<string, LayerDouble>();
+  const order: string[] = [];
+  const sources = new Map<string, { type: 'geojson'; data?: unknown; setData: ReturnType<typeof vi.fn> }>();
+  const states = new Map<number, Record<string, unknown>>();
   const map = {
     layers,
+    order,
     sources,
+    states,
     isStyleLoaded: vi.fn(() => true),
     getLayer: vi.fn((id: string) => layers.get(id)),
-    addLayer: vi.fn((layer: { id: string }, _beforeId?: string) => { layers.set(layer.id, layer); }),
-    removeLayer: vi.fn((id: string) => layers.delete(id)),
-    setPaintProperty: vi.fn((id: string, prop: string, val: unknown) => {
+    addLayer: vi.fn((layer: LayerDouble, beforeId?: string) => {
+      layers.set(layer.id, layer);
+      const index = beforeId ? order.indexOf(beforeId) : -1;
+      order.splice(index >= 0 ? index : order.length, 0, layer.id);
+    }),
+    removeLayer: vi.fn((id: string) => {
+      layers.delete(id);
+      order.splice(order.indexOf(id), 1);
+    }),
+    setLayoutProperty: vi.fn((id: string, prop: string, val: unknown) => {
       const l = layers.get(id);
-      if (l) l.paint = { ...(l.paint || {}), [prop]: val };
+      if (l) l.layout = { ...(l.layout || {}), [prop]: val };
+    }),
+    setFeatureState: vi.fn(({ id }: { id: number }, state: Record<string, unknown>) => {
+      states.set(id, { ...states.get(id), ...state });
     }),
     getSource: vi.fn((id: string) => sources.get(id)),
-    addSource: vi.fn((id: string) => sources.set(id, { type: 'geojson', setData: vi.fn() })),
+    addSource: vi.fn((id: string, spec: { data?: unknown }) => sources.set(id, { type: 'geojson', data: spec.data, setData: vi.fn() })),
     removeSource: vi.fn((id: string) => sources.delete(id)),
   };
   return { map: map as unknown as MapboxMap, ...map };
 }
+
+const square = (x: number, size: number): GeoJSON.Polygon => ({
+  type: 'Polygon',
+  coordinates: [[[x, 0], [x + size, 0], [x + size, size], [x, size], [x, 0]]],
+});
 
 function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, extra: Partial<BoundaryItem> = {}): BoundaryItem {
   return {
     kind: 'boundary',
     id,
     placeName: id,
-    geojson: { type: 'Polygon', coordinates: [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]] },
+    geojson: square(0, 10),
     resolveStatus: 'resolved',
     startTime: 0,
     endTime: 10,
@@ -52,11 +81,12 @@ function setup() {
 }
 
 describe('BoundaryMaskRenderer', () => {
-  it('adds a transition-free fill layer on top of the basemap (no slot, no beforeId), so labels are covered', () => {
+  it('adds a transition-free fill on top of the basemap (no slot, no beforeId), painted from feature state', () => {
     const { layers, addLayer } = setup();
-    const layer = layers.get(LAYER) as { type?: string; slot?: string; paint?: Record<string, unknown> };
+    const layer = layers.get(LAYER)!;
     expect(layer.type).toBe('fill');
     expect(layer).not.toHaveProperty('slot');
+    expect(layer.paint?.['fill-opacity']).toEqual(['coalesce', ['feature-state', 'opacity'], 0]);
     expect(layer.paint?.['fill-opacity-transition']).toEqual({ duration: 0, delay: 0 });
     expect(layer.paint?.['fill-color-transition']).toEqual({ duration: 0, delay: 0 });
     expect(addLayer.mock.calls[0][1]).toBeUndefined();
@@ -65,7 +95,7 @@ describe('BoundaryMaskRenderer', () => {
   it('uploads only when the active set changes', () => {
     const { renderer, setData } = setup();
     const a = boundary('a');
-    const b = boundary('b', {}, { startTime: 5, endTime: 8 });
+    const b = boundary('b', {}, { startTime: 5, endTime: 8, geojson: square(20, 10) });
     const items = [a, b];
     renderer.render(items, () => 1);
     renderer.render(items, () => 2);
@@ -95,18 +125,64 @@ describe('BoundaryMaskRenderer', () => {
     expect(setData).toHaveBeenCalledTimes(2);
   });
 
-  it('updates opacity and color per frame without re-uploading', () => {
-    const { renderer, layers, setData, setPaintProperty } = setup();
-    const a = boundary('a', { maskOpacity: 0.8 });
+  it('writes each region\'s opacity and color as feature state, only when it changes', () => {
+    const { renderer, states, setData, setFeatureState } = setup();
+    const a = boundary('a');
     renderer.render([a], () => 1);
-    expect(layers.get(LAYER)?.paint?.['fill-opacity']).toBeCloseTo(0.8);
-    expect(layers.get(LAYER)?.paint?.['fill-color']).toBe('#112233');
+    expect(states.get(0)).toEqual({ opacity: 0.8, color: '#112233' });
+    expect(states.get(1)).toMatchObject({ opacity: 0 });
     renderer.render([{ ...a, exitAnimation: 'fade' }], () => 10.25);
-    expect(layers.get(LAYER)?.paint?.['fill-opacity']).toBeCloseTo(0.4);
+    expect(states.get(0)?.opacity).toBeCloseTo(0.4);
     expect(setData).toHaveBeenCalledTimes(1);
-    const calls = setPaintProperty.mock.calls.length;
+    const calls = setFeatureState.mock.calls.length;
     renderer.render([{ ...a, exitAnimation: 'fade' }], () => 10.25);
-    expect(setPaintProperty.mock.calls.length).toBe(calls);
+    expect(setFeatureState.mock.calls.length).toBe(calls);
+  });
+
+  it('fades a second boundary\'s area open instead of cutting it at once', () => {
+    const { renderer, states } = setup();
+    const a = boundary('a');
+    const b = boundary('b', { animateStroke: true, animationStyle: 'fade' }, { startTime: 10, endTime: 20, geojson: square(20, 10) });
+    renderer.render([a, b], () => 12);
+    // b is 20% in: its area is still 80% as dark as the outside
+    expect(states.get(2)?.opacity).toBeCloseTo(0.8 * 0.8);
+    renderer.render([a, b], () => 20);
+    expect(states.get(2)?.opacity).toBe(0);
+    expect(states.get(0)?.opacity).toBeCloseTo(0.8);
+  });
+
+  it('removes labels under dark regions with a clip layer below the mask fill, only while needed', () => {
+    const { renderer, layers, order, sources } = setup();
+    expect(layers.has(CLIP)).toBe(false);
+    renderer.render([boundary('a', { maskOpacity: 0.3 })], () => 1);
+    expect(layers.has(CLIP)).toBe(false);
+    renderer.render([boundary('a')], () => 1);
+    const clip = layers.get(CLIP)!;
+    expect(clip.type).toBe('clip');
+    expect(clip.layout).toEqual({ 'clip-layer-types': ['symbol', 'model'] });
+    expect(order.indexOf(CLIP)).toBeLessThan(order.indexOf(LAYER));
+    // only the outside (region 0) is dark; the boundary's own area keeps its labels
+    const data = sources.get(clip.source!)?.data as GeoJSON.FeatureCollection;
+    expect(data.features.map((f) => f.id)).toEqual([0]);
+  });
+
+  it('gives every new clip shape a fresh source, and drops the clip when nothing is dark', () => {
+    const { renderer, layers, sources } = setup();
+    const a = { ...boundary('a'), exitAnimation: 'fade' as const };
+    const b = boundary('b', {}, { startTime: 5, endTime: 6, geojson: square(20, 10) });
+    renderer.render([a, b], () => 1);
+    const first = layers.get(CLIP)?.source;
+    renderer.render([a, b], () => 2);
+    expect(layers.get(CLIP)?.source).toBe(first);
+    renderer.render([a, b], () => 5.5); // b joins: same ids, new shape
+    const second = layers.get(CLIP)?.source;
+    expect(second).not.toBe(first);
+    expect(sources.has(first!)).toBe(false);
+    renderer.render([{ ...a, exitAnimation: 'none' }, { ...b, exitAnimation: 'fade', endTime: 6 }], () => 6.45);
+    expect(layers.has(CLIP)).toBe(true);
+    renderer.render([a], () => 10.45); // 0.08 left
+    expect(layers.has(CLIP)).toBe(false);
+    expect([...sources.keys()]).toEqual([SOURCE]);
   });
 
   it('ignores unresolved boundaries', () => {
@@ -115,13 +191,15 @@ describe('BoundaryMaskRenderer', () => {
     expect(setData).not.toHaveBeenCalled();
   });
 
-  it('removes its layer and source on dispose and stops rendering', () => {
+  it('removes its layers and source on dispose and stops rendering', () => {
     const { renderer, layers, sources, setData } = setup();
+    renderer.render([boundary('a')], () => 1);
     renderer.dispose();
     expect(layers.has(LAYER)).toBe(false);
+    expect(layers.has(CLIP)).toBe(false);
     expect(sources.has(SOURCE)).toBe(false);
     renderer.render([boundary('a')], () => 1);
-    expect(setData).not.toHaveBeenCalled();
+    expect(setData).toHaveBeenCalledTimes(1);
   });
 
   it('can be mounted again after a style switch', () => {
