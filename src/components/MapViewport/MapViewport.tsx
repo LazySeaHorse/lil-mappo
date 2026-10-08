@@ -119,6 +119,10 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     return { longitude, latitude, zoom: 12, pitch: 0, bearing: 0 };
   }, []);
 
+  // Without this the map starts in the style's own projection (globe) until the first style.load.
+  // Read once: later changes are applied by the scene controller, and a changing prop would race it.
+  const initialProjection = useMemo(() => useProjectStore.getState().projection, []);
+
   // Debounced map center update to prevent store churn during continuous panning
   const debouncedSetMapCenter = useMemo(() => {
     let timer: NodeJS.Timeout;
@@ -145,6 +149,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         attributionControl={false}
         styleDiffing={false}
         initialViewState={initialViewState}
+        projection={initialProjection}
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
         onClick={handleMapClick}
