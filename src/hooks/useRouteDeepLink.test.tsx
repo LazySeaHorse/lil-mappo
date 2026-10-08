@@ -38,9 +38,11 @@ describe('useRouteDeepLink', () => {
     expect(onSettled).not.toHaveBeenCalled();
   });
 
-  it('waits for the working draft before applying', () => {
+  it('waits for the working draft before applying', async () => {
     const { result } = renderHook(() => useRouteDeepLink(request('jfk-to-lhr'), false, vi.fn()));
-    expect(result.current).toEqual({ ready: false, isEntry: true });
+    expect(result.current).toEqual({ ready: false, isEntry: false });
+    await waitFor(() => expect(result.current.isEntry).toBe(true));
+    expect(result.current.ready).toBe(false);
     expect(routes()).toHaveLength(0);
   });
 

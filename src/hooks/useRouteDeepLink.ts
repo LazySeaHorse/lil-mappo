@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
+import { loadAirports } from '@/services/airports/airportService';
 import { saveProjectToLibrary } from '@/services/projectLibrary';
 import {
   buildRouteDeepLinkProject,
@@ -39,15 +40,33 @@ export function useRouteDeepLink(
   draftReady: boolean,
   onSettled: () => void,
 ): RouteDeepLinkState {
-  const [result] = useState<RouteDeepLinkResult | null>(() =>
-    request ? buildRouteDeepLinkProject(request) : null,
-  );
+  const [result, setResult] = useState<RouteDeepLinkResult | null>(null);
   const [settled, setSettled] = useState(request === null);
   const startedRef = useRef(false);
   // Toasts wait for the editor: its <Sonner /> only mounts once `settled`, and earlier toasts are dropped.
   const toastsRef = useRef<Array<() => void>>([]);
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
+
+  // The request is read once. The airport dataset loads on demand, so the project is built after it arrives.
+  const requestRef = useRef(request);
+  useEffect(() => {
+    const req = requestRef.current;
+    if (!req) return;
+    let cancelled = false;
+    loadAirports()
+      .then(() => buildRouteDeepLinkProject(req))
+      .catch((): RouteDeepLinkResult => ({
+        ok: false,
+        message: "Couldn't load the airport list. Starting a blank project instead.",
+      }))
+      .then((built) => {
+        if (!cancelled) setResult(built);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!result || !draftReady || startedRef.current) return;

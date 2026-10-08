@@ -1,5 +1,8 @@
-import airportsData from '../../data/airportsData';
+import { loadAirportsData } from '@/lib/lazyModules';
 import type { Airport, RawAirportTuple } from './types';
+
+// The dataset (~600 KB of JSON) is fetched as its own chunk by loadAirports(). Until it has
+// loaded, the sync lookups below return empty results.
 
 let cachedAirports: Airport[] | null = null;
 let iataIndex: Map<string, Airport> | null = null;
@@ -22,11 +25,7 @@ export function unpackAirport(tuple: RawAirportTuple): Airport {
   };
 }
 
-export function initAirportsSync(): Airport[] {
-  if (cachedAirports) {
-    return cachedAirports;
-  }
-
+function indexAirports(airportsData: RawAirportTuple[]): Airport[] {
   const airports = airportsData.map(unpackAirport);
   const iataMap = new Map<string, Airport>();
   const icaoMap = new Map<string, Airport>();
@@ -46,23 +45,28 @@ export function initAirportsSync(): Airport[] {
   return airports;
 }
 
-export async function loadAirports(): Promise<Airport[]> {
-  return initAirportsSync();
+let loadPromise: Promise<Airport[]> | null = null;
+
+export function loadAirports(): Promise<Airport[]> {
+  if (cachedAirports) return Promise.resolve(cachedAirports);
+  loadPromise ??= loadAirportsData()
+    .then((m) => cachedAirports ?? indexAirports(m.default))
+    .catch((err) => {
+      loadPromise = null; // allow a retry after a failed chunk fetch
+      throw err;
+    });
+  return loadPromise;
 }
 
 export function getAirportByCode(code: string): Airport | undefined {
   if (!code) return undefined;
-  if (!iataIndex || !icaoIndex) {
-    initAirportsSync();
-  }
+  if (!iataIndex || !icaoIndex) return undefined;
   const normalized = code.trim().toUpperCase();
   return iataIndex.get(normalized) || icaoIndex.get(normalized);
 }
 
 export function searchAirportsSync(query: string, limit = 20): Airport[] {
-  if (!cachedAirports) {
-    initAirportsSync();
-  }
+  if (!cachedAirports) return [];
 
   const trimmed = query.trim();
   if (!trimmed) {
@@ -126,6 +130,7 @@ export async function searchAirports(query: string, limit = 20): Promise<Airport
  */
 export function _resetAirportCacheForTesting(): void {
   cachedAirports = null;
+  loadPromise = null;
   iataIndex = null;
   icaoIndex = null;
 }
