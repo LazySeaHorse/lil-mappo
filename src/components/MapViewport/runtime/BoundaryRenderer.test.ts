@@ -299,6 +299,52 @@ describe("BoundaryRenderer animation style switching and state management", () =
   });
 });
 
+describe("BoundaryRenderer full opacity", () => {
+  const FILL_LAYER = "boundary-fill-layer-test-boundary";
+  const FLAG_LAYER = "boundary-flag-layer-test-boundary";
+  const drawn = { animateStroke: true, animationStyle: "draw", fillOpacity: 1 } as const;
+
+  it.each([["draw", 10], ["draw", 15], ["trace", 10]] as const)("writes fill-opacity of exactly 1 for a %s outline at t=%s", (animationStyle, time) => {
+    const { map, layers } = createMapDouble();
+    const renderer = new BoundaryRenderer(map, { ...sampleBoundary, style: { ...sampleBoundary.style, ...drawn, animationStyle } });
+    renderer.mount();
+    renderer.render(time);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBe(1);
+  });
+
+  it("writes raster-opacity of exactly 1 for a drawn flag fill", () => {
+    const { map, layers } = createMapDouble();
+    const renderer = new BoundaryRenderer(map, { ...sampleBoundary, style: { ...sampleBoundary.style, ...drawn, fillMode: "flag", flagCode: "fr" } }, () => ({ slot: "bottom" }));
+    renderer.mount();
+    renderer.render(10);
+    expect(layers.get(FLAG_LAYER)?.paint?.["raster-opacity"]).toBe(1);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBe(0);
+  });
+
+  it("never writes an opacity above 1, even for an out-of-range fillOpacity", () => {
+    const { map, layers, setPaintProperty } = createMapDouble();
+    const style = { ...sampleBoundary.style, ...drawn, fillOpacity: 1.5 };
+    const renderer = new BoundaryRenderer(map, { ...sampleBoundary, style });
+    renderer.mount();
+    renderer.render(10);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBe(1);
+    renderer.setBoundary({ ...sampleBoundary, style: { ...style, fillMode: "flag", flagCode: "fr" } });
+    renderer.render(10);
+    expect(layers.get(FLAG_LAYER)?.paint?.["raster-opacity"]).toBe(1);
+    for (const [, prop, value] of setPaintProperty.mock.calls) {
+      if (prop === "fill-opacity" || prop === "raster-opacity") expect(value as number, String(prop)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("clamps a negative fillOpacity to 0", () => {
+    const { map, layers } = createMapDouble();
+    const renderer = new BoundaryRenderer(map, { ...sampleBoundary, style: { ...sampleBoundary.style, ...drawn, fillOpacity: -0.5 } });
+    renderer.mount();
+    renderer.render(10);
+    expect(layers.get(FILL_LAYER)?.paint?.["fill-opacity"]).toBe(0);
+  });
+});
+
 describe("BoundaryRenderer flag fill", () => {
   const FLAG_LAYER = "boundary-flag-layer-test-boundary";
   const FLAG_SOURCE = "boundary-flag-test-boundary";

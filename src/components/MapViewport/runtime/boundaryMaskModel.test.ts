@@ -150,6 +150,17 @@ describe('resolveActiveMasks', () => {
   });
 });
 
+describe('a fully drawn outline and the mask inside it', () => {
+  it.each(['draw', 'trace'] as const)('leaves its own area at exactly 0 opacity, never negative (%s)', (animationStyle) => {
+    const b = boundary('a', { animateStroke: true, animationStyle });
+    for (const time of [10, 12]) {
+      const active = resolveActiveMasks([b], () => time);
+      expect(active[0].reveal).toBe(1);
+      expect(resolveRegionPaint(['a'], active).opacity).toBe(0);
+    }
+  });
+});
+
 describe('resolveRegionPaint', () => {
   const mask = (id: string, opacity: number, reveal: number, color = '#000000'): ActiveMask =>
     ({ id, geometry: poly(0, 0, 1), color, opacity, reveal });
