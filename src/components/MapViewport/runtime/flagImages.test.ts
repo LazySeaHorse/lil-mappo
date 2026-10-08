@@ -70,6 +70,15 @@ describe('createFlagImages', () => {
     await expect(flags.loadFlagImage('fr')).rejects.toThrow('decode');
     await expect(flags.loadFlagImage('fr')).resolves.toBeDefined();
   });
+
+  it('works when the loaders are called detached from the object', async () => {
+    const image = { width: 1280, height: 960 } as unknown as FlagImage;
+    const { loadFlagImage, loadFlagSvg } = createFlagImages({ loaders: makeLoaders(), rasterize: vi.fn(async () => image) });
+    await expect(loadFlagImage('fr')).resolves.toBe(image);
+    await expect(loadFlagSvg('de')).resolves.toBe(SVG);
+    const deps = { loadImage: loadFlagImage };
+    await expect(deps.loadImage('fr')).resolves.toBe(image);
+  });
 });
 
 describe('rasterising', () => {

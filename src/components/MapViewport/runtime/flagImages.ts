@@ -66,31 +66,35 @@ export function createFlagImages({ loaders, rasterize }: FlagImageDeps) {
   const svgCache = new Map<string, Promise<string>>();
   const codes = [...byCode.keys()].sort();
 
+  /** Raw SVG text, for small thumbnails. Cached per code; failures are retried. */
+  function loadFlagSvg(code: string): Promise<string> {
+    const cached = svgCache.get(code);
+    if (cached) return cached;
+    const loader = byCode.get(code);
+    if (!loader) return Promise.reject(new Error(`No flag for "${code}"`));
+    const promise = loader();
+    svgCache.set(code, promise);
+    promise.catch(() => svgCache.delete(code));
+    return promise;
+  }
+
+  /** Decoded flag, cached per code. A failed load is not cached so it can be retried. */
+  function loadFlagImage(code: string): Promise<FlagImage> {
+    const cached = cache.get(code);
+    if (cached) return cached;
+    if (!byCode.has(code)) return Promise.reject(new Error(`No flag for "${code}"`));
+    const promise = loadFlagSvg(code).then(rasterize);
+    cache.set(code, promise);
+    promise.catch(() => cache.delete(code));
+    return promise;
+  }
+
+  // Plain closures, not methods: callers use these detached (exported, or stored as deps)
   return {
     availableFlagCodes: (): readonly string[] => codes,
     hasFlag: (code: string | null | undefined): code is string => Boolean(code) && byCode.has(code as string),
-    /** Raw SVG text, for small thumbnails. Cached per code; failures are retried. */
-    loadFlagSvg(code: string): Promise<string> {
-      const cached = svgCache.get(code);
-      if (cached) return cached;
-      const loader = byCode.get(code);
-      if (!loader) return Promise.reject(new Error(`No flag for "${code}"`));
-      const promise = loader();
-      svgCache.set(code, promise);
-      promise.catch(() => svgCache.delete(code));
-      return promise;
-    },
-    /** Decoded flag, cached per code. A failed load is not cached so it can be retried. */
-    loadFlagImage(code: string): Promise<FlagImage> {
-      const cached = cache.get(code);
-      if (cached) return cached;
-      const loader = byCode.get(code);
-      if (!loader) return Promise.reject(new Error(`No flag for "${code}"`));
-      const promise = this.loadFlagSvg(code).then(rasterize);
-      cache.set(code, promise);
-      promise.catch(() => cache.delete(code));
-      return promise;
-    },
+    loadFlagSvg,
+    loadFlagImage,
   };
 }
 
