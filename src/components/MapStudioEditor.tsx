@@ -1,11 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { lazy, Suspense, useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/mapbox";
 import Toolbar from "@/components/Toolbar/Toolbar";
 import MapViewport from "@/components/MapViewport/MapViewport";
 import { MapLoadGate } from "@/components/MapLoadGate";
 import InspectorPanel from "@/components/Inspector/InspectorPanel";
 import TimelinePanel from "@/components/Timeline/TimelinePanel";
-import ExportModal from "@/components/ExportModal/ExportModal";
 import ProjectLibraryModal from "@/components/ProjectLibrary/ProjectLibraryModal";
 import { NewProjectModal } from "@/components/ProjectLibrary/NewProjectModal";
 import { usePlayback } from "@/hooks/usePlayback";
@@ -29,11 +28,8 @@ import { isDarkMapStyle } from "@/config/mapbox";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
-import { AuthModal } from "@/components/Account/AuthModal";
-import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal";
-import { CreditsModal } from "@/components/Account/CreditsModal";
-import { UpgradeModal } from "@/components/Account/UpgradeModal";
-import { RendersModal } from "@/components/Account/RendersModal";
+import { loadExportModal } from "@/lib/lazyModules";
+import { LazyAccountModals } from "@/components/Account/LazyAccountModals";
 import type { CameraItem } from "@/store/types";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
@@ -43,6 +39,8 @@ import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
 import type { RouteDeepLinkRequest } from "@/services/routeDeepLink";
 import type { Subscription } from "@/lib/database.types";
+
+const ExportModal = lazy(loadExportModal);
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
   // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
@@ -121,6 +119,9 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
     };
   }, []);
   const [showExport, setShowExport] = useState(false);
+  // Mount the export dialog lazily on first open, then keep it so it can animate closed.
+  const exportOpenedRef = useRef(false);
+  if (showExport) exportOpenedRef.current = true;
   const [showLibrary, setShowLibrary] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const { isMobile, isTablet } = useResponsive();
@@ -238,16 +239,16 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
           />
         )}
 
-        <ExportModal open={showExport} onClose={() => setShowExport(false)} />
+        {exportOpenedRef.current && (
+          <Suspense fallback={null}>
+            <ExportModal open={showExport} onClose={() => setShowExport(false)} />
+          </Suspense>
+        )}
         <ProjectLibraryModal open={showLibrary} onClose={() => setShowLibrary(false)} />
 
         {/* Account Modals */}
         <NewProjectModal />
-        <AuthModal />
-        <AccountSettingsModal />
-        <CreditsModal />
-        <UpgradeModal />
-        <RendersModal />
+        <LazyAccountModals />
         <QuickWalkthrough
           isMapReady={isMapReady}
           isMobile={isMobile}

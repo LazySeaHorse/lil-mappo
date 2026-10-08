@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLocalExportCapability, type LocalExportCapability } from '@/services/videoExport';
+import { getLocalExportCapability, type LocalExportCapability } from '@/services/localExportCapability';
 
 export function useLocalExportCapability(
   width: number,

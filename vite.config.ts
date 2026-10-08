@@ -55,6 +55,7 @@ export default defineConfig(({ mode }) => {
               exclude: [
                 'node_modules/**',
                 'src/lib/analytics/**',
+                'src/lib/lazyModules.ts',
                 'src/engine/**',
                 'src/components/MapViewport/runtime/**',
                 'src/annotations/**',
@@ -83,6 +84,16 @@ export default defineConfig(({ mode }) => {
           ]
         : []),
     ].filter(Boolean),
+    build: {
+      rollupOptions: {
+        output: {
+          // mapbox-gl rarely changes; its own chunk keeps it cached across app deploys.
+          manualChunks(id) {
+            if (id.includes('node_modules/mapbox-gl/')) return 'mapbox-gl';
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

@@ -2,7 +2,7 @@ import React from 'react';
 import { Clapperboard, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
-import type { LocalExportCapability } from '@/services/videoExport';
+import type { LocalExportCapability } from '@/services/localExportCapability';
 
 interface ExportModalFooterProps {
   isExporting: boolean;

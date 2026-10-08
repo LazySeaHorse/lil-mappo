@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { nanoid } from 'nanoid';
-import { importRouteFile } from '@/services/fileImport';
+import { loadFileImport } from '@/lib/lazyModules';
 import type { RouteItem } from '@/store/types';
 import { DEFAULT_ITEM_DURATION, createCameraKeyframe, createDefaultRouteStyle } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
@@ -45,6 +45,7 @@ export function useToolbarActions() {
     if (!files) return;
     for (const file of Array.from(files)) {
       try {
+        const { importRouteFile } = await loadFileImport();
         const { name, geojson } = await importRouteFile(file);
         const playheadTime = useProjectStore.getState().playheadTime;
         const item: RouteItem = {

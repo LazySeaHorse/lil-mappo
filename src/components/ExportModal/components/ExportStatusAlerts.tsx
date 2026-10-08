@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2, Download, Cloud } from 'lucide-react';
-import type { LocalExportCapability } from '@/services/videoExport';
+import type { LocalExportCapability } from '@/services/localExportCapability';
 import type { ExportLimits } from '@/lib/cloudAccess';
 
 interface ExportStatusAlertsProps {

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { saveAs } from 'file-saver';
-import { runExport } from '@/services/videoExport';
+import { loadVideoExport } from '@/lib/lazyModules';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Branding } from '@/overlays';
 import type { ExportPlan } from '../exportPlan';
@@ -47,6 +47,9 @@ export function useVideoExportExecution(
     useProjectStore.getState().setIsPlaying(false);
 
     try {
+      // Loaded on demand: the export pipeline (mediabunny) stays out of the initial bundle.
+      const { runExport } = await loadVideoExport();
+      if (controller.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
       const blob = await runExport(runtimeRef, {
         ...exportPlan,
         branding,
