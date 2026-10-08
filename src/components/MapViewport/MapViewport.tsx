@@ -14,6 +14,7 @@ import { resolveClickTarget } from './mapUtils';
 import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
 import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
 import { DraftWalkLayer } from './DraftWalkLayer';
+import { SelectionPreviewPill } from './SelectionPreviewPill';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
 import type { MapGesture } from '@/components/Onboarding/walkthroughState';
@@ -180,6 +181,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         <RouteWaypointMarkers />
         <DraftWalkMarkers />
       </MapGL>
+      <SelectionPreviewPill />
     </div>
   );
 }

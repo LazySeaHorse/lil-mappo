@@ -10,6 +10,7 @@ import type {
   TimelineItem,
 } from '@/store/types';
 import TimelineItemBar from './TimelineItemBar';
+import { timelineItemLabel } from './timelineItemLabel';
 
 export interface AutoCamBlock {
   routeId: string;
@@ -51,13 +52,7 @@ const TimelineTrackRow = React.memo(({
         ? 'bg-item-callout'
         : 'bg-item-camera';
 
-  const label = item.kind === 'camera'
-    ? 'Camera'
-    : item.kind === 'route'
-      ? item.name
-      : item.kind === 'boundary'
-        ? item.placeName || 'Boundary'
-        : item.content.title || 'Callout';
+  const label = timelineItemLabel(item);
 
   const keyframeDragRef = React.useRef<{
     startX: number;
