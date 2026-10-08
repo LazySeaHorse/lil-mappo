@@ -119,6 +119,10 @@ const boundaryStyleSchema = z.object({
   animateStroke: z.boolean(),
   animationStyle: z.enum(['fade', 'draw', 'trace']),
   traceLength: z.number(),
+  // Added after v5 shipped; older documents parse to the defaults.
+  maskOutside: z.boolean().default(false),
+  maskColor: z.string().default('#0b0f19'),
+  maskOpacity: z.number().min(0).max(1).default(0.85),
 });
 
 const boundaryItemSchema = z.object({

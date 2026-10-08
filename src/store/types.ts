@@ -96,6 +96,11 @@ export interface BoundaryStyle {
   animateStroke: boolean;
   animationStyle: 'fade' | 'draw' | 'trace';
   traceLength: number;
+  /** Paint everything outside this boundary with `maskColor` (a spotlight look). */
+  maskOutside: boolean;
+  maskColor: string;
+  /** 0-1, scaled by the boundary's fill progress. */
+  maskOpacity: number;
 }
 
 export interface RouteItem {

@@ -98,6 +98,9 @@ const boundary: BoundaryItem = {
     animateStroke: false,
     animationStyle: 'fade',
     traceLength: 0.1,
+    maskOutside: false,
+    maskColor: '#0b0f19',
+    maskOpacity: 0.85,
   },
   easing: 'linear',
 };

@@ -151,6 +151,9 @@ describe('Inspector Components Integration', () => {
         animateStroke: false,
         animationStyle: 'trace',
         traceLength: 0.2,
+        maskOutside: false,
+        maskColor: '#0b0f19',
+        maskOpacity: 0.85,
       },
     };
 
