@@ -17,7 +17,17 @@ const reportedStyleFailures = new Set<string>();
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
-function resolveFog(state: ProjectState): FogSpecification {
+/**
+ * The fog the project asks for. Globe gets the full atmosphere: space behind it and
+ * stars. Mercator keeps the horizon haze (`color`, `high-color`, `horizon-blend`) but
+ * no space: Mapbox draws stars and space-color whenever the horizon is in view (a high
+ * pitch, or zoomed out until a corner leaves the world), where they read as a bug. Setting
+ * `space-color` to the haze `color`, the colour the fog reaches at the horizon, makes
+ * the sky above it continue the haze instead of darkening to black.
+ */
+export function resolveFog(
+  state: Pick<ProjectState, 'mapStyle' | 'projection' | 'starIntensity' | 'fogColor'>,
+): FogSpecification {
   const isDark = isDarkMapStyle(state.mapStyle);
   const base: FogSpecification = isDark
     ? {
@@ -43,11 +53,29 @@ function resolveFog(state: ProjectState): FogSpecification {
           'star-intensity': 0.6,
         };
 
+  const color = state.fogColor ?? base.color;
+  if (state.projection === 'mercator') {
+    return { ...base, color, 'space-color': color, 'star-intensity': 0 };
+  }
   return {
     ...base,
-    color: state.fogColor ?? base.color,
+    color,
     'star-intensity': state.starIntensity ?? base['star-intensity'],
   };
+}
+
+/** Fog values within this are the same; Mapbox hands numbers back with float noise. */
+const FOG_NUMBER_TOLERANCE = 0.005;
+
+function fogMatches(current: FogSpecification | null | undefined, target: FogSpecification): boolean {
+  if (!current) return false;
+  return (Object.keys(target) as Array<keyof FogSpecification>).every((key) => {
+    const have = current[key];
+    const want = target[key];
+    return typeof have === 'number' && typeof want === 'number'
+      ? Math.abs(have - want) <= FOG_NUMBER_TOLERANCE
+      : have === want;
+  });
 }
 
 function setLayerVisibility(
@@ -250,13 +278,7 @@ export class BasemapController {
 
   private reconcileFog(state: ProjectState): void {
     const target = resolveFog(state);
-    const current = this.map.getFog();
-    const currentStars = current?.['star-intensity'];
-    const targetStars = target['star-intensity'];
-    const starsMatch = typeof currentStars === 'number' && typeof targetStars === 'number'
-      ? Math.abs(currentStars - targetStars) <= 0.005
-      : currentStars === targetStars;
-    if (current?.color === target.color && current?.['space-color'] === target['space-color'] && starsMatch) return;
+    if (fogMatches(this.map.getFog(), target)) return;
     mutateMap(this.map, { operation: 'setFog', phase: 'style-sync' }, () => {
       this.map.setFog(target);
     });

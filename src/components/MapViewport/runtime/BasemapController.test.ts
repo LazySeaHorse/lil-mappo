@@ -1,9 +1,9 @@
-import type { Map as MapboxMap } from 'mapbox-gl';
+import type { FogSpecification, Map as MapboxMap } from 'mapbox-gl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from '../mapUtils';
-import { BasemapController } from './BasemapController';
+import { BasemapController, resolveFog } from './BasemapController';
 import { track } from '@/lib/analytics';
 
 vi.mock('@/lib/analytics', () => ({ track: vi.fn() }));
@@ -390,6 +390,153 @@ describe('BasemapController', () => {
       fireError(double, { error: Object.assign(new Error('x'), { url: 'https://api.mapbox.com/v4/tiles/1.pbf' }) });
 
       expect(track).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('fog', () => {
+  const initial = {
+    projection: useProjectStore.getState().projection,
+    mapStyle: useProjectStore.getState().mapStyle,
+    starIntensity: useProjectStore.getState().starIntensity,
+    fogColor: useProjectStore.getState().fogColor,
+  };
+
+  afterEach(() => {
+    useProjectStore.setState(initial);
+  });
+
+  /** A map that remembers the projection and fog it was given, like Mapbox does. */
+  function createFogMap() {
+    const double = createMapDouble();
+    let fog: FogSpecification | undefined;
+    let projection = useProjectStore.getState().projection;
+    double.getProjection.mockImplementation((() => ({ name: projection })) as never);
+    double.setProjection.mockImplementation(((next: { name: typeof projection }) => { projection = next.name; }) as never);
+    double.getFog.mockImplementation((() => fog) as never);
+    double.setFog.mockImplementation(((next: FogSpecification) => { fog = { ...fog, ...next }; }) as never);
+    return { ...double, forgetFog: () => { fog = undefined; } };
+  }
+  const lastFog = (double: ReturnType<typeof createFogMap>) => double.setFog.mock.calls.at(-1)?.[0];
+
+  describe('resolveFog', () => {
+    const state = (overrides: Partial<Parameters<typeof resolveFog>[0]> = {}) => ({
+      mapStyle: 'standard', projection: 'globe' as const, starIntensity: 0.6, fogColor: null, ...overrides,
+    });
+
+    it('keeps the globe look: stars, space color and user overrides', () => {
+      expect(resolveFog(state())).toMatchObject({ 'star-intensity': 0.6, 'space-color': 'rgb(11, 11, 25)' });
+      expect(resolveFog(state({ starIntensity: 0.25, fogColor: '#ff0000' }))).toMatchObject({
+        color: '#ff0000',
+        'star-intensity': 0.25,
+        'space-color': 'rgb(11, 11, 25)',
+      });
+      expect(resolveFog(state({ mapStyle: 'dark' }))).toMatchObject({ 'star-intensity': 0.6, 'space-color': 'rgb(5, 5, 15)' });
+      expect(resolveFog(state({ mapStyle: 'dark', starIntensity: 1 }))['star-intensity']).toBe(1);
+    });
+
+    it.each(['standard', 'streets', 'dark', 'satellite'])('has no stars in Mercator, whatever the star setting (%s)', (mapStyle) => {
+      for (const starIntensity of [0, 0.6, 1]) {
+        expect(resolveFog(state({ mapStyle, projection: 'mercator', starIntensity }))['star-intensity'], `stars ${starIntensity}`).toBe(0);
+      }
+    });
+
+    it.each(['standard', 'dark', 'satellite'])('blends space into the haze in Mercator (%s)', (mapStyle) => {
+      const globe = resolveFog(state({ mapStyle }));
+      const fog = resolveFog(state({ mapStyle, projection: 'mercator' }));
+      expect(fog['space-color']).toBe(fog.color);
+      expect(fog.color).toBe(globe.color);
+      expect(fog['high-color']).toBe(globe['high-color']);
+      expect(fog['horizon-blend']).toBe(globe['horizon-blend']);
+    });
+
+    it('follows the fog color override in Mercator, for the haze and for the space beyond it', () => {
+      const fog = resolveFog(state({ projection: 'mercator', fogColor: '#336699' }));
+      expect(fog.color).toBe('#336699');
+      expect(fog['space-color']).toBe('#336699');
+    });
+  });
+
+  describe('reconcile', () => {
+    function mount(overrides: Partial<typeof initial> = {}) {
+      useProjectStore.setState({ mapStyle: 'standard', ...overrides });
+      const double = createFogMap();
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+      return { double, controller };
+    }
+
+    it('applies the Mercator fog when the project starts in Mercator', () => {
+      const { double, controller } = mount({ projection: 'mercator', starIntensity: 0.9 });
+      expect(lastFog(double)).toMatchObject({ 'star-intensity': 0, 'space-color': lastFog(double)?.color });
+      controller.dispose();
+    });
+
+    it('re-applies the fog each time the projection switches, globe to Mercator and back', () => {
+      const { double, controller } = mount({ projection: 'globe', starIntensity: 0.7 });
+      expect(lastFog(double)).toMatchObject({ 'star-intensity': 0.7, 'space-color': 'rgb(11, 11, 25)' });
+
+      useProjectStore.getState().setProjection('mercator');
+      controller.reconcile();
+      expect(lastFog(double)).toMatchObject({ 'star-intensity': 0, 'space-color': lastFog(double)?.color });
+      expect(double.map.getFog()).toMatchObject({ 'star-intensity': 0 });
+
+      useProjectStore.getState().setProjection('globe');
+      controller.reconcile();
+      expect(lastFog(double)).toMatchObject({ 'star-intensity': 0.7, 'space-color': 'rgb(11, 11, 25)' });
+      expect(double.map.getFog()).toMatchObject({ 'star-intensity': 0.7 });
+
+      useProjectStore.getState().setProjection('mercator');
+      controller.reconcile();
+      expect(double.map.getFog()).toMatchObject({ 'star-intensity': 0 });
+      controller.dispose();
+    });
+
+    it('applies the Mercator fog even when the star setting is already 0 (only the space color changes)', () => {
+      const { double, controller } = mount({ projection: 'globe', starIntensity: 0 });
+      double.setFog.mockClear();
+      useProjectStore.getState().setProjection('mercator');
+      controller.reconcile();
+      expect(double.setFog).toHaveBeenCalledTimes(1);
+      expect(lastFog(double)?.['space-color']).toBe(lastFog(double)?.color);
+      controller.dispose();
+    });
+
+    it('gives a freshly loaded Mercator style the Mercator fog', () => {
+      const { double, controller } = mount({ projection: 'mercator' });
+      double.setFog.mockClear();
+      // A new style arrives with its own fog, not ours
+      double.forgetFog();
+      for (const listener of double.listeners.get('style.load')!) listener({});
+      expect(double.setFog).toHaveBeenCalledTimes(1);
+      expect(lastFog(double)).toMatchObject({ 'star-intensity': 0, 'space-color': lastFog(double)?.color });
+      controller.dispose();
+    });
+
+    it('leaves the fog alone when nothing changed, and re-applies when only a haze field differs', () => {
+      const { double, controller } = mount({ projection: 'mercator' });
+      double.setFog.mockClear();
+      controller.reconcile();
+      expect(double.setFog).not.toHaveBeenCalled();
+
+      double.getFog.mockReturnValue({ ...double.map.getFog(), 'horizon-blend': 0.5 } as never);
+      controller.reconcile();
+      expect(double.setFog).toHaveBeenCalledTimes(1);
+
+      double.setFog.mockClear();
+      double.getFog.mockReturnValue({ ...double.map.getFog(), 'high-color': 'rgb(1, 2, 3)' } as never);
+      controller.reconcile();
+      expect(double.setFog).toHaveBeenCalledTimes(1);
+      controller.dispose();
+    });
+
+    it('ignores a star intensity differing by float noise', () => {
+      const { double, controller } = mount({ projection: 'globe', starIntensity: 0.6 });
+      double.setFog.mockClear();
+      double.getFog.mockReturnValue({ ...double.map.getFog(), 'star-intensity': 0.6000001 } as never);
+      controller.reconcile();
+      expect(double.setFog).not.toHaveBeenCalled();
+      controller.dispose();
     });
   });
 });
