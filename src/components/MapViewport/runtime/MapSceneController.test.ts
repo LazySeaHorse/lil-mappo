@@ -27,7 +27,7 @@ const route: RouteItem = {
     trailFade: false,
     trailFadeLength: 0.3,
     dashPattern: null,
-    animationType: 'draw',
+    animationType: 'draw', cometTrailLength: 0.2,
   },
   easing: 'linear', exitAnimation: 'none',
   calculation: { mode: 'car', startPoint: [0, 0], endPoint: [1, 1] },

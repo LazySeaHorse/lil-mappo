@@ -79,13 +79,9 @@ export interface RouteStyle {
   trailFade: boolean;
   trailFadeLength: number;
   dashPattern: number[] | null;
-  /**
-   * Always set on loaded documents (schema default) and factory-built styles. Optional only
-   * because some hand-written test fixtures omit them; undefined behaves like 'draw'.
-   */
-  animationType?: 'draw' | 'navigation' | 'comet';
-  /** Fraction of the route the comet trail covers. Always set like animationType. */
-  cometTrailLength?: number;
+  animationType: 'draw' | 'navigation' | 'comet';
+  /** Fraction of the route the comet trail covers. */
+  cometTrailLength: number;
 }
 
 export interface BoundaryStyle {

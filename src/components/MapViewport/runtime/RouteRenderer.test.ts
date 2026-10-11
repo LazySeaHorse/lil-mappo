@@ -73,7 +73,7 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         trailFade: false,
         trailFadeLength: 0.2,
         dashPattern: null,
-        animationType: "draw",
+        animationType: "draw", cometTrailLength: 0.2,
       },
       easing: "linear", exitAnimation: "none",
       calculation: {
@@ -142,7 +142,7 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         trailFade: false,
         trailFadeLength: 0.2,
         dashPattern: null,
-        animationType: "draw",
+        animationType: "draw", cometTrailLength: 0.2,
       },
       easing: "linear", exitAnimation: "none",
       calculation: {
@@ -194,7 +194,7 @@ describe("RouteRenderer vehicle type switching", () => {
         trailFade: false,
         trailFadeLength: 0.2,
         dashPattern: null,
-        animationType: "draw",
+        animationType: "draw", cometTrailLength: 0.2,
       },
       easing: "linear", exitAnimation: "none",
       calculation: {
@@ -273,7 +273,7 @@ describe("RouteRenderer trim-driven line", () => {
       trailFade: false,
       trailFadeLength: 0.2,
       dashPattern: null,
-      animationType: "draw",
+      animationType: "draw", cometTrailLength: 0.2,
     },
     easing: "linear", exitAnimation: "none",
     calculation: {

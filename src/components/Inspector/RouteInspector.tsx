@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 
 type RouteLineStyle = 'solid' | 'dashed' | 'dotted';
-type RouteAnimationType = NonNullable<RouteItem['style']['animationType']>;
+type RouteAnimationType = RouteItem['style']['animationType'];
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);

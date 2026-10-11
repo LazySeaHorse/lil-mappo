@@ -100,7 +100,7 @@ describe('Inspector Components Integration', () => {
         trailFade: false,
         trailFadeLength: 0.2,
         dashPattern: null,
-        animationType: 'draw',
+        animationType: 'draw', cometTrailLength: 0.2,
       },
       calculation: {
         mode: 'car',

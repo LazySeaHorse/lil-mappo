@@ -78,7 +78,7 @@ describe('geoUtils & cameraUtils', () => {
         glowWidth: 6,
         trailFade: false,
         trailFadeLength: 0.3,
-        dashPattern: null,
+        dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
       },
       geojson: {
         type: 'FeatureCollection',

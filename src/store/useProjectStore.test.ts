@@ -27,7 +27,7 @@ describe('useProjectStore modular slices', () => {
           glowWidth: 12,
           trailFade: false,
           trailFadeLength: 0.2,
-          dashPattern: null,
+          dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
         },
         easing: 'linear', exitAnimation: 'none',
       };

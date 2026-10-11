@@ -42,7 +42,7 @@ function createMinimalRouteItem(name: string, geojson: GeoJSON.FeatureCollection
       trailFade: false,
       trailFadeLength: 0.3,
       dashPattern: null,
-      animationType: 'draw',
+      animationType: 'draw', cometTrailLength: 0.2,
     },
     easing: 'easeInOutCubic', exitAnimation: 'none',
   };
