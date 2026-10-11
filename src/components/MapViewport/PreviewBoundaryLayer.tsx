@@ -3,7 +3,6 @@ import { Source, Layer } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
-import { resolveBoundaryFillColor } from './layerStyleContracts';
 
 export function PreviewBoundaryLayer() {
   const { previewBoundary, previewBoundaryStyle, boundaryDetail } = useProjectStore(
@@ -35,7 +34,7 @@ export function PreviewBoundaryLayer() {
           id="preview-boundary-fill-layer"
           type="fill"
           paint={{
-            'fill-color': resolveBoundaryFillColor(previewBoundaryStyle),
+            'fill-color': previewBoundaryStyle.fillColor,
             'fill-opacity': previewBoundaryStyle.fillOpacity,
           }}
         />

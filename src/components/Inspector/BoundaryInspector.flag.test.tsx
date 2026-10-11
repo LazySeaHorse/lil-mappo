@@ -21,7 +21,6 @@ function boundary(style: Partial<BoundaryItem['style']> = {}): BoundaryItem {
     startTime: 0,
     endTime: 4,
     easing: 'linear', exitAnimation: 'none',
-    resolveStatus: 'resolved',
     style: { ...DEFAULT_BOUNDARY_STYLE, ...style },
   };
 }

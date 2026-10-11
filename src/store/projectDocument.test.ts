@@ -344,6 +344,22 @@ describe('project document persistence boundary', () => {
     expect(toProjectDocument(parsed).schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
   });
 
+  it('loads a boundary saved with a search status, dropping the status', () => {
+    const document = toProjectDocument(createProject());
+    const boundary = {
+      kind: 'boundary', id: 'b1', placeName: 'Testland',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
+      resolveStatus: 'idle', startTime: 0, endTime: 5, easing: 'linear',
+      style: {
+        strokeColor: '#123456', fillColor: '#123456', strokeWidth: 3, glow: false, fillOpacity: 0.2,
+        animateStroke: true, animationStyle: 'draw', traceLength: 0.1,
+      },
+    };
+    const parsed = parseProjectDocument({ ...document, items: { ...document.items, b1: boundary }, itemOrder: [...document.itemOrder, 'b1'] });
+    expect(parsed.items.b1).toMatchObject({ kind: 'boundary', geojson: boundary.geojson });
+    expect(parsed.items.b1).not.toHaveProperty('resolveStatus');
+  });
+
   describe('boundary fillOpacity', () => {
     function parseWithFillOpacity(fillOpacity: number) {
       const boundary = {

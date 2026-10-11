@@ -34,7 +34,6 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
     u({
       ...(r.countryCode ? { style: { ...item.style, flagCode: r.countryCode } } : {}),
       geojson: applyBoundaryDetail(r.geojson),
-      resolveStatus: 'resolved',
       placeName: shortPlaceName(r.display_name),
     });
     toast.success('Boundary updated.');

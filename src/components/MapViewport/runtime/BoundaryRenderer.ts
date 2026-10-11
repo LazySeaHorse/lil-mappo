@@ -2,7 +2,6 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import type { BoundaryItem } from '@/store/types';
-import { resolveBoundaryFillColor } from '../layerStyleContracts';
 import { BoundaryFlagLayer, type FlagPlacement, preloadFlag } from './BoundaryFlagLayer';
 import { resolveBoundaryTiming, resolveStrokeOpacity } from './boundaryTiming';
 import {
@@ -111,7 +110,7 @@ export class BoundaryRenderer {
     const { progress, exitProgress, reverseProgress, reverseExit, animationStyle, fillFactor } = timing;
     const geometryChanged = this.lastGeometry !== geometry;
 
-    const fillColor = resolveBoundaryFillColor(style);
+    const { fillColor } = style;
     this.layers.setPaint(this.ids.fillLayer, 'fill-color', fillColor, 'fillColor', fillColor);
     this.updateStrokeStyle();
 
@@ -195,7 +194,7 @@ export class BoundaryRenderer {
         type: 'fill',
         source: this.ids.fillSource,
         paint: {
-          'fill-color': resolveBoundaryFillColor(style),
+          'fill-color': style.fillColor,
           'fill-opacity': 0,
           ...noPaintTransitions('fill-color', 'fill-opacity'),
         },

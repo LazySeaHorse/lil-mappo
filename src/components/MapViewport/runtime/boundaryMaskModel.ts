@@ -62,12 +62,12 @@ export function resolveActiveMasks(
   const active: ActiveMask[] = [];
   for (const boundary of boundaries) {
     const { geojson: geometry, style } = boundary;
-    if (!geometry || boundary.resolveStatus !== 'resolved' || !style.maskOutside) continue;
+    if (!geometry || !style.maskOutside) continue;
     const reveal = resolveBoundaryTiming(boundary, timeFor(boundary.id)).fillFactor;
     // Clamped here, not at the paint write: it also caps the summed darkness in resolveRegionPaint.
-    const opacity = clamp(style.maskOpacity ?? 0.85, 0, 1);
+    const opacity = clamp(style.maskOpacity, 0, 1);
     if (!(opacity * reveal > 0)) continue;
-    active.push({ id: boundary.id, geometry, color: style.maskColor ?? DEFAULT_MASK_COLOR, opacity, reveal });
+    active.push({ id: boundary.id, geometry, color: style.maskColor, opacity, reveal });
   }
   return active;
 }

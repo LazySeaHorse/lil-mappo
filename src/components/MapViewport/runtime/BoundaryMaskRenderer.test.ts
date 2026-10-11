@@ -63,7 +63,6 @@ function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, ex
     id,
     placeName: id,
     geojson: square(0, 10),
-    resolveStatus: 'resolved',
     startTime: 0,
     endTime: 10,
     easing: 'linear',
@@ -185,9 +184,9 @@ describe('BoundaryMaskRenderer', () => {
     expect([...sources.keys()]).toEqual([SOURCE]);
   });
 
-  it('ignores unresolved boundaries', () => {
+  it('ignores boundaries without geometry', () => {
     const { renderer, setData } = setup();
-    renderer.render([boundary('a', {}, { resolveStatus: 'loading' })], () => 1);
+    renderer.render([boundary('a', {}, { geojson: null })], () => 1);
     expect(setData).not.toHaveBeenCalled();
   });
 

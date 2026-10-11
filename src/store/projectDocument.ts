@@ -135,7 +135,6 @@ const boundaryItemSchema = z.object({
   id: z.string().min(1),
   placeName: z.string(),
   geojson: geometrySchema.nullable(),
-  resolveStatus: z.enum(['idle', 'loading', 'resolved', 'error']),
   startTime: z.number(),
   endTime: z.number(),
   style: boundaryStyleSchema,

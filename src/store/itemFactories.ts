@@ -188,7 +188,6 @@ export function createBoundaryItem(input: BoundaryInput): BoundaryItem {
     id: input.id ?? nanoid(),
     placeName: input.placeName,
     geojson: input.geojson,
-    resolveStatus: 'resolved',
     startTime: input.startTime,
     endTime: input.endTime ?? input.startTime + DEFAULT_ITEM_DURATION,
     style: {

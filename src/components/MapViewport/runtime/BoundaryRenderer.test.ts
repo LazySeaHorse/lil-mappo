@@ -59,7 +59,6 @@ const sampleBoundary: BoundaryItem = {
       ],
     ],
   },
-  resolveStatus: "resolved",
   startTime: 0,
   endTime: 10,
   style: {
@@ -122,13 +121,6 @@ describe("BoundaryRenderer animated stroke uploads", () => {
     renderer.render(10);
     renderer.render(12);
     expect(setData).toHaveBeenCalledTimes(2);
-  });
-
-  it("draws a boundary with geometry even when its search status is not resolved", () => {
-    const { renderer, setData } = setup();
-    renderer.setBoundary({ ...sampleBoundary, resolveStatus: "idle" });
-    renderer.render(5);
-    expect(setData).toHaveBeenCalledTimes(1);
   });
 
   it("uploads when progress changes", () => {

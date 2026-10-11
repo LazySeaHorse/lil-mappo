@@ -1,4 +1,4 @@
-import type { BoundaryStyle, RouteItem } from '@/store/types';
+import type { RouteItem } from '@/store/types';
 
 export interface ResolvedRoutePaint {
   lineColor: string;
@@ -15,10 +15,3 @@ export function resolveRoutePaint(route: Pick<RouteItem, 'style'>): ResolvedRout
   };
 }
 
-/**
- * The boundary fill colour. Always set: boundaries saved before fillColor existed are given
- * their stroke colour when the document is migrated (projectDocument v0 -> v1).
- */
-export function resolveBoundaryFillColor(style: Pick<BoundaryStyle, 'fillColor'>): string {
-  return style.fillColor;
-}

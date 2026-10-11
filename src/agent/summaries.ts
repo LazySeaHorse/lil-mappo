@@ -62,7 +62,6 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
         placeName: item.placeName,
         startTime: item.startTime,
         endTime: item.endTime,
-        resolveStatus: item.resolveStatus,
         geometry: geoStats(item.geojson),
         style: detail
           ? item.style

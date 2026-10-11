@@ -128,7 +128,7 @@ describe('add tools', () => {
     expect(body.created.placeName).toBe('Portugal');
     expect(body.bbox).toEqual([-9, 37, -6, 42]);
     const item = state().items[body.created.id];
-    expect(item).toMatchObject({ kind: 'boundary', resolveStatus: 'resolved', startTime: 1, endTime: 6, exitAnimation: 'none', style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
+    expect(item).toMatchObject({ kind: 'boundary', startTime: 1, endTime: 6, exitAnimation: 'none', style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add boundary "Portugal"' });
   });

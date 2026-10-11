@@ -62,7 +62,7 @@ describe('itemFactories', () => {
 
   it('builds boundaries, callouts and keyframes with defaults', () => {
     expect(createBoundaryItem({ placeName: 'X', geojson: null, startTime: 1 })).toMatchObject({
-      resolveStatus: 'resolved', endTime: 6, style: { strokeColor: '#a855f7' },
+      endTime: 6, style: { strokeColor: '#a855f7' },
     });
     const callout = createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 });
     expect(callout?.binding).toMatchObject({ kind: 'geographic', lngLat: [1, 2], altitude: 0 });

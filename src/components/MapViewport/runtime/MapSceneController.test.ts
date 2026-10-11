@@ -1,8 +1,9 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { BoundaryItem, RouteItem } from '@/store/types';
-import { createBoundaryItem } from '@/store/itemFactories';
+import type { RouteItem } from '@/store/types';
+import { createBoundaryItem, DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
+import { createProject, parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { MapSceneController } from './MapSceneController';
 
 const route: RouteItem = {
@@ -171,19 +172,33 @@ describe('MapSceneController', () => {
     expect(double.layers.has('route-layer-scene-route')).toBe(false);
   });
 
-  it('draws a boundary that has geometry whatever its search status', () => {
+  it('loads and draws a boundary, mask included, saved with a stale search status', () => {
     const previous = useProjectStore.getState();
-    // An abandoned search in an older version left 'idle' on a boundary with valid geometry.
-    const boundary: BoundaryItem = {
-      ...createBoundaryItem({ id: 'idle-boundary', placeName: 'Idle', geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] }, startTime: 0 }),
+    // Older versions saved 'idle' on a boundary whose search was abandoned, next to valid geometry.
+    const boundary = {
+      ...createBoundaryItem({
+        id: 'idle-boundary',
+        placeName: 'Idle',
+        geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
+        startTime: 0,
+        style: { ...DEFAULT_BOUNDARY_STYLE, animateStroke: false, maskOutside: true },
+      }),
       resolveStatus: 'idle',
     };
-    useProjectStore.setState({ items: { [boundary.id]: boundary }, itemOrder: [boundary.id], playheadTime: 2 });
+    const document = toProjectDocument(createProject());
+    const project = parseProjectDocument({
+      ...document,
+      items: { ...document.items, [boundary.id]: boundary },
+      itemOrder: [...document.itemOrder, boundary.id],
+    });
+    useProjectStore.setState({ items: project.items, itemOrder: project.itemOrder, playheadTime: 2 });
     const double = createMapDouble();
     const controller = new MapSceneController(double.map, vi.fn());
     try {
       controller.mount();
       expect(double.layers.has('boundary-fill-layer-idle-boundary')).toBe(true);
+      const maskUpload = double.sources.get('boundary-mask')!.setData.mock.calls.at(-1)?.[0] as GeoJSON.FeatureCollection | undefined;
+      expect(maskUpload?.features.length).toBeGreaterThan(0);
     } finally {
       controller.dispose();
       useProjectStore.setState({ items: previous.items, itemOrder: previous.itemOrder, playheadTime: previous.playheadTime });

@@ -126,7 +126,6 @@ export interface BoundaryItem {
   id: string;
   placeName: string;
   geojson: GeoJSON.Geometry | null;
-  resolveStatus: 'idle' | 'loading' | 'resolved' | 'error';
   startTime: number;
   endTime: number;
   style: BoundaryStyle;

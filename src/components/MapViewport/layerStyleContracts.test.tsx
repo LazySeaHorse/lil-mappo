@@ -86,7 +86,6 @@ const boundary: BoundaryItem = {
     type: 'Polygon',
     coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]],
   },
-  resolveStatus: 'resolved',
   startTime: 0,
   endTime: 5,
   style: {

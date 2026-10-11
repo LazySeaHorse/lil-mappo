@@ -141,7 +141,6 @@ describe('Inspector Components Integration', () => {
       startTime: 0,
       endTime: 4,
       easing: 'easeInOutSine', exitAnimation: 'none',
-      resolveStatus: 'resolved',
       style: {
         strokeColor: '#00ff00',
         fillColor: '#003300',
@@ -186,7 +185,6 @@ describe('Inspector Components Integration', () => {
       startTime: 0,
       endTime: 4,
       easing: 'linear', exitAnimation: 'none',
-      resolveStatus: 'resolved',
       style: {
         strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,
         animateStroke: false, animationStyle: 'fade', traceLength: 0.1,
@@ -209,7 +207,6 @@ describe('Inspector Components Integration', () => {
       startTime: 0,
       endTime: 4,
       easing: 'linear', exitAnimation: 'none',
-      resolveStatus: 'resolved',
       style: {
         strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,
         animateStroke: true, animationStyle: 'trace', traceLength: 0,

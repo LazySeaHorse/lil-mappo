@@ -116,7 +116,6 @@ function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, ge
     id,
     placeName: id,
     geojson,
-    resolveStatus: 'resolved',
     startTime: 0,
     endTime: 10,
     easing: 'linear',
@@ -128,15 +127,14 @@ function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, ge
 describe('resolveActiveMasks', () => {
   const at = (time: number) => () => time;
 
-  it('excludes boundaries that are unmasked, unresolved, geometry-less or not yet drawing', () => {
+  it('excludes boundaries that are unmasked, geometry-less or not yet drawing', () => {
     const items = [
       boundary('off', { maskOutside: false }),
-      { ...boundary('loading'), resolveStatus: 'loading' as const },
       boundary('empty', {}, null),
       boundary('later'),
       boundary('on'),
     ];
-    items[3] = { ...items[3], startTime: 5, endTime: 6 };
+    items[2] = { ...items[2], startTime: 5, endTime: 6 };
     expect(resolveActiveMasks(items, at(1)).map((m) => m.id)).toEqual(['on']);
   });
 
