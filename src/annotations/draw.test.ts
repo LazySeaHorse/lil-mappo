@@ -5,6 +5,7 @@ import {
   collectSceneAssets,
   getFrameBounds,
   loadAnnotationAssets,
+  loadCalloutAssets,
   prepareAnnotationFrame,
   MAX_ALTITUDE_PX,
 } from './draw';
@@ -412,6 +413,36 @@ describe('annotation assets', () => {
 
     await loadAnnotationAssets({ c1: brief }, ['c1']);
     expect(load.mock.calls.map(([font]) => font)).toContain("600 22px 'Barlow Condensed', sans-serif");
+  });
+});
+
+describe('loadCalloutAssets', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('loads only the fonts that are not ready yet, and says whether it loaded any', async () => {
+    const ready = new Set<string>();
+    const load = vi.fn((font: string) => {
+      ready.add(font);
+      return Promise.resolve([]);
+    });
+    const check = vi.fn((font: string) => ready.has(font));
+    vi.stubGlobal('document', Object.assign(Object.create(document), { fonts: { load, check } }));
+
+    const callout = makeLeaderLine();
+    expect(await loadCalloutAssets([callout])).toBe(true);
+    expect(load.mock.calls.map(([font]) => font)).toContain("600 22px 'Barlow Condensed', sans-serif");
+
+    load.mockClear();
+    expect(await loadCalloutAssets([callout])).toBe(false);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('skips callouts it cannot place', async () => {
+    const load = vi.fn((_font: string) => Promise.resolve([]));
+    vi.stubGlobal('document', Object.assign(Object.create(document), { fonts: { load, check: () => false } }));
+    const unplaced = makeLeaderLine({ binding: { kind: 'geographic', lngLat: [0, 0], altitude: 0 } });
+    expect(await loadCalloutAssets([unplaced])).toBe(false);
+    expect(load).not.toHaveBeenCalled();
   });
 });
 

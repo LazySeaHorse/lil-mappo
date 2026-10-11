@@ -12,7 +12,8 @@
 
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import { loadAnnotationAssets } from '@/annotations/draw';
+import type { CalloutItem, TimelineItem } from '@/store/types';
+import { loadCalloutAssets } from '@/annotations/draw';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { isRepaintPending } from '@/components/MapViewport/runtime/mapboxResources';
 
@@ -35,6 +36,8 @@ export class AnnotationOverlay {
   /** The animation frame of the pending redraw, if any. At most one. */
   private frame: number | undefined;
   private disposed = false;
+  /** Callouts whose fonts and images have been requested. */
+  private readonly assetsRequested = new WeakSet<TimelineItem>();
 
   constructor(private readonly map: MapboxMap) {
     this.canvas.setAttribute('aria-hidden', 'true');
@@ -64,11 +67,23 @@ export class AnnotationOverlay {
     this.scheduleDraw();
   };
 
-  /** Canvas text doesn't trigger web font downloads and images load asynchronously: redraw once they have. */
+  /**
+   * Canvas text doesn't trigger web font downloads and images load asynchronously:
+   * redraw once they have. Callouts are replaced, never edited in place, so each
+   * callout object needs its assets requested only once.
+   */
   private loadAssets(): void {
     const { items, itemOrder } = useProjectStore.getState();
-    void loadAnnotationAssets(items, itemOrder).then(() => {
-      if (!this.disposed) this.scheduleDraw();
+    const fresh: CalloutItem[] = [];
+    for (const id of itemOrder) {
+      const item = items[id];
+      if (item?.kind !== 'callout' || this.assetsRequested.has(item)) continue;
+      this.assetsRequested.add(item);
+      fresh.push(item);
+    }
+    if (fresh.length === 0) return;
+    void loadCalloutAssets(fresh).then((loaded) => {
+      if (loaded && !this.disposed) this.scheduleDraw();
     });
   }
 

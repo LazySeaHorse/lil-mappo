@@ -4,13 +4,13 @@ import '@/annotations/styles';
 import { registerTestStyles, TEST_CARD_STYLE_ID } from '@/annotations/testStyles';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
-import { loadAnnotationAssets } from '@/annotations/draw';
+import { loadCalloutAssets } from '@/annotations/draw';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
 
 vi.mock('@/annotations/draw', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/annotations/draw')>()),
-  loadAnnotationAssets: vi.fn(async () => {}),
+  loadCalloutAssets: vi.fn(async () => true),
 }));
 
 type Call = [string, ...unknown[]];
@@ -163,7 +163,8 @@ describe('AnnotationOverlay', () => {
   beforeEach(() => {
     frames = stubAnimationFrames();
     contexts.clear();
-    vi.mocked(loadAnnotationAssets).mockClear();
+    vi.mocked(loadCalloutAssets).mockClear();
+    vi.mocked(loadCalloutAssets).mockImplementation(async () => true);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
       let ctx = contexts.get(this);
       if (!ctx) {
@@ -363,16 +364,37 @@ describe('AnnotationOverlay', () => {
 
   it('loads fonts and images for the callouts, then redraws', async () => {
     mount();
-    expect(loadAnnotationAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).toHaveBeenCalledWith([useProjectStore.getState().items.c1]);
     frames.flush();
     await vi.waitFor(() => expect(frames.pending()).toBe(1));
+  });
 
-    // Only edits to the callouts reload them, not playhead ticks.
-    vi.mocked(loadAnnotationAssets).mockClear();
+  it('loads assets only for new or edited callouts', () => {
+    const other = makeCallout({ id: 'c2', content: { title: 'Other' } });
+    setStore([makeCallout(), other]);
+    mount();
+    expect(vi.mocked(loadCalloutAssets).mock.calls[0][0]).toHaveLength(2);
+
+    // Playhead ticks and untouched callouts load nothing.
+    vi.mocked(loadCalloutAssets).mockClear();
     useProjectStore.setState({ playheadTime: 7 });
-    expect(loadAnnotationAssets).not.toHaveBeenCalled();
     useProjectStore.setState({ items: { ...useProjectStore.getState().items } });
-    expect(loadAnnotationAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).not.toHaveBeenCalled();
+
+    const edited = { ...useProjectStore.getState().items.c2, content: { title: 'Edited' } } as CalloutItem;
+    useProjectStore.setState({ items: { ...useProjectStore.getState().items, c2: edited } });
+    expect(loadCalloutAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).toHaveBeenCalledWith([edited]);
+  });
+
+  it('does not redraw when there was nothing left to load', async () => {
+    vi.mocked(loadCalloutAssets).mockImplementation(async () => false);
+    mount();
+    frames.flush();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(frames.pending()).toBe(0);
   });
 
   it('removes its canvas and listeners, and cancels a pending redraw, when disposed', async () => {
