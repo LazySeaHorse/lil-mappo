@@ -4,7 +4,6 @@ import {
   dashPattern,
   defaultRadiusRingSettings,
   measureRadiusRing,
-  radiusRingSettingsSchema,
   radiusRingStyle,
   renderRadiusRing,
   type RadiusRingSettings,
@@ -54,7 +53,6 @@ describe('radiusRingStyle definition', () => {
   });
 
   it('fills defaults', () => {
-    expect(radiusRingSettingsSchema.parse({})).toEqual(defaultRadiusRingSettings);
     expect(defaultRadiusRingSettings.radius).toBe(70);
   });
 });

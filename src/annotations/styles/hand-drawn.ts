@@ -21,13 +21,7 @@ export const handDrawnSettingsSchema = z.object({
 
 export type HandDrawnSettings = z.infer<typeof handDrawnSettingsSchema>;
 
-export const defaultHandDrawnSettings: HandDrawnSettings = {
-  strokeColor: '#FF5A36',
-  textColor: '#FFFFFF',
-  circleSize: 34,
-  halo: true,
-  side: 'auto',
-};
+export const defaultHandDrawnSettings: HandDrawnSettings = handDrawnSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

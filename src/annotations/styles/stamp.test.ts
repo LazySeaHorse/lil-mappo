@@ -59,7 +59,6 @@ describe('stampStyle definition', () => {
   });
 
   it('fills defaults and rejects unknown shapes', () => {
-    expect(stampSettingsSchema.parse({})).toEqual(defaultStampSettings);
     expect(stampSettingsSchema.safeParse({ shape: 'star' }).success).toBe(false);
   });
 });

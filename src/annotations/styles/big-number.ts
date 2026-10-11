@@ -19,13 +19,7 @@ export const bigNumberSettingsSchema = z.object({
 
 export type BigNumberSettings = z.infer<typeof bigNumberSettingsSchema>;
 
-export const defaultBigNumberSettings: BigNumberSettings = {
-  accentColor: '#FF5A36',
-  textColor: '#FFFFFF',
-  halo: true,
-  side: 'auto',
-  prefix: '',
-};
+export const defaultBigNumberSettings: BigNumberSettings = bigNumberSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

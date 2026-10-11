@@ -23,13 +23,7 @@ export const stampSettingsSchema = z.object({
 
 export type StampSettings = z.infer<typeof stampSettingsSchema>;
 
-export const defaultStampSettings: StampSettings = {
-  inkColor: '#D7263D',
-  shape: 'round',
-  rotation: -8,
-  splash: true,
-  halo: true,
-};
+export const defaultStampSettings: StampSettings = stampSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

@@ -21,15 +21,7 @@ export const radiusRingSettingsSchema = z.object({
 
 export type RadiusRingSettings = z.infer<typeof radiusRingSettingsSchema>;
 
-export const defaultRadiusRingSettings: RadiusRingSettings = {
-  radius: 70,
-  ringColor: '#FFFFFF',
-  accentColor: '#FF5A36',
-  dashed: true,
-  fill: true,
-  halo: true,
-  spin: false,
-};
+export const defaultRadiusRingSettings: RadiusRingSettings = radiusRingSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

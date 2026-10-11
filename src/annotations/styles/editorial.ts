@@ -19,13 +19,7 @@ export const editorialSettingsSchema = z.object({
 
 export type EditorialSettings = z.infer<typeof editorialSettingsSchema>;
 
-export const defaultEditorialSettings: EditorialSettings = {
-  accentColor: '#F2C14E',
-  textColor: '#FFFFFF',
-  halo: true,
-  side: 'auto',
-  maxWidth: 220,
-};
+export const defaultEditorialSettings: EditorialSettings = editorialSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

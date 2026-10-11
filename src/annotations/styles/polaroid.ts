@@ -20,13 +20,7 @@ export const polaroidSettingsSchema = z.object({
 
 export type PolaroidSettings = z.infer<typeof polaroidSettingsSchema>;
 
-export const defaultPolaroidSettings: PolaroidSettings = {
-  frameColor: '#FAF7F0',
-  captionColor: '#2B2B2B',
-  rotation: 4,
-  size: 130,
-  attach: 'line',
-};
+export const defaultPolaroidSettings: PolaroidSettings = polaroidSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

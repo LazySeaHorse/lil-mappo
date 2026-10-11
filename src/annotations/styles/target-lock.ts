@@ -27,13 +27,7 @@ export const targetLockSettingsSchema = z.object({
 
 export type TargetLockSettings = z.infer<typeof targetLockSettingsSchema>;
 
-export const defaultTargetLockSettings: TargetLockSettings = {
-  accentColor: '#3DFFA8',
-  textColor: '#E8FFF4',
-  halo: true,
-  side: 'auto',
-  pulse: false,
-};
+export const defaultTargetLockSettings: TargetLockSettings = targetLockSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

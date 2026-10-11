@@ -59,7 +59,6 @@ describe('leaderLineStyle definition', () => {
   });
 
   it('fills defaults for missing settings', () => {
-    expect(leaderLineSettingsSchema.parse({})).toEqual(defaultLeaderLineSettings);
     expect(leaderLineSettingsSchema.parse({ side: 'left' }).side).toBe('left');
     expect(leaderLineSettingsSchema.safeParse({ side: 'up' }).success).toBe(false);
   });

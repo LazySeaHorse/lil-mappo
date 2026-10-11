@@ -5,7 +5,6 @@ import {
   measureWaypoint,
   parseTickNumber,
   renderWaypoint,
-  waypointSettingsSchema,
   waypointStyle,
   type WaypointSettings,
 } from './waypoint';
@@ -50,7 +49,6 @@ describe('waypointStyle definition', () => {
 
   it('has a control per setting', () => {
     expect(waypointStyle.controls.map((c) => c.key).sort()).toEqual(Object.keys(defaultWaypointSettings).sort());
-    expect(waypointSettingsSchema.parse({})).toEqual(defaultWaypointSettings);
   });
 });
 

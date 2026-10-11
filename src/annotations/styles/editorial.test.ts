@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { CircleNode, PolylineNode, SceneNode, StyleRenderInput, TextNode } from '../types';
 import {
   defaultEditorialSettings,
-  editorialSettingsSchema,
   editorialStyle,
   measureEditorial,
   renderEditorial,
@@ -54,7 +53,6 @@ describe('editorialStyle definition', () => {
       defaultTransition: { enter: 'auto', exit: 'auto', enterDuration: 1.4 },
     });
     expect(editorialStyle.controls.map((c) => c.key).sort()).toEqual(Object.keys(defaultEditorialSettings).sort());
-    expect(editorialSettingsSchema.parse({})).toEqual(defaultEditorialSettings);
   });
 });
 

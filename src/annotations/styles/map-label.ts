@@ -17,12 +17,7 @@ export const mapLabelSettingsSchema = z.object({
 
 export type MapLabelSettings = z.infer<typeof mapLabelSettingsSchema>;
 
-export const defaultMapLabelSettings: MapLabelSettings = {
-  variant: 'place',
-  tint: '#FFFFFF',
-  halo: true,
-  showPoint: false,
-};
+export const defaultMapLabelSettings: MapLabelSettings = mapLabelSettingsSchema.parse({});
 
 // ─── Variants ─────────────────────────────────────────────────────────────────
 

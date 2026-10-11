@@ -19,13 +19,7 @@ export const waypointSettingsSchema = z.object({
 
 export type WaypointSettings = z.infer<typeof waypointSettingsSchema>;
 
-export const defaultWaypointSettings: WaypointSettings = {
-  accentColor: '#FF5A36',
-  textColor: '#FFFFFF',
-  side: 'auto',
-  halo: true,
-  size: 36,
-};
+export const defaultWaypointSettings: WaypointSettings = waypointSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

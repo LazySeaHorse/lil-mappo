@@ -5,7 +5,6 @@ import {
   measureRoadSign,
   renderRoadSign,
   resolvePostCount,
-  roadSignSettingsSchema,
   roadSignStyle,
   type RoadSignSettings,
 } from './road-sign';
@@ -54,7 +53,6 @@ describe('roadSignStyle definition', () => {
 
   it('has a control per setting', () => {
     expect(roadSignStyle.controls.map((c) => c.key).sort()).toEqual(Object.keys(defaultRoadSignSettings).sort());
-    expect(roadSignSettingsSchema.parse({})).toEqual(defaultRoadSignSettings);
   });
 });
 

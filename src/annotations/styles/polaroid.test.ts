@@ -58,7 +58,6 @@ describe('polaroidStyle definition', () => {
   });
 
   it('fills defaults and rejects unknown attachments', () => {
-    expect(polaroidSettingsSchema.parse({})).toEqual(defaultPolaroidSettings);
     expect(polaroidSettingsSchema.safeParse({ attach: 'glue' }).success).toBe(false);
   });
 });

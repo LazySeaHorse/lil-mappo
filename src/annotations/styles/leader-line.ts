@@ -27,15 +27,7 @@ export const leaderLineSettingsSchema = z.object({
 
 export type LeaderLineSettings = z.infer<typeof leaderLineSettingsSchema>;
 
-export const defaultLeaderLineSettings: LeaderLineSettings = {
-  lineColor: '#FFFFFF',
-  accentColor: '#FF5A36',
-  textColor: '#FFFFFF',
-  halo: true,
-  side: 'auto',
-  lineWidth: 1.5,
-  pulse: false,
-};
+export const defaultLeaderLineSettings: LeaderLineSettings = leaderLineSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 
