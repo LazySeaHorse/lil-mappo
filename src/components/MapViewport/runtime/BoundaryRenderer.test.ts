@@ -124,6 +124,13 @@ describe("BoundaryRenderer animated stroke uploads", () => {
     expect(setData).toHaveBeenCalledTimes(2);
   });
 
+  it("draws a boundary with geometry even when its search status is not resolved", () => {
+    const { renderer, setData } = setup();
+    renderer.setBoundary({ ...sampleBoundary, resolveStatus: "idle" });
+    renderer.render(5);
+    expect(setData).toHaveBeenCalledTimes(1);
+  });
+
   it("uploads when progress changes", () => {
     const { renderer, setData } = setup();
     renderer.render(2);

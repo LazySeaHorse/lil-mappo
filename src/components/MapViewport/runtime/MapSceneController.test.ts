@@ -1,7 +1,8 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { RouteItem } from '@/store/types';
+import type { BoundaryItem, RouteItem } from '@/store/types';
+import { createBoundaryItem } from '@/store/itemFactories';
 import { MapSceneController } from './MapSceneController';
 
 const route: RouteItem = {
@@ -168,6 +169,25 @@ describe('MapSceneController', () => {
 
     expect([...double.listeners.values()].every((group) => group.size === 0)).toBe(true);
     expect(double.layers.has('route-layer-scene-route')).toBe(false);
+  });
+
+  it('draws a boundary that has geometry whatever its search status', () => {
+    const previous = useProjectStore.getState();
+    // An abandoned search in an older version left 'idle' on a boundary with valid geometry.
+    const boundary: BoundaryItem = {
+      ...createBoundaryItem({ id: 'idle-boundary', placeName: 'Idle', geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] }, startTime: 0 }),
+      resolveStatus: 'idle',
+    };
+    useProjectStore.setState({ items: { [boundary.id]: boundary }, itemOrder: [boundary.id], playheadTime: 2 });
+    const double = createMapDouble();
+    const controller = new MapSceneController(double.map, vi.fn());
+    try {
+      controller.mount();
+      expect(double.layers.has('boundary-fill-layer-idle-boundary')).toBe(true);
+    } finally {
+      controller.dispose();
+      useProjectStore.setState({ items: previous.items, itemOrder: previous.itemOrder, playheadTime: previous.playheadTime });
+    }
   });
 
   it('renders scene elements when style._loaded is true even if isStyleLoaded returns false due to source updates', () => {

@@ -9,10 +9,10 @@ import { IconButton } from '@/components/ui/icon-button';
 interface BoundarySearchProps {
   initialValue: string;
   onSelect: (result: NominatimResult) => void;
-  onSearchingChange?: (searching: boolean) => void;
 }
 
-export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: BoundarySearchProps) {
+/** The search's progress is local to this component: the boundary item only changes when a result is picked. */
+export function BoundarySearch({ initialValue, onSelect }: BoundarySearchProps) {
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     if (!trimmed) {
       setResults([]);
       setLoading(false);
-      onSearchingChange?.(false);
       return;
     }
 
@@ -47,7 +46,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     abortControllerRef.current = abortController;
 
     setLoading(true);
-    onSearchingChange?.(true);
 
     try {
       const res = await searchBoundary(trimmed, abortController.signal);
@@ -66,10 +64,7 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
       toast.error('Cannot search boundaries.');
     } finally {
       // An aborted search was superseded, cleared or unmounted; whoever aborted it owns loading.
-      if (!abortController.signal.aborted) {
-        setLoading(false);
-        onSearchingChange?.(false);
-      }
+      if (!abortController.signal.aborted) setLoading(false);
     }
   };
 
@@ -84,7 +79,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     if (!val.trim()) {
       abortControllerRef.current?.abort();
       setLoading(false);
-      onSearchingChange?.(false);
       return;
     }
 

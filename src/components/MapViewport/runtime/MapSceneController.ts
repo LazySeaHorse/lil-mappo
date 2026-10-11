@@ -184,7 +184,7 @@ export class MapSceneController implements MapSceneRuntime {
     for (const id of state.itemOrder) {
       const item = state.items[id];
       if (item?.kind === 'route') routes.push(item);
-      if (item?.kind === 'boundary' && item.resolveStatus === 'resolved' && item.geojson) boundaries.push(item);
+      if (item?.kind === 'boundary' && item.geojson) boundaries.push(item);
     }
 
     this.maskBoundaries = boundaries;

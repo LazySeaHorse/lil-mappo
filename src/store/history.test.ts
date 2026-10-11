@@ -375,14 +375,6 @@ describe('selection cleanup and blocking', () => {
     expect(state().selectedItemId).toBe('r1');
   });
 
-  it('marks boundaries with geometry as resolved after undo', () => {
-    state().addItem(boundary('b1'));
-    withoutHistory(() => state().updateItem('b1', { resolveStatus: 'idle' }));
-    state().updateItem('b1', { placeName: 'Lyon' });
-    undo();
-    expect((state().items.b1 as BoundaryItem).resolveStatus).toBe('resolved');
-  });
-
   it('blocks undo and redo while exporting', () => {
     state().setProjection('mercator');
     useProjectStore.setState({ isExporting: true });

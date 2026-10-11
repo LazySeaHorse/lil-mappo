@@ -101,7 +101,7 @@ export class BoundaryRenderer {
     if (this.disposed) return;
     const boundary = this.boundary;
     const geometry = boundary.geojson;
-    if (!geometry || boundary.resolveStatus !== 'resolved') return;
+    if (!geometry) return;
     const fillSource = getGeoJSONSource(this.map, this.ids.fillSource);
     const strokeSource = getGeoJSONSource(this.map, this.ids.strokeSource);
     if (!fillSource || !strokeSource) return;
