@@ -330,6 +330,9 @@ export class RouteRenderer {
   }
 
   private addVehicleLayer(vehicle: RouteVehicleConfig): void {
+    // A new layer starts visible at full opacity, whatever the one it replaces was set to.
+    this.layers.cache.vehicleVisible = true;
+    this.layers.cache.vehicleOpacity = -1;
     if (vehicle.type === 'dot') {
       this.map.addLayer({
         id: this.ids.vehicleLayer,

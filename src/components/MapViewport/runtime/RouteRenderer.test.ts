@@ -592,6 +592,25 @@ describe("RouteRenderer vehicle writes", () => {
     expect(paintCalls(double, "model-rotation")).toHaveLength(1);
   });
 
+  it("re-applies visibility and opacity to a recreated vehicle layer", () => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, route("dot"));
+    renderer.mount();
+    renderer.render(-1);
+    expect(double.layers.get("vehicle-layer-veh")?.layout?.visibility).toBe("none");
+    renderer.setRoute(route("car"));
+    renderer.render(-1);
+    expect(double.layers.get("vehicle-layer-veh")?.layout?.visibility).toBe("none");
+
+    const fading = { ...route("dot"), exitAnimation: "fade" } as RouteItem;
+    renderer.setRoute(fading);
+    renderer.render(10.25);
+    expect(double.layers.get("vehicle-layer-veh")?.paint?.["circle-opacity"]).toBeCloseTo(0.5);
+    renderer.setRoute({ ...fading, calculation: route("car").calculation });
+    renderer.render(10.25);
+    expect(double.layers.get("vehicle-layer-veh")?.paint?.["model-opacity"]).toBeCloseTo(0.5);
+  });
+
   it("re-places the vehicle after a style reload", () => {
     const double = createMapDouble();
     const renderer = new RouteRenderer(double.map, route("car"));
