@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BoundaryItem } from '@/store/types';
 import { DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
 import type { EasingName } from '@/store/types';
-import { progressWithin, resolveBoundaryTiming } from './boundaryTiming';
+import { progressWithin, resolveBoundaryTiming, resolveStrokeOpacity } from './boundaryTiming';
 
 const EASINGS: EasingName[] = [
   'linear', 'easeInQuad', 'easeOutQuad', 'easeInOutQuad', 'easeInCubic', 'easeOutCubic', 'easeInOutCubic', 'easeInOutSine', 'bounce',
@@ -124,5 +124,40 @@ describe('progressWithin', () => {
     expect(progressWithin(0.85, 0.7)).toBeCloseTo(0.5);
     expect(progressWithin(0.4, 0.5, 0.5)).toBe(0);
     expect(progressWithin(0.5, 0.5, 0.5)).toBe(1);
+  });
+});
+
+describe('resolveStrokeOpacity', () => {
+  // BoundaryRenderer's former inline version, kept as the oracle.
+  function legacy(t: ReturnType<typeof timing>, animateStroke: boolean | undefined): number {
+    const { progress, reverseProgress, fadeExit, reverseExit, animationStyle } = t;
+    const staticStroke = !animateStroke || animationStyle === 'fade';
+    let strokeOpacity: number;
+    if (reverseExit) {
+      strokeOpacity = staticStroke
+        ? Math.min(reverseProgress * 2, 1)
+        : animationStyle === 'draw' ? (reverseProgress > 0 ? 1 : 0) : reverseProgress;
+    } else if (!animateStroke) {
+      strokeOpacity = progress > 0 ? 1 : 0;
+      if (fadeExit) strokeOpacity *= reverseProgress;
+    } else {
+      strokeOpacity = animationStyle === 'fade' ? Math.min(progress * 2, 1) : (progress > 0 ? 1 : 0);
+      if (fadeExit) strokeOpacity *= reverseProgress;
+    }
+    return strokeOpacity;
+  }
+
+  it('matches the former inline rules for every style, exit and time', () => {
+    for (const animateStroke of [true, false, undefined]) {
+      for (const animationStyle of ['fade', 'draw', 'trace', undefined] as const) {
+        for (const exit of ['none', 'fade', 'reverse'] as const) {
+          for (const time of [-1, 0, 1, 2.5, 5, 9, 10, 10.1, 10.25, 10.4, 10.5, 12]) {
+            const t = timing({ animateStroke, animationStyle }, exit, time);
+            expect(resolveStrokeOpacity(t, animateStroke), `${animateStroke}/${animationStyle}/${exit}/${time}`)
+              .toBe(legacy(t, animateStroke));
+          }
+        }
+      }
+    }
   });
 });

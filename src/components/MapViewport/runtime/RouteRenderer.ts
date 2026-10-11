@@ -1,5 +1,4 @@
 import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
-import { getNormalizedProgress } from '@/engine/easings';
 import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import { getRoutePath } from '@/engine/routePath';
@@ -15,8 +14,8 @@ import {
   removeSourceIfPresent,
 } from './mapboxResources';
 import { MODEL_BASE_SCALE } from '@/config/vehicles';
+import { routeTiming, type RouteTiming } from './routeTiming';
 
-const EXIT_DURATION = 0.5;
 const DOT_BASE_RADIUS = 9;
 const MODELS: Record<'car' | 'plane', string> = {
   car: '/models/car.glb',
@@ -148,7 +147,8 @@ export class RouteRenderer {
 
     const resolvedPaint = resolveRoutePaint(route);
     const routeColor = resolvedPaint.lineColor;
-    const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
+    const timing = routeTiming(route, playheadTime);
+    const { progress, isBeforeStart, exitActive, exitProgress, isAfterExit } = timing;
     const animationType = route.style.animationType ?? 'draw';
 
     if (this.layers.cache.lastAnimationType === 'comet' && animationType !== 'comet') {
@@ -156,11 +156,6 @@ export class RouteRenderer {
       this.lastCometState = '';
     }
     this.layers.cache.lastAnimationType = animationType;
-
-    const isBeforeStart = playheadTime < route.startTime;
-    const exitActive = route.exitAnimation !== 'none' && playheadTime > route.endTime;
-    const exitProgress = exitActive ? Math.min((playheadTime - route.endTime) / EXIT_DURATION, 1) : 0;
-    const isAfterExit = exitProgress >= 1;
 
     if (animationType === 'comet') {
       this.layers.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
@@ -190,7 +185,7 @@ export class RouteRenderer {
         const glowVisible = Boolean(route.style.glow);
         this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
 
-        const opacity = this.resolveOpacity(playheadTime);
+        const { opacity } = timing;
         this.layers.setPaint(this.ids.mainLayer, 'line-color', routeColor, 'mainColor', routeColor);
         this.layers.setPaint(this.ids.mainLayer, 'line-opacity', opacity, 'mainOpacity', opacity);
         this.layers.setPaint(this.ids.mainLayer, 'line-width', route.style.width, 'mainWidth', route.style.width);
@@ -221,7 +216,7 @@ export class RouteRenderer {
       }
     }
 
-    this.renderVehicle(playheadTime, progress);
+    this.renderVehicle(playheadTime, timing);
   };
 
   dispose(): void {
@@ -365,11 +360,6 @@ export class RouteRenderer {
     getGeoJSONSource(this.map, this.ids.mainSource)?.setData(routeLine(getRoutePath(this.coordinates).coords));
   }
 
-  private resolveOpacity(playheadTime: number): number {
-    if (this.route.exitAnimation !== 'fade' || playheadTime <= this.route.endTime) return 1;
-    return 1 - Math.min((playheadTime - this.route.endTime) / EXIT_DURATION, 1);
-  }
-
   private updateDashPattern(): void {
     const pattern = this.route.style.dashPattern;
     if (this.layers.cache.dashPattern?.[0] === pattern?.[0] && this.layers.cache.dashPattern?.[1] === pattern?.[1]) return;
@@ -379,11 +369,9 @@ export class RouteRenderer {
     })) this.layers.cache.dashPattern = pattern ? [...pattern] : null;
   }
 
-  private renderVehicle(playheadTime: number, progress: number): void {
+  private renderVehicle(playheadTime: number, { progress, exitProgress, opacity }: RouteTiming): void {
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled || this.coordinates.length < 2) return;
-    const exitActive = playheadTime > this.route.endTime && this.route.exitAnimation !== 'none';
-    const exitProgress = exitActive ? Math.min((playheadTime - this.route.endTime) / EXIT_DURATION, 1) : 0;
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
       && !((this.route.style.animationType ?? 'draw') === 'comet' && progress === 0);
     this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
@@ -398,7 +386,6 @@ export class RouteRenderer {
       properties: {},
       geometry: { type: 'Point', coordinates: [lng, lat] },
     });
-    const opacity = this.route.exitAnimation === 'fade' && exitActive ? 1 - exitProgress : 1;
     const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 

@@ -64,3 +64,22 @@ export function resolveBoundaryTiming(
 
   return { progress, exitProgress, reverseProgress, fadeExit, reverseExit, animationStyle, fillFactor };
 }
+
+/**
+ * Opacity of the outline. A static stroke (not animated, or the fade style) fades in and out
+ * over the first and last half of its progress; a drawn or traced one is fully opaque while
+ * any of it shows, except the trace's reverse exit, which fades with the erase.
+ */
+export function resolveStrokeOpacity(
+  { progress, reverseProgress, fadeExit, reverseExit, animationStyle }: BoundaryTiming,
+  animateStroke: boolean | undefined,
+): number {
+  const staticStroke = !animateStroke || animationStyle === 'fade';
+  if (reverseExit) {
+    if (staticStroke) return Math.min(reverseProgress * 2, 1);
+    if (animationStyle === 'draw') return reverseProgress > 0 ? 1 : 0;
+    return reverseProgress;
+  }
+  const opacity = animateStroke && animationStyle === 'fade' ? Math.min(progress * 2, 1) : progress > 0 ? 1 : 0;
+  return fadeExit ? opacity * reverseProgress : opacity;
+}

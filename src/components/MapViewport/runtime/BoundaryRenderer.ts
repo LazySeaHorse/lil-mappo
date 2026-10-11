@@ -5,7 +5,7 @@ import { getLineSegment } from '@/engine/lineAnimation';
 import type { BoundaryItem } from '@/store/types';
 import { resolveBoundaryFillColor } from '../layerStyleContracts';
 import { BoundaryFlagLayer, type FlagPlacement, preloadFlag } from './BoundaryFlagLayer';
-import { resolveBoundaryTiming } from './boundaryTiming';
+import { resolveBoundaryTiming, resolveStrokeOpacity } from './boundaryTiming';
 import {
   geoJSONSource,
   getGeoJSONSource,
@@ -108,7 +108,8 @@ export class BoundaryRenderer {
     if (!fillSource || !strokeSource) return;
 
     const style = boundary.style;
-    const { progress, exitProgress, reverseProgress, fadeExit, reverseExit, animationStyle, fillFactor } = resolveBoundaryTiming(boundary, playheadTime);
+    const timing = resolveBoundaryTiming(boundary, playheadTime);
+    const { progress, exitProgress, reverseProgress, reverseExit, animationStyle, fillFactor } = timing;
     const geometryChanged = this.lastGeometry !== geometry;
 
     const fillColor = resolveBoundaryFillColor(style);
@@ -139,18 +140,7 @@ export class BoundaryRenderer {
     this.layers.setPaint(this.ids.fillLayer, 'fill-opacity', fillOpacity, 'fillOpacity', fillOpacity);
 
     const staticStroke = !style.animateStroke || animationStyle === 'fade';
-    let strokeOpacity: number;
-    if (reverseExit) {
-      strokeOpacity = staticStroke
-        ? Math.min(reverseProgress * 2, 1)
-        : animationStyle === 'draw' ? (reverseProgress > 0 ? 1 : 0) : reverseProgress;
-    } else if (!style.animateStroke) {
-      strokeOpacity = progress > 0 ? 1 : 0;
-      if (fadeExit) strokeOpacity *= reverseProgress;
-    } else {
-      strokeOpacity = animationStyle === 'fade' ? Math.min(progress * 2, 1) : (progress > 0 ? 1 : 0);
-      if (fadeExit) strokeOpacity *= reverseProgress;
-    }
+    const strokeOpacity = resolveStrokeOpacity(timing, style.animateStroke);
 
     if (staticStroke) {
       if (this.strokeSourceMode !== 'static' || geometryChanged) {
