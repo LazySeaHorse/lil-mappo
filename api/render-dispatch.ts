@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { adminClient } from './_lib/supabase.js';
 import crypto from 'crypto';
 import { calculateRenderCredits } from './_lib/render.js';
+import { isWanderer } from './_lib/entitlement.js';
 import type { ExportResolution } from './_lib/render.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -26,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // flag here: the stored render config is later consumed by headless Chrome.
   const { data: subscription, error: subscriptionError } = await supabase
     .from('subscriptions')
-    .select('tier, status')
+    .select('tier, status, renewal_date')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -34,10 +35,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Could not verify render entitlement' });
   }
 
-  const showWatermark = !(
-    subscription?.tier === 'wanderer' &&
-    (subscription.status === 'active' || subscription.status === 'cancelling')
-  );
+  // A cancelling subscription past its period end is not entitled, even if the
+  // expiry webhook has not removed the row yet.
+  const showWatermark = !isWanderer(subscription);
 
   // ── 2. Parse body ─────────────────────────────────────────────────────────────
   const { projectData, renderConfig, startTime = 0, endTime } = (req.body ?? {}) as {
