@@ -182,7 +182,7 @@ export const BoundaryAddDropdown = ({
               
               <Field label="Entrance animation">
                 <Select 
-                  value={previewBoundaryStyle!.animationStyle || 'draw'} 
+                  value={previewBoundaryStyle!.animationStyle}
                   onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: parseBoundaryAnimationStyle(v) })}
                 >
                   <SelectTrigger className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">

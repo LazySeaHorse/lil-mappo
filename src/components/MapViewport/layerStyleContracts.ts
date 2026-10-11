@@ -15,10 +15,10 @@ export function resolveRoutePaint(route: Pick<RouteItem, 'style'>): ResolvedRout
   };
 }
 
-type BoundaryFillContract = Pick<BoundaryStyle, 'strokeColor'> &
-  Partial<Pick<BoundaryStyle, 'fillColor'>>;
-
-/** Legacy boundaries predate fillColor and intentionally inherit their stroke color. */
-export function resolveBoundaryFillColor(style: BoundaryFillContract): string {
-  return style.fillColor ?? style.strokeColor;
+/**
+ * The boundary fill colour. Always set: boundaries saved before fillColor existed are given
+ * their stroke colour when the document is migrated (projectDocument v0 -> v1).
+ */
+export function resolveBoundaryFillColor(style: Pick<BoundaryStyle, 'fillColor'>): string {
+  return style.fillColor;
 }

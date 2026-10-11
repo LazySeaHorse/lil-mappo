@@ -44,9 +44,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   const footer = <ItemActions id={item.id} kind="boundary" customLabel="Delete Boundary" />;
 
   // Determine active animation card
-  const activeAnimMode = !item.style.animateStroke 
-    ? 'none' 
-    : (item.style.animationStyle || 'draw');
+  const activeAnimMode = item.style.animateStroke ? item.style.animationStyle : 'none';
 
   const handleAnimModeChange = (mode: BoundaryAnimationMode) => {
     if (mode === 'none') {
@@ -131,7 +129,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             ) : (
               <ColorRow
                 label="Fill color"
-                value={item.style.fillColor ?? item.style.strokeColor}
+                value={item.style.fillColor}
                 onChange={(v) => us({ fillColor: v })}
               />
             )}
@@ -186,7 +184,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             {activeAnimMode === 'trace' && (
               <SliderRow 
                 label="Highlight length" 
-                value={item.style.traceLength || 0.1} 
+                value={item.style.traceLength}
                 onChange={(v) => us({ traceLength: v })} 
                 min={0.01} 
                 max={0.5} 

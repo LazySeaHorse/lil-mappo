@@ -82,14 +82,6 @@ describe('canonical domain contracts', () => {
     expect(resolveBoundaryFillColor(style)).toBe('#eeeeee');
   });
 
-  it('falls back to stroke color for a legacy boundary without fillColor', () => {
-    const legacyStyle = {
-      strokeColor: '#765432',
-    } satisfies Pick<BoundaryStyle, 'strokeColor'>;
-
-    expect(resolveBoundaryFillColor(legacyStyle)).toBe('#765432');
-  });
-
   it('updates camera enablement through the declared store action', () => {
     const store = useProjectStore.getState();
 

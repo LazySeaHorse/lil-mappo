@@ -48,7 +48,7 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
         geometry: geoStats(item.geojson),
         style: detail
           ? item.style
-          : { color: item.style.color, width: item.style.width, glow: item.style.glow, animationType: item.style.animationType ?? 'draw' },
+          : { color: item.style.color, width: item.style.width, glow: item.style.glow, animationType: item.style.animationType },
         easing: item.easing,
         ...(detail
           ? { exitAnimation: item.exitAnimation ?? 'none', vehicle: calc?.vehicle, autoCam: item.autoCam }

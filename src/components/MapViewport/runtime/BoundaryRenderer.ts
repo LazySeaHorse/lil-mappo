@@ -151,7 +151,7 @@ export class BoundaryRenderer {
         this.lastAnimatedStroke = null;
       }
     } else {
-      const traceLength = boundary.style.traceLength ?? 0.1;
+      const { traceLength } = boundary.style;
       const draw = animationStyle === 'draw';
       const position = reverseExit ? (draw ? exitProgress : reverseProgress) : progress;
       const key = `${animationStyle}|${reverseExit}|${position}|${traceLength}`;

@@ -152,7 +152,7 @@ export class RouteRenderer {
     const routeColor = resolvedPaint.lineColor;
     const timing = routeTiming(route, playheadTime);
     const { progress, isBeforeStart, exitActive, exitProgress, isAfterExit } = timing;
-    const animationType = route.style.animationType ?? 'draw';
+    const { animationType } = route.style;
 
     if (this.layers.cache.lastAnimationType === 'comet' && animationType !== 'comet') {
       getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
@@ -171,8 +171,7 @@ export class RouteRenderer {
       } else {
         const state = `comet:${progress}`;
         if (this.lastCometState !== state) {
-          const trailLength = route.style.cometTrailLength ?? 0.2;
-          const trail = getLineSegment(coordinates, Math.max(0, progress - trailLength), progress);
+          const trail = getLineSegment(coordinates, Math.max(0, progress - route.style.cometTrailLength), progress);
           getGeoJSONSource(this.map, this.ids.cometSource)?.setData(coordsToFeatureCollection(trail));
           this.lastCometState = state;
         }
@@ -382,7 +381,7 @@ export class RouteRenderer {
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled || this.coordinates.length < 2) return;
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
-      && !((this.route.style.animationType ?? 'draw') === 'comet' && progress === 0);
+      && !(this.route.style.animationType === 'comet' && progress === 0);
     this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
     const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
     if (!visible || !source) return;

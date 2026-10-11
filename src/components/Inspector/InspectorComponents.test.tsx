@@ -200,6 +200,28 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByText('85 %')).toBeInTheDocument();
   });
 
+  it('shows a zero trace length as zero instead of the default', () => {
+    const boundaryItem: BoundaryItem = {
+      id: 'boundary-3',
+      kind: 'boundary',
+      placeName: 'Traceland',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
+      startTime: 0,
+      endTime: 4,
+      easing: 'linear', exitAnimation: 'none',
+      resolveStatus: 'resolved',
+      style: {
+        strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,
+        animateStroke: true, animationStyle: 'trace', traceLength: 0,
+        maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null,
+      },
+    };
+    useProjectStore.setState({ items: { 'boundary-3': boundaryItem }, selectedItemId: 'boundary-3' });
+    render(<BoundaryInspector item={boundaryItem} />);
+    expect(screen.getByText('Highlight length')).toBeInTheDocument();
+    expect(screen.getByText('0 %')).toBeInTheDocument();
+  });
+
   it('renders AnnotationInspector with style controls, location and animation', () => {
     const calloutItem: CalloutItem = {
       id: 'callout-1',

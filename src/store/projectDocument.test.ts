@@ -326,6 +326,8 @@ describe('project document persistence boundary', () => {
       expect(route.style).not.toHaveProperty('glowColor');
       // A missing exit animation means the route stays on screen after its end.
       expect(route.exitAnimation).toBe('none');
+      // The renderer's draw animation and comet trail length, which old documents relied on.
+      expect(route.style).toMatchObject({ animationType: 'draw', cometTrailLength: 0.2 });
     }
     expect(boundary.kind).toBe('boundary');
     if (boundary.kind === 'boundary') {

@@ -54,8 +54,9 @@ const routeStyleSchema = z.object({
   trailFade: z.boolean(),
   trailFadeLength: z.number(),
   dashPattern: z.array(z.number()).nullable(),
-  animationType: z.enum(['draw', 'navigation', 'comet']).optional(),
-  cometTrailLength: z.number().optional(),
+  // Older documents may lack these; they load as the draw animation and a 0.2 trail.
+  animationType: z.enum(['draw', 'navigation', 'comet']).default('draw'),
+  cometTrailLength: z.number().default(0.2),
 });
 
 const routeVehicleSchema = z.object({

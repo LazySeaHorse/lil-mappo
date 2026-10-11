@@ -44,7 +44,7 @@ export function resolveBoundaryTiming(
   const reverseProgress = 1 - exitProgress;
   const fadeExit = boundary.exitAnimation === 'fade' && isExiting;
   const reverseExit = boundary.exitAnimation === 'reverse' && isExiting;
-  const animationStyle = style.animationStyle ?? 'fade';
+  const { animationStyle } = style;
 
   let fillProgress: number;
   if (reverseExit) {

@@ -94,7 +94,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     }
   };
 
-  const animType: RouteAnimationType = item.style.animationType || 'draw';
+  const animType: RouteAnimationType = item.style.animationType;
   const footer = <ItemActions id={item.id} kind="route" customLabel="Delete Route" />;
 
   const lineStyleValue: RouteLineStyle =
@@ -244,7 +244,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             {animType === 'comet' && (
               <SliderRow
                 label="Trail length"
-                value={item.style.cometTrailLength ?? 0.2}
+                value={item.style.cometTrailLength}
                 onChange={(v) => us({ cometTrailLength: v })}
                 min={0.05}
                 max={0.8}
