@@ -16,7 +16,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
 import { SwitchRow, SliderField } from './InspectorShared';
 import { buildWalkGeometry, DEFAULT_SHARPNESS } from '@/engine/routeCurves';
-import { useEndpointRoutePath } from './useEndpointRoutePath';
+import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
+import { withoutHistory } from '@/store/history';
 import { convertRouteCalculation, isPlacedPoint } from '@/engine/routeMode';
 import { WalkPointList } from './WalkPointList';
 import { vehicleChangePatch } from '@/config/vehicles';
@@ -237,6 +238,27 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
 // Car / flight — two endpoints, computed path
 // ---------------------------------------------------------------------------
 
+/** Lands a computed path on the route ('save') or shows it as the map preview. */
+function useRoutePath(routeId: string) {
+  const { loading, calculate, cancel } = useEndpointRoutePath(routeId);
+
+  const calculateFor = (calc: EndpointRouteCalculation, target: 'save' | 'preview') =>
+    calculate(calc.mode, calc.startPoint, calc.endPoint, (geojson) => {
+      const { updateItem, setPreviewRoute } = useProjectStore.getState();
+      if (target === 'save') {
+        // Async result of an earlier request, not an edit of its own.
+        withoutHistory(() => updateItem(routeId, { geojson }));
+        setPreviewRoute(null);
+        toast.success('Route updated.');
+      } else {
+        setPreviewRoute(geojson);
+        toast.success('Route preview is ready.');
+      }
+    });
+
+  return { loading, calculate: calculateFor, cancel };
+}
+
 const EndpointPlanner = ({
   item,
   calc,
@@ -244,7 +266,7 @@ const EndpointPlanner = ({
 }: {
   item: RouteItem;
   calc: EndpointRouteCalculation;
-  path: ReturnType<typeof useEndpointRoutePath>;
+  path: ReturnType<typeof useRoutePath>;
 }) => {
   const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore(
     useShallow(s => ({
@@ -369,7 +391,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const storeItem = useProjectStore((s) => s.items[item.id]) as RouteItem | undefined;
   const activeItem = storeItem ?? item;
   const calc = activeItem.calculation ?? convertRouteCalculation(undefined, 'car');
-  const path = useEndpointRoutePath(item.id);
+  const path = useRoutePath(item.id);
 
   useEffect(() => {
     return () => {

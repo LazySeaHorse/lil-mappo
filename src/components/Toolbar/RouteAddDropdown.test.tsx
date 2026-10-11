@@ -159,6 +159,40 @@ describe('RouteAddDropdown with Airport Picker', () => {
 
     expect(useProjectStore.getState().activePicker?.id).toBe('route-start');
   });
+  const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[buttonIndex]); });
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+  };
+
+  it('accepts an endpoint on the prime meridian (longitude 0)', async () => {
+    const { getDirections } = await import('@/services/directions');
+    vi.mocked(getDirections).mockClear();
+    render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+
+    pickPoint(0, [0, 51.48]);
+    pickPoint(1, [2.35, 48.85]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview path/i })); });
+
+    expect(getDirections).toHaveBeenCalledWith([0, 51.48], [2.35, 48.85], expect.any(AbortSignal));
+    expect(await screen.findByRole('button', { name: /Insert route/i })).toBeInTheDocument();
+  });
+
+  it('re-enables Preview path after closing during a pending calculation', async () => {
+    const { getDirections } = await import('@/services/directions');
+    vi.mocked(getDirections).mockReturnValueOnce(new Promise(() => {}));
+    const { rerender } = render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+
+    pickPoint(0, [1, 1]);
+    pickPoint(1, [2, 2]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview path/i })); });
+    expect(screen.getByRole('button', { name: /Preview path/i })).toBeDisabled();
+
+    rerender(<RouteAddDropdown isOpen={false} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+    rerender(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /Preview path/i })).toBeEnabled();
+  });
+
   it('inserts a walk through the appended points without routing it', async () => {
     const { getDirections } = await import('@/services/directions');
     vi.mocked(getDirections).mockClear();

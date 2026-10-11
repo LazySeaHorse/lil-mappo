@@ -1,8 +1,7 @@
 import { z } from 'zod/v4';
-import { getDirections } from '@/services/directions';
+import { computeEndpointGeometry, type EndpointGeometry } from '@/services/endpointGeometry';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { searchBoundary } from '@/services/nominatim';
-import { calculateFlightArc } from '@/services/flightPath';
 import { getAllStyles, getStyle } from '@/annotations/registry';
 import {
   DEFAULT_BOUNDARY_STYLE,
@@ -12,7 +11,6 @@ import {
   DEFAULT_CALLOUT_STYLE_ID,
   createWalkRouteItem,
   defaultEndpointRouteName,
-  wrapGeometry,
 } from '@/store/itemFactories';
 import type { RouteItem } from '@/store/types';
 import { defineTool } from '../defineTool';
@@ -93,21 +91,19 @@ export const addRoute = defineTool({
       item = createWalkRouteItem({ points, curved: input.curved, name: input.name, startTime: 0 });
     } else {
       const [from, to] = await Promise.all([resolveLocation(input.from as Location), resolveLocation(input.to as Location)]);
-      let geometry: GeoJSON.Geometry;
-      if (mode === 'car') {
-        try {
-          const dir = await getDirections(from.coordinates, to.coordinates);
-          geometry = dir.geometry;
-          extra = { distanceMeters: Math.round(dir.distance), driveTimeSeconds: Math.round(dir.duration) };
-        } catch (err) {
-          throw new ToolError('directions_failed', `Could not get driving directions: ${err instanceof Error ? err.message : String(err)}. Try flight or walk mode, or different endpoints.`);
-        }
-      } else {
-        geometry = calculateFlightArc(from.coordinates, to.coordinates);
+      let path: EndpointGeometry;
+      try {
+        // Only a car route can fail: it fetches directions. A flight arc is pure math.
+        path = await computeEndpointGeometry(mode, from.coordinates, to.coordinates);
+      } catch (err) {
+        throw new ToolError('directions_failed', `Could not get driving directions: ${err instanceof Error ? err.message : String(err)}. Try flight or walk mode, or different endpoints.`);
+      }
+      if (path.directions) {
+        extra = { distanceMeters: Math.round(path.directions.distance), driveTimeSeconds: Math.round(path.directions.duration) };
       }
       item = createEndpointRouteItem({
         mode,
-        geojson: wrapGeometry(geometry),
+        geojson: path.geojson,
         start: from.coordinates,
         end: to.coordinates,
         name: input.name ?? defaultEndpointRouteName(mode, from.name, to.name),

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
-import { getDirections } from '@/services/directions';
-import { calculateFlightArc } from '@/services/flightPath';
+import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
 import { Button } from '@/components/ui/button';
 import {
   Car, Footprints, Plane, Search, Loader2,
@@ -11,7 +10,7 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
-import type { RouteMode } from '@/store/types';
+import type { RouteItem, RouteMode } from '@/store/types';
 import { createEndpointRouteItem, createWalkRouteItem, defaultEndpointRouteName } from '@/store/itemFactories';
 import { SearchField } from '../Search/SearchField';
 import { AirportSearchField } from '../Search/AirportSearchField';
@@ -24,6 +23,7 @@ import { SectionLabel } from '@/components/ui/field';
 import { arrayMove } from '@dnd-kit/sortable';
 import { createWalkCalculation } from '@/engine/routeCurves';
 import { extractLineCoords } from '@/engine/geoUtils';
+import { isPlacedPoint } from '@/engine/routeMode';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { WalkPointList } from '../Inspector/WalkPointList';
 import { SwitchRow } from '../Inspector/InspectorShared';
@@ -37,6 +37,24 @@ const ROUTE_MODE_OPTIONS: SegmentedControlOption<RouteMode>[] = [
   { value: 'walk', label: 'Walk', icon: <Footprints size={12} /> },
   { value: 'flight', label: 'Flight', icon: <Plane size={12} /> },
 ];
+
+const PATH_MESSAGES = { missingEndpoints: 'Set start and end', failed: 'Calculation failed' };
+
+const ENDPOINT_COLORS = {
+  start: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  end: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+};
+
+const ENDPOINT_FIELD_COPY = {
+  car: {
+    start: { label: 'Start location...' },
+    end: { label: 'End location...' },
+  },
+  flight: {
+    start: { label: 'Departure airport...', placeholder: 'Departure airport or city (e.g. JFK, LHR)...' },
+    end: { label: 'Arrival airport...', placeholder: 'Arrival airport or city (e.g. DXB, CDG)...' },
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -68,52 +86,43 @@ export const RouteAddDropdown = ({
   const [startName, setStartName] = useState('');
   const [end, setEnd] = useState<[number, number]>([0, 0]);
   const [endName, setEndName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const path = useEndpointRoutePath(undefined, PATH_MESSAGES);
 
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
   const [walkCurved, setWalkCurved] = useState(true);
 
-  const calculationSeqRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  /** Drops any path request in flight and the preview drawn from the old inputs. */
+  const discardPath = () => {
+    path.cancel();
+    if (useProjectStore.getState().previewRoute) useProjectStore.getState().setPreviewRoute(null);
+  };
 
   const resetAll = () => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
+    discardPath();
     setStart([0, 0]);
     setStartName('');
     setEnd([0, 0]);
     setEndName('');
     setWalkPoints([]);
     setWalkCurved(true);
-    setPreviewRoute(null);
   };
 
   const handleModeChange = (newMode: RouteMode) => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
+    discardPath();
     setMode(newMode);
-    setPreviewRoute(null);
   };
 
   const handleStartChange = (lngLat: [number, number], name?: string) => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
+    discardPath();
     setStart(lngLat);
     setStartName(name || '');
-    setPreviewRoute(null);
   };
 
   const handleEndChange = (lngLat: [number, number], name?: string) => {
-    abortControllerRef.current?.abort();
-    calculationSeqRef.current++;
-    setLoading(false);
+    discardPath();
     setEnd(lngLat);
     setEndName(name || '');
-    setPreviewRoute(null);
   };
 
   // Live walk preview: mirror the draft into the store so the map draws it as points change.
@@ -124,31 +133,22 @@ export const RouteAddDropdown = ({
     setDraftWalk(draft && { ...draft, curved: walkCurved });
   }, [isOpen, mode, walkPoints, walkCurved, setDraftWalk]);
 
-  // Cleanup on close / unmount
+  // Cleanup on close / unmount (the path hook cancels its own request on unmount)
   useEffect(() => {
-    if (!isOpen) {
-      abortControllerRef.current?.abort();
-      calculationSeqRef.current++;
-      if (useProjectStore.getState().previewRoute) {
-        useProjectStore.getState().setPreviewRoute(null);
-      }
-    }
+    if (!isOpen) discardPath();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
     return () => {
-      useProjectStore.getState().setDraftWalk(null);
-      abortControllerRef.current?.abort();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      calculationSeqRef.current++;
-      if (useProjectStore.getState().previewRoute) {
-        useProjectStore.getState().setPreviewRoute(null);
-      }
+      const store = useProjectStore.getState();
+      store.setDraftWalk(null);
+      if (store.previewRoute) store.setPreviewRoute(null);
     };
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Car / flight calculate + add
+  // Map pickers
   // ---------------------------------------------------------------------------
 
   const { isPicking: isAppending, toggle: toggleAppend } = useMapPicker('walk-append', {
@@ -170,84 +170,51 @@ export const RouteAddDropdown = ({
     onPick: (result) => handleEndChange(result.lngLat, result.name),
   });
 
-  const calculate = async () => {
-    if (start[0] === 0 || end[0] === 0) {
-      toast.error('Set start and end');
-      return;
-    }
+  // ---------------------------------------------------------------------------
+  // Calculate + add
+  // ---------------------------------------------------------------------------
 
-    abortControllerRef.current?.abort();
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    const seq = ++calculationSeqRef.current;
-    setLoading(true);
-    try {
-      let geojson: GeoJSON.Geometry;
-      if (mode === 'car') {
-        const res = await getDirections(start, end, abortController.signal);
-        geojson = res.geometry;
-      } else {
-        geojson = calculateFlightArc(start, end);
-      }
-      if (seq !== calculationSeqRef.current || abortController.signal.aborted) return;
-      setPreviewRoute({
-        type: 'FeatureCollection',
-        features: [{ type: 'Feature', geometry: geojson, properties: {} }],
-      });
+  const calculate = () => {
+    if (mode === 'walk') return;
+    void path.calculate(mode, start, end, (geojson) => {
+      setPreviewRoute(geojson);
       toast.success('Path preview ready');
-    } catch (e: unknown) {
-      if (
-        abortController.signal.aborted ||
-        seq !== calculationSeqRef.current ||
-        (e instanceof Error && e.name === 'AbortError')
-      )
-        return;
-      toast.error('Calculation failed');
-    } finally {
-      if (seq === calculationSeqRef.current) setLoading(false);
-    }
+    });
   };
 
-  const handleAddCarFlight = () => {
-    if (!previewRoute || mode === 'walk') return;
-
-    const item = createEndpointRouteItem({
-      mode,
-      geojson: previewRoute,
-      start,
-      end,
-      name: defaultEndpointRouteName(mode, startName, endName),
-      startTime: useProjectStore.getState().playheadTime,
-    });
-    const id = item.id;
-
+  const insertItem = (item: RouteItem, pointCount: number) => {
     addItem(item);
-    selectItem(id);
-    reportRouteAdded(mode === 'flight' ? 'flight' : 'car', extractLineCoords(previewRoute).length);
+    selectItem(item.id);
+    reportRouteAdded(mode, pointCount);
     resetAll();
     onOpenChange(false);
   };
 
-  // ---------------------------------------------------------------------------
+  const handleAddCarFlight = () => {
+    if (!previewRoute || mode === 'walk') return;
+    insertItem(
+      createEndpointRouteItem({
+        mode,
+        geojson: previewRoute,
+        start,
+        end,
+        name: defaultEndpointRouteName(mode, startName, endName),
+        startTime: useProjectStore.getState().playheadTime,
+      }),
+      extractLineCoords(previewRoute).length,
+    );
+  };
+
   // Walk — append-only, insert straight into timeline
-  // ---------------------------------------------------------------------------
-
-
   const handleAddWalk = () => {
     if (walkPoints.length < 2) {
       toast.error('Add at least 2 points to create a walk path.');
       return;
     }
-
-    const item = createWalkRouteItem({ points: walkPoints, curved: walkCurved, startTime: useProjectStore.getState().playheadTime });
-    const id = item.id;
-
-    addItem(item);
-    selectItem(id);
-    reportRouteAdded('walk', walkPoints.length);
-    resetAll();
-    onOpenChange(false);
+    insertItem(
+      createWalkRouteItem({ points: walkPoints, curved: walkCurved, startTime: useProjectStore.getState().playheadTime }),
+      walkPoints.length,
+    );
   };
 
   // ---------------------------------------------------------------------------
@@ -279,60 +246,60 @@ export const RouteAddDropdown = ({
     </PanelHeader>
   );
 
-  // Footer differs per mode
-  const footer =
-    mode === 'walk' ? (
-      <div className="space-y-2">
-        <Button
-          variant={walkPoints.length >= 2 ? 'default' : 'secondary'}
-          size="sm"
-          onClick={handleAddWalk}
-          disabled={walkPoints.length < 2}
-          className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
-        >
-          <Plus size={16} /> Insert walk path
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onImportClick}
-          className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
-        >
-          <Upload size={13} /> Import KML / GPX data
-        </Button>
-      </div>
-    ) : (
-      <div className="space-y-2">
-        {!previewRoute ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={calculate}
-            disabled={loading}
-            className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium bg-secondary/50 hover:bg-secondary border border-border/50 rounded-lg transition-all"
-          >
-            {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview path
-          </Button>
-        ) : (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleAddCarFlight}
-            className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
-          >
-            <Plus size={16} /> Insert route
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onImportClick}
-          className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
-        >
-          <Upload size={13} /> Import KML / GPX data
-        </Button>
-      </div>
+  let primaryAction: React.ReactNode;
+  if (mode === 'walk') {
+    primaryAction = (
+      <Button
+        variant={walkPoints.length >= 2 ? 'default' : 'secondary'}
+        size="sm"
+        onClick={handleAddWalk}
+        disabled={walkPoints.length < 2}
+        className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
+      >
+        <Plus size={16} /> Insert walk path
+      </Button>
     );
+  } else if (!previewRoute) {
+    primaryAction = (
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={calculate}
+        disabled={path.loading}
+        className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium bg-secondary/50 hover:bg-secondary border border-border/50 rounded-lg transition-all"
+      >
+        {path.loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview path
+      </Button>
+    );
+  } else {
+    primaryAction = (
+      <Button
+        variant="default"
+        size="sm"
+        onClick={handleAddCarFlight}
+        className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
+      >
+        <Plus size={16} /> Insert route
+      </Button>
+    );
+  }
+
+  const footer = (
+    <div className="space-y-2">
+      {primaryAction}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onImportClick}
+        className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
+      >
+        <Upload size={13} /> Import KML / GPX data
+      </Button>
+    </div>
+  );
+
+  const EndpointField = mode === 'flight' ? AirportSearchField : SearchField;
+  const fieldCopy = mode === 'flight' ? ENDPOINT_FIELD_COPY.flight : ENDPOINT_FIELD_COPY.car;
 
   return (
     <ToolbarDropdownPanel
@@ -375,55 +342,27 @@ export const RouteAddDropdown = ({
         /* Car / flight — start + end */
         <div className="space-y-4">
           <SectionLabel>{mode === 'flight' ? 'Airport route' : 'Route points'}</SectionLabel>
-          {mode === 'flight' ? (
-            <>
-              <AirportSearchField
-                label="Departure airport..."
-                placeholder="Departure airport or city (e.g. JFK, LHR)..."
-                value={start}
-                name={startName}
-                onSelect={handleStartChange}
-                color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                isPicking={isPickingStart}
-                onStartPick={handleTogglePickStart}
-              />
-              <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
-              <AirportSearchField
-                label="Arrival airport..."
-                placeholder="Arrival airport or city (e.g. DXB, CDG)..."
-                value={end}
-                name={endName}
-                onSelect={handleEndChange}
-                color="bg-rose-500/10 text-rose-500 border-rose-500/20"
-                isPicking={isPickingEnd}
-                onStartPick={handleTogglePickEnd}
-              />
-            </>
-          ) : (
-            <>
-              <SearchField
-                label="Start location..."
-                value={start}
-                name={startName}
-                onSelect={handleStartChange}
-                color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                isPicking={isPickingStart}
-                onStartPick={handleTogglePickStart}
-              />
-              <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
-              <SearchField
-                label="End location..."
-                value={end}
-                name={endName}
-                onSelect={handleEndChange}
-                color="bg-rose-500/10 text-rose-500 border-rose-500/20"
-                isPicking={isPickingEnd}
-                onStartPick={handleTogglePickEnd}
-              />
-            </>
-          )}
+          <EndpointField
+            {...fieldCopy.start}
+            value={start}
+            name={startName}
+            onSelect={handleStartChange}
+            color={ENDPOINT_COLORS.start}
+            isPicking={isPickingStart}
+            onStartPick={handleTogglePickStart}
+          />
+          <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
+          <EndpointField
+            {...fieldCopy.end}
+            value={end}
+            name={endName}
+            onSelect={handleEndChange}
+            color={ENDPOINT_COLORS.end}
+            isPicking={isPickingEnd}
+            onStartPick={handleTogglePickEnd}
+          />
 
-          {!previewRoute && start[0] === 0 && end[0] === 0 && (
+          {!previewRoute && !isPlacedPoint(start) && !isPlacedPoint(end) && (
             <EmptyState
               variant="dropdown"
               icon={Compass}
