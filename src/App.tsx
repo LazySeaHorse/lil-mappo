@@ -3,7 +3,6 @@ import { queryClient } from "@/lib/queryClient";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/components/Account/AuthProvider";
 import { AnalyticsBridge } from "@/lib/analytics/AnalyticsBridge";

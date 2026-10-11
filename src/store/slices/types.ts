@@ -1,4 +1,3 @@
-import type { StateCreator } from 'zustand';
 import type {
   Project,
   TimelineItem,
@@ -89,7 +88,6 @@ export interface PlaybackSlice {
 
 export interface ProjectSettingsSlice {
   setProjectName: (name: string) => void;
-  setResolution: (r: [number, number]) => void;
   setAspectRatio: (v: AspectRatio) => void;
   setExportResolution: (v: ExportResolution) => void;
   setIsVertical: (v: boolean) => void;
@@ -142,10 +140,3 @@ export type ProjectStore = Project &
   ProjectSettingsSlice &
   MapEnvironmentSlice &
   EditorUiSlice;
-
-export type StoreSlice<T> = StateCreator<
-  ProjectStore,
-  [['zustand/devtools', never]],
-  [],
-  T
->;

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, stage } from '../motion';
-import { circle, group, image, path, polyline, rect, text } from '../scene/primitives';
+import { circle, group, image, path, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
 import { boundsOf, groundDot, HALO_SHADOW, leaderLine } from './shared';
 

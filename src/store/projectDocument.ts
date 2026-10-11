@@ -8,7 +8,7 @@ import {
   isLegacyCallout,
   migrateCalloutV1ToV2,
 } from '@/annotations/migration';
-import type { Project, RouteItem } from './types';
+import type { Project } from './types';
 import { MAP_STYLES } from '@/config/mapbox';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';

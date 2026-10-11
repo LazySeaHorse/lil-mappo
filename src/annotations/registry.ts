@@ -22,23 +22,9 @@ export function getStyle(id: string): AnnotationStyleDefinition | undefined {
   return registry.get(id);
 }
 
-/** Get a style by ID, throwing if not found. */
-export function requireStyle(id: string): AnnotationStyleDefinition {
-  const style = registry.get(id);
-  if (!style) {
-    throw new Error(`[annotations] Style "${id}" not found in registry.`);
-  }
-  return style;
-}
-
 /** Get all registered styles. */
 export function getAllStyles(): AnnotationStyleDefinition[] {
   return Array.from(registry.values());
-}
-
-/** Get styles filtered by category. */
-export function getStylesByCategory(category: StyleCategory): AnnotationStyleDefinition[] {
-  return getAllStyles().filter((s) => s.category === category);
 }
 
 /** Categories that have at least one registered style, in picker order. */

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Clapperboard } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useMapRuntime } from '@/hooks/useMapRuntime';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
+import type { RenderConfig } from '@/types/render';
 import { getExportLimits, brandingFor } from '@/lib/cloudAccess';
 import { resolveExportPlan } from './exportPlan';
 import { useLocalExportCapability } from './hooks/useLocalExportCapability';

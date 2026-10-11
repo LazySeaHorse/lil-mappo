@@ -5,7 +5,7 @@
  * Only asks for location and label; style is chosen later in the inspector.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
