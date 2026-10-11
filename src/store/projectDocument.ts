@@ -574,38 +574,24 @@ export function toProjectDocument(state: Project): ProjectDocument {
   return { schemaVersion: PROJECT_SCHEMA_VERSION, ...parseProjectDocument(document) };
 }
 
-/** Creates a complete project without routing partial data through the loader. */
+/**
+ * Creates a complete project without routing partial data through the loader.
+ * Only fields without a schema default are set here; the schema fills the rest.
+ */
 export function createProject(overrides: Partial<Project> = {}): Project {
-  const aspectRatio = overrides.aspectRatio ?? '16:9';
-  const exportResolution = overrides.exportResolution ?? '720p';
-  const isVertical = overrides.isVertical ?? false;
   const camera = { kind: 'camera' as const, id: CAMERA_TRACK_ID, keyframes: [] };
 
   return parseProjectDocument({
     schemaVersion: PROJECT_SCHEMA_VERSION,
     id: nanoid(),
     name: 'Untitled Project',
-    duration: 30,
-    fps: 30,
-    resolution: getExportDimensions(exportResolution, aspectRatio, isVertical),
-    aspectRatio,
-    exportResolution,
-    isVertical,
-    projection: 'globe',
-    lightPreset: 'day',
-    starIntensity: 0.6,
-    fogColor: null,
-    terrainExaggeration: 1.5,
-    mapStyle: 'standard',
-    terrainEnabled: false,
-    buildingsEnabled: false,
-    labelVisibility: {},
-    show3dLandmarks: true,
-    show3dTrees: true,
-    show3dFacades: true,
+    resolution: getExportDimensions(
+      overrides.exportResolution ?? '720p',
+      overrides.aspectRatio ?? '16:9',
+      overrides.isVertical ?? false,
+    ),
     items: { [CAMERA_TRACK_ID]: camera },
     itemOrder: [CAMERA_TRACK_ID],
-    mapCenter: [0, 0],
     ...overrides,
   });
 }

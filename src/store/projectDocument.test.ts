@@ -47,6 +47,24 @@ describe('project document persistence boundary', () => {
     expect(document).not.toHaveProperty('setDuration');
   });
 
+  it('keeps optional custom style fields only when they are set', () => {
+    const plain = toProjectDocument(createProject({ id: 'plain' }));
+    expect(plain).not.toHaveProperty('customMapStyleUrl');
+    expect(plain).not.toHaveProperty('customMapStyleLabel');
+
+    const custom = toProjectDocument(
+      createProject({ id: 'custom', customMapStyleUrl: 'mapbox://styles/a/b', customMapStyleLabel: 'Mine' }),
+    );
+    expect(custom).toMatchObject({ customMapStyleUrl: 'mapbox://styles/a/b', customMapStyleLabel: 'Mine' });
+  });
+
+  it('round-trips a project through the document unchanged', () => {
+    const project = createProject({ id: 'round-trip', name: 'Trip', projection: 'mercator', fogColor: '#123456' });
+    const { schemaVersion, ...rest } = toProjectDocument({ ...project, playheadTime: 3 } as never);
+    expect(schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
+    expect(rest).toStrictEqual(project);
+  });
+
   it('strips unknown and transient keys from untrusted documents', () => {
     const project = createProject({ id: 'polluted-project' });
     const parsed = parseProjectDocument({
@@ -723,5 +741,52 @@ describe('project document persistence boundary', () => {
         transition: { enter: 'auto', exit: 'auto' },
       });
     });
+  });
+});
+
+describe('createProject', () => {
+  it('builds a complete project with the documented defaults', () => {
+    const project = createProject();
+    expect(project).toStrictEqual({
+      id: expect.any(String),
+      name: 'Untitled Project',
+      duration: 30,
+      fps: 30,
+      resolution: [1280, 720],
+      aspectRatio: '16:9',
+      exportResolution: '720p',
+      isVertical: false,
+      projection: 'globe',
+      lightPreset: 'day',
+      starIntensity: 0.6,
+      fogColor: null,
+      terrainExaggeration: 1.5,
+      mapStyle: 'standard',
+      terrainEnabled: false,
+      buildingsEnabled: false,
+      labelVisibility: {},
+      show3dLandmarks: true,
+      show3dTrees: true,
+      show3dFacades: true,
+      items: { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] } },
+      itemOrder: ['camera-track'],
+      mapCenter: [0, 0],
+    });
+    expect(createProject().id).not.toBe(project.id);
+  });
+
+  it('sizes the resolution from the export settings and applies overrides', () => {
+    const project = createProject({ aspectRatio: '1:1', exportResolution: '1080p', isVertical: true, duration: 12 });
+    expect(project.resolution).toEqual([1080, 1080]);
+    expect(project.duration).toBe(12);
+    expect(createProject({ exportResolution: '1080p', isVertical: true }).resolution).toEqual([1080, 1920]);
+  });
+
+  it('does not share mutable defaults between projects', () => {
+    const a = createProject();
+    const b = createProject();
+    expect(a.labelVisibility).not.toBe(b.labelVisibility);
+    expect(a.mapCenter).not.toBe(b.mapCenter);
+    expect(a.items).not.toBe(b.items);
   });
 });
