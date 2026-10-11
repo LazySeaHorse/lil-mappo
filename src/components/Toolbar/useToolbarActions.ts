@@ -1,10 +1,8 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
-import { nanoid } from 'nanoid';
 import { loadFileImport } from '@/lib/lazyModules';
-import type { RouteItem } from '@/store/types';
-import { DEFAULT_ITEM_DURATION, createCameraKeyframe, createDefaultRouteStyle } from '@/store/itemFactories';
+import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
@@ -48,16 +46,7 @@ export function useToolbarActions() {
         const { importRouteFile } = await loadFileImport();
         const { name, geojson } = await importRouteFile(file);
         const playheadTime = useProjectStore.getState().playheadTime;
-        const item: RouteItem = {
-          kind: 'route',
-          id: nanoid(),
-          name,
-          geojson,
-          startTime: playheadTime,
-          endTime: playheadTime + DEFAULT_ITEM_DURATION,
-          style: createDefaultRouteStyle('import'),
-          easing: 'easeInOutCubic',
-        };
+        const item = createImportedRouteItem({ name, geojson, startTime: playheadTime });
         addItem(item);
         setTerrainEnabled(false);
         setBuildingsEnabled(false);

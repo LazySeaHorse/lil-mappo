@@ -70,7 +70,7 @@ describe('geoUtils & cameraUtils', () => {
       name: 'Test Route',
       startTime: 0,
       endTime: 5,
-      easing: 'linear',
+      easing: 'linear', exitAnimation: 'none',
       style: {
         color: '#ff0000',
         width: 3,

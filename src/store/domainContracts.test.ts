@@ -46,7 +46,7 @@ function createRoute(mode: RouteMode): RouteItem {
     startTime: 0,
     endTime: 5,
     style: routeStyle,
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
     calculation: convertRouteCalculation({ mode: 'car', startPoint: [0, 0], endPoint: [1, 1] }, mode),
   };
 }

@@ -75,7 +75,7 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         dashPattern: null,
         animationType: "draw",
       },
-      easing: "linear",
+      easing: "linear", exitAnimation: "none",
       calculation: {
         mode: "flight",
         startPoint: [-74.006, 40.7128],
@@ -144,7 +144,7 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         dashPattern: null,
         animationType: "draw",
       },
-      easing: "linear",
+      easing: "linear", exitAnimation: "none",
       calculation: {
         mode: "flight",
         startPoint: [0, 0],
@@ -196,7 +196,7 @@ describe("RouteRenderer vehicle type switching", () => {
         dashPattern: null,
         animationType: "draw",
       },
-      easing: "linear",
+      easing: "linear", exitAnimation: "none",
       calculation: {
         mode: "car",
         startPoint: [0, 0],
@@ -275,7 +275,7 @@ describe("RouteRenderer trim-driven line", () => {
       dashPattern: null,
       animationType: "draw",
     },
-    easing: "linear",
+    easing: "linear", exitAnimation: "none",
     calculation: {
       mode: "car",
       startPoint: [0, 0],

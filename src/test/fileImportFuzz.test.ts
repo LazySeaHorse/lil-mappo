@@ -44,7 +44,7 @@ function createMinimalRouteItem(name: string, geojson: GeoJSON.FeatureCollection
       dashPattern: null,
       animationType: 'draw',
     },
-    easing: 'easeInOutCubic',
+    easing: 'easeInOutCubic', exitAnimation: 'none',
   };
 }
 

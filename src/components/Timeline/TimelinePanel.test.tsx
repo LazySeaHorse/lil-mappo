@@ -61,7 +61,7 @@ function route(
       trailFadeLength: 0,
       dashPattern: null,
     },
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
   };
 }
 

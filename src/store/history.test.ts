@@ -36,7 +36,7 @@ function route(id: string, name = `Route ${id}`): RouteItem {
       color: '#3b82f6', width: 4, glow: true, glowWidth: 12,
       trailFade: false, trailFadeLength: 0.2, dashPattern: null,
     },
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
   };
 }
 

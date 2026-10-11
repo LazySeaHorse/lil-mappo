@@ -8,6 +8,7 @@ import {
   createCalloutStyleDefaults,
   createCameraKeyframe,
   createEndpointRouteItem,
+  createImportedRouteItem,
   createWalkRouteItem,
   defaultEndpointRouteName,
   wrapGeometry,
@@ -33,6 +34,17 @@ describe('itemFactories', () => {
     const walk = createWalkRouteItem({ points: [[0, 0], [0.01, 0.01]], startTime: 0 });
     const boundary = createBoundaryItem({ placeName: 'X', geojson: null, startTime: 0 });
     expect([car.exitAnimation, walk.exitAnimation, boundary.exitAnimation]).toEqual(['none', 'none', 'none']);
+  });
+
+  it('builds imported routes with the import style and no calculation', () => {
+    const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
+    const route = createImportedRouteItem({ name: 'Ride', geojson: wrapGeometry(line), startTime: 3 });
+    expect(route).toMatchObject({
+      kind: 'route', name: 'Ride', startTime: 3, endTime: 3 + DEFAULT_ITEM_DURATION,
+      easing: 'easeInOutCubic', exitAnimation: 'none', style: { color: '#22c55e' },
+    });
+    expect(route.calculation).toBeUndefined();
+    expect(route.id).toBeTruthy();
   });
 
   it('builds walk routes with derived geometry', () => {

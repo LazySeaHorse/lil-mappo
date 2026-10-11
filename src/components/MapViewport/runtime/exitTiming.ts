@@ -15,7 +15,7 @@ export interface ExitTiming {
  * keeps the item on screen, fully drawn, after its end.
  */
 export function exitTiming(
-  item: { endTime: number; exitAnimation?: ExitAnimation },
+  item: { endTime: number; exitAnimation: ExitAnimation },
   playheadTime: number,
 ): ExitTiming {
   const leaves = item.exitAnimation === 'fade' || item.exitAnimation === 'reverse';

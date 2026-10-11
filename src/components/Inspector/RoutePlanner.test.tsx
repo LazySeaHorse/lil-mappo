@@ -66,7 +66,7 @@ describe('RoutePlanner in Inspector', () => {
         scale: 1,
       },
     },
-    easing: 'easeInOutQuad',
+    easing: 'easeInOutQuad', exitAnimation: 'none',
   });
 
   beforeEach(() => {

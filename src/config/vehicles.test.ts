@@ -15,7 +15,7 @@ const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): R
     color: '#fff', width: 4, glow: false, glowWidth: 12,
     trailFade: false, trailFadeLength: 0.3, dashPattern: null,
   },
-  easing: 'linear',
+  easing: 'linear', exitAnimation: 'none',
   calculation: {
     mode: 'car',
     startPoint: [0, 0],

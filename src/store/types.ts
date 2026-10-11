@@ -121,11 +121,7 @@ export interface RouteItem {
   autoCam?: AutoCamConfig;
   style: RouteStyle;
   easing: EasingName;
-  /**
-   * Loaded documents and factory-built routes always have it. Still optional because the
-   * route file import builds its item by hand; undefined behaves like 'none'.
-   */
-  exitAnimation?: ExitAnimation;
+  exitAnimation: ExitAnimation;
   calculation?: RouteCalculation;
 }
 

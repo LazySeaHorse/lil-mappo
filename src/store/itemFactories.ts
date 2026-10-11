@@ -149,6 +149,28 @@ export function createWalkRouteItem(input: WalkRouteInput): RouteItem {
   };
 }
 
+export interface ImportedRouteInput {
+  name: string;
+  geojson: GeoJSON.FeatureCollection;
+  startTime: number;
+  id?: string;
+}
+
+/** A route from an imported GPX/KML/GeoJSON file: its geometry as is, with no calculation to rebuild it. */
+export function createImportedRouteItem(input: ImportedRouteInput): RouteItem {
+  return {
+    kind: 'route',
+    id: input.id ?? nanoid(),
+    name: input.name,
+    geojson: input.geojson,
+    startTime: input.startTime,
+    endTime: input.startTime + DEFAULT_ITEM_DURATION,
+    style: createDefaultRouteStyle('import'),
+    easing: 'easeInOutCubic',
+    exitAnimation: 'none',
+  };
+}
+
 export interface BoundaryInput {
   placeName: string;
   geojson: GeoJSON.Geometry | null;

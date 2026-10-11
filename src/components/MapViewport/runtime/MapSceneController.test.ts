@@ -29,7 +29,7 @@ const route: RouteItem = {
     dashPattern: null,
     animationType: 'draw',
   },
-  easing: 'linear',
+  easing: 'linear', exitAnimation: 'none',
   calculation: { mode: 'car', startPoint: [0, 0], endPoint: [1, 1] },
 };
 

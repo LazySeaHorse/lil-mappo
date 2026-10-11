@@ -70,7 +70,7 @@ const route: RouteItem = {
     dashPattern: null,
     animationType: 'draw',
   },
-  easing: 'linear',
+  easing: 'linear', exitAnimation: 'none',
   calculation: {
     mode: 'flight',
     startPoint: [0, 0],

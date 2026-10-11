@@ -43,10 +43,6 @@ describe('routeTiming', () => {
     }
   });
 
-  it('keeps a route without an exit animation on screen, like none', () => {
-    expect(routeTiming(route(undefined), 10.5)).toMatchObject({ exitActive: false, exitProgress: 0, isAfterExit: false, opacity: 1 });
-  });
-
   it('fades out over half a second', () => {
     expect(routeTiming(route('fade'), 10.25).opacity).toBeCloseTo(0.5);
     expect(routeTiming(route('fade'), 10.5)).toMatchObject({ opacity: 0, isAfterExit: true });

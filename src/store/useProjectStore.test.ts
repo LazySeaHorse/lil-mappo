@@ -29,7 +29,7 @@ describe('useProjectStore modular slices', () => {
           trailFadeLength: 0.2,
           dashPattern: null,
         },
-        easing: 'linear',
+        easing: 'linear', exitAnimation: 'none',
       };
 
       store.addItem(routeItem);

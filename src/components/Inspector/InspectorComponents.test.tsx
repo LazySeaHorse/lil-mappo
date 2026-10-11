@@ -91,7 +91,7 @@ describe('Inspector Components Integration', () => {
       },
       startTime: 1,
       endTime: 5,
-      easing: 'easeInOutSine',
+      easing: 'easeInOutSine', exitAnimation: 'none',
       style: {
         color: '#ff0000',
         width: 4,
