@@ -1,4 +1,5 @@
 import { LABEL_CATEGORIES, STANDARD_CAPABILITIES, getStandardLabelGroups, isStandardBasemap, type MapStyleCapabilities } from '@/config/mapbox';
+import { shortPlaceName } from '@/services/nominatim';
 import type { PickResult } from '@/store/slices/types';
 import type { Map as MapboxMap } from 'mapbox-gl';
 
@@ -48,7 +49,7 @@ export function resolveClickTarget(e: ClickTargetEvent, fallbackName = 'Point'):
   if (searchFeature?.geometry.type === 'Point') {
     const [longitude, latitude] = searchFeature.geometry.coordinates;
     const rawName = searchFeature.properties?.name;
-    const name = typeof rawName === 'string' ? rawName.split(',')[0] : fallbackName;
+    const name = typeof rawName === 'string' ? shortPlaceName(rawName) : fallbackName;
 
     if (typeof longitude === 'number' && typeof latitude === 'number') {
       return {
