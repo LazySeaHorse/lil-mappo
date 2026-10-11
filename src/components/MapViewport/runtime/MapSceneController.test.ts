@@ -275,3 +275,34 @@ describe('MapSceneController', () => {
     });
   });
 });
+
+describe('MapSceneController basemap reconcile', () => {
+  const BASEMAP_KEYS = [
+    'mapStyle', 'projection', 'terrainEnabled', 'terrainExaggeration', 'buildingsEnabled', 'lightPreset',
+    'labelVisibility', 'show3dLandmarks', 'show3dTrees', 'show3dFacades', 'starIntensity', 'fogColor',
+    'terrainLoading', 'detectedCapabilities',
+  ] as const;
+
+  it('reconciles the basemap when, and only when, one of its store fields changes', () => {
+    const previous = useProjectStore.getState();
+    const double = createMapDouble();
+    const controller = new MapSceneController(double.map, vi.fn());
+    const basemap = (controller as unknown as { basemap: { reconcile: () => void } }).basemap;
+    const reconcile = vi.spyOn(basemap, 'reconcile').mockImplementation(() => undefined);
+    try {
+      controller.mount();
+      for (const key of BASEMAP_KEYS) {
+        reconcile.mockClear();
+        useProjectStore.setState({ [key]: Symbol(key) } as never);
+        expect(reconcile, key).toHaveBeenCalledTimes(1);
+      }
+      reconcile.mockClear();
+      useProjectStore.setState({ timelineHeight: 123, isPlaying: !useProjectStore.getState().isPlaying } as never);
+      expect(reconcile).not.toHaveBeenCalled();
+    } finally {
+      controller.dispose();
+      reconcile.mockRestore();
+      useProjectStore.setState(previous, true);
+    }
+  });
+});

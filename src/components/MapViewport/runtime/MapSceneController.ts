@@ -12,21 +12,60 @@ import { selectionPreviewTime } from '@/engine/selectionPreview';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
+/** Store fields the basemap is reconciled from. */
+const BASEMAP_KEYS = [
+  'mapStyle',
+  'projection',
+  'terrainEnabled',
+  'terrainExaggeration',
+  'buildingsEnabled',
+  'lightPreset',
+  'labelVisibility',
+  'show3dLandmarks',
+  'show3dTrees',
+  'show3dFacades',
+  'starIntensity',
+  'fogColor',
+  'terrainLoading',
+  'detectedCapabilities',
+] as const satisfies readonly (keyof ProjectState)[];
+
 function basemapStateChanged(state: ProjectState, previous: ProjectState): boolean {
-  return state.mapStyle !== previous.mapStyle
-    || state.projection !== previous.projection
-    || state.terrainEnabled !== previous.terrainEnabled
-    || state.terrainExaggeration !== previous.terrainExaggeration
-    || state.buildingsEnabled !== previous.buildingsEnabled
-    || state.lightPreset !== previous.lightPreset
-    || state.labelVisibility !== previous.labelVisibility
-    || state.show3dLandmarks !== previous.show3dLandmarks
-    || state.show3dTrees !== previous.show3dTrees
-    || state.show3dFacades !== previous.show3dFacades
-    || state.starIntensity !== previous.starIntensity
-    || state.fogColor !== previous.fogColor
-    || state.terrainLoading !== previous.terrainLoading
-    || state.detectedCapabilities !== previous.detectedCapabilities;
+  return BASEMAP_KEYS.some((key) => state[key] !== previous[key]);
+}
+
+interface ItemRenderer {
+  mount(): void;
+  dispose(): void;
+}
+
+/**
+ * Brings `renderers` in line with `items`: updates the ones that exist, creates and mounts
+ * the missing ones, and disposes of those whose item is gone.
+ */
+function syncRenderers<I extends { id: string }, R extends ItemRenderer>(
+  renderers: Map<string, R>,
+  items: readonly I[],
+  update: (renderer: R, item: I) => void,
+  create: (item: I) => R,
+): void {
+  const ids = new Set<string>();
+  for (const item of items) {
+    ids.add(item.id);
+    const existing = renderers.get(item.id);
+    if (existing) {
+      update(existing, item);
+    } else {
+      const renderer = create(item);
+      renderer.mount();
+      renderers.set(item.id, renderer);
+    }
+  }
+  for (const [id, renderer] of renderers) {
+    if (ids.has(id)) continue;
+    renderer.dispose();
+    renderers.delete(id);
+  }
 }
 
 export class MapSceneController implements MapSceneRuntime {
@@ -140,8 +179,6 @@ export class MapSceneController implements MapSceneRuntime {
       this.mask.mount();
       this.maskMounted = true;
     }
-    const nextRouteIds = new Set<string>();
-    const nextBoundaryIds = new Set<string>();
     const routes: RouteItem[] = [];
     const boundaries: BoundaryItem[] = [];
     for (const id of state.itemOrder) {
@@ -152,39 +189,13 @@ export class MapSceneController implements MapSceneRuntime {
 
     this.maskBoundaries = boundaries;
 
-    for (const route of routes) {
-      nextRouteIds.add(route.id);
-      const existing = this.routes.get(route.id);
-      if (existing) {
-        existing.setRoute(route);
-      } else {
-        const renderer = new RouteRenderer(this.map, route);
-        renderer.mount();
-        this.routes.set(route.id, renderer);
-      }
-    }
-    for (const [id, renderer] of this.routes) {
-      if (nextRouteIds.has(id)) continue;
-      renderer.dispose();
-      this.routes.delete(id);
-    }
-
-    for (const boundary of boundaries) {
-      nextBoundaryIds.add(boundary.id);
-      const existing = this.boundaries.get(boundary.id);
-      if (existing) {
-        existing.setBoundary(boundary);
-      } else {
-        const renderer = new BoundaryRenderer(this.map, boundary, this.basemap.getFlagPlacement);
-        renderer.mount();
-        this.boundaries.set(boundary.id, renderer);
-      }
-    }
-    for (const [id, renderer] of this.boundaries) {
-      if (nextBoundaryIds.has(id)) continue;
-      renderer.dispose();
-      this.boundaries.delete(id);
-    }
+    syncRenderers(this.routes, routes, (renderer, route) => renderer.setRoute(route), (route) => new RouteRenderer(this.map, route));
+    syncRenderers(
+      this.boundaries,
+      boundaries,
+      (renderer, boundary) => renderer.setBoundary(boundary),
+      (boundary) => new BoundaryRenderer(this.map, boundary, this.basemap.getFlagPlacement),
+    );
 
     this.sceneRevision += 1;
     this.sceneDirty = false;
