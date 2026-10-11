@@ -4,10 +4,11 @@
  * user content.
  */
 import type { ExportErrorClass, ImportErrorClass, ImportFormat, RouteSource } from './events';
+import { errorMessage } from '@/lib/utils';
 
 export function classifyExportError(err: unknown): ExportErrorClass {
   const name = err instanceof Error ? err.name : '';
-  const message = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase();
+  const message = errorMessage(err, String(err ?? '')).toLowerCase();
   if (name === 'QuotaExceededError' || /out of space|ran out|memory|quota|opfs/.test(message)) return 'oom';
   if (/not available in this browser|webcodecs|unsupported|not supported/.test(message)) return 'unsupported';
   if (/videoencoder|h\.264|codec|encoder|muxer/.test(message)) return 'encoder';
@@ -32,7 +33,7 @@ export function importFormatOf(fileName: string): ImportFormat {
 }
 
 export function classifyImportError(err: unknown): ImportErrorClass {
-  const message = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase();
+  const message = errorMessage(err, String(err ?? '')).toLowerCase();
   if (/empty/.test(message)) return 'empty';
   if (/invalid|malformed|binary|unsupported|not valid/.test(message)) return 'parse';
   return 'other';

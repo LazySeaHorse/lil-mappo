@@ -4,6 +4,7 @@ import { resolveSystemOverlays, type Branding } from '@/overlays';
 import { canvasToBlob, withFrameCapturer } from './frameCapture';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/utils';
 
 /**
  * Captures a high-resolution snapshot of the current map view.
@@ -35,7 +36,6 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
     });
   } catch (err: unknown) {
     console.error('Snapshot error:', err);
-    const message = err instanceof Error ? err.message : String(err);
-    toast.error(`Snapshot failed: ${message}`, { id });
+    toast.error(`Snapshot failed: ${errorMessage(err)}`, { id });
   }
 }

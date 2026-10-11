@@ -42,6 +42,7 @@ import {
   resolveNewTimeRange,
   timeSchema,
 } from './shared';
+import { errorMessage } from '@/lib/utils';
 
 const timing = {
   startTime: timeSchema.optional().describe('Seconds when the item appears. Default: current playhead time.'),
@@ -96,7 +97,7 @@ export const addRoute = defineTool({
         // Only a car route can fail: it fetches directions. A flight arc is pure math.
         path = await computeEndpointGeometry(mode, from.coordinates, to.coordinates);
       } catch (err) {
-        throw new ToolError('directions_failed', `Could not get driving directions: ${err instanceof Error ? err.message : String(err)}. Try flight or walk mode, or different endpoints.`);
+        throw new ToolError('directions_failed', `Could not get driving directions: ${errorMessage(err)}. Try flight or walk mode, or different endpoints.`);
       }
       if (path.directions) {
         extra = { distanceMeters: Math.round(path.directions.distance), driveTimeSeconds: Math.round(path.directions.duration) };
@@ -159,7 +160,7 @@ export const addBoundary = defineTool({
     try {
       results = await searchBoundary(query);
     } catch (err) {
-      throw new ToolError('boundary_search_failed', `Boundary search failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw new ToolError('boundary_search_failed', `Boundary search failed: ${errorMessage(err)}`);
     }
     const best = results[0];
     if (!best) {

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { trackAnonymous } from "@/lib/analytics/anonymous";
 import { getSignupAttribution } from "@/lib/analytics/attribution";
 import { cancelExpectedSignup, expectSignup } from "@/lib/analytics/signupIntent";
+import { errorMessage } from '@/lib/utils';
 
 /** Supabase error code as a short snake_case token (never the message, which can echo the email). */
 function signupErrorClass(err: unknown): string {
@@ -231,9 +232,7 @@ function AuthModalBody({
       }
     } catch (err: unknown) {
       cancelExpectedSignup();
-      const message =
-        err instanceof Error ? err.message : "Authentication failed";
-      toast.error(message);
+      toast.error(errorMessage(err, "Authentication failed"));
       setPhase("error");
     } finally {
       setIsSubmitting(false);

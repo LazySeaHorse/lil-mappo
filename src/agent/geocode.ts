@@ -2,6 +2,7 @@ import { getEffectiveMapboxToken } from '@/config/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { ToolError } from './errors';
 import type { BBox } from './geo';
+import { errorMessage } from '@/lib/utils';
 
 export interface PlaceResult {
   name: string;
@@ -50,7 +51,7 @@ export async function searchPlaces(query: string, limit = 5, signal?: AbortSigna
   try {
     res = await fetch(`https://api.mapbox.com/search/geocode/v6/forward?${params}`, { signal });
   } catch (err) {
-    throw new ToolError('network_error', `Place search failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new ToolError('network_error', `Place search failed: ${errorMessage(err)}`);
   }
   if (!res.ok) throw new ToolError('geocode_failed', `Place search failed (HTTP ${res.status}).`);
 
