@@ -1,4 +1,5 @@
 import type { AspectRatio, ExportResolution } from '@/types/render';
+import type { EasingName } from '@/engine/easings';
 import type {
   AnnotationContent,
   AnnotationBinding,
@@ -7,12 +8,7 @@ import type {
   TransitionConfig,
 } from '@/annotations/types';
 
-export type EasingName =
-  | 'linear'
-  | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad'
-  | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic'
-  | 'easeInOutSine'
-  | 'bounce';
+export type { EasingName };
 
 export type AutoCamPreset = 'chase' | 'drone' | 'reveal' | 'topdown';
 

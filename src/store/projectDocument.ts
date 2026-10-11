@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { getExportDimensions } from '@/types/render';
 import { sanitizeFeatureCollection } from '@/engine/geojsonSanitize';
+import { EASING_NAMES } from '@/engine/easings';
 import {
   cameraZoomAt,
   DEFAULT_VIEW_ZOOM,
@@ -22,13 +23,7 @@ export type ProjectDocument = Project & {
 };
 
 const coordinateSchema = z.tuple([z.number().finite(), z.number().finite()]);
-const easingSchema = z.enum([
-  'linear',
-  'easeInQuad', 'easeOutQuad', 'easeInOutQuad',
-  'easeInCubic', 'easeOutCubic', 'easeInOutCubic',
-  'easeInOutSine',
-  'bounce',
-]);
+const easingSchema = z.enum(EASING_NAMES);
 
 const featureCollectionSchema = z.custom<GeoJSON.FeatureCollection>(
   (value) => {
