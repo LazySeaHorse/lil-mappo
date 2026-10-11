@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Source, Layer } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { buildWalkGeometry } from '@/engine/routeCurves';

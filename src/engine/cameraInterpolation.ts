@@ -1,6 +1,6 @@
 import type { CameraKeyframe, RouteItem } from '@/store/types';
 import { applyEasing } from './easings';
-import { liftBearing, poseFromFreeCam, wrapDegrees } from './cameraPose';
+import { clamp, lerp, liftBearing, poseFromFreeCam, wrapDegrees } from './cameraPose';
 import { getRoutePath } from './routePath';
 import { getRig, sampleRig, INTRO_FRACTION, OUTRO_FRACTION, type AutoCamOutput, type GroundModel, type RigSampleParams } from './cameraRig';
 
@@ -17,10 +17,6 @@ export type CameraOutput =
   | { type: 'blend'; from: Exclude<CameraOutput, { type: 'blend' }>; to: Exclude<CameraOutput, { type: 'blend' }>; t: number };
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
 
 function lerpBearing(a: number, b: number, t: number): number {
   const diff = wrapDegrees(b - a);
@@ -85,11 +81,11 @@ function findLeadOutKF(
 export function clampCameraState(state: CameraState): CameraState {
   let zoom = state.zoom;
   if (!Number.isFinite(zoom)) zoom = 0;
-  zoom = Math.max(0, Math.min(26, zoom));
+  zoom = clamp(zoom, 0, 26);
 
   let pitch = state.pitch;
   if (!Number.isFinite(pitch)) pitch = 0;
-  pitch = Math.max(0, Math.min(90, pitch));
+  pitch = clamp(pitch, 0, 90);
 
   let bearing = state.bearing;
   if (!Number.isFinite(bearing)) bearing = 0;
@@ -100,8 +96,8 @@ export function clampCameraState(state: CameraState): CameraState {
   let lat = state.center[1];
   if (!Number.isFinite(lng)) lng = 0;
   if (!Number.isFinite(lat)) lat = 0;
-  lng = Math.max(-180, Math.min(180, lng));
-  lat = Math.max(-90, Math.min(90, lat));
+  lng = clamp(lng, -180, 180);
+  lat = clamp(lat, -90, 90);
 
   return {
     center: [lng, lat],
@@ -217,7 +213,7 @@ function autoCamAt(
   const timing = { duration: route.endTime - route.startTime, easing: route.easing ?? 'easeInOutSine' };
   const rig = getRig(coords, config, timing, ground);
   if (!rig) return null;
-  return sampleRig(rig, config, { p: Math.max(0, Math.min(1, progress)), skipShots });
+  return sampleRig(rig, config, { p: clamp(progress, 0, 1), skipShots });
 }
 
 /**
@@ -261,7 +257,7 @@ function keyframeCamera(kf: CameraKeyframe, reference: Plain): Plain {
 function leadInBlend(prevKF: CameraKeyframe, to: Plain, start: Plain, route: RouteItem, time: number): CameraOutput {
   const from = keyframeCamera(prevKF, start);
   const t = (time - prevKF.time) / (entryEnd(route) - prevKF.time);
-  return { type: 'blend', from, to, t: Math.max(0, Math.min(1, t)) };
+  return { type: 'blend', from, to, t: clamp(t, 0, 1) };
 }
 
 /** When the move out to the next keyframe starts, a stretch before the block ends. */
@@ -284,7 +280,7 @@ function leadOutBlend(from: Plain, exit: Plain, nextKF: CameraKeyframe, route: R
   const to = keyframeCamera(nextKF, exit);
   const start = exitStart(route);
   const t = (time - start) / (nextKF.time - start);
-  return { type: 'blend', from, to, t: Math.max(0, Math.min(1, t)) };
+  return { type: 'blend', from, to, t: clamp(t, 0, 1) };
 }
 
 export function getCameraAtTime(

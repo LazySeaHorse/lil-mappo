@@ -1,7 +1,7 @@
 import distance from '@turf/distance';
 import simplify from '@turf/simplify';
 import { point } from '@turf/helpers';
-import { bearingDeg, METERS_PER_DEGREE } from './geoMath';
+import { bearingDeg, clamp, METERS_PER_DEGREE } from './geoMath';
 
 
 /**
@@ -171,7 +171,7 @@ export function calculatePitch(start: number[], end: number[]): number {
 
   const pitch = (Math.atan2(dz, d) * 180) / Math.PI;
   if (Number.isNaN(pitch) || !Number.isFinite(pitch)) return 0;
-  return Math.max(-90, Math.min(90, pitch));
+  return clamp(pitch, -90, 90);
 }
 
 /**
@@ -179,7 +179,7 @@ export function calculatePitch(start: number[], end: number[]): number {
  * (default 6, ~0.1 m). Altitude is rounded to 0.1 m.
  */
 export function truncateCoordinate(coord: number[], precision = 6): number[] {
-  const p = Math.max(0, Math.min(15, precision));
+  const p = clamp(precision, 0, 15);
   const factor = Math.pow(10, p);
   const c0 = coord[0] ?? 0;
   const c1 = coord[1] ?? 0;

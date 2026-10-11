@@ -1,4 +1,4 @@
-import { haversineM, lngLatToMerc, mercToLngLat, wrapDegrees } from './geoMath';
+import { clamp, haversineM, lngLatToMerc, mercToLngLat, wrapDegrees } from './geoMath';
 
 /**
  * A route's geometry, built once per coordinate array: mercator vertices (longitude unwrapped
@@ -42,7 +42,7 @@ export function locateSegment(u: ArrayLike<number>, value: number): [number, num
     else hi = mid - 1;
   }
   const span = u[lo + 1] - u[lo];
-  return [lo, span > 0 ? Math.min(1, Math.max(0, (v - u[lo]) / span)) : 0];
+  return [lo, span > 0 ? clamp((v - u[lo]) / span, 0, 1) : 0];
 }
 
 function build(input: number[][]): RoutePath {
@@ -108,8 +108,8 @@ function build(input: number[][]): RoutePath {
     },
     slice(u0, u1) {
       if (n < 2) return coords;
-      const a = Math.max(0, Math.min(1, u0));
-      const b = Math.max(0, Math.min(1, u1));
+      const a = clamp(u0, 0, 1);
+      const b = clamp(u1, 0, 1);
       if (a > b) return [];
       if (!(lengthM > 0)) return [coords[0], coords[0]];
       const [i0, w0] = locateSegment(u, a);
