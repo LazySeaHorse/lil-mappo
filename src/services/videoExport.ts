@@ -244,7 +244,8 @@ async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, over
   const { videoEncoder, compCanvas, compCtx } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
 
-  await stepToTime(runtime, map, time, zoomOffset);
+  // runExport syncs the runtime once before the loop; each frame only redraws the scene.
+  await stepToTime(runtime, map, time, zoomOffset, { sync: false });
 
   // Back-pressure: don't let the encoder queue grow unbounded
   if (videoEncoder.encodeQueueSize > 8) {
@@ -348,6 +349,9 @@ export async function runExport(
         // Phase 1: pre-warm tile cache
         await prewarmTileCache(map, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
         if (abortSignal.aborted) throw new DOMException('Export cancelled', 'AbortError');
+
+        // Reconcile basemap and renderers once; frames below only redraw the scene.
+        runtime.sync();
 
         // Phase 2: capture frames
         for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {

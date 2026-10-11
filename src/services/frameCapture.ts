@@ -11,17 +11,21 @@ import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
  * Puts the project at `time` for capture: moves the playhead and the camera (zoom shifted by
  * `zoomOffset`), redraws the scene at exactly that time, and resolves once the map has
  * rendered it. Shared by video export and the AI `render_frames` tool.
+ *
+ * `sync: false` skips the full runtime sync (basemap reconcile + renderer reconcile) for a
+ * caller that synced once before a run of frames; the project cannot change mid-export.
  */
 export async function stepToTime(
   runtime: MapSceneRuntime,
   map: MapboxMap,
   time: number,
   zoomOffset: number,
+  { sync = true }: { sync?: boolean } = {},
 ): Promise<void> {
   useProjectStore.getState().setPlayheadTime(time);
   const cam = getProjectCameraAt(time);
   if (cam) applyCamera(map, cam, zoomOffset);
-  runtime.sync();
+  if (sync) runtime.sync();
   runtime.renderAt(time);
   map.triggerRepaint();
   // Waits for the map to go idle, then one animation frame to flush compositing.

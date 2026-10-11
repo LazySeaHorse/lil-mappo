@@ -148,9 +148,12 @@ describe('runExport', () => {
     expect(target.getBlob).toHaveBeenCalledTimes(1);
     const capture = log.slice(log.indexOf('playhead:0'));
     // zoomOffset = log2(1280 / 640) = 1
-    expect(capture.slice(0, 8)).toEqual([
-      'playhead:0', 'camera:0:1', 'sync', 'renderAt:0', 'repaint', 'rendered', 'composite:0', 'encode:0',
+    expect(capture.slice(0, 7)).toEqual([
+      'playhead:0', 'camera:0:1', 'renderAt:0', 'repaint', 'rendered', 'composite:0', 'encode:0',
     ]);
+    // The basemap and renderers are reconciled once before capture, not on every frame.
+    expect(log.filter((e) => e === 'sync')).toHaveLength(1);
+    expect(log.indexOf('sync')).toBeLessThan(log.indexOf('playhead:0'));
     expect(capture.filter((e) => e.startsWith('encode:'))).toEqual(['encode:0', 'encode:500000', 'encode:1000000']);
     expect(capture.filter((e) => e.startsWith('renderAt:'))).toEqual(['renderAt:0', 'renderAt:0.5', 'renderAt:1']);
     expect(encoders[0].encoded.map((f) => f.keyFrame)).toEqual([true, false, false]);

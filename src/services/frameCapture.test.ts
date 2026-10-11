@@ -84,6 +84,11 @@ describe('stepToTime', () => {
     expect(calls).toEqual(['playhead:7.5', 'camera:7.5:0.5', 'sync', 'renderAt:7.5', 'repaint', 'rendered']);
   });
 
+  it('can skip the full runtime sync and only redraw the scene', async () => {
+    await stepToTime(runtime, map, 2, 0, { sync: false });
+    expect(calls).toEqual(['camera:2:0', 'renderAt:2', 'repaint', 'rendered']);
+  });
+
   it('leaves the camera alone when the project has none', async () => {
     await stepToTime(runtime, map, -1, 0);
     expect(calls.some((c) => c.startsWith('camera'))).toBe(false);
