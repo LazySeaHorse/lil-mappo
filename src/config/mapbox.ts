@@ -78,9 +78,9 @@ export interface MapStyleCapabilities {
   labelGroups: LabelLayerGroup[];
   /**
    * The style can draw 3D buildings: Standard's own, or our fill-extrusion layer on a
-   * classic style's `composite` (Mapbox Streets) source. Absent means no.
+   * classic style's `composite` (Mapbox Streets) source.
    */
-  buildings3d?: boolean;
+  buildings3d: boolean;
   landmarks3d: boolean;
   trees3d: boolean;
   facades3d: boolean;

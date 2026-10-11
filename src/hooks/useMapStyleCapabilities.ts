@@ -8,6 +8,7 @@ import type { MapStyleCapabilities } from '@/config/mapbox';
 export function useMapStyleCapabilities(): MapStyleCapabilities {
   return useProjectStore((s) => s.detectedCapabilities) ?? {
     labelGroups: [],
+    buildings3d: false,
     landmarks3d: false,
     trees3d: false,
     facades3d: false,
