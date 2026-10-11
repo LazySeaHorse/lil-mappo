@@ -17,6 +17,7 @@ import {
   Timer,
   Sparkles,
 } from "lucide-react";
+import { creditsToMinutesAt1080p } from "@/services/checkout";
 
 interface ManageSubscriptionViewProps {
   subscription: Subscription | null;
@@ -123,7 +124,7 @@ export function ManageSubscriptionView({
               </span>
             </div>
             <p className="text-[11px] font-medium text-primary flex items-center gap-1 -mt-1 mb-1">
-              <Timer size={11} /> About {(totalCredits / 8).toLocaleString()} minutes at 1080p
+              <Timer size={11} /> About {creditsToMinutesAt1080p(totalCredits).toLocaleString()} minutes at 1080p
             </p>
             <div className="flex flex-wrap gap-2">
               {(credits?.monthly_credits ?? 0) > 0 && (

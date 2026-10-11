@@ -22,11 +22,12 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PLAN_CONFIG } from "@/services/checkout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
+import { FREE_CLOUD_SAVE_LIMIT, FREE_LIMITS } from "@/lib/cloudAccess";
 
 const BENEFITS = [
   {
     label: "Cloud projects",
-    free: "3 projects",
+    free: `${FREE_CLOUD_SAVE_LIMIT} projects`,
     paid: "Unlimited",
     icon: Cloud,
   },
@@ -38,13 +39,13 @@ const BENEFITS = [
   },
   {
     label: "Video export",
-    free: "720p, 30 FPS",
+    free: `${FREE_LIMITS.maxResolution}, ${FREE_LIMITS.maxFps} FPS`,
     paid: "Up to 4K, 60 FPS",
     icon: Film,
   },
   {
     label: "Maximum duration",
-    free: "30 seconds",
+    free: `${FREE_LIMITS.maxDuration} seconds`,
     paid: "Unlimited",
     icon: Gauge,
   },

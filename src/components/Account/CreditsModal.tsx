@@ -26,6 +26,7 @@ import {
   Infinity as InfinityIcon,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { creditsToMinutesAt1080p } from "@/services/checkout";
 
 export function CreditsModal() {
   const { showCreditsModal, closeCreditsModal } = useAuthStore(
@@ -73,7 +74,7 @@ function CreditsModalBody() {
   const minAmount = 10;
   const maxAmount = 200;
   const creditsToGet = purchaseAmount * (purchaseAmount >= 50 ? 50 : 40);
-  const minutesToGet = creditsToGet / 8;
+  const minutesToGet = creditsToMinutesAt1080p(creditsToGet);
   const hasActiveSubscription =
     !!subscription && subscription.status === "active";
 

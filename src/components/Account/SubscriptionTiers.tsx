@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
-import { type PlanSlug, PLAN_CONFIG } from "@/services/checkout";
+import { type PlanSlug, PLAN_CONFIG, creditsToMinutesAt1080p } from "@/services/checkout";
 import { Coins, Layers, CloudUpload, Package, Timer } from "lucide-react";
 
 // ─── Tier card ────────────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ function TierCard({
         <div className="flex items-start gap-2">
           <Timer size={14} className="mt-0.5 shrink-0 text-primary" />
           <span className="text-xs font-medium text-primary leading-tight">
-            About {(creditsCount / 8).toLocaleString()} minutes at 1080p
+            About {creditsToMinutesAt1080p(creditsCount).toLocaleString()} minutes at 1080p
           </span>
         </div>
         <div className="flex items-start gap-2">

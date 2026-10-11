@@ -84,7 +84,8 @@ const UNLIMITED: ExportLimits = {
   limited: false,
 };
 
-const FREE_LIMITS: ExportLimits = {
+/** Export limits for free accounts and guests. */
+export const FREE_LIMITS: ExportLimits = {
   maxDuration: 30,
   maxResolution: '720p',
   maxFps: 30,
