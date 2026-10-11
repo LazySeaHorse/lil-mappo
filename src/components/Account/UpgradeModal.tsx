@@ -22,7 +22,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PLAN_CONFIG } from "@/services/checkout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
-import { FREE_CLOUD_SAVE_LIMIT, FREE_LIMITS } from "@/lib/cloudAccess";
+import { FREE_CLOUD_SAVE_LIMIT, FREE_LIMITS, isWanderer } from "@/lib/cloudAccess";
 
 const BENEFITS = [
   {
@@ -72,9 +72,9 @@ export function UpgradeModal() {
     })),
   );
   const { data: subscription } = useSubscription();
-  const isCurrent =
-    subscription?.tier === "wanderer" &&
-    (subscription.status === "active" || subscription.status === "cancelling");
+  // A cancelled plan whose period has ended is not current, so the user can
+  // subscribe again even if the expiry webhook has not removed the row yet.
+  const isCurrent = isWanderer(subscription);
 
   const handleCheckout = () => {
     if (isCurrent) return;
