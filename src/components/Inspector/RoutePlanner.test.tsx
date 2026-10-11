@@ -117,6 +117,39 @@ describe('RoutePlanner in Inspector', () => {
     expect(updatedItem.calculation?.vehicle?.enabled).toBe(false);
   });
 
+  describe('endpoint map pickers', () => {
+    const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
+    const pick = (lngLat: [number, number]) =>
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+
+    it('car: picks start and end on the map and toggles a picker off', () => {
+      render(<RoutePlanner item={createBaseRouteItem('car')} />);
+      const [startBtn, endBtn] = screen.getAllByTitle('Select point on map');
+
+      fireEvent.click(startBtn);
+      expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-start', ownerId: 'route-test-1', prompt: 'Start' });
+      pick([0, 51.48]);
+      expect(stored().calculation).toMatchObject({ startPoint: [0, 51.48], endPoint: [0, 0] });
+      expect(screen.getAllByPlaceholderText('Search address or coordinates')[0]).toHaveValue('0.00000, 51.48000');
+
+      fireEvent.click(endBtn);
+      expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-end', prompt: 'End' });
+      fireEvent.click(screen.getByTitle('Select a point on the map'));
+      expect(useProjectStore.getState().activePicker).toBeNull();
+    });
+
+    it('flight: picks the departure on the map', () => {
+      const route = createBaseRouteItem('flight');
+      useProjectStore.setState({ items: { [route.id]: route } });
+      render(<RoutePlanner item={route} />);
+
+      fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[0]);
+      expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-start', ownerId: 'route-test-1', prompt: 'Start' });
+      pick([2, 3]);
+      expect(stored().calculation).toMatchObject({ mode: 'flight', startPoint: [2, 3] });
+    });
+  });
+
   it('allows picking airports and applying flight arc', async () => {
     const route = createBaseRouteItem('flight');
     route.calculation!.vehicle!.type = 'plane';
