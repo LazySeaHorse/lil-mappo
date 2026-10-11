@@ -66,6 +66,7 @@ export function getStandardLabelGroups(): LabelLayerGroup[] {
 /** Capabilities of the Standard style (also the initial state before any style loads). */
 export const STANDARD_CAPABILITIES: MapStyleCapabilities = {
   labelGroups: getStandardLabelGroups(),
+  buildings3d: true,
   landmarks3d: true,
   trees3d: true,
   facades3d: true,
@@ -75,6 +76,11 @@ export const STANDARD_CAPABILITIES: MapStyleCapabilities = {
 
 export interface MapStyleCapabilities {
   labelGroups: LabelLayerGroup[];
+  /**
+   * The style can draw 3D buildings: Standard's own, or our fill-extrusion layer on a
+   * classic style's `composite` (Mapbox Streets) source. Absent means no.
+   */
+  buildings3d?: boolean;
   landmarks3d: boolean;
   trees3d: boolean;
   facades3d: boolean;
@@ -126,10 +132,18 @@ export interface StyleAtmosphere {
   fog: FogPaletteKey;
 }
 
+/**
+ * How a style is built. `standard`: the Mapbox Standard style, whose layers live inside
+ * the `basemap` import and are driven by config properties. `classic`: a plain style
+ * whose layers we can see and change directly.
+ */
+export type BasemapKind = 'standard' | 'classic';
+
 export interface MapStyleDef {
   label: string;
   url: string;
   category?: 'standard' | 'community';
+  basemap: BasemapKind;
   atmosphere: StyleAtmosphere;
   /** Overrides `atmosphere` per light preset (Standard's lighting changes the whole look). */
   lightPresetAtmosphere?: Partial<Record<LightPreset, StyleAtmosphere>>;
@@ -173,6 +187,7 @@ export const MAP_STYLES = {
     label: 'Standard',
     url: 'mapbox://styles/mapbox/standard',
     category: 'standard',
+    basemap: 'standard',
     atmosphere: LIGHT,
     lightPresetAtmosphere: { dusk: DARK, night: DARK },
   },
@@ -180,78 +195,91 @@ export const MAP_STYLES = {
     label: 'Streets',
     url: 'mapbox://styles/mapbox/streets-v12',
     category: 'standard',
+    basemap: 'classic',
     atmosphere: LIGHT,
   },
   outdoors: {
     label: 'Outdoors',
     url: 'mapbox://styles/mapbox/outdoors-v12',
     category: 'standard',
+    basemap: 'classic',
     atmosphere: LIGHT,
   },
   light: {
     label: 'Light',
     url: 'mapbox://styles/mapbox/light-v11',
     category: 'standard',
+    basemap: 'classic',
     atmosphere: LIGHT,
   },
   dark: {
     label: 'Dark',
     url: 'mapbox://styles/mapbox/dark-v11',
     category: 'standard',
+    basemap: 'classic',
     atmosphere: DARK,
   },
   satellite: {
     label: 'Satellite',
     url: 'mapbox://styles/mapbox/satellite-v9',
     category: 'standard',
+    basemap: 'classic',
     atmosphere: SATELLITE,
   },
   satelliteStreets: {
     label: 'Satellite Streets',
     url: 'mapbox://styles/mapbox/satellite-streets-v12',
     category: 'standard',
+    basemap: 'classic',
     atmosphere: SATELLITE,
   },
   navigationDay: {
     label: 'Nav Day',
     url: 'mapbox://styles/mapbox/navigation-guidance-day-v4',
     category: 'community',
+    basemap: 'classic',
     atmosphere: LIGHT,
   },
   navigationNight: {
     label: 'Nav Night',
     url: 'mapbox://styles/mapbox/navigation-guidance-night-v4',
     category: 'community',
+    basemap: 'classic',
     atmosphere: DARK,
   },
   bubble: {
     label: 'Bubble',
     url: 'mapbox://styles/mapbox-map-design/cl4wxue5j000c14r17uqrjpqb',
     category: 'community',
+    basemap: 'classic',
     atmosphere: LIGHT,
   },
   waterWorld: {
     label: 'Water World',
     url: 'mapbox://styles/mapbox-map-design/cl4bxa84b000l15kg4a2q8zsr',
     category: 'community',
+    basemap: 'classic',
     atmosphere: LIGHT,
   },
   neonGlow: {
     label: 'Neon Glow',
     url: 'mapbox://styles/mapbox-map-design/cl4gxqwi5001415l381n7qwak',
     category: 'community',
+    basemap: 'classic',
     atmosphere: DARK,
   },
   blackMarble: {
     label: 'Black Marble',
     url: 'mapbox://styles/mapbox-map-design/cl4fnpof7000i15p8jvz3aw2r',
     category: 'community',
+    basemap: 'classic',
     atmosphere: DARK,
   },
   vintage: {
     label: 'Vintage',
     url: 'mapbox://styles/mapstertech/cm15klhbj033m01r70dwy5ap8',
     category: 'community',
+    basemap: 'classic',
     atmosphere: LIGHT,
   },
 } satisfies Record<string, MapStyleDef>;
@@ -263,6 +291,11 @@ export function getMapStyleDef(mapStyle: string): MapStyleDef | undefined {
   return Object.prototype.hasOwnProperty.call(MAP_STYLES, mapStyle)
     ? (MAP_STYLES as Record<string, MapStyleDef>)[mapStyle]
     : undefined;
+}
+
+/** Standard-import basemap (config-driven) rather than a classic style; unknown styles are classic. */
+export function isStandardBasemap(mapStyle: string): boolean {
+  return getMapStyleDef(mapStyle)?.basemap === 'standard';
 }
 
 /** The look of a style under a light preset; unknown styles are treated as light. */

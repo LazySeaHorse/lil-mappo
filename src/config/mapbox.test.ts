@@ -16,6 +16,7 @@ import {
   getDefaultFogColor,
   resolveFog,
   projectionShowsStars,
+  isStandardBasemap,
 } from './mapbox';
 
 describe('Mapbox configuration', () => {
@@ -155,5 +156,15 @@ describe('resolveFog', () => {
       const stars = resolveFog(state({ projection, starIntensity: 0.7 }))['star-intensity'];
       expect(stars).toBe(projectionShowsStars(projection) ? 0.7 : 0);
     }
+  });
+});
+
+describe('basemap kind', () => {
+  it('marks Standard as the only style whose basemap is a Standard import', () => {
+    for (const [key, def] of Object.entries(MAP_STYLES)) {
+      expect(def.basemap, key).toBe(key === 'standard' ? 'standard' : 'classic');
+      expect(isStandardBasemap(key), key).toBe(key === 'standard');
+    }
+    expect(isStandardBasemap('some-custom-style')).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
+import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 
 interface MobileToolbarLayoutProps {
   mobileMode: 'default' | 'add' | 'layers';
@@ -48,6 +49,7 @@ export function MobileToolbarLayout({
   onProjectSettings, onMapStyleOpenChange,
 }: MobileToolbarLayoutProps) {
   const isCameraPulsing = useWalkthroughStore((s) => s.isRunning && s.walkthrough.stage === 'second-keyframe');
+  const buildingsAvailable = useMapStyleCapabilities().buildings3d === true;
 
   return (
     <div className="w-full flex items-center h-full relative overflow-hidden">
@@ -103,7 +105,7 @@ export function MobileToolbarLayout({
             <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
             <div data-walkthrough="map-3d" className="flex items-center gap-1">
               <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying2 && !isScrubbing} />
-              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} disabled={mapStyle === 'satellite'} />
+              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} disabled={!buildingsAvailable} />
             </div>
             <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('default')} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />

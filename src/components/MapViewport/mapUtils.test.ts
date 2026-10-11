@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { LABEL_CATEGORIES, STANDARD_CAPABILITIES } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from './mapUtils';
 
-function mapWithLayers(ids: string[]): MapboxMap {
-  return { getStyle: () => ({ version: 8, sources: {}, layers: ids.map((id) => ({ id })) }) } as unknown as MapboxMap;
+function mapWithLayers(ids: string[], sources: string[] = []): MapboxMap {
+  return {
+    getStyle: () => ({ version: 8, sources: {}, layers: ids.map((id) => ({ id })) }),
+    getSource: (id: string) => (sources.includes(id) ? {} : undefined),
+  } as unknown as MapboxMap;
 }
 
 describe('detectRuntimeCapabilities', () => {
@@ -13,6 +16,15 @@ describe('detectRuntimeCapabilities', () => {
     expect(caps.labelGroups.map((g) => g.id)).toEqual(['place', 'admin', 'road', 'transit', 'poi']);
     expect(caps.labelGroups.every((g) => g.configProperty)).toBe(true);
     expect(caps).toEqual(STANDARD_CAPABILITIES);
+    expect(caps.buildings3d).toBe(true);
+  });
+
+  it('offers 3D buildings on classic styles only when they carry the composite (Streets) source', () => {
+    expect(detectRuntimeCapabilities(mapWithLayers(['road-label'], ['composite']), 'streets').buildings3d).toBe(true);
+    expect(detectRuntimeCapabilities(mapWithLayers(['road-label'], ['composite']), 'satelliteStreets').buildings3d).toBe(true);
+    // satellite-v9 is raster only; community styles may ship their own vector sources
+    expect(detectRuntimeCapabilities(mapWithLayers(['satellite'], ['mapbox']), 'satellite').buildings3d).toBe(false);
+    expect(detectRuntimeCapabilities(mapWithLayers(['water'], ['custom-tiles']), 'vintage').buildings3d).toBe(false);
   });
 
   it('returns only categories matching loaded layers for classic styles', () => {

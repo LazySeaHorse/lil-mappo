@@ -225,16 +225,28 @@ describe('BasemapController', () => {
       controller.dispose();
     });
 
-    it('is not added on Standard, satellite, or styles without a composite source', () => {
+    it('is not added on Standard, or on classic styles without a composite source (satellite, community)', () => {
       const store = useProjectStore.getState();
       store.setBuildingsEnabled(true);
-      for (const style of ['standard', 'satellite'] as const) {
+      {
         const double = createMapDouble();
         withCompositeStyle(double);
-        store.setMapStyle(style);
+        store.setMapStyle('standard');
         const controller = new BasemapController(double.map, vi.fn());
         controller.mount();
         expect(double.addLayer).not.toHaveBeenCalled();
+        controller.dispose();
+      }
+
+      for (const style of ['satellite', 'vintage'] as const) {
+        const double = createMapDouble();
+        withCompositeStyle(double);
+        double.getSource.mockReturnValue(undefined as never);
+        store.setMapStyle(style);
+        const controller = new BasemapController(double.map, vi.fn());
+        controller.mount();
+        expect(double.addLayer, style).not.toHaveBeenCalled();
+        expect(useProjectStore.getState().detectedCapabilities?.buildings3d, style).toBe(false);
         controller.dispose();
       }
 

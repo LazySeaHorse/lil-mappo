@@ -4,7 +4,7 @@ import type {
   MapSourceDataEvent,
 } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import { LABEL_CATEGORIES, MAP_STYLES, resolveFog } from '@/config/mapbox';
+import { LABEL_CATEGORIES, MAP_STYLES, isStandardBasemap, resolveFog } from '@/config/mapbox';
 import { track } from '@/lib/analytics';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
@@ -96,7 +96,7 @@ export class BasemapController {
    * style has no roads (satellite).
    */
   getFlagPlacement = (): { slot?: 'bottom'; beforeId?: string } => {
-    if (useProjectStore.getState().mapStyle === 'standard') return { slot: 'bottom' };
+    if (isStandardBasemap(useProjectStore.getState().mapStyle)) return { slot: 'bottom' };
     const scan = this.getStyleScan();
     return { beforeId: scan.firstRoadId ?? scan.firstSymbolId };
   };
@@ -133,7 +133,7 @@ export class BasemapController {
   }
 
   private reconcileBuildings(state: ProjectState): void {
-    if (state.mapStyle === 'standard') {
+    if (isStandardBasemap(state.mapStyle)) {
       const properties: Array<[string, unknown]> = [
         ['lightPreset', state.lightPreset],
         ['show3dObjects', state.buildingsEnabled],
@@ -150,8 +150,8 @@ export class BasemapController {
       return;
     }
 
-    // Classic styles: satellite-v9 has no vector data; others expose `composite` with a building layer
-    if (state.mapStyle === 'satellite' || !this.map.getSource('composite')) return;
+    // Classic styles: extruded from the `composite` source, when style load detected one
+    if (!state.detectedCapabilities?.buildings3d) return;
     if (!this.map.getLayer(BUILDINGS_LAYER_ID)) this.addBuildingsLayer(state.buildingsEnabled);
     const target = state.buildingsEnabled ? 'visible' : 'none';
     if (this.map.getLayer(BUILDINGS_LAYER_ID) && this.map.getLayoutProperty(BUILDINGS_LAYER_ID, 'visibility') !== target) {
@@ -185,7 +185,7 @@ export class BasemapController {
   private reconcileLabels(state: ProjectState): void {
     const groups = state.detectedCapabilities?.labelGroups;
     if (!groups) return;
-    const isStandard = state.mapStyle === 'standard';
+    const isStandard = isStandardBasemap(state.mapStyle);
 
     for (const group of groups) {
       const visible = state.labelVisibility[group.id] ?? true;
@@ -240,7 +240,7 @@ export class BasemapController {
   private getStyleScan(): NonNullable<BasemapController['styleScan']> {
     if (this.styleScan) return this.styleScan;
     // Standard's layers live inside the basemap import and are driven by config properties, so skip the scan
-    if (useProjectStore.getState().mapStyle === 'standard') {
+    if (isStandardBasemap(useProjectStore.getState().mapStyle)) {
       return { labelLayerIds: [], firstSymbolId: undefined, firstRoadId: undefined };
     }
     const layers = this.map.getStyle()?.layers ?? [];
