@@ -16,6 +16,7 @@ import {
   isWanderer,
   brandingFor,
 } from "./cloudAccess";
+import { isWanderer as serverIsWanderer } from "../../api/_lib/entitlement";
 
 function subscription(overrides: Partial<Subscription> = {}): Subscription {
   return {
@@ -103,5 +104,39 @@ describe("isWanderer", () => {
 
     expect(isWanderer(subscription({ renewal_date: "2026-09-30" }))).toBe(true);
     expect(isWanderer(subscription({ renewal_date: null }))).toBe(true);
+  });
+});
+
+// api/ cannot import src/, so the server keeps its own copy of the paid-plan
+// rules. Run both against one table so they cannot drift apart.
+describe("isWanderer matches the server entitlement check (api/_lib/entitlement.ts)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const NOW = "2026-09-30T23:59:59Z";
+  const table: Array<[string, Subscription | null | undefined]> = [
+    ["no subscription (null)", null],
+    ["no subscription (undefined)", undefined],
+    ["active", subscription()],
+    ["active, renewal date passed", subscription({ renewal_date: "2026-01-01" })],
+    ["active, no renewal date", subscription({ renewal_date: null })],
+    ["cancelling, ends today", subscription({ status: "cancelling", renewal_date: "2026-09-30" })],
+    ["cancelling, ends later", subscription({ status: "cancelling", renewal_date: "2026-10-30" })],
+    ["cancelling, ended yesterday", subscription({ status: "cancelling", renewal_date: "2026-09-29" })],
+    ["cancelling, no end date", subscription({ status: "cancelling", renewal_date: null })],
+    ["on_hold", subscription({ status: "on_hold" })],
+    ["failed", subscription({ status: "failed" })],
+    ["expired", subscription({ status: "expired" })],
+    ["cancelled", subscription({ status: "cancelled" })],
+    ["other tier, active", subscription({ tier: "cartographer" })],
+    ["other tier, cancelling", subscription({ tier: "pioneer", status: "cancelling" })],
+  ];
+
+  it.each(table)("%s", (_label, sub) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+
+    expect(serverIsWanderer(sub)).toBe(isWanderer(sub));
   });
 });

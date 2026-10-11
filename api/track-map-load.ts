@@ -1,24 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { adminClient } from "./_lib/supabase.js";
-
-type SubscriptionEntitlement = {
-  tier: string;
-  status: string;
-  renewal_date: string | null;
-} | null;
-
-export function hasActiveMapEntitlement(
-  subscription: SubscriptionEntitlement,
-  today = new Date().toISOString().slice(0, 10)
-): boolean {
-  if (!subscription || subscription.tier !== "wanderer") return false;
-  if (subscription.status === "active") return true;
-  return (
-    subscription.status === "cancelling" &&
-    !!subscription.renewal_date &&
-    subscription.renewal_date >= today
-  );
-}
+import { isWanderer } from "./_lib/entitlement.js";
 
 /**
  * POST /api/track-map-load
@@ -63,9 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const isWanderer = hasActiveMapEntitlement(sub);
-
-  if (isWanderer) {
+  if (isWanderer(sub)) {
     return res.status(200).json({ allowed: true, monthly_total: 0, daily_total: 0 });
   }
 
