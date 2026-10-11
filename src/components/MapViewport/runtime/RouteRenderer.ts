@@ -48,6 +48,9 @@ interface PaintCache {
   lastAnimationType: string;
   vehicleVisible: boolean;
   vehicleOpacity: number;
+  /** Last uploaded vehicle position and model rotation, as `a,b` keys. */
+  vehiclePosition: string;
+  vehicleRotation: string;
   dashPattern: number[] | null;
 }
 
@@ -69,7 +72,7 @@ function createPaintCache(): PaintCache {
     glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false, glowTrim: '',
     cometColor: '', cometWidth: -1,
     lastAnimationType: '',
-    vehicleVisible: true, vehicleOpacity: -1,
+    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleRotation: '',
     dashPattern: null,
   };
 }
@@ -278,6 +281,9 @@ export class RouteRenderer {
   }
 
   private ensureVehicleResources(): void {
+    // The source and layer may be recreated below, starting from their initial position and rotation.
+    this.layers.cache.vehiclePosition = '';
+    this.layers.cache.vehicleRotation = '';
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled) {
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
@@ -381,11 +387,15 @@ export class RouteRenderer {
     const path = getRoutePath(this.coordinates);
     if (path.coords.length < 2) return;
     const [lng, lat] = path.pointAt(progress);
-    source.setData({
-      type: 'Feature',
-      properties: {},
-      geometry: { type: 'Point', coordinates: [lng, lat] },
-    });
+    const position = `${lng},${lat}`;
+    if (this.layers.cache.vehiclePosition !== position) {
+      source.setData({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'Point', coordinates: [lng, lat] },
+      });
+      this.layers.cache.vehiclePosition = position;
+    }
     const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 
@@ -397,10 +407,8 @@ export class RouteRenderer {
       if (from[0] === to[0] && from[1] === to[1]) [from, to] = path.coords;
       const bearing = calculateBearing(from, to);
       const pitch = calculatePitch(from, to);
-      this.layers.mutate('setPaintProperty:model-transform', this.ids.vehicleLayer, () => {
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing]);
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-translation', [0, 0, 0]);
-      });
+      // model-translation stays at the [0, 0, 0] the layer is created with.
+      this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing], 'vehicleRotation', `${pitch},${bearing}`);
     }
   }
 }

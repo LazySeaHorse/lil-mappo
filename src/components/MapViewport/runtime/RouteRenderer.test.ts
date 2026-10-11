@@ -104,12 +104,8 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
     // Render midway through flight
     renderer.render(5);
 
-    // Verify model-translation was updated to [0, 0, 0] (ground level, no Z elevation)
-    expect(double.setPaintProperty).toHaveBeenCalledWith(
-      "vehicle-layer-flight-route",
-      "model-translation",
-      [0, 0, 0]
-    );
+    // model-translation stays at [0, 0, 0] (ground level, no Z elevation)
+    expect(double.layers.get("vehicle-layer-flight-route")?.paint?.["model-translation"]).toEqual([0, 0, 0]);
 
     renderer.dispose();
     expect(double.layers.has("vehicle-layer-flight-route")).toBe(false);
@@ -168,11 +164,7 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
     renderer.mount();
     renderer.render(5);
 
-    expect(double.setPaintProperty).toHaveBeenCalledWith(
-      "vehicle-layer-legacy-3d-route",
-      "model-translation",
-      [0, 0, 0]
-    );
+    expect(double.layers.get("vehicle-layer-legacy-3d-route")?.paint?.["model-translation"]).toEqual([0, 0, 0]);
 
     renderer.dispose();
   });
@@ -529,5 +521,86 @@ describe("RouteRenderer vehicle placement", () => {
     expect(placed[1]).toBeCloseTo(want[1], 9);
     expect(Math.abs(placed[1] - 30)).toBeGreaterThan(1);
     renderer.dispose();
+  });
+});
+
+describe("RouteRenderer vehicle writes", () => {
+  const route = (type: "car" | "dot", coordinates = [[0, 0], [1, 1], [3, 1]]) => ({
+    kind: "route",
+    id: "veh",
+    name: "Vehicle",
+    geojson: {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } }],
+    },
+    startTime: 0,
+    endTime: 10,
+    style: { color: "#f00", width: 4, glow: false, glowWidth: 10, trailFade: false, trailFadeLength: 0.2, dashPattern: null, animationType: "draw" },
+    easing: "linear",
+    exitAnimation: "none",
+    calculation: { mode: "car", startPoint: [0, 0], endPoint: [3, 1], vehicle: { enabled: true, type, modelId: "", scale: 1 } },
+  }) as unknown as RouteItem;
+  const paintCalls = (double: ReturnType<typeof createMapDouble>, prop: string) =>
+    double.setPaintProperty.mock.calls.filter(([id, p]) => id === "vehicle-layer-veh" && p === prop);
+
+  it("moves and turns the model only when its position or heading changes", () => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, route("car"));
+    renderer.mount();
+    const source = double.sources.get("vehicle-source-veh")!;
+
+    renderer.render(2);
+    expect(source.setData).toHaveBeenCalledTimes(1);
+    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
+
+    // Paused: the same frame again writes nothing.
+    renderer.render(2);
+    renderer.render(2);
+    expect(source.setData).toHaveBeenCalledTimes(1);
+    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
+
+    // Moving along the same segment: new position, same heading.
+    renderer.render(2.5);
+    expect(source.setData).toHaveBeenCalledTimes(2);
+    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
+
+    // Onto the next segment: it turns.
+    renderer.render(9);
+    expect(source.setData).toHaveBeenCalledTimes(3);
+    expect(paintCalls(double, "model-rotation")).toHaveLength(2);
+    expect(double.layers.get("vehicle-layer-veh")?.paint?.["model-rotation"]).toEqual([0, -0, expect.closeTo(90, 1)]);
+  });
+
+  it("sets the constant model translation once, when the layer is created", () => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, route("car"));
+    renderer.mount();
+    for (let t = 0; t <= 10; t += 0.5) renderer.render(t);
+    expect(double.layers.get("vehicle-layer-veh")?.paint?.["model-translation"]).toEqual([0, 0, 0]);
+    expect(paintCalls(double, "model-translation")).toHaveLength(0);
+  });
+
+  it("re-places the vehicle after its source is recreated, even at the same time", () => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, route("dot"));
+    renderer.mount();
+    renderer.render(5);
+    renderer.setRoute(route("car"));
+    const source = double.sources.get("vehicle-source-veh")!;
+    renderer.render(5);
+    expect(source.setData).toHaveBeenCalledTimes(1);
+    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
+  });
+
+  it("re-places the vehicle after a style reload", () => {
+    const double = createMapDouble();
+    const renderer = new RouteRenderer(double.map, route("car"));
+    renderer.mount();
+    renderer.render(5);
+    double.layers.clear();
+    double.sources.clear();
+    renderer.mount();
+    renderer.render(5);
+    expect(double.sources.get("vehicle-source-veh")!.setData).toHaveBeenCalledTimes(1);
   });
 });
