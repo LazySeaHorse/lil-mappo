@@ -3,7 +3,7 @@ import { getNormalizedProgress } from '@/engine/easings';
 import type { RouteItem } from '@/store/types';
 import { routeTiming } from './routeTiming';
 
-type Exit = RouteItem['exitAnimation'] | undefined;
+type Exit = RouteItem['exitAnimation'];
 
 const route = (exitAnimation: Exit) =>
   ({ startTime: 2, endTime: 10, easing: 'easeInOutCubic', exitAnimation }) as Pick<
@@ -24,7 +24,7 @@ function legacy(r: ReturnType<typeof route>, t: number) {
 }
 
 describe('routeTiming', () => {
-  const exits: Exit[] = ['none', 'fade', 'reverse', undefined];
+  const exits: Exit[] = ['none', 'fade', 'reverse'];
   const times = [-1, 1.99, 2, 4.5, 9.999, 10, 10.0001, 10.2, 10.25, 10.5, 10.6, 30];
 
   it.each(exits)('matches the renderer\'s former inline timing (exit %s)', (exit) => {
@@ -43,8 +43,8 @@ describe('routeTiming', () => {
     }
   });
 
-  it('counts a missing exit animation as an exit (current behaviour)', () => {
-    expect(routeTiming(route(undefined), 10.5)).toMatchObject({ exitActive: true, isAfterExit: true, opacity: 1 });
+  it('keeps a route without an exit animation on screen, like none', () => {
+    expect(routeTiming(route(undefined), 10.5)).toMatchObject({ exitActive: false, exitProgress: 0, isAfterExit: false, opacity: 1 });
   });
 
   it('fades out over half a second', () => {

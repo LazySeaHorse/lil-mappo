@@ -51,7 +51,7 @@ export const vehicleShape = {
 };
 export const vehiclePatchSchema = z.strictObject(vehicleShape).partial();
 
-export const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).describe('How the item leaves at endTime: none = disappears, reverse = un-draws, fade = fades out.');
+export const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).describe('How the item leaves at endTime: none = stays on screen, fully drawn, after endTime (the default); reverse = un-draws from its start over 0.5 s; fade = fades out over 0.5 s.');
 
 export const contentShape = {
   title: z.string().max(200).describe('Main text.'),

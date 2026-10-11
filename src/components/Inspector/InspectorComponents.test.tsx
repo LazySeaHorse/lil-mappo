@@ -140,7 +140,7 @@ describe('Inspector Components Integration', () => {
       },
       startTime: 0,
       endTime: 4,
-      easing: 'easeInOutSine',
+      easing: 'easeInOutSine', exitAnimation: 'none',
       resolveStatus: 'resolved',
       style: {
         strokeColor: '#00ff00',
@@ -185,7 +185,7 @@ describe('Inspector Components Integration', () => {
       geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
       startTime: 0,
       endTime: 4,
-      easing: 'linear',
+      easing: 'linear', exitAnimation: 'none',
       resolveStatus: 'resolved',
       style: {
         strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,

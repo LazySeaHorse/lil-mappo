@@ -1,7 +1,6 @@
 import { getNormalizedProgress } from '@/engine/easings';
 import type { RouteItem } from '@/store/types';
-
-export const ROUTE_EXIT_DURATION = 0.5;
+import { exitTiming } from './exitTiming';
 
 export interface RouteTiming {
   /** Eased 0-1 progress between startTime and endTime. */
@@ -17,17 +16,13 @@ export interface RouteTiming {
   opacity: number;
 }
 
-/**
- * When a route draws and leaves, shared by the line and its vehicle. Any exitAnimation other
- * than 'none' (including a missing one) counts as an exit.
- */
+/** When a route draws and leaves, shared by the line and its vehicle. */
 export function routeTiming(
   route: Pick<RouteItem, 'startTime' | 'endTime' | 'easing' | 'exitAnimation'>,
   playheadTime: number,
 ): RouteTiming {
   const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
-  const exitActive = route.exitAnimation !== 'none' && playheadTime > route.endTime;
-  const exitProgress = exitActive ? Math.min((playheadTime - route.endTime) / ROUTE_EXIT_DURATION, 1) : 0;
+  const { active: exitActive, progress: exitProgress } = exitTiming(route, playheadTime);
   return {
     progress,
     isBeforeStart: playheadTime < route.startTime,

@@ -20,7 +20,7 @@ function boundary(style: Partial<BoundaryItem['style']> = {}): BoundaryItem {
     geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
     startTime: 0,
     endTime: 4,
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
     resolveStatus: 'resolved',
     style: { ...DEFAULT_BOUNDARY_STYLE, ...style },
   };

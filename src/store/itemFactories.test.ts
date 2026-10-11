@@ -27,6 +27,14 @@ describe('itemFactories', () => {
     expect(defaultEndpointRouteName('car')).toBe('Start to End');
   });
 
+  it('builds routes and boundaries that stay on screen after their end', () => {
+    const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
+    const car = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry(line), start: [0, 0], end: [1, 1], name: 'r', startTime: 0 });
+    const walk = createWalkRouteItem({ points: [[0, 0], [0.01, 0.01]], startTime: 0 });
+    const boundary = createBoundaryItem({ placeName: 'X', geojson: null, startTime: 0 });
+    expect([car.exitAnimation, walk.exitAnimation, boundary.exitAnimation]).toEqual(['none', 'none', 'none']);
+  });
+
   it('builds walk routes with derived geometry', () => {
     const walk = createWalkRouteItem({ points: [[0, 0], [0.01, 0.01]], startTime: 0 });
     expect(walk.calculation?.mode).toBe('walk');

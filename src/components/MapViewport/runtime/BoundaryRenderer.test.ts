@@ -77,7 +77,7 @@ const sampleBoundary: BoundaryItem = {
     fillMode: 'color',
     flagCode: null,
   },
-  easing: "linear",
+  easing: "linear", exitAnimation: "none",
 };
 
 describe("BoundaryRenderer paint transitions", () => {

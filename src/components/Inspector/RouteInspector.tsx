@@ -281,7 +281,8 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                 onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
                 easing={item.easing}
                 onChangeEasing={(v) => u({ easing: v })}
-                exitAnimation={item.exitAnimation}
+                // A route imported this session has no exitAnimation until it is saved and loaded.
+                exitAnimation={item.exitAnimation ?? 'none'}
                 onChangeExitAnimation={(v) => u({ exitAnimation: v })}
                 showExitAnimation={animType === 'draw'}
               />

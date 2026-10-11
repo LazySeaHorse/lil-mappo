@@ -104,7 +104,7 @@ const boundary: BoundaryItem = {
     fillMode: 'color',
     flagCode: null,
   },
-  easing: 'linear',
+  easing: 'linear', exitAnimation: 'none',
 };
 
 describe('Mapbox layer style contracts', () => {

@@ -43,6 +43,9 @@ const geometrySchema = z.custom<GeoJSON.Geometry>(
   'Expected a GeoJSON geometry',
 );
 
+/** Documents saved before exit animations had a default load as 'none': they stay on screen after their end. */
+const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).default('none');
+
 const routeStyleSchema = z.object({
   color: z.string(),
   width: z.number(),
@@ -102,7 +105,7 @@ const routeItemSchema = z.object({
   }).optional(),
   style: routeStyleSchema,
   easing: easingSchema,
-  exitAnimation: z.enum(['none', 'reverse', 'fade']).optional(),
+  exitAnimation: exitAnimationSchema,
   calculation: routeCalculationSchema.optional(),
 });
 
@@ -136,7 +139,7 @@ const boundaryItemSchema = z.object({
   endTime: z.number(),
   style: boundaryStyleSchema,
   easing: easingSchema,
-  exitAnimation: z.enum(['none', 'reverse', 'fade']).optional(),
+  exitAnimation: exitAnimationSchema,
 });
 
 // Callout schema now lives in the annotation system

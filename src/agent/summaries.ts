@@ -68,7 +68,7 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
           ? item.style
           : { strokeColor: item.style.strokeColor, fillOpacity: item.style.fillOpacity, animationStyle: item.style.animationStyle },
         easing: item.easing,
-        ...(detail ? { exitAnimation: item.exitAnimation ?? 'none' } : {}),
+        ...(detail ? { exitAnimation: item.exitAnimation } : {}),
       };
     case 'callout':
       return {

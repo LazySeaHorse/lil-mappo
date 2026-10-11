@@ -324,12 +324,15 @@ describe('project document persistence boundary', () => {
     expect(route.kind).toBe('route');
     if (route.kind === 'route') {
       expect(route.style).not.toHaveProperty('glowColor');
+      // A missing exit animation means the route stays on screen after its end.
+      expect(route.exitAnimation).toBe('none');
     }
     expect(boundary.kind).toBe('boundary');
     if (boundary.kind === 'boundary') {
       expect(boundary.style.fillColor).toBe('#123456');
       expect(boundary.style.traceLength).toBe(0.1);
       expect(boundary.style).toMatchObject({ maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null });
+      expect(boundary.exitAnimation).toBe('none');
     }
     expect(callout.kind).toBe('callout');
     if (callout.kind === 'callout') {

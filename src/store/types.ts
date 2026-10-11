@@ -103,6 +103,9 @@ export interface BoundaryStyle {
   flagCode: string | null;
 }
 
+/** How a route or boundary leaves at its endTime. 'none' keeps it on screen, fully drawn. */
+export type ExitAnimation = 'none' | 'reverse' | 'fade';
+
 export interface RouteItem {
   kind: 'route';
   id: string;
@@ -113,7 +116,11 @@ export interface RouteItem {
   autoCam?: AutoCamConfig;
   style: RouteStyle;
   easing: EasingName;
-  exitAnimation?: 'none' | 'reverse' | 'fade';
+  /**
+   * Loaded documents and factory-built routes always have it. Still optional because the
+   * route file import builds its item by hand; undefined behaves like 'none'.
+   */
+  exitAnimation?: ExitAnimation;
   calculation?: RouteCalculation;
 }
 
@@ -127,7 +134,7 @@ export interface BoundaryItem {
   endTime: number;
   style: BoundaryStyle;
   easing: EasingName;
-  exitAnimation?: 'none' | 'reverse' | 'fade';
+  exitAnimation: ExitAnimation;
 }
 
 export type CalloutSizeMode = 'screen' | 'map';

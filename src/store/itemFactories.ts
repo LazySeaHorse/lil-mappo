@@ -116,6 +116,7 @@ export function createEndpointRouteItem(input: EndpointRouteInput): RouteItem {
       vehicle: createDefaultVehicle(input.mode),
     },
     easing: 'easeInOutQuad',
+    exitAnimation: 'none',
   };
 }
 
@@ -144,6 +145,7 @@ export function createWalkRouteItem(input: WalkRouteInput): RouteItem {
     style: createDefaultRouteStyle('walk'),
     calculation,
     easing: 'easeInOutQuad',
+    exitAnimation: 'none',
   };
 }
 
@@ -172,6 +174,7 @@ export function createBoundaryItem(input: BoundaryInput): BoundaryItem {
       flagCode: input.style?.flagCode ?? input.countryCode ?? null,
     },
     easing: 'easeInOutCubic',
+    exitAnimation: 'none',
   };
 }
 

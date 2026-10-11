@@ -83,6 +83,7 @@ describe('add tools', () => {
     const route = state().items[created.id];
     expect(route.kind === 'route' && route.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' } });
     expect(route.kind === 'route' && route.endTime).toBe(5);
+    expect(route.kind === 'route' && route.exitAnimation).toBe('none');
     expect(steps()).toBe(1);
   });
 
@@ -127,7 +128,7 @@ describe('add tools', () => {
     expect(body.created.placeName).toBe('Portugal');
     expect(body.bbox).toEqual([-9, 37, -6, 42]);
     const item = state().items[body.created.id];
-    expect(item).toMatchObject({ kind: 'boundary', resolveStatus: 'resolved', startTime: 1, endTime: 6, style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
+    expect(item).toMatchObject({ kind: 'boundary', resolveStatus: 'resolved', startTime: 1, endTime: 6, exitAnimation: 'none', style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add boundary "Portugal"' });
   });

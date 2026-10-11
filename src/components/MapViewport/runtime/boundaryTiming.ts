@@ -1,8 +1,7 @@
 import { clamp } from '@/engine/cameraPose';
 import { getNormalizedProgress } from '@/engine/easings';
 import type { BoundaryItem } from '@/store/types';
-
-export const BOUNDARY_EXIT_DURATION = 0.5;
+import { exitTiming } from './exitTiming';
 
 /** A drawn or traced outline leaves the first 70% of its progress to the stroke; the fill comes in over the rest. */
 const FILL_START = 0.7;
@@ -41,8 +40,7 @@ export function resolveBoundaryTiming(
 ): BoundaryTiming {
   const style = boundary.style;
   const progress = getNormalizedProgress(playheadTime, boundary.startTime, boundary.endTime, boundary.easing);
-  const isExiting = boundary.exitAnimation !== 'none' && playheadTime > boundary.endTime;
-  const exitProgress = isExiting ? Math.min((playheadTime - boundary.endTime) / BOUNDARY_EXIT_DURATION, 1) : 0;
+  const { active: isExiting, progress: exitProgress } = exitTiming(boundary, playheadTime);
   const reverseProgress = 1 - exitProgress;
   const fadeExit = boundary.exitAnimation === 'fade' && isExiting;
   const reverseExit = boundary.exitAnimation === 'reverse' && isExiting;

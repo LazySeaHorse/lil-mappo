@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Pencil, Clock } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import type { EasingName } from '@/store/types';
+import type { EasingName, ExitAnimation } from '@/store/types';
 import { Field, SectionLabel, SwitchField } from "@/components/ui/field";
 import { EASING_OPTIONS, normalizeEasing } from './inspectorValues';
 
@@ -371,8 +371,8 @@ export function TimingControls({
   onChangeTime: (start: number, end: number) => void;
   easing?: EasingName;
   onChangeEasing?: (v: EasingName) => void;
-  exitAnimation?: 'none' | 'reverse' | 'fade';
-  onChangeExitAnimation?: (v: 'none' | 'reverse' | 'fade') => void;
+  exitAnimation?: ExitAnimation;
+  onChangeExitAnimation?: (v: ExitAnimation) => void;
   showExitAnimation?: boolean;
 }) {
   const duration = Math.max(0.01, +(endTime - startTime).toFixed(2));
@@ -422,7 +422,7 @@ export function TimingControls({
                 { value: 'reverse', label: 'Hide' },
                 { value: 'fade', label: 'Fade out' },
               ]}
-              value={exitAnimation || 'none'}
+              value={exitAnimation}
               onValueChange={onChangeExitAnimation}
               className="h-7 text-[11px]"
             />
