@@ -124,10 +124,13 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
   // Read once: later changes are applied by the scene controller, and a changing prop would race it.
   const initialProjection = useMemo(() => useProjectStore.getState().projection, []);
 
-  // Debounced map center update to prevent store churn during continuous panning
+  // Debounced map center update to prevent store churn during continuous panning.
+  // Export and viewport capture drive the camera per frame; those moves are not user pans.
   const debouncedSetMapCenter = useMemo(() => {
     let timer: NodeJS.Timeout;
     return (lng: number, lat: number) => {
+      const { isExporting, isCapturingViewport } = useProjectStore.getState();
+      if (isExporting || isCapturingViewport) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
         setMapCenter([lng, lat]);

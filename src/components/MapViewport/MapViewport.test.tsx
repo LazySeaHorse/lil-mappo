@@ -41,6 +41,26 @@ describe('MapViewport', () => {
   });
 
   it.each([
+    { flags: {}, saved: true },
+    { flags: { isExporting: true }, saved: false },
+    { flags: { isCapturingViewport: true }, saved: false },
+  ])('map moves update mapCenter only outside export and capture ($flags)', ({ flags, saved }) => {
+    vi.useFakeTimers();
+    try {
+      const setMapCenter = vi.fn();
+      useProjectStore.setState({ setMapCenter, ...flags });
+      mountViewport();
+      const onMove = mapGlRenders[0]?.onMove as (e: unknown) => void;
+      onMove({ viewState: { longitude: 7, latitude: 8 } });
+      vi.advanceTimersByTime(200);
+      if (saved) expect(setMapCenter).toHaveBeenCalledWith([7, 8]);
+      else expect(setMapCenter).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
     { lngLat: [0, 0] as [number, number], placed: false },
     { lngLat: [0, 5] as [number, number], placed: true },
     { lngLat: [12, 34] as [number, number], placed: true },
