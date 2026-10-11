@@ -8,6 +8,7 @@ import type {
 } from '@mapbox/search-js-core';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getEffectiveMapboxToken } from '@/config/mapbox';
+import { isPlacedPoint } from '@/engine/routeMode';
 
 type SearchBoxSession = SearchSession<
   SearchBoxOptions,
@@ -92,7 +93,7 @@ export function useLocationSearch({
     setLoading(true);
     try {
       const center = mapCenterRef.current;
-      const proximity = center && (center[0] !== 0 || center[1] !== 0) ? center : undefined;
+      const proximity = isPlacedPoint(center) ? center : undefined;
       const response = await sessionRef.current!.suggest(trimmed, { proximity });
       setSuggestions(response.suggestions || []);
       setIsOpen((response.suggestions || []).length > 0);
