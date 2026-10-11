@@ -1,7 +1,5 @@
 import { optimizeGeometry, ROUTE_SIMPLIFY_TOLERANCE_M } from "@/engine/geoUtils";
-
-const TO_RAD = Math.PI / 180;
-const TO_DEG = 180 / Math.PI;
+import { DEG, wrapDegrees } from "@/engine/geoMath";
 
 /**
  * Generates a Great Circle arc between two points on the globe surface without Z elevation.
@@ -14,13 +12,13 @@ export function calculateFlightArc(
   _peakHeight?: number,
   npoints: number = 100
 ): GeoJSON.LineString {
-  const lon1 = start[0] * TO_RAD;
-  const lat1 = start[1] * TO_RAD;
+  const lon1 = start[0] * DEG;
+  const lat1 = start[1] * DEG;
 
   // Shortest longitudinal delta across the globe (-180 to 180)
-  const deltaLon = ((end[0] - start[0] + 540) % 360) - 180;
-  const lon2 = (start[0] + deltaLon) * TO_RAD;
-  const lat2 = end[1] * TO_RAD;
+  const deltaLon = wrapDegrees(end[0] - start[0]);
+  const lon2 = (start[0] + deltaLon) * DEG;
+  const lat2 = end[1] * DEG;
 
   // 3D Cartesian unit vectors on unit sphere
   const v1 = [Math.cos(lat1) * Math.cos(lon1), Math.cos(lat1) * Math.sin(lon1), Math.sin(lat1)];
@@ -45,8 +43,8 @@ export function calculateFlightArc(
       v = [s1 * v1[0] + s2 * v2[0], s1 * v1[1] + s2 * v2[1], s1 * v1[2] + s2 * v2[2]];
     }
 
-    const lat = Math.asin(Math.max(-1, Math.min(1, v[2]))) * TO_DEG;
-    let lon = Math.atan2(v[1], v[0]) * TO_DEG;
+    const lat = Math.asin(Math.max(-1, Math.min(1, v[2]))) / DEG;
+    let lon = Math.atan2(v[1], v[0]) / DEG;
 
     // Maintain continuous unwrapped longitude relative to previous point
     while (lon - prevLon > 180) lon -= 360;

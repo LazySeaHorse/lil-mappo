@@ -1,6 +1,6 @@
 import type { CameraKeyframe, RouteItem } from '@/store/types';
 import { applyEasing } from './easings';
-import { liftBearing, poseFromFreeCam } from './cameraPose';
+import { liftBearing, poseFromFreeCam, wrapDegrees } from './cameraPose';
 import { getRoutePath } from './routePath';
 import { getRig, sampleRig, INTRO_FRACTION, OUTRO_FRACTION, type AutoCamOutput, type GroundModel, type RigSampleParams } from './cameraRig';
 
@@ -23,7 +23,7 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 function lerpBearing(a: number, b: number, t: number): number {
-  const diff = ((b - a + 540) % 360) - 180;
+  const diff = wrapDegrees(b - a);
   return (a + diff * t + 360) % 360;
 }
 

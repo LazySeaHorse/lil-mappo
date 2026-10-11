@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import distance from '@turf/distance';
+import { point } from '@turf/helpers';
 import type { RouteItem } from '@/store/types';
-import { autoCamForRoute, autoCamPresetPatch, defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, vehicleChangePatch } from './vehicles';
+import { autoCamForRoute, autoCamPresetPatch, defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, routeFitOf, vehicleChangePatch } from './vehicles';
 
 const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): RouteItem => ({
   kind: 'route',
@@ -117,5 +119,36 @@ describe('fitting the auto-camera to the route', () => {
     const cam = autoCamForRoute(r);
     expect(cam).toMatchObject({ enabled: true, preset: 'chase' });
     expect(cam.distance).toBeGreaterThan(5000);
+  });
+});
+
+describe('routeFitOf', () => {
+  const line = (...lines: number[][][]): RouteItem['geojson'] => ({
+    type: 'FeatureCollection',
+    features: lines.map((coordinates) => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } })),
+  });
+  const turfLength = (coords: number[][]) =>
+    coords.slice(1).reduce((sum, c, i) => sum + distance(point(coords[i]), point(c), { units: 'meters' }), 0);
+
+  it('measures the route the way summing turf distances did', () => {
+    const cases = [
+      [[8, 46], [8, 46.8]],
+      [[2.35, 48.85], [13.4, 52.52], [-0.12, 51.5], [-0.12, 51.5], [151.2, -33.87]],
+      [[179.5, 10], [-179.5, 10.5], [-178, 11]],
+      [[0, 0]],
+      [],
+    ];
+    for (const coords of cases) {
+      const fit = routeFitOf({ geojson: line(coords), startTime: 2, endTime: 12 });
+      expect(fit.duration).toBe(10);
+      expect(fit.lengthM).toBeCloseTo(turfLength(coords), 4);
+    }
+  });
+
+  it('measures several lines as one, joined end to start', () => {
+    const a = [[0, 0], [1, 0]];
+    const b = [[1, 1], [2, 1]];
+    const fit = routeFitOf({ geojson: line(a, b), startTime: 0, endTime: 1 });
+    expect(fit.lengthM).toBeCloseTo(turfLength([...a, ...b]), 4);
   });
 });

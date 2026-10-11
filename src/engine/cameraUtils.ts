@@ -14,11 +14,11 @@ import {
   poseToPosition,
   type CameraPose,
 } from './cameraPose';
+import { DEG, METERS_PER_DEGREE } from './geoMath';
 
 type PlainCamera = Exclude<CameraOutput, { type: 'blend' }>;
 
 const DEFAULT_VIEWPORT_HEIGHT = 800;
-const DEG = Math.PI / 180;
 
 function isFiniteCamera(cam: PlainCamera): boolean {
   return cam.type === 'freeCam'
@@ -167,8 +167,8 @@ function autoCamBounds(route: RouteItem, coords: number[][]): Bounds {
   const config = route.autoCam!;
   // Dynamics can pull the camera back by a third or so beyond its set distance.
   const reachM = 1.5 * config.distance;
-  const dLat = reachM / 111320;
-  const dLng = dLat / Math.max(0.05, Math.cos((((south + north) / 2) * Math.PI) / 180));
+  const dLat = reachM / METERS_PER_DEGREE;
+  const dLng = dLat / Math.max(0.05, Math.cos(((south + north) / 2) * DEG));
   return [west - dLng, Math.max(-85, south - dLat), east + dLng, Math.min(85, north + dLat)];
 }
 

@@ -1,4 +1,4 @@
-import { mercToLngLat, lngLatToMerc } from './cameraPose';
+import { haversineM, lngLatToMerc, mercToLngLat, wrapDegrees } from './geoMath';
 
 /**
  * A route's geometry, built once per coordinate array: mercator vertices (longitude unwrapped
@@ -29,16 +29,6 @@ export interface RoutePath {
   pointAt(u: number): number[];
   /** The line between progress `u0` and `u1`: interpolated ends, original vertices between. */
   slice(u0: number, u1: number): number[][];
-}
-
-const EARTH_RADIUS_M = 6371008.8;
-const RAD = Math.PI / 180;
-
-function haversineM(a: number[], b: number[]): number {
-  const dLat = (b[1] - a[1]) * RAD;
-  const dLng = (b[0] - a[0]) * RAD;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * RAD) * Math.cos(b[1] * RAD) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_M * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
 /** Segment index (0..n-2) containing `value` in the ascending array `u`, and the fraction through it. */
@@ -113,7 +103,7 @@ function build(input: number[][]): RoutePath {
       if (n === 0) return [0, 0];
       const [i, w] = n > 1 ? locateSegment(u, value) : [0, 0];
       const p = [...interpolate(i, w)];
-      if (p[0] > 180 || p[0] < -180) p[0] = ((((p[0] + 180) % 360) + 360) % 360) - 180;
+      if (p[0] > 180 || p[0] < -180) p[0] = wrapDegrees(p[0]);
       return p;
     },
     slice(u0, u1) {

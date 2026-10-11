@@ -1,7 +1,6 @@
-import distance from '@turf/distance';
-import { point } from '@turf/helpers';
 import type { AutoCamConfig, AutoCamPreset, EasingName, RouteItem, RouteVehicleConfig } from '@/store/types';
 import { extractLineCoords } from '@/engine/geoUtils';
+import { getRoutePath } from '@/engine/routePath';
 
 export type VehicleType = RouteVehicleConfig['type'];
 
@@ -114,9 +113,7 @@ export interface RouteFit {
 }
 
 export function routeFitOf(route: Pick<RouteItem, 'geojson' | 'startTime' | 'endTime'>): RouteFit {
-  const coords = extractLineCoords(route.geojson);
-  let lengthM = 0;
-  for (let i = 1; i < coords.length; i++) lengthM += distance(point(coords[i - 1]), point(coords[i]), { units: 'meters' });
+  const { lengthM } = getRoutePath(extractLineCoords(route.geojson));
   return { lengthM, duration: route.endTime - route.startTime };
 }
 

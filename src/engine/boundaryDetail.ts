@@ -1,4 +1,5 @@
 import { metersToDegrees, optimizeGeometry } from '@/engine/geoUtils';
+import { METERS_PER_DEGREE } from '@/engine/geoMath';
 
 export type BoundaryDetailId = 'detailed' | 'standard' | 'light';
 
@@ -83,7 +84,7 @@ export function boundaryDetailSample(id: BoundaryDetailId): number[][] {
     const line = buildSampleCoastline();
     // Round at 6dp like real stored geometry; metres here are exact to ~0.1 m.
     const out = simplifyAt(line, id) as GeoJSON.LineString;
-    pts = out.coordinates.map(([x, y]) => [x * 111_320, y * 111_320]);
+    pts = out.coordinates.map(([x, y]) => [x * METERS_PER_DEGREE, y * METERS_PER_DEGREE]);
     sampleCache.set(id, pts);
   }
   return pts;

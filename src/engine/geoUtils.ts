@@ -1,6 +1,7 @@
 import distance from '@turf/distance';
 import simplify from '@turf/simplify';
 import { point } from '@turf/helpers';
+import { bearingDeg, METERS_PER_DEGREE } from './geoMath';
 
 
 /**
@@ -130,18 +131,7 @@ export function calculateBearing(start: number[], end: number[]): number {
     return 0;
   }
 
-  const toRad = (v: number) => (v * Math.PI) / 180;
-  const toDeg = (v: number) => (v * 180) / Math.PI;
-
-  const φ1 = toRad(start[1]);
-  const φ2 = toRad(end[1]);
-  const Δλ = toRad(end[0] - start[0]);
-
-  const y = Math.sin(Δλ) * Math.cos(φ2);
-  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-  const θ = Math.atan2(y, x);
-
-  let bearing = (toDeg(θ) + 360) % 360;
+  let bearing = bearingDeg(start, end);
   if (Number.isNaN(bearing) || !Number.isFinite(bearing)) return 0;
   bearing = ((bearing % 360) + 360) % 360;
   if (bearing === 360 || Object.is(bearing, -0)) return 0;
@@ -235,9 +225,6 @@ export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, pre
     coordinates: truncateCoords((geometry as unknown as { coordinates: NestedCoordinates }).coordinates),
   };
 }
-
-/** Metres per degree of latitude (and of longitude at the equator). */
-const METERS_PER_DEGREE = 111_320;
 
 /** Sub-metre cleanup applied to every stored driving / flight route. */
 export const ROUTE_SIMPLIFY_TOLERANCE_M = 0.5;

@@ -4,9 +4,9 @@
  * Nothing here touches Mapbox, so it is unit-tested against a recording 2D context.
  */
 
+import { latFromMercY, lngFromMercX, mercX, mercY } from '@/engine/geoMath';
+
 export const FLAG_ASPECT_RATIO = 4 / 3;
-/** Mercator stops being finite at the poles; Mapbox clamps at this latitude. */
-const MAX_LAT = 85.0511287798;
 /** How far past a polygon's edge (in tile pixels) the flag is painted so tile and clip edges leave no seam. */
 const EDGE_BLEED_PX = 0.75;
 
@@ -26,23 +26,11 @@ export interface FlagPart {
   frame: Rect;
 }
 
-export function lngToWorldX(lng: number): number {
-  return (lng + 180) / 360;
-}
-
-export function latToWorldY(lat: number): number {
-  const clamped = Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
-  const sin = Math.sin((clamped * Math.PI) / 180);
-  return 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI);
-}
-
-export function worldXToLng(x: number): number {
-  return x * 360 - 180;
-}
-
-export function worldYToLat(y: number): number {
-  return (Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180) / Math.PI;
-}
+/** Web Mercator world coordinates (latitude clamped where Mapbox clamps it). */
+export const lngToWorldX = mercX;
+export const latToWorldY = mercY;
+export const worldXToLng = lngFromMercX;
+export const worldYToLat = latFromMercY;
 
 /** World-space extent of tile z/x/y. */
 export function tileExtent(z: number, x: number, y: number): Rect {

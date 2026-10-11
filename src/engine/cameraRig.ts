@@ -16,6 +16,7 @@ import {
   wrapDegrees,
   type CameraPose,
 } from './cameraPose';
+import { DEG, metersPerPixel } from './geoMath';
 
 /**
  * Auto-camera "rig": the camera's whole path through a block, planned once and then
@@ -78,7 +79,6 @@ export interface CameraRig {
   overview: CameraPose;
 }
 
-const DEG = Math.PI / 180;
 const SAMPLES_PER_SECOND = 60;
 const MIN_SAMPLES = 64;
 const MAX_SAMPLES = 6000;
@@ -198,8 +198,7 @@ function unwrapDegrees(values: ArrayLike<number>): Float64Array {
 /** How much ground the shot spans around its subject, in metres: what framing is relative to. */
 function viewScaleM(config: AutoCamConfig, lat: number): number {
   if (config.mode === 'cinematic') return Math.max(20, config.distance);
-  const mpp = (40075016.686 / 512) * Math.cos(clamp(lat, -85, 85) * DEG) / 2 ** config.zoom;
-  return Math.max(20, mpp * 350);
+  return Math.max(20, metersPerPixel(config.zoom, lat) * 350);
 }
 
 function overviewPose(x: Float64Array, y: Float64Array, lat: number): CameraPose {

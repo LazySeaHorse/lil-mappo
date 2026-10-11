@@ -4,6 +4,8 @@
  * knows the tiles the map happens to have loaded, so preview and export plan the same path.
  */
 
+import { lngLatToMerc } from '@/engine/geoMath';
+
 /** Bounds as [west, south, east, north] in degrees. */
 export type Bounds = [number, number, number, number];
 
@@ -16,7 +18,6 @@ interface DemTile {
 const MAX_TILES_ACROSS = 4;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 12;
-const MAX_LAT = 85.05112878;
 
 const tiles = new Map<string, DemTile | null>();
 const inFlight = new Map<string, Promise<void>>();
@@ -38,10 +39,9 @@ export function decodeTerrainRgb(rgba: ArrayLike<number>, size: number): Float32
 /** Tile coordinates (fractional) of a point at a zoom level. */
 function tileXY(lng: number, lat: number, z: number): [number, number] {
   const scale = 2 ** z;
-  const phi = (Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * Math.PI) / 180;
-  const x = (((lng + 180) / 360) % 1 + 1) % 1 * scale;
-  const y = ((1 - Math.log(Math.tan(phi) + 1 / Math.cos(phi)) / Math.PI) / 2) * scale;
-  return [x, y];
+  const [x, y] = lngLatToMerc(lng, lat);
+  // Longitude wraps onto the one world copy the tiles cover.
+  return [((x % 1) + 1) % 1 * scale, y * scale];
 }
 
 /** The most detailed zoom at which the bounds span no more than a few tiles each way. */
