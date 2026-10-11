@@ -3,7 +3,7 @@ import type mapboxgl from 'mapbox-gl';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
 import type { CameraItem, CameraKeyframe } from '@/store/types';
-import { applyCamera, syncMapToProject } from './cameraUtils';
+import { applyCamera, hasMapCenter, syncMapToProject } from './cameraUtils';
 
 const keyframe = (time: number, zoom: number): CameraKeyframe => ({
   id: `kf-${time}`,
@@ -82,5 +82,14 @@ describe('applyCamera over terrain', () => {
     applyCamera(plain as unknown as mapboxgl.Map, { type: 'blend', from: keyframe, to: shot, t: 0 });
     // At the keyframe end the planned ground has no say: it starts where the keyframe is.
     expect(altitude(atKeyframe)).toBeCloseTo(altitude(plain), 3);
+  });
+});
+
+describe('hasMapCenter', () => {
+  it('treats a missing centre and [0, 0] as never set', () => {
+    expect(hasMapCenter(undefined)).toBe(false);
+    expect(hasMapCenter([0, 0])).toBe(false);
+    expect(hasMapCenter([0, 1])).toBe(true);
+    expect(hasMapCenter([-73.97, 0])).toBe(true);
   });
 });

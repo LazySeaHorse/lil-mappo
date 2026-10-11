@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
+import type { CalloutItem } from '@/store/types';
 import MapViewport from './MapViewport';
 
 const mapGlRenders = vi.hoisted(() => [] as Array<Record<string, unknown>>);
@@ -37,5 +38,20 @@ describe('MapViewport', () => {
     view.rerender(<MapViewport mapRef={{ current: null }} runtimeRef={{ current: null }} mapboxToken="pk.test" />);
     expect(mapGlRenders.length).toBeGreaterThan(1);
     expect(mapGlRenders.map((props) => props.projection)).toEqual(mapGlRenders.map(() => 'mercator'));
+  });
+
+  it.each([
+    { lngLat: [0, 0] as [number, number], placed: false },
+    { lngLat: [0, 5] as [number, number], placed: true },
+    { lngLat: [12, 34] as [number, number], placed: true },
+  ])('a map click places the selected callout only while it is unplaced ($lngLat)', ({ lngLat, placed }) => {
+    const callout = { kind: 'callout', id: 'c1', binding: { kind: 'geographic', lngLat, altitude: 0 } } as unknown as CalloutItem;
+    const updateItem = vi.fn();
+    useProjectStore.setState({ items: { c1: callout }, selectedItemId: 'c1', activePicker: null, updateItem });
+    mountViewport();
+    const onClick = mapGlRenders[0]?.onClick as (e: unknown) => void;
+    onClick({ lngLat: { lng: 7, lat: 8 } });
+    if (placed) expect(updateItem).not.toHaveBeenCalled();
+    else expect(updateItem).toHaveBeenCalledWith('c1', { binding: { kind: 'geographic', lngLat: [7, 8], altitude: 0 } });
   });
 });

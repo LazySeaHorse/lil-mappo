@@ -15,6 +15,7 @@ import {
   type CameraPose,
 } from './cameraPose';
 import { DEG, METERS_PER_DEGREE } from './geoMath';
+import { isPlacedPoint } from './routeMode';
 
 type PlainCamera = Exclude<CameraOutput, { type: 'blend' }>;
 
@@ -191,7 +192,8 @@ export async function loadProjectTerrain(): Promise<void> {
 
 /** Whether a saved map centre has been set ([0, 0] means never set). */
 export function hasMapCenter(center: [number, number] | undefined): center is [number, number] {
-  return Boolean(center) && (center![0] !== 0 || center![1] !== 0);
+  // `?? undefined` also treats a null centre (from untyped data) as unset.
+  return isPlacedPoint(center ?? undefined);
 }
 
 /**

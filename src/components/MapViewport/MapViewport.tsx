@@ -6,6 +6,7 @@ import { MAP_STYLES, transformMapboxRequest } from '@/config/mapbox';
 
 import { useProjectStore } from '@/store/useProjectStore';
 import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cameraUtils';
+import { isPlacedPoint } from '@/engine/routeMode';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
@@ -72,7 +73,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     const selectedId = s.selectedItemId;
     if (selectedId) {
       const item = s.items[selectedId];
-      if (item?.kind === 'callout' && item.binding.kind === 'geographic' && item.binding.lngLat[0] === 0 && item.binding.lngLat[1] === 0) {
+      if (item?.kind === 'callout' && item.binding.kind === 'geographic' && !isPlacedPoint(item.binding.lngLat)) {
         updateItem(selectedId, { binding: { kind: 'geographic', lngLat: [e.lngLat.lng, e.lngLat.lat], altitude: 0 } });
       }
     }
