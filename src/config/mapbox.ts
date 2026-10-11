@@ -112,7 +112,10 @@ export const FOG_PALETTES = {
     'space-color': 'rgb(11, 11, 25)',
     'star-intensity': 0.6,
   },
-} as const satisfies Record<string, FogSpecification & { color: string; 'star-intensity': number }>;
+} as const satisfies Record<string, ResolvedFog>;
+
+/** A fog spec whose haze color and star intensity are plain values (not expressions). */
+export type ResolvedFog = FogSpecification & { color: string; 'star-intensity': number };
 
 export type FogPaletteKey = keyof typeof FOG_PALETTES;
 
@@ -305,7 +308,7 @@ export interface FogState {
  * colour the fog reaches at the horizon, makes the sky above it continue the haze
  * instead of darkening to black. The fog color picker shows this `color`.
  */
-export function resolveFog(state: FogState): FogSpecification {
+export function resolveFog(state: FogState): ResolvedFog {
   const base = FOG_PALETTES[getStyleAtmosphere(state.mapStyle, state.lightPreset).fog];
   const color = state.fogColor ?? base.color;
   if (!projectionShowsStars(state.projection)) {

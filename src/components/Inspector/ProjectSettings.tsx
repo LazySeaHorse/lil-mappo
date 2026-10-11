@@ -17,7 +17,7 @@ import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-se
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
 import { parseLightPreset, parseProjection } from '@/store/domainValues';
-import { getDefaultFogColor } from '@/config/mapbox';
+import { projectionShowsStars, resolveFog } from '@/config/mapbox';
 
 
 
@@ -178,13 +178,13 @@ export function ProjectSettings() {
 
           <InspectorSection value="atmos" title="Atmosphere">
             {/* Mercator draws no stars; the fog color still tints its horizon haze */}
-            {projection === 'globe' && (
+            {projectionShowsStars(projection) && (
               <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
             )}
             <Field label="Fog color">
               <div className="flex gap-2 items-center">
                 <ColorPicker
-                  value={fogColor || getDefaultFogColor(mapStyle)}
+                  value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
                   onChange={(v) => setAtmosphere({ fogColor: v })}
                 />
                 <Button

@@ -44,4 +44,23 @@ describe('ProjectSettings atmosphere', () => {
     expect(screen.getByText(/^Star intensity/)).toBeInTheDocument();
     expect(useProjectStore.getState().starIntensity).toBe(0.9);
   });
+
+  it.each([
+    ['satellite', 'day', '#5d7883'],
+    ['dark', 'day', '#171717'],
+    ['standard', 'day', '#bad2eb'],
+    ['standard', 'night', '#171717'],
+  ] as const)('defaults the fog color to the fog %s renders (%s)', (mapStyle, lightPreset, rendered) => {
+    act(() => useProjectStore.setState({ mapStyle, lightPreset, fogColor: null }));
+    render(<ProjectSettings />);
+    openAtmosphere();
+    expect(screen.getByLabelText(`Custom color ${rendered}`)).toBeInTheDocument();
+  });
+
+  it('shows the override once the user picks a fog color', () => {
+    act(() => useProjectStore.setState({ mapStyle: 'satellite', fogColor: '#123456' }));
+    render(<ProjectSettings />);
+    openAtmosphere();
+    expect(screen.getByLabelText('Custom color #123456')).toBeInTheDocument();
+  });
 });
