@@ -17,7 +17,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const searchSeqRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -31,8 +30,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
         clearTimeout(debounceTimerRef.current);
       }
       abortControllerRef.current?.abort();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      searchSeqRef.current++;
     };
   }, []);
 
@@ -49,13 +46,12 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const seq = ++searchSeqRef.current;
     setLoading(true);
     onSearchingChange?.(true);
 
     try {
       const res = await searchBoundary(trimmed, abortController.signal);
-      if (seq !== searchSeqRef.current || abortController.signal.aborted) {
+      if (abortController.signal.aborted) {
         return;
       }
       if (res.length === 0) {
@@ -64,12 +60,13 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
         setResults(res);
       }
     } catch (e: unknown) {
-      if (seq !== searchSeqRef.current || abortController.signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
+      if (abortController.signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
         return;
       }
       toast.error('Cannot search boundaries.');
     } finally {
-      if (seq === searchSeqRef.current) {
+      // An aborted search was superseded, cleared or unmounted; whoever aborted it owns loading.
+      if (!abortController.signal.aborted) {
         setLoading(false);
         onSearchingChange?.(false);
       }
