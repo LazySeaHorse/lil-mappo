@@ -29,6 +29,19 @@ function lerpLngLat(a: [number, number], b: [number, number], t: number): [numbe
 
 // ─── Block helpers ────────────────────────────────────────────────────────────
 
+// Keyframe arrays are immutable (the store replaces them on every edit), so each one is
+// sorted once rather than on every frame. The sorted copy never leaves this module.
+const sortedKeyframes = new WeakMap<readonly CameraKeyframe[], readonly CameraKeyframe[]>();
+
+function sortedByTime(keyframes: readonly CameraKeyframe[]): readonly CameraKeyframe[] {
+  let sorted = sortedKeyframes.get(keyframes);
+  if (!sorted) {
+    sorted = [...keyframes].sort((a, b) => a.time - b.time);
+    sortedKeyframes.set(keyframes, sorted);
+  }
+  return sorted;
+}
+
 function isTimeInBlock(t: number, routes: RouteItem[]): boolean {
   return routes.some((r) => t >= r.startTime && t <= r.endTime);
 }
@@ -38,8 +51,7 @@ function findNextKFAfterBlock(
   blockEnd: number,
   autoCamRoutes: RouteItem[],
 ): CameraKeyframe | null {
-  const sorted = [...keyframes].sort((a, b) => a.time - b.time);
-  return sorted.find((kf) => kf.time > blockEnd && !isTimeInBlock(kf.time, autoCamRoutes)) ?? null;
+  return sortedByTime(keyframes).find((kf) => kf.time > blockEnd && !isTimeInBlock(kf.time, autoCamRoutes)) ?? null;
 }
 
 function findPrevKFBeforeBlock(
@@ -47,8 +59,7 @@ function findPrevKFBeforeBlock(
   blockStart: number,
   autoCamRoutes: RouteItem[],
 ): CameraKeyframe | null {
-  const sorted = [...keyframes].sort((a, b) => a.time - b.time);
-  const candidates = sorted.filter((kf) => kf.time < blockStart && !isTimeInBlock(kf.time, autoCamRoutes));
+  const candidates = sortedByTime(keyframes).filter((kf) => kf.time < blockStart && !isTimeInBlock(kf.time, autoCamRoutes));
   return candidates.length > 0 ? candidates[candidates.length - 1] : null;
 }
 
@@ -142,9 +153,15 @@ export function getCameraAtTimeFromKeyframes(
   getRouteCoords?: (routeId: string) => number[][] | null,
 ): CameraState | null {
   if (!keyframes || keyframes.length === 0) return null;
+  return cameraFromSorted(sortedByTime(keyframes), time, getRouteCoords);
+}
 
-  const sorted = [...keyframes].sort((a, b) => a.time - b.time);
-
+/** `getCameraAtTimeFromKeyframes` for keyframes already in time order (and at least one). */
+function cameraFromSorted(
+  sorted: readonly CameraKeyframe[],
+  time: number,
+  getRouteCoords?: (routeId: string) => number[][] | null,
+): CameraState | null {
   if (sorted.length === 1 || time <= sorted[0].time) {
     const kf = sorted[0];
     return clampCameraState({
@@ -356,7 +373,8 @@ export function getCameraAtTime(
   }
 
   // Standard keyframe interpolation — skip KFs inside any auto-cam block
-  const activeKeyframes = keyframes.filter((kf) => !isTimeInBlock(kf.time, autoCamRoutes));
+  // Filtered from the sorted keyframes, so it stays in time order.
+  const activeKeyframes = sortedByTime(keyframes).filter((kf) => !isTimeInBlock(kf.time, autoCamRoutes));
 
   // After a block with no keyframe following it, hold the camera where the block ended
   // rather than snapping back to a keyframe from before it.
@@ -372,7 +390,7 @@ export function getCameraAtTime(
     }
   }
 
-  const result = getCameraAtTimeFromKeyframes(activeKeyframes, time, getRouteCoords);
+  const result = activeKeyframes.length > 0 ? cameraFromSorted(activeKeyframes, time, getRouteCoords) : null;
   if (!result) return null;
   return { type: 'jumpTo', ...result };
 }
