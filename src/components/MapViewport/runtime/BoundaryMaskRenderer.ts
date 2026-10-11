@@ -10,6 +10,8 @@ import {
   resolveRegionPaint,
 } from './boundaryMaskModel';
 import {
+  EMPTY_FC,
+  geoJSONSource,
   getGeoJSONSource,
   mutateMap,
   noPaintTransitions,
@@ -17,7 +19,6 @@ import {
   removeSourceIfPresent,
 } from './mapboxResources';
 
-const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 const SOURCE_ID = 'boundary-mask';
 const LAYER_ID = 'boundary-mask-layer';
 const CLIP_LAYER_ID = 'boundary-mask-clip';
@@ -161,7 +162,7 @@ export class BoundaryMaskRenderer {
 
   private ensureResources(): void {
     if (!this.map.getSource(SOURCE_ID)) {
-      this.map.addSource(SOURCE_ID, { type: 'geojson', data: EMPTY_FC });
+      this.map.addSource(SOURCE_ID, geoJSONSource());
     }
     if (this.map.getLayer(LAYER_ID)) return;
     // No slot and no beforeId: above the whole basemap. That covers labels on a flat map;

@@ -7,6 +7,7 @@ import { resolveBoundaryFillColor } from '../layerStyleContracts';
 import { BoundaryFlagLayer, type FlagPlacement, preloadFlag } from './BoundaryFlagLayer';
 import { resolveBoundaryTiming } from './boundaryTiming';
 import {
+  geoJSONSource,
   getGeoJSONSource,
   LayerPropertyWriter,
   noPaintTransitions,
@@ -14,7 +15,6 @@ import {
   removeSourceIfPresent,
 } from './mapboxResources';
 
-const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 
 interface BoundaryResourceIds {
   fillSource: string;
@@ -193,10 +193,10 @@ export class BoundaryRenderer {
 
   private ensureResources(): void {
     if (!this.map.getSource(this.ids.fillSource)) {
-      this.map.addSource(this.ids.fillSource, { type: 'geojson', data: EMPTY_FC });
+      this.map.addSource(this.ids.fillSource, geoJSONSource());
     }
     if (!this.map.getSource(this.ids.strokeSource)) {
-      this.map.addSource(this.ids.strokeSource, { type: 'geojson', data: EMPTY_FC });
+      this.map.addSource(this.ids.strokeSource, geoJSONSource());
     }
 
     const style = this.boundary.style;

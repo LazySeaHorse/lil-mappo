@@ -1,8 +1,4 @@
-import type {
-  ExpressionSpecification,
-  GeoJSONSourceSpecification,
-  Map as MapboxMap,
-} from 'mapbox-gl';
+import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
 import { getNormalizedProgress } from '@/engine/easings';
 import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
@@ -10,6 +6,8 @@ import { getRoutePath } from '@/engine/routePath';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
 import { resolveRoutePaint } from '../layerStyleContracts';
 import {
+  EMPTY_FC,
+  geoJSONSource,
   getGeoJSONSource,
   LayerPropertyWriter,
   noPaintTransitions,
@@ -18,7 +16,6 @@ import {
 } from './mapboxResources';
 import { MODEL_BASE_SCALE } from '@/config/vehicles';
 
-const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 const EXIT_DURATION = 0.5;
 const DOT_BASE_RADIUS = 9;
 const MODELS: Record<'car' | 'plane', string> = {
@@ -99,10 +96,6 @@ function routeLine(coords: number[][]): GeoJSON.FeatureCollection {
     return [prevLng, ...c.slice(1)];
   });
   return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line } }] };
-}
-
-function geoJSONSource(lineMetrics = false): GeoJSONSourceSpecification {
-  return { type: 'geojson', data: EMPTY_FC, ...(lineMetrics ? { lineMetrics: true } : {}) };
 }
 
 function gradient(color: string): ExpressionSpecification {

@@ -8,8 +8,6 @@
 
 export const FLAG_WIDTH = 1280;
 export const FLAG_HEIGHT = 960;
-/** The flags' native aspect ratio (4:3). */
-export const FLAG_ASPECT = 4 / 3;
 
 export type FlagImage = CanvasImageSource & { width: number; height: number };
 

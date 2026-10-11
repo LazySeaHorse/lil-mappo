@@ -1,4 +1,10 @@
-import type { GeoJSONSource, LayoutSpecification, Map as MapboxMap, PaintSpecification } from 'mapbox-gl';
+import type {
+  GeoJSONSource,
+  GeoJSONSourceSpecification,
+  LayoutSpecification,
+  Map as MapboxMap,
+  PaintSpecification,
+} from 'mapbox-gl';
 
 export type MapMutationPhase = 'setup' | 'update' | 'cleanup' | 'style-sync';
 
@@ -77,6 +83,14 @@ export function noPaintTransitions(...props: string[]): PaintSpecification {
 export function isRepaintPending(map: MapboxMap): boolean {
   const internal = map as unknown as { _frame?: unknown; _renderNextFrame?: unknown };
   return Boolean(internal._frame && internal._renderNextFrame);
+}
+
+/** Shared empty data for geojson sources that start (or are cleared to) nothing. */
+export const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
+
+/** An empty geojson source spec; `lineMetrics` enables line-progress (gradients, trim offsets). */
+export function geoJSONSource(lineMetrics = false): GeoJSONSourceSpecification {
+  return { type: 'geojson', data: EMPTY_FC, ...(lineMetrics ? { lineMetrics: true } : {}) };
 }
 
 export function getGeoJSONSource(map: MapboxMap, sourceId: string): GeoJSONSource | undefined {
