@@ -3,6 +3,7 @@ import {
   toProjectDocument,
   type ProjectDocument,
 } from '@/store/projectDocument';
+import { PERSISTED_PROJECT_KEYS } from '@/store/historyKeys';
 import type { Project } from '@/store/types';
 
 const DB_NAME = 'LilMapWorkingDraftDB';
@@ -88,17 +89,71 @@ export const browserWorkingDraftStorage: WorkingDraftStorage = {
   },
 };
 
+type PersistedKey = (typeof PERSISTED_PROJECT_KEYS)[number];
+/** The persisted fields of one project state, held by reference. */
+type PersistedRefs = Pick<Project, PersistedKey>;
+
+function pickPersistedRefs(project: Project): PersistedRefs {
+  const refs: Partial<PersistedRefs> = {};
+  for (const key of PERSISTED_PROJECT_KEYS) (refs as Record<string, unknown>)[key] = project[key];
+  return refs as PersistedRefs;
+}
+
+function sameRefs(project: Project, refs: PersistedRefs | null): boolean {
+  if (!refs) return false;
+  for (const key of PERSISTED_PROJECT_KEYS) if (!Object.is(project[key], refs[key])) return false;
+  return true;
+}
+
+/**
+ * Structural equality for plain JSON-like data. Shared subtrees short-circuit on
+ * reference, so comparing two store snapshots costs only the parts that changed.
+ */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    const other = b as unknown[];
+    if (a.length !== other.length) return false;
+    for (let i = 0; i < a.length; i++) if (!deepEqual(a[i], other[i])) return false;
+    return true;
+  }
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(right, key) || !deepEqual(left[key], right[key])) return false;
+  }
+  return true;
+}
+
+/** True when every persisted field whose reference changed still holds an equal value. */
+function sameValues(project: Project, refs: PersistedRefs | null): boolean {
+  if (!refs) return false;
+  for (const key of PERSISTED_PROJECT_KEYS) {
+    if (!Object.is(project[key], refs[key]) && !deepEqual(project[key], refs[key])) return false;
+  }
+  return true;
+}
+
 /**
  * Coordinates hydration and serialized autosave writes. The latest snapshot is
  * queued while a previous IndexedDB write is in flight, preventing an older
  * write from winning a race with a newer one.
+ *
+ * Change detection is by reference on the persisted fields (the store shares
+ * unchanged structure), so an unchanged project costs a few `Object.is` checks.
+ * The document is only built and validated when it is actually going to be written.
  */
 export class WorkingProjectDraftManager {
   private getProject: (() => Project) | null = null;
   private shouldDefer: (() => boolean) | null = null;
   private dirty = false;
-  private lastSaved = '';
-  private queued: { document: ProjectDocument; serialized: string } | null = null;
+  /** Persisted fields of the last durable write (or the hydrated draft). */
+  private saved: PersistedRefs | null = null;
+  private queued: { document: ProjectDocument; refs: PersistedRefs } | null = null;
   private drainPromise: Promise<void> | null = null;
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -106,7 +161,8 @@ export class WorkingProjectDraftManager {
 
   async hydrate(): Promise<Project | null> {
     const project = await this.storage.load();
-    if (project) this.lastSaved = JSON.stringify(toProjectDocument(project));
+    // The stored draft is already validated by load(); remember it by reference.
+    if (project) this.saved = pickPersistedRefs(project);
     return project;
   }
 
@@ -138,15 +194,21 @@ export class WorkingProjectDraftManager {
   async saveIfChanged(force = false): Promise<void> {
     if (!this.getProject || (!force && !this.dirty)) return;
 
-    const document = toProjectDocument(this.getProject());
-    const serialized = JSON.stringify(document);
+    const project = this.getProject();
     this.dirty = false;
 
-    if (serialized === this.lastSaved || serialized === this.queued?.serialized) {
+    if (sameRefs(project, this.saved) || sameRefs(project, this.queued?.refs ?? null)) {
       return this.drainPromise ?? Promise.resolve();
     }
 
-    this.queued = { document, serialized };
+    // New references with equal values (e.g. a re-parsed hydrated draft, or the
+    // map settling on the same center): adopt them so later ticks stay cheap.
+    if (!this.queued && !this.drainPromise && sameValues(project, this.saved)) {
+      this.saved = pickPersistedRefs(project);
+      return;
+    }
+
+    this.queued = { document: toProjectDocument(project), refs: pickPersistedRefs(project) };
     if (!this.drainPromise) this.drainPromise = this.drain();
     return this.drainPromise;
   }
@@ -162,7 +224,7 @@ export class WorkingProjectDraftManager {
         const next = this.queued;
         this.queued = null;
         await this.storage.save(next.document);
-        this.lastSaved = next.serialized;
+        this.saved = next.refs;
       }
     } catch (error) {
       this.queued = null;
