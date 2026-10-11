@@ -26,6 +26,7 @@ import {
   Infinity as InfinityIcon,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { isWanderer } from "@/lib/cloudAccess";
 import { creditsToMinutesAt1080p } from "@/services/checkout";
 
 export function CreditsModal() {
@@ -75,8 +76,8 @@ function CreditsModalBody() {
   const maxAmount = 200;
   const creditsToGet = purchaseAmount * (purchaseAmount >= 50 ? 50 : 40);
   const minutesToGet = creditsToMinutesAt1080p(creditsToGet);
-  const hasActiveSubscription =
-    !!subscription && subscription.status === "active";
+  // Paid plan, including a cancelled plan still inside its paid period.
+  const hasActiveSubscription = isWanderer(subscription);
 
   if (isLoading && user) {
     return (
