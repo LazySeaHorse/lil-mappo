@@ -5,15 +5,15 @@ import { buildProgress, easeOutBack, easeOutCubic, lerp, stage } from '../motion
 import { circle, group, text } from '../scene/primitives';
 import { formatCountUp } from '../numbers';
 import { measureTextWidth } from '../scene/textMetrics';
-import { boundsOf, HALO_REACH, haloShadow } from './shared';
+import { boundsOf, HALO_CONTROL, HALO_REACH, haloSchema, haloShadow, SIDE_CONTROL, sideSchema } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
 export const waypointSettingsSchema = z.object({
   accentColor: z.string().default('#FF5A36'),
   textColor: z.string().default('#FFFFFF'),
-  side: z.enum(['auto', 'left', 'right']).default('auto'),
-  halo: z.boolean().default(true),
+  side: sideSchema,
+  halo: haloSchema,
   size: z.number().default(36),
 });
 
@@ -258,17 +258,8 @@ export const waypointStyle: AnnotationStyleDefinition<WaypointSettings> = {
   controls: [
     { type: 'color', key: 'accentColor', label: 'Disc color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
-    {
-      type: 'select',
-      key: 'side',
-      label: 'Side',
-      options: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'left', label: 'Left' },
-        { value: 'right', label: 'Right' },
-      ],
-    },
+    HALO_CONTROL,
+    SIDE_CONTROL,
     { type: 'slider', key: 'size', label: 'Size', min: 24, max: 64, step: 2, unit: 'px' },
   ],
   render: renderWaypoint,

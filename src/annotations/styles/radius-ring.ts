@@ -4,7 +4,7 @@ import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, lerp, stage, staggered } from '../motion';
 import { arcGlyphGroups, layoutGlyphs, layoutGlyphsOnArc } from '../scene/glyphs';
 import { circle, group } from '../scene/primitives';
-import { boundsOf, haloShadow } from './shared';
+import { boundsOf, HALO_CONTROL, haloSchema, haloShadow } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ export const radiusRingSettingsSchema = z.object({
   accentColor: z.string().default('#FF5A36'),
   dashed: z.boolean().default(true),
   fill: z.boolean().default(true),
-  halo: z.boolean().default(true),
+  halo: haloSchema,
   /** Slowly turns the dashes; only has an effect on a dashed ring. */
   spin: z.boolean().default(false),
 });
@@ -192,7 +192,7 @@ export const radiusRingStyle: AnnotationStyleDefinition<RadiusRingSettings> = {
     { type: 'color', key: 'accentColor', label: 'Dot color' },
     { type: 'switch', key: 'dashed', label: 'Dashed' },
     { type: 'switch', key: 'fill', label: 'Faint fill' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
+    HALO_CONTROL,
     { type: 'switch', key: 'spin', label: 'Spin dashes' },
   ],
   render: renderRadiusRing,

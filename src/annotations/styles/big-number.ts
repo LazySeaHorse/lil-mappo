@@ -5,15 +5,25 @@ import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, stage } from 
 import { decimalPlaces, formatCountUp, formatNumber } from '../numbers';
 import { group, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
-import { boundsOf, groundDot, haloShadow, leaderLine, resolveDirection } from './shared';
+import {
+  boundsOf,
+  groundDot,
+  HALO_CONTROL,
+  haloSchema,
+  haloShadow,
+  leaderLine,
+  resolveDirection,
+  SIDE_CONTROL,
+  sideSchema,
+} from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
 export const bigNumberSettingsSchema = z.object({
   accentColor: z.string().default('#FF5A36'),
   textColor: z.string().default('#FFFFFF'),
-  halo: z.boolean().default(true),
-  side: z.enum(['auto', 'left', 'right']).default('auto'),
+  halo: haloSchema,
+  side: sideSchema,
   prefix: z.string().default(''),
 });
 
@@ -239,17 +249,8 @@ export const bigNumberStyle: AnnotationStyleDefinition<BigNumberSettings> = {
   controls: [
     { type: 'color', key: 'accentColor', label: 'Accent color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
-    {
-      type: 'select',
-      key: 'side',
-      label: 'Side',
-      options: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'left', label: 'Left' },
-        { value: 'right', label: 'Right' },
-      ],
-    },
+    HALO_CONTROL,
+    SIDE_CONTROL,
     { type: 'text-input', key: 'prefix', label: 'Prefix', placeholder: '$' },
   ],
   render: renderBigNumber,

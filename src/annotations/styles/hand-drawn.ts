@@ -7,7 +7,7 @@ import { group, polyline, text } from '../scene/primitives';
 import { roughArrow, roughCircle } from '../scene/rough';
 import { pointAtLength, polylineLength, type Point } from '../scene/geometry';
 import { measureTextWidth } from '../scene/textMetrics';
-import { boundsOf, haloShadow, resolveDirection } from './shared';
+import { boundsOf, HALO_CONTROL, haloSchema, haloShadow, resolveDirection, SIDE_CONTROL, sideSchema } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -15,8 +15,8 @@ export const handDrawnSettingsSchema = z.object({
   strokeColor: z.string().default('#FF5A36'),
   textColor: z.string().default('#FFFFFF'),
   circleSize: z.number().default(34),
-  halo: z.boolean().default(true),
-  side: z.enum(['auto', 'left', 'right']).default('auto'),
+  halo: haloSchema,
+  side: sideSchema,
 });
 
 export type HandDrawnSettings = z.infer<typeof handDrawnSettingsSchema>;
@@ -255,17 +255,8 @@ export const handDrawnStyle: AnnotationStyleDefinition<HandDrawnSettings> = {
   controls: [
     { type: 'color', key: 'strokeColor', label: 'Marker color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
-    {
-      type: 'select',
-      key: 'side',
-      label: 'Side',
-      options: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'left', label: 'Left' },
-        { value: 'right', label: 'Right' },
-      ],
-    },
+    HALO_CONTROL,
+    SIDE_CONTROL,
     { type: 'slider', key: 'circleSize', label: 'Circle size', min: 20, max: 80, step: 2, unit: 'px' },
   ],
   render: renderHandDrawn,

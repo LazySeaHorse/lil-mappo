@@ -5,15 +5,25 @@ import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, linear, stage
 import { wrapText, type TextSpec } from '../scene/glyphs';
 import { group, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
-import { boundsOf, groundDot, haloShadow, leaderLine, resolveDirection } from './shared';
+import {
+  boundsOf,
+  groundDot,
+  HALO_CONTROL,
+  haloSchema,
+  haloShadow,
+  leaderLine,
+  resolveDirection,
+  SIDE_CONTROL,
+  sideSchema,
+} from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
 export const editorialSettingsSchema = z.object({
   accentColor: z.string().default('#F2C14E'),
   textColor: z.string().default('#FFFFFF'),
-  halo: z.boolean().default(true),
-  side: z.enum(['auto', 'left', 'right']).default('auto'),
+  halo: haloSchema,
+  side: sideSchema,
   maxWidth: z.number().default(220),
 });
 
@@ -217,17 +227,8 @@ export const editorialStyle: AnnotationStyleDefinition<EditorialSettings> = {
   controls: [
     { type: 'color', key: 'accentColor', label: 'Accent color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
-    {
-      type: 'select',
-      key: 'side',
-      label: 'Side',
-      options: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'left', label: 'Left' },
-        { value: 'right', label: 'Right' },
-      ],
-    },
+    HALO_CONTROL,
+    SIDE_CONTROL,
     { type: 'slider', key: 'maxWidth', label: 'Text width', min: 140, max: 360, step: 10, unit: 'px' },
   ],
   render: renderEditorial,

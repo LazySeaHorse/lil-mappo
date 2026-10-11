@@ -8,7 +8,7 @@ import { arcGlyphGroups, layoutGlyphs, layoutGlyphsOnArc } from '../scene/glyphs
 import { circle, group, path, polyline, rect, text } from '../scene/primitives';
 import { roughRect } from '../scene/rough';
 import { measureTextWidth } from '../scene/textMetrics';
-import { boundsOf } from './shared';
+import { boundsOf, HALO_CONTROL, haloSchema } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -18,7 +18,7 @@ export const stampSettingsSchema = z.object({
   /** Degrees, clockwise. */
   rotation: z.number().default(-8),
   splash: z.boolean().default(true),
-  halo: z.boolean().default(true),
+  halo: haloSchema,
 });
 
 export type StampSettings = z.infer<typeof stampSettingsSchema>;
@@ -399,7 +399,7 @@ export const stampStyle: AnnotationStyleDefinition<StampSettings> = {
     },
     { type: 'slider', key: 'rotation', label: 'Rotation', min: -30, max: 30, step: 1, unit: '°' },
     { type: 'switch', key: 'splash', label: 'Impact ring' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
+    HALO_CONTROL,
   ],
   render: renderStamp,
   measure: measureStamp,
