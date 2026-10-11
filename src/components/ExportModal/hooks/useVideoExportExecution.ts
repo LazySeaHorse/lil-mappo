@@ -7,10 +7,7 @@ import type { ExportPlan } from '../exportPlan';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { bucketDuration, setPersonProps, track, type ExportEventProps } from '@/lib/analytics';
 import { classifyExportError } from '@/lib/analytics/classify';
-
-function getErrorMessage(error: unknown, fallback = 'Export failed'): string {
-  return error instanceof Error ? error.message : fallback;
-}
+import { errorMessage } from '@/lib/utils';
 
 export function useVideoExportExecution(
   runtimeRef: MapSceneRuntimeRef,
@@ -72,7 +69,7 @@ export function useVideoExportExecution(
         track('export_cancelled', exportProps);
       } else {
         track('export_failed', { ...exportProps, error_class: classifyExportError(err) });
-        setError(getErrorMessage(err));
+        setError(errorMessage(err, 'Export failed'));
       }
     } finally {
       abortRef.current = null;

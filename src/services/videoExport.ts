@@ -18,6 +18,7 @@ import {
 import { createVideoExportTarget, type VideoExportTarget } from './videoExportTarget';
 import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
 import { withTemporaryProjectPlayhead } from './captureSession';
+import { errorMessage } from '@/lib/utils';
 
 /**
  * Non-realtime offline export engine.
@@ -56,7 +57,7 @@ function describeMuxerError(error: unknown): string {
   if (error instanceof DOMException && error.name === 'QuotaExceededError') {
     return 'Browser storage ran out of space while writing the video. Free some disk space and try again.';
   }
-  return error instanceof Error ? error.message : String(error);
+  return errorMessage(error);
 }
 
 // ─── Codec level probe ────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ async function initEncoder(
   } catch (e: unknown) {
     await cancelAndDiscard(output, exportTarget);
     console.error('[videoExport] VideoEncoder.configure() failed:', e);
-    const message = e instanceof Error ? e.message : String(e);
+    const message = errorMessage(e);
     throw new Error(
       `H.264 encoding failed on this device (codec: ${codec}). ` +
       `Your browser supports WebCodecs but rejected the encoder config. ` +
