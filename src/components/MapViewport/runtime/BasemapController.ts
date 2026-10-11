@@ -4,7 +4,7 @@ import type {
   MapSourceDataEvent,
 } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import { LABEL_CATEGORIES, MAP_STYLES, isDarkMapStyle } from '@/config/mapbox';
+import { LABEL_CATEGORIES, MAP_STYLES, resolveFog } from '@/config/mapbox';
 import { track } from '@/lib/analytics';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
@@ -16,53 +16,6 @@ const BUILDINGS_LAYER_ID = '3d-buildings';
 const reportedStyleFailures = new Set<string>();
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
-
-/**
- * The fog the project asks for. Globe gets the full atmosphere: space behind it and
- * stars. Mercator keeps the horizon haze (`color`, `high-color`, `horizon-blend`) but
- * no space: Mapbox draws stars and space-color whenever the horizon is in view (a high
- * pitch, or zoomed out until a corner leaves the world), where they read as a bug. Setting
- * `space-color` to the haze `color`, the colour the fog reaches at the horizon, makes
- * the sky above it continue the haze instead of darkening to black.
- */
-export function resolveFog(
-  state: Pick<ProjectState, 'mapStyle' | 'projection' | 'starIntensity' | 'fogColor'>,
-): FogSpecification {
-  const isDark = isDarkMapStyle(state.mapStyle);
-  const base: FogSpecification = isDark
-    ? {
-        color: 'rgb(23, 23, 23)',
-        'high-color': 'rgb(10, 10, 40)',
-        'horizon-blend': 0.3,
-        'space-color': 'rgb(5, 5, 15)',
-        'star-intensity': 0.8,
-      }
-    : state.mapStyle === 'satellite' || state.mapStyle === 'satelliteStreets'
-      ? {
-          color: '#5d7883',
-          'high-color': 'rgb(36, 92, 223)',
-          'horizon-blend': 0.4,
-          'space-color': 'rgb(11, 11, 25)',
-          'star-intensity': 0.6,
-        }
-      : {
-          color: 'rgb(186, 210, 235)',
-          'high-color': 'rgb(36, 92, 223)',
-          'horizon-blend': 0.02,
-          'space-color': 'rgb(11, 11, 25)',
-          'star-intensity': 0.6,
-        };
-
-  const color = state.fogColor ?? base.color;
-  if (state.projection === 'mercator') {
-    return { ...base, color, 'space-color': color, 'star-intensity': 0 };
-  }
-  return {
-    ...base,
-    color,
-    'star-intensity': state.starIntensity ?? base['star-intensity'],
-  };
-}
 
 /** Fog values within this are the same; Mapbox hands numbers back with float noise. */
 const FOG_NUMBER_TOLERANCE = 0.005;

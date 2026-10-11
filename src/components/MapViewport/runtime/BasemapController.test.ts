@@ -1,9 +1,9 @@
 import type { FogSpecification, Map as MapboxMap } from 'mapbox-gl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
-import { STANDARD_CAPABILITIES } from '@/config/mapbox';
+import { STANDARD_CAPABILITIES, resolveFog } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from '../mapUtils';
-import { BasemapController, resolveFog } from './BasemapController';
+import { BasemapController } from './BasemapController';
 import { track } from '@/lib/analytics';
 
 vi.mock('@/lib/analytics', () => ({ track: vi.fn() }));
@@ -400,6 +400,7 @@ describe('fog', () => {
     mapStyle: useProjectStore.getState().mapStyle,
     starIntensity: useProjectStore.getState().starIntensity,
     fogColor: useProjectStore.getState().fogColor,
+    lightPreset: useProjectStore.getState().lightPreset,
   };
 
   afterEach(() => {
@@ -465,6 +466,19 @@ describe('fog', () => {
       controller.mount();
       return { double, controller };
     }
+
+    it('renders the satellite haze on satellite, and dark fog when Standard turns to night', () => {
+      const satellite = mount({ mapStyle: 'satellite', projection: 'globe', lightPreset: 'day' });
+      expect(lastFog(satellite.double)?.color).toBe('#5d7883');
+      satellite.controller.dispose();
+
+      const { double, controller } = mount({ projection: 'globe', lightPreset: 'day' });
+      expect(lastFog(double)?.color).toBe('#bad2eb');
+      useProjectStore.getState().setLightPreset('night');
+      controller.reconcile();
+      expect(lastFog(double)?.color).toBe('#171717');
+      controller.dispose();
+    });
 
     it('applies the Mercator fog when the project starts in Mercator', () => {
       const { double, controller } = mount({ projection: 'mercator', starIntensity: 0.9 });
