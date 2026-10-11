@@ -39,9 +39,20 @@ export function hasStyle(id: string): boolean {
 }
 
 /**
+ * Validated settings per stored settings object. The store replaces a
+ * callout's settings object on every edit and never changes one in place, so
+ * an object only needs validating once per style (draw runs this every frame).
+ */
+const validatedSettings = new WeakMap<
+  object,
+  { style: AnnotationStyleDefinition; result: Record<string, unknown> }
+>();
+
+/**
  * Validate and coerce settings for a style, applying defaults for missing keys.
  * Returns the style's defaults if the stored settings are invalid, so renderers
- * never receive values of the wrong type.
+ * never receive values of the wrong type. Treat the result as read-only: it is
+ * shared between calls with the same settings object.
  */
 export function validateSettings(
   styleId: string,
@@ -50,7 +61,14 @@ export function validateSettings(
   const style = getStyle(styleId);
   if (!style) return settings;
 
-  const result = style.settingsSchema.safeParse(settings ?? {});
-  if (result.success) return result.data as Record<string, unknown>;
-  return { ...(style.defaultSettings as Record<string, unknown>) };
+  const cacheable = typeof settings === 'object' && settings !== null;
+  const cached = cacheable ? validatedSettings.get(settings) : undefined;
+  if (cached?.style === style) return cached.result;
+
+  const parsed = style.settingsSchema.safeParse(settings ?? {});
+  const result = parsed.success
+    ? (parsed.data as Record<string, unknown>)
+    : { ...(style.defaultSettings as Record<string, unknown>) };
+  if (cacheable) validatedSettings.set(settings, { style, result });
+  return result;
 }
