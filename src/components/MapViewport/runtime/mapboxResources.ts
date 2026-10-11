@@ -5,6 +5,7 @@ import type {
   Map as MapboxMap,
   PaintSpecification,
 } from 'mapbox-gl';
+import { clamp } from '@/engine/geoMath';
 
 export type MapMutationPhase = 'setup' | 'update' | 'cleanup' | 'style-sync';
 
@@ -126,6 +127,10 @@ export function removeSourceIfPresent(
  * already what the cache says Mapbox has. `cache` maps a caller-chosen key to
  * the last value successfully written; it is only updated when the write
  * succeeds, so a failed write is retried on the next update.
+ *
+ * Numeric `*-opacity` paint values are clamped to 0-1: Mapbox rejects anything
+ * outside that range with an error event rather than a throw, so the cache would
+ * otherwise record a value that was never applied.
  */
 export class LayerPropertyWriter<C extends object> {
   cache: C;
@@ -150,8 +155,9 @@ export class LayerPropertyWriter<C extends object> {
     cacheValue: C[K],
   ): void {
     if (this.cache[cacheKey] === cacheValue) return;
+    const applied = typeof value === 'number' && property.endsWith('-opacity') ? clamp(value, 0, 1) : value;
     if (this.mutate(`setPaintProperty:${property}`, layerId, () => {
-      this.map.setPaintProperty(layerId, property, value);
+      this.map.setPaintProperty(layerId, property, applied);
     })) this.cache[cacheKey] = cacheValue;
   }
 

@@ -1,5 +1,4 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { clamp } from '@/engine/cameraPose';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import type { BoundaryItem } from '@/store/types';
@@ -121,7 +120,7 @@ export class BoundaryRenderer {
 
     // In flag mode the colour fill stays invisible and the raster flag layer carries the opacity
     const flagMode = style.fillMode === 'flag';
-    const targetOpacity = clamp(style.fillOpacity, 0, 1) * fillFactor;
+    const targetOpacity = style.fillOpacity * fillFactor;
     const fillOpacity = flagMode ? 0 : targetOpacity;
     this.flag.sync({
       enabled: flagMode,

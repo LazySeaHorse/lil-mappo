@@ -3,6 +3,7 @@ import { featureCollection, polygon } from '@turf/helpers';
 import { intersect } from '@turf/intersect';
 import { union } from '@turf/union';
 import type { BoundaryItem } from '@/store/types';
+import { clamp } from '@/engine/geoMath';
 import { resolveBoundaryTiming } from './boundaryTiming';
 
 type AreaGeometry = GeoJSON.Polygon | GeoJSON.MultiPolygon;
@@ -63,7 +64,8 @@ export function resolveActiveMasks(
     const { geojson: geometry, style } = boundary;
     if (!geometry || boundary.resolveStatus !== 'resolved' || !style.maskOutside) continue;
     const reveal = resolveBoundaryTiming(boundary, timeFor(boundary.id)).fillFactor;
-    const opacity = Math.max(0, Math.min(1, style.maskOpacity ?? 0.85));
+    // Clamped here, not at the paint write: it also caps the summed darkness in resolveRegionPaint.
+    const opacity = clamp(style.maskOpacity ?? 0.85, 0, 1);
     if (!(opacity * reveal > 0)) continue;
     active.push({ id: boundary.id, geometry, color: style.maskColor ?? DEFAULT_MASK_COLOR, opacity, reveal });
   }
