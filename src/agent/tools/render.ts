@@ -1,7 +1,6 @@
 import { z } from 'zod/v4';
-import { applyCamera, getProjectCameraAt } from '@/engine/cameraUtils';
 import { withTemporaryProjectPlayhead } from '@/services/captureSession';
-import { canvasToBlob, withFrameCapturer } from '@/services/frameCapture';
+import { canvasToBlob, stepToTime, withFrameCapturer } from '@/services/frameCapture';
 import { defineTool } from '../defineTool';
 import { ToolError } from '../errors';
 import { getAgentMap, getAgentRuntime } from '../mapRef';
@@ -71,14 +70,8 @@ export const renderFrames = defineTool({
     await withTemporaryProjectPlayhead(() =>
       withFrameCapturer(map, { width: captureWidth, height: captureHeight, overlays: [] }, async ({ zoomOffset, captureNow }) => {
         for (const [index, time] of times.entries()) {
-          getState().setPlayheadTime(time);
-          // Same stepping as the video exporter: drive the camera, sync layers, wait for tiles.
-          const cam = getProjectCameraAt(time);
-          if (cam) applyCamera(map, cam, zoomOffset);
-          runtime.sync();
-          runtime.renderAt(time);
-          map.triggerRepaint();
-          await runtime.waitUntilRendered();
+          // Same stepping as the video exporter: playhead, camera, layers, then wait for tiles.
+          await stepToTime(runtime, map, time, zoomOffset);
 
           const canvas = await captureNow();
           const encoded = await encodeFrame(canvas, outWidth);

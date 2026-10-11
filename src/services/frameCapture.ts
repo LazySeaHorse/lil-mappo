@@ -1,9 +1,32 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
+import { applyCamera, getProjectCameraAt } from '@/engine/cameraUtils';
+import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { preloadOverlayAssets, type OverlayLayer } from '@/overlays';
 import { loadAnnotationAssets } from '@/annotations/draw';
 import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
+
+/**
+ * Puts the project at `time` for capture: moves the playhead and the camera (zoom shifted by
+ * `zoomOffset`), redraws the scene at exactly that time, and resolves once the map has
+ * rendered it. Shared by video export and the AI `render_frames` tool.
+ */
+export async function stepToTime(
+  runtime: MapSceneRuntime,
+  map: MapboxMap,
+  time: number,
+  zoomOffset: number,
+): Promise<void> {
+  useProjectStore.getState().setPlayheadTime(time);
+  const cam = getProjectCameraAt(time);
+  if (cam) applyCamera(map, cam, zoomOffset);
+  runtime.sync();
+  runtime.renderAt(time);
+  map.triggerRepaint();
+  // Waits for the map to go idle, then one animation frame to flush compositing.
+  await runtime.waitUntilRendered();
+}
 
 export interface FrameCaptureOptions {
   /** Target frame size in pixels; the map is temporarily resized to it. */

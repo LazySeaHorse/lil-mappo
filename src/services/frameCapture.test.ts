@@ -10,13 +10,19 @@ vi.mock('@/annotations/draw', () => ({ loadAnnotationAssets: vi.fn(async () => {
 const waitForMapIdle = vi.fn(async () => 'idle');
 vi.mock('@/components/MapViewport/runtime/mapWait', () => ({ waitForMapIdle: (...a: unknown[]) => waitForMapIdle(...(a as [])) }));
 
+const calls: string[] = [];
+vi.mock('@/engine/cameraUtils', () => ({
+  applyCamera: (_map: unknown, cam: { center: number[] }, zoomOffset: number) => calls.push(`camera:${cam.center[0]}:${zoomOffset}`),
+  getProjectCameraAt: (t: number) => (t < 0 ? null : { type: 'jumpTo', center: [t, 0], zoom: 3, pitch: 0, bearing: 0 }),
+}));
+
 vi.mock('@/overlays', async (orig) => ({
   ...(await orig<typeof import('@/overlays')>()),
   preloadOverlayAssets: vi.fn(async () => {}),
 }));
 
 import { resolveSystemOverlays } from '@/overlays';
-import { canvasToBlob, withFrameCapturer } from './frameCapture';
+import { canvasToBlob, stepToTime, withFrameCapturer } from './frameCapture';
 import { useProjectStore } from '@/store/useProjectStore';
 
 const fakeMap = {
@@ -50,5 +56,37 @@ describe('withFrameCapturer', () => {
   it('rejects when canvas conversion fails', async () => {
     const canvas = { toBlob: (cb: (b: Blob | null) => void) => cb(null) } as unknown as HTMLCanvasElement;
     await expect(canvasToBlob(canvas, 'image/png')).rejects.toThrow('Format conversion failed');
+  });
+});
+
+describe('stepToTime', () => {
+  const runtime = {
+    getMap: vi.fn(),
+    sync: vi.fn(() => { calls.push('sync'); }),
+    renderAt: vi.fn((t: number) => { calls.push(`renderAt:${t}`); }),
+    waitUntilRendered: vi.fn(async () => { calls.push('rendered'); }),
+  };
+  const map = { triggerRepaint: vi.fn(() => { calls.push('repaint'); }) } as never;
+
+  beforeEach(() => {
+    calls.length = 0;
+  });
+
+  it('moves playhead and camera, redraws at that time and waits for the render', async () => {
+    const unsubscribe = useProjectStore.subscribe((s, prev) => {
+      if (s.playheadTime !== prev.playheadTime) calls.push(`playhead:${s.playheadTime}`);
+    });
+    try {
+      await stepToTime(runtime, map, 7.5, 0.5);
+    } finally {
+      unsubscribe();
+    }
+    expect(calls).toEqual(['playhead:7.5', 'camera:7.5:0.5', 'sync', 'renderAt:7.5', 'repaint', 'rendered']);
+  });
+
+  it('leaves the camera alone when the project has none', async () => {
+    await stepToTime(runtime, map, -1, 0);
+    expect(calls.some((c) => c.startsWith('camera'))).toBe(false);
+    expect(calls.slice(-4)).toEqual(['sync', 'renderAt:-1', 'repaint', 'rendered']);
   });
 });

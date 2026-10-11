@@ -14,7 +14,9 @@ const captureCanvas = () => {
   c.height = 720;
   return c;
 };
-vi.mock('@/services/frameCapture', () => ({
+vi.mock('@/services/frameCapture', async (orig) => ({
+  // The real stepToTime, so the stepping below runs through the mocked camera and runtime.
+  stepToTime: (await orig<typeof import('@/services/frameCapture')>()).stepToTime,
   canvasToBlob: async (_c: unknown, type: string) => new Blob(['jpegbytes'], { type }),
   withFrameCapturer: async (
     _map: unknown,

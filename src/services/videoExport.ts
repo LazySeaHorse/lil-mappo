@@ -3,6 +3,7 @@ import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneR
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyCamera, getProjectCameraAt, loadProjectTerrain } from '@/engine/cameraUtils';
+import { stepToTime } from './frameCapture';
 import { preloadOverlayAssets, resolveSystemOverlays, type Branding, type OverlayLayer } from '@/overlays';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { loadAnnotationAssets } from '@/annotations/draw';
@@ -23,8 +24,8 @@ import { withTemporaryProjectPlayhead } from './captureSession';
  * Steps through each frame at 1/fps, renders the map, composites callouts via
  * canvas 2D, then encodes with WebCodecs (H.264) + Mediabunny.
  *
- * Requires WebCodecs (Chrome 94+). If H.264 init fails, onError is called with
- * a clear message instead of silently producing a broken WebM file.
+ * Requires WebCodecs (Chrome 94+). If H.264 init fails, the export rejects with
+ * a clear message.
  *
  * Two phases are reported via onProgress:
  *   'prewarm'  — 24-frame cache warm-up pass (scrubs timeline to force tile loads)
@@ -62,11 +63,7 @@ function describeMuxerError(error: unknown): string {
 
 // Probes H.264 profiles (High → Main → Baseline) in descending quality order.
 // Covers all three profile tiers because hardware encoders frequently support
-// Baseline/Main even when they reject High Profile. The previous probe used only
-// High Profile (0x64) strings — hardware that only handles Baseline would cause
-// all probes to return false, triggering the false-negative fallback with the
-// worst possible codec (Level 5.2), which would then throw and silently fall
-// back to MediaRecorder.
+// Baseline/Main even when they reject High Profile.
 //
 // False-negative fallback: if isConfigSupported() reports nothing as supported
 // (known browser bug on some setups), try Baseline Level 3.0 — the most
@@ -93,6 +90,23 @@ async function selectH264Codec(width: number, height: number, fps: number): Prom
     }
   }
   return 'avc1.42E01E'; // false-negative fallback
+}
+
+// ─── Teardown ─────────────────────────────────────────────────────────────────
+
+/**
+ * Abandons an unfinished output: cancels it if it is still open and deletes whatever it
+ * wrote. A failing cancel is logged rather than thrown so the error that ended the export
+ * is the one the caller sees.
+ */
+async function cancelAndDiscard(output: Output, exportTarget: VideoExportTarget): Promise<void> {
+  try {
+    if (output.state === 'pending' || output.state === 'started') await output.cancel();
+  } catch (error) {
+    console.warn('[videoExport] cancelling the output failed:', error);
+  } finally {
+    await exportTarget.discard();
+  }
 }
 
 // ─── Encoder init ─────────────────────────────────────────────────────────────
@@ -128,8 +142,7 @@ async function initEncoder(
   try {
     await output.start();
   } catch (error) {
-    await output.cancel().catch(() => undefined);
-    await exportTarget.discard();
+    await cancelAndDiscard(output, exportTarget);
     throw error;
   }
 
@@ -155,11 +168,7 @@ async function initEncoder(
     });
     videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
   } catch (e: unknown) {
-    try {
-      await output.cancel();
-    } finally {
-      await exportTarget.discard();
-    }
+    await cancelAndDiscard(output, exportTarget);
     console.error('[videoExport] VideoEncoder.configure() failed:', e);
     const message = e instanceof Error ? e.message : String(e);
     throw new Error(
@@ -220,35 +229,22 @@ async function prewarmTileCache(
 
 // ─── Single frame capture ─────────────────────────────────────────────────────
 
-async function captureFrame(
-  runtime: MapSceneRuntime,
-  map: MapboxMap,
-  compCanvas: HTMLCanvasElement,
-  compCtx: CanvasRenderingContext2D,
-  encoder: Pick<EncoderState, 'videoEncoder' | 'waitForMuxer'>,
-  frameIndex: number,
-  fps: number,
-  clampedTime: number,
-  overlays: OverlayLayer[],
-  zoomOffset: number,
-) {
-  const { videoEncoder } = encoder;
+interface CaptureFrameOptions {
+  runtime: MapSceneRuntime;
+  map: MapboxMap;
+  encoder: Pick<EncoderState, 'compCanvas' | 'compCtx' | 'videoEncoder' | 'waitForMuxer'>;
+  frameIndex: number;
+  fps: number;
+  time: number;
+  overlays: OverlayLayer[];
+  zoomOffset: number;
+}
+
+async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, overlays, zoomOffset }: CaptureFrameOptions) {
+  const { videoEncoder, compCanvas, compCtx } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
 
-  // Set playhead
-  useProjectStore.getState().setPlayheadTime(clampedTime);
-
-  // Drive camera
-  const cam = getProjectCameraAt(clampedTime);
-  if (cam) applyCamera(map, cam, zoomOffset);
-
-  // Sync map engine and trigger repaint
-  runtime.sync();
-  runtime.renderAt(clampedTime);
-  map.triggerRepaint();
-
-  // Wait for map idle, then one animation frame to flush compositing
-  await runtime.waitUntilRendered();
+  await stepToTime(runtime, map, time, zoomOffset);
 
   // Back-pressure: don't let the encoder queue grow unbounded
   if (videoEncoder.encodeQueueSize > 8) {
@@ -271,7 +267,7 @@ async function captureFrame(
 
   // Composite: map canvas + callouts
   const { items, itemOrder } = useProjectStore.getState();
-  compositeFrame(map, compCtx, width, height, items, itemOrder, clampedTime, overlays, zoomOffset);
+  compositeFrame(map, compCtx, width, height, items, itemOrder, time, overlays, zoomOffset);
 
   const frameDuration = Math.round(1_000_000 / fps);
   const videoFrame = new VideoFrame(compCanvas, {
@@ -323,20 +319,9 @@ export async function runExport(
   // one encoded video packet per submitted frame, which gives the MP4 muxer an
   // exact upper bound for its reserved metadata area.
   const maximumPacketCount = totalFrames + 1;
-  const encoderState = await initEncoder(width, height, fps, maximumPacketCount);
-  const { compCanvas, compCtx } = encoderState;
-  let completed = false;
 
   const runtime = runtimeRef.current;
-  if (!runtime) {
-    encoderState.videoEncoder.close();
-    try {
-      await encoderState.output.cancel();
-    } finally {
-      await encoderState.exportTarget.discard();
-    }
-    throw new Error('Map runtime not available');
-  }
+  if (!runtime) throw new Error('Map runtime not available');
   const map = runtime.getMap();
 
   // Zoom offset: compensates for the viewport size change during export so the
@@ -344,6 +329,9 @@ export async function runExport(
   // log2(renderWidth / previewWidth) — positive when rendering larger than preview.
   const previewWidth = map.getContainer().getBoundingClientRect().width;
   const zoomOffset = Math.log2(width / previewWidth);
+
+  const encoderState = await initEncoder(width, height, fps, maximumPacketCount);
+  let completed = false;
 
   try {
     return await withTemporaryMapViewport(map, width, height, () => (
@@ -370,7 +358,7 @@ export async function runExport(
           const currentTime = (startFrame + frameIndex) / fps;
           const clampedTime = Math.min(currentTime, duration);
 
-          await captureFrame(runtime, map, compCanvas, compCtx, encoderState, frameIndex, fps, clampedTime, overlays, zoomOffset);
+          await captureFrame({ runtime, map, encoder: encoderState, frameIndex, fps, time: clampedTime, overlays, zoomOffset });
           const encoderError = encoderState.getEncoderError();
           if (encoderError) throw encoderError;
           onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
@@ -387,17 +375,9 @@ export async function runExport(
     }
     throw error;
   } finally {
-    if (encoderState.videoEncoder.state !== 'closed') {
-      encoderState.videoEncoder.close();
-    }
-    try {
-      if (encoderState.output.state === 'pending' || encoderState.output.state === 'started') {
-        await encoderState.output.cancel();
-      }
-    } finally {
-      if (!completed) {
-        await encoderState.exportTarget.discard();
-      }
+    if (!completed) {
+      if (encoderState.videoEncoder.state !== 'closed') encoderState.videoEncoder.close();
+      await cancelAndDiscard(encoderState.output, encoderState.exportTarget);
     }
   }
 }
