@@ -19,13 +19,54 @@ const MAX_TILES_ACROSS = 4;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 12;
 
+/**
+ * Tiles kept in memory (each 512² heights is ~1 MiB). One area needs at most
+ * MAX_TILES_ACROSS² = 16, so loading an area can never evict its own tiles.
+ */
+export const DEM_TILE_CACHE_LIMIT = 64;
+
+/** Least recently used first (Map iteration order); failed tiles are cached as null. */
 const tiles = new Map<string, DemTile | null>();
 const inFlight = new Map<string, Promise<void>>();
-const loadedZooms = new Set<number>();
+/** Loaded (non-null) tiles per zoom, so lookups skip zooms with nothing cached. */
+const loadedZooms = new Map<number, number>();
 const listeners = new Set<() => void>();
 let version = 0;
 
 const tileKey = (z: number, x: number, y: number) => `${z}/${x}/${y}`;
+const zoomOfKey = (key: string) => Number(key.slice(0, key.indexOf('/')));
+
+function forgetTile(key: string): void {
+  const tile = tiles.get(key);
+  if (!tiles.delete(key) || !tile) return;
+  const z = zoomOfKey(key);
+  const remaining = (loadedZooms.get(z) ?? 1) - 1;
+  if (remaining > 0) loadedZooms.set(z, remaining);
+  else loadedZooms.delete(z);
+}
+
+/** Moves a cached tile to the most recently used end. */
+function touchTile(key: string): void {
+  const tile = tiles.get(key);
+  if (tile === undefined) return;
+  tiles.delete(key);
+  tiles.set(key, tile);
+}
+
+function storeTile(z: number, key: string, tile: DemTile | null): void {
+  forgetTile(key);
+  tiles.set(key, tile);
+  if (tile) loadedZooms.set(z, (loadedZooms.get(z) ?? 0) + 1);
+
+  let evicted = false;
+  for (const oldest of tiles.keys()) {
+    if (tiles.size <= DEM_TILE_CACHE_LIMIT) break;
+    forgetTile(oldest);
+    evicted = true;
+  }
+  // Heights changed under anything planned on the evicted tiles.
+  if (evicted) version++;
+}
 
 /** Mapbox Terrain-RGB: height = -10000 + (R·256² + G·256 + B) · 0.1 metres. */
 export function decodeTerrainRgb(rgba: ArrayLike<number>, size: number): Float32Array {
@@ -117,11 +158,10 @@ async function fetchTile(z: number, x: number, y: number, token: string): Promis
   try {
     const res = await fetch(`https://api.mapbox.com/v4/mapbox.mapbox-terrain-dem-v1/${z}/${x}/${y}@2x.pngraw?access_token=${encodeURIComponent(token)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    tiles.set(key, await decodeImage(await res.blob()));
-    loadedZooms.add(z);
+    storeTile(z, key, await decodeImage(await res.blob()));
   } catch (e) {
     // Remembered as missing so it isn't retried every frame; planning falls back to the map's terrain.
-    tiles.set(key, null);
+    storeTile(z, key, null);
     console.warn(`[terrainDem] tile ${key} failed:`, e);
   }
 }
@@ -132,7 +172,10 @@ export async function loadDem(bounds: Bounds, token: string): Promise<void> {
   const z = demZoomFor(bounds);
   const waits = tilesFor(bounds, z).map(([x, y]) => {
     const key = tileKey(z, x, y);
-    if (tiles.has(key)) return null;
+    if (tiles.has(key)) {
+      touchTile(key);
+      return null;
+    }
     let pending = inFlight.get(key);
     if (!pending) {
       pending = fetchTile(z, x, y, token).finally(() => inFlight.delete(key));
@@ -156,7 +199,6 @@ export function resetDem(): void {
 
 /** Test hook: install a tile directly. */
 export function putDemTile(z: number, x: number, y: number, tile: DemTile): void {
-  tiles.set(tileKey(z, x, y), tile);
-  loadedZooms.add(z);
+  storeTile(z, tileKey(z, x, y), tile);
   version++;
 }

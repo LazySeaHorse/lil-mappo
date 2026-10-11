@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  DEM_TILE_CACHE_LIMIT,
   decodeTerrainRgb,
   demElevation,
   demVersion,
@@ -73,5 +74,56 @@ describe('terrain DEM', () => {
     vi.stubGlobal('fetch', fetchMock);
     await loadDem([8, 46, 8.1, 46.1], '');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe('tile cache', () => {
+    /** Fills the cache with `count` zoom-12 tiles far from the test areas. */
+    const fill = (count: number, from = 0) => {
+      for (let i = from; i < from + count; i++) putDemTile(12, i, 0, ramp(2, 0));
+    };
+
+    it('keeps at most DEM_TILE_CACHE_LIMIT tiles, dropping the least recently used', () => {
+      putDemTile(2, 2, 1, ramp(90, 100));
+      expect(demElevation(1, 10)).not.toBeNull();
+      const before = demVersion();
+
+      fill(DEM_TILE_CACHE_LIMIT);
+
+      expect(demElevation(1, 10)).toBeNull();
+      // Answers changed, so plans built on the evicted tile must replan.
+      expect(demVersion()).toBeGreaterThan(before);
+    });
+
+    it('holds more than any single area needs, so loading an area never evicts itself', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+      vi.stubGlobal('fetch', fetchMock);
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      fill(DEM_TILE_CACHE_LIMIT);
+      const bounds: [number, number, number, number] = [-120, 30, -70, 48];
+      const needed = tilesFor(bounds, demZoomFor(bounds)).length;
+      expect(DEM_TILE_CACHE_LIMIT).toBeGreaterThan(16);
+
+      await loadDem(bounds, 'token');
+      expect(fetchMock).toHaveBeenCalledTimes(needed);
+      await loadDem(bounds, 'token');
+      expect(fetchMock).toHaveBeenCalledTimes(needed);
+    });
+
+    it('treats an area loaded again as recently used', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      const bounds: [number, number, number, number] = [8, 46, 8.1, 46.1];
+      const z = demZoomFor(bounds);
+      const area = tilesFor(bounds, z);
+      area.forEach(([x, y]) => putDemTile(z, x, y, ramp(2, 100)));
+      fill(DEM_TILE_CACHE_LIMIT - area.length);
+
+      // Already cached: no download, but its tiles are now the most recently used.
+      await loadDem(bounds, 'token');
+      expect(fetchMock).not.toHaveBeenCalled();
+      fill(area.length, DEM_TILE_CACHE_LIMIT);
+
+      expect(demElevation(8.05, 46.05)).not.toBeNull();
+    });
   });
 });
