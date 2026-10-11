@@ -121,11 +121,10 @@ export class ProjectLibraryCoordinator {
   constructor(private readonly adapters: ProjectLibraryAdapters = defaultAdapters) {}
 
   async listProjects(includeCloud: boolean): Promise<LibraryProject[]> {
-    await this.retryPendingDeletions(includeCloud);
-    const [localProjects, cloud, deletions] = await Promise.all([
+    const { remaining } = await this.retryDeletions(await this.adapters.listDeletions(), includeCloud);
+    const [localProjects, cloud] = await Promise.all([
       this.adapters.listLocal(),
       includeCloud ? this.adapters.listCloud() : Promise.resolve([]),
-      this.adapters.listDeletions(),
     ]);
 
     // Repair the local half of an upload that committed remotely before its
@@ -153,7 +152,7 @@ export class ProjectLibraryCoordinator {
       }
     }));
 
-    return mergeLibraryProjects(local, cloud, new Set(deletions.map(({ id }) => id)));
+    return mergeLibraryProjects(local, cloud, new Set(remaining.map(({ id }) => id)));
   }
 
   async saveProject(project: Project, uploadToCloud: boolean): Promise<SaveResult> {
@@ -270,10 +269,22 @@ export class ProjectLibraryCoordinator {
   }
 
   async retryPendingDeletions(canUseCloud = true): Promise<unknown[]> {
-    const deletions = await this.adapters.listDeletions();
+    const { errors } = await this.retryDeletions(await this.adapters.listDeletions(), canUseCloud);
+    return errors;
+  }
+
+  /** Retries each outbox entry; `remaining` are the ones still not finalized. */
+  private async retryDeletions(
+    deletions: ProjectDeletion[],
+    canUseCloud: boolean,
+  ): Promise<{ errors: unknown[]; remaining: ProjectDeletion[] }> {
     const errors: unknown[] = [];
+    const remaining: ProjectDeletion[] = [];
     for (const deletion of deletions) {
-      if (deletion.cloudPending && !canUseCloud) continue;
+      if (deletion.cloudPending && !canUseCloud) {
+        remaining.push(deletion);
+        continue;
+      }
       try {
         if (deletion.cloudPending) {
           await this.adapters.deleteCloud(deletion.id);
@@ -282,9 +293,10 @@ export class ProjectLibraryCoordinator {
         await this.adapters.finalizeDeletion(deletion.id);
       } catch (error) {
         errors.push(error);
+        remaining.push(deletion);
       }
     }
-    return errors;
+    return { errors, remaining };
   }
 }
 
