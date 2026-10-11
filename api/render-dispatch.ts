@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { adminClient } from './_lib/supabase.js';
 import crypto from 'crypto';
 import { calculateRenderCredits } from './_lib/render.js';
 import type { ExportResolution } from './_lib/render.js';
@@ -19,10 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
   if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
 
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  const supabase = adminClient();
 
   // Watermark entitlement is determined by the server. Never trust a client
   // flag here: the stored render config is later consumed by headless Chrome.

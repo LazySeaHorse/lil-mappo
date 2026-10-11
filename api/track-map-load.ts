@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createClient } from "@supabase/supabase-js";
+import { adminClient } from "./_lib/supabase.js";
 
 type SubscriptionEntitlement = {
   tier: string;
@@ -48,11 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Missing token" });
   }
 
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const supabase = adminClient();
 
   // Verify the JWT and extract the user
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);

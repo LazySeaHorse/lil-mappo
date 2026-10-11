@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createClient } from "@supabase/supabase-js";
+import { adminClient } from "./_lib/supabase.js";
 import { buildPlanFromProduct } from "./_lib/dodo/planCatalogue.js";
 import { readRawBody, verifyDodoWebhook } from "./_lib/dodo/verify.js";
 import { BillingService } from "./_lib/dodo/billingService.js";
@@ -64,11 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 3. Supabase admin client (bypasses RLS)
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const supabase = adminClient();
 
   // 4. Dispatch to Billing Service
   const billingService = new BillingService(supabase);

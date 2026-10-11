@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createClient } from "@supabase/supabase-js";
+import { adminClient } from "./_lib/supabase.js";
 
 /**
  * Deletes auth.users accounts that:
@@ -33,11 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const supabase = adminClient();
 
   // ── Call atomic RPC to delete old free accounts ────────────────────────────
   // This uses a server-side function that atomically identifies users older than

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { adminClient } from './_lib/supabase.js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
@@ -19,10 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const secretHash = crypto.createHash('sha256').update(secret).digest('hex');
 
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  const supabase = adminClient();
 
   const { data: job, error } = await supabase
     .from('render_jobs')
