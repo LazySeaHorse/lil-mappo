@@ -2,6 +2,8 @@ import { z } from 'zod/v4';
 import { colorSchema, easingSchema, lngLatSchema } from './shared';
 import { hasFlag } from '@/components/MapViewport/runtime/flagImages';
 import { ENTER_TRANSITIONS, EXIT_TRANSITIONS } from '@/annotations/animation';
+import type { AnnotationStyleDefinition } from '@/annotations/types';
+import { ToolError } from '../errors';
 
 // Style/field schemas shared by the add_* and update_item tools. Patch objects
 // are strict so a misspelled field is reported instead of silently ignored.
@@ -125,4 +127,17 @@ export const cameraShape = {
 /** Formats zod issues as "path: message" for ToolError messages. */
 export function issuesOf(error: z.ZodError): { path: string; message: string }[] {
   return error.issues.map((i) => ({ path: i.path.map(String).join('.') || '(root)', message: i.message }));
+}
+
+/** Validates complete callout settings against the style's schema; throws invalid_settings listing every issue. */
+export function parseCalloutSettings(
+  style: AnnotationStyleDefinition,
+  styleId: string,
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const parsed = style.settingsSchema.safeParse(settings);
+  if (!parsed.success) {
+    throw new ToolError('invalid_settings', `settings are not valid for style "${styleId}": ${issuesOf(parsed.error as never).map((i) => `${i.path}: ${i.message}`).join('; ')}`);
+  }
+  return parsed.data as Record<string, unknown>;
 }

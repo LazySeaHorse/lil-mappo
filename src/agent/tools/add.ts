@@ -30,7 +30,7 @@ import {
   contentShape,
   routeStylePatchSchema,
   vehiclePatchSchema,
-  issuesOf,
+  parseCalloutSettings,
 } from './schemas';
 import {
   type LngLat,
@@ -238,11 +238,7 @@ export const addCallout = defineTool({
     if (input.anchor) item.anchor = input.anchor;
     if (input.altitude !== undefined && item.binding.kind === 'geographic') item.binding = { ...item.binding, altitude: input.altitude };
     if (input.settings) {
-      const parsed = style.settingsSchema.safeParse({ ...style.defaultSettings, ...input.settings });
-      if (!parsed.success) {
-        throw new ToolError('invalid_settings', `settings are not valid for style "${styleId}": ${issuesOf(parsed.error as never).map((i) => `${i.path}: ${i.message}`).join('; ')}`);
-      }
-      item.settings = parsed.data as Record<string, unknown>;
+      item.settings = parseCalloutSettings(style, styleId, { ...style.defaultSettings, ...input.settings });
     }
 
     commitAiWrite(`AI: add callout "${title}"`, () => {

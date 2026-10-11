@@ -68,8 +68,7 @@ export const updateProjectSettings = defineTool({
     const warnings: string[] = [];
 
     commitAiWrite(`AI: update project settings (${fields.join(', ')})`, () => {
-      const s = getState();
-      const start = { ...s };
+      const s = getState(); // a snapshot: the setters below replace the state, not this object
       if (patch.name !== undefined) s.setProjectName(patch.name);
       if (patch.duration !== undefined) s.setDuration(patch.duration);
       if (patch.fps !== undefined) s.setFps(patch.fps);
@@ -81,7 +80,7 @@ export const updateProjectSettings = defineTool({
       if (patch.starIntensity !== undefined) s.setAtmosphere({ starIntensity: patch.starIntensity });
       if (patch.fogColor !== undefined) s.setAtmosphere({ fogColor: patch.fogColor });
       if (patch.terrainExaggeration !== undefined) s.setTerrainExaggeration(patch.terrainExaggeration);
-      if (patch.mapStyle !== undefined && patch.mapStyle !== start.mapStyle) s.setMapStyle(patch.mapStyle);
+      if (patch.mapStyle !== undefined && patch.mapStyle !== s.mapStyle) s.setMapStyle(patch.mapStyle);
       if (patch.terrainEnabled !== undefined) s.setTerrainEnabled(patch.terrainEnabled);
       if (patch.buildingsEnabled !== undefined) s.setBuildingsEnabled(patch.buildingsEnabled);
       for (const [id, visible] of Object.entries(patch.labelVisibility ?? {})) {

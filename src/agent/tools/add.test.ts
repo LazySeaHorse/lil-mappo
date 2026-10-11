@@ -188,6 +188,14 @@ describe('add tools', () => {
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add callout "Hello"' });
   });
 
+  it('add_callout validates settings against the style', async () => {
+    const bad = resultJson(await runAgentTool('add_callout', { title: 'Bad', location: [1, 2], settings: { pulse: 'yes' } }));
+    expect(bad).toMatchObject({ error: 'invalid_settings', message: expect.stringMatching(/^settings are not valid for style "leader-line": pulse: /) });
+
+    const ok = resultJson<{ created: { id: string } }>(await runAgentTool('add_callout', { title: 'Good', location: [1, 2], settings: { pulse: true } }));
+    expect(useProjectStore.getState().items[ok.created.id]).toMatchObject({ settings: { pulse: true, lineWidth: 1.5 } });
+  });
+
   it('add_callout sizes the callout, with map sizing based on the current map zoom', async () => {
     setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 15.25 }) } } as never);
     const plain = resultJson<{ created: { id: string } }>(await runAgentTool('add_callout', { title: 'Plain', location: [1, 2] }));

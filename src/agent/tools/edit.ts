@@ -24,7 +24,7 @@ import {
   connectorPatchSchema,
   contentPatchSchema,
   exitAnimationSchema,
-  issuesOf,
+  parseCalloutSettings,
   routeStyleShape,
   transitionPatchSchema,
   vehiclePatchSchema,
@@ -127,15 +127,22 @@ function requireEditable(id: string): TimelineItem {
 
 type Patch = z.output<typeof patchSchema>;
 
-function buildRouteUpdates(item: RouteItem, patch: Patch): Partial<RouteItem> {
-  const updates: Partial<RouteItem> = {};
-  if (patch.name !== undefined) updates.name = patch.name;
+/** easing, exitAnimation and a style merged over the item's: the fields routes and boundaries share. */
+function buildAnimatedUpdates<T extends RouteItem | BoundaryItem>(item: T, patch: Patch): Partial<T> {
+  const updates: Partial<RouteItem | BoundaryItem> = {};
   if (patch.easing) updates.easing = patch.easing;
   if (patch.exitAnimation) updates.exitAnimation = patch.exitAnimation;
   if (patch.style) {
-    assertStyleKeys('route', patch.style);
-    updates.style = { ...item.style, ...patch.style } as RouteItem['style'];
+    assertStyleKeys(item.kind, patch.style);
+    updates.style = { ...item.style, ...patch.style } as T['style'];
   }
+  return updates as Partial<T>;
+}
+
+function buildRouteUpdates(item: RouteItem, patch: Patch): Partial<RouteItem> {
+  const updates: Partial<RouteItem> = {};
+  if (patch.name !== undefined) updates.name = patch.name;
+  Object.assign(updates, buildAnimatedUpdates(item, patch));
 
   const walkFields = (['points', 'curved', 'sharpness'] as const).filter((k) => patch[k] !== undefined);
   if (walkFields.length) {
@@ -159,15 +166,10 @@ function buildRouteUpdates(item: RouteItem, patch: Patch): Partial<RouteItem> {
 }
 
 function buildBoundaryUpdates(item: BoundaryItem, patch: Patch): Partial<BoundaryItem> {
-  const updates: Partial<BoundaryItem> = {};
-  if (patch.placeName !== undefined) updates.placeName = patch.placeName;
-  if (patch.easing) updates.easing = patch.easing;
-  if (patch.exitAnimation) updates.exitAnimation = patch.exitAnimation;
-  if (patch.style) {
-    assertStyleKeys('boundary', patch.style);
-    updates.style = { ...item.style, ...patch.style } as BoundaryItem['style'];
-  }
-  return updates;
+  return {
+    ...(patch.placeName !== undefined && { placeName: patch.placeName }),
+    ...buildAnimatedUpdates(item, patch),
+  };
 }
 
 function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordinates: LngLat; name?: string }): Partial<CalloutItem> {
@@ -184,12 +186,7 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
     updates.styleVersion = next.version;
   }
   if (patch.settings) {
-    const style = getStyle(styleId)!;
-    const parsed = style.settingsSchema.safeParse({ ...settings, ...patch.settings });
-    if (!parsed.success) {
-      throw new ToolError('invalid_settings', `settings are not valid for style "${styleId}": ${issuesOf(parsed.error as never).map((i) => `${i.path}: ${i.message}`).join('; ')}`);
-    }
-    settings = parsed.data as Record<string, unknown>;
+    settings = parseCalloutSettings(getStyle(styleId)!, styleId, { ...settings, ...patch.settings });
   }
   if (settings !== item.settings) updates.settings = settings;
 
