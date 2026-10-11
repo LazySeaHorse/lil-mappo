@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
-  ChevronDown, Settings2, Clapperboard, LogIn, LogOut, Lock,
+  ChevronDown, Settings2, LogIn, LogOut, Lock,
   Compass,
 } from 'lucide-react';
 
@@ -31,14 +31,13 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
-  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore(
+  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, signOut } = useAuthStore(
     useShallow((s) => ({
       user: s.user,
       openAuthModal: s.openAuthModal,
       requestSignIn: s.requestSignIn,
       openUpgradeModal: s.openUpgradeModal,
       openSettingsModal: s.openSettingsModal,
-      openRendersModal: s.openRendersModal,
       signOut: s.signOut,
     })),
   );

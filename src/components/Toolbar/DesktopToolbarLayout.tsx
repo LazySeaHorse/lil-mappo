@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Clapperboard, Video, EyeOff, Mountain, Building2,
-  Layers2, Plus, Settings2, Loader2
+  Layers2, Settings2, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {

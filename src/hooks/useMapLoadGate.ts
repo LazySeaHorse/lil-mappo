@@ -6,7 +6,6 @@ import { useSubscription } from '@/hooks/useSubscription';
 import {
   hasByok,
   isMapLoadTracked,
-  isGuestBlocked,
   incrementGuestLoadCount,
   getGuestLoadCount,
   claimDeepLinkGuestExemption,

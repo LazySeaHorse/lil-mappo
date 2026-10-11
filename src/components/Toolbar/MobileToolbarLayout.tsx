@@ -1,6 +1,5 @@
 import React from 'react';
 import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff, Settings2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';

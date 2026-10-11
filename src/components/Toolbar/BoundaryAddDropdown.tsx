@@ -6,7 +6,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import {
-  Hexagon, Plus, Check, Search, MapPin
+  Hexagon, Plus, Check, MapPin
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';

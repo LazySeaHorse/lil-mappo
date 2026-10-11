@@ -12,7 +12,7 @@ import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
-import { RotateCw, Monitor, Smartphone, Lock, ArrowRight, Settings2 } from 'lucide-react';
+import { Monitor, Smartphone, ArrowRight, Settings2 } from 'lucide-react';
 import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
