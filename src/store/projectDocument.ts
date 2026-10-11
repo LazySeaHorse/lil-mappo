@@ -10,6 +10,7 @@ import {
   migrateCalloutV1ToV2,
 } from '@/annotations/migration';
 import type { Project } from './types';
+import { PERSISTED_PROJECT_KEYS } from './historyKeys';
 import { MAP_STYLES } from '@/config/mapbox';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
@@ -541,34 +542,11 @@ export function parseProjectDocument(input: unknown): Project {
 
 /** Selects only durable project data from a Project or the wider Zustand store. */
 export function toProjectDocument(state: Project): ProjectDocument {
-  const document = {
-    schemaVersion: PROJECT_SCHEMA_VERSION,
-    id: state.id,
-    name: state.name,
-    duration: state.duration,
-    fps: state.fps,
-    resolution: state.resolution,
-    aspectRatio: state.aspectRatio,
-    exportResolution: state.exportResolution,
-    isVertical: state.isVertical,
-    projection: state.projection,
-    lightPreset: state.lightPreset,
-    starIntensity: state.starIntensity,
-    fogColor: state.fogColor,
-    terrainExaggeration: state.terrainExaggeration,
-    mapStyle: state.mapStyle,
-    terrainEnabled: state.terrainEnabled,
-    buildingsEnabled: state.buildingsEnabled,
-    labelVisibility: state.labelVisibility,
-    show3dLandmarks: state.show3dLandmarks,
-    show3dTrees: state.show3dTrees,
-    show3dFacades: state.show3dFacades,
-    items: state.items,
-    itemOrder: state.itemOrder,
-    mapCenter: state.mapCenter,
-    ...(state.customMapStyleUrl !== undefined && { customMapStyleUrl: state.customMapStyleUrl }),
-    ...(state.customMapStyleLabel !== undefined && { customMapStyleLabel: state.customMapStyleLabel }),
-  } satisfies ProjectDocument;
+  // Unset optional fields (custom style url/label) are left out, not written as undefined.
+  const document: Record<string, unknown> = { schemaVersion: PROJECT_SCHEMA_VERSION };
+  for (const key of PERSISTED_PROJECT_KEYS) {
+    if (state[key] !== undefined) document[key] = state[key];
+  }
 
   // Validate live state too, so invalid data fails at its first durable boundary.
   return { schemaVersion: PROJECT_SCHEMA_VERSION, ...parseProjectDocument(document) };
