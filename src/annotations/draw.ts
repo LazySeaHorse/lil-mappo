@@ -10,6 +10,7 @@
  */
 
 import type { CalloutItem, TimelineItem } from '@/store/types';
+import { isPlacedPoint } from '@/engine/routeMode';
 import type { AnnotationContent, AnnotationStyleDefinition, ConnectorConfig, SceneNode, StyleBounds, StyleRenderInput } from './types';
 import { computePhase, evaluateTransition, SLIDE_DISTANCE, STYLE_ANIMATION } from './animation';
 import { getStyle, validateSettings } from './registry';
@@ -114,7 +115,7 @@ interface Placement {
 function placeCallout(callout: CalloutItem, distanceScale: number): Placement | null {
   const { binding } = callout;
   if (binding.kind !== 'geographic') return null;
-  if (binding.lngLat[0] === 0 && binding.lngLat[1] === 0) return null;
+  if (!isPlacedPoint(binding.lngLat)) return null;
 
   const style = getStyle(callout.styleId);
   if (!style) return null;

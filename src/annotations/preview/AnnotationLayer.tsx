@@ -11,6 +11,7 @@ import { Marker, useMap } from 'react-map-gl/mapbox';
 import type { MarkerDragEvent } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
+import { isPlacedPoint } from '@/engine/routeMode';
 import { AnnotationOverlay } from './AnnotationOverlay';
 
 // ─── Move-mode handle ─────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ function MoveHandle() {
   });
   if (callout?.binding.kind !== 'geographic') return null;
   const { lngLat } = callout.binding;
-  if (lngLat[0] === 0 && lngLat[1] === 0) return null;
+  if (!isPlacedPoint(lngLat)) return null;
   return <AnnotationMoveHandle callout={callout} lngLat={lngLat} />;
 }
 
