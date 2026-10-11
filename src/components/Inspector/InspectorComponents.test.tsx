@@ -12,7 +12,7 @@ import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/t
 
 vi.mock('@/hooks/useSubscription', () => ({
   useSubscription: () => ({
-    data: { tier: 'cartographer' },
+    data: { tier: 'wanderer', status: 'active' },
   }),
 }));
 

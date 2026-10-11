@@ -8,6 +8,7 @@ import { autoCamForRoute, defaultAutoCamFor, vehicleChangePatch } from '@/config
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
 import { useSubscription } from '@/hooks/useSubscription';
+import { isWanderer } from '@/lib/cloudAccess';
 import { 
   EditableTitle, 
   SliderRow, 
@@ -38,7 +39,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
   const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const { data: sub } = useSubscription();
-  const isPro = sub && (sub.tier === 'wanderer' || sub.tier === 'cartographer' || sub.tier === 'pioneer');
+  const isPro = isWanderer(sub);
 
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
