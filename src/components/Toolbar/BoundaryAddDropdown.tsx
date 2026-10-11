@@ -11,7 +11,7 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { createBoundaryItem } from '@/store/itemFactories';
-import type { NominatimResult } from '@/services/nominatim';
+import { shortPlaceName, type NominatimResult } from '@/services/nominatim';
 import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
 import { useMapRef } from '@/hooks/useMapRef';
@@ -70,7 +70,7 @@ export const BoundaryAddDropdown = ({
   }, []);
 
   const handleSelect = (r: NominatimResult) => {
-    setPreviewBoundary(r.geojson, r.display_name.split(',')[0], r.countryCode);
+    setPreviewBoundary(r.geojson, shortPlaceName(r.display_name), r.countryCode);
     
     // Zoom to boundary
     const map = mapRef.current?.getMap();

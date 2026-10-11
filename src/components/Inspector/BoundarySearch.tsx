@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { searchBoundary, NominatimResult } from '@/services/nominatim';
+import { searchBoundary, shortPlaceName, NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
 import { IconButton } from '@/components/ui/icon-button';
 
@@ -149,7 +149,7 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
                 }} 
                 className="w-full text-left px-3 py-2 text-xs hover:bg-primary/5 transition-colors border-b border-border/30 last:border-0 group"
               >
-                <div className="font-medium group-hover:text-primary transition-colors">{r.display_name.split(',')[0]}</div>
+                <div className="font-medium group-hover:text-primary transition-colors">{shortPlaceName(r.display_name)}</div>
                 <div className="text-[10px] text-muted-foreground truncate">{r.display_name.split(',').slice(1).join(',')}</div>
               </button>
             ))}

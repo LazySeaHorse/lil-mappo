@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { searchBoundary, parseCountryCode } from './nominatim';
+import { searchBoundary, parseCountryCode, shortPlaceName } from './nominatim';
 import { syntheticIsland, decimals } from '@/test/syntheticGeometry';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -46,5 +46,12 @@ describe('country code', () => {
     expect((await searchBoundary('x'))[0].countryCode).toBeNull();
     expect(parseCountryCode({ 'ISO3166-1': 'DEU' })).toBeNull();
     expect(parseCountryCode(null)).toBeNull();
+  });
+});
+
+describe('shortPlaceName', () => {
+  it('keeps the first part of a display name', () => {
+    expect(shortPlaceName('Paris, Ile-de-France, France')).toBe('Paris');
+    expect(shortPlaceName('Tuvalu')).toBe('Tuvalu');
   });
 });

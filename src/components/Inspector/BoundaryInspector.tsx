@@ -2,7 +2,7 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { BoundaryItem } from '@/store/types';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
-import { NominatimResult } from '@/services/nominatim';
+import { NominatimResult, shortPlaceName } from '@/services/nominatim';
 import { toast } from 'sonner';
 import { Accordion } from "@/components/ui/accordion";
 import { BoundarySearch } from './BoundarySearch';
@@ -36,7 +36,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       ...(r.countryCode ? { style: { ...item.style, flagCode: r.countryCode } } : {}),
       geojson: applyBoundaryDetail(r.geojson),
       resolveStatus: 'resolved',
-      placeName: r.display_name.split(',')[0],
+      placeName: shortPlaceName(r.display_name),
     });
     toast.success('Boundary updated.');
   };

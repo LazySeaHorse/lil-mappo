@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 import { computeEndpointGeometry, type EndpointGeometry } from '@/services/endpointGeometry';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
-import { searchBoundary } from '@/services/nominatim';
+import { searchBoundary, shortPlaceName } from '@/services/nominatim';
 import { getAllStyles, getStyle } from '@/annotations/registry';
 import {
   DEFAULT_BOUNDARY_STYLE,
@@ -166,7 +166,7 @@ export const addBoundary = defineTool({
     if (!best) {
       throw new ToolError('boundary_not_found', `No region outline found for "${query}". Try a broader or differently spelled name (regions, cities and countries work; addresses and POIs do not).`, { query });
     }
-    const placeName = best.display_name.split(',')[0];
+    const placeName = shortPlaceName(best.display_name);
     const item = createBoundaryItem({ placeName, geojson: applyBoundaryDetail(best.geojson, detail), startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style }, countryCode: best.countryCode });
 
     commitAiWrite(`AI: add boundary "${placeName}"`, () => {
