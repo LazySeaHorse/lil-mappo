@@ -15,12 +15,12 @@ interface NominatimProperties {
   extratags?: Record<string, string> | null;
 }
 
-/** Reads the country code from the OSM `ISO3166-1` extratags, lowercased; null when absent or malformed. */
 /** The first part of a Nominatim display_name ("Paris, Ile-de-France, France" -> "Paris"). */
 export function shortPlaceName(displayName: string): string {
   return displayName.split(',')[0];
 }
 
+/** Reads the country code from the OSM `ISO3166-1` extratags, lowercased; null when absent or malformed. */
 export function parseCountryCode(extratags: Record<string, string> | null | undefined): string | null {
   const raw = extratags?.['ISO3166-1:alpha2'] ?? extratags?.['ISO3166-1'];
   const code = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
