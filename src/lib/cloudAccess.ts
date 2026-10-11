@@ -6,8 +6,14 @@ import { BYOK_STORAGE_KEY, isAppOwnKey } from '@/config/mapbox';
 
 // ─── Tier helpers ─────────────────────────────────────────────────────────────
 
-/** Returns true if the user has an active (or still-in-cancelling-period) Wanderer subscription. */
-function isWanderer(subscription: Subscription | null | undefined): boolean {
+/**
+ * The paid-plan check: true if the user has an active (or still-in-cancelling-period)
+ * Wanderer subscription. Use this rather than reading tier/status inline.
+ *
+ * The server keeps a copy of these rules in `api/_lib/entitlement.ts`
+ * (`api/` cannot import `src/`); a parity test runs both against one table.
+ */
+export function isWanderer(subscription: Subscription | null | undefined): boolean {
   if (!subscription || subscription.tier !== 'wanderer') return false;
   if (subscription.status === 'active') return true;
   if (subscription.status !== 'cancelling') return false;

@@ -13,6 +13,7 @@ import {
   getExportLimits,
   isFreeUser,
   isMapLoadTracked,
+  isWanderer,
   brandingFor,
 } from "./cloudAccess";
 
@@ -74,5 +75,33 @@ describe("subscription entitlements", () => {
 
   it("fails closed when a cancelling subscription has no period-end date", () => {
     expect(isFreeUser(subscription({ status: "cancelling", renewal_date: null }))).toBe(true);
+  });
+});
+
+describe("isWanderer", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is the paid-plan check: active, or cancelling through the renewal date (UTC)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-30T23:59:59Z"));
+
+    expect(isWanderer(subscription())).toBe(true);
+    expect(isWanderer(subscription({ status: "cancelling" }))).toBe(true);
+    expect(isWanderer(subscription({ status: "cancelling", renewal_date: "2026-09-29" }))).toBe(false);
+    expect(isWanderer(subscription({ status: "cancelling", renewal_date: null }))).toBe(false);
+    expect(isWanderer(subscription({ status: "on_hold" }))).toBe(false);
+    expect(isWanderer(subscription({ tier: "cartographer" }))).toBe(false);
+    expect(isWanderer(null)).toBe(false);
+    expect(isWanderer(undefined)).toBe(false);
+  });
+
+  it("does not look at renewal_date for an active subscription", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-01T00:00:00Z"));
+
+    expect(isWanderer(subscription({ renewal_date: "2026-09-30" }))).toBe(true);
+    expect(isWanderer(subscription({ renewal_date: null }))).toBe(true);
   });
 });
