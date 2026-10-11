@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLAN_CONFIG } from "@/services/checkout";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 
 const BENEFITS = [
   {
@@ -62,7 +63,13 @@ const BENEFITS = [
 ] as const;
 
 export function UpgradeModal() {
-  const { showUpgradeModal, closeUpgradeModal, startCheckout } = useAuthStore();
+  const { showUpgradeModal, closeUpgradeModal, startCheckout } = useAuthStore(
+    useShallow((s) => ({
+      showUpgradeModal: s.showUpgradeModal,
+      closeUpgradeModal: s.closeUpgradeModal,
+      startCheckout: s.startCheckout,
+    })),
+  );
   const { data: subscription } = useSubscription();
   const isCurrent =
     subscription?.tier === "wanderer" &&

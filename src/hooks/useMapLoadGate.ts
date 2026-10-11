@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import secureLocalStorage from "react-secure-storage";
 import { useAuthStore } from '@/store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useSubscription } from '@/hooks/useSubscription';
 import {
   hasByok,
@@ -57,7 +58,12 @@ export function useMapLoadGate({
   deepLinkEntry = false,
   deepLinkPending = false,
 }: MapLoadGateOptions = {}): MapLoadGateState {
-  const { isLoading: authLoading, session } = useAuthStore();
+  const { isLoading: authLoading, session } = useAuthStore(
+    useShallow((s) => ({
+      isLoading: s.isLoading,
+      session: s.session,
+    })),
+  );
   const { data: subscription, isLoading: subLoading } = useSubscription();
 
   const [ready, setReady] = useState(false);

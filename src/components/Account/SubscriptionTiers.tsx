@@ -35,7 +35,7 @@ function TierCard({
   comingSoon?: boolean;
   onCheckout?: (plan: PlanSlug) => void;
 }) {
-  const { startCheckout } = useAuthStore();
+  const startCheckout = useAuthStore((s) => s.startCheckout);
 
   const handleClick = () => {
     if (isCurrent || comingSoon) return;
@@ -152,7 +152,7 @@ export function SubscriptionTiers({
   highlightCurrent?: boolean;
   onCheckout?: (plan: PlanSlug) => void;
 }) {
-  const { startCheckout } = useAuthStore();
+  const startCheckout = useAuthStore((s) => s.startCheckout);
   const { data: subscription } = useSubscription();
   const tierSlug = subscription?.tier ?? null;
 

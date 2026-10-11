@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 import { Mappo } from "@/components/Mappo/Mappo";
 import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
 import { Loader2, Eye, EyeOff } from "lucide-react";
@@ -71,8 +72,16 @@ function AppleIcon() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AuthModal() {
-  const { showAuthModal, authModalMode, authModalReason, closeAuthModal, openAuthModal, openSignupModal } =
-    useAuthStore();
+  const { showAuthModal, authModalMode, authModalReason, closeAuthModal, openAuthModal, openSignupModal } = useAuthStore(
+    useShallow((s) => ({
+      showAuthModal: s.showAuthModal,
+      authModalMode: s.authModalMode,
+      authModalReason: s.authModalReason,
+      closeAuthModal: s.closeAuthModal,
+      openAuthModal: s.openAuthModal,
+      openSignupModal: s.openSignupModal,
+    })),
+  );
 
   const handleOpenChange = (open: boolean) => {
     if (!open) closeAuthModal();

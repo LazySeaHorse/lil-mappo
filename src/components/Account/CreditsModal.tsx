@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 import { useCredits } from "@/hooks/useCredits";
 import { SubscriptionTiers } from "./SubscriptionTiers";
 import {
@@ -27,7 +28,12 @@ import {
 import { useSubscription } from "@/hooks/useSubscription";
 
 export function CreditsModal() {
-  const { showCreditsModal, closeCreditsModal } = useAuthStore();
+  const { showCreditsModal, closeCreditsModal } = useAuthStore(
+    useShallow((s) => ({
+      showCreditsModal: s.showCreditsModal,
+      closeCreditsModal: s.closeCreditsModal,
+    })),
+  );
 
   return (
     <Dialog
@@ -52,7 +58,13 @@ export function CreditsModal() {
 }
 
 function CreditsModalBody() {
-  const { user, closeCreditsModal, startCheckout } = useAuthStore();
+  const { user, closeCreditsModal, startCheckout } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      closeCreditsModal: s.closeCreditsModal,
+      startCheckout: s.startCheckout,
+    })),
+  );
   const { data: credits, isLoading, error, refetch } = useCredits();
 
   const { data: subscription } = useSubscription();

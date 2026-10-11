@@ -53,7 +53,7 @@ export function ProjectSettings() {
   const capabilities = useMapStyleCapabilities();
   const { data: subscription } = useSubscription();
   const limits = getExportLimits(subscription);
-  const { openUpgradeModal } = useAuthStore();
+  const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
 
   return (
     <PanelWrapper title="Project settings" icon={<Settings2 size={15} />}>

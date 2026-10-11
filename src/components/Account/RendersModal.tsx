@@ -5,6 +5,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useRenderJobs, type RenderJobListItem } from '@/hooks/useRenderJobs';
 import type { RenderStatus } from '@/lib/database.types';
 import { STATUS_LABELS } from '@/lib/database.types';
@@ -16,7 +17,12 @@ import {
 } from 'lucide-react';
 
 export function RendersModal() {
-  const { showRendersModal, closeRendersModal } = useAuthStore();
+  const { showRendersModal, closeRendersModal } = useAuthStore(
+    useShallow((s) => ({
+      showRendersModal: s.showRendersModal,
+      closeRendersModal: s.closeRendersModal,
+    })),
+  );
 
   return (
     <Dialog open={showRendersModal} onOpenChange={(open) => !open && closeRendersModal()}>
@@ -38,7 +44,13 @@ export function RendersModal() {
 }
 
 function RendersModalBody() {
-  const { user, closeRendersModal, openAuthModal } = useAuthStore();
+  const { user, closeRendersModal, openAuthModal } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      closeRendersModal: s.closeRendersModal,
+      openAuthModal: s.openAuthModal,
+    })),
+  );
   const { data: jobs, isLoading, error, refetch, isFetching } = useRenderJobs();
 
   return (

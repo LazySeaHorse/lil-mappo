@@ -16,6 +16,7 @@ import FontLoader from "@/components/FontLoader";
 import { useEffect } from "react";
 import { useProjectStore, CAMERA_TRACK_ID } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 import { useSubscription } from "@/hooks/useSubscription";
 import { isFreeUser, hasByok, brandingFor } from "@/lib/cloudAccess";
 import { useMapLoadGate } from "@/hooks/useMapLoadGate";
@@ -133,7 +134,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
     deepLinkEntry: deepLink.isEntry,
     deepLinkPending: routeDeepLink !== null && !deepLink.ready,
   });
-  const { user, requestSignIn } = useAuthStore();
+  const { user, requestSignIn } = useAuthStore(useShallow((s) => ({ user: s.user, requestSignIn: s.requestSignIn })));
   const isLocked = !user && !hasByok();
   const { data: subscription } = useSubscription();
   // Track whether we've synced for this user session to avoid repeat syncs

@@ -32,7 +32,7 @@ export function useToolbarActions() {
   );
 
   const { data: subscription } = useSubscription();
-  const { user, requestSignIn } = useAuthStore();
+  const { user, requestSignIn } = useAuthStore(useShallow((s) => ({ user: s.user, requestSignIn: s.requestSignIn })));
   const isLocked = !user && !hasByok();
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -31,7 +31,17 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
-  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
+  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      openAuthModal: s.openAuthModal,
+      requestSignIn: s.requestSignIn,
+      openUpgradeModal: s.openUpgradeModal,
+      openSettingsModal: s.openSettingsModal,
+      openRendersModal: s.openRendersModal,
+      signOut: s.signOut,
+    })),
+  );
   const { selectItem, setProjectSettingsTab } = useProjectStore(
     useShallow(s => ({
       selectItem: s.selectItem,

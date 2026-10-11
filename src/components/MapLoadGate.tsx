@@ -3,6 +3,7 @@ import { Mappo } from '@/components/Mappo/Mappo';
 import type { MappoMood } from '@/components/Mappo/moods';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapLoadGate } from '@/hooks/useMapLoadGate';
 import { isAppOwnKey, BYOK_STORAGE_KEY } from '@/config/mapbox';
 import { trackAnonymous } from '@/lib/analytics/anonymous';
@@ -27,7 +28,12 @@ export function MapLoadGate({
   gate,
   children,
 }: MapLoadGateProps & { gate: ReturnType<typeof useMapLoadGate> }) {
-  const { openAuthModal, openUpgradeModal } = useAuthStore();
+  const { openAuthModal, openUpgradeModal } = useAuthStore(
+    useShallow((s) => ({
+      openAuthModal: s.openAuthModal,
+      openUpgradeModal: s.openUpgradeModal,
+    })),
+  );
 
   // While auth is loading, render nothing (map stays unmounted — no API call)
   if (!gate.ready) return null;
