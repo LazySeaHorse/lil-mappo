@@ -37,6 +37,17 @@ describe('SelectionPreviewPill', () => {
     expect(screen.queryByTestId('selection-preview-pill')).toBeNull();
   });
 
+  it('centres on the area the inspector leaves free', () => {
+    render(<SelectionPreviewPill />);
+    act(() => useProjectStore.getState().selectItem('r'));
+    const wrapper = () => screen.getByTestId('selection-preview-pill').parentElement!;
+
+    act(() => useProjectStore.getState().setIsInspectorOpen(false));
+    const closed = wrapper().style.right;
+    act(() => useProjectStore.getState().setIsInspectorOpen(true));
+    expect(parseInt(wrapper().style.right)).toBeGreaterThan(parseInt(closed));
+  });
+
   it('hides in present mode', () => {
     render(<SelectionPreviewPill />);
     act(() => useProjectStore.getState().selectItem('r'));
