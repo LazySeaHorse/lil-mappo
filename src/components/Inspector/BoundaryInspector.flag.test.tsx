@@ -63,7 +63,7 @@ describe('BoundaryInspector flag fill', () => {
   it('prompts for a country when no flag is chosen', () => {
     mount(boundary({ fillMode: 'flag', flagCode: null }));
     expect(screen.getByRole('combobox', { name: 'Country flag' })).toHaveTextContent('Choose a country flag');
-    expect(screen.getByText('Choose a country to fill this boundary with its flag.')).toBeInTheDocument();
+    expect(screen.getByText('Select a country to show its flag inside the boundary.')).toBeInTheDocument();
   });
 
   it('picks a country from the searchable list', async () => {

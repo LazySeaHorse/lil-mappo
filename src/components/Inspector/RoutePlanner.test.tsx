@@ -406,7 +406,7 @@ describe('RoutePlanner in Inspector', () => {
         calculation: { mode: 'walk', points: [[1, 1], [5, 5], [2, 2]], curved: true, sharpness: 0.85 },
       });
       render(<RoutePlanner item={route} />);
-      await act(async () => { fireEvent.click(screen.getByRole('radio', { name: /drive/i })); });
+      await act(async () => { fireEvent.click(screen.getByRole('radio', { name: /car/i })); });
 
       expect(getDirections).toHaveBeenCalledWith([1, 1], [2, 2], expect.any(AbortSignal));
       expect(coordsOf(stored())).toEqual([[1, 1], [1.5, 1.1], [2, 2]]);
@@ -420,7 +420,7 @@ describe('RoutePlanner in Inspector', () => {
         calculation: { mode: 'walk', points: [[1, 1], [2, 2]], curved: true, sharpness: 0.85 },
       });
       render(<RoutePlanner item={route} />);
-      clickMode(/drive/i);
+      clickMode(/car/i);
       clickMode(/walk/i);
       await act(async () => {
         resolve({ geometry: { type: 'LineString', coordinates: [[9, 9], [8, 8]] }, distance: 1, duration: 1 });
