@@ -34,9 +34,10 @@ const DEFAULT_BOUNDARY = {
   ],
 };
 
+// Midpoints sit off the straight line: the route simplifier drops collinear vertices.
 const ROUTE_A_COORDINATES: [number, number][] = [
   [-10, 10],
-  [-10.5, 10.5],
+  [-10.2, 10.8],
   [-11, 11],
 ];
 
@@ -56,7 +57,7 @@ const ROUTE_A_RESPONSE = {
 
 const ROUTE_B_COORDINATES: [number, number][] = [
   [20, 20],
-  [20.5, 20.5],
+  [20.8, 20.2],
   [21, 21],
 ];
 
