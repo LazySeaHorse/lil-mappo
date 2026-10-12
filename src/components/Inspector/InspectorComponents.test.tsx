@@ -12,7 +12,7 @@ import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/t
 
 vi.mock('@/hooks/useSubscription', () => ({
   useSubscription: () => ({
-    data: { tier: 'cartographer' },
+    data: { tier: 'wanderer', status: 'active' },
   }),
 }));
 
@@ -91,7 +91,7 @@ describe('Inspector Components Integration', () => {
       },
       startTime: 1,
       endTime: 5,
-      easing: 'easeInOutSine',
+      easing: 'easeInOutSine', exitAnimation: 'none',
       style: {
         color: '#ff0000',
         width: 4,
@@ -100,7 +100,7 @@ describe('Inspector Components Integration', () => {
         trailFade: false,
         trailFadeLength: 0.2,
         dashPattern: null,
-        animationType: 'draw',
+        animationType: 'draw', cometTrailLength: 0.2,
       },
       calculation: {
         mode: 'car',
@@ -140,8 +140,7 @@ describe('Inspector Components Integration', () => {
       },
       startTime: 0,
       endTime: 4,
-      easing: 'easeInOutSine',
-      resolveStatus: 'resolved',
+      easing: 'easeInOutSine', exitAnimation: 'none',
       style: {
         strokeColor: '#00ff00',
         fillColor: '#003300',
@@ -151,6 +150,11 @@ describe('Inspector Components Integration', () => {
         animateStroke: false,
         animationStyle: 'trace',
         traceLength: 0.2,
+        maskOutside: false,
+        maskColor: '#0b0f19',
+        maskOpacity: 0.85,
+        fillMode: 'color',
+        flagCode: null,
       },
     };
 
@@ -168,6 +172,51 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByText('50 %')).toBeInTheDocument();
     expect(screen.getByLabelText('Start time')).toHaveValue(0);
     expect(screen.getByLabelText('Duration')).toHaveValue(4);
+    expect(screen.getByText('Mask outside')).toBeInTheDocument();
+    expect(screen.queryByText('Mask color')).not.toBeInTheDocument();
+  });
+
+  it('shows mask color and opacity once Mask outside is on', () => {
+    const boundaryItem: BoundaryItem = {
+      id: 'boundary-2',
+      kind: 'boundary',
+      placeName: 'Maskland',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
+      startTime: 0,
+      endTime: 4,
+      easing: 'linear', exitAnimation: 'none',
+      style: {
+        strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,
+        animateStroke: false, animationStyle: 'fade', traceLength: 0.1,
+        maskOutside: true, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null,
+      },
+    };
+    useProjectStore.setState({ items: { 'boundary-2': boundaryItem }, selectedItemId: 'boundary-2' });
+    render(<BoundaryInspector item={boundaryItem} />);
+    expect(screen.getByText('Mask color')).toBeInTheDocument();
+    expect(screen.getByText('Mask opacity')).toBeInTheDocument();
+    expect(screen.getByText('85 %')).toBeInTheDocument();
+  });
+
+  it('shows a zero trace length as zero instead of the default', () => {
+    const boundaryItem: BoundaryItem = {
+      id: 'boundary-3',
+      kind: 'boundary',
+      placeName: 'Traceland',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
+      startTime: 0,
+      endTime: 4,
+      easing: 'linear', exitAnimation: 'none',
+      style: {
+        strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,
+        animateStroke: true, animationStyle: 'trace', traceLength: 0,
+        maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null,
+      },
+    };
+    useProjectStore.setState({ items: { 'boundary-3': boundaryItem }, selectedItemId: 'boundary-3' });
+    render(<BoundaryInspector item={boundaryItem} />);
+    expect(screen.getByText('Highlight length')).toBeInTheDocument();
+    expect(screen.getByText('0 %')).toBeInTheDocument();
   });
 
   it('renders AnnotationInspector with style controls, location and animation', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderScene } from './renderer';
-import { circle, group, line, polyline, rect, text } from './primitives';
+import { PATH_CACHE_LIMIT, renderScene } from './renderer';
+import { circle, group, line, path, polyline, rect, text } from './primitives';
 
 /** A context that records the calls and state changes the renderer makes. */
 function recordingContext() {
@@ -151,5 +151,42 @@ describe('renderScene', () => {
     renderScene(ctx, group({ children: [group({ clip: { x: 0, y: 0, width: 1, height: 1 }, children: [] })] }));
     expect(names(calls).filter((n) => n === 'save')).toHaveLength(names(calls).filter((n) => n === 'restore').length);
     vi.restoreAllMocks();
+  });
+});
+
+describe('path nodes', () => {
+  function stubPath2D() {
+    const made: string[] = [];
+    class FakePath2D {
+      constructor(public d: string) {
+        made.push(d);
+      }
+    }
+    vi.stubGlobal('Path2D', FakePath2D);
+    return made;
+  }
+
+  it('fills and strokes the same parsed path, parsing each path string once', () => {
+    const made = stubPath2D();
+    const d = 'M0 0 L10 0 L10 10 Z';
+    const { ctx, calls } = recordingContext();
+    renderScene(ctx, path({ d, fill: '#fff', stroke: '#000', strokeWidth: 1 }));
+    renderScene(ctx, path({ d, fill: '#fff' }));
+
+    const painted = calls.filter((c) => c[0] === 'fill' || c[0] === 'stroke').map((c) => c[1]);
+    expect(painted).toHaveLength(3);
+    expect(new Set(painted).size).toBe(1);
+    expect((painted[0] as { d: string }).d).toBe(d);
+    expect(made).toEqual([d]);
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps a bounded number of parsed paths', () => {
+    const made = stubPath2D();
+    const { ctx } = recordingContext();
+    for (let i = 0; i <= PATH_CACHE_LIMIT; i++) renderScene(ctx, path({ d: `M${i} 0 L1 1`, fill: '#fff' }));
+    renderScene(ctx, path({ d: 'M0 0 L1 1', fill: '#fff' }));
+    expect(made.filter((d) => d === 'M0 0 L1 1')).toHaveLength(2);
+    vi.unstubAllGlobals();
   });
 });

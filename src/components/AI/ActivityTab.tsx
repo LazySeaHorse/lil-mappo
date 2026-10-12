@@ -59,7 +59,7 @@ export function ActivityTab() {
             <p>
               Turn on AI control in the{' '}
               <button type="button" className="underline hover:text-foreground" onClick={() => openTab('connect')}>Connect tab</button>
-              , then ask an agent in your browser to work on this project. Its actions will show up here.
+              , then ask an agent in your browser to edit this project. Agent actions appear in this feed.
             </p>
           </div>
         ) : (

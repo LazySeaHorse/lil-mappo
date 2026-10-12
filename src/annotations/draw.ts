@@ -10,11 +10,12 @@
  */
 
 import type { CalloutItem, TimelineItem } from '@/store/types';
+import { isPlacedPoint } from '@/engine/routeMode';
 import type { AnnotationContent, AnnotationStyleDefinition, ConnectorConfig, SceneNode, StyleBounds, StyleRenderInput } from './types';
 import { computePhase, evaluateTransition, SLIDE_DISTANCE, STYLE_ANIMATION } from './animation';
 import { getStyle, validateSettings } from './registry';
 import { resolveCalloutSizing } from './sizing';
-import { preloadImage, renderScene } from './scene/renderer';
+import { getCachedImage, preloadImage, renderScene } from './scene/renderer';
 import { buildFont, getTextMetricsEpoch } from './scene/textMetrics';
 
 /** Room around the measured style box for shadows, glow and overshoot. */
@@ -114,7 +115,7 @@ interface Placement {
 function placeCallout(callout: CalloutItem, distanceScale: number): Placement | null {
   const { binding } = callout;
   if (binding.kind !== 'geographic') return null;
-  if (binding.lngLat[0] === 0 && binding.lngLat[1] === 0) return null;
+  if (!isPlacedPoint(binding.lngLat)) return null;
 
   const style = getStyle(callout.styleId);
   if (!style) return null;
@@ -370,16 +371,11 @@ export async function loadSceneAssets({ fonts, images }: SceneAssets): Promise<v
   await Promise.all([...fontLoads, ...imageLoads]);
 }
 
-/** Loads every font and image the project's callouts draw, for export. */
-export async function loadAnnotationAssets(
-  items: Record<string, TimelineItem>,
-  itemOrder: string[],
-): Promise<void> {
+/** Every font and image the given callouts draw in their finished scenes. */
+function collectCalloutAssets(callouts: Iterable<CalloutItem>): SceneAssets {
   const fonts = new Set<string>();
   const images = new Set<string>();
-  for (const id of itemOrder) {
-    const item = items[id];
-    if (item?.kind !== 'callout') continue;
+  for (const item of callouts) {
     // The finished scene: an entrance may not have drawn all its text yet.
     const placement = placeCallout(item, 1);
     if (!placement) continue;
@@ -389,5 +385,40 @@ export async function loadAnnotationAssets(
     assets.fonts.forEach((f) => fonts.add(f));
     assets.images.forEach((src) => images.add(src));
   }
-  await loadSceneAssets({ fonts: [...fonts], images: [...images] });
+  return { fonts: [...fonts], images: [...images] };
+}
+
+/** Loads every font and image the project's callouts draw, for export. */
+export async function loadAnnotationAssets(
+  items: Record<string, TimelineItem>,
+  itemOrder: string[],
+): Promise<void> {
+  const callouts = itemOrder.map((id) => items[id]).filter((item): item is CalloutItem => item?.kind === 'callout');
+  await loadSceneAssets(collectCalloutAssets(callouts));
+}
+
+function fontReady(font: string): boolean {
+  // Without a font set nothing can be loaded, so there is nothing to wait for.
+  if (typeof document === 'undefined' || !document.fonts) return true;
+  try {
+    return document.fonts.check(font);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Loads the fonts and images of the given callouts that are not ready yet.
+ * Resolves true when anything had to load, i.e. frames drawn before may have
+ * used fallbacks and should be redrawn.
+ */
+export async function loadCalloutAssets(callouts: CalloutItem[]): Promise<boolean> {
+  const { fonts, images } = collectCalloutAssets(callouts);
+  const pending = {
+    fonts: fonts.filter((font) => !fontReady(font)),
+    images: images.filter((src) => !getCachedImage(src)),
+  };
+  if (pending.fonts.length === 0 && pending.images.length === 0) return false;
+  await loadSceneAssets(pending);
+  return true;
 }

@@ -13,27 +13,21 @@ import {
 import { caretVisible, scrambleText, typedCount } from '../scene/glyphs';
 import { circle, group, polyline, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
-import { boundsOf, haloShadow, resolveDirection } from './shared';
+import { boundsOf, HALO_CONTROL, haloSchema, haloShadow, resolveDirection, SIDE_CONTROL, sideSchema } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
 export const targetLockSettingsSchema = z.object({
   accentColor: z.string().default('#3DFFA8'),
   textColor: z.string().default('#E8FFF4'),
-  halo: z.boolean().default(true),
-  side: z.enum(['auto', 'left', 'right']).default('auto'),
+  halo: haloSchema,
+  side: sideSchema,
   pulse: z.boolean().default(false),
 });
 
 export type TargetLockSettings = z.infer<typeof targetLockSettingsSchema>;
 
-export const defaultTargetLockSettings: TargetLockSettings = {
-  accentColor: '#3DFFA8',
-  textColor: '#E8FFF4',
-  halo: true,
-  side: 'auto',
-  pulse: false,
-};
+export const defaultTargetLockSettings: TargetLockSettings = targetLockSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 
@@ -289,17 +283,8 @@ export const targetLockStyle: AnnotationStyleDefinition<TargetLockSettings> = {
   controls: [
     { type: 'color', key: 'accentColor', label: 'Accent color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
-    {
-      type: 'select',
-      key: 'side',
-      label: 'Side',
-      options: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'left', label: 'Left' },
-        { value: 'right', label: 'Right' },
-      ],
-    },
+    HALO_CONTROL,
+    SIDE_CONTROL,
     { type: 'switch', key: 'pulse', label: 'Pulse' },
   ],
   render: renderTargetLock,

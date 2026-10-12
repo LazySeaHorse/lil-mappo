@@ -4,6 +4,7 @@ import type { BoundaryItem, RouteItem } from '@/store/types';
 import type { MapSceneRuntime } from './MapSceneRuntime';
 import { waitForMapRender } from './MapSceneRuntime';
 import { BasemapController } from './BasemapController';
+import { BoundaryMaskRenderer } from './BoundaryMaskRenderer';
 import { BoundaryRenderer } from './BoundaryRenderer';
 import { RouteRenderer } from './RouteRenderer';
 import { isStyleReady } from './mapboxResources';
@@ -11,27 +12,70 @@ import { selectionPreviewTime } from '@/engine/selectionPreview';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
+/** Store fields the basemap is reconciled from. */
+const BASEMAP_KEYS = [
+  'mapStyle',
+  'projection',
+  'terrainEnabled',
+  'terrainExaggeration',
+  'buildingsEnabled',
+  'lightPreset',
+  'labelVisibility',
+  'show3dLandmarks',
+  'show3dTrees',
+  'show3dFacades',
+  'starIntensity',
+  'fogColor',
+  'terrainLoading',
+  'detectedCapabilities',
+] as const satisfies readonly (keyof ProjectState)[];
+
 function basemapStateChanged(state: ProjectState, previous: ProjectState): boolean {
-  return state.mapStyle !== previous.mapStyle
-    || state.projection !== previous.projection
-    || state.terrainEnabled !== previous.terrainEnabled
-    || state.terrainExaggeration !== previous.terrainExaggeration
-    || state.buildingsEnabled !== previous.buildingsEnabled
-    || state.lightPreset !== previous.lightPreset
-    || state.labelVisibility !== previous.labelVisibility
-    || state.show3dLandmarks !== previous.show3dLandmarks
-    || state.show3dTrees !== previous.show3dTrees
-    || state.show3dFacades !== previous.show3dFacades
-    || state.starIntensity !== previous.starIntensity
-    || state.fogColor !== previous.fogColor
-    || state.terrainLoading !== previous.terrainLoading
-    || state.detectedCapabilities !== previous.detectedCapabilities;
+  return BASEMAP_KEYS.some((key) => state[key] !== previous[key]);
+}
+
+interface ItemRenderer {
+  mount(): void;
+  dispose(): void;
+}
+
+/**
+ * Brings `renderers` in line with `items`: updates the ones that exist, creates and mounts
+ * the missing ones, and disposes of those whose item is gone.
+ */
+function syncRenderers<I extends { id: string }, R extends ItemRenderer>(
+  renderers: Map<string, R>,
+  items: readonly I[],
+  update: (renderer: R, item: I) => void,
+  create: (item: I) => R,
+): void {
+  const ids = new Set<string>();
+  for (const item of items) {
+    ids.add(item.id);
+    const existing = renderers.get(item.id);
+    if (existing) {
+      update(existing, item);
+    } else {
+      const renderer = create(item);
+      renderer.mount();
+      renderers.set(item.id, renderer);
+    }
+  }
+  for (const [id, renderer] of renderers) {
+    if (ids.has(id)) continue;
+    renderer.dispose();
+    renderers.delete(id);
+  }
 }
 
 export class MapSceneController implements MapSceneRuntime {
   private readonly basemap: BasemapController;
   private readonly routes = new Map<string, RouteRenderer>();
   private readonly boundaries = new Map<string, BoundaryRenderer>();
+  /** Boundaries in item order (topmost first) that the shared mask is drawn from. */
+  private maskBoundaries: BoundaryItem[] = [];
+  private readonly mask: BoundaryMaskRenderer;
+  private maskMounted = false;
   private unsubscribe: (() => void) | undefined;
   private lastItems: ProjectState['items'] | undefined;
   private lastItemOrder: ProjectState['itemOrder'] | undefined;
@@ -49,6 +93,7 @@ export class MapSceneController implements MapSceneRuntime {
     setStyleLoaded: (loaded: boolean) => void,
   ) {
     this.basemap = new BasemapController(map, setStyleLoaded, this.rebuildAfterStyleLoad);
+    this.mask = new BoundaryMaskRenderer(map);
   }
 
   mount(): void {
@@ -98,9 +143,10 @@ export class MapSceneController implements MapSceneRuntime {
     ) return;
     const timeFor = (id: string) => {
       const item = items[id];
-      return item ? selectionPreviewTime(item, time, id === selectedId) : time;
+      return item && item.kind !== 'camera' ? selectionPreviewTime(item, time, id === selectedId) : time;
     };
     this.routes.forEach((renderer, id) => renderer.render(timeFor(id)));
+    this.mask.render(this.maskBoundaries, timeFor);
     this.boundaries.forEach((renderer, id) => renderer.render(timeFor(id)));
     this.lastRenderedTime = time;
     this.lastRenderedSelection = selectedId;
@@ -128,49 +174,28 @@ export class MapSceneController implements MapSceneRuntime {
     this.lastItems = state.items;
     this.lastItemOrder = state.itemOrder;
 
-    const nextRouteIds = new Set<string>();
-    const nextBoundaryIds = new Set<string>();
+    // Mounted before any route/boundary layer: it goes on top of the basemap, and those are added above it
+    if (!this.maskMounted) {
+      this.mask.mount();
+      this.maskMounted = true;
+    }
     const routes: RouteItem[] = [];
     const boundaries: BoundaryItem[] = [];
     for (const id of state.itemOrder) {
       const item = state.items[id];
       if (item?.kind === 'route') routes.push(item);
-      if (item?.kind === 'boundary' && item.resolveStatus === 'resolved' && item.geojson) boundaries.push(item);
+      if (item?.kind === 'boundary' && item.geojson) boundaries.push(item);
     }
 
-    for (const route of routes) {
-      nextRouteIds.add(route.id);
-      const existing = this.routes.get(route.id);
-      if (existing) {
-        existing.setRoute(route);
-      } else {
-        const renderer = new RouteRenderer(this.map, route);
-        renderer.mount();
-        this.routes.set(route.id, renderer);
-      }
-    }
-    for (const [id, renderer] of this.routes) {
-      if (nextRouteIds.has(id)) continue;
-      renderer.dispose();
-      this.routes.delete(id);
-    }
+    this.maskBoundaries = boundaries;
 
-    for (const boundary of boundaries) {
-      nextBoundaryIds.add(boundary.id);
-      const existing = this.boundaries.get(boundary.id);
-      if (existing) {
-        existing.setBoundary(boundary);
-      } else {
-        const renderer = new BoundaryRenderer(this.map, boundary);
-        renderer.mount();
-        this.boundaries.set(boundary.id, renderer);
-      }
-    }
-    for (const [id, renderer] of this.boundaries) {
-      if (nextBoundaryIds.has(id)) continue;
-      renderer.dispose();
-      this.boundaries.delete(id);
-    }
+    syncRenderers(this.routes, routes, (renderer, route) => renderer.setRoute(route), (route) => new RouteRenderer(this.map, route));
+    syncRenderers(
+      this.boundaries,
+      boundaries,
+      (renderer, boundary) => renderer.setBoundary(boundary),
+      (boundary) => new BoundaryRenderer(this.map, boundary, this.basemap.getFlagPlacement),
+    );
 
     this.sceneRevision += 1;
     this.sceneDirty = false;
@@ -179,6 +204,9 @@ export class MapSceneController implements MapSceneRuntime {
   private disposeRenderers(): void {
     this.routes.forEach((renderer) => renderer.dispose());
     this.boundaries.forEach((renderer) => renderer.dispose());
+    this.mask.dispose();
+    this.maskMounted = false;
+    this.maskBoundaries = [];
     this.routes.clear();
     this.boundaries.clear();
   }

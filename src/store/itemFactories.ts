@@ -34,6 +34,11 @@ export const DEFAULT_BOUNDARY_STYLE: BoundaryStyle = {
   animateStroke: true,
   animationStyle: 'draw',
   traceLength: 0.1,
+  maskOutside: false,
+  maskColor: '#0b0f19',
+  maskOpacity: 0.85,
+  fillMode: 'color',
+  flagCode: null,
 };
 
 export type RouteStylePreset = RouteMode | 'import';
@@ -111,6 +116,7 @@ export function createEndpointRouteItem(input: EndpointRouteInput): RouteItem {
       vehicle: createDefaultVehicle(input.mode),
     },
     easing: 'easeInOutQuad',
+    exitAnimation: 'none',
   };
 }
 
@@ -139,6 +145,29 @@ export function createWalkRouteItem(input: WalkRouteInput): RouteItem {
     style: createDefaultRouteStyle('walk'),
     calculation,
     easing: 'easeInOutQuad',
+    exitAnimation: 'none',
+  };
+}
+
+export interface ImportedRouteInput {
+  name: string;
+  geojson: GeoJSON.FeatureCollection;
+  startTime: number;
+  id?: string;
+}
+
+/** A route from an imported GPX/KML/GeoJSON file: its geometry as is, with no calculation to rebuild it. */
+export function createImportedRouteItem(input: ImportedRouteInput): RouteItem {
+  return {
+    kind: 'route',
+    id: input.id ?? nanoid(),
+    name: input.name,
+    geojson: input.geojson,
+    startTime: input.startTime,
+    endTime: input.startTime + DEFAULT_ITEM_DURATION,
+    style: createDefaultRouteStyle('import'),
+    easing: 'easeInOutCubic',
+    exitAnimation: 'none',
   };
 }
 
@@ -148,6 +177,8 @@ export interface BoundaryInput {
   startTime: number;
   endTime?: number;
   style?: BoundaryStyle;
+  /** Country code of the search result; becomes `style.flagCode` unless the style already has one. */
+  countryCode?: string | null;
   id?: string;
 }
 
@@ -157,11 +188,14 @@ export function createBoundaryItem(input: BoundaryInput): BoundaryItem {
     id: input.id ?? nanoid(),
     placeName: input.placeName,
     geojson: input.geojson,
-    resolveStatus: 'resolved',
     startTime: input.startTime,
     endTime: input.endTime ?? input.startTime + DEFAULT_ITEM_DURATION,
-    style: { ...(input.style ?? DEFAULT_BOUNDARY_STYLE) },
+    style: {
+      ...(input.style ?? DEFAULT_BOUNDARY_STYLE),
+      flagCode: input.style?.flagCode ?? input.countryCode ?? null,
+    },
     easing: 'easeInOutCubic',
+    exitAnimation: 'none',
   };
 }
 

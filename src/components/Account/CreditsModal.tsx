@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 import { useCredits } from "@/hooks/useCredits";
 import { SubscriptionTiers } from "./SubscriptionTiers";
 import {
@@ -25,9 +26,16 @@ import {
   Infinity as InfinityIcon,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { isWanderer } from "@/lib/cloudAccess";
+import { creditsToMinutesAt1080p } from "@/services/checkout";
 
 export function CreditsModal() {
-  const { showCreditsModal, closeCreditsModal } = useAuthStore();
+  const { showCreditsModal, closeCreditsModal } = useAuthStore(
+    useShallow((s) => ({
+      showCreditsModal: s.showCreditsModal,
+      closeCreditsModal: s.closeCreditsModal,
+    })),
+  );
 
   return (
     <Dialog
@@ -52,7 +60,13 @@ export function CreditsModal() {
 }
 
 function CreditsModalBody() {
-  const { user, closeCreditsModal, startCheckout } = useAuthStore();
+  const { user, closeCreditsModal, startCheckout } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      closeCreditsModal: s.closeCreditsModal,
+      startCheckout: s.startCheckout,
+    })),
+  );
   const { data: credits, isLoading, error, refetch } = useCredits();
 
   const { data: subscription } = useSubscription();
@@ -61,9 +75,9 @@ function CreditsModalBody() {
   const minAmount = 10;
   const maxAmount = 200;
   const creditsToGet = purchaseAmount * (purchaseAmount >= 50 ? 50 : 40);
-  const minutesToGet = creditsToGet / 8;
-  const hasActiveSubscription =
-    !!subscription && subscription.status === "active";
+  const minutesToGet = creditsToMinutesAt1080p(creditsToGet);
+  // Paid plan, including a cancelled plan still inside its paid period.
+  const hasActiveSubscription = isWanderer(subscription);
 
   if (isLoading && user) {
     return (

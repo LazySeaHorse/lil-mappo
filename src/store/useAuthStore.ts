@@ -14,6 +14,10 @@ import {
 } from "@/services/checkout";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "sonner";
+import { trackAnonymous } from "@/lib/analytics/anonymous";
+import { trackBeacon, track } from "@/lib/analytics";
+import { sanitizeAttribution } from "@/lib/analytics/privacy";
+import type { AttributionProps, UpgradeWhere } from "@/lib/analytics/events";
 import { flushWorkingProjectDraft } from "@/services/workingProjectDraft";
 
 export interface AuthUser {
@@ -21,6 +25,10 @@ export interface AuthUser {
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  /** ISO timestamp of account creation (analytics: signed_up_at, date only). */
+  createdAt?: string;
+  /** Sanitized signup attribution stored in user_metadata at signUp (analytics only). */
+  signupAttribution?: AttributionProps;
 }
 
 function toAuthUser(user: User): AuthUser {
@@ -33,6 +41,8 @@ function toAuthUser(user: User): AuthUser {
       user.user_metadata?.avatar_url ||
       user.user_metadata?.picture ||
       undefined,
+    createdAt: user.created_at || undefined,
+    signupAttribution: sanitizeAttribution(user.user_metadata?.signup_attribution),
   };
 }
 
@@ -67,7 +77,8 @@ interface AuthStore {
   closeSettingsModal: () => void;
   openCreditsModal: () => void;
   closeCreditsModal: () => void;
-  openUpgradeModal: () => void;
+  /** `where` records which surface asked for an upgrade (analytics only). */
+  openUpgradeModal: (where: UpgradeWhere) => void;
   closeUpgradeModal: () => void;
   openRendersModal: () => void;
   closeRendersModal: () => void;
@@ -114,6 +125,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ showAuthModal: true, authModalMode: "signin", authModalReason: null });
   },
   requestSignIn: (reason) => {
+    // A guest hit a sign-in gate (anonymous aggregate counter; the reason text is never sent).
+    if (!get().user) trackAnonymous('guest_gate_hit', { where: 'sign_in' });
     get().openAuthModal();
     set({ authModalReason: reason });
   },
@@ -128,7 +141,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   closeSettingsModal: () => set({ showSettingsModal: false }),
   openCreditsModal: () => set({ showCreditsModal: true }),
   closeCreditsModal: () => set({ showCreditsModal: false }),
-  openUpgradeModal: () => set({ showUpgradeModal: true }),
+  openUpgradeModal: (where) => {
+    // Guests only feed the anonymous counter; signed-in users get the product event (and a replay).
+    if (get().user) track("upgrade_prompt_shown", { where });
+    else trackAnonymous("guest_gate_hit", { where });
+    set({ showUpgradeModal: true });
+  },
   closeUpgradeModal: () => set({ showUpgradeModal: false }),
   openRendersModal: () => set({ showRendersModal: true }),
   closeRendersModal: () => set({ showRendersModal: false }),
@@ -150,6 +168,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     const toastId = "checkout-loading";
     toast.loading("Preparing checkout…", { id: toastId });
+    // The page navigates to the payment provider right after, so use a beacon.
+    trackBeacon("checkout_started", { plan, resumed: false });
 
     try {
       await initiateDodoCheckout(plan, session.access_token, { quantity });
@@ -202,6 +222,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           clearPendingPlan();
           const toastId = "checkout-loading";
           toast.loading("Preparing checkout…", { id: toastId });
+          trackBeacon("checkout_started", { plan: pendingPlan, resumed: true });
           initiateDodoCheckout(pendingPlan, session.access_token).catch(
             (err: unknown) => {
               toast.dismiss(toastId);
@@ -217,6 +238,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           clearPendingTopup();
           const toastId = "checkout-loading";
           toast.loading("Preparing checkout…", { id: toastId });
+          trackBeacon("checkout_started", { plan: "topup", resumed: true });
           initiateDodoCheckout("topup", session.access_token, {
             quantity: pendingTopup,
           }).catch((err: unknown) => {

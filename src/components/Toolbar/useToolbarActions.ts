@@ -1,9 +1,8 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { nanoid } from 'nanoid';
-import { importRouteFile } from '@/services/fileImport';
-import type { RouteItem } from '@/store/types';
-import { DEFAULT_ITEM_DURATION, createCameraKeyframe, createDefaultRouteStyle } from '@/store/itemFactories';
+import { useShallow } from 'zustand/react/shallow';
+import { loadFileImport } from '@/lib/lazyModules';
+import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
@@ -14,17 +13,24 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { extractLineCoords } from '@/engine/geoUtils';
+import { track } from '@/lib/analytics';
+import { classifyImportError, importFormatOf, importSourceOf } from '@/lib/analytics/classify';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
 
 export function useToolbarActions() {
   const mapRef = useMapRef();
-  const projectState = useProjectStore();
-  const {
-    playheadTime, addItem, addCameraKeyframe, selectItem,
-    setTerrainEnabled, setBuildingsEnabled,
-  } = projectState;
+  const { addItem, addCameraKeyframe, selectItem, setTerrainEnabled, setBuildingsEnabled } = useProjectStore(
+    useShallow(s => ({
+      addItem: s.addItem,
+      addCameraKeyframe: s.addCameraKeyframe,
+      selectItem: s.selectItem,
+      setTerrainEnabled: s.setTerrainEnabled,
+      setBuildingsEnabled: s.setBuildingsEnabled,
+    }))
+  );
 
   const { data: subscription } = useSubscription();
-  const { user, requestSignIn } = useAuthStore();
+  const { user, requestSignIn } = useAuthStore(useShallow((s) => ({ user: s.user, requestSignIn: s.requestSignIn })));
   const isLocked = !user && !hasByok();
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,29 +43,24 @@ export function useToolbarActions() {
     if (!files) return;
     for (const file of Array.from(files)) {
       try {
+        const { importRouteFile } = await loadFileImport();
         const { name, geojson } = await importRouteFile(file);
-        const item: RouteItem = {
-          kind: 'route',
-          id: nanoid(),
-          name,
-          geojson,
-          startTime: playheadTime,
-          endTime: playheadTime + DEFAULT_ITEM_DURATION,
-          style: createDefaultRouteStyle('import'),
-          easing: 'easeInOutCubic',
-        };
+        const playheadTime = useProjectStore.getState().playheadTime;
+        const item = createImportedRouteItem({ name, geojson, startTime: playheadTime });
         addItem(item);
         setTerrainEnabled(false);
         setBuildingsEnabled(false);
         selectItem(item.id);
         const pointCount = extractLineCoords(geojson).length;
+        reportRouteAdded(importSourceOf(file.name), pointCount);
         toast.success(`Imported "${name}" (${pointCount} points)`);
-      } catch {
+      } catch (err) {
+        track('route_import_failed', { format: importFormatOf(file.name), error_class: classifyImportError(err) });
         toast.error(`Failed to import ${file.name}`);
       }
     }
     e.target.value = '';
-  }, [playheadTime, addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn]);
+  }, [addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn]);
 
   const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {
@@ -72,7 +73,8 @@ export function useToolbarActions() {
     try {
       const text = await file.text();
       const project = parseProjectDocument(JSON.parse(text));
-      projectState.loadFullProject(project);
+      useProjectStore.getState().loadFullProject(project);
+      track('project_created', { source: 'import_file' });
       toast.success('Project imported successfully');
     } catch {
       toast.error('Failed to parse project file');
@@ -85,6 +87,7 @@ export function useToolbarActions() {
       requestSignIn('Sign in to export a project file.');
       return;
     }
+    const projectState = useProjectStore.getState();
     const data = JSON.stringify(toProjectDocument(projectState), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.lilmap`;
@@ -96,19 +99,22 @@ export function useToolbarActions() {
       requestSignIn('Sign in to save to your library.');
       return;
     }
-    const project = toProjectDocument(projectState);
+    const project = toProjectDocument(useProjectStore.getState());
     // Free users always save locally; Wanderer subscribers also push to cloud.
     const cloudEnabled = !isFreeUser(subscription);
 
     const result = await projectLibraryCoordinator.saveProject(project, cloudEnabled);
     switch (result.status) {
       case 'saved-locally':
+        track('project_saved', { storage: 'local' });
         toast.success('Saved to library');
         break;
       case 'uploaded':
+        track('project_saved', { storage: 'cloud' });
         toast.success('Saved');
         break;
       case 'cloud-failed':
+        track('project_saved', { storage: 'local' });
         if (result.error instanceof CloudProjectSizeError) {
           toast.warning(`Saved locally — ${result.error.message}`);
         } else {
@@ -116,6 +122,7 @@ export function useToolbarActions() {
         }
         break;
       case 'metadata-repair-needed':
+        track('project_saved', { storage: 'cloud' });
         toast.success('Saved to cloud — sync status will be repaired');
         break;
       case 'local-failed':
@@ -125,10 +132,11 @@ export function useToolbarActions() {
   };
 
   const handleNewProject = () => {
-    projectState.setShowNewProjectModal(true);
+    useProjectStore.getState().setShowNewProjectModal(true);
   };
 
   const handleAddCameraKF = () => {
+    const playheadTime = useProjectStore.getState().playheadTime;
     const map = mapRef.current?.getMap?.();
     let center: [number, number] = [0, 20];
     let zoom = 2;
@@ -144,6 +152,7 @@ export function useToolbarActions() {
     }
 
     addCameraKeyframe(createCameraKeyframe({ time: playheadTime, center, zoom, pitch, bearing }));
+    track('keyframe_added', { source: 'toolbar' });
     toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
   };
 

@@ -6,6 +6,8 @@
  * function, and reads the result as plain 0–1 numbers to draw with.
  */
 
+import { linear } from '@/engine/easings';
+
 /** Maps a 0–1 input to an eased output (which may overshoot 0–1). */
 export type Easing = (t: number) => number;
 
@@ -13,22 +15,11 @@ export function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-export function lerp(from: number, to: number, t: number): number {
-  return from + (to - from) * t;
-}
+export { lerp } from '@/engine/geoMath';
 
 // ─── Easing ───────────────────────────────────────────────────────────────────
 
-export const linear: Easing = (t) => t;
-
-export const easeOutQuad: Easing = (t) => 1 - (1 - t) * (1 - t);
-
-export const easeOutCubic: Easing = (t) => 1 - Math.pow(1 - t, 3);
-
-export const easeInCubic: Easing = (t) => t * t * t;
-
-export const easeInOutCubic: Easing = (t) =>
-  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+export { easeInCubic, easeInOutCubic, easeOutCubic, easeOutQuad, linear } from '@/engine/easings';
 
 /** Overshoots 1 by a few percent, then settles back. Larger `overshoot` swings further. */
 export function easeOutBack(t: number, overshoot = 1.70158): number {

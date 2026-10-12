@@ -11,7 +11,20 @@ import {
 } from '../motion';
 import { circle, group, polyline, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
-import { boundsOf, GROUND_DOT_RADIUS, GROUND_RING_RADIUS, groundDot, HALO_REACH, haloShadow, leaderLine, resolveDirection } from './shared';
+import {
+  boundsOf,
+  GROUND_DOT_RADIUS,
+  GROUND_RING_RADIUS,
+  groundDot,
+  HALO_CONTROL,
+  HALO_REACH,
+  haloSchema,
+  haloShadow,
+  leaderLine,
+  resolveDirection,
+  SIDE_CONTROL,
+  sideSchema,
+} from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
@@ -19,23 +32,15 @@ export const leaderLineSettingsSchema = z.object({
   lineColor: z.string().default('#FFFFFF'),
   accentColor: z.string().default('#FF5A36'),
   textColor: z.string().default('#FFFFFF'),
-  halo: z.boolean().default(true),
-  side: z.enum(['auto', 'left', 'right']).default('auto'),
+  halo: haloSchema,
+  side: sideSchema,
   lineWidth: z.number().default(1.5),
   pulse: z.boolean().default(false),
 });
 
 export type LeaderLineSettings = z.infer<typeof leaderLineSettingsSchema>;
 
-export const defaultLeaderLineSettings: LeaderLineSettings = {
-  lineColor: '#FFFFFF',
-  accentColor: '#FF5A36',
-  textColor: '#FFFFFF',
-  halo: true,
-  side: 'auto',
-  lineWidth: 1.5,
-  pulse: false,
-};
+export const defaultLeaderLineSettings: LeaderLineSettings = leaderLineSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 
@@ -250,17 +255,8 @@ export const leaderLineStyle: AnnotationStyleDefinition<LeaderLineSettings> = {
     { type: 'color', key: 'lineColor', label: 'Line color' },
     { type: 'color', key: 'accentColor', label: 'Dot color' },
     { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
-    {
-      type: 'select',
-      key: 'side',
-      label: 'Side',
-      options: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'left', label: 'Left' },
-        { value: 'right', label: 'Right' },
-      ],
-    },
+    HALO_CONTROL,
+    SIDE_CONTROL,
     { type: 'slider', key: 'lineWidth', label: 'Line width', min: 1, max: 4, step: 0.5, unit: 'px' },
     { type: 'switch', key: 'pulse', label: 'Pulse' },
   ],

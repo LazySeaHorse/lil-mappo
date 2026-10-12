@@ -1,6 +1,7 @@
 import distance from '@turf/distance';
 import simplify from '@turf/simplify';
 import { point } from '@turf/helpers';
+import { bearingDeg, clamp, METERS_PER_DEGREE } from './geoMath';
 
 
 /**
@@ -37,11 +38,17 @@ export function extractLineStringsFromGeometry(geometry: GeoJSON.Geometry): numb
   return lineStrings;
 }
 
+// Store items are immutable (geojson is replaced on edit), so results are memoized by
+// feature-collection identity. Callers must treat the returned array as read-only.
+const lineCoordsCache = new WeakMap<object, number[][]>();
+
 /**
  * Flattens every LineString / MultiLineString in a feature collection into one
  * coordinate list. Other geometry types and malformed coordinates are skipped.
  */
 export function extractLineCoords(fc: { features: GeoJSON.Feature[] }): number[][] {
+  const cached = lineCoordsCache.get(fc);
+  if (cached) return cached;
   const coords: number[][] = [];
   for (const feature of fc.features) {
     const geom = feature.geometry;
@@ -53,6 +60,7 @@ export function extractLineCoords(fc: { features: GeoJSON.Feature[] }): number[]
       }
     }
   }
+  lineCoordsCache.set(fc, coords);
   return coords;
 }
 
@@ -123,18 +131,7 @@ export function calculateBearing(start: number[], end: number[]): number {
     return 0;
   }
 
-  const toRad = (v: number) => (v * Math.PI) / 180;
-  const toDeg = (v: number) => (v * 180) / Math.PI;
-
-  const φ1 = toRad(start[1]);
-  const φ2 = toRad(end[1]);
-  const Δλ = toRad(end[0] - start[0]);
-
-  const y = Math.sin(Δλ) * Math.cos(φ2);
-  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-  const θ = Math.atan2(y, x);
-
-  let bearing = (toDeg(θ) + 360) % 360;
+  let bearing = bearingDeg(start, end);
   if (Number.isNaN(bearing) || !Number.isFinite(bearing)) return 0;
   bearing = ((bearing % 360) + 360) % 360;
   if (bearing === 360 || Object.is(bearing, -0)) return 0;
@@ -174,15 +171,15 @@ export function calculatePitch(start: number[], end: number[]): number {
 
   const pitch = (Math.atan2(dz, d) * 180) / Math.PI;
   if (Number.isNaN(pitch) || !Number.isFinite(pitch)) return 0;
-  return Math.max(-90, Math.min(90, pitch));
+  return clamp(pitch, -90, 90);
 }
 
 /**
- * Rounds a single coordinate tuple [lng, lat, alt?] to specified decimal places.
- * Default 4 decimal places gives ~11m precision, ideal for maps while dropping unnecessary float size.
+ * Rounds a single coordinate tuple [lng, lat, alt?] to specified decimal places
+ * (default 6, ~0.1 m). Altitude is rounded to 0.1 m.
  */
-export function truncateCoordinate(coord: number[], precision = 4): number[] {
-  const p = Math.max(0, Math.min(15, precision));
+export function truncateCoordinate(coord: number[], precision = 6): number[] {
+  const p = clamp(precision, 0, 15);
   const factor = Math.pow(10, p);
   const c0 = coord[0] ?? 0;
   const c1 = coord[1] ?? 0;
@@ -203,7 +200,7 @@ export function truncateCoordinate(coord: number[], precision = 4): number[] {
 /**
  * Recursively truncates coordinate precision across any GeoJSON geometry object.
  */
-export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, precision = 4): T {
+export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, precision = 6): T {
   if (!geometry || !geometry.type) return geometry;
 
   type NestedCoordinates = number[] | NestedCoordinates[];
@@ -229,26 +226,61 @@ export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, pre
   };
 }
 
+/** Sub-metre cleanup applied to every stored driving / flight route. */
+export const ROUTE_SIMPLIFY_TOLERANCE_M = 0.5;
+
 /**
- * Optimizes a GeoJSON geometry by running Douglas-Peucker simplification (via @turf/simplify)
- * and rounding coordinate precision (default 4 decimal places).
+ * Converts a distance in metres to degrees for @turf/simplify, which works in degrees.
+ * A degree of longitude shrinks with cos(latitude), so away from the equator the
+ * resulting tolerance is smaller than requested in metres east-west: conservative
+ * (it keeps slightly more points), never lossy.
+ */
+export function metersToDegrees(meters: number): number {
+  return meters / METERS_PER_DEGREE;
+}
+
+function hasAltitude(coords: unknown): boolean {
+  if (!Array.isArray(coords)) return false;
+  if (typeof coords[0] === 'number') return coords.length > 2 && coords[2] !== undefined;
+  return coords.some(hasAltitude);
+}
+
+/**
+ * Removes redundant vertices with Douglas-Peucker (via @turf/simplify) at a tolerance given in
+ * metres, then rounds coordinates (default 6 decimals, ~0.1 m). Surviving vertices keep their
+ * original positions, so the shape is preserved while the point count drops.
+ *
+ * Options: `toleranceM` (default {@link ROUTE_SIMPLIFY_TOLERANCE_M}); `tolerance` is a raw
+ * degree override; `simplify: false` only rounds.
+ *
+ * Geometries that carry altitude (a 3rd coordinate) are rounded but not simplified:
+ * @turf/simplify is 2D-only and would drop vertices along straight ground tracks, flattening
+ * the altitude profile.
+ *
+ * Simplification uses the exact Douglas-Peucker pass (turf `highQuality`) so the tolerance is a
+ * true bound on deviation; the faster radial pre-pass can compound it to roughly twice that.
  */
 export function optimizeGeometry<T extends GeoJSON.Geometry>(
   geometry: T,
-  options?: { simplify?: boolean; tolerance?: number; precision?: number }
+  options?: { simplify?: boolean; toleranceM?: number; tolerance?: number; precision?: number }
 ): T {
   if (!geometry) return geometry;
 
   const doSimplify = options?.simplify ?? true;
-  const tolerance = options?.tolerance ?? 0.0005;
-  const precision = options?.precision ?? 4;
+  const tolerance = options?.tolerance ?? metersToDegrees(options?.toleranceM ?? ROUTE_SIMPLIFY_TOLERANCE_M);
+  const precision = options?.precision ?? 6;
 
   let result: GeoJSON.Geometry = geometry;
 
-  if (doSimplify && (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon' || geometry.type === 'LineString' || geometry.type === 'MultiLineString')) {
+  if (
+    doSimplify &&
+    (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon' || geometry.type === 'LineString' || geometry.type === 'MultiLineString') &&
+    !hasAltitude(geometry.coordinates)
+  ) {
     try {
-      // Lazy import or static import of turf simplify
-      result = simplify(geometry, { tolerance, highQuality: false, mutate: false });
+      const simplified = simplify(geometry, { tolerance, highQuality: true, mutate: false });
+      // cleanCoords can collapse degenerate lines (e.g. identical endpoints) below a valid size.
+      result = hasEnoughPositions(simplified, geometry) ? simplified : geometry;
     } catch (e) {
       console.warn('Geometry simplification failed, falling back to unsimplified geometry:', e);
       result = geometry;
@@ -256,4 +288,13 @@ export function optimizeGeometry<T extends GeoJSON.Geometry>(
   }
 
   return truncateCoordinates(result as T, precision);
+}
+
+function hasEnoughPositions(out: GeoJSON.Geometry, input: GeoJSON.Geometry): boolean {
+  if (out.type === 'LineString') return out.coordinates.length >= 2;
+  if (out.type === 'MultiLineString') {
+    return out.coordinates.length === (input as GeoJSON.MultiLineString).coordinates.length
+      && out.coordinates.every((l) => l.length >= 2);
+  }
+  return true;
 }

@@ -48,10 +48,10 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
         geometry: geoStats(item.geojson),
         style: detail
           ? item.style
-          : { color: item.style.color, width: item.style.width, glow: item.style.glow, animationType: item.style.animationType ?? 'draw' },
+          : { color: item.style.color, width: item.style.width, glow: item.style.glow, animationType: item.style.animationType },
         easing: item.easing,
         ...(detail
-          ? { exitAnimation: item.exitAnimation ?? 'none', vehicle: calc?.vehicle, autoCam: item.autoCam }
+          ? { exitAnimation: item.exitAnimation, vehicle: calc?.vehicle, autoCam: item.autoCam }
           : { autoCam: !!item.autoCam?.enabled }),
       };
     }
@@ -62,13 +62,12 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
         placeName: item.placeName,
         startTime: item.startTime,
         endTime: item.endTime,
-        resolveStatus: item.resolveStatus,
         geometry: geoStats(item.geojson),
         style: detail
           ? item.style
           : { strokeColor: item.style.strokeColor, fillOpacity: item.style.fillOpacity, animationStyle: item.style.animationStyle },
         easing: item.easing,
-        ...(detail ? { exitAnimation: item.exitAnimation ?? 'none' } : {}),
+        ...(detail ? { exitAnimation: item.exitAnimation } : {}),
       };
     case 'callout':
       return {

@@ -11,7 +11,6 @@ export const createProjectSettingsSlice: StateCreator<
   ProjectSettingsSlice
 > = (set, get, store) => ({
   setProjectName: (n) => set({ name: n }),
-  setResolution: (r) => set({ resolution: r }),
   setAspectRatio: (v) =>
     set((s) => ({
       aspectRatio: v,

@@ -187,7 +187,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // Open Route Planning dropdown
     await page.getByTitle("Plan Route").click();
-    await expect(page.getByText("Choose travel mode & points")).toBeVisible();
+    await expect(page.getByText("Select travel mode and route points")).toBeVisible();
 
     // 1. Set points for Route A
     await pickMapPoint(page, 0, { xFrac: 0.3, yFrac: 0.3 });
@@ -204,7 +204,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     expect(requestCount).toBe(2);
 
     // 3. Route B should resolve in ~50ms
-    await expect(page.getByText("Path validated")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Route calculated")).toBeVisible({ timeout: 5000 });
     expect(routeBResolved).toBe(true);
 
     // Verify previewRoute in store matches Route B geometry
@@ -256,7 +256,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     );
 
     await page.getByTitle("Plan Route").click();
-    await expect(page.getByText("Choose travel mode & points")).toBeVisible();
+    await expect(page.getByText("Select travel mode and route points")).toBeVisible();
 
     await pickMapPoint(page, 0, { xFrac: 0.3, yFrac: 0.3 });
     await pickMapPoint(page, 1, { xFrac: 0.6, yFrac: 0.6 });
@@ -276,7 +276,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // Close Route dialog
     await page.keyboard.press("Escape");
-    await expect(page.getByText("Choose travel mode & points")).not.toBeVisible();
+    await expect(page.getByText("Select travel mode and route points")).not.toBeVisible();
 
     // --- Subtest B: HTTP 500 Internal Server Error on Boundary Search ---
     await page.route("https://nominatim.openstreetmap.org/**", (route) =>
@@ -288,7 +288,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     );
 
     await page.getByTitle("Add Boundary").click();
-    await expect(page.getByText("Search regions & nations")).toBeVisible();
+    await expect(page.getByText("Search regions and countries")).toBeVisible();
 
     const searchInput = page.getByPlaceholder("Search for a place or region");
     await searchInput.fill("FailingZone");
@@ -306,7 +306,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // Close Boundary dialog
     await page.keyboard.press("Escape");
-    await expect(page.getByText("Search regions & nations")).not.toBeVisible();
+    await expect(page.getByText("Search regions and countries")).not.toBeVisible();
 
     expect(pageErrors).toEqual([]);
   });
@@ -361,7 +361,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     });
 
     await page.getByTitle("Add Boundary").click();
-    await expect(page.getByText("Search regions & nations")).toBeVisible();
+    await expect(page.getByText("Search regions and countries")).toBeVisible();
 
     const searchInput = page.getByPlaceholder("Search for a place or region");
 
@@ -400,7 +400,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // 1. Route Planning under network drop
     await page.getByTitle("Plan Route").click();
-    await expect(page.getByText("Choose travel mode & points")).toBeVisible();
+    await expect(page.getByText("Select travel mode and route points")).toBeVisible();
 
     await pickMapPoint(page, 0, { xFrac: 0.3, yFrac: 0.3 });
     await pickMapPoint(page, 1, { xFrac: 0.6, yFrac: 0.6 });
@@ -419,11 +419,11 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // User cancellation via Escape closes the panel
     await page.keyboard.press("Escape");
-    await expect(page.getByText("Choose travel mode & points")).not.toBeVisible();
+    await expect(page.getByText("Select travel mode and route points")).not.toBeVisible();
 
     // 2. Boundary Search under network drop
     await page.getByTitle("Add Boundary").click();
-    await expect(page.getByText("Search regions & nations")).toBeVisible();
+    await expect(page.getByText("Search regions and countries")).toBeVisible();
 
     const searchInput = page.getByPlaceholder("Search for a place or region");
     await searchInput.fill("OfflinePlace");
@@ -441,7 +441,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // User cancellation via Escape closes the panel
     await page.keyboard.press("Escape");
-    await expect(page.getByText("Search regions & nations")).not.toBeVisible();
+    await expect(page.getByText("Search regions and countries")).not.toBeVisible();
 
     expect(pageErrors).toEqual([]);
   });

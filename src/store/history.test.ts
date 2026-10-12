@@ -34,21 +34,23 @@ function route(id: string, name = `Route ${id}`): RouteItem {
     geojson: { type: 'FeatureCollection', features: [] },
     style: {
       color: '#3b82f6', width: 4, glow: true, glowWidth: 12,
-      trailFade: false, trailFadeLength: 0.2, dashPattern: null,
+      trailFade: false, trailFadeLength: 0.2, dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
     },
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
   };
 }
 
 function boundary(id: string, placeName = 'Paris'): BoundaryItem {
   return {
     kind: 'boundary', id, placeName, geojson: { type: 'Point', coordinates: [0, 0] },
-    resolveStatus: 'resolved', startTime: 0, endTime: 5,
+    startTime: 0, endTime: 5,
     style: {
       strokeColor: '#fff', fillColor: '#fff', strokeWidth: 2, glow: false, fillOpacity: 0.2,
       animateStroke: false, animationStyle: 'draw', traceLength: 0.1,
+      maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85,
+      fillMode: 'color', flagCode: null,
     },
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
   };
 }
 
@@ -371,14 +373,6 @@ describe('selection cleanup and blocking', () => {
     useProjectStore.setState({ selectedItemId: 'r1' });
     undo();
     expect(state().selectedItemId).toBe('r1');
-  });
-
-  it('marks boundaries with geometry as resolved after undo', () => {
-    state().addItem(boundary('b1'));
-    withoutHistory(() => state().updateItem('b1', { resolveStatus: 'idle' }));
-    state().updateItem('b1', { placeName: 'Lyon' });
-    undo();
-    expect((state().items.b1 as BoundaryItem).resolveStatus).toBe('resolved');
   });
 
   it('blocks undo and redo while exporting', () => {

@@ -1,12 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import type { CircleNode, GroupNode, PolylineNode } from '../types';
-import { boundsOf, GROUND_DOT_RADIUS, groundDot, HALO_SHADOW, haloShadow, leaderLine, resolveDirection } from './shared';
+import {
+  boundsOf,
+  GROUND_DOT_RADIUS,
+  groundDot,
+  HALO_CONTROL,
+  HALO_SHADOW,
+  haloSchema,
+  haloShadow,
+  leaderLine,
+  resolveDirection,
+  SIDE_CONTROL,
+  sideSchema,
+} from './shared';
 import { circle } from '../scene/primitives';
 
 describe('haloShadow', () => {
   it('is the house shadow when enabled and nothing when not', () => {
     expect(haloShadow(true)).toBe(HALO_SHADOW);
     expect(haloShadow(false)).toBeUndefined();
+  });
+});
+
+describe('shared settings', () => {
+  it('defaults the soft shadow on and the side to auto', () => {
+    expect(haloSchema.parse(undefined)).toBe(true);
+    expect(sideSchema.parse(undefined)).toBe('auto');
+    expect(sideSchema.safeParse('up').success).toBe(false);
+  });
+
+  it('offers a control for each', () => {
+    expect(HALO_CONTROL).toEqual({ type: 'switch', key: 'halo', label: 'Soft shadow' });
+    expect(SIDE_CONTROL).toMatchObject({ type: 'select', key: 'side', label: 'Side' });
+    expect(SIDE_CONTROL.type === 'select' && SIDE_CONTROL.options.map((o) => o.value)).toEqual(['auto', 'left', 'right']);
   });
 });
 

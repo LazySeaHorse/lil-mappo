@@ -3,21 +3,12 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { DEFAULT_ITEM_DURATION } from '@/store/itemFactories';
 import { DEFAULT_VIEW_ZOOM } from '@/annotations/migration';
-import type { CameraItem, EasingName, TimelineItem } from '@/store/types';
+import type { CameraItem, TimelineItem } from '@/store/types';
+import { EASING_NAMES } from '@/engine/easings';
 import { ToolError } from '../errors';
 import { getAgentMap } from '../mapRef';
 
-export const EASING_NAMES = [
-  'linear',
-  'easeInQuad', 'easeOutQuad', 'easeInOutQuad',
-  'easeInCubic', 'easeOutCubic', 'easeInOutCubic',
-  'easeInOutSine',
-  'bounce',
-] as const satisfies readonly EasingName[];
-
-// Compile-time check that EASING_NAMES covers every EasingName.
-const _easingsComplete: [Exclude<EasingName, (typeof EASING_NAMES)[number]>] extends [never] ? true : never = true;
-void _easingsComplete;
+export { EASING_NAMES };
 
 export const easingSchema = z.enum(EASING_NAMES).describe('Easing curve applied to the item\'s progress or the move into a keyframe.');
 

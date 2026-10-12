@@ -13,6 +13,7 @@ import type {
   ToolOutcome,
 } from './defineTool';
 import { ALL_TOOLS } from './tools';
+import { errorMessage } from '@/lib/utils';
 
 const toolsByName = new Map<string, AnyAgentTool>(ALL_TOOLS.map((t) => [t.name, t]));
 
@@ -118,7 +119,7 @@ export async function runAgentTool(name: string, rawInput: unknown): Promise<Age
     console.error(`[agent] ${name} failed`, err);
     return fail({
       error: 'internal_error',
-      message: err instanceof Error ? err.message : String(err),
+      message: errorMessage(err),
     });
   }
 }

@@ -1,24 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createClient } from "@supabase/supabase-js";
-
-type SubscriptionEntitlement = {
-  tier: string;
-  status: string;
-  renewal_date: string | null;
-} | null;
-
-export function hasActiveMapEntitlement(
-  subscription: SubscriptionEntitlement,
-  today = new Date().toISOString().slice(0, 10)
-): boolean {
-  if (!subscription || subscription.tier !== "wanderer") return false;
-  if (subscription.status === "active") return true;
-  return (
-    subscription.status === "cancelling" &&
-    !!subscription.renewal_date &&
-    subscription.renewal_date >= today
-  );
-}
+import { adminClient } from "./_lib/supabase.js";
+import { isWanderer } from "./_lib/entitlement.js";
 
 /**
  * POST /api/track-map-load
@@ -48,11 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Missing token" });
   }
 
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const supabase = adminClient();
 
   // Verify the JWT and extract the user
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
@@ -67,9 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const isWanderer = hasActiveMapEntitlement(sub);
-
-  if (isWanderer) {
+  if (isWanderer(sub)) {
     return res.status(200).json({ allowed: true, monthly_total: 0, daily_total: 0 });
   }
 

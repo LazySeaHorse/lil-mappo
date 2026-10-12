@@ -47,6 +47,24 @@ describe('project document persistence boundary', () => {
     expect(document).not.toHaveProperty('setDuration');
   });
 
+  it('keeps optional custom style fields only when they are set', () => {
+    const plain = toProjectDocument(createProject({ id: 'plain' }));
+    expect(plain).not.toHaveProperty('customMapStyleUrl');
+    expect(plain).not.toHaveProperty('customMapStyleLabel');
+
+    const custom = toProjectDocument(
+      createProject({ id: 'custom', customMapStyleUrl: 'mapbox://styles/a/b', customMapStyleLabel: 'Mine' }),
+    );
+    expect(custom).toMatchObject({ customMapStyleUrl: 'mapbox://styles/a/b', customMapStyleLabel: 'Mine' });
+  });
+
+  it('round-trips a project through the document unchanged', () => {
+    const project = createProject({ id: 'round-trip', name: 'Trip', projection: 'mercator', fogColor: '#123456' });
+    const { schemaVersion, ...rest } = toProjectDocument({ ...project, playheadTime: 3 } as never);
+    expect(schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
+    expect(rest).toStrictEqual(project);
+  });
+
   it('strips unknown and transient keys from untrusted documents', () => {
     const project = createProject({ id: 'polluted-project' });
     const parsed = parseProjectDocument({
@@ -306,11 +324,17 @@ describe('project document persistence boundary', () => {
     expect(route.kind).toBe('route');
     if (route.kind === 'route') {
       expect(route.style).not.toHaveProperty('glowColor');
+      // A missing exit animation means the route stays on screen after its end.
+      expect(route.exitAnimation).toBe('none');
+      // The renderer's draw animation and comet trail length, which old documents relied on.
+      expect(route.style).toMatchObject({ animationType: 'draw', cometTrailLength: 0.2 });
     }
     expect(boundary.kind).toBe('boundary');
     if (boundary.kind === 'boundary') {
       expect(boundary.style.fillColor).toBe('#123456');
       expect(boundary.style.traceLength).toBe(0.1);
+      expect(boundary.style).toMatchObject({ maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null });
+      expect(boundary.exitAnimation).toBe('none');
     }
     expect(callout.kind).toBe('callout');
     if (callout.kind === 'callout') {
@@ -318,6 +342,66 @@ describe('project document persistence boundary', () => {
     }
     expect(parsed).not.toHaveProperty('playheadTime');
     expect(toProjectDocument(parsed).schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
+  });
+
+  it('loads a boundary saved with a search status, dropping the status', () => {
+    const document = toProjectDocument(createProject());
+    const boundary = {
+      kind: 'boundary', id: 'b1', placeName: 'Testland',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
+      resolveStatus: 'idle', startTime: 0, endTime: 5, easing: 'linear',
+      style: {
+        strokeColor: '#123456', fillColor: '#123456', strokeWidth: 3, glow: false, fillOpacity: 0.2,
+        animateStroke: true, animationStyle: 'draw', traceLength: 0.1,
+      },
+    };
+    const parsed = parseProjectDocument({ ...document, items: { ...document.items, b1: boundary }, itemOrder: [...document.itemOrder, 'b1'] });
+    expect(parsed.items.b1).toMatchObject({ kind: 'boundary', geojson: boundary.geojson });
+    expect(parsed.items.b1).not.toHaveProperty('resolveStatus');
+  });
+
+  describe('boundary fillOpacity', () => {
+    function parseWithFillOpacity(fillOpacity: number) {
+      const boundary = {
+        kind: 'boundary' as const,
+        id: 'b1',
+        placeName: 'Testland',
+        geojson: null,
+        resolveStatus: 'resolved' as const,
+        startTime: 0,
+        endTime: 5,
+        style: {
+          strokeColor: '#123456',
+          fillColor: '#123456',
+          strokeWidth: 3,
+          glow: false,
+          fillOpacity,
+          animateStroke: true,
+          animationStyle: 'draw' as const,
+          traceLength: 0.1,
+        },
+        easing: 'linear' as const,
+      };
+      const document = toProjectDocument(createProject());
+      const parsed = parseProjectDocument({
+        ...document,
+        items: { ...document.items, b1: boundary },
+        itemOrder: [...document.itemOrder, 'b1'],
+      });
+      const item = parsed.items.b1;
+      if (item.kind !== 'boundary') throw new Error('expected a boundary');
+      return item.style.fillOpacity;
+    }
+
+    it('clamps an out-of-range value from an old document instead of rejecting it', () => {
+      expect(parseWithFillOpacity(1.5)).toBe(1);
+      expect(parseWithFillOpacity(-0.2)).toBe(0);
+      expect(parseWithFillOpacity(Infinity)).toBe(1);
+    });
+
+    it('keeps an in-range value as it is', () => {
+      for (const value of [0, 0.1, 0.5, 1]) expect(parseWithFillOpacity(value)).toBe(value);
+    });
   });
 
   it('rejects project files from newer unsupported schema versions', () => {
@@ -387,7 +471,7 @@ describe('project document persistence boundary', () => {
   });
 
   describe('v1 → v2 plane auto-camera migration', () => {
-    function v1DocumentWithRoute(type: 'car' | 'plane', distance: number, height: number) {
+    function v1DocumentWithRoute(type: 'car' | 'plane', distance: number, height: number, mode = 'cinematic', version = 1) {
       const { items: _items, itemOrder: _order, ...rest } = toProjectDocument(createProject());
       const routeItem = {
         kind: 'route', id: 'r1', name: 'Flight',
@@ -403,13 +487,13 @@ describe('project document persistence boundary', () => {
           vehicle: { enabled: true, type, modelId: '', scale: 1 },
         },
         autoCam: {
-          enabled: true, mode: 'cinematic', pitch: 65, smoothing: 0.3,
+          enabled: true, mode, pitch: 65, smoothing: 0.3,
           distance, height, zoom: 14, lookAhead: 300,
         },
       };
       return {
         ...rest,
-        schemaVersion: 1,
+        schemaVersion: version,
         items: { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] }, r1: routeItem },
         itemOrder: ['r1'],
       };
@@ -420,16 +504,29 @@ describe('project document persistence boundary', () => {
       return r.kind === 'route' ? r.autoCam : undefined;
     };
 
+    // Each ends up as v5 framing: 50 km back and 30 km up is 58.3 km away at 59° from straight down.
     it('scales plane follow framing saved before the plane model was enlarged', () => {
-      expect(autoCamOf(v1DocumentWithRoute('plane', 500, 300))).toMatchObject({ distance: 50000, height: 30000 });
+      expect(autoCamOf(v1DocumentWithRoute('plane', 500, 300))).toMatchObject({ distance: 58310, pitch: 59 });
     });
 
     it('leaves plane framing already in the plane range untouched', () => {
-      expect(autoCamOf(v1DocumentWithRoute('plane', 50000, 30000))).toMatchObject({ distance: 50000, height: 30000 });
+      expect(autoCamOf(v1DocumentWithRoute('plane', 50000, 30000))).toMatchObject({ distance: 58310, pitch: 59 });
     });
 
     it('leaves car routes untouched', () => {
-      expect(autoCamOf(v1DocumentWithRoute('car', 500, 300))).toMatchObject({ distance: 500, height: 300 });
+      expect(autoCamOf(v1DocumentWithRoute('car', 500, 300))).toMatchObject({ distance: 583, pitch: 59 });
+    });
+
+    describe('v4 → v5 follow framing', () => {
+      it('keeps a follow camera exactly where it was, as distance and pitch', () => {
+        const cam = autoCamOf(v1DocumentWithRoute('car', 400, 400, 'cinematic', 4))!;
+        expect(cam).toMatchObject({ distance: 566, pitch: 45 });
+        expect(cam).not.toHaveProperty('height');
+      });
+
+      it('keeps the pitch a navigation camera was already using', () => {
+        expect(autoCamOf(v1DocumentWithRoute('car', 400, 400, 'navigation', 4))).toMatchObject({ distance: 566, pitch: 65 });
+      });
     });
   });
   describe('v2 → v3 route calculation migration', () => {
@@ -665,5 +762,52 @@ describe('project document persistence boundary', () => {
         transition: { enter: 'auto', exit: 'auto' },
       });
     });
+  });
+});
+
+describe('createProject', () => {
+  it('builds a complete project with the documented defaults', () => {
+    const project = createProject();
+    expect(project).toStrictEqual({
+      id: expect.any(String),
+      name: 'Untitled Project',
+      duration: 30,
+      fps: 30,
+      resolution: [1280, 720],
+      aspectRatio: '16:9',
+      exportResolution: '720p',
+      isVertical: false,
+      projection: 'globe',
+      lightPreset: 'day',
+      starIntensity: 0.6,
+      fogColor: null,
+      terrainExaggeration: 1.5,
+      mapStyle: 'standard',
+      terrainEnabled: false,
+      buildingsEnabled: false,
+      labelVisibility: {},
+      show3dLandmarks: true,
+      show3dTrees: true,
+      show3dFacades: true,
+      items: { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] } },
+      itemOrder: ['camera-track'],
+      mapCenter: [0, 0],
+    });
+    expect(createProject().id).not.toBe(project.id);
+  });
+
+  it('sizes the resolution from the export settings and applies overrides', () => {
+    const project = createProject({ aspectRatio: '1:1', exportResolution: '1080p', isVertical: true, duration: 12 });
+    expect(project.resolution).toEqual([1080, 1080]);
+    expect(project.duration).toBe(12);
+    expect(createProject({ exportResolution: '1080p', isVertical: true }).resolution).toEqual([1080, 1920]);
+  });
+
+  it('does not share mutable defaults between projects', () => {
+    const a = createProject();
+    const b = createProject();
+    expect(a.labelVisibility).not.toBe(b.labelVisibility);
+    expect(a.mapCenter).not.toBe(b.mapCenter);
+    expect(a.items).not.toBe(b.items);
   });
 });

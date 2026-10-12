@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GroupNode, PathNode, PolylineNode, SceneNode, StyleRenderInput, TextNode } from '../types';
-import { defaultFlagSettings, flagSettingsSchema, flagStyle, measureFlag, renderFlag, type FlagSettings } from './flag';
+import { defaultFlagSettings, flagStyle, measureFlag, renderFlag, type FlagSettings } from './flag';
 
 const GROUND = { x: 0, y: 90 };
 
@@ -43,7 +43,6 @@ describe('flagStyle definition', () => {
 
   it('has a control per setting', () => {
     expect(flagStyle.controls.map((c) => c.key).sort()).toEqual(Object.keys(defaultFlagSettings).sort());
-    expect(flagSettingsSchema.parse({})).toEqual(defaultFlagSettings);
   });
 });
 

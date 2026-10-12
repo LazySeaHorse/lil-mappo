@@ -49,14 +49,15 @@ const TEST_DIRECTIONS = {
 };
 
 async function stubExternalServices(page: Page) {
-  await page.route('https://api.mapbox.com/styles/v1/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_STYLE) }),
+  // 1. Mapbox styles, telemetry, tiles, directions & search (100% mocked, $0 cost)
+  await page.route('https://api.mapbox.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
   );
   await page.route('https://api.mapbox.com/directions/v5/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_DIRECTIONS) }),
   );
-  await page.route('https://api.mapbox.com/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  await page.route('https://api.mapbox.com/styles/v1/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_STYLE) }),
   );
   await page.route('https://events.mapbox.com/**', (route) => route.fulfill({ status: 204, body: '' }));
   await page.route('https://nominatim.openstreetmap.org/**', (route) =>
@@ -117,7 +118,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     // 1. Start route planning
     const planRouteBtn = page.getByTitle('Plan Route');
     await planRouteBtn.click();
-    await expect(page.getByText('Route points')).toBeVisible();
+    await expect(page.getByText('Route points', { exact: true })).toBeVisible();
 
     // 2. Click "Pick on Map" for start point
     const pickStartBtn = page.getByTitle('Pick on Map').first();
@@ -130,7 +131,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     // 3. Abruptly switch to Boundary tool while picking is active
     const addBoundaryBtn = page.getByTitle('Add Boundary');
     await addBoundaryBtn.click();
-    await expect(page.getByText('Search regions & nations')).toBeVisible();
+    await expect(page.getByText('Search regions and countries')).toBeVisible();
 
     // Verify Route picker was cleanly cancelled and no dangling picking session exists
     activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);

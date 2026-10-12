@@ -83,7 +83,6 @@ describe('registered styles', () => {
     });
 
     it('has default settings its schema accepts, and controls that point at real settings', () => {
-      expect(style.settingsSchema.parse({})).toEqual(style.defaultSettings);
       expect(style.settingsSchema.parse(style.defaultSettings)).toEqual(style.defaultSettings);
       const keys = Object.keys(style.defaultSettings as object);
       for (const control of style.controls) {

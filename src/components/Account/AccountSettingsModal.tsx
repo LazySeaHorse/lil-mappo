@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
 import { TIER_LABELS } from "@/lib/database.types";
@@ -32,7 +33,12 @@ import secureLocalStorage from "react-secure-storage";
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
 export function AccountSettingsModal() {
-  const { showSettingsModal, closeSettingsModal } = useAuthStore();
+  const { showSettingsModal, closeSettingsModal } = useAuthStore(
+    useShallow((s) => ({
+      showSettingsModal: s.showSettingsModal,
+      closeSettingsModal: s.closeSettingsModal,
+    })),
+  );
 
   return (
     <Dialog
@@ -51,8 +57,15 @@ export function AccountSettingsModal() {
 type View = "main" | "manage";
 
 function AccountSettingsModalBody() {
-  const { user, closeSettingsModal, openAuthModal, session, openUpgradeModal } =
-    useAuthStore();
+  const { user, closeSettingsModal, openAuthModal, session, openUpgradeModal } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      closeSettingsModal: s.closeSettingsModal,
+      openAuthModal: s.openAuthModal,
+      session: s.session,
+      openUpgradeModal: s.openUpgradeModal,
+    })),
+  );
   const { data: subscription, refetch: refetchSub } = useSubscription();
   const { data: credits } = useCredits();
   const [view, setView] = useState<View>("main");
@@ -71,7 +84,7 @@ function AccountSettingsModalBody() {
 
     if (trimmed) {
       if (isAppOwnKey(trimmed)) {
-        setTokenError("This is the app token. Enter your own Mapbox access token.");
+        setTokenError("This token is the default app token. Enter your personal Mapbox token.");
         return;
       }
       secureLocalStorage.setItem(BYOK_STORAGE_KEY, trimmed);
@@ -118,7 +131,7 @@ function AccountSettingsModalBody() {
         onRefetch={() => refetchSub()}
         onOpenUpgrade={() => {
           closeSettingsModal();
-          openUpgradeModal();
+          openUpgradeModal('account_settings');
         }}
       />
     );
@@ -207,7 +220,7 @@ function AccountSettingsModalBody() {
             <PremiumUpsellCard
               onClick={() => {
                 closeSettingsModal();
-                openUpgradeModal();
+                openUpgradeModal('account_settings');
               }}
             />
           )}
@@ -221,9 +234,9 @@ function AccountSettingsModalBody() {
           />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Use your own Mapbox access token to remove free-plan export limits.
-              The app stores the token on this device. It is{" "}
-              <span className="font-medium text-foreground">not sent to our servers</span>.{" "}
+              Add your Mapbox access token to remove export limits.
+              The app stores the token locally on this device and{" "}
+              <span className="font-medium text-foreground">does not send it to our servers</span>.{" "}
               <a
                 href="https://mapbox.com/"
                 target="_blank"

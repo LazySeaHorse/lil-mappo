@@ -65,6 +65,21 @@ export async function preloadImage(src: string): Promise<HTMLImageElement> {
 
 // ─── Core renderer ────────────────────────────────────────────────────────────
 
+/** Most parsed path strings kept; styles redraw the same few paths every frame. */
+export const PATH_CACHE_LIMIT = 256;
+const pathCache = new Map<string, Path2D>();
+
+/** The parsed form of an SVG path string, reused across frames (fill and stroke never change it). */
+function getPath2D(d: string): Path2D {
+  let path = pathCache.get(d);
+  if (!path) {
+    path = new Path2D(d);
+    if (pathCache.size >= PATH_CACHE_LIMIT) pathCache.delete(pathCache.keys().next().value as string);
+    pathCache.set(d, path);
+  }
+  return path;
+}
+
 /**
  * Render a SceneNode tree onto a Canvas 2D context.
  * The context should already be translated to the annotation's anchor point.
@@ -243,7 +258,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
     case 'path': {
       if (node.opacity != null) ctx.globalAlpha *= node.opacity;
 
-      const path2d = new Path2D(node.d);
+      const path2d = getPath2D(node.d);
       paintShadowed(ctx, node.shadow, () => {
         if (node.fill) {
           ctx.fillStyle = node.fill;

@@ -51,6 +51,21 @@ describe('easing functions', () => {
     expect(easeInOutCubic(0.75)).toBeGreaterThan(0.75);
   });
 
+  it('match the closed forms they replaced, exactly at the ends', () => {
+    const closedForms: Record<string, Easing> = {
+      easeOutQuad: (t) => 1 - (1 - t) * (1 - t),
+      easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
+      easeInCubic: (t) => t * t * t,
+      easeInOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    };
+    for (const [name, closed] of Object.entries(closedForms)) {
+      const ease = EASINGS[name];
+      expect(ease(0), name).toBe(0);
+      expect(ease(1), name).toBe(1);
+      for (let i = -10; i <= 110; i++) expect(ease(i / 100), name).toBeCloseTo(closed(i / 100), 12);
+    }
+  });
+
   it('easeOutBack overshoots 1 before settling', () => {
     const peak = Math.max(...Array.from({ length: 100 }, (_, i) => easeOutBack(i / 99)));
     expect(peak).toBeGreaterThan(1.05);

@@ -14,6 +14,9 @@ import {
   transformMapboxRequest,
   isDarkMapStyle,
   getDefaultFogColor,
+  resolveFog,
+  projectionShowsStars,
+  isStandardBasemap,
 } from './mapbox';
 
 describe('Mapbox configuration', () => {
@@ -25,37 +28,37 @@ describe('Mapbox configuration', () => {
     expect(MAP_STYLES).toHaveProperty('navigationDay');
     expect(MAP_STYLES).toHaveProperty('navigationNight');
 
-    expect(MAP_STYLES.bubble).toEqual({
+    expect(MAP_STYLES.bubble).toMatchObject({
       label: 'Bubble',
       url: 'mapbox://styles/mapbox-map-design/cl4wxue5j000c14r17uqrjpqb',
       category: 'community',
     });
 
-    expect(MAP_STYLES.waterWorld).toEqual({
+    expect(MAP_STYLES.waterWorld).toMatchObject({
       label: 'Water World',
       url: 'mapbox://styles/mapbox-map-design/cl4bxa84b000l15kg4a2q8zsr',
       category: 'community',
     });
 
-    expect(MAP_STYLES.neonGlow).toEqual({
+    expect(MAP_STYLES.neonGlow).toMatchObject({
       label: 'Neon Glow',
       url: 'mapbox://styles/mapbox-map-design/cl4gxqwi5001415l381n7qwak',
       category: 'community',
     });
 
-    expect(MAP_STYLES.blackMarble).toEqual({
+    expect(MAP_STYLES.blackMarble).toMatchObject({
       label: 'Black Marble',
       url: 'mapbox://styles/mapbox-map-design/cl4fnpof7000i15p8jvz3aw2r',
       category: 'community',
     });
 
-    expect(MAP_STYLES.navigationDay).toEqual({
+    expect(MAP_STYLES.navigationDay).toMatchObject({
       label: 'Nav Day',
       url: 'mapbox://styles/mapbox/navigation-guidance-day-v4',
       category: 'community',
     });
 
-    expect(MAP_STYLES.navigationNight).toEqual({
+    expect(MAP_STYLES.navigationNight).toMatchObject({
       label: 'Nav Night',
       url: 'mapbox://styles/mapbox/navigation-guidance-night-v4',
       category: 'community',
@@ -105,12 +108,63 @@ describe('Mapbox configuration', () => {
     expect(getDefaultFogColor('blackMarble')).toBe('#171717');
     expect(getDefaultFogColor('navigationNight')).toBe('#171717');
 
-    expect(getDefaultFogColor('satellite')).toBe('#DC9F71');
-    expect(getDefaultFogColor('satelliteStreets')).toBe('#DC9F71');
+    expect(getDefaultFogColor('satellite')).toBe('#5d7883');
+    expect(getDefaultFogColor('satelliteStreets')).toBe('#5d7883');
 
-    expect(getDefaultFogColor('standard')).toBe('#BAD2EB');
-    expect(getDefaultFogColor('bubble')).toBe('#BAD2EB');
-    expect(getDefaultFogColor('waterWorld')).toBe('#BAD2EB');
-    expect(getDefaultFogColor('navigationDay')).toBe('#BAD2EB');
+    expect(getDefaultFogColor('standard')).toBe('#bad2eb');
+    expect(getDefaultFogColor('standard', 'night')).toBe('#171717');
+    expect(getDefaultFogColor('bubble')).toBe('#bad2eb');
+    expect(getDefaultFogColor('waterWorld')).toBe('#bad2eb');
+    expect(getDefaultFogColor('navigationDay')).toBe('#bad2eb');
+  });
+});
+
+describe('resolveFog', () => {
+  const state = (overrides: Partial<Parameters<typeof resolveFog>[0]> = {}) => ({
+    mapStyle: 'standard', projection: 'globe' as const, lightPreset: 'day' as const,
+    starIntensity: 0.6, fogColor: null, ...overrides,
+  });
+
+  it('renders the fog color the picker defaults to, for every style and light preset', () => {
+    for (const mapStyle of [...Object.keys(MAP_STYLES), 'some-custom-style']) {
+      for (const lightPreset of ['day', 'dawn', 'dusk', 'night'] as const) {
+        expect(resolveFog(state({ mapStyle, lightPreset })).color, `${mapStyle} ${lightPreset}`)
+          .toBe(getDefaultFogColor(mapStyle, lightPreset));
+      }
+    }
+  });
+
+  it('gives satellite imagery its own blue-grey haze, not the dark-style fog', () => {
+    expect(resolveFog(state({ mapStyle: 'satellite' }))).toMatchObject({ color: '#5d7883', 'horizon-blend': 0.4 });
+    expect(resolveFog(state({ mapStyle: 'satelliteStreets' })).color).toBe('#5d7883');
+    expect(resolveFog(state({ mapStyle: 'dark' })).color).toBe('#171717');
+  });
+
+  it('follows the Standard light preset: dark fog at dusk and night', () => {
+    expect(resolveFog(state({ lightPreset: 'day' })).color).toBe('#bad2eb');
+    expect(resolveFog(state({ lightPreset: 'dawn' })).color).toBe('#bad2eb');
+    expect(resolveFog(state({ lightPreset: 'dusk' })).color).toBe('#171717');
+    expect(resolveFog(state({ lightPreset: 'night' })).color).toBe('#171717');
+    // Classic styles have no light preset
+    expect(resolveFog(state({ mapStyle: 'streets', lightPreset: 'night' })).color).toBe('#bad2eb');
+  });
+
+  it('draws stars exactly when the projection shows them', () => {
+    expect(projectionShowsStars('globe')).toBe(true);
+    expect(projectionShowsStars('mercator')).toBe(false);
+    for (const projection of ['globe', 'mercator'] as const) {
+      const stars = resolveFog(state({ projection, starIntensity: 0.7 }))['star-intensity'];
+      expect(stars).toBe(projectionShowsStars(projection) ? 0.7 : 0);
+    }
+  });
+});
+
+describe('basemap kind', () => {
+  it('marks Standard as the only style whose basemap is a Standard import', () => {
+    for (const [key, def] of Object.entries(MAP_STYLES)) {
+      expect(def.basemap, key).toBe(key === 'standard' ? 'standard' : 'classic');
+      expect(isStandardBasemap(key), key).toBe(key === 'standard');
+    }
+    expect(isStandardBasemap('some-custom-style')).toBe(false);
   });
 });

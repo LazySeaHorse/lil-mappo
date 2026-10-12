@@ -30,6 +30,10 @@ export default {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        wish: {
+          DEFAULT: "hsl(var(--wish))",
+          foreground: "hsl(var(--wish-foreground))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

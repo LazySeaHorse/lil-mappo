@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useProjectStore, CAMERA_TRACK_ID, createTransientState } from './useProjectStore';
-import { isCameraItem, isRouteItem, isBoundaryItem, isCalloutItem, getItem } from './typeGuards';
-import type { RouteItem, BoundaryItem, CalloutItem, CameraKeyframe, CameraItem } from './types';
+import { isRouteItem, isBoundaryItem, getItem } from './typeGuards';
+import type { RouteItem, CameraKeyframe, CameraItem } from './types';
 import { createProject } from './projectDocument';
 
 describe('useProjectStore modular slices', () => {
@@ -27,9 +27,9 @@ describe('useProjectStore modular slices', () => {
           glowWidth: 12,
           trailFade: false,
           trailFadeLength: 0.2,
-          dashPattern: null,
+          dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
         },
-        easing: 'linear',
+        easing: 'linear', exitAnimation: 'none',
       };
 
       store.addItem(routeItem);

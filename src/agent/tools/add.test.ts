@@ -4,6 +4,8 @@ import { undo, redo } from '@/store/history';
 import { agentEvents } from '../events';
 import { runAgentTool } from '../runner';
 import { setAgentMapRef } from '../mapRef';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
+import { syntheticIsland } from '@/test/syntheticGeometry';
 import { historyPast, resetAgentTestState, resultJson } from '../testHelpers';
 
 const state = () => useProjectStore.getState();
@@ -28,7 +30,7 @@ function stubNetwork() {
       return new Response(JSON.stringify({
         type: 'FeatureCollection',
         features: [{
-          type: 'Feature', properties: { display_name: 'Portugal, Europe', type: 'administrative' },
+          type: 'Feature', properties: { display_name: 'Portugal, Europe', type: 'administrative', extratags: { 'ISO3166-1': 'PT' } },
           geometry: { type: 'Polygon', coordinates: [[[-9, 37], [-6, 37], [-6, 42], [-9, 42], [-9, 37]]] },
         }],
       }));
@@ -81,6 +83,7 @@ describe('add tools', () => {
     const route = state().items[created.id];
     expect(route.kind === 'route' && route.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' } });
     expect(route.kind === 'route' && route.endTime).toBe(5);
+    expect(route.kind === 'route' && route.exitAnimation).toBe('none');
     expect(steps()).toBe(1);
   });
 
@@ -125,9 +128,43 @@ describe('add tools', () => {
     expect(body.created.placeName).toBe('Portugal');
     expect(body.bbox).toEqual([-9, 37, -6, 42]);
     const item = state().items[body.created.id];
-    expect(item).toMatchObject({ kind: 'boundary', resolveStatus: 'resolved', startTime: 1, endTime: 6, style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
+    expect(item).toMatchObject({ kind: 'boundary', startTime: 1, endTime: 6, exitAnimation: 'none', style: { strokeColor: '#00ff00', animationStyle: 'trace', fillOpacity: 0.1 } });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add boundary "Portugal"' });
+  });
+
+  it('add_boundary prefills flagCode from the search result without switching to flag fill', async () => {
+    const body = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal' }));
+    expect(state().items[body.created.id]).toMatchObject({ style: { flagCode: 'pt', fillMode: 'color' } });
+  });
+
+  it('add_boundary accepts fillMode flag with an explicit flagCode and rejects unknown codes', async () => {
+    const flagged = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal', style: { fillMode: 'flag', flagCode: 'ES' } }));
+    expect(state().items[flagged.created.id]).toMatchObject({ style: { fillMode: 'flag', flagCode: 'es' } });
+    const bad = await runAgentTool('add_boundary', { query: 'Portugal', style: { fillMode: 'flag', flagCode: 'xx' } });
+    expect(bad.isError).toBe(true);
+  });
+
+  it('add_boundary accepts the outside-mask style fields and defaults them off', async () => {
+    const masked = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal', style: { maskOutside: true, maskColor: '#112233', maskOpacity: 0.5 } }));
+    expect(state().items[masked.created.id]).toMatchObject({ style: { maskOutside: true, maskColor: '#112233', maskOpacity: 0.5 } });
+    const plain = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Portugal' }));
+    expect(state().items[plain.created.id]).toMatchObject({ style: { maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85 } });
+    const bad = await runAgentTool('add_boundary', { query: 'Portugal', style: { maskOpacity: 2 } });
+    expect(bad.isError).toBe(true);
+  });
+
+  it('add_boundary simplifies at Standard by default and honours an optional detail level', async () => {
+    const island = syntheticIsland();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: { display_name: 'Isola, Italia', type: 'island' }, geometry: island }],
+    }))));
+    const ringOf = (id: string) => ((state().items[id] as { geojson: GeoJSON.Polygon }).geojson.coordinates[0]);
+    const std = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola' }));
+    expect(ringOf(std.created.id)).toEqual((applyBoundaryDetail(island, 'standard') as GeoJSON.Polygon).coordinates[0]);
+    const light = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola', detail: 'light' }));
+    expect(ringOf(light.created.id).length).toBeLessThan(ringOf(std.created.id).length);
   });
 
   it('add_boundary reports when nothing matches', async () => {
@@ -150,6 +187,14 @@ describe('add tools', () => {
     });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add callout "Hello"' });
+  });
+
+  it('add_callout validates settings against the style', async () => {
+    const bad = resultJson(await runAgentTool('add_callout', { title: 'Bad', location: [1, 2], settings: { pulse: 'yes' } }));
+    expect(bad).toMatchObject({ error: 'invalid_settings', message: expect.stringMatching(/^settings are not valid for style "leader-line": pulse: /) });
+
+    const ok = resultJson<{ created: { id: string } }>(await runAgentTool('add_callout', { title: 'Good', location: [1, 2], settings: { pulse: true } }));
+    expect(useProjectStore.getState().items[ok.created.id]).toMatchObject({ settings: { pulse: true, lineWidth: 1.5 } });
   });
 
   it('add_callout sizes the callout, with map sizing based on the current map zoom', async () => {

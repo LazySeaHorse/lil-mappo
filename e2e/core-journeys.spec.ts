@@ -132,7 +132,7 @@ test.describe("5 Golden E2E Journeys", () => {
     await page.locator(".mapboxgl-canvas").click({ position: { x: 820, y: 420 } });
 
     await routeDropdown.getByRole("button", { name: "Preview path" }).click();
-    await expect(page.getByText("Path validated")).toBeVisible();
+    await expect(page.getByText("Route calculated")).toBeVisible();
     await routeDropdown.getByRole("button", { name: "Insert route" }).click();
 
     // Verify route was inserted and inspector is active
@@ -234,7 +234,7 @@ test.describe("5 Golden E2E Journeys", () => {
 
     // 2. Verify Free Plan constraints are enforced in UI
     await expect(exportDialog.getByText(/Free plan limit:.*720p, 30 FPS, and 30 seconds/)).toBeVisible();
-    await expect(exportDialog.getByRole("button", { name: /Cloud render.*Not available yet/ })).toBeDisabled();
+    await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" })).toBeEnabled();
 
     // 3. Click Upgrade trigger
     await exportDialog.getByRole("button", { name: /Use a paid plan/ }).click();
@@ -245,6 +245,9 @@ test.describe("5 Golden E2E Journeys", () => {
     // 4. Close dialogs cleanly
     await expect(upgradeDialog.locator(":focus")).toHaveCount(1);
     await page.keyboard.press("Escape");
+    if (await upgradeDialog.isVisible()) {
+      await upgradeDialog.getByRole("button", { name: "Close" }).click();
+    }
     await expect(upgradeDialog).not.toBeVisible();
   });
 

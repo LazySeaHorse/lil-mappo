@@ -11,10 +11,30 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 import { Mappo } from "@/components/Mappo/Mappo";
 import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { trackAnonymous } from "@/lib/analytics/anonymous";
+import { getSignupAttribution } from "@/lib/analytics/attribution";
+import { cancelExpectedSignup, expectSignup } from "@/lib/analytics/signupIntent";
+import { errorMessage } from '@/lib/utils';
+
+/** Supabase error code as a short snake_case token (never the message, which can echo the email). */
+function signupErrorClass(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === "string" && /^[a-z0-9_]{1,40}$/.test(code) ? code : "other";
+}
+
+/** Maps a Supabase auth error to a low-cardinality class for the anonymous funnel counters. */
+function signinErrorClass(err: unknown): "invalid_credentials" | "email_not_confirmed" | "rate_limited" | "other" {
+  const { code, status } = (err ?? {}) as { code?: string; status?: number };
+  if (code === "invalid_credentials") return "invalid_credentials";
+  if (code === "email_not_confirmed") return "email_not_confirmed";
+  if (status === 429 || (typeof code === "string" && code.includes("rate_limit"))) return "rate_limited";
+  return "other";
+}
 
 // ─── OAuth icon components ────────────────────────────────────────────────────
 
@@ -52,8 +72,16 @@ function AppleIcon() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AuthModal() {
-  const { showAuthModal, authModalMode, authModalReason, closeAuthModal, openAuthModal, openSignupModal } =
-    useAuthStore();
+  const { showAuthModal, authModalMode, authModalReason, closeAuthModal, openAuthModal, openSignupModal } = useAuthStore(
+    useShallow((s) => ({
+      showAuthModal: s.showAuthModal,
+      authModalMode: s.authModalMode,
+      authModalReason: s.authModalReason,
+      closeAuthModal: s.closeAuthModal,
+      openAuthModal: s.openAuthModal,
+      openSignupModal: s.openSignupModal,
+    })),
+  );
 
   const handleOpenChange = (open: boolean) => {
     if (!open) closeAuthModal();
@@ -84,8 +112,8 @@ export function AuthModal() {
               {confirmEmail ? (
                 <>
                   We sent a link to{" "}
-                  <span className="font-medium text-foreground">{confirmEmail}</span>.
-                  Open it to finish creating your account and continue to payment.
+                  <span className="ph-no-capture font-medium text-foreground">{confirmEmail}</span>.
+                  Open the link to verify your account and proceed to checkout.
                 </>
               ) : isSignup ? (
                 "Create an account to continue to payment."
@@ -145,6 +173,8 @@ function AuthModalBody({
     phase: sentState === "confirm_email" ? "confirm_email" : phase,
   });
   useEffect(() => onMoodChange(mood), [mood, onMoodChange]);
+  // A signup intent must not outlive the modal, or a later plain sign-in could be reported as signed_up.
+  useEffect(() => cancelExpectedSignup, []);
   useEffect(
     () => onConfirmEmailChange(sentState === "confirm_email" ? email.trim() : null),
     [sentState, email, onConfirmEmailChange],
@@ -163,21 +193,37 @@ function AuthModalBody({
         // Frontend domain check — server-side hook is the authoritative guard,
         // but this gives immediate feedback before the network round-trip.
         if (!isAllowedEmailDomain(email.trim())) {
+          trackAnonymous("signup_submitted", { outcome: "blocked_domain" });
           toast.error("This email cannot be used.");
           setPhase("error");
           setIsSubmitting(false);
           return;
         }
 
+        const attribution = getSignupAttribution();
+        // Without email confirmation SIGNED_IN fires during signUp(); flag it so analytics reports signed_up.
+        expectSignup();
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            // Whitelisted utm/ref values only (empty unless analytics is enabled); attribution, never trusted.
+            ...(Object.keys(attribution).length > 0 ? { data: { signup_attribution: attribution } } : {}),
+          },
         });
-        if (error) throw error;
+        if (error) {
+          cancelExpectedSignup();
+          trackAnonymous("signup_submitted", { outcome: "error", error_class: signupErrorClass(error) });
+          throw error;
+        }
         // If email confirmation is required, data.session will be null
         if (!data.session) {
+          cancelExpectedSignup();
+          trackAnonymous("signup_submitted", { outcome: "confirm_email" });
           setSentState("confirm_email");
+        } else {
+          trackAnonymous("signup_submitted", { outcome: "signed_in" });
         }
         setPhase("success");
         // If session exists, onAuthStateChange fires → modal auto-closes
@@ -186,14 +232,16 @@ function AuthModalBody({
           email: email.trim(),
           password,
         });
-        if (error) throw error;
+        if (error) {
+          trackAnonymous("signin_failed", { error_class: signinErrorClass(error) });
+          throw error;
+        }
         setPhase("success");
         // onAuthStateChange → SIGNED_IN → modal auto-closes
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Authentication failed";
-      toast.error(message);
+      cancelExpectedSignup();
+      toast.error(errorMessage(err, "Authentication failed"));
       setPhase("error");
     } finally {
       setIsSubmitting(false);
@@ -213,8 +261,8 @@ function AuthModalBody({
     return (
       <div className="flex flex-col items-center gap-4 pt-2">
         <p className="text-muted-foreground text-xs text-center max-w-[300px]">
-          Can't find it? Check your spam folder. After you open the link you can
-          close this tab.
+          Check your spam folder if the email does not arrive. Close this tab
+          after you open the link.
         </p>
         <Button variant="outline" size="sm" className="text-xs" onClick={handleReset}>
           Use a different email
@@ -311,7 +359,7 @@ function AuthModalBody({
       {isSignup ? (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
           <p className="text-[11px] text-muted-foreground/70">
-            Already have an account?
+            Have an account?
           </p>
           <button
             type="button"
@@ -324,7 +372,7 @@ function AuthModalBody({
       ) : (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
           <p className="text-[11px] text-muted-foreground/70">
-            Don't have an account?
+            Need an account?
           </p>
           <button
             type="button"

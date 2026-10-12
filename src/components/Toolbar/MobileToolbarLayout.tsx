@@ -1,6 +1,5 @@
 import React from 'react';
 import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff, Settings2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
@@ -10,6 +9,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
+import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 
 interface MobileToolbarLayoutProps {
   mobileMode: 'default' | 'add' | 'layers';
@@ -49,6 +49,7 @@ export function MobileToolbarLayout({
   onProjectSettings, onMapStyleOpenChange,
 }: MobileToolbarLayoutProps) {
   const isCameraPulsing = useWalkthroughStore((s) => s.isRunning && s.walkthrough.stage === 'second-keyframe');
+  const buildingsAvailable = useMapStyleCapabilities().buildings3d === true;
 
   return (
     <div className="w-full flex items-center h-full relative overflow-hidden">
@@ -80,7 +81,7 @@ export function MobileToolbarLayout({
             <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
             <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
             <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-            <ToolbarButton icon={<Video size={18} />} label="Camera KF" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" isPulsing={isCameraPulsing} />
+            <ToolbarButton icon={<Video size={18} />} label="Camera Keyframe" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" isPulsing={isCameraPulsing} />
             <IconButton variant="toolbar" size="sm" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />
             </IconButton>
@@ -104,7 +105,7 @@ export function MobileToolbarLayout({
             <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
             <div data-walkthrough="map-3d" className="flex items-center gap-1">
               <ToolbarToggle icon={<Mountain size={16} />} label="Terrain" hideLabel active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying2 && !isScrubbing} />
-              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} disabled={mapStyle === 'satellite'} />
+              <ToolbarToggle icon={<Building2 size={16} />} label="Buildings" hideLabel active={buildingsEnabled} onClick={() => setBuildingsEnabled(!buildingsEnabled)} disabled={!buildingsAvailable} />
             </div>
             <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('default')} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />

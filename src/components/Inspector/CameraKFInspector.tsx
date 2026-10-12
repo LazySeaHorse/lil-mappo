@@ -1,5 +1,6 @@
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { CameraItem } from '@/store/types';
 import { Accordion } from "@/components/ui/accordion";
 import { SliderRow, EasingSelect, CoordinatesRows, NumberRow } from './InspectorShared';
@@ -8,7 +9,12 @@ import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
 import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
 
 export function CameraKFInspector({ item }: { item: CameraItem }) {
-  const { selectedKeyframeId, updateCameraKeyframe } = useProjectStore();
+  const { selectedKeyframeId, updateCameraKeyframe } = useProjectStore(
+    useShallow(s => ({
+      selectedKeyframeId: s.selectedKeyframeId,
+      updateCameraKeyframe: s.updateCameraKeyframe,
+    }))
+  );
 
   const kf = item.keyframes.find((k) => k.id === selectedKeyframeId);
 

@@ -172,7 +172,7 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
   await page.mouse.wheel(0, -400);
 
   await expect(page.getByText("Save your first view")).toBeVisible();
-  await page.getByTitle("Camera KF").click();
+  await page.getByTitle("Camera Keyframe", { exact: true }).click();
 
   await expect(page.getByText("Move forward on the timeline")).toBeVisible();
   const timelineRuler = page.getByTestId("timeline-ruler");
@@ -185,8 +185,8 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
 
   await expect(page.getByText("Save your second view")).toBeVisible();
   await dragMap(page, "left", { x: 600, y: 330 }, { x: 690, y: 300 });
-  await expect(page.getByTitle("Camera KF")).toHaveClass(/animate-pulse/);
-  await page.getByTitle("Camera KF").click();
+  await expect(page.getByTitle("Camera Keyframe", { exact: true })).toHaveClass(/animate-pulse/);
+  await page.getByTitle("Camera Keyframe", { exact: true }).click();
 
   await expect(page.getByText("Preview your animation")).toBeVisible();
   await expect(page.getByTestId("timeline-ruler-playhead")).toHaveCSS("left", "0px");
@@ -202,11 +202,11 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
 
   await expect(page.getByText("Add a travel route", { exact: true })).toBeVisible();
   await page.getByTitle("Plan Route").click();
-  await expect(page.getByText("Choose travel mode & points")).toBeVisible();
+  await expect(page.getByText("Select travel mode and route points")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByText("Highlight a boundary")).toBeVisible();
   await page.getByTitle("Add Boundary").click();
-  await expect(page.getByText("Search regions & nations")).toBeVisible();
+  await expect(page.getByText("Search regions and countries")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByText("Add a location label", { exact: true })).toBeVisible();
   await page.getByTitle("Add Callout").click();
@@ -242,7 +242,7 @@ test("3. a route can be created and appears in the inspector and timeline", asyn
   await pickMapPoint(page, 0, { x: 620, y: 320 });
   await pickMapPoint(page, 1, { x: 820, y: 420 });
   await page.getByRole("button", { name: "Preview path" }).click();
-  await expect(page.getByText("Path validated")).toBeVisible();
+  await expect(page.getByText("Route calculated")).toBeVisible();
   await page.getByRole("button", { name: "Insert route" }).click();
 
   await expect(page.getByRole("heading", { name: "Route", exact: true })).toBeVisible();
@@ -320,7 +320,7 @@ test("7. export reaches the correct free-plan and upgrade state", async ({ page 
   const exportDialog = page.getByRole("dialog", { name: "Export" });
   await expect(exportDialog).toBeVisible();
   await expect(exportDialog.getByText(/Free plan limit:.*720p, 30 FPS, and 30 seconds/)).toBeVisible();
-  await expect(exportDialog.getByRole("button", { name: /Cloud render.*Not available yet/ })).toBeDisabled();
+  await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" })).toBeEnabled();
 
   await exportDialog.getByRole("button", { name: /Use a paid plan/ }).click();
   const upgradeDialog = page.getByRole("dialog", { name: "Upgrade to Wanderer" });

@@ -18,12 +18,7 @@ export const roadSignSettingsSchema = z.object({
 
 export type RoadSignSettings = z.infer<typeof roadSignSettingsSchema>;
 
-export const defaultRoadSignSettings: RoadSignSettings = {
-  signColor: '#0B6E3B',
-  textColor: '#FFFFFF',
-  shield: 'interstate',
-  posts: 2,
-};
+export const defaultRoadSignSettings: RoadSignSettings = roadSignSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

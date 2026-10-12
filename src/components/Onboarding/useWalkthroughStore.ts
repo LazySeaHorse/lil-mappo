@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
-import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
+import { CAMERA_TRACK_ID, useProjectStore, type ProjectStore } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
+import { track } from '@/lib/analytics';
 import {
   createWalkthroughState,
   walkthroughReducer,
@@ -87,77 +88,63 @@ function executeStageEntryEffects(stage: WalkthroughStage) {
   }
 }
 
+/**
+ * A project-store value the walkthrough listens to. The listener fires only
+ * when the selected value changes; it sends `toEvent(value)` while the tour is
+ * running and (if `stages` is set) in one of those stages. A null event is
+ * skipped.
+ */
+interface ProjectWatch<T> {
+  select: (state: ProjectStore) => T;
+  stages?: WalkthroughStage[];
+  toEvent: (value: T) => WalkthroughEvent | null;
+}
+
+const watch = <T,>(w: ProjectWatch<T>) => w;
+
+const PROJECT_WATCHES = [
+  watch({
+    select: (state) => (state.items[CAMERA_TRACK_ID] as CameraItem | undefined)?.keyframes.length ?? 0,
+    toEvent: (count) => ({
+      type: 'keyframe-count-changed',
+      count,
+      playheadTime: useProjectStore.getState().playheadTime,
+    }),
+  }),
+  watch({
+    select: (state) => state.playheadTime,
+    stages: ['move-playhead'],
+    toEvent: (time) => ({ type: 'playhead-time-changed', time }),
+  }),
+  watch({
+    select: (state) => state.selectedKeyframeId,
+    stages: ['select-keyframe'],
+    toEvent: (selectedKeyframeId) => (selectedKeyframeId ? { type: 'keyframe-selected' } : null),
+  }),
+  watch({
+    select: (state) => state.mapStyle,
+    stages: ['change-map-style', 'return-standard-style'],
+    toEvent: (style) => ({ type: 'map-style-changed', style }),
+  }),
+  watch({
+    select: (state) => state.projectSettingsTab,
+    stages: ['map-settings-tab'],
+    toEvent: (tab) => ({ type: 'project-settings-tab-changed', tab }),
+  }),
+] as ProjectWatch<unknown>[];
+
 function startProjectSubscriptions() {
   stopProjectSubscriptions();
 
-  projectStoreUnsubscribers = [
-    // 1. Camera keyframe count changes
-    useProjectStore.subscribe(
-      (state) => {
-        const camera = state.items[CAMERA_TRACK_ID] as CameraItem | undefined;
-        return camera?.keyframes.length ?? 0;
-      },
-      (count, prevCount) => {
-        if (count === prevCount) return;
-        const current = useWalkthroughStore.getState();
-        if (current.isRunning) {
-          const playheadTime = useProjectStore.getState().playheadTime;
-          current.send({ type: 'keyframe-count-changed', count, playheadTime });
-        }
-      },
-    ),
-
-    // 2. Playhead time changes during move-playhead stage
-    useProjectStore.subscribe(
-      (state) => state.playheadTime,
-      (time, prevTime) => {
-        if (time === prevTime) return;
-        const current = useWalkthroughStore.getState();
-        if (current.isRunning && current.walkthrough.stage === 'move-playhead') {
-          current.send({ type: 'playhead-time-changed', time });
-        }
-      },
-    ),
-
-    // 3. Keyframe selection during select-keyframe stage
-    useProjectStore.subscribe(
-      (state) => state.selectedKeyframeId,
-      (selectedKeyframeId) => {
-        const current = useWalkthroughStore.getState();
-        if (current.isRunning && current.walkthrough.stage === 'select-keyframe' && selectedKeyframeId) {
-          current.send({ type: 'keyframe-selected' });
-        }
-      },
-    ),
-
-    // 4. Map style changes during change-map-style or return-standard-style stages
-    useProjectStore.subscribe(
-      (state) => state.mapStyle,
-      (style, prevStyle) => {
-        if (style === prevStyle) return;
-        const current = useWalkthroughStore.getState();
-        if (
-          current.isRunning &&
-          (current.walkthrough.stage === 'change-map-style' ||
-            current.walkthrough.stage === 'return-standard-style')
-        ) {
-          current.send({ type: 'map-style-changed', style });
-        }
-      },
-    ),
-
-    // 5. Project settings tab changes during map-settings-tab stage
-    useProjectStore.subscribe(
-      (state) => state.projectSettingsTab,
-      (tab, prevTab) => {
-        if (tab === prevTab) return;
-        const current = useWalkthroughStore.getState();
-        if (current.isRunning && current.walkthrough.stage === 'map-settings-tab') {
-          current.send({ type: 'project-settings-tab-changed', tab });
-        }
-      },
-    ),
-  ];
+  projectStoreUnsubscribers = PROJECT_WATCHES.map(({ select, stages, toEvent }) =>
+    useProjectStore.subscribe(select, (value) => {
+      const current = useWalkthroughStore.getState();
+      if (!current.isRunning) return;
+      if (stages && !stages.includes(current.walkthrough.stage)) return;
+      const event = toEvent(value);
+      if (event) current.send(event);
+    }),
+  );
 }
 
 function stopProjectSubscriptions() {
@@ -168,6 +155,17 @@ function stopProjectSubscriptions() {
   projectStoreUnsubscribers.forEach((unsub) => unsub());
   projectStoreUnsubscribers = [];
 }
+
+/** The event the Next button sends in stages that wait for an acknowledgement. */
+const NEXT_EVENTS: Partial<Record<WalkthroughStage, () => WalkthroughEvent>> = {
+  'play-animation': () => ({ type: 'play-preview-acknowledged' }),
+  'inspect-keyframe': () => ({ type: 'inspector-acknowledged' }),
+  'map-settings-overview': () => ({ type: 'map-settings-overview-acknowledged' }),
+  'terrain-buildings': () => ({
+    type: 'terrain-intro-acknowledged',
+    currentStyle: useProjectStore.getState().mapStyle,
+  }),
+};
 
 export interface WalkthroughStore {
   isRunning: boolean;
@@ -216,6 +214,7 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
       isRunning: true,
     });
     storeStatus('started');
+    track('walkthrough_started');
     startProjectSubscriptions();
   },
 
@@ -234,19 +233,10 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
 
   next: () => {
     const stage = get().walkthrough.stage;
-    if (stage === 'play-animation') {
-      useProjectStore.getState().setIsPlaying(false);
-      get().send({ type: 'play-preview-acknowledged' });
-    } else if (stage === 'inspect-keyframe') {
-      get().send({ type: 'inspector-acknowledged' });
-    } else if (stage === 'map-settings-overview') {
-      get().send({ type: 'map-settings-overview-acknowledged' });
-    } else if (stage === 'terrain-buildings') {
-      get().send({
-        type: 'terrain-intro-acknowledged',
-        currentStyle: useProjectStore.getState().mapStyle,
-      });
-    }
+    const toEvent = NEXT_EVENTS[stage];
+    if (!toEvent) return;
+    if (stage === 'play-animation') useProjectStore.getState().setIsPlaying(false);
+    get().send(toEvent());
   },
 
   send: (event) => {

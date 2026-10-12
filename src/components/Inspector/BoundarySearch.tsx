@@ -1,23 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { searchBoundary, NominatimResult } from '@/services/nominatim';
+import { searchBoundary, shortPlaceName, NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
 import { IconButton } from '@/components/ui/icon-button';
 
 interface BoundarySearchProps {
   initialValue: string;
   onSelect: (result: NominatimResult) => void;
-  onSearchingChange?: (searching: boolean) => void;
 }
 
-export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: BoundarySearchProps) {
+/** The search's progress is local to this component: the boundary item only changes when a result is picked. */
+export function BoundarySearch({ initialValue, onSelect }: BoundarySearchProps) {
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const searchSeqRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -31,8 +30,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
         clearTimeout(debounceTimerRef.current);
       }
       abortControllerRef.current?.abort();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      searchSeqRef.current++;
     };
   }, []);
 
@@ -41,7 +38,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     if (!trimmed) {
       setResults([]);
       setLoading(false);
-      onSearchingChange?.(false);
       return;
     }
 
@@ -49,13 +45,11 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const seq = ++searchSeqRef.current;
     setLoading(true);
-    onSearchingChange?.(true);
 
     try {
       const res = await searchBoundary(trimmed, abortController.signal);
-      if (seq !== searchSeqRef.current || abortController.signal.aborted) {
+      if (abortController.signal.aborted) {
         return;
       }
       if (res.length === 0) {
@@ -64,15 +58,13 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
         setResults(res);
       }
     } catch (e: unknown) {
-      if (seq !== searchSeqRef.current || abortController.signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
+      if (abortController.signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
         return;
       }
       toast.error('Cannot search boundaries.');
     } finally {
-      if (seq === searchSeqRef.current) {
-        setLoading(false);
-        onSearchingChange?.(false);
-      }
+      // An aborted search was superseded, cleared or unmounted; whoever aborted it owns loading.
+      if (!abortController.signal.aborted) setLoading(false);
     }
   };
 
@@ -87,7 +79,6 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
     if (!val.trim()) {
       abortControllerRef.current?.abort();
       setLoading(false);
-      onSearchingChange?.(false);
       return;
     }
 
@@ -142,7 +133,7 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
             <span className="text-xs font-medium text-foreground/80">Search results</span>
             <Button variant="ghost" size="sm" onClick={() => setResults([])} className="h-5 text-[10px] font-medium text-muted-foreground hover:text-foreground">Clear</Button>
           </div>
-          <div className="max-h-[160px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="ph-no-capture max-h-[160px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {results.map((r, i) => (
               <button 
                 key={i} 
@@ -152,7 +143,7 @@ export function BoundarySearch({ initialValue, onSelect, onSearchingChange }: Bo
                 }} 
                 className="w-full text-left px-3 py-2 text-xs hover:bg-primary/5 transition-colors border-b border-border/30 last:border-0 group"
               >
-                <div className="font-medium group-hover:text-primary transition-colors">{r.display_name.split(',')[0]}</div>
+                <div className="font-medium group-hover:text-primary transition-colors">{shortPlaceName(r.display_name)}</div>
                 <div className="text-[10px] text-muted-foreground truncate">{r.display_name.split(',').slice(1).join(',')}</div>
               </button>
             ))}

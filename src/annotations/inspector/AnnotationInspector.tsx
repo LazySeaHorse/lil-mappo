@@ -8,6 +8,7 @@
 import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import type { CalloutItem } from '@/store/types';
 import { Button } from "@/components/ui/button";
@@ -39,9 +40,13 @@ function transitionOptions(names: readonly string[], current: string) {
 }
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
-  const {
-    updateItem, isMoveModeActive, setMoveModeActive,
-  } = useProjectStore();
+  const { updateItem, isMoveModeActive, setMoveModeActive } = useProjectStore(
+    useShallow(s => ({
+      updateItem: s.updateItem,
+      isMoveModeActive: s.isMoveModeActive,
+      setMoveModeActive: s.setMoveModeActive,
+    }))
+  );
 
   const { isPicking, toggle: handleTogglePick } = useMapPicker(`callout-${item.id}`, {
     ownerId: item.id,

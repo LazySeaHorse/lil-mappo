@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeInOutCubic, easeOutBack, easeOutCubic, stage } from '../motion';
-import { circle, group, image, path, polyline, rect, text } from '../scene/primitives';
+import { circle, group, image, path, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
 import { boundsOf, groundDot, HALO_SHADOW, leaderLine } from './shared';
 
@@ -20,13 +20,7 @@ export const polaroidSettingsSchema = z.object({
 
 export type PolaroidSettings = z.infer<typeof polaroidSettingsSchema>;
 
-export const defaultPolaroidSettings: PolaroidSettings = {
-  frameColor: '#FAF7F0',
-  captionColor: '#2B2B2B',
-  rotation: 4,
-  size: 130,
-  attach: 'line',
-};
+export const defaultPolaroidSettings: PolaroidSettings = polaroidSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

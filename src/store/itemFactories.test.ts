@@ -8,6 +8,7 @@ import {
   createCalloutStyleDefaults,
   createCameraKeyframe,
   createEndpointRouteItem,
+  createImportedRouteItem,
   createWalkRouteItem,
   defaultEndpointRouteName,
   wrapGeometry,
@@ -27,6 +28,25 @@ describe('itemFactories', () => {
     expect(defaultEndpointRouteName('car')).toBe('Start to End');
   });
 
+  it('builds routes and boundaries that stay on screen after their end', () => {
+    const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
+    const car = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry(line), start: [0, 0], end: [1, 1], name: 'r', startTime: 0 });
+    const walk = createWalkRouteItem({ points: [[0, 0], [0.01, 0.01]], startTime: 0 });
+    const boundary = createBoundaryItem({ placeName: 'X', geojson: null, startTime: 0 });
+    expect([car.exitAnimation, walk.exitAnimation, boundary.exitAnimation]).toEqual(['none', 'none', 'none']);
+  });
+
+  it('builds imported routes with the import style and no calculation', () => {
+    const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
+    const route = createImportedRouteItem({ name: 'Ride', geojson: wrapGeometry(line), startTime: 3 });
+    expect(route).toMatchObject({
+      kind: 'route', name: 'Ride', startTime: 3, endTime: 3 + DEFAULT_ITEM_DURATION,
+      easing: 'easeInOutCubic', exitAnimation: 'none', style: { color: '#22c55e' },
+    });
+    expect(route.calculation).toBeUndefined();
+    expect(route.id).toBeTruthy();
+  });
+
   it('builds walk routes with derived geometry', () => {
     const walk = createWalkRouteItem({ points: [[0, 0], [0.01, 0.01]], startTime: 0 });
     expect(walk.calculation?.mode).toBe('walk');
@@ -42,7 +62,7 @@ describe('itemFactories', () => {
 
   it('builds boundaries, callouts and keyframes with defaults', () => {
     expect(createBoundaryItem({ placeName: 'X', geojson: null, startTime: 1 })).toMatchObject({
-      resolveStatus: 'resolved', endTime: 6, style: { strokeColor: '#a855f7' },
+      endTime: 6, style: { strokeColor: '#a855f7' },
     });
     const callout = createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 });
     expect(callout?.binding).toMatchObject({ kind: 'geographic', lngLat: [1, 2], altitude: 0 });

@@ -4,46 +4,31 @@ import type {
   MapSourceDataEvent,
 } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import { LABEL_CATEGORIES, isDarkMapStyle } from '@/config/mapbox';
+import { LABEL_CATEGORIES, MAP_STYLES, isStandardBasemap, resolveFog } from '@/config/mapbox';
+import { track } from '@/lib/analytics';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
 
 const BUILDINGS_LAYER_ID = '3d-buildings';
 
+/** Styles already reported this page load, so a retry loop cannot flood analytics. */
+const reportedStyleFailures = new Set<string>();
+
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
-function resolveFog(state: ProjectState): FogSpecification {
-  const isDark = isDarkMapStyle(state.mapStyle);
-  const base: FogSpecification = isDark
-    ? {
-        color: 'rgb(23, 23, 23)',
-        'high-color': 'rgb(10, 10, 40)',
-        'horizon-blend': 0.3,
-        'space-color': 'rgb(5, 5, 15)',
-        'star-intensity': 0.8,
-      }
-    : state.mapStyle === 'satellite' || state.mapStyle === 'satelliteStreets'
-      ? {
-          color: '#5d7883',
-          'high-color': 'rgb(36, 92, 223)',
-          'horizon-blend': 0.4,
-          'space-color': 'rgb(11, 11, 25)',
-          'star-intensity': 0.6,
-        }
-      : {
-          color: 'rgb(186, 210, 235)',
-          'high-color': 'rgb(36, 92, 223)',
-          'horizon-blend': 0.02,
-          'space-color': 'rgb(11, 11, 25)',
-          'star-intensity': 0.6,
-        };
+/** Fog values within this are the same; Mapbox hands numbers back with float noise. */
+const FOG_NUMBER_TOLERANCE = 0.005;
 
-  return {
-    ...base,
-    color: state.fogColor ?? base.color,
-    'star-intensity': state.starIntensity ?? base['star-intensity'],
-  };
+function fogMatches(current: FogSpecification | null | undefined, target: FogSpecification): boolean {
+  if (!current) return false;
+  return (Object.keys(target) as Array<keyof FogSpecification>).every((key) => {
+    const have = current[key];
+    const want = target[key];
+    return typeof have === 'number' && typeof want === 'number'
+      ? Math.abs(have - want) <= FOG_NUMBER_TOLERANCE
+      : have === want;
+  });
 }
 
 function setLayerVisibility(
@@ -66,7 +51,7 @@ export class BasemapController {
   private disposed = false;
   private readonly animationFrames = new Set<number>();
   /** Label-relevant classic layer ids and the first symbol layer, scanned once per style load (getStyle() serializes the whole style). */
-  private styleScan: { labelLayerIds: string[]; firstSymbolId: string | undefined } | undefined;
+  private styleScan: { labelLayerIds: string[]; firstSymbolId: string | undefined; firstRoadId: string | undefined } | undefined;
   private unsubscribeInteractive: (() => void) | undefined;
 
   constructor(
@@ -103,6 +88,19 @@ export class BasemapController {
     if (isStyleReady(this.map)) this.handleStyleLoad();
   }
 
+  /**
+   * Where boundary flag fills go: over land and water but under roads, buildings and
+   * labels, so the country's streets and place names read on top of its flag. Standard's
+   * `bottom` slot is exactly that (`middle` is above roads, `top` above POI labels).
+   * Classic styles insert before the first road layer, or the first symbol layer when a
+   * style has no roads (satellite).
+   */
+  getFlagPlacement = (): { slot?: 'bottom'; beforeId?: string } => {
+    if (isStandardBasemap(useProjectStore.getState().mapStyle)) return { slot: 'bottom' };
+    const scan = this.getStyleScan();
+    return { beforeId: scan.firstRoadId ?? scan.firstSymbolId };
+  };
+
   reconcile = (): void => {
     if (this.disposed || !isStyleReady(this.map)) return;
     const state = useProjectStore.getState();
@@ -135,7 +133,7 @@ export class BasemapController {
   }
 
   private reconcileBuildings(state: ProjectState): void {
-    if (state.mapStyle === 'standard') {
+    if (isStandardBasemap(state.mapStyle)) {
       const properties: Array<[string, unknown]> = [
         ['lightPreset', state.lightPreset],
         ['show3dObjects', state.buildingsEnabled],
@@ -152,8 +150,8 @@ export class BasemapController {
       return;
     }
 
-    // Classic styles: satellite-v9 has no vector data; others expose `composite` with a building layer
-    if (state.mapStyle === 'satellite' || !this.map.getSource('composite')) return;
+    // Classic styles: extruded from the `composite` source, when style load detected one
+    if (!state.detectedCapabilities?.buildings3d) return;
     if (!this.map.getLayer(BUILDINGS_LAYER_ID)) this.addBuildingsLayer(state.buildingsEnabled);
     const target = state.buildingsEnabled ? 'visible' : 'none';
     if (this.map.getLayer(BUILDINGS_LAYER_ID) && this.map.getLayoutProperty(BUILDINGS_LAYER_ID, 'visibility') !== target) {
@@ -187,7 +185,7 @@ export class BasemapController {
   private reconcileLabels(state: ProjectState): void {
     const groups = state.detectedCapabilities?.labelGroups;
     if (!groups) return;
-    const isStandard = state.mapStyle === 'standard';
+    const isStandard = isStandardBasemap(state.mapStyle);
 
     for (const group of groups) {
       const visible = state.labelVisibility[group.id] ?? true;
@@ -233,13 +231,7 @@ export class BasemapController {
 
   private reconcileFog(state: ProjectState): void {
     const target = resolveFog(state);
-    const current = this.map.getFog();
-    const currentStars = current?.['star-intensity'];
-    const targetStars = target['star-intensity'];
-    const starsMatch = typeof currentStars === 'number' && typeof targetStars === 'number'
-      ? Math.abs(currentStars - targetStars) <= 0.005
-      : currentStars === targetStars;
-    if (current?.color === target.color && current?.['space-color'] === target['space-color'] && starsMatch) return;
+    if (fogMatches(this.map.getFog(), target)) return;
     mutateMap(this.map, { operation: 'setFog', phase: 'style-sync' }, () => {
       this.map.setFog(target);
     });
@@ -248,8 +240,8 @@ export class BasemapController {
   private getStyleScan(): NonNullable<BasemapController['styleScan']> {
     if (this.styleScan) return this.styleScan;
     // Standard's layers live inside the basemap import and are driven by config properties, so skip the scan
-    if (useProjectStore.getState().mapStyle === 'standard') {
-      return { labelLayerIds: [], firstSymbolId: undefined };
+    if (isStandardBasemap(useProjectStore.getState().mapStyle)) {
+      return { labelLayerIds: [], firstSymbolId: undefined, firstRoadId: undefined };
     }
     const layers = this.map.getStyle()?.layers ?? [];
     const patterns = LABEL_CATEGORIES.flatMap((category) => category.layerPatterns.map((p) => p.toLowerCase()));
@@ -257,6 +249,8 @@ export class BasemapController {
     this.styleScan = {
       labelLayerIds: layers.filter((layer) => patterns.some((p) => layer.id.toLowerCase().includes(p))).map((layer) => layer.id),
       firstSymbolId: layers.find((layer) => layer.type === 'symbol')?.id,
+      // Mapbox Streets puts roads, tunnels and bridges in the `road` source layer
+      firstRoadId: layers.find((layer) => 'source-layer' in layer && layer['source-layer'] === 'road')?.id,
     };
     return this.styleScan;
   }
@@ -310,7 +304,23 @@ export class BasemapController {
     if (!state.isPlaying && state.terrainLoading) this.schedule(() => this.updateTerrainLoading());
   };
 
-  private readonly handleError = (event: { error: Error }) => {
+  private readonly handleError = (event: { error: Error; sourceId?: string; tile?: unknown }) => {
     console.error('[map:error]', event.error);
+    this.reportStyleLoadFailure(event);
   };
+
+  /**
+   * Only style-level failures (the style document or its fonts/sprites could not be
+   * loaded), not tile or source errors, which are routine on flaky networks.
+   */
+  private reportStyleLoadFailure(event: { error: Error; sourceId?: string; tile?: unknown }): void {
+    if (event.sourceId || event.tile) return;
+    const { url } = event.error as Error & { url?: string };
+    if (typeof url !== 'string' || !url.includes('/styles/')) return;
+    const selected = useProjectStore.getState().mapStyle;
+    const style = selected in MAP_STYLES ? selected : 'custom';
+    if (reportedStyleFailures.has(style)) return;
+    reportedStyleFailures.add(style);
+    track('map_style_load_failed', { style });
+  }
 }

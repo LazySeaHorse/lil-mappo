@@ -1,6 +1,7 @@
 /**
  * TypeScript types for li'l Mappo's Supabase tables.
- * Keep in sync with supabase/migrations/001_initial_schema.sql
+ * Keep in sync with supabase/migrations/ (tables from 001, feature-vote RPCs from 022).
+ * Hand-written, not generated.
  */
 
 /**
@@ -63,6 +64,33 @@ export interface CloudProject {
   data: Record<string, unknown>;
   updated_at: string;
   created_at: string;
+}
+
+/** Coarse vote tier returned by get_feature_vote_summaries (migration 022). */
+export type FeatureVoteTier = "none" | "few" | "some" | "many" | "most";
+
+/** One row of the get_feature_vote_summaries(p_feature_ids text[]) RPC. */
+export interface FeatureVoteSummary {
+  feature_id: string;
+  tier: FeatureVoteTier;
+  most_requested: boolean;
+  /** Whether the calling user has voted for this feature. */
+  has_voted: boolean;
+}
+
+/**
+ * Signatures of the feature-vote RPCs (migration 022). Both require a signed-in
+ * user. `set_feature_vote` is idempotent and resolves to the resulting vote state.
+ */
+export interface FeatureVoteRpcs {
+  get_feature_vote_summaries: {
+    Args: { p_feature_ids: string[] };
+    Returns: FeatureVoteSummary[];
+  };
+  set_feature_vote: {
+    Args: { p_feature_id: string; p_voted: boolean };
+    Returns: boolean;
+  };
 }
 
 export const TIER_LABELS: Record<SubscriptionTier, string> = {

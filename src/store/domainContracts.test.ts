@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  resolveBoundaryFillColor,
   resolveRoutePaint,
 } from '@/components/MapViewport/layerStyleContracts';
 import type {
-  BoundaryStyle,
   RouteItem,
   RouteMode,
   RouteStyle,
@@ -46,7 +44,7 @@ function createRoute(mode: RouteMode): RouteItem {
     startTime: 0,
     endTime: 5,
     style: routeStyle,
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
     calculation: convertRouteCalculation({ mode: 'car', startPoint: [0, 0], endPoint: [1, 1] }, mode),
   };
 }
@@ -71,23 +69,6 @@ describe('canonical domain contracts', () => {
       glowWidth: 18,
       glowBlur: 9,
     });
-  });
-
-  it('uses an independent boundary fill color when one is configured', () => {
-    const style = {
-      strokeColor: '#111111',
-      fillColor: '#eeeeee',
-    } satisfies Pick<BoundaryStyle, 'strokeColor' | 'fillColor'>;
-
-    expect(resolveBoundaryFillColor(style)).toBe('#eeeeee');
-  });
-
-  it('falls back to stroke color for a legacy boundary without fillColor', () => {
-    const legacyStyle = {
-      strokeColor: '#765432',
-    } satisfies Pick<BoundaryStyle, 'strokeColor'>;
-
-    expect(resolveBoundaryFillColor(legacyStyle)).toBe('#765432');
   });
 
   it('updates camera enablement through the declared store action', () => {

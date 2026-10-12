@@ -5,7 +5,8 @@
  * drop, a flag's cloth) stay in their own files.
  */
 
-import type { SceneNode, Shadow, StyleBounds } from '../types';
+import { z } from 'zod';
+import type { ControlDefinition, SceneNode, Shadow, StyleBounds } from '../types';
 import { shadowLayers } from '../scene/shadows';
 import { measureScene } from '../scene/measure';
 import { circle, group, polyline } from '../scene/primitives';
@@ -26,9 +27,30 @@ export function haloShadow(enabled: boolean): Shadow | undefined {
   return enabled ? HALO_SHADOW : undefined;
 }
 
+/** The "Soft shadow" setting: on by default. */
+export const haloSchema = z.boolean().default(true);
+
+export const HALO_CONTROL: ControlDefinition = { type: 'switch', key: 'halo', label: 'Soft shadow' };
+
 // ─── Side ─────────────────────────────────────────────────────────────────────
 
-export type Side = 'auto' | 'left' | 'right';
+export const SIDES = ['auto', 'left', 'right'] as const;
+
+export type Side = (typeof SIDES)[number];
+
+/** Which side a label takes: auto by default. */
+export const sideSchema = z.enum(SIDES).default('auto');
+
+export const SIDE_CONTROL: ControlDefinition = {
+  type: 'select',
+  key: 'side',
+  label: 'Side',
+  options: [
+    { value: 'auto', label: 'Auto' },
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' },
+  ],
+};
 
 /**
  * +1 when a label extends right of its origin, -1 when it extends left. Auto

@@ -3,8 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
-  RIGHT_RESERVED_DESKTOP,
-  RIGHT_RESERVED_TABLET,
+  rightReserved,
   PANEL_MARGIN,
 } from '@/constants/layout';
 import { useToolbarActions } from './useToolbarActions';
@@ -69,7 +68,7 @@ export default function Toolbar({
   const { isMobile, isTablet } = useResponsive();
   const actions = useToolbarActions();
 
-  const rightMarginVal = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
+  const rightMarginVal = rightReserved({ isInspectorOpen, isMobile, isTablet });
   const finalRightMargin = isMobile ? '0px' : `${rightMarginVal}px`;
   const finalLeftMargin = isMobile ? '0px' : `${PANEL_MARGIN}px`;
   const finalTopMargin = isMobile ? 'env(safe-area-inset-top, 0px)' : `${PANEL_MARGIN}px`;
@@ -101,6 +100,7 @@ export default function Toolbar({
 
   return (
     <div
+      data-ph-unmask
       className={`h-14 ${finalRounded} absolute bg-background/85 backdrop-blur-xl border border-border/50 flex items-center px-4 shadow-2xl shadow-black/10 pointer-events-auto z-50 transition-all duration-300`}
       style={{ top: finalTopMargin, left: finalLeftMargin, right: finalRightMargin }}
     >

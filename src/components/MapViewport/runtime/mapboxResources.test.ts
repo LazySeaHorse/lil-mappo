@@ -116,4 +116,31 @@ describe('LayerPropertyWriter', () => {
     writer.setLayout('layer', 'visibility', 'none', 'shown', false);
     expect(setLayoutProperty).toHaveBeenCalledTimes(2);
   });
+
+  it('clamps every *-opacity paint value to 0-1, since Mapbox rejects others without throwing', () => {
+    const setPaintProperty = vi.fn();
+    const writer = new LayerPropertyWriter(createMap({ setPaintProperty }), () => ({ a: -1, b: -1, c: -1, d: -1, w: -1 }));
+
+    writer.setPaint('layer', 'fill-opacity', 1.0000000000000002, 'a', 1.0000000000000002);
+    writer.setPaint('layer', 'line-opacity', -0.2, 'b', -0.2);
+    writer.setPaint('layer', 'raster-opacity', 0.4, 'c', 0.4);
+    writer.setPaint('layer', 'circle-stroke-opacity', 3, 'd', 3);
+    writer.setPaint('layer', 'line-width', 12, 'w', 12);
+
+    expect(setPaintProperty.mock.calls).toEqual([
+      ['layer', 'fill-opacity', 1],
+      ['layer', 'line-opacity', 0],
+      ['layer', 'raster-opacity', 0.4],
+      ['layer', 'circle-stroke-opacity', 1],
+      ['layer', 'line-width', 12],
+    ]);
+  });
+
+  it('passes opacity expressions through untouched', () => {
+    const setPaintProperty = vi.fn();
+    const writer = new LayerPropertyWriter(createMap({ setPaintProperty }), () => ({ e: '' }));
+    const expression = ['coalesce', ['feature-state', 'opacity'], 0];
+    writer.setPaint('layer', 'fill-opacity', expression, 'e', 'expr');
+    expect(setPaintProperty).toHaveBeenCalledWith('layer', 'fill-opacity', expression);
+  });
 });

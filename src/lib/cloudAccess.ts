@@ -1,12 +1,19 @@
 import secureLocalStorage from "react-secure-storage";
 import type { Subscription } from './database.types';
 import type { ExportResolution } from '@/types/render';
+import type { Branding } from '@/overlays';
 import { BYOK_STORAGE_KEY, isAppOwnKey } from '@/config/mapbox';
 
 // ─── Tier helpers ─────────────────────────────────────────────────────────────
 
-/** Returns true if the user has an active (or still-in-cancelling-period) Wanderer subscription. */
-function isWanderer(subscription: Subscription | null | undefined): boolean {
+/**
+ * The paid-plan check: true if the user has an active (or still-in-cancelling-period)
+ * Wanderer subscription. Use this rather than reading tier/status inline.
+ *
+ * The server keeps a copy of these rules in `api/_lib/entitlement.ts`
+ * (`api/` cannot import `src/`); a parity test runs both against one table.
+ */
+export function isWanderer(subscription: Subscription | null | undefined): boolean {
   if (!subscription || subscription.tier !== 'wanderer') return false;
   if (subscription.status === 'active') return true;
   if (subscription.status !== 'cancelling') return false;
@@ -24,12 +31,12 @@ export function isFreeUser(subscription: Subscription | null | undefined): boole
   return !isWanderer(subscription);
 }
 
-/** 
- * Returns true if the product watermark ("made with li'l Mappo") should be shown.
- * Watermarks are hidden ONLY for paid users. BYOK and Free users still see it.
+/**
+ * Branding for exports and snapshots. The li'l Mappo mark is hidden ONLY for paid
+ * users; BYOK and Free users still get it.
  */
-export function shouldShowWatermark(subscription: Subscription | null | undefined): boolean {
-  return !isWanderer(subscription);
+export function brandingFor(subscription: Subscription | null | undefined): Branding {
+  return isWanderer(subscription) ? 'paid' : 'free';
 }
 
 // ─── BYOK ─────────────────────────────────────────────────────────────────────
@@ -83,7 +90,8 @@ const UNLIMITED: ExportLimits = {
   limited: false,
 };
 
-const FREE_LIMITS: ExportLimits = {
+/** Export limits for free accounts and guests. */
+export const FREE_LIMITS: ExportLimits = {
   maxDuration: 30,
   maxResolution: '720p',
   maxFps: 30,

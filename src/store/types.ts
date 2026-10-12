@@ -1,4 +1,5 @@
 import type { AspectRatio, ExportResolution } from '@/types/render';
+import type { EasingName } from '@/engine/easings';
 import type {
   AnnotationContent,
   AnnotationBinding,
@@ -7,12 +8,7 @@ import type {
   TransitionConfig,
 } from '@/annotations/types';
 
-export type EasingName =
-  | 'linear'
-  | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad'
-  | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic'
-  | 'easeInOutSine'
-  | 'bounce';
+export type { EasingName };
 
 export type AutoCamPreset = 'chase' | 'drone' | 'reveal' | 'topdown';
 
@@ -37,10 +33,11 @@ export interface AutoCamConfig {
    * pulls back to frame the route.
    */
   outro?: number;
+  /** Degrees from looking straight down, in both views. */
   pitch: number;
   smoothing: number;
+  /** Follow view: straight-line metres from the camera to what it looks at. */
   distance: number;
-  height: number;
   zoom: number;
   lookAhead: number;
   easing?: EasingName;
@@ -82,8 +79,9 @@ export interface RouteStyle {
   trailFade: boolean;
   trailFadeLength: number;
   dashPattern: number[] | null;
-  animationType?: 'draw' | 'navigation' | 'comet';
-  cometTrailLength?: number;
+  animationType: 'draw' | 'navigation' | 'comet';
+  /** Fraction of the route the comet trail covers. */
+  cometTrailLength: number;
 }
 
 export interface BoundaryStyle {
@@ -95,7 +93,19 @@ export interface BoundaryStyle {
   animateStroke: boolean;
   animationStyle: 'fade' | 'draw' | 'trace';
   traceLength: number;
+  /** Paint everything outside this boundary with `maskColor` (a spotlight look). */
+  maskOutside: boolean;
+  maskColor: string;
+  /** 0-1, scaled by the boundary's fill progress. */
+  maskOpacity: number;
+  /** 'flag' fills the boundary with the flag of `flagCode` instead of the fill colour. */
+  fillMode: 'color' | 'flag';
+  /** Lowercase ISO 3166-1 alpha-2 code of the flag to fill with; null when none is chosen. */
+  flagCode: string | null;
 }
+
+/** How a route or boundary leaves at its endTime. 'none' keeps it on screen, fully drawn. */
+export type ExitAnimation = 'none' | 'reverse' | 'fade';
 
 export interface RouteItem {
   kind: 'route';
@@ -107,7 +117,7 @@ export interface RouteItem {
   autoCam?: AutoCamConfig;
   style: RouteStyle;
   easing: EasingName;
-  exitAnimation?: 'none' | 'reverse' | 'fade';
+  exitAnimation: ExitAnimation;
   calculation?: RouteCalculation;
 }
 
@@ -116,12 +126,11 @@ export interface BoundaryItem {
   id: string;
   placeName: string;
   geojson: GeoJSON.Geometry | null;
-  resolveStatus: 'idle' | 'loading' | 'resolved' | 'error';
   startTime: number;
   endTime: number;
   style: BoundaryStyle;
   easing: EasingName;
-  exitAnimation?: 'none' | 'reverse' | 'fade';
+  exitAnimation: ExitAnimation;
 }
 
 export type CalloutSizeMode = 'screen' | 'map';

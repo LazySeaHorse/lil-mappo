@@ -49,6 +49,30 @@ describe('update_item', () => {
     expect(state().items[route.id]).toMatchObject({ name: 'Drive', style: { color: '#3b82f6', width: 4 } });
   });
 
+  it('sets easing and exitAnimation on routes and boundaries and rejects style keys of the other kind', async () => {
+    const { route, boundary } = seed();
+    for (const item of [route, boundary]) {
+      const result = await runAgentTool('update_item', { id: item.id, patch: { easing: 'linear', exitAnimation: 'fade' } });
+      expect(result.isError).toBeUndefined();
+      expect(state().items[item.id]).toMatchObject({ easing: 'linear', exitAnimation: 'fade' });
+    }
+    expect(resultJson(await runAgentTool('update_item', { id: route.id, patch: { style: { strokeColor: '#ff0000' } } }))).toMatchObject({
+      error: 'invalid_patch', message: expect.stringContaining('do not apply to a route'),
+    });
+    expect(resultJson(await runAgentTool('update_item', { id: boundary.id, patch: { style: { color: '#ff0000' } } }))).toMatchObject({
+      error: 'invalid_patch', message: expect.stringContaining('do not apply to a boundary'),
+    });
+  });
+
+  it('validates callout settings against the style and lists the issues', async () => {
+    const { callout } = seed();
+    const bad = resultJson(await runAgentTool('update_item', { id: callout.id, patch: { settings: { lineWidth: 'thick' } } }));
+    expect(bad).toMatchObject({ error: 'invalid_settings', message: expect.stringMatching(/^settings are not valid for style "leader-line": lineWidth: /) });
+
+    expect((await runAgentTool('update_item', { id: callout.id, patch: { settings: { lineWidth: 3 } } })).isError).toBeUndefined();
+    expect(state().items[callout.id]).toMatchObject({ settings: { lineWidth: 3, lineColor: '#FFFFFF' } });
+  });
+
   it('validates time ranges against the duration', async () => {
     const { route } = seed();
     for (const patch of [{ endTime: 31 }, { startTime: 7 }, { startTime: 3, endTime: 3 }]) {
@@ -57,6 +81,26 @@ describe('update_item', () => {
     }
     expect((await runAgentTool('update_item', { id: route.id, patch: { startTime: 2, endTime: 30 } })).isError).toBeUndefined();
     expect(steps()).toBe(1);
+  });
+
+  it('update_item merges the outside-mask style fields on a boundary', async () => {
+    const { boundary } = seed();
+    const result = await runAgentTool('update_item', { id: boundary.id, patch: { style: { maskOutside: true, maskOpacity: 0.6 } } });
+    expect(result.isError).toBeFalsy();
+    expect(state().items[boundary.id]).toMatchObject({ style: { maskOutside: true, maskOpacity: 0.6, maskColor: '#0b0f19' } });
+  });
+
+  it('update_item sets fillMode and a validated, lowercased flagCode on a boundary', async () => {
+    const { boundary } = seed();
+    const ok = await runAgentTool('update_item', { id: boundary.id, patch: { style: { fillMode: 'flag', flagCode: ' FR ' } } });
+    expect(ok.isError).toBeFalsy();
+    expect(state().items[boundary.id]).toMatchObject({ style: { fillMode: 'flag', flagCode: 'fr' } });
+    expect((await runAgentTool('update_item', { id: boundary.id, patch: { style: { flagCode: null } } })).isError).toBeFalsy();
+    expect(state().items[boundary.id]).toMatchObject({ style: { fillMode: 'flag', flagCode: null } });
+    for (const bad of [{ flagCode: 'zz' }, { flagCode: 'gb-eng' }, { fillMode: 'pattern' }]) {
+      const result = await runAgentTool('update_item', { id: boundary.id, patch: { style: bad } });
+      expect(result.isError).toBe(true);
+    }
   });
 
   it('rejects id/kind changes, unknown fields, wrong-kind fields, empty patches and the camera track', async () => {

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
+import { loadVideoExport } from '@/lib/lazyModules';
 import { useProjectStore } from '@/store/useProjectStore';
-import { runExport } from '@/services/videoExport';
 import MapViewport from '@/components/MapViewport/MapViewport';
 import type { RenderConfig } from '@/types/render';
 import type { Project } from '@/store/types';
@@ -104,6 +104,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
     async function render() {
       setStatus('Rendering...');
       try {
+        const { runExport } = await loadVideoExport();
         const blob = await runExport(runtimeRef, {
           renderConfig: jobData!.renderConfig,
           startTime: jobData!.startTime,
@@ -112,7 +113,8 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
             setStatus(`${phase === 'prewarm' ? 'Warming cache' : 'Rendering'}: ${pct}%`);
           },
           abortSignal: abortController.signal,
-          showWatermark: jobData!.showWatermark,
+          // Server's trusted flag: true = free tier.
+          branding: jobData!.showWatermark ? 'free' : 'paid',
         });
 
         // Trigger a browser download so Playwright can intercept and save

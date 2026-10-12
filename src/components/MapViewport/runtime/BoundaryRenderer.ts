@@ -1,18 +1,18 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { getNormalizedProgress } from '@/engine/easings';
 import { extractLineStringsFromGeometry } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import type { BoundaryItem } from '@/store/types';
-import { resolveBoundaryFillColor } from '../layerStyleContracts';
+import { BoundaryFlagLayer, type FlagPlacement, preloadFlag } from './BoundaryFlagLayer';
+import { resolveBoundaryTiming, resolveStrokeOpacity } from './boundaryTiming';
 import {
+  geoJSONSource,
   getGeoJSONSource,
   LayerPropertyWriter,
+  noPaintTransitions,
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
 
-const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
-const EXIT_DURATION = 0.5;
 
 interface BoundaryResourceIds {
   fillSource: string;
@@ -60,10 +60,19 @@ export class BoundaryRenderer {
   private readonly layers: LayerPropertyWriter<BoundaryPaintCache>;
   private lastGeometry: GeoJSON.Geometry | null = null;
   private strokeSourceMode: 'static' | 'animated' | null = null;
+  /** Inputs of the last animated stroke upload; an identical frame skips the (large) setData. */
+  private lastAnimatedStroke: { geometry: GeoJSON.Geometry; key: string } | null = null;
+  private readonly flag: BoundaryFlagLayer;
   private disposed = false;
 
-  constructor(private readonly map: MapboxMap, boundary: BoundaryItem) {
+  /** `getPlacement` is where flag fills go (under the basemap's roads and labels). */
+  constructor(
+    private readonly map: MapboxMap,
+    boundary: BoundaryItem,
+    getPlacement: () => FlagPlacement = () => ({}),
+  ) {
     this.layers = new LayerPropertyWriter(map, createPaintCache);
+    this.flag = new BoundaryFlagLayer(map, boundary.id, getPlacement);
     this.boundary = boundary;
     this.ids = createIds(boundary.id);
   }
@@ -73,54 +82,51 @@ export class BoundaryRenderer {
     this.layers.reset();
     this.lastGeometry = null;
     this.strokeSourceMode = null;
+    this.lastAnimatedStroke = null;
+    this.flag.reset();
     this.ensureResources();
+    preloadFlag(this.boundary.style.fillMode === 'flag', this.boundary.style.flagCode);
   }
 
   setBoundary(boundary: BoundaryItem): void {
     if (boundary.id !== this.boundary.id) throw new Error('BoundaryRenderer cannot change boundary ids');
+    const previous = this.boundary.style;
     this.boundary = boundary;
+    const { fillMode, flagCode } = boundary.style;
+    if (fillMode !== previous.fillMode || flagCode !== previous.flagCode) preloadFlag(fillMode === 'flag', flagCode);
   }
 
   render = (playheadTime: number): void => {
     if (this.disposed) return;
     const boundary = this.boundary;
     const geometry = boundary.geojson;
-    if (!geometry || boundary.resolveStatus !== 'resolved') return;
+    if (!geometry) return;
     const fillSource = getGeoJSONSource(this.map, this.ids.fillSource);
     const strokeSource = getGeoJSONSource(this.map, this.ids.strokeSource);
     if (!fillSource || !strokeSource) return;
 
     const style = boundary.style;
-    const progress = getNormalizedProgress(playheadTime, boundary.startTime, boundary.endTime, boundary.easing);
-    const isExiting = boundary.exitAnimation !== 'none' && playheadTime > boundary.endTime;
-    const exitProgress = isExiting ? Math.min((playheadTime - boundary.endTime) / EXIT_DURATION, 1) : 0;
-    const reverseProgress = 1 - exitProgress;
-    const fadeExit = boundary.exitAnimation === 'fade' && isExiting;
-    const reverseExit = boundary.exitAnimation === 'reverse' && isExiting;
-    const animationStyle = style.animationStyle ?? 'fade';
+    const timing = resolveBoundaryTiming(boundary, playheadTime);
+    const { progress, exitProgress, reverseProgress, reverseExit, animationStyle, fillFactor } = timing;
     const geometryChanged = this.lastGeometry !== geometry;
 
-    const fillColor = resolveBoundaryFillColor(style);
+    const { fillColor } = style;
     this.layers.setPaint(this.ids.fillLayer, 'fill-color', fillColor, 'fillColor', fillColor);
     this.updateStrokeStyle();
 
     const glowVisible = style.glow && !reverseExit;
     this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
 
-    let fillProgress: number;
-    if (reverseExit) {
-      fillProgress = (!style.animateStroke || animationStyle !== 'draw')
-        ? reverseProgress
-        : Math.max(0, (reverseProgress - 0.7) / 0.3);
-    } else if (!style.animateStroke) {
-      fillProgress = progress > 0 ? 1 : 0;
-    } else if (animationStyle === 'fade') {
-      fillProgress = progress;
-    } else {
-      fillProgress = Math.max(0, (progress - 0.7) / 0.3);
-    }
-    let fillOpacity = style.fillOpacity * fillProgress;
-    if (fadeExit) fillOpacity *= reverseProgress;
+    // In flag mode the colour fill stays invisible and the raster flag layer carries the opacity
+    const flagMode = style.fillMode === 'flag';
+    const targetOpacity = style.fillOpacity * fillFactor;
+    const fillOpacity = flagMode ? 0 : targetOpacity;
+    this.flag.sync({
+      enabled: flagMode,
+      code: style.flagCode,
+      geometry,
+      opacity: targetOpacity,
+    });
 
     if (geometryChanged) {
       fillSource.setData({
@@ -132,18 +138,7 @@ export class BoundaryRenderer {
     this.layers.setPaint(this.ids.fillLayer, 'fill-opacity', fillOpacity, 'fillOpacity', fillOpacity);
 
     const staticStroke = !style.animateStroke || animationStyle === 'fade';
-    let strokeOpacity: number;
-    if (reverseExit) {
-      strokeOpacity = staticStroke
-        ? Math.min(reverseProgress * 2, 1)
-        : animationStyle === 'draw' ? (reverseProgress > 0 ? 1 : 0) : reverseProgress;
-    } else if (!style.animateStroke) {
-      strokeOpacity = progress > 0 ? 1 : 0;
-      if (fadeExit) strokeOpacity *= reverseProgress;
-    } else {
-      strokeOpacity = animationStyle === 'fade' ? Math.min(progress * 2, 1) : (progress > 0 ? 1 : 0);
-      if (fadeExit) strokeOpacity *= reverseProgress;
-    }
+    const strokeOpacity = resolveStrokeOpacity(timing, style.animateStroke);
 
     if (staticStroke) {
       if (this.strokeSourceMode !== 'static' || geometryChanged) {
@@ -152,12 +147,19 @@ export class BoundaryRenderer {
           features: [{ type: 'Feature', properties: {}, geometry }],
         });
         this.strokeSourceMode = 'static';
+        this.lastAnimatedStroke = null;
       }
     } else {
-      strokeSource.setData(
-        this.buildAnimatedStroke(geometry, animationStyle, progress, exitProgress, reverseProgress, reverseExit)
-      );
-      this.strokeSourceMode = 'animated';
+      const { traceLength } = boundary.style;
+      const draw = animationStyle === 'draw';
+      const position = reverseExit ? (draw ? exitProgress : reverseProgress) : progress;
+      const key = `${animationStyle}|${reverseExit}|${position}|${traceLength}`;
+      const last = this.lastAnimatedStroke;
+      if (this.strokeSourceMode !== 'animated' || !last || last.geometry !== geometry || last.key !== key) {
+        strokeSource.setData(this.buildAnimatedStroke(geometry, draw, position, reverseExit, traceLength));
+        this.strokeSourceMode = 'animated';
+        this.lastAnimatedStroke = { geometry, key };
+      }
     }
 
     this.layers.setPaint(this.ids.strokeLayer, 'line-opacity', strokeOpacity, 'strokeOpacity', strokeOpacity);
@@ -170,6 +172,7 @@ export class BoundaryRenderer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.flag.dispose();
     [this.ids.glowLayer, this.ids.strokeLayer, this.ids.fillLayer]
       .forEach((id) => removeLayerIfPresent(this.map, id));
     [this.ids.strokeSource, this.ids.fillSource]
@@ -178,10 +181,10 @@ export class BoundaryRenderer {
 
   private ensureResources(): void {
     if (!this.map.getSource(this.ids.fillSource)) {
-      this.map.addSource(this.ids.fillSource, { type: 'geojson', data: EMPTY_FC });
+      this.map.addSource(this.ids.fillSource, geoJSONSource());
     }
     if (!this.map.getSource(this.ids.strokeSource)) {
-      this.map.addSource(this.ids.strokeSource, { type: 'geojson', data: EMPTY_FC });
+      this.map.addSource(this.ids.strokeSource, geoJSONSource());
     }
 
     const style = this.boundary.style;
@@ -190,7 +193,11 @@ export class BoundaryRenderer {
         id: this.ids.fillLayer,
         type: 'fill',
         source: this.ids.fillSource,
-        paint: { 'fill-color': resolveBoundaryFillColor(style), 'fill-opacity': 0 },
+        paint: {
+          'fill-color': style.fillColor,
+          'fill-opacity': 0,
+          ...noPaintTransitions('fill-color', 'fill-opacity'),
+        },
       });
     }
     if (!this.map.getLayer(this.ids.strokeLayer)) {
@@ -203,6 +210,7 @@ export class BoundaryRenderer {
           'line-color': style.strokeColor,
           'line-width': style.strokeWidth,
           'line-opacity': 0,
+          ...noPaintTransitions('line-color', 'line-width', 'line-opacity'),
         },
       });
     }
@@ -217,6 +225,7 @@ export class BoundaryRenderer {
           'line-width': style.strokeWidth * 3,
           'line-opacity': 0.35,
           'line-blur': style.strokeWidth * 2,
+          ...noPaintTransitions('line-color', 'line-width', 'line-opacity', 'line-blur'),
         },
       }, this.ids.strokeLayer);
     }
@@ -241,22 +250,19 @@ export class BoundaryRenderer {
 
   private buildAnimatedStroke(
     geometry: GeoJSON.Geometry,
-    animationStyle: string,
-    progress: number,
-    exitProgress: number,
-    reverseProgress: number,
+    draw: boolean,
+    position: number,
     reverseExit: boolean,
+    traceLength: number,
   ): GeoJSON.FeatureCollection {
-    const traceLength = this.boundary.style.traceLength ?? 0.1;
     const animatedRings: number[][][] = [];
     for (const ring of extractLineStringsFromGeometry(geometry)) {
       let segment: number[][];
-      if (animationStyle === 'draw') {
+      if (draw) {
         segment = reverseExit
-          ? getLineSegment(ring, exitProgress, 1)
-          : getLineSegment(ring, 0, progress);
+          ? getLineSegment(ring, position, 1)
+          : getLineSegment(ring, 0, position);
       } else {
-        const position = reverseExit ? reverseProgress : progress;
         segment = getLineSegment(
           ring,
           position * (1 + traceLength) - traceLength,

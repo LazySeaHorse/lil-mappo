@@ -4,25 +4,20 @@ import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeOutBack, easeOutCubic, stage, staggered } from '../motion';
 import { glyphTexts, layoutGlyphs, type GlyphLayout, type TextSpec } from '../scene/glyphs';
 import { circle, group, rect, text } from '../scene/primitives';
-import { boundsOf, HALO_REACH, haloShadow } from './shared';
+import { boundsOf, HALO_CONTROL, HALO_REACH, haloSchema, haloShadow } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
 export const mapLabelSettingsSchema = z.object({
   variant: z.enum(['place', 'water', 'region']).default('place'),
   tint: z.string().default('#FFFFFF'),
-  halo: z.boolean().default(true),
+  halo: haloSchema,
   showPoint: z.boolean().default(false),
 });
 
 export type MapLabelSettings = z.infer<typeof mapLabelSettingsSchema>;
 
-export const defaultMapLabelSettings: MapLabelSettings = {
-  variant: 'place',
-  tint: '#FFFFFF',
-  halo: true,
-  showPoint: false,
-};
+export const defaultMapLabelSettings: MapLabelSettings = mapLabelSettingsSchema.parse({});
 
 // ─── Variants ─────────────────────────────────────────────────────────────────
 
@@ -252,7 +247,7 @@ export const mapLabelStyle: AnnotationStyleDefinition<MapLabelSettings> = {
       ],
     },
     { type: 'color', key: 'tint', label: 'Text color' },
-    { type: 'switch', key: 'halo', label: 'Soft shadow' },
+    HALO_CONTROL,
     { type: 'switch', key: 'showPoint', label: 'Point marker' },
   ],
   render: renderMapLabel,

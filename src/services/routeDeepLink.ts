@@ -1,4 +1,4 @@
-import { autoCamPresetPatch, defaultAutoCamFor } from '@/config/vehicles';
+import { autoCamPresetPatch, defaultAutoCamFor, routeFitOf } from '@/config/vehicles';
 import { getAirportByCode } from '@/services/airports/airportService';
 import { calculateFlightArc } from '@/services/flightPath';
 import { parseRouteSlug } from '@/services/routeSlug';
@@ -50,7 +50,7 @@ export function buildRouteDeepLinkProject(request: RouteDeepLinkRequest): RouteD
   });
   route.autoCam = {
     ...defaultAutoCamFor('plane'),
-    ...autoCamPresetPatch(request.autocam, 'plane'),
+    ...autoCamPresetPatch(request.autocam, 'plane', routeFitOf(route)),
     enabled: true,
   };
 

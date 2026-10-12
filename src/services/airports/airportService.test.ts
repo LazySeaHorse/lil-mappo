@@ -96,7 +96,11 @@ describe('airportService', () => {
     expect(results.length).toBe(5);
   });
 
-  it('supports synchronous search on demand without pre-loading', () => {
+  it('returns nothing from synchronous lookups until the database has loaded', async () => {
+    expect(searchAirportsSync('JFK')).toEqual([]);
+    expect(getAirportByCode('JFK')).toBeUndefined();
+
+    await loadAirports();
     const results = searchAirportsSync('JFK');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].iata).toBe('JFK');

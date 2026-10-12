@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import secureLocalStorage from "react-secure-storage";
 import { useAuthStore } from '@/store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useSubscription } from '@/hooks/useSubscription';
 import {
   hasByok,
   isMapLoadTracked,
-  isGuestBlocked,
   incrementGuestLoadCount,
   getGuestLoadCount,
   claimDeepLinkGuestExemption,
@@ -46,10 +46,23 @@ export interface MapLoadGateOptions {
    * of being shown the sign-in wall. Has no effect on signed-in users.
    */
   deepLinkEntry?: boolean;
+  /**
+   * True while a route deep link is still resolving asynchronously.
+   * Gate evaluation is deferred until the arrival result is known.
+   */
+  deepLinkPending?: boolean;
 }
 
-export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {}): MapLoadGateState {
-  const { isLoading: authLoading, session } = useAuthStore();
+export function useMapLoadGate({
+  deepLinkEntry = false,
+  deepLinkPending = false,
+}: MapLoadGateOptions = {}): MapLoadGateState {
+  const { isLoading: authLoading, session } = useAuthStore(
+    useShallow((s) => ({
+      isLoading: s.isLoading,
+      session: s.session,
+    })),
+  );
   const { data: subscription, isLoading: subLoading } = useSubscription();
 
   const [ready, setReady] = useState(false);
@@ -60,8 +73,9 @@ export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {
   const checkedRef = useRef(false);
 
   useEffect(() => {
-    // Don't evaluate until auth + subscription are resolved
+    // Don't evaluate until auth + subscription are resolved and deep link is settled
     if (authLoading || (session && subLoading)) return;
+    if (deepLinkPending) return;
     if (checkedRef.current) return;
     checkedRef.current = true;
 
@@ -121,7 +135,7 @@ export function useMapLoadGate({ deepLinkEntry = false }: MapLoadGateOptions = {
         setReason('quota_error');
         setReady(true);
       });
-  }, [authLoading, session, subLoading, subscription, deepLinkEntry]);
+  }, [authLoading, session, subLoading, subscription, deepLinkEntry, deepLinkPending]);
 
   const onMapLoaded = () => {
     // For guests: increment the secureLocalStorage counter after the map loads

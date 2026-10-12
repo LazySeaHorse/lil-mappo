@@ -114,6 +114,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     data-slot="dialog-title"
+    data-ph-unmask
     className={cn("text-lg leading-none font-medium", className)}
     {...props}
   />
@@ -127,6 +128,7 @@ const DialogDescription = React.forwardRef<
   <DialogPrimitive.Description
     ref={ref}
     data-slot="dialog-description"
+    data-ph-unmask
     className={cn("text-muted-foreground text-sm", className)}
     {...props}
   />

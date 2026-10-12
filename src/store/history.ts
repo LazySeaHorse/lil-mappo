@@ -137,16 +137,6 @@ function cleanupSelection(): void {
   if (s.activePicker?.ownerId && !s.items[s.activePicker.ownerId]) patch.activePicker = null;
   if (s.playheadTime > s.duration) patch.playheadTime = s.duration;
 
-  // resolveStatus is written by background search (untracked), so a restored
-  // snapshot can carry a stale 'idle'/'loading' next to valid geometry, which
-  // the renderer would hide. Geometry present means resolved.
-  let items = s.items;
-  for (const [id, item] of Object.entries(s.items)) {
-    if (item.kind === 'boundary' && item.geojson && item.resolveStatus !== 'resolved') {
-      items = { ...items, [id]: { ...item, resolveStatus: 'resolved' } };
-    }
-  }
-  if (items !== s.items) patch.items = items;
   if (Object.keys(patch).length) withoutHistory(() => useProjectStore.setState(patch));
 }
 

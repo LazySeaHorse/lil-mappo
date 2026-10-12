@@ -2,6 +2,7 @@ import bezierSpline from '@turf/bezier-spline';
 import type { RouteItem, RouteVehicleConfig, WalkRouteCalculation } from '@/store/types';
 import { lineString } from '@turf/helpers';
 import { truncateCoordinates } from '@/engine/geoUtils';
+import { clamp } from '@/engine/geoMath';
 
 export interface RouteCurveOptions {
   curved?: boolean;
@@ -33,11 +34,11 @@ export function buildRouteGeometry(
 
   try {
     const sharpness = typeof options.sharpness === 'number' && Number.isFinite(options.sharpness)
-      ? Math.max(0.01, Math.min(1, options.sharpness))
+      ? clamp(options.sharpness, 0.01, 1)
       : 0.85;
 
     const resolution = typeof options.resolution === 'number' && Number.isFinite(options.resolution)
-      ? Math.max(100, Math.min(50000, options.resolution))
+      ? clamp(options.resolution, 100, 50000)
       : 10000;
 
     const curved = bezierSpline(straightLine, { sharpness, resolution });

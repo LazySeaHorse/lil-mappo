@@ -2,11 +2,8 @@ import { useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useProjectStore } from '@/store/useProjectStore';
 import { toProjectDocument } from '@/store/projectDocument';
+import { errorMessage } from '@/lib/utils';
 import type { ExportPlan } from '../exportPlan';
-
-function getErrorMessage(error: unknown, fallback = 'Failed to submit cloud render'): string {
-  return error instanceof Error ? error.message : fallback;
-}
 
 export function useCloudRenderDispatch(
   session: Session | null,
@@ -57,7 +54,7 @@ export function useCloudRenderDispatch(
 
       setCloudSubmitted(true);
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      setError(errorMessage(err, 'Failed to submit cloud render'));
     }
   };
 

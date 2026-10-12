@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GroupNode, PolylineNode, SceneNode, StyleRenderInput, TextNode } from '../types';
 import {
-  bigNumberSettingsSchema,
   bigNumberStyle,
   defaultBigNumberSettings,
   measureBigNumber,
@@ -51,7 +50,6 @@ describe('bigNumberStyle definition', () => {
     expect(bigNumberStyle.contentSlots).toContain('metric');
     expect(bigNumberStyle.controls.map((c) => c.key).sort()).toEqual(Object.keys(defaultBigNumberSettings).sort());
     expect(bigNumberStyle.controls.find((c) => c.key === 'prefix')?.type).toBe('text-input');
-    expect(bigNumberSettingsSchema.parse({})).toEqual(defaultBigNumberSettings);
   });
 });
 

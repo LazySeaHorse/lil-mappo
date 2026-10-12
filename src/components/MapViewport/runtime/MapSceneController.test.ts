@@ -2,6 +2,8 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
+import { createBoundaryItem, DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
+import { createProject, parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { MapSceneController } from './MapSceneController';
 
 const route: RouteItem = {
@@ -26,9 +28,9 @@ const route: RouteItem = {
     trailFade: false,
     trailFadeLength: 0.3,
     dashPattern: null,
-    animationType: 'draw',
+    animationType: 'draw', cometTrailLength: 0.2,
   },
-  easing: 'linear',
+  easing: 'linear', exitAnimation: 'none',
   calculation: { mode: 'car', startPoint: [0, 0], endPoint: [1, 1] },
 };
 
@@ -148,22 +150,8 @@ describe('MapSceneController', () => {
       sceneSource!.setData.mockClear();
 
       useProjectStore.getState().setPlayheadTime(2.5);
-      expect(sceneSource!.setData).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'FeatureCollection',
-          features: [
-            expect.objectContaining({
-              geometry: expect.objectContaining({
-                type: 'LineString',
-                coordinates: [
-                  [0, 0],
-                  [0.5, 0.5],
-                ],
-              }),
-            }),
-          ],
-        }),
-      );
+      expect(double.setPaintProperty).toHaveBeenCalledWith('route-layer-scene-route', 'line-trim-offset', [expect.closeTo(0.5, 3), 1]);
+      expect(sceneSource!.setData).not.toHaveBeenCalled();
 
       double.layers.clear();
       double.sources.clear();
@@ -182,6 +170,39 @@ describe('MapSceneController', () => {
 
     expect([...double.listeners.values()].every((group) => group.size === 0)).toBe(true);
     expect(double.layers.has('route-layer-scene-route')).toBe(false);
+  });
+
+  it('loads and draws a boundary, mask included, saved with a stale search status', () => {
+    const previous = useProjectStore.getState();
+    // Older versions saved 'idle' on a boundary whose search was abandoned, next to valid geometry.
+    const boundary = {
+      ...createBoundaryItem({
+        id: 'idle-boundary',
+        placeName: 'Idle',
+        geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
+        startTime: 0,
+        style: { ...DEFAULT_BOUNDARY_STYLE, animateStroke: false, maskOutside: true },
+      }),
+      resolveStatus: 'idle',
+    };
+    const document = toProjectDocument(createProject());
+    const project = parseProjectDocument({
+      ...document,
+      items: { ...document.items, [boundary.id]: boundary },
+      itemOrder: [...document.itemOrder, boundary.id],
+    });
+    useProjectStore.setState({ items: project.items, itemOrder: project.itemOrder, playheadTime: 2 });
+    const double = createMapDouble();
+    const controller = new MapSceneController(double.map, vi.fn());
+    try {
+      controller.mount();
+      expect(double.layers.has('boundary-fill-layer-idle-boundary')).toBe(true);
+      const maskUpload = double.sources.get('boundary-mask')!.setData.mock.calls.at(-1)?.[0] as GeoJSON.FeatureCollection | undefined;
+      expect(maskUpload?.features.length).toBeGreaterThan(0);
+    } finally {
+      controller.dispose();
+      useProjectStore.setState({ items: previous.items, itemOrder: previous.itemOrder, playheadTime: previous.playheadTime });
+    }
   });
 
   it('renders scene elements when style._loaded is true even if isStyleLoaded returns false due to source updates', () => {
@@ -218,13 +239,13 @@ describe('MapSceneController', () => {
   });
 
   describe('selection preview', () => {
-    const lastCoords = (double: ReturnType<typeof createMapDouble>) => {
-      const calls = double.sources.get('route-scene-route')!.setData.mock.calls;
-      const data = calls[calls.length - 1]?.[0] as GeoJSON.FeatureCollection | undefined;
-      return (data?.features[0]?.geometry as GeoJSON.LineString | undefined)?.coordinates;
-    };
+    const lastTrim = (double: ReturnType<typeof createMapDouble>) =>
+      double.setPaintProperty.mock.calls.filter(([id, prop]) => id === 'route-layer-scene-route' && prop === 'line-trim-offset').at(-1)?.[2];
 
-    const FULL = [[0, 0], [1, 1]];
+    const lastVisibility = (double: ReturnType<typeof createMapDouble>) =>
+      double.setLayoutProperty.mock.calls.filter(([id, prop]) => id === 'route-layer-scene-route' && prop === 'visibility').at(-1)?.[2];
+
+    const FULL = [0, 0];
 
     const setup = (playheadTime: number) => {
       const previous = useProjectStore.getState();
@@ -254,13 +275,14 @@ describe('MapSceneController', () => {
     it('draws the selected route fully when the playhead is before its clip, and reverts on deselect', () => {
       const { double, restore } = setup(0);
       try {
-        expect(lastCoords(double)).not.toEqual(FULL);
+        expect(lastVisibility(double)).toBe('none');
 
         useProjectStore.getState().selectItem(route.id);
-        expect(lastCoords(double)).toEqual(FULL);
+        expect(lastVisibility(double)).toBe('visible');
+        expect(lastTrim(double)).toEqual(FULL);
 
         useProjectStore.getState().selectItem(null);
-        expect(lastCoords(double)).not.toEqual(FULL);
+        expect(lastTrim(double)).toEqual([0, 1]); // selecting parked the playhead on the start: nothing drawn
       } finally {
         restore();
       }
@@ -270,7 +292,7 @@ describe('MapSceneController', () => {
       const { double, restore } = setup(4);
       try {
         useProjectStore.getState().selectItem(route.id);
-        expect(lastCoords(double)).toEqual([[0, 0], [0.5, 0.5]]);
+        expect(lastTrim(double)).toEqual([expect.closeTo(0.5, 3), 1]);
       } finally {
         restore();
       }
@@ -281,10 +303,41 @@ describe('MapSceneController', () => {
       try {
         useProjectStore.getState().selectItem(route.id);
         controller.renderAt(0);
-        expect(lastCoords(double)).not.toEqual(FULL);
+        expect(lastVisibility(double)).toBe('none');
       } finally {
         restore();
       }
     });
+  });
+});
+
+describe('MapSceneController basemap reconcile', () => {
+  const BASEMAP_KEYS = [
+    'mapStyle', 'projection', 'terrainEnabled', 'terrainExaggeration', 'buildingsEnabled', 'lightPreset',
+    'labelVisibility', 'show3dLandmarks', 'show3dTrees', 'show3dFacades', 'starIntensity', 'fogColor',
+    'terrainLoading', 'detectedCapabilities',
+  ] as const;
+
+  it('reconciles the basemap when, and only when, one of its store fields changes', () => {
+    const previous = useProjectStore.getState();
+    const double = createMapDouble();
+    const controller = new MapSceneController(double.map, vi.fn());
+    const basemap = (controller as unknown as { basemap: { reconcile: () => void } }).basemap;
+    const reconcile = vi.spyOn(basemap, 'reconcile').mockImplementation(() => undefined);
+    try {
+      controller.mount();
+      for (const key of BASEMAP_KEYS) {
+        reconcile.mockClear();
+        useProjectStore.setState({ [key]: Symbol(key) } as never);
+        expect(reconcile, key).toHaveBeenCalledTimes(1);
+      }
+      reconcile.mockClear();
+      useProjectStore.setState({ timelineHeight: 123, isPlaying: !useProjectStore.getState().isPlaying } as never);
+      expect(reconcile).not.toHaveBeenCalled();
+    } finally {
+      controller.dispose();
+      reconcile.mockRestore();
+      useProjectStore.setState(previous, true);
+    }
   });
 });

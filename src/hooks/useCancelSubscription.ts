@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { errorMessage } from '@/lib/utils';
 
 interface UseCancelSubscriptionOptions {
   accessToken: string | null;
@@ -37,8 +38,7 @@ export function useCancelSubscription({
           "."
       );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Could not cancel";
-      toast.error(message);
+      toast.error(errorMessage(err, "Could not cancel"));
     } finally {
       setCancelling(false);
     }

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hasByok } from '@/lib/cloudAccess';
 import { useToolbarActions } from '@/components/Toolbar/useToolbarActions';
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   FilePlus2, Save, Library, FileJson, Upload, Settings,
-  ChevronDown, Settings2, Clapperboard, LogIn, LogOut, Lock,
+  ChevronDown, Settings2, LogIn, LogOut, Lock,
   Compass,
 } from 'lucide-react';
 
@@ -30,8 +31,22 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: AvatarMenuProps) {
   const { isMobile, isTablet } = useResponsive();
-  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, openRendersModal, signOut } = useAuthStore();
-  const { selectItem, setProjectSettingsTab } = useProjectStore();
+  const { user, openAuthModal, requestSignIn, openUpgradeModal, openSettingsModal, signOut } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      openAuthModal: s.openAuthModal,
+      requestSignIn: s.requestSignIn,
+      openUpgradeModal: s.openUpgradeModal,
+      openSettingsModal: s.openSettingsModal,
+      signOut: s.signOut,
+    })),
+  );
+  const { selectItem, setProjectSettingsTab } = useProjectStore(
+    useShallow(s => ({
+      selectItem: s.selectItem,
+      setProjectSettingsTab: s.setProjectSettingsTab,
+    }))
+  );
   const actions = useToolbarActions();
   const { data: subscription } = useSubscription();
   const isLocked = !user && !hasByok();
@@ -80,14 +95,14 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
         className="w-56 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl"
       >
         {/* ─── Who's driving ─── */}
-        <div className="flex items-center gap-2.5 px-3 pt-3 pb-2.5">
+        <div className="ph-no-capture flex items-center gap-2.5 px-3 pt-3 pb-2.5">
           <Mappo mood={mood} className="h-11 w-auto shrink-0 mt-2" />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium leading-tight">{accountName}</div>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="rounded-full bg-primary/10 px-1.5 py-px font-medium text-primary">{tierLabel}</span>
               {user && mood !== 'explorer' && (
-                <DropdownMenuItem asChild onClick={afterClose(openUpgradeModal)}>
+                <DropdownMenuItem asChild onClick={afterClose(() => openUpgradeModal('account_menu'))}>
                   <button type="button" className="cursor-pointer outline-none hover:text-primary hover:underline focus-visible:text-primary focus-visible:underline">
                     Upgrade
                   </button>

@@ -1,6 +1,9 @@
 import { z } from 'zod/v4';
 import { colorSchema, easingSchema, lngLatSchema } from './shared';
+import { hasFlag } from '@/components/MapViewport/runtime/flagImages';
 import { ENTER_TRANSITIONS, EXIT_TRANSITIONS } from '@/annotations/animation';
+import type { AnnotationStyleDefinition } from '@/annotations/types';
+import { ToolError } from '../errors';
 
 // Style/field schemas shared by the add_* and update_item tools. Patch objects
 // are strict so a misspelled field is reported instead of silently ignored.
@@ -27,6 +30,17 @@ export const boundaryStyleShape = {
   animateStroke: z.boolean().describe('Animate the outline in.'),
   animationStyle: z.enum(['fade', 'draw', 'trace']).describe('fade = fade in; draw = outline draws around the region; trace = a bright segment travels around it.'),
   traceLength: z.number().min(0).max(1).describe('Length of the trace segment as a fraction of the outline (0-1).'),
+  maskOutside: z.boolean().describe('Spotlight look: paint everything on the map outside this boundary with maskColor at maskOpacity. Several masked boundaries visible at once are all spotlit together. Default false.'),
+  maskColor: colorSchema.describe('Color painted outside the boundary when maskOutside is on. Default "#0b0f19" (near black).'),
+  maskOpacity: z.number().min(0).max(1).describe('Opacity of the outside mask, 0-1, when maskOutside is on. It fades in and out with the boundary fill. Default 0.85.'),
+  fillMode: z.enum(['color', 'flag']).describe('color = fill with fillColor (default); flag = fill the region with a country flag (see flagCode), cropped to cover, below the map labels. fillOpacity still applies.'),
+  flagCode: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((code) => hasFlag(code), 'Unknown flag code; use a lowercase ISO 3166-1 alpha-2 country code such as "fr".')
+    .nullable()
+    .describe('Country flag used when fillMode is "flag": lowercase ISO 3166-1 alpha-2 code, e.g. "fr", "jp", "br". add_boundary pre-fills it for countries found by search; null = none chosen. Country flags only (no states or cities). Setting it does not switch fillMode.'),
 };
 export const boundaryStylePatchSchema = z.strictObject(boundaryStyleShape).partial();
 
@@ -37,7 +51,7 @@ export const vehicleShape = {
 };
 export const vehiclePatchSchema = z.strictObject(vehicleShape).partial();
 
-export const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).describe('How the item leaves at endTime: none = disappears, reverse = un-draws, fade = fades out.');
+export const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).describe('How the item leaves at endTime: none = stays on screen, fully drawn, after endTime (the default); reverse = un-draws from its start over 0.5 s; fade = fades out over 0.5 s.');
 
 export const contentShape = {
   title: z.string().max(200).describe('Main text.'),
@@ -113,4 +127,17 @@ export const cameraShape = {
 /** Formats zod issues as "path: message" for ToolError messages. */
 export function issuesOf(error: z.ZodError): { path: string; message: string }[] {
   return error.issues.map((i) => ({ path: i.path.map(String).join('.') || '(root)', message: i.message }));
+}
+
+/** Validates complete callout settings against the style's schema; throws invalid_settings listing every issue. */
+export function parseCalloutSettings(
+  style: AnnotationStyleDefinition,
+  styleId: string,
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const parsed = style.settingsSchema.safeParse(settings);
+  if (!parsed.success) {
+    throw new ToolError('invalid_settings', `settings are not valid for style "${styleId}": ${issuesOf(parsed.error as never).map((i) => `${i.path}: ${i.message}`).join('; ')}`);
+  }
+  return parsed.data as Record<string, unknown>;
 }

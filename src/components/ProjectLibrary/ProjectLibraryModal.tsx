@@ -84,7 +84,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
                 }
               />
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="ph-no-capture flex flex-col gap-2">
                 {projects.map((p) => (
                   <ProjectRow
                     key={p.id}
@@ -149,7 +149,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
         onCancel={() => setPendingUploadProject(null)}
         onUpgrade={() => {
           setPendingUploadProject(null);
-          openUpgradeModal();
+          openUpgradeModal('cloud_slots');
         }}
         onReplaceAndUpload={handleDeleteAndRetryUpload}
       />

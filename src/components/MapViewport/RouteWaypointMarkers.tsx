@@ -1,4 +1,3 @@
-import React from 'react';
 import { Marker } from 'react-map-gl/mapbox';
 import type { MarkerDragEvent } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';

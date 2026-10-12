@@ -220,6 +220,28 @@ describe('ProjectLibraryCoordinator', () => {
     expect(adapters.finalizeDeletion).toHaveBeenCalledWith(project.id);
   });
 
+  it('hides projects whose deletion could not finish and reads the outbox once per listing', async () => {
+    const other = { ...localInfo, id: 'local-2', name: 'Other' };
+    const failing = { ...localInfo, id: 'local-3', name: 'Failing' };
+    const adapters = createAdapters({
+      listLocal: vi.fn().mockResolvedValue([localInfo, other, failing]),
+      listDeletions: vi.fn().mockResolvedValue([
+        { id: localInfo.id, createdAt: 1, cloudPending: true }, // needs the cloud, which is unavailable
+        { id: other.id, createdAt: 1, cloudPending: false }, // finalizes now
+        { id: failing.id, createdAt: 1, cloudPending: false }, // finalize fails
+      ]),
+      finalizeDeletion: vi.fn().mockImplementation(async (id: string) => {
+        if (id === failing.id) throw new Error('blocked');
+      }),
+    });
+    const coordinator = new ProjectLibraryCoordinator(adapters);
+
+    const projects = await coordinator.listProjects(false);
+
+    expect(projects.map((p) => p.id)).toEqual([other.id]);
+    expect(adapters.listDeletions).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves the cloud timestamp when downloading', async () => {
     const adapters = createAdapters();
     const coordinator = new ProjectLibraryCoordinator(adapters);

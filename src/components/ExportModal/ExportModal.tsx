@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Clapperboard } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -6,8 +6,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useMapRuntime } from '@/hooks/useMapRuntime';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import type { AspectRatio, ExportResolution, RenderConfig } from '@/types/render';
-import { getExportLimits, shouldShowWatermark } from '@/lib/cloudAccess';
+import type { RenderConfig } from '@/types/render';
+import { getExportLimits, brandingFor } from '@/lib/cloudAccess';
 import { resolveExportPlan } from './exportPlan';
 import { useLocalExportCapability } from './hooks/useLocalExportCapability';
 import { useVideoExportExecution } from './hooks/useVideoExportExecution';
@@ -90,7 +90,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   );
 
   // Hook 2: Video export lifecycle
-  const showWatermark = shouldShowWatermark(subscription);
+  const branding = brandingFor(subscription);
   const isLimitedGuest = !session && limits.limited;
   const {
     progress,
@@ -101,7 +101,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   } = useVideoExportExecution(
     runtimeRef,
     exportPlan,
-    showWatermark,
+    branding,
     name,
     () => requestSignIn('Sign in to export your video.'),
     isLimitedGuest
@@ -155,7 +155,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
             progress={progress}
             error={error}
             cloudSubmitted={false}
-            onOpenUpgrade={openUpgradeModal}
+            onOpenUpgrade={() => openUpgradeModal('export_limits')}
           />
         </div>
 

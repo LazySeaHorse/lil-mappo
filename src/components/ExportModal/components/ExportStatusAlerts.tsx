@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2, Download, Cloud } from 'lucide-react';
-import type { LocalExportCapability } from '@/services/videoExport';
+import type { LocalExportCapability } from '@/services/localExportCapability';
 import type { ExportLimits } from '@/lib/cloudAccess';
 
 interface ExportStatusAlertsProps {
@@ -106,7 +106,7 @@ export function ExportStatusAlerts({
         <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-xl p-3">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span>
-            This browser may not support H.264 at {effectiveWidth} × {effectiveHeight}, {effectiveFps} FPS. Try a lower resolution or 30 FPS.
+            This browser does not support H.264 at {effectiveWidth} × {effectiveHeight}, {effectiveFps} FPS. Select a lower resolution or 30 FPS.
           </span>
         </div>
       )}
@@ -141,14 +141,14 @@ export function ExportStatusAlerts({
       {/* Success Local */}
       {!isExporting && progress === 100 && !error && (
         <div className="text-xs text-primary bg-primary/10 rounded-xl p-3 flex items-center gap-2">
-          <Download size={14} /> Export complete. The file was downloaded.
+          <Download size={14} /> Export complete. The browser downloaded the file.
         </div>
       )}
 
       {/* Success Cloud */}
       {cloudSubmitted && !error && (
         <div className="text-xs text-primary bg-primary/10 rounded-xl p-3 flex items-center gap-2">
-          <Cloud size={14} /> Cloud render queued. Open Cloud renders to check progress and download the file.
+          <Cloud size={14} /> Cloud render queued. Open Cloud renders to view progress and download the file.
         </div>
       )}
     </div>

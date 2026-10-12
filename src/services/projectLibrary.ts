@@ -37,8 +37,9 @@ interface StoredRecord extends Project {
   pendingSync: boolean;
 }
 
-// Internal helper to get DB connection
-function getDB(): Promise<IDBDatabase> {
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -60,6 +61,35 @@ function getDB(): Promise<IDBDatabase> {
       }
     };
   });
+}
+
+/**
+ * The shared library connection, opened on first use. It is dropped (and the
+ * next call reopens) when opening fails, when another tab upgrades the
+ * database (we close ours so the upgrade is not blocked), or when the browser
+ * closes it.
+ */
+function getDB(): Promise<IDBDatabase> {
+  if (dbPromise) return dbPromise;
+  const pending = openDB().then(
+    (db) => {
+      const forget = () => {
+        if (dbPromise === pending) dbPromise = null;
+      };
+      db.onversionchange = () => {
+        db.close();
+        forget();
+      };
+      db.onclose = forget;
+      return db;
+    },
+    (error) => {
+      if (dbPromise === pending) dbPromise = null;
+      throw error;
+    },
+  );
+  dbPromise = pending;
+  return pending;
 }
 
 /** Reads the raw stored record for a project (including library metadata). */
@@ -192,21 +222,6 @@ export async function loadProjectFromLibrary(id: string): Promise<Project> {
       }
     };
     request.onerror = () => reject(new Error('Failed to load project'));
-  });
-}
-
-/**
- * Deletes a project from the library by its ID.
- */
-export async function deleteProjectFromLibrary(id: string): Promise<void> {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(id);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(new Error('Failed to delete project'));
   });
 }
 

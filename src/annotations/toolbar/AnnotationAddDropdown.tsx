@@ -5,8 +5,9 @@
  * Only asks for location and label; style is chosen later in the inspector.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,9 +29,9 @@ export const AnnotationAddDropdown = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const {
-    addItem, selectItem, playheadTime,
-  } = useProjectStore();
+  const { addItem, selectItem } = useProjectStore(
+    useShallow(s => ({ addItem: s.addItem, selectItem: s.selectItem }))
+  );
 
   const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
   const [locationName, setLocationName] = useState('');
@@ -63,7 +64,7 @@ export const AnnotationAddDropdown = ({
       styleId: DEFAULT_CALLOUT_STYLE_ID,
       content: { title },
       lngLat,
-      startTime: playheadTime,
+      startTime: useProjectStore.getState().playheadTime,
       linkTitleToLocation: linkTitle,
     });
     if (!item) {
@@ -166,7 +167,7 @@ export const AnnotationAddDropdown = ({
 
       <div className="space-y-3">
         <p className="px-1 text-xs text-muted-foreground">
-          You can choose the style, colors, and more in the inspector panel after the callout is created.
+          You can set the style and colors in the inspector panel after you create the callout.
         </p>
       </div>
     </ToolbarDropdownPanel>

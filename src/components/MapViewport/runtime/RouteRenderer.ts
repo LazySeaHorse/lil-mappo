@@ -1,23 +1,21 @@
-import type {
-  ExpressionSpecification,
-  GeoJSONSourceSpecification,
-  Map as MapboxMap,
-} from 'mapbox-gl';
-import { getNormalizedProgress } from '@/engine/easings';
+import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
 import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
-import { getAnimatedLine, getLineSegment } from '@/engine/lineAnimation';
+import { getLineSegment } from '@/engine/lineAnimation';
+import { getRoutePath } from '@/engine/routePath';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
 import { resolveRoutePaint } from '../layerStyleContracts';
 import {
+  EMPTY_FC,
+  geoJSONSource,
   getGeoJSONSource,
   LayerPropertyWriter,
+  noPaintTransitions,
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
 import { MODEL_BASE_SCALE } from '@/config/vehicles';
+import { routeTiming, type RouteTiming } from './routeTiming';
 
-const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
-const EXIT_DURATION = 0.5;
 const DOT_BASE_RADIUS = 9;
 const MODELS: Record<'car' | 'plane', string> = {
   car: '/models/car.glb',
@@ -27,7 +25,6 @@ const MODELS: Record<'car' | 'plane', string> = {
 interface RouteResourceIds {
   mainSource: string;
   mainLayer: string;
-  glowSource: string;
   glowLayer: string;
   cometSource: string;
   cometLayer: string;
@@ -40,15 +37,20 @@ interface PaintCache {
   mainWidth: number;
   mainOpacity: number;
   mainVisible: boolean;
+  mainTrim: string;
   glowColor: string;
   glowWidth: number;
   glowOpacity: number;
   glowVisible: boolean;
+  glowTrim: string;
   cometColor: string;
   cometWidth: number;
   lastAnimationType: string;
   vehicleVisible: boolean;
   vehicleOpacity: number;
+  /** Last uploaded vehicle position and model rotation, as `a,b` keys. */
+  vehiclePosition: string;
+  vehicleRotation: string;
   dashPattern: number[] | null;
 }
 
@@ -56,7 +58,6 @@ function createIds(routeId: string): RouteResourceIds {
   return {
     mainSource: `route-${routeId}`,
     mainLayer: `route-layer-${routeId}`,
-    glowSource: `route-glow-${routeId}`,
     glowLayer: `route-glow-layer-${routeId}`,
     cometSource: `route-comet-${routeId}`,
     cometLayer: `route-comet-layer-${routeId}`,
@@ -67,11 +68,11 @@ function createIds(routeId: string): RouteResourceIds {
 
 function createPaintCache(): PaintCache {
   return {
-    mainColor: '', mainWidth: -1, mainOpacity: -1, mainVisible: true,
-    glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false,
+    mainColor: '', mainWidth: -1, mainOpacity: -1, mainVisible: true, mainTrim: '',
+    glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false, glowTrim: '',
     cometColor: '', cometWidth: -1,
     lastAnimationType: '',
-    vehicleVisible: true, vehicleOpacity: -1,
+    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleRotation: '',
     dashPattern: null,
   };
 }
@@ -84,8 +85,19 @@ function coordsToFeatureCollection(coords: number[][]): GeoJSON.FeatureCollectio
   };
 }
 
-function geoJSONSource(lineMetrics = false): GeoJSONSourceSpecification {
-  return { type: 'geojson', data: EMPTY_FC, ...(lineMetrics ? { lineMetrics: true } : {}) };
+/**
+ * The whole route as ONE LineString (a MultiLineString or several features would each get their own
+ * 0..1 line-progress), longitude unwrapped so an antimeridian crossing stays continuous; Mapbox's
+ * GeoJSON tiler wraps the world copies itself and keeps the progress continuous across the seam.
+ */
+function routeLine(coords: number[][]): GeoJSON.FeatureCollection {
+  if (coords.length < 2) return EMPTY_FC;
+  let prevLng = coords[0][0];
+  const line = coords.map((c) => {
+    prevLng = c[0] + 360 * Math.round((prevLng - c[0]) / 360);
+    return [prevLng, ...c.slice(1)];
+  });
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line } }] };
 }
 
 function gradient(color: string): ExpressionSpecification {
@@ -97,8 +109,7 @@ export class RouteRenderer {
   private coordinates: number[][];
   private readonly ids: RouteResourceIds;
   private readonly layers: LayerPropertyWriter<PaintCache>;
-  private lastGeometryState = '';
-  private lastGlowState = '';
+  private lastCometState = '';
   private disposed = false;
 
   constructor(private readonly map: MapboxMap, route: RouteItem) {
@@ -111,8 +122,7 @@ export class RouteRenderer {
   mount(): void {
     this.disposed = false;
     this.layers.reset();
-    this.lastGeometryState = '';
-    this.lastGlowState = '';
+    this.lastCometState = '';
     this.ensureRouteResources();
     this.ensureVehicleResources();
     this.uploadGeometry();
@@ -126,8 +136,6 @@ export class RouteRenderer {
     this.route = route;
     if (geometryChanged) {
       this.coordinates = extractLineCoords(route.geojson);
-      this.lastGeometryState = '';
-      this.lastGlowState = '';
       this.uploadGeometry();
     }
     if (vehicleChanged || colorChanged) this.ensureVehicleResources();
@@ -142,34 +150,30 @@ export class RouteRenderer {
 
     const resolvedPaint = resolveRoutePaint(route);
     const routeColor = resolvedPaint.lineColor;
-    const progress = getNormalizedProgress(playheadTime, route.startTime, route.endTime, route.easing);
-    const animationType = route.style.animationType ?? 'draw';
+    const timing = routeTiming(route, playheadTime);
+    const { progress, isBeforeStart, exitActive, exitProgress, isAfterExit } = timing;
+    const { animationType } = route.style;
 
     if (this.layers.cache.lastAnimationType === 'comet' && animationType !== 'comet') {
       getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
+      this.lastCometState = '';
     }
     this.layers.cache.lastAnimationType = animationType;
-
-    const isBeforeStart = playheadTime < route.startTime;
-    const exitActive = route.exitAnimation !== 'none' && playheadTime > route.endTime;
-    const exitProgress = exitActive ? Math.min((playheadTime - route.endTime) / EXIT_DURATION, 1) : 0;
-    const isAfterExit = exitProgress >= 1;
 
     if (animationType === 'comet') {
       this.layers.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
       this.layers.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
       if (isBeforeStart || isAfterExit) {
-        if (this.lastGeometryState !== 'comet:empty') {
+        if (this.lastCometState !== 'comet:empty') {
           getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
-          this.lastGeometryState = 'comet:empty';
+          this.lastCometState = 'comet:empty';
         }
       } else {
         const state = `comet:${progress}`;
-        if (this.lastGeometryState !== state) {
-          const trailLength = route.style.cometTrailLength ?? 0.2;
-          const trail = getLineSegment(coordinates, Math.max(0, progress - trailLength), progress);
+        if (this.lastCometState !== state) {
+          const trail = getLineSegment(coordinates, Math.max(0, progress - route.style.cometTrailLength), progress);
           getGeoJSONSource(this.map, this.ids.cometSource)?.setData(coordsToFeatureCollection(trail));
-          this.lastGeometryState = state;
+          this.lastCometState = state;
         }
         this.layers.setPaint(this.ids.cometLayer, 'line-gradient', gradient(routeColor), 'cometColor', routeColor);
         this.layers.setPaint(this.ids.cometLayer, 'line-width', route.style.width, 'cometWidth', route.style.width);
@@ -178,18 +182,12 @@ export class RouteRenderer {
       if (isBeforeStart || isAfterExit) {
         this.layers.setLayout(this.ids.mainLayer, 'visibility', 'none', 'mainVisible', false);
         this.layers.setLayout(this.ids.glowLayer, 'visibility', 'none', 'glowVisible', false);
-        if (this.lastGeometryState !== 'empty') {
-          mainSource.setData(EMPTY_FC);
-          getGeoJSONSource(this.map, this.ids.glowSource)?.setData(EMPTY_FC);
-          this.lastGeometryState = 'empty';
-          this.lastGlowState = 'empty';
-        }
       } else {
         this.layers.setLayout(this.ids.mainLayer, 'visibility', 'visible', 'mainVisible', true);
         const glowVisible = Boolean(route.style.glow);
         this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
 
-        const opacity = this.resolveOpacity(playheadTime);
+        const { opacity } = timing;
         this.layers.setPaint(this.ids.mainLayer, 'line-color', routeColor, 'mainColor', routeColor);
         this.layers.setPaint(this.ids.mainLayer, 'line-opacity', opacity, 'mainOpacity', opacity);
         this.layers.setPaint(this.ids.mainLayer, 'line-width', route.style.width, 'mainWidth', route.style.width);
@@ -207,48 +205,20 @@ export class RouteRenderer {
           }
         }
 
-        let state: string;
-        let getGeoData: () => GeoJSON.FeatureCollection;
-
-        if (animationType === 'navigation') {
-          state = `nav:${progress}`;
-          getGeoData = () => {
-            const activeCoords = getLineSegment(coordinates, progress, 1);
-            return coordsToFeatureCollection(activeCoords);
-          };
-        } else if (exitActive && route.exitAnimation === 'reverse') {
-          state = `rev:${exitProgress}`;
-          getGeoData = () => {
-            const activeCoords = getLineSegment(coordinates, exitProgress, 1);
-            return coordsToFeatureCollection(activeCoords);
-          };
-        } else if (progress >= 1) {
-          state = 'full';
-          getGeoData = () => route.geojson;
-        } else {
-          state = `draw:${progress}`;
-          getGeoData = () => {
-            const activeCoords = getAnimatedLine(coordinates, progress);
-            return coordsToFeatureCollection(activeCoords);
-          };
-        }
-
-        if (this.lastGeometryState !== state) {
-          const geoData = getGeoData();
-          mainSource.setData(geoData);
-          this.lastGeometryState = state;
-          if (glowVisible) {
-            getGeoJSONSource(this.map, this.ids.glowSource)?.setData(geoData);
-            this.lastGlowState = state;
-          }
-        } else if (glowVisible && this.lastGlowState !== state) {
-          getGeoJSONSource(this.map, this.ids.glowSource)?.setData(getGeoData());
-          this.lastGlowState = state;
-        }
+        // The full line is uploaded once; the animation only moves the trim, which hides [start, end]
+        // of the line-progress. Progress is geodesic, line-progress is mercator, hence lineProgressAt.
+        const path = getRoutePath(coordinates);
+        let trim: [number, number] = [0, 0];
+        if (animationType === 'navigation') trim = [0, path.lineProgressAt(progress)];
+        else if (exitActive && route.exitAnimation === 'reverse') trim = [0, path.lineProgressAt(exitProgress)];
+        else if (progress < 1) trim = [path.lineProgressAt(progress), 1];
+        const key = `${trim[0]},${trim[1]}`;
+        this.layers.setPaint(this.ids.mainLayer, 'line-trim-offset', trim, 'mainTrim', key);
+        if (glowVisible) this.layers.setPaint(this.ids.glowLayer, 'line-trim-offset', trim, 'glowTrim', key);
       }
     }
 
-    this.renderVehicle(playheadTime, progress);
+    this.renderVehicle(playheadTime, timing);
   };
 
   dispose(): void {
@@ -256,13 +226,12 @@ export class RouteRenderer {
     this.disposed = true;
     [this.ids.vehicleLayer, this.ids.glowLayer, this.ids.cometLayer, this.ids.mainLayer]
       .forEach((id) => removeLayerIfPresent(this.map, id));
-    [this.ids.vehicleSource, this.ids.glowSource, this.ids.cometSource, this.ids.mainSource]
+    [this.ids.vehicleSource, this.ids.cometSource, this.ids.mainSource]
       .forEach((id) => removeSourceIfPresent(this.map, id));
   }
 
   private ensureRouteResources(): void {
     if (!this.map.getSource(this.ids.mainSource)) this.map.addSource(this.ids.mainSource, geoJSONSource(true));
-    if (!this.map.getSource(this.ids.glowSource)) this.map.addSource(this.ids.glowSource, geoJSONSource(true));
     if (!this.map.getSource(this.ids.cometSource)) this.map.addSource(this.ids.cometSource, geoJSONSource(true));
 
     const resolvedPaint = resolveRoutePaint(this.route);
@@ -276,6 +245,7 @@ export class RouteRenderer {
           'line-color': resolvedPaint.lineColor,
           'line-width': this.route.style.width,
           'line-opacity': 1,
+          ...noPaintTransitions('line-color', 'line-width', 'line-opacity'),
         },
       });
     }
@@ -283,13 +253,14 @@ export class RouteRenderer {
       this.map.addLayer({
         id: this.ids.glowLayer,
         type: 'line',
-        source: this.ids.glowSource,
+        source: this.ids.mainSource,
         layout: { 'line-cap': 'round', 'line-join': 'round', visibility: 'none' },
         paint: {
           'line-color': resolvedPaint.lineColor,
           'line-width': resolvedPaint.glowWidth,
           'line-opacity': 0.35,
           'line-blur': resolvedPaint.glowBlur,
+          ...noPaintTransitions('line-color', 'line-width', 'line-opacity', 'line-blur'),
         },
       }, this.ids.mainLayer);
     }
@@ -302,12 +273,16 @@ export class RouteRenderer {
         paint: {
           'line-width': this.route.style.width,
           'line-gradient': gradient(this.route.style.color),
+          ...noPaintTransitions('line-width'),
         },
       });
     }
   }
 
   private ensureVehicleResources(): void {
+    // The source and layer may be recreated below, starting from their initial position and rotation.
+    this.layers.cache.vehiclePosition = '';
+    this.layers.cache.vehicleRotation = '';
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled) {
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
@@ -354,6 +329,9 @@ export class RouteRenderer {
   }
 
   private addVehicleLayer(vehicle: RouteVehicleConfig): void {
+    // A new layer starts visible at full opacity, whatever the one it replaces was set to.
+    this.layers.cache.vehicleVisible = true;
+    this.layers.cache.vehicleOpacity = -1;
     if (vehicle.type === 'dot') {
       this.map.addLayer({
         id: this.ids.vehicleLayer,
@@ -365,6 +343,7 @@ export class RouteRenderer {
           'circle-stroke-color': '#FFFFFF',
           'circle-stroke-width': 2.5,
           'circle-stroke-opacity': 1,
+          ...noPaintTransitions('circle-radius', 'circle-color', 'circle-opacity'),
         },
       });
       return;
@@ -380,21 +359,13 @@ export class RouteRenderer {
         'model-scale': [s, s, s],
         'model-rotation': [0, 0, 0],
         'model-translation': [0, 0, 0],
+        ...noPaintTransitions('model-opacity', 'model-rotation', 'model-scale', 'model-translation'),
       },
     });
   }
 
   private uploadGeometry(): void {
-    const data: GeoJSON.FeatureCollection = this.coordinates.length >= 2
-      ? this.route.geojson
-      : EMPTY_FC;
-    getGeoJSONSource(this.map, this.ids.mainSource)?.setData(data);
-    getGeoJSONSource(this.map, this.ids.glowSource)?.setData(data);
-  }
-
-  private resolveOpacity(playheadTime: number): number {
-    if (this.route.exitAnimation !== 'fade' || playheadTime <= this.route.endTime) return 1;
-    return 1 - Math.min((playheadTime - this.route.endTime) / EXIT_DURATION, 1);
+    getGeoJSONSource(this.map, this.ids.mainSource)?.setData(routeLine(getRoutePath(this.coordinates).coords));
   }
 
   private updateDashPattern(): void {
@@ -406,43 +377,40 @@ export class RouteRenderer {
     })) this.layers.cache.dashPattern = pattern ? [...pattern] : null;
   }
 
-  private renderVehicle(playheadTime: number, progress: number): void {
+  private renderVehicle(playheadTime: number, { progress, exitProgress, opacity }: RouteTiming): void {
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled || this.coordinates.length < 2) return;
-    const exitActive = playheadTime > this.route.endTime && this.route.exitAnimation !== 'none';
-    const exitProgress = exitActive ? Math.min((playheadTime - this.route.endTime) / EXIT_DURATION, 1) : 0;
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
-      && !((this.route.style.animationType ?? 'draw') === 'comet' && progress === 0);
+      && !(this.route.style.animationType === 'comet' && progress === 0);
     this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
     const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
     if (!visible || !source) return;
 
-    const head = getAnimatedLine(this.coordinates, progress);
-    if (head.length < 2) return;
-    const current = head[head.length - 1];
-    const previous = head[head.length - 2];
-    source.setData({
-      type: 'Feature',
-      properties: {},
-      geometry: { type: 'Point', coordinates: [current[0], current[1]] },
-    });
-    const opacity = this.route.exitAnimation === 'fade' && exitActive ? 1 - exitProgress : 1;
+    const path = getRoutePath(this.coordinates);
+    if (path.coords.length < 2) return;
+    const [lng, lat] = path.pointAt(progress);
+    const position = `${lng},${lat}`;
+    if (this.layers.cache.vehiclePosition !== position) {
+      source.setData({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'Point', coordinates: [lng, lat] },
+      });
+      this.layers.cache.vehiclePosition = position;
+    }
     const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 
     if (vehicle.type !== 'dot') {
-      const coord0 = this.coordinates[0] ?? [0, 0];
-      const coord1 = this.coordinates[1] ?? coord0;
-      const [prevForAngle, currForAngle] =
-        previous[0] === current[0] && previous[1] === current[1]
-          ? [coord0, coord1]
-          : [previous, current];
-      const bearing = calculateBearing(prevForAngle, currForAngle);
-      const pitch = calculatePitch(prevForAngle, currForAngle);
-      this.layers.mutate('setPaintProperty:model-transform', this.ids.vehicleLayer, () => {
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing]);
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-translation', [0, 0, 0]);
-      });
+      // Face along the segment the vehicle is on; a zero-length one falls back to the first.
+      const [i] = path.locate(progress);
+      let from = path.coords[i];
+      let to = path.coords[i + 1];
+      if (from[0] === to[0] && from[1] === to[1]) [from, to] = path.coords;
+      const bearing = calculateBearing(from, to);
+      const pitch = calculatePitch(from, to);
+      // model-translation stays at the [0, 0, 0] the layer is created with.
+      this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing], 'vehicleRotation', `${pitch},${bearing}`);
     }
   }
 }

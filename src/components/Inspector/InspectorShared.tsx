@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Pencil, Clock } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import type { EasingName } from '@/store/types';
+import type { EasingName, ExitAnimation } from '@/store/types';
 import { Field, SectionLabel, SwitchField } from "@/components/ui/field";
 import { EASING_OPTIONS, normalizeEasing } from './inspectorValues';
 
@@ -48,30 +48,47 @@ export function InputText({ value, onChange }: { value: string; onChange: (v: st
   );
 }
 
-export function InputNumber({ 
-  value, 
-  onChange, 
-  min, 
-  max, 
-  step = 1 
-}: { 
-  value: number; 
-  onChange: (v: number) => void; 
-  min?: number; 
-  max?: number; 
-  step?: number 
+export function InputNumber({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  precision = 2,
+  className,
+  'aria-label': ariaLabel,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Decimal places shown; the value itself is not rounded. */
+  precision?: number;
+  className?: string;
+  'aria-label'?: string;
 }) {
-  const displayVal = isNaN(value) ? '' : (typeof value === 'number' ? Number(value.toFixed(2)) : value);
   return (
     <Input
       type="number"
-      value={displayVal}
+      aria-label={ariaLabel}
+      value={isNaN(value) ? '' : Number(value.toFixed(precision))}
       onChange={(e) => onChange(Number(e.target.value))}
       min={min}
       max={max}
       step={step}
-      className="h-8 text-xs font-mono"
+      className={cn("h-8 text-xs font-mono", className)}
     />
+  );
+}
+
+/** The label column of a row: optional icon, then the label. */
+function RowLabel({ label, icon, className }: { label: string; icon?: React.ReactNode; className?: string }) {
+  return (
+    <span className={cn("text-xs font-medium text-muted-foreground shrink-0 flex items-center gap-1.5", className)}>
+      {icon && <span className="text-muted-foreground/70 shrink-0">{icon}</span>}
+      <span className="truncate">{label}</span>
+    </span>
   );
 }
 
@@ -86,28 +103,20 @@ export function CoordinatesRows({
 }) {
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
-        <span className="text-xs font-medium text-muted-foreground">Longitude</span>
-        <input
-          type="number"
-          aria-label="Longitude"
-          value={isNaN(lngLat[0]) ? '' : Number(Number(lngLat[0]).toFixed(5))}
-          onChange={(e) => onChange([Number(e.target.value), lngLat[1]])}
-          step={0.00001}
-          className="h-8 text-xs font-mono text-right w-28 bg-background/60 border border-border/40 rounded-lg px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 focus-visible:ring-inset"
-        />
-      </div>
-      <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
-        <span className="text-xs font-medium text-muted-foreground">Latitude</span>
-        <input
-          type="number"
-          aria-label="Latitude"
-          value={isNaN(lngLat[1]) ? '' : Number(Number(lngLat[1]).toFixed(5))}
-          onChange={(e) => onChange([lngLat[0], Number(e.target.value)])}
-          step={0.00001}
-          className="h-8 text-xs font-mono text-right w-28 bg-background/60 border border-border/40 rounded-lg px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 focus-visible:ring-inset"
-        />
-      </div>
+      <NumberRow
+        label="Longitude"
+        value={lngLat[0]}
+        onChange={(lng) => onChange([lng, lngLat[1]])}
+        step={0.00001}
+        precision={5}
+      />
+      <NumberRow
+        label="Latitude"
+        value={lngLat[1]}
+        onChange={(lat) => onChange([lngLat[0], lat])}
+        step={0.00001}
+        precision={5}
+      />
     </div>
   );
 }
@@ -123,6 +132,7 @@ export function SliderRow({
   unit = '',
   formatValue,
   onReset,
+  logarithmic = false,
   className,
 }: {
   label: string;
@@ -136,21 +146,24 @@ export function SliderRow({
   formatValue?: (v: number) => string;
   /** Called on double-click, to return the slider to its default. */
   onReset?: () => void;
+  /** Spreads a range spanning orders of magnitude evenly; `min` must be positive. */
+  logarithmic?: boolean;
   className?: string;
 }) {
   const displayVal = formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ''}`;
+  // A log slider runs over ln(value); its values snap back to `step` on the way out.
+  const toSlider = (v: number) => (logarithmic ? Math.log(Math.max(min, v)) : v);
+  const fromSlider = (v: number) =>
+    logarithmic ? Math.min(max, Math.max(min, Math.round(Math.exp(v) / step) * step)) : v;
   return (
     <div className={cn("flex items-center justify-between gap-3 text-xs py-0.5", className)}>
-      <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 flex items-center gap-1.5 truncate">
-        {icon && <span className="text-muted-foreground/70 shrink-0">{icon}</span>}
-        <span className="truncate">{label}</span>
-      </span>
+      <RowLabel label={label} icon={icon} className="w-28 truncate" />
       <Slider
-        min={min}
-        max={max}
-        step={step}
-        value={[value]}
-        onValueChange={([v]) => onChange(v)}
+        min={toSlider(min)}
+        max={toSlider(max)}
+        step={logarithmic ? (toSlider(max) - toSlider(min)) / 500 : step}
+        value={[toSlider(value)]}
+        onValueChange={([v]) => onChange(fromSlider(v))}
         onDoubleClick={onReset}
         title={onReset ? 'Double-click to reset' : undefined}
         className="flex-1 py-1"
@@ -177,7 +190,7 @@ export function ColorRow({
 }) {
   return (
     <div className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs py-0.5", className)}>
-      <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 truncate">{label}</span>
+      <RowLabel label={label} className="w-28 truncate" />
       <div className="flex-1 flex justify-end min-w-[140px]">
         <ColorPicker value={value} onChange={onChange} presets={presets} />
       </div>
@@ -246,6 +259,7 @@ export function NumberRow({
   min,
   max,
   step = 1,
+  precision,
   unit,
   className,
 }: {
@@ -256,22 +270,24 @@ export function NumberRow({
   min?: number;
   max?: number;
   step?: number;
-  unit?: string;
+  precision?: number;
+  /** Shown inside the input's right edge: a unit like "s", or an icon. */
+  unit?: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40", className)}>
-      <span className="text-xs font-medium text-muted-foreground shrink-0 flex items-center gap-1.5">
-        {icon && <span className="text-muted-foreground/70 shrink-0">{icon}</span>}
-        <span>{label}</span>
-      </span>
+      <RowLabel label={label} icon={icon} />
       <div className="relative flex items-center w-28">
         <InputNumber
+          aria-label={label}
           value={value}
           onChange={onChange}
           min={min}
           max={max}
           step={step}
+          precision={precision}
+          className={cn("text-right bg-background/60 border-border/40 rounded-lg", unit && "pr-6")}
         />
         {unit && (
           <span className="absolute right-2 text-xs font-mono text-muted-foreground/60 pointer-events-none">
@@ -303,10 +319,7 @@ export function SelectRow<T extends string>({
   const selected = options.find((o) => o.value === value);
   return (
     <div className={cn("flex items-center justify-between gap-3 text-xs py-0.5", className)}>
-      <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 flex items-center gap-1.5 truncate">
-        {icon && <span className="text-muted-foreground/70 shrink-0">{icon}</span>}
-        <span className="truncate">{label}</span>
-      </span>
+      <RowLabel label={label} icon={icon} className="w-28 truncate" />
       <div className="flex-1">
         <Select value={value} onValueChange={(v) => onChange(v as T)}>
           <SelectTrigger className="h-8 text-xs bg-background/50 border-border/50 rounded-lg w-full">
@@ -327,39 +340,19 @@ export function SelectRow<T extends string>({
   );
 }
 
-export function EasingSelect({ 
-  value, 
+export function EasingSelect({
+  value,
   onChange,
   label = "Motion",
   icon
-}: { 
-  value?: EasingName; 
+}: {
+  value?: EasingName;
   onChange: (v: EasingName) => void;
   label?: string;
   icon?: React.ReactNode;
 }) {
-  const currentVal = normalizeEasing(value);
   return (
-    <div className="flex items-center justify-between gap-3 text-xs py-0.5">
-      <span className="text-xs font-medium text-muted-foreground shrink-0 w-28 flex items-center gap-1.5">
-        {icon && <span className="text-muted-foreground/70 shrink-0">{icon}</span>}
-        <span>{label}</span>
-      </span>
-      <div className="flex-1">
-        <Select value={currentVal} onValueChange={(v) => onChange(v as EasingName)}>
-          <SelectTrigger className="h-8 text-xs bg-background/50 border-border/50 rounded-lg w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {EASING_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+    <SelectRow label={label} icon={icon} value={normalizeEasing(value)} onChange={onChange} options={EASING_OPTIONS} />
   );
 }
 
@@ -378,8 +371,8 @@ export function TimingControls({
   onChangeTime: (start: number, end: number) => void;
   easing?: EasingName;
   onChangeEasing?: (v: EasingName) => void;
-  exitAnimation?: 'none' | 'reverse' | 'fade';
-  onChangeExitAnimation?: (v: 'none' | 'reverse' | 'fade') => void;
+  exitAnimation?: ExitAnimation;
+  onChangeExitAnimation?: (v: ExitAnimation) => void;
   showExitAnimation?: boolean;
 }) {
   const duration = Math.max(0.01, +(endTime - startTime).toFixed(2));
@@ -397,37 +390,22 @@ export function TimingControls({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
-          <span className="text-xs font-medium text-muted-foreground">Start time</span>
-          <div className="relative flex items-center w-28">
-            <Input
-              type="number"
-              aria-label="Start time"
-              value={isNaN(startTime) ? '' : Number(startTime.toFixed(2))}
-              onChange={(e) => handleStartChange(Number(e.target.value))}
-              min={0}
-              step={0.01}
-              className="h-8 text-xs font-mono text-right pr-6 bg-background/60 border-border/40 rounded-lg"
-            />
-            <Clock size={12} className="absolute right-2 text-muted-foreground/60 pointer-events-none" />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 p-2 px-3 bg-secondary/30 rounded-xl border border-border/40">
-          <span className="text-xs font-medium text-muted-foreground">Duration</span>
-          <div className="relative flex items-center w-28">
-            <Input
-              type="number"
-              aria-label="Duration"
-              value={isNaN(duration) ? '' : Number(duration.toFixed(2))}
-              onChange={(e) => handleDurationChange(Number(e.target.value))}
-              min={0.01}
-              step={0.01}
-              className="h-8 text-xs font-mono text-right pr-6 bg-background/60 border-border/40 rounded-lg"
-            />
-            <span className="absolute right-2 text-xs font-mono text-muted-foreground/60 pointer-events-none">s</span>
-          </div>
-        </div>
+        <NumberRow
+          label="Start time"
+          value={startTime}
+          onChange={handleStartChange}
+          min={0}
+          step={0.01}
+          unit={<Clock size={12} />}
+        />
+        <NumberRow
+          label="Duration"
+          value={duration}
+          onChange={handleDurationChange}
+          min={0.01}
+          step={0.01}
+          unit="s"
+        />
       </div>
 
       {onChangeEasing && (
@@ -444,7 +422,7 @@ export function TimingControls({
                 { value: 'reverse', label: 'Hide' },
                 { value: 'fade', label: 'Fade out' },
               ]}
-              value={exitAnimation || 'none'}
+              value={exitAnimation}
               onValueChange={onChangeExitAnimation}
               className="h-7 text-[11px]"
             />

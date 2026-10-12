@@ -6,6 +6,7 @@ import { MAP_STYLES, transformMapboxRequest } from '@/config/mapbox';
 
 import { useProjectStore } from '@/store/useProjectStore';
 import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cameraUtils';
+import { isPlacedPoint } from '@/engine/routeMode';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
@@ -14,6 +15,8 @@ import { resolveClickTarget } from './mapUtils';
 import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
 import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
 import { DraftWalkLayer } from './DraftWalkLayer';
+import { SelectionPreviewPill } from './SelectionPreviewPill';
+import { handleEscapeKey } from './escapeDeselect';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
 import type { MapGesture } from '@/components/Onboarding/walkthroughState';
@@ -70,23 +73,15 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     const selectedId = s.selectedItemId;
     if (selectedId) {
       const item = s.items[selectedId];
-      if (item?.kind === 'callout' && item.binding.kind === 'geographic' && item.binding.lngLat[0] === 0 && item.binding.lngLat[1] === 0) {
+      if (item?.kind === 'callout' && item.binding.kind === 'geographic' && !isPlacedPoint(item.binding.lngLat)) {
         updateItem(selectedId, { binding: { kind: 'geographic', lngLat: [e.lngLat.lng, e.lngLat.lat], altitude: 0 } });
       }
     }
   }, [updateItem]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        const s = useProjectStore.getState();
-        if (s.activePicker) {
-          s.stopPicking();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleEscapeKey);
+    return () => window.removeEventListener('keydown', handleEscapeKey);
   }, []);
 
   useEffect(() => {
@@ -125,10 +120,17 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     return { longitude, latitude, zoom: 12, pitch: 0, bearing: 0 };
   }, []);
 
-  // Debounced map center update to prevent store churn during continuous panning
+  // Without this the map starts in the style's own projection (globe) until the first style.load.
+  // Read once: later changes are applied by the scene controller, and a changing prop would race it.
+  const initialProjection = useMemo(() => useProjectStore.getState().projection, []);
+
+  // Debounced map center update to prevent store churn during continuous panning.
+  // Export and viewport capture drive the camera per frame; those moves are not user pans.
   const debouncedSetMapCenter = useMemo(() => {
     let timer: NodeJS.Timeout;
     return (lng: number, lat: number) => {
+      const { isExporting, isCapturingViewport } = useProjectStore.getState();
+      if (isExporting || isCapturingViewport) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
         setMapCenter([lng, lat]);
@@ -148,8 +150,10 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         mapboxAccessToken={mapboxToken}
         transformRequest={transformMapboxRequest}
         RTLTextPlugin={false}
+        attributionControl={false}
         styleDiffing={false}
         initialViewState={initialViewState}
+        projection={initialProjection}
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
         onClick={handleMapClick}
@@ -179,6 +183,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         <RouteWaypointMarkers />
         <DraftWalkMarkers />
       </MapGL>
+      <SelectionPreviewPill />
     </div>
   );
 }

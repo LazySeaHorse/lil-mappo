@@ -12,12 +12,12 @@ import { PanelWrapper, InspectorSection } from './InspectorLayout';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
-import { RotateCw, Monitor, Smartphone, Lock, ArrowRight, Settings2 } from 'lucide-react';
+import { Monitor, Smartphone, ArrowRight, Settings2 } from 'lucide-react';
 import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
 import { parseLightPreset, parseProjection } from '@/store/domainValues';
-import { getDefaultFogColor } from '@/config/mapbox';
+import { projectionShowsStars, resolveFog } from '@/config/mapbox';
 
 
 
@@ -53,7 +53,7 @@ export function ProjectSettings() {
   const capabilities = useMapStyleCapabilities();
   const { data: subscription } = useSubscription();
   const limits = getExportLimits(subscription);
-  const { openUpgradeModal } = useAuthStore();
+  const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
 
   return (
     <PanelWrapper title="Project settings" icon={<Settings2 size={15} />}>
@@ -138,7 +138,7 @@ export function ProjectSettings() {
                 <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
               </p>
               <button
-                onClick={openUpgradeModal}
+                onClick={() => openUpgradeModal('project_settings')}
                 className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
               >
                 Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />
@@ -177,11 +177,14 @@ export function ProjectSettings() {
           </InspectorSection>
 
           <InspectorSection value="atmos" title="Atmosphere">
-            <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
+            {/* Mercator draws no stars; the fog color still tints its horizon haze */}
+            {projectionShowsStars(projection) && (
+              <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
+            )}
             <Field label="Fog color">
               <div className="flex gap-2 items-center">
                 <ColorPicker
-                  value={fogColor || getDefaultFogColor(mapStyle)}
+                  value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
                   onChange={(v) => setAtmosphere({ fogColor: v })}
                 />
                 <Button

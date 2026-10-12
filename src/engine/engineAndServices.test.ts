@@ -70,7 +70,7 @@ describe('geoUtils & cameraUtils', () => {
       name: 'Test Route',
       startTime: 0,
       endTime: 5,
-      easing: 'linear',
+      easing: 'linear', exitAnimation: 'none',
       style: {
         color: '#ff0000',
         width: 3,
@@ -78,7 +78,7 @@ describe('geoUtils & cameraUtils', () => {
         glowWidth: 6,
         trailFade: false,
         trailFadeLength: 0.3,
-        dashPattern: null,
+        dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
       },
       geojson: {
         type: 'FeatureCollection',

@@ -48,7 +48,6 @@ function route(
           pitch: 65,
           smoothing: 0.3,
           distance: 500,
-          height: 300,
           zoom: 14,
           lookAhead: 300,
         }
@@ -60,9 +59,9 @@ function route(
       glowWidth: 0,
       trailFade: false,
       trailFadeLength: 0,
-      dashPattern: null,
+      dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
     },
-    easing: 'linear',
+    easing: 'linear', exitAnimation: 'none',
   };
 }
 
@@ -112,6 +111,16 @@ describe('TimelinePanel', () => {
     expect(screen.getByText('automatic')).toBeInTheDocument();
     expect(screen.getByTestId('timeline-auto-cam-automatic')).toBeInTheDocument();
     expect(screen.getByTitle('Play / Pause (Space)')).toBeInTheDocument();
+  });
+
+  it('rings only the selected clip', () => {
+    renderTimeline(route('first', 1, 3), route('second', 4, 6));
+
+    expect(screen.getByTestId('timeline-item-first')).not.toHaveClass('ring-primary');
+
+    act(() => useProjectStore.getState().selectItem('first'));
+    expect(screen.getByTestId('timeline-item-first')).toHaveClass('ring-2', 'ring-primary');
+    expect(screen.getByTestId('timeline-item-second')).not.toHaveClass('ring-primary');
   });
 
   it('scrubs to the pointer time and clears scrubbing on release', () => {

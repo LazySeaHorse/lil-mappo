@@ -2,6 +2,8 @@ import { getEffectiveMapboxToken } from '@/config/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { ToolError } from './errors';
 import type { BBox } from './geo';
+import { errorMessage } from '@/lib/utils';
+import { isPlacedPoint } from '@/engine/routeMode';
 
 export interface PlaceResult {
   name: string;
@@ -44,13 +46,13 @@ export async function searchPlaces(query: string, limit = 5, signal?: AbortSigna
     access_token: getEffectiveMapboxToken(),
   });
   const center = useProjectStore.getState().mapCenter;
-  if (center && (center[0] !== 0 || center[1] !== 0)) params.set('proximity', `${center[0]},${center[1]}`);
+  if (isPlacedPoint(center)) params.set('proximity', `${center[0]},${center[1]}`);
 
   let res: Response;
   try {
     res = await fetch(`https://api.mapbox.com/search/geocode/v6/forward?${params}`, { signal });
   } catch (err) {
-    throw new ToolError('network_error', `Place search failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new ToolError('network_error', `Place search failed: ${errorMessage(err)}`);
   }
   if (!res.ok) throw new ToolError('geocode_failed', `Place search failed (HTTP ${res.status}).`);
 

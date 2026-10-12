@@ -1,4 +1,3 @@
-import type { StateCreator } from 'zustand';
 import type {
   Project,
   TimelineItem,
@@ -6,6 +5,7 @@ import type {
   BoundaryItem,
   WalkRouteCalculation,
 } from '../types';
+import type { BoundaryDetailId } from '@/engine/boundaryDetail';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution } from '@/types/render';
@@ -53,6 +53,8 @@ export interface TransientProjectState {
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
   draftBoundaryName: string;
+  /** Detail level for the next boundary added; remembered for the session only. */
+  boundaryDetail: BoundaryDetailId;
 }
 
 export interface ItemsSlice {
@@ -85,24 +87,20 @@ export interface PlaybackSlice {
 }
 
 export interface ProjectSettingsSlice {
-  setResolution: (r: [number, number]) => void;
+  setProjectName: (name: string) => void;
   setAspectRatio: (v: AspectRatio) => void;
   setExportResolution: (v: ExportResolution) => void;
   setIsVertical: (v: boolean) => void;
   setProjection: (v: 'globe' | 'mercator') => void;
   setLightPreset: (v: Project['lightPreset']) => void;
-  setStarIntensity: (v: number) => void;
-  setFogColor: (v: string) => void;
+  setAtmosphere: (updates: Partial<Pick<Project, 'starIntensity' | 'fogColor'>>) => void;
   setTerrainExaggeration: (v: number) => void;
-  setCustomMapStyle: (url?: string, label?: string) => void;
-  resetProjectSettings: () => void;
   /** Replaces the project with a parsed document and resets transient editor state. */
   loadFullProject: (input: unknown) => void;
 }
 
 export interface MapEnvironmentSlice {
   setMapStyle: (s: string) => void;
-  toggleLabelGroup: (groupId: string) => void;
   setLabelGroupVisibility: (groupId: string, visible: boolean) => void;
   setAllLabelsVisibility: (visible: boolean) => void;
   set3dDetails: (key: 'landmarks' | 'trees' | 'facades', visible: boolean) => void;
@@ -128,9 +126,10 @@ export interface EditorUiSlice {
   stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
   setDraftWalk: (v: WalkRouteCalculation | null) => void;
-  setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string) => void;
+  setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string, countryCode?: string | null) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;
+  setBoundaryDetail: (id: BoundaryDetailId) => void;
 }
 
 export type ProjectStore = Project &
@@ -141,10 +140,3 @@ export type ProjectStore = Project &
   ProjectSettingsSlice &
   MapEnvironmentSlice &
   EditorUiSlice;
-
-export type StoreSlice<T> = StateCreator<
-  ProjectStore,
-  [['zustand/devtools', never]],
-  [],
-  T
->;

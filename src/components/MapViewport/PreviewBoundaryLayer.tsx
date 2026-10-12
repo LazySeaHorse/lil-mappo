@@ -1,23 +1,31 @@
 import React from 'react';
 import { Source, Layer } from 'react-map-gl/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
-import { resolveBoundaryFillColor } from './layerStyleContracts';
+import { useShallow } from 'zustand/react/shallow';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 
 export function PreviewBoundaryLayer() {
-  const { previewBoundary, previewBoundaryStyle } = useProjectStore();
+  const { previewBoundary, previewBoundaryStyle, boundaryDetail } = useProjectStore(
+    useShallow(s => ({
+      previewBoundary: s.previewBoundary,
+      previewBoundaryStyle: s.previewBoundaryStyle,
+      boundaryDetail: s.boundaryDetail,
+    }))
+  );
 
-  if (!previewBoundary || !previewBoundaryStyle) return null;
-
-  const geojsonData: GeoJSON.FeatureCollection = {
+  // The preview shows exactly what will be added: the raw result at the chosen detail level (memoised).
+  const geojsonData = React.useMemo<GeoJSON.FeatureCollection | null>(() => previewBoundary ? ({
     type: 'FeatureCollection',
     features: [
       {
         type: 'Feature',
         properties: {},
-        geometry: previewBoundary,
+        geometry: applyBoundaryDetail(previewBoundary, boundaryDetail),
       },
     ],
-  };
+  }) : null, [previewBoundary, boundaryDetail]);
+
+  if (!geojsonData || !previewBoundaryStyle) return null;
 
   return (
     <>
@@ -26,7 +34,7 @@ export function PreviewBoundaryLayer() {
           id="preview-boundary-fill-layer"
           type="fill"
           paint={{
-            'fill-color': resolveBoundaryFillColor(previewBoundaryStyle),
+            'fill-color': previewBoundaryStyle.fillColor,
             'fill-opacity': previewBoundaryStyle.fillOpacity,
           }}
         />

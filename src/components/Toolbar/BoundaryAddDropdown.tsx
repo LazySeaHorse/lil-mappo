@@ -1,14 +1,17 @@
 import { geometryBounds } from '@/engine/geoUtils';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
+import { BoundaryDetailPicker } from './BoundaryDetailPicker';
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import {
-  Hexagon, Plus, Check, Search, MapPin
+  Hexagon, Plus, Check, MapPin
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { createBoundaryItem } from '@/store/itemFactories';
-import type { NominatimResult } from '@/services/nominatim';
+import { shortPlaceName, type NominatimResult } from '@/services/nominatim';
 import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
 import { useMapRef } from '@/hooks/useMapRef';
@@ -27,12 +30,26 @@ export const BoundaryAddDropdown = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const { 
-    addItem, selectItem, playheadTime, 
+  const {
+    addItem, selectItem,
     previewBoundary, setPreviewBoundary,
     previewBoundaryStyle, setPreviewBoundaryStyle,
-    draftBoundaryName, clearPreviewBoundary
-  } = useProjectStore();
+    draftBoundaryName, clearPreviewBoundary,
+    boundaryDetail, setBoundaryDetail
+  } = useProjectStore(
+    useShallow(s => ({
+      addItem: s.addItem,
+      selectItem: s.selectItem,
+      previewBoundary: s.previewBoundary,
+      setPreviewBoundary: s.setPreviewBoundary,
+      previewBoundaryStyle: s.previewBoundaryStyle,
+      setPreviewBoundaryStyle: s.setPreviewBoundaryStyle,
+      draftBoundaryName: s.draftBoundaryName,
+      clearPreviewBoundary: s.clearPreviewBoundary,
+      boundaryDetail: s.boundaryDetail,
+      setBoundaryDetail: s.setBoundaryDetail,
+    }))
+  );
   
   const mapRef = useMapRef();
 
@@ -53,7 +70,7 @@ export const BoundaryAddDropdown = ({
   }, []);
 
   const handleSelect = (r: NominatimResult) => {
-    setPreviewBoundary(r.geojson, r.display_name.split(',')[0]);
+    setPreviewBoundary(r.geojson, shortPlaceName(r.display_name), r.countryCode);
     
     // Zoom to boundary
     const map = mapRef.current?.getMap();
@@ -71,8 +88,8 @@ export const BoundaryAddDropdown = ({
 
     const item = createBoundaryItem({
       placeName: draftBoundaryName,
-      geojson: previewBoundary,
-      startTime: playheadTime,
+      geojson: applyBoundaryDetail(previewBoundary, boundaryDetail),
+      startTime: useProjectStore.getState().playheadTime,
       style: previewBoundaryStyle,
     });
     const id = item.id;
@@ -99,7 +116,7 @@ export const BoundaryAddDropdown = ({
     <PanelHeader 
       icon={<Hexagon size={16} />} 
       title="Add Boundary" 
-      subtitle="Search regions & nations"
+      subtitle="Search regions and countries"
     >
       <BoundarySearch 
         initialValue="" 
@@ -148,10 +165,15 @@ export const BoundaryAddDropdown = ({
             </div>
           </div>
 
+          <div>
+            <SectionLabel>Detail</SectionLabel>
+            <BoundaryDetailPicker value={boundaryDetail} onChange={setBoundaryDetail} />
+          </div>
+
           <div className="space-y-4">
             <SectionLabel>Visual appearance</SectionLabel>
             <div className="space-y-4 px-1">
-              <Field label="Atmospheric color">
+              <Field label="Border color">
                 <ColorPicker 
                   value={previewBoundaryStyle!.strokeColor} 
                   onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
@@ -160,16 +182,16 @@ export const BoundaryAddDropdown = ({
               
               <Field label="Entrance animation">
                 <Select 
-                  value={previewBoundaryStyle!.animationStyle || 'draw'} 
+                  value={previewBoundaryStyle!.animationStyle}
                   onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: parseBoundaryAnimationStyle(v) })}
                 >
                   <SelectTrigger className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-                    <SelectItem value="fade">Subtle Fade In</SelectItem>
-                    <SelectItem value="draw">Precise Drawing</SelectItem>
-                    <SelectItem value="trace">Trace Contour</SelectItem>
+                    <SelectItem value="fade">Fade</SelectItem>
+                    <SelectItem value="draw">Outline</SelectItem>
+                    <SelectItem value="trace">Trace</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

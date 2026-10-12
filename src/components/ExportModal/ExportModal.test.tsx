@@ -11,17 +11,13 @@ describe('ExportModal Sub-components', () => {
     maxResolution: '720p',
     maxFps: 30,
     maxDuration: 30,
-    allowedResolutions: ['720p'],
-    allowedFps: [30],
   };
 
   const proLimits: ExportLimits = {
     limited: false,
-    maxResolution: '4k',
+    maxResolution: '2160p',
     maxFps: 60,
     maxDuration: 300,
-    allowedResolutions: ['720p', '1080p', '4k'],
-    allowedFps: [30, 60],
   };
 
   describe('ExportModalFooter', () => {
@@ -34,7 +30,7 @@ describe('ExportModal Sub-components', () => {
           isExporting={false}
           cloudSubmitted={false}
           progress={0}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           onExport={onExport}
           onCancel={onCancel}
         />
@@ -57,7 +53,7 @@ describe('ExportModal Sub-components', () => {
           isExporting={true}
           cloudSubmitted={false}
           progress={45}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           onExport={onExport}
           onCancel={onCancel}
         />
@@ -68,6 +64,27 @@ describe('ExportModal Sub-components', () => {
 
       fireEvent.click(cancelBtn);
       expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows Cloud render as an enabled split control beside Export, with no "Not available yet" text', () => {
+      render(
+        <ExportModalFooter
+          isExporting={false}
+          cloudSubmitted={false}
+          progress={0}
+          localExportCapability={{ status: 'ready' } as never}
+          onExport={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+      const cloud = screen.getByRole('button', { name: 'Cloud render, not built yet' });
+      const exportBtn = screen.getByRole('button', { name: /Export locally/i });
+      expect(cloud.hasAttribute('disabled')).toBe(false);
+      expect(cloud.parentElement).toBe(exportBtn.parentElement);
+      expect(cloud.className).toContain('h-11');
+      expect(exportBtn.className).toContain('h-11');
+      expect(screen.queryByText(/Not available yet/)).toBeNull();
+      expect(screen.queryByRole('button', { name: /I'd like this/ })).toBeNull();
     });
 
     it('disables export button when local export is unsupported', () => {
@@ -100,7 +117,7 @@ describe('ExportModal Sub-components', () => {
           effectiveHeight={720}
           effectiveFps={30}
           totalFrames={450}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           phase="capture"
           progress={0}
           error={null}
@@ -128,7 +145,7 @@ describe('ExportModal Sub-components', () => {
           effectiveHeight={1080}
           effectiveFps={60}
           totalFrames={600}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           phase="capture"
           progress={65}
           error={null}
@@ -152,7 +169,7 @@ describe('ExportModal Sub-components', () => {
           effectiveHeight={1080}
           effectiveFps={60}
           totalFrames={600}
-          localExportCapability={{ status: 'ready' }}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
           phase="capture"
           progress={0}
           error="Out of WebCodecs memory"

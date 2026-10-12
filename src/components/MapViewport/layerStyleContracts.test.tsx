@@ -68,9 +68,9 @@ const route: RouteItem = {
     trailFade: false,
     trailFadeLength: 0.3,
     dashPattern: null,
-    animationType: 'draw',
+    animationType: 'draw', cometTrailLength: 0.2,
   },
-  easing: 'linear',
+  easing: 'linear', exitAnimation: 'none',
   calculation: {
     mode: 'flight',
     startPoint: [0, 0],
@@ -86,7 +86,6 @@ const boundary: BoundaryItem = {
     type: 'Polygon',
     coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]],
   },
-  resolveStatus: 'resolved',
   startTime: 0,
   endTime: 5,
   style: {
@@ -98,8 +97,13 @@ const boundary: BoundaryItem = {
     animateStroke: false,
     animationStyle: 'fade',
     traceLength: 0.1,
+    maskOutside: false,
+    maskColor: '#0b0f19',
+    maskOpacity: 0.85,
+    fillMode: 'color',
+    flagCode: null,
   },
-  easing: 'linear',
+  easing: 'linear', exitAnimation: 'none',
 };
 
 describe('Mapbox layer style contracts', () => {

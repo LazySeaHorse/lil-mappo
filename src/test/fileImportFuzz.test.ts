@@ -22,7 +22,7 @@ import type { RouteItem } from '@/store/types';
 function createMockFile(content: string | Uint8Array, filename: string): File {
   const blob = typeof content === 'string'
     ? new Blob([content], { type: 'text/plain' })
-    : new Blob([content], { type: 'application/octet-stream' });
+    : new Blob([new Uint8Array(content)], { type: 'application/octet-stream' });
   return new File([blob], filename);
 }
 
@@ -42,9 +42,9 @@ function createMinimalRouteItem(name: string, geojson: GeoJSON.FeatureCollection
       trailFade: false,
       trailFadeLength: 0.3,
       dashPattern: null,
-      animationType: 'draw',
+      animationType: 'draw', cometTrailLength: 0.2,
     },
-    easing: 'easeInOutCubic',
+    easing: 'easeInOutCubic', exitAnimation: 'none',
   };
 }
 

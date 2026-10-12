@@ -20,13 +20,7 @@ export const flagSettingsSchema = z.object({
 
 export type FlagSettings = z.infer<typeof flagSettingsSchema>;
 
-export const defaultFlagSettings: FlagSettings = {
-  clothColor: '#FF5A36',
-  textColor: '#FFFFFF',
-  poleColor: '#EDEDED',
-  shape: 'swallowtail',
-  wave: true,
-};
+export const defaultFlagSettings: FlagSettings = flagSettingsSchema.parse({});
 
 // ─── Layout Constants ─────────────────────────────────────────────────────────
 

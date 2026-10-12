@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
+import { loadAirports } from '@/services/airports/airportService';
 import { saveProjectToLibrary } from '@/services/projectLibrary';
 import {
   buildRouteDeepLinkProject,
@@ -11,6 +12,10 @@ import {
 } from '@/services/routeDeepLink';
 import { toProjectDocument } from '@/store/projectDocument';
 import { useProjectStore } from '@/store/useProjectStore';
+import { track } from '@/lib/analytics';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
+import { extractLineCoords } from '@/engine/geoUtils';
+import { isRouteItem } from '@/store/typeGuards';
 
 export interface RouteDeepLinkState {
   /** False until the arrival has been applied (or rejected); the editor should not render before then. */
@@ -35,15 +40,33 @@ export function useRouteDeepLink(
   draftReady: boolean,
   onSettled: () => void,
 ): RouteDeepLinkState {
-  const [result] = useState<RouteDeepLinkResult | null>(() =>
-    request ? buildRouteDeepLinkProject(request) : null,
-  );
+  const [result, setResult] = useState<RouteDeepLinkResult | null>(null);
   const [settled, setSettled] = useState(request === null);
   const startedRef = useRef(false);
   // Toasts wait for the editor: its <Sonner /> only mounts once `settled`, and earlier toasts are dropped.
   const toastsRef = useRef<Array<() => void>>([]);
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
+
+  // The request is read once. The airport dataset loads on demand, so the project is built after it arrives.
+  const requestRef = useRef(request);
+  useEffect(() => {
+    const req = requestRef.current;
+    if (!req) return;
+    let cancelled = false;
+    loadAirports()
+      .then(() => buildRouteDeepLinkProject(req))
+      .catch((): RouteDeepLinkResult => ({
+        ok: false,
+        message: "Couldn't load the airport list. Starting a blank project instead.",
+      }))
+      .then((built) => {
+        if (!cancelled) setResult(built);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!result || !draftReady || startedRef.current) return;
@@ -67,6 +90,10 @@ export function useRouteDeepLink(
       }
 
       store.loadFullProject(result.project);
+      track('project_created', { source: 'deep_link' });
+      for (const item of Object.values(result.project.items)) {
+        if (isRouteItem(item)) reportRouteAdded('deep_link', extractLineCoords(item.geojson).length);
+      }
       toastsRef.current.push(() => toast.success(`Opened ${result.fromCode} to ${result.toCode}`));
     } else {
       toastsRef.current.push(() => toast.error(result.message));

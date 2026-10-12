@@ -4,13 +4,13 @@ import '@/annotations/styles';
 import { registerTestStyles, TEST_CARD_STYLE_ID } from '@/annotations/testStyles';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
-import { loadAnnotationAssets } from '@/annotations/draw';
+import { loadCalloutAssets } from '@/annotations/draw';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
 
 vi.mock('@/annotations/draw', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/annotations/draw')>()),
-  loadAnnotationAssets: vi.fn(async () => {}),
+  loadCalloutAssets: vi.fn(async () => true),
 }));
 
 type Call = [string, ...unknown[]];
@@ -106,6 +106,9 @@ function createFakeMap(size = { width: 400, height: 300 }) {
     }),
     off: vi.fn((event: string, fn: Handler) => handlers.get(event)?.delete(fn)),
     triggerRepaint: vi.fn(),
+    // Mapbox's private repaint bookkeeping, which the overlay reads (see isRepaintPending).
+    _frame: null as number | null,
+    _renderNextFrame: false,
     getZoom: vi.fn(() => 12),
     project: vi.fn(() => ({ x: 400, y: 300 })),
     getContainer: () => ({ clientWidth: size.width, clientHeight: size.height }),
@@ -160,7 +163,8 @@ describe('AnnotationOverlay', () => {
   beforeEach(() => {
     frames = stubAnimationFrames();
     contexts.clear();
-    vi.mocked(loadAnnotationAssets).mockClear();
+    vi.mocked(loadCalloutAssets).mockClear();
+    vi.mocked(loadCalloutAssets).mockImplementation(async () => true);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
       let ctx = contexts.get(this);
       if (!ctx) {
@@ -269,6 +273,34 @@ describe('AnnotationOverlay', () => {
     expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
   });
 
+  it('leaves the redraw to the render event when the map has a repaint queued for the same frame', () => {
+    const { raw, fire, ctx } = mount();
+    frames.flush();
+    ctx.calls.length = 0;
+
+    // The playback loop sets the playhead, then moves the camera: the map's frame is queued after ours.
+    useProjectStore.setState({ playheadTime: 6 });
+    raw._frame = 1;
+    raw._renderNextFrame = true;
+    frames.flush();
+    expect(ctx.calls).toEqual([]);
+
+    fire('render');
+    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
+  });
+
+  it('still redraws on its own when the map has a frame queued that will not render', () => {
+    const { raw, ctx } = mount();
+    frames.flush();
+    ctx.calls.length = 0;
+
+    useProjectStore.setState({ playheadTime: 6 });
+    raw._frame = 1;
+    raw._renderNextFrame = false;
+    frames.flush();
+    expect(ctx.calls.filter(([name]) => name === 'clearRect')).toHaveLength(1);
+  });
+
   it('draws what the store holds at render time, not what it held earlier', () => {
     const { fire, ctx } = mount();
     useProjectStore.setState({ playheadTime: 50 });
@@ -332,16 +364,37 @@ describe('AnnotationOverlay', () => {
 
   it('loads fonts and images for the callouts, then redraws', async () => {
     mount();
-    expect(loadAnnotationAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).toHaveBeenCalledWith([useProjectStore.getState().items.c1]);
     frames.flush();
     await vi.waitFor(() => expect(frames.pending()).toBe(1));
+  });
 
-    // Only edits to the callouts reload them, not playhead ticks.
-    vi.mocked(loadAnnotationAssets).mockClear();
+  it('loads assets only for new or edited callouts', () => {
+    const other = makeCallout({ id: 'c2', content: { title: 'Other' } });
+    setStore([makeCallout(), other]);
+    mount();
+    expect(vi.mocked(loadCalloutAssets).mock.calls[0][0]).toHaveLength(2);
+
+    // Playhead ticks and untouched callouts load nothing.
+    vi.mocked(loadCalloutAssets).mockClear();
     useProjectStore.setState({ playheadTime: 7 });
-    expect(loadAnnotationAssets).not.toHaveBeenCalled();
     useProjectStore.setState({ items: { ...useProjectStore.getState().items } });
-    expect(loadAnnotationAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).not.toHaveBeenCalled();
+
+    const edited = { ...useProjectStore.getState().items.c2, content: { title: 'Edited' } } as CalloutItem;
+    useProjectStore.setState({ items: { ...useProjectStore.getState().items, c2: edited } });
+    expect(loadCalloutAssets).toHaveBeenCalledTimes(1);
+    expect(loadCalloutAssets).toHaveBeenCalledWith([edited]);
+  });
+
+  it('does not redraw when there was nothing left to load', async () => {
+    vi.mocked(loadCalloutAssets).mockImplementation(async () => false);
+    mount();
+    frames.flush();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(frames.pending()).toBe(0);
   });
 
   it('removes its canvas and listeners, and cancels a pending redraw, when disposed', async () => {

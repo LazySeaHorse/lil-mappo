@@ -21,11 +21,13 @@ import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLAN_CONFIG } from "@/services/checkout";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
+import { FREE_CLOUD_SAVE_LIMIT, FREE_LIMITS, isWanderer } from "@/lib/cloudAccess";
 
 const BENEFITS = [
   {
     label: "Cloud projects",
-    free: "3 projects",
+    free: `${FREE_CLOUD_SAVE_LIMIT} projects`,
     paid: "Unlimited",
     icon: Cloud,
   },
@@ -37,13 +39,13 @@ const BENEFITS = [
   },
   {
     label: "Video export",
-    free: "720p, 30 FPS",
+    free: `${FREE_LIMITS.maxResolution}, ${FREE_LIMITS.maxFps} FPS`,
     paid: "Up to 4K, 60 FPS",
     icon: Film,
   },
   {
     label: "Maximum duration",
-    free: "30 seconds",
+    free: `${FREE_LIMITS.maxDuration} seconds`,
     paid: "Unlimited",
     icon: Gauge,
   },
@@ -62,11 +64,17 @@ const BENEFITS = [
 ] as const;
 
 export function UpgradeModal() {
-  const { showUpgradeModal, closeUpgradeModal, startCheckout } = useAuthStore();
+  const { showUpgradeModal, closeUpgradeModal, startCheckout } = useAuthStore(
+    useShallow((s) => ({
+      showUpgradeModal: s.showUpgradeModal,
+      closeUpgradeModal: s.closeUpgradeModal,
+      startCheckout: s.startCheckout,
+    })),
+  );
   const { data: subscription } = useSubscription();
-  const isCurrent =
-    subscription?.tier === "wanderer" &&
-    (subscription.status === "active" || subscription.status === "cancelling");
+  // A cancelled plan whose period has ended is not current, so the user can
+  // subscribe again even if the expiry webhook has not removed the row yet.
+  const isCurrent = isWanderer(subscription);
 
   const handleCheckout = () => {
     if (isCurrent) return;
@@ -162,7 +170,7 @@ export function UpgradeModal() {
             </Button>
             {!isCurrent && (
               <p className="text-[11px] text-muted-foreground text-center mt-2.5 leading-relaxed">
-                Renews automatically at ${PLAN_CONFIG.wanderer.priceMonthly}/month until cancelled. Cancel anytime in Account Settings.
+                Renews at ${PLAN_CONFIG.wanderer.priceMonthly} each month until you cancel. You can cancel anytime in Account Settings.
               </p>
             )}
           </div>

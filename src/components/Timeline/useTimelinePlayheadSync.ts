@@ -14,9 +14,10 @@ export function useTimelinePlayheadSync(pixelsPerSecond: number) {
     pixelsPerSecondRef.current = pixelsPerSecond;
   }, [pixelsPerSecond]);
 
-  useEffect(() => useProjectStore.subscribe((state) => {
-    updatePlayheadElements(state.playheadTime, pixelsPerSecondRef.current);
-  }), []);
+  useEffect(() => useProjectStore.subscribe(
+    (state) => state.playheadTime,
+    (playheadTime) => updatePlayheadElements(playheadTime, pixelsPerSecondRef.current),
+  ), []);
 
   useEffect(() => {
     updatePlayheadElements(useProjectStore.getState().playheadTime, pixelsPerSecond);

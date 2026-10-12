@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import { syncMapToProject } from '@/engine/cameraUtils';
+import { loadProjectTerrain, syncMapToProject } from '@/engine/cameraUtils';
+import { onDemLoaded } from '@/services/terrainDem';
+
+type CaptureFlags = { isExporting: boolean; isCapturingViewport: boolean };
+/** Export and frame capture position the camera themselves (with their own zoom offset). */
+const isCapturing = (state: CaptureFlags) => state.isExporting || state.isCapturingViewport;
 
 export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.MutableRefObject<MapRef | null>) {
   const rafRef = useRef<number>(0);
@@ -15,6 +20,8 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
       const map = mapRef.current?.getMap();
       if (map) syncMapToProject(map, time);
     };
+    // A camera update skipped during a capture, replayed once the capture ends.
+    let skippedWhileCapturing = false;
 
     const unsub = useProjectStore.subscribe((state, prev) => {
       if (state.isPlaying && !prev.isPlaying) {
@@ -42,17 +49,51 @@ export function usePlayback(mapRef: React.RefObject<MapRef | null> | React.Mutab
       }
 
       if (
-        !state.isPlaying &&
-        (state.playheadTime !== prev.playheadTime ||
-          state.id !== prev.id ||
-          state.items[CAMERA_TRACK_ID] !== prev.items[CAMERA_TRACK_ID])
+        state.items !== prev.items ||
+        state.terrainEnabled !== prev.terrainEnabled ||
+        state.terrainExaggeration !== prev.terrainExaggeration
       ) {
+        void loadProjectTerrain();
+      }
+
+      const cameraInputsChanged =
+        state.playheadTime !== prev.playheadTime ||
+        state.id !== prev.id ||
+        state.items[CAMERA_TRACK_ID] !== prev.items[CAMERA_TRACK_ID];
+
+      if (isCapturing(state)) {
+        // Driving here would apply the camera at preview zoom, only for the capture to apply it
+        // again with its zoom offset, and the extra move would write mapCenter back to the store.
+        if (cameraInputsChanged) skippedWhileCapturing = true;
+        return;
+      }
+
+      if (!state.isPlaying && (cameraInputsChanged || (isCapturing(prev) && skippedWhileCapturing))) {
         driveCamera(state.playheadTime);
       }
+      if (isCapturing(prev)) skippedWhileCapturing = false;
     });
+
+    // The auto-camera replans once terrain arrives; show it without waiting for the playhead to move.
+    void loadProjectTerrain();
+    const unsubDem = onDemLoaded(() => {
+      const state = useProjectStore.getState();
+      if (isCapturing(state)) skippedWhileCapturing = true;
+      else if (!state.isPlaying) driveCamera(state.playheadTime);
+    });
+
+    // rAF stops while the tab is hidden but the wall clock does not, so pause
+    // to keep the playhead from jumping forward on return.
+    const onVisibilityChange = () => {
+      const store = useProjectStore.getState();
+      if (document.hidden && store.isPlaying && !store.isExporting) store.setIsPlaying(false);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
       unsub();
+      unsubDem();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       cancelAnimationFrame(rafRef.current);
     };
   }, [mapRef]);

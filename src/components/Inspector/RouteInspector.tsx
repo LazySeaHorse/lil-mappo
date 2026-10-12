@@ -4,10 +4,11 @@ import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
-import { defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
+import { autoCamForRoute, defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
 import { RoutePlanner } from './RoutePlanner';
 import { Accordion } from "@/components/ui/accordion";
 import { useSubscription } from '@/hooks/useSubscription';
+import { isWanderer } from '@/lib/cloudAccess';
 import { 
   EditableTitle, 
   SliderRow, 
@@ -19,6 +20,7 @@ import {
 } from './InspectorShared';
 import { formatMultiplier } from './inspectorValues';
 import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { track } from '@/lib/analytics';
 import { 
   Navigation, 
   Clapperboard, 
@@ -31,13 +33,13 @@ import {
 } from 'lucide-react';
 
 type RouteLineStyle = 'solid' | 'dashed' | 'dotted';
-type RouteAnimationType = NonNullable<RouteItem['style']['animationType']>;
+type RouteAnimationType = RouteItem['style']['animationType'];
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
   const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const { data: sub } = useSubscription();
-  const isPro = sub && (sub.tier === 'wanderer' || sub.tier === 'cartographer' || sub.tier === 'pioneer');
+  const isPro = isWanderer(sub);
 
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
@@ -77,23 +79,23 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       );
 
       if (overlapping) {
-        toast.error(`Auto camera is already enabled for "${overlapping.name}" during this time range.`);
+        toast.error(`Auto camera is already active for "${overlapping.name}" during this time.`);
         return;
       }
 
+      // Turning it back on keeps the settings it had; the first time, it is fitted to the route.
       u({
-        autoCam: {
-          ...defaultAutoCamFor(calc.vehicle?.type),
-          ...(item.autoCam ?? {}),
-          enabled: true,
-        },
+        autoCam: item.autoCam
+          ? { ...defaultAutoCamFor(calc.vehicle?.type), ...item.autoCam, enabled: true }
+          : autoCamForRoute(item),
       });
+      track('autocam_enabled');
     } else {
       u({ autoCam: item.autoCam ? { ...item.autoCam, enabled: false } : undefined });
     }
   };
 
-  const animType: RouteAnimationType = item.style.animationType || 'draw';
+  const animType: RouteAnimationType = item.style.animationType;
   const footer = <ItemActions id={item.id} kind="route" customLabel="Delete Route" />;
 
   const lineStyleValue: RouteLineStyle =
@@ -222,7 +224,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
                       ]}
                       value={calc.vehicle?.type || 'dot'}
                       onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
-                      onLockedSelect={openUpgradeModal}
+                      onLockedSelect={() => openUpgradeModal('vehicle_lock')}
                       columns={3}
                     />
                   </div>
@@ -243,7 +245,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
             {animType === 'comet' && (
               <SliderRow
                 label="Trail length"
-                value={item.style.cometTrailLength ?? 0.2}
+                value={item.style.cometTrailLength}
                 onChange={(v) => us({ cometTrailLength: v })}
                 min={0.05}
                 max={0.8}
@@ -300,7 +302,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
               <div className="mt-1.5 p-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
                 <Clapperboard size={13} className="text-primary shrink-0" />
                 <p className="text-[11px] text-primary font-medium leading-tight">
-                  Click the blue block in the Camera track to edit camera settings.
+                  Select the camera block on the timeline to edit camera settings.
                 </p>
               </div>
             )}

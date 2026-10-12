@@ -21,6 +21,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "/",
+    define: {
+      // Build identifier attached to analytics events (package.json stays at 0.0.0).
+      __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev'),
+    },
     server: {
       host: "::",
       port: 8080,
@@ -42,6 +46,24 @@ export default defineConfig(({ mode }) => {
       ...(mode === 'production'
         ? [
             obfuscatorPlugin({
+              // The analytics module lazy-loads posthog-js via dynamic import(); string-array
+              // encoding would turn that specifier into a runtime expression Rollup cannot
+              // split into a chunk. It carries no limits worth hiding, so skip it.
+              // Per-frame rendering/animation code is excluded too: string-array decoding makes
+              // its property access ~5x slower and it holds no limits. overlays/resolve.ts stays
+              // obfuscated since it applies the free-tier brand mark.
+              exclude: [
+                'node_modules/**',
+                'src/lib/analytics/**',
+                'src/lib/lazyModules.ts',
+                'src/engine/**',
+                'src/components/MapViewport/runtime/**',
+                'src/annotations/**',
+                'src/overlays/drawOverlays.ts',
+                'src/overlays/layout.ts',
+                'src/overlays/assets.ts',
+                'src/hooks/usePlayback.ts',
+              ],
               options: {
                 compact: true,
                 identifierNamesGenerator: 'hexadecimal',
@@ -62,6 +84,16 @@ export default defineConfig(({ mode }) => {
           ]
         : []),
     ].filter(Boolean),
+    build: {
+      rollupOptions: {
+        output: {
+          // mapbox-gl rarely changes; its own chunk keeps it cached across app deploys.
+          manualChunks(id) {
+            if (id.includes('node_modules/mapbox-gl/')) return 'mapbox-gl';
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

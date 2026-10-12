@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { AutoCamConfig, CameraKeyframe, RouteItem } from '@/store/types';
 import { blendPoses, poseFromFreeCam, poseFromJumpTo, poseToFreeCam, poseToJumpTo, type CameraPose } from './cameraPose';
-import { buildRig, gaussianSmooth, pathDistanceAt, sampleRig, vehicleAt } from './cameraRig';
+import { buildRig, sampleRig, smoothAbove, smoothWithin, vehicleAt, whittaker, type GroundModel, type RigTiming } from './cameraRig';
+import { applyEasing } from './easings';
 import { getLineSegment } from './lineAnimation';
 import { lngLatToMerc, metersPerMerc } from './cameraPose';
 import { getCameraAtTime } from './cameraInterpolation';
 import { blendedPose } from './cameraUtils';
 
 const config: AutoCamConfig = {
-  enabled: true, mode: 'cinematic', pitch: 65, smoothing: 0.4, distance: 500, height: 300,
+  enabled: true, mode: 'cinematic', pitch: 59, smoothing: 0.4, distance: 583,
   zoom: 14, lookAhead: 300, dynamics: 0.5, orbit: 0, intro: 0, outro: 0,
 };
 
@@ -53,35 +54,46 @@ describe('camera pose', () => {
   });
 });
 
-describe('gaussianSmooth', () => {
-  it('leaves straight lines alone, including the ends', () => {
+describe('whittaker', () => {
+  it('leaves straight lines at a steady pace alone, including the ends', () => {
     const line = Array.from({ length: 50 }, (_, i) => i * 2);
-    const out = gaussianSmooth(line, 5);
+    const [out] = whittaker([line], new Float64Array(50).fill(1), 1e4);
     for (let i = 0; i < line.length; i++) expect(out[i]).toBeCloseTo(line[i], 6);
+  });
+
+  it('keeps a constrained path within reach of every point', () => {
+    const n = 300;
+    const x = Float64Array.from({ length: n }, (_, i) => i);
+    const y = Float64Array.from({ length: n }, (_, i) => (Math.floor(i / 20) % 2 ? 10 : -10));
+    const [sx, sy] = smoothWithin(x, y, 1e6, 4);
+    for (let i = 0; i < n; i++) expect(Math.hypot(sx[i] - x[i], sy[i] - y[i])).toBeLessThan(4.5);
   });
 });
 
+const steady: RigTiming = { duration: 10, easing: 'linear' };
+
 describe('camera rig', () => {
   it('turns the heading gradually through a sharp corner', () => {
-    const rig = buildRig(corner, config)!;
+    const rig = buildRig(corner, config, steady)!;
     let maxStep = 0;
     for (let i = 1; i < rig.heading.length; i++) maxStep = Math.max(maxStep, Math.abs(rig.heading[i] - rig.heading[i - 1]));
-    // A raw polyline snaps 90° in one step; the rig spreads it over many samples.
-    expect(maxStep).toBeLessThan(5);
+    // A raw polyline snaps 90° at once; the rig spreads it over seconds.
+    expect(maxStep).toBeLessThan(1);
     expect(Math.abs(wrap(rig.heading[0] - 90))).toBeLessThan(10);
     expect(Math.abs(wrap(rig.heading[rig.heading.length - 1]))).toBeLessThan(10);
   });
 
   it('starts turning before the corner', () => {
-    const rig = buildRig(corner, config)!;
-    const before = Math.floor(((rig.total / 2) - 300) / rig.step);
+    const rig = buildRig(corner, config, steady)!;
+    // At a steady pace the vehicle reaches the corner half way through.
+    const before = Math.floor(0.45 * (rig.heading.length - 1));
     expect(rig.heading[before]).toBeLessThan(89);
   });
 
   it('keeps the vehicle in front of the camera', () => {
-    const rig = buildRig(corner, config)!;
-    for (const u of [0, 0.25, 0.5, 0.75, 1]) {
-      const out = sampleRig(rig, config, { u, p: u, speed: 1 });
+    const rig = buildRig(corner, config, steady)!;
+    for (const p of [0, 0.25, 0.5, 0.75, 1]) {
+      const out = sampleRig(rig, config, { p });
       expect(out.type).toBe('freeCam');
       if (out.type === 'freeCam') {
         expect(out.position.every(Number.isFinite)).toBe(true);
@@ -92,7 +104,7 @@ describe('camera rig', () => {
 
   it('places the vehicle where the renderer does', () => {
     const route = [[0, 0], [0.001, 0], [0.02, 0.0], [0.02, 0.02], [0.03, 0.02]];
-    const rig = buildRig(route, config)!;
+    const rig = buildRig(route, config, steady)!;
     for (const u of [0, 0.1, 0.37, 0.5, 0.83, 1]) {
       const seg = getLineSegment(route, 0, u);
       const [lng, lat] = seg[seg.length - 1];
@@ -100,55 +112,154 @@ describe('camera rig', () => {
       const [vx, vy] = vehicleAt(rig, u);
       expect(Math.hypot(vx - x, vy - y)).toBeLessThan(1e-9);
     }
-    expect(pathDistanceAt(rig, 0)).toBe(0);
-    expect(pathDistanceAt(rig, 1)).toBeCloseTo(rig.total, 6);
   });
 
   it('looks at the vehicle when easing has it stopped, and ahead of it at speed', () => {
-    const route = [[0, 0], [0.02, 0]];
-    const rig = buildRig(route, config)!;
-    const dist = (u: number, speed: number) => {
-      const out = sampleRig(rig, config, { u, p: u, speed, peakSpeed: 3 });
+    const route = [[0, 0], [0.05, 0]];
+    const timing: RigTiming = { duration: 10, easing: 'easeInOutSine' };
+    const rig = buildRig(route, config, timing)!;
+    const lead = (p: number) => {
+      const out = sampleRig(rig, config, { p });
       if (out.type !== 'freeCam') throw new Error('expected a free camera');
-      const [vx, vy] = vehicleAt(rig, u);
-      const [lx, ly] = lngLatToMerc(out.lookAt[0], out.lookAt[1]);
-      return Math.hypot(lx - vx, ly - vy) * metersPerMerc(0);
+      const [vx] = vehicleAt(rig, applyEasing(timing.easing, p));
+      return (lngLatToMerc(out.lookAt[0], out.lookAt[1])[0] - vx) * metersPerMerc(0);
     };
-    expect(dist(0.4, 0)).toBeLessThan(1);
-    expect(dist(0.4, 3)).toBeGreaterThan(100);
-    expect(dist(0.4, 1.5)).toBeGreaterThan(dist(0.4, 0.5));
+    expect(lead(0.5)).toBeGreaterThan(100);
+    expect(Math.abs(lead(0))).toBeLessThan(lead(0.5) / 10);
+    expect(Math.abs(lead(1))).toBeLessThan(lead(0.5) / 10);
+    expect(lead(0.5)).toBeGreaterThan(lead(0.2));
+  });
+
+  describe('on a fast, jagged route', () => {
+    // Hairpins climbing 18 km up a valley: 60 km of road, ±110 m either side, crossed in 10 s.
+    const zigzag = Array.from({ length: 300 }, (_, i) => [0.00054 * i, (i % 2 ? 1 : -1) * 0.001]);
+    const fast: RigTiming = { duration: 10, easing: 'easeInOutSine' };
+    const wide = { ...config, distance: 3600, pitch: 56 };
+    const rig = buildRig(zigzag, wide, fast)!;
+    const frames = Array.from({ length: 301 }, (_, f) => f / 300);
+
+    it('glides instead of following every jag', () => {
+      const aim = frames.map((p) => {
+        const out = sampleRig(rig, wide, { p });
+        if (out.type !== 'freeCam') throw new Error('expected a free camera');
+        return lngLatToMerc(out.lookAt[0], out.lookAt[1]).map((v) => v * metersPerMerc(0));
+      });
+      let sideways = 0;
+      for (let f = 2; f < aim.length; f++) sideways = Math.max(sideways, Math.abs(aim[f][1] - 2 * aim[f - 1][1] + aim[f - 2][1]));
+      // The road swings ±110 m every frame or two; the aim barely moves across it.
+      expect(sideways).toBeLessThan(5);
+    });
+
+    it('keeps the vehicle in frame', () => {
+      const view = wide.distance;
+      for (const p of frames) {
+        const out = sampleRig(rig, wide, { p });
+        if (out.type !== 'freeCam') throw new Error('expected a free camera');
+        const [ax, ay] = lngLatToMerc(out.lookAt[0], out.lookAt[1]);
+        const [vx, vy] = vehicleAt(rig, applyEasing(fast.easing, p));
+        expect(Math.hypot(ax - vx, ay - vy) * metersPerMerc(0)).toBeLessThan(view * 0.6);
+      }
+    });
+
+    it('turns no faster than a slow pan', () => {
+      let max = 0;
+      for (let i = 1; i < rig.heading.length; i++) max = Math.max(max, Math.abs(rig.heading[i] - rig.heading[i - 1]) * 60);
+      expect(max).toBeLessThan(10);
+    });
+  });
+
+  it('pulls back through a bend with dynamics, and holds steady on a straight', () => {
+    const rangeAt = (route: number[][], dynamics: number, p: number) => {
+      const cfg = { ...config, dynamics };
+      const out = sampleRig(buildRig(route, cfg, steady)!, cfg, { p });
+      if (out.type !== 'freeCam') throw new Error('expected a free camera');
+      return poseFromFreeCam(out.position, out.lookAt).range;
+    };
+    const straight = [[0, 0], [0.04, 0]];
+    // The corner is half way along; at a steady pace the vehicle reaches it at p = 0.5.
+    expect(rangeAt(corner, 1, 0.5) / rangeAt(corner, 0, 0.5)).toBeGreaterThan(1.15);
+    expect(Math.abs(rangeAt(straight, 1, 0.5) / rangeAt(straight, 0, 0.5) - 1)).toBeLessThan(0.05);
   });
 
   it('is deterministic for the same progress', () => {
-    const rig = buildRig(corner, config)!;
-    const p = { u: 0.42, p: 0.42, speed: 1.1 };
-    expect(sampleRig(rig, config, p)).toEqual(sampleRig(rig, config, p));
+    const rig = buildRig(corner, config, steady)!;
+    expect(sampleRig(rig, config, { p: 0.42 })).toEqual(sampleRig(rig, config, { p: 0.42 }));
   });
 
   it('opens on a wide shot when an intro is set', () => {
-    const rig = buildRig(corner, config)!;
-    const plain = sampleRig(rig, config, { u: 0, p: 0, speed: 1 });
-    const intro = sampleRig(rig, { ...config, intro: 1 }, { u: 0, p: 0, speed: 1 });
+    const rig = buildRig(corner, config, steady)!;
+    const plain = sampleRig(rig, config, { p: 0 });
+    const intro = sampleRig(rig, { ...config, intro: 1 }, { p: 0 });
     if (plain.type === 'freeCam' && intro.type === 'freeCam') {
       expect(intro.position[2]).toBeGreaterThan(plain.position[2] * 2);
     }
   });
 
   it('leaves out the wide shots a caller asks to skip', () => {
-    const rig = buildRig(corner, config)!;
+    const rig = buildRig(corner, config, steady)!;
     const shots = { ...config, intro: 1, outro: 1 };
-    const plain = sampleRig(rig, config, { u: 0, p: 0, speed: 1 });
-    expect(sampleRig(rig, shots, { u: 0, p: 0, speed: 1, skipShots: { intro: true } })).toEqual(plain);
-    const end = sampleRig(rig, config, { u: 1, p: 1, speed: 1 });
-    expect(sampleRig(rig, shots, { u: 1, p: 1, speed: 1, skipShots: { outro: true } })).toEqual(end);
-    expect(sampleRig(rig, shots, { u: 1, p: 1, speed: 1, skipShots: { intro: true } })).not.toEqual(end);
+    const plain = sampleRig(rig, config, { p: 0 });
+    expect(sampleRig(rig, shots, { p: 0, skipShots: { intro: true } })).toEqual(plain);
+    const end = sampleRig(rig, config, { p: 1 });
+    expect(sampleRig(rig, shots, { p: 1, skipShots: { outro: true } })).toEqual(end);
+    expect(sampleRig(rig, shots, { p: 1, skipShots: { intro: true } })).not.toEqual(end);
   });
 
   it('returns a navigation camera as a standard camera', () => {
     const nav = { ...config, mode: 'navigation' as const };
-    const rig = buildRig(corner, nav)!;
-    const out = sampleRig(rig, nav, { u: 0.5, p: 0.5, speed: 1 });
-    expect(out.type).toBe('jumpTo');
+    const rig = buildRig(corner, nav, steady)!;
+    expect(sampleRig(rig, nav, { p: 0.5 }).type).toBe('jumpTo');
+  });
+});
+
+describe('camera rig over terrain', () => {
+  // 20 km due east at 46°N, crossed in 10 s.
+  const east = [[8, 46], [8.26, 46]];
+  const timing: RigTiming = { duration: 10, easing: 'linear' };
+  const wide = { ...config, distance: 3350, pitch: 63 };
+  const model = (elevation: (lng: number, lat: number) => number): GroundModel => ({ key: 'test', elevation });
+  const frames = Array.from({ length: 301 }, (_, f) => f / 300);
+  const shots = (rig: NonNullable<ReturnType<typeof buildRig>>) => frames.map((p) => {
+    const out = sampleRig(rig, wide, { p });
+    if (out.type !== 'freeCam') throw new Error('expected a free camera');
+    return out;
+  });
+
+  it('keeps above the floor it is given', () => {
+    const n = 200;
+    const y = new Float64Array(n);
+    const floor = Float64Array.from({ length: n }, (_, i) => (i > 90 && i < 110 ? 50 : -Infinity));
+    const z = smoothAbove(y, floor, 1e5);
+    for (let i = 0; i < n; i++) expect(z[i]).toBeGreaterThan(floor[i] - 1);
+  });
+
+  it('glides over corrugated ground instead of bobbing with it', () => {
+    // ±300 m ridges every 300 m or so.
+    const bumpy = (lng: number) => 1000 + 300 * Math.sin((lng * 2 * Math.PI) / 0.004);
+    const out = shots(buildRig(east, wide, timing, model(bumpy))!);
+    let planned = 0;
+    let raw = 0;
+    for (let f = 2; f < out.length; f++) {
+      planned = Math.max(planned, Math.abs(out[f].ground! - 2 * out[f - 1].ground! + out[f - 2].ground!));
+      raw = Math.max(raw, Math.abs(bumpy(out[f].lookAt[0]) - 2 * bumpy(out[f - 1].lookAt[0]) + bumpy(out[f - 2].lookAt[0])));
+    }
+    expect(raw).toBeGreaterThan(100);
+    expect(planned).toBeLessThan(raw / 50);
+  });
+
+  it('rises to clear a ridge the camera passes over', () => {
+    // A 2.5 km ridge across the route, well above the camera's usual 1.5 km.
+    const ridge = (lng: number) => 500 + 2500 * Math.exp(-(((lng - 8.13) / 0.01) ** 2));
+    for (const cam of shots(buildRig(east, wide, timing, model(ridge))!)) {
+      expect(cam.position[2] + cam.ground!).toBeGreaterThan(ridge(cam.position[0]) + 100);
+    }
+  });
+
+  it('leaves heights to the map until the terrain covers the whole shot', () => {
+    const partial: GroundModel = { key: 'test', elevation: (lng) => (lng < 8.2 ? 100 : null) };
+    const rig = buildRig(east, wide, timing, partial)!;
+    expect(rig.ground).toBeNull();
+    expect(shots(rig)[150].ground).toBeUndefined();
   });
 });
 
@@ -289,7 +400,7 @@ describe('bearing through a lead-in and lead-out', () => {
   ]);
   const route = {
     kind: 'route', id: 'r1', startTime: 3, endTime: 117.5, easing: 'easeInOutQuad',
-    autoCam: { ...config, pitch: 65, smoothing: 0.5, distance: 550, height: 420, zoom: 17, orbit: 0.2, intro: 1, outro: 1 },
+    autoCam: { ...config, pitch: 53, smoothing: 0.5, distance: 692, zoom: 17, orbit: 0.2, intro: 1, outro: 1 },
   } as unknown as RouteItem;
   const kf = (id: string, time: number, bearing: number, center: [number, number]): CameraKeyframe => ({
     id, time, camera: { center, zoom: 3, pitch: 0, bearing, altitude: null }, easing: 'easeInOutCubic', followRoute: null,

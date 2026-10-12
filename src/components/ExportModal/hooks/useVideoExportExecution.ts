@@ -1,18 +1,18 @@
 import { useState, useRef } from 'react';
 import { saveAs } from 'file-saver';
-import { runExport } from '@/services/videoExport';
+import { loadVideoExport } from '@/lib/lazyModules';
 import { useProjectStore } from '@/store/useProjectStore';
+import type { Branding } from '@/overlays';
 import type { ExportPlan } from '../exportPlan';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
-
-function getErrorMessage(error: unknown, fallback = 'Export failed'): string {
-  return error instanceof Error ? error.message : fallback;
-}
+import { bucketDuration, setPersonProps, track, type ExportEventProps } from '@/lib/analytics';
+import { classifyExportError } from '@/lib/analytics/classify';
+import { errorMessage } from '@/lib/utils';
 
 export function useVideoExportExecution(
   runtimeRef: MapSceneRuntimeRef,
   exportPlan: ExportPlan,
-  showWatermark: boolean,
+  branding: Branding,
   projectName: string,
   onRequireAuth?: () => void,
   isLimitedGuest?: boolean
@@ -28,6 +28,12 @@ export function useVideoExportExecution(
       return;
     }
 
+    const exportProps: ExportEventProps = {
+      resolution: exportPlan.renderConfig.exportResolution,
+      fps: exportPlan.renderConfig.fps,
+      duration_bucket: bucketDuration(exportPlan.endTime - exportPlan.startTime),
+    };
+    track('export_started', exportProps);
     const initialPlaybackState = useProjectStore.getState().isPlaying;
     useProjectStore.getState().setIsExporting(true);
     setProgress(0);
@@ -38,9 +44,12 @@ export function useVideoExportExecution(
     useProjectStore.getState().setIsPlaying(false);
 
     try {
+      // Loaded on demand: the export pipeline (mediabunny) stays out of the initial bundle.
+      const { runExport } = await loadVideoExport();
+      if (controller.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
       const blob = await runExport(runtimeRef, {
         ...exportPlan,
-        showWatermark,
+        branding,
         onProgress: (pct, p) => {
           setProgress(pct);
           setPhase(p);
@@ -52,11 +61,15 @@ export function useVideoExportExecution(
       const fileName = `${sanitizedName}.mp4`;
       saveAs(blob, fileName);
       setProgress(100);
+      track('export_succeeded', exportProps);
+      setPersonProps({ has_exported: true });
     } catch (err: unknown) {
       if (controller.signal.aborted) {
         setProgress(0);
+        track('export_cancelled', exportProps);
       } else {
-        setError(getErrorMessage(err));
+        track('export_failed', { ...exportProps, error_class: classifyExportError(err) });
+        setError(errorMessage(err, 'Export failed'));
       }
     } finally {
       abortRef.current = null;

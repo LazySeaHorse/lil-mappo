@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
-import { getDirections } from '@/services/directions';
-import { searchBoundary } from '@/services/nominatim';
-import { calculateFlightArc } from '@/services/flightPath';
+import { computeEndpointGeometry, type EndpointGeometry } from '@/services/endpointGeometry';
+import { applyBoundaryDetail } from '@/engine/boundaryDetail';
+import { searchBoundary, shortPlaceName } from '@/services/nominatim';
 import { getAllStyles, getStyle } from '@/annotations/registry';
 import {
   DEFAULT_BOUNDARY_STYLE,
@@ -11,7 +11,6 @@ import {
   DEFAULT_CALLOUT_STYLE_ID,
   createWalkRouteItem,
   defaultEndpointRouteName,
-  wrapGeometry,
 } from '@/store/itemFactories';
 import type { RouteItem } from '@/store/types';
 import { defineTool } from '../defineTool';
@@ -19,6 +18,8 @@ import { ToolError } from '../errors';
 import { commitAiWrite } from '../commit';
 import { geoStats } from '../geo';
 import { resolveLocation } from '../geocode';
+import { extractLineCoords } from '@/engine/geoUtils';
+import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { summarizeItem } from '../summaries';
 import {
   anchorSchema,
@@ -29,7 +30,7 @@ import {
   contentShape,
   routeStylePatchSchema,
   vehiclePatchSchema,
-  issuesOf,
+  parseCalloutSettings,
 } from './schemas';
 import {
   type LngLat,
@@ -41,6 +42,7 @@ import {
   resolveNewTimeRange,
   timeSchema,
 } from './shared';
+import { errorMessage } from '@/lib/utils';
 
 const timing = {
   startTime: timeSchema.optional().describe('Seconds when the item appears. Default: current playhead time.'),
@@ -90,21 +92,19 @@ export const addRoute = defineTool({
       item = createWalkRouteItem({ points, curved: input.curved, name: input.name, startTime: 0 });
     } else {
       const [from, to] = await Promise.all([resolveLocation(input.from as Location), resolveLocation(input.to as Location)]);
-      let geometry: GeoJSON.Geometry;
-      if (mode === 'car') {
-        try {
-          const dir = await getDirections(from.coordinates, to.coordinates);
-          geometry = dir.geometry;
-          extra = { distanceMeters: Math.round(dir.distance), driveTimeSeconds: Math.round(dir.duration) };
-        } catch (err) {
-          throw new ToolError('directions_failed', `Could not get driving directions: ${err instanceof Error ? err.message : String(err)}. Try flight or walk mode, or different endpoints.`);
-        }
-      } else {
-        geometry = calculateFlightArc(from.coordinates, to.coordinates);
+      let path: EndpointGeometry;
+      try {
+        // Only a car route can fail: it fetches directions. A flight arc is pure math.
+        path = await computeEndpointGeometry(mode, from.coordinates, to.coordinates);
+      } catch (err) {
+        throw new ToolError('directions_failed', `Could not get driving directions: ${errorMessage(err)}. Try flight or walk mode, or different endpoints.`);
+      }
+      if (path.directions) {
+        extra = { distanceMeters: Math.round(path.directions.distance), driveTimeSeconds: Math.round(path.directions.duration) };
       }
       item = createEndpointRouteItem({
         mode,
-        geojson: wrapGeometry(geometry),
+        geojson: path.geojson,
         start: from.coordinates,
         end: to.coordinates,
         name: input.name ?? defaultEndpointRouteName(mode, from.name, to.name),
@@ -127,6 +127,7 @@ export const addRoute = defineTool({
       }
       getState().addItem(item);
     });
+    reportRouteAdded('ai', extractLineCoords(item.geojson).length);
 
     return {
       data: { created: summarizeItem(item, { detail: false }), ...extra },
@@ -143,28 +144,30 @@ export const addBoundary = defineTool({
   title: 'Add boundary',
   description:
     'Adds an outlined region (country, state, city, district) found by name via OpenStreetMap Nominatim; the best polygon match is used. ' +
-    'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace...). ' +
+    'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace, maskOutside + maskColor + maskOpacity to dim everything outside the region as a spotlight, fillMode "flag" to fill a country with its flag (flagCode is pre-filled from the search result; override it with a lowercase ISO 3166-1 alpha-2 code)...). ' +
+    '`detail` sets outline accuracy: detailed (~1 m, cities and neighbourhoods, close-ups), standard (~10 m, default, most regions) or light (~50 m, countries and continents, wide shots). ' +
     'One undo step. Returns the item id, resolved place name and bbox [west, south, east, north] (pass the id to frame_items to frame it).',
   input: z.strictObject({
     query: z.string().min(2).max(200).describe('Region name, e.g. "Portugal", "Manhattan, New York", "Bavaria".'),
+    detail: z.enum(['detailed', 'standard', 'light']).optional().describe('Outline detail. Default "standard".'),
     ...timing,
     style: boundaryStylePatchSchema.optional().describe('Partial boundary style merged over the defaults.'),
   }),
   readOnly: false,
-  handler: async ({ query, startTime, endTime, style }) => {
+  handler: async ({ query, detail, startTime, endTime, style }) => {
     resolveNewTimeRange(startTime, endTime);
     let results;
     try {
       results = await searchBoundary(query);
     } catch (err) {
-      throw new ToolError('boundary_search_failed', `Boundary search failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw new ToolError('boundary_search_failed', `Boundary search failed: ${errorMessage(err)}`);
     }
     const best = results[0];
     if (!best) {
       throw new ToolError('boundary_not_found', `No region outline found for "${query}". Try a broader or differently spelled name (regions, cities and countries work; addresses and POIs do not).`, { query });
     }
-    const placeName = best.display_name.split(',')[0];
-    const item = createBoundaryItem({ placeName, geojson: best.geojson, startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style } });
+    const placeName = shortPlaceName(best.display_name);
+    const item = createBoundaryItem({ placeName, geojson: applyBoundaryDetail(best.geojson, detail), startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style }, countryCode: best.countryCode });
 
     commitAiWrite(`AI: add boundary "${placeName}"`, () => {
       const [s, e] = resolveNewTimeRange(startTime, endTime);
@@ -235,11 +238,7 @@ export const addCallout = defineTool({
     if (input.anchor) item.anchor = input.anchor;
     if (input.altitude !== undefined && item.binding.kind === 'geographic') item.binding = { ...item.binding, altitude: input.altitude };
     if (input.settings) {
-      const parsed = style.settingsSchema.safeParse({ ...style.defaultSettings, ...input.settings });
-      if (!parsed.success) {
-        throw new ToolError('invalid_settings', `settings are not valid for style "${styleId}": ${issuesOf(parsed.error as never).map((i) => `${i.path}: ${i.message}`).join('; ')}`);
-      }
-      item.settings = parsed.data as Record<string, unknown>;
+      item.settings = parseCalloutSettings(style, styleId, { ...style.defaultSettings, ...input.settings });
     }
 
     commitAiWrite(`AI: add callout "${title}"`, () => {

@@ -1,4 +1,11 @@
-import type { GeoJSONSource, LayoutSpecification, Map as MapboxMap, PaintSpecification } from 'mapbox-gl';
+import type {
+  GeoJSONSource,
+  GeoJSONSourceSpecification,
+  LayoutSpecification,
+  Map as MapboxMap,
+  PaintSpecification,
+} from 'mapbox-gl';
+import { clamp } from '@/engine/geoMath';
 
 export type MapMutationPhase = 'setup' | 'update' | 'cleanup' | 'style-sync';
 
@@ -56,6 +63,37 @@ export function isStyleReady(map: MapboxMap): boolean {
   return Boolean(style && style._loaded);
 }
 
+/**
+ * Mapbox eases a changed paint property over 300 ms by default. Our layers are driven
+ * frame by frame, so the ease would trail the playhead (and stall export frames waiting
+ * for idle). Spread this into a layer's `paint` for the properties we write at runtime.
+ */
+export function noPaintTransitions(...props: string[]): PaintSpecification {
+  return Object.fromEntries(
+    props.map((prop) => [`${prop}-transition`, { duration: 0, delay: 0 }]),
+  ) as PaintSpecification;
+}
+
+/**
+ * Whether Mapbox has a render queued for the current animation frame, i.e. a
+ * 'render' event is about to fire. Mapbox has no public equivalent (`isMoving()`
+ * is false after a jumpTo, `loaded()` says nothing about repaints), so this reads
+ * the private `_frame` / `_renderNextFrame` pair that `triggerRepaint` sets. Re-check
+ * this when upgrading mapbox-gl.
+ */
+export function isRepaintPending(map: MapboxMap): boolean {
+  const internal = map as unknown as { _frame?: unknown; _renderNextFrame?: unknown };
+  return Boolean(internal._frame && internal._renderNextFrame);
+}
+
+/** Shared empty data for geojson sources that start (or are cleared to) nothing. */
+export const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
+
+/** An empty geojson source spec; `lineMetrics` enables line-progress (gradients, trim offsets). */
+export function geoJSONSource(lineMetrics = false): GeoJSONSourceSpecification {
+  return { type: 'geojson', data: EMPTY_FC, ...(lineMetrics ? { lineMetrics: true } : {}) };
+}
+
 export function getGeoJSONSource(map: MapboxMap, sourceId: string): GeoJSONSource | undefined {
   const source = map.getSource(sourceId);
   if (!source || source.type !== 'geojson') return undefined;
@@ -89,6 +127,10 @@ export function removeSourceIfPresent(
  * already what the cache says Mapbox has. `cache` maps a caller-chosen key to
  * the last value successfully written; it is only updated when the write
  * succeeds, so a failed write is retried on the next update.
+ *
+ * Numeric `*-opacity` paint values are clamped to 0-1: Mapbox rejects anything
+ * outside that range with an error event rather than a throw, so the cache would
+ * otherwise record a value that was never applied.
  */
 export class LayerPropertyWriter<C extends object> {
   cache: C;
@@ -113,8 +155,9 @@ export class LayerPropertyWriter<C extends object> {
     cacheValue: C[K],
   ): void {
     if (this.cache[cacheKey] === cacheValue) return;
+    const applied = typeof value === 'number' && property.endsWith('-opacity') ? clamp(value, 0, 1) : value;
     if (this.mutate(`setPaintProperty:${property}`, layerId, () => {
-      this.map.setPaintProperty(layerId, property, value);
+      this.map.setPaintProperty(layerId, property, applied);
     })) this.cache[cacheKey] = cacheValue;
   }
 

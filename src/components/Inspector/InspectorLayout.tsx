@@ -11,6 +11,7 @@ import {
   DrawerDescription
 } from "@/components/ui/drawer";
 import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from "@/hooks/useResponsive";
 import {
   INSPECTOR_WIDTH_DESKTOP,
@@ -58,7 +59,15 @@ export function ItemActions({
   kind: 'route' | 'boundary' | 'callout' | 'camera-kf';
   customLabel?: string;
 }) {
-  const { removeItem, selectItem, removeCameraKeyframe, selectKeyframe, duplicateItem } = useProjectStore();
+  const { removeItem, selectItem, removeCameraKeyframe, selectKeyframe, duplicateItem } = useProjectStore(
+    useShallow(s => ({
+      removeItem: s.removeItem,
+      selectItem: s.selectItem,
+      removeCameraKeyframe: s.removeCameraKeyframe,
+      selectKeyframe: s.selectKeyframe,
+      duplicateItem: s.duplicateItem,
+    }))
+  );
 
   const isCameraKF = kind === 'camera-kf';
   const canDuplicate = kind !== 'camera-kf';
@@ -114,7 +123,12 @@ export function PanelWrapper({
   footer?: React.ReactNode 
 }) {
   const { isMobile, isTablet } = useResponsive();
-  const { isInspectorOpen, setIsInspectorOpen } = useProjectStore();
+  const { isInspectorOpen, setIsInspectorOpen } = useProjectStore(
+    useShallow(s => ({
+      isInspectorOpen: s.isInspectorOpen,
+      setIsInspectorOpen: s.setIsInspectorOpen,
+    }))
+  );
   const [snap, setSnap] = React.useState<number | string | null>(0.7);
 
   if (isMobile) {

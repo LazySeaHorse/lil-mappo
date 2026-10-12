@@ -2,20 +2,21 @@ import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { getExportDimensions } from '@/types/render';
 import { sanitizeFeatureCollection } from '@/engine/geojsonSanitize';
+import { EASING_NAMES } from '@/engine/easings';
 import {
   cameraZoomAt,
   DEFAULT_VIEW_ZOOM,
   isLegacyCallout,
   migrateCalloutV1ToV2,
 } from '@/annotations/migration';
-import type { Project, RouteItem } from './types';
-import { getAutoCamRanges, rescaleAutoCam } from '@/config/vehicles';
+import type { Project } from './types';
+import { PERSISTED_PROJECT_KEYS } from './historyKeys';
 import { MAP_STYLES } from '@/config/mapbox';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
 import { createCalloutStyleDefaults } from './itemFactories';
 
-export const PROJECT_SCHEMA_VERSION = 4 as const;
+export const PROJECT_SCHEMA_VERSION = 5 as const;
 export const CAMERA_TRACK_ID = 'camera-track';
 
 export type ProjectDocument = Project & {
@@ -23,13 +24,7 @@ export type ProjectDocument = Project & {
 };
 
 const coordinateSchema = z.tuple([z.number().finite(), z.number().finite()]);
-const easingSchema = z.enum([
-  'linear',
-  'easeInQuad', 'easeOutQuad', 'easeInOutQuad',
-  'easeInCubic', 'easeOutCubic', 'easeInOutCubic',
-  'easeInOutSine',
-  'bounce',
-]);
+const easingSchema = z.enum(EASING_NAMES);
 
 const featureCollectionSchema = z.custom<GeoJSON.FeatureCollection>(
   (value) => {
@@ -48,6 +43,9 @@ const geometrySchema = z.custom<GeoJSON.Geometry>(
   'Expected a GeoJSON geometry',
 );
 
+/** Documents saved before exit animations had a default load as 'none': they stay on screen after their end. */
+const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).default('none');
+
 const routeStyleSchema = z.object({
   color: z.string(),
   width: z.number(),
@@ -56,8 +54,9 @@ const routeStyleSchema = z.object({
   trailFade: z.boolean(),
   trailFadeLength: z.number(),
   dashPattern: z.array(z.number()).nullable(),
-  animationType: z.enum(['draw', 'navigation', 'comet']).optional(),
-  cometTrailLength: z.number().optional(),
+  // Older documents may lack these; they load as the draw animation and a 0.2 trail.
+  animationType: z.enum(['draw', 'navigation', 'comet']).default('draw'),
+  cometTrailLength: z.number().default(0.2),
 });
 
 const routeVehicleSchema = z.object({
@@ -101,26 +100,34 @@ const routeItemSchema = z.object({
     pitch: z.number(),
     smoothing: z.number(),
     distance: z.number(),
-    height: z.number(),
     zoom: z.number(),
     lookAhead: z.number(),
     easing: easingSchema.optional(),
   }).optional(),
   style: routeStyleSchema,
   easing: easingSchema,
-  exitAnimation: z.enum(['none', 'reverse', 'fade']).optional(),
+  exitAnimation: exitAnimationSchema,
   calculation: routeCalculationSchema.optional(),
 });
+
+/** 0-1 for opacities. Older documents stored whatever the slider or an agent wrote, so out-of-range values are clamped, not rejected. */
+const unitIntervalSchema = z.number().transform((value) => Math.min(1, Math.max(0, value)));
 
 const boundaryStyleSchema = z.object({
   strokeColor: z.string(),
   fillColor: z.string(),
   strokeWidth: z.number(),
   glow: z.boolean(),
-  fillOpacity: z.number(),
+  fillOpacity: unitIntervalSchema,
   animateStroke: z.boolean(),
   animationStyle: z.enum(['fade', 'draw', 'trace']),
   traceLength: z.number(),
+  // Added after v5 shipped; older documents parse to the defaults.
+  maskOutside: z.boolean().default(false),
+  maskColor: z.string().default('#0b0f19'),
+  maskOpacity: z.number().min(0).max(1).default(0.85),
+  fillMode: z.enum(['color', 'flag']).default('color'),
+  flagCode: z.string().nullable().default(null),
 });
 
 const boundaryItemSchema = z.object({
@@ -128,12 +135,11 @@ const boundaryItemSchema = z.object({
   id: z.string().min(1),
   placeName: z.string(),
   geojson: geometrySchema.nullable(),
-  resolveStatus: z.enum(['idle', 'loading', 'resolved', 'error']),
   startTime: z.number(),
   endTime: z.number(),
   style: boundaryStyleSchema,
   easing: easingSchema,
-  exitAnimation: z.enum(['none', 'reverse', 'fade']).optional(),
+  exitAnimation: exitAnimationSchema,
 });
 
 // Callout schema now lives in the annotation system
@@ -271,13 +277,40 @@ const migrateProjectV0ToV1: ProjectMigration = (input) => {
  * auto-camera 100x further out. Plane routes saved before that change still
  * have follow distances in the ground range, which would put the camera inside
  * the enlarged model. Distances already in the plane range were saved after
- * the change and are left alone; the two ranges do not overlap.
+ * the change and are left alone; v1's car range topped out below the plane range.
  */
+const V1_MAX_CAR_DISTANCE = 3000;
+/** v2's plane ranges, which the 100x rescale was clamped into. */
+const V2_PLANE_DISTANCE = { min: 10000, max: 300000 };
+const V2_PLANE_HEIGHT = { min: 5000, max: 200000 };
+
+interface LegacyAutoCam {
+  mode?: string;
+  pitch?: number;
+  distance?: number;
+  height?: number;
+}
+
+type LegacyRoute = {
+  kind?: string;
+  calculation?: { vehicle?: { type?: string } };
+  autoCam?: LegacyAutoCam;
+} | null;
+
 function migratePlaneAutoCam(value: unknown): unknown {
-  const route = value as Partial<RouteItem> | null;
-  if (route?.kind !== 'route' || route.calculation?.vehicle?.type !== 'plane' || !route.autoCam) return value;
-  if (route.autoCam.distance > getAutoCamRanges('car').distance.max) return value;
-  return { ...route, autoCam: rescaleAutoCam(route.autoCam, 'car', 'plane') };
+  const route = value as LegacyRoute;
+  const autoCam = route?.autoCam;
+  if (route?.kind !== 'route' || route.calculation?.vehicle?.type !== 'plane' || !autoCam) return value;
+  if (typeof autoCam.distance !== 'number' || autoCam.distance > V1_MAX_CAR_DISTANCE) return value;
+  const scale = (v: number, { min, max }: { min: number; max: number }) => Math.min(max, Math.max(min, Math.round(v * 100)));
+  return {
+    ...route,
+    autoCam: {
+      ...autoCam,
+      distance: scale(autoCam.distance, V2_PLANE_DISTANCE),
+      ...(typeof autoCam.height === 'number' ? { height: scale(autoCam.height, V2_PLANE_HEIGHT) } : {}),
+    },
+  };
 }
 
 /** Migrates schema v1 callout items to the annotation-based v2 format. */
@@ -434,11 +467,41 @@ const migrateProjectV3ToV4: ProjectMigration = (input) => {
   return { ...document, schemaVersion: 4, items };
 };
 
+/**
+ * v5 frames the follow view by straight-line distance and pitch instead of distance behind
+ * and height (which left the pitch slider doing nothing there). A follow-view camera keeps
+ * its exact position; a navigation-view one keeps its pitch, which that view already used.
+ */
+function migrateFollowFramingV4ToV5(value: unknown): unknown {
+  const route = value as LegacyRoute;
+  if (route?.kind !== 'route' || !route.autoCam) return value;
+  const { height, ...autoCam } = route.autoCam;
+  if (typeof height !== 'number' || typeof autoCam.distance !== 'number') return { ...route, autoCam };
+  const pitch = Math.min(85, (Math.atan2(autoCam.distance, height) * 180) / Math.PI);
+  return {
+    ...route,
+    autoCam: {
+      ...autoCam,
+      distance: Math.round(Math.hypot(autoCam.distance, height)),
+      pitch: autoCam.mode === 'navigation' ? autoCam.pitch : Math.round(pitch * 10) / 10,
+    },
+  };
+}
+
+const migrateProjectV4ToV5: ProjectMigration = (input) => {
+  const document = legacyDocumentEnvelopeSchema.parse(input);
+  const items = Object.fromEntries(
+    Object.entries(document.items).map(([id, value]) => [id, migrateFollowFramingV4ToV5(value)]),
+  );
+  return { ...document, schemaVersion: 5, items };
+};
+
 const projectMigrations: Record<number, ProjectMigration> = {
   0: migrateProjectV0ToV1,
   1: migrateProjectV1ToV2,
   2: migrateProjectV2ToV3,
   3: migrateProjectV3ToV4,
+  4: migrateProjectV4ToV5,
 };
 
 function migrateProjectDocument(input: unknown): unknown {
@@ -482,71 +545,34 @@ export function parseProjectDocument(input: unknown): Project {
 
 /** Selects only durable project data from a Project or the wider Zustand store. */
 export function toProjectDocument(state: Project): ProjectDocument {
-  const document = {
-    schemaVersion: PROJECT_SCHEMA_VERSION,
-    id: state.id,
-    name: state.name,
-    duration: state.duration,
-    fps: state.fps,
-    resolution: state.resolution,
-    aspectRatio: state.aspectRatio,
-    exportResolution: state.exportResolution,
-    isVertical: state.isVertical,
-    projection: state.projection,
-    lightPreset: state.lightPreset,
-    starIntensity: state.starIntensity,
-    fogColor: state.fogColor,
-    terrainExaggeration: state.terrainExaggeration,
-    mapStyle: state.mapStyle,
-    terrainEnabled: state.terrainEnabled,
-    buildingsEnabled: state.buildingsEnabled,
-    labelVisibility: state.labelVisibility,
-    show3dLandmarks: state.show3dLandmarks,
-    show3dTrees: state.show3dTrees,
-    show3dFacades: state.show3dFacades,
-    items: state.items,
-    itemOrder: state.itemOrder,
-    mapCenter: state.mapCenter,
-    ...(state.customMapStyleUrl !== undefined && { customMapStyleUrl: state.customMapStyleUrl }),
-    ...(state.customMapStyleLabel !== undefined && { customMapStyleLabel: state.customMapStyleLabel }),
-  } satisfies ProjectDocument;
+  // Unset optional fields (custom style url/label) are left out, not written as undefined.
+  const document: Record<string, unknown> = { schemaVersion: PROJECT_SCHEMA_VERSION };
+  for (const key of PERSISTED_PROJECT_KEYS) {
+    if (state[key] !== undefined) document[key] = state[key];
+  }
 
   // Validate live state too, so invalid data fails at its first durable boundary.
   return { schemaVersion: PROJECT_SCHEMA_VERSION, ...parseProjectDocument(document) };
 }
 
-/** Creates a complete project without routing partial data through the loader. */
+/**
+ * Creates a complete project without routing partial data through the loader.
+ * Only fields without a schema default are set here; the schema fills the rest.
+ */
 export function createProject(overrides: Partial<Project> = {}): Project {
-  const aspectRatio = overrides.aspectRatio ?? '16:9';
-  const exportResolution = overrides.exportResolution ?? '720p';
-  const isVertical = overrides.isVertical ?? false;
   const camera = { kind: 'camera' as const, id: CAMERA_TRACK_ID, keyframes: [] };
 
   return parseProjectDocument({
     schemaVersion: PROJECT_SCHEMA_VERSION,
     id: nanoid(),
     name: 'Untitled Project',
-    duration: 30,
-    fps: 30,
-    resolution: getExportDimensions(exportResolution, aspectRatio, isVertical),
-    aspectRatio,
-    exportResolution,
-    isVertical,
-    projection: 'globe',
-    lightPreset: 'day',
-    starIntensity: 0.6,
-    fogColor: null,
-    terrainExaggeration: 1.5,
-    mapStyle: 'standard',
-    terrainEnabled: false,
-    buildingsEnabled: false,
-    labelVisibility: {},
-    show3dLandmarks: true,
-    show3dTrees: true,
-    show3dFacades: true,
+    resolution: getExportDimensions(
+      overrides.exportResolution ?? '720p',
+      overrides.aspectRatio ?? '16:9',
+      overrides.isVertical ?? false,
+    ),
     items: { [CAMERA_TRACK_ID]: camera },
     itemOrder: [CAMERA_TRACK_ID],
-    mapCenter: [0, 0],
     ...overrides,
   });
 }

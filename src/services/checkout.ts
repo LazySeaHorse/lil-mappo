@@ -1,5 +1,4 @@
-import { supabase } from "@/lib/supabase";
-
+import { calculateRenderCredits } from "@/types/render";
 // =============================================================================
 // Types & constants
 // =============================================================================
@@ -44,6 +43,14 @@ export const PLAN_CONFIG: Record<
     parallelRenders: 5,
   },
 };
+
+/** Credits one minute of 1080p, 30 FPS video costs. */
+export const CREDITS_PER_1080P_MINUTE = calculateRenderCredits("1080p", 60, 30);
+
+/** How many minutes of 1080p, 30 FPS video `credits` buy (the figure the pricing copy quotes). */
+export function creditsToMinutesAt1080p(credits: number): number {
+  return credits / CREDITS_PER_1080P_MINUTE;
+}
 
 // =============================================================================
 // Pending plan — persists across the magic-link page reload

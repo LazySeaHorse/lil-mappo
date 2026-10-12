@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
-import { type PlanSlug, PLAN_CONFIG } from "@/services/checkout";
+import { type PlanSlug, PLAN_CONFIG, creditsToMinutesAt1080p } from "@/services/checkout";
 import { Coins, Layers, CloudUpload, Package, Timer } from "lucide-react";
 
 // ─── Tier card ────────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ function TierCard({
   comingSoon?: boolean;
   onCheckout?: (plan: PlanSlug) => void;
 }) {
-  const { startCheckout } = useAuthStore();
+  const startCheckout = useAuthStore((s) => s.startCheckout);
 
   const handleClick = () => {
     if (isCurrent || comingSoon) return;
@@ -93,7 +93,7 @@ function TierCard({
         <div className="flex items-start gap-2">
           <Timer size={14} className="mt-0.5 shrink-0 text-primary" />
           <span className="text-xs font-medium text-primary leading-tight">
-            About {(creditsCount / 8).toLocaleString()} minutes at 1080p
+            About {creditsToMinutesAt1080p(creditsCount).toLocaleString()} minutes at 1080p
           </span>
         </div>
         <div className="flex items-start gap-2">
@@ -121,7 +121,7 @@ function TierCard({
 
       {!isCurrent && !comingSoon && (
         <p className="text-[10px] text-muted-foreground text-center mt-2 leading-tight">
-          Renews at {price} until cancelled. Cancel anytime in Account Settings.
+          Renews at {price} each month until you cancel. You can cancel anytime in Account Settings.
         </p>
       )}
     </div>
@@ -136,8 +136,8 @@ function NomadBadge() {
       <Package size={14} className="text-amber-500 shrink-0 mt-0.5" />
       <p className="text-xs text-muted-foreground leading-relaxed">
         You receive <span className="font-medium text-foreground">Nomad</span>{" "}
-        status when you buy a credit pack. Choose a monthly plan for monthly
-        credits and parallel cloud renders.
+        status when you buy credits. Select a monthly plan to receive recurring
+        credits and parallel renders.
       </p>
     </div>
   );
@@ -152,7 +152,7 @@ export function SubscriptionTiers({
   highlightCurrent?: boolean;
   onCheckout?: (plan: PlanSlug) => void;
 }) {
-  const { startCheckout } = useAuthStore();
+  const startCheckout = useAuthStore((s) => s.startCheckout);
   const { data: subscription } = useSubscription();
   const tierSlug = subscription?.tier ?? null;
 

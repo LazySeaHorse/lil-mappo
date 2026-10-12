@@ -9,4 +9,12 @@ if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KE
   }
 }
 
+/**
+ * `type` from the auth redirect hash (`signup` after the email confirmation link).
+ * Must be read before createClient: supabase-js clears the hash asynchronously.
+ * Used by analytics to recognise the first sign-in after confirming an account.
+ */
+export const initialAuthCallbackType: string | null =
+  typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.slice(1)).get('type') : null;
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

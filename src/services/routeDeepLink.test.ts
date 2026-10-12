@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { CAMERA_TRACK_ID, createProject } from '@/store/projectDocument';
 import { createCameraKeyframe, createDefaultVehicle, createWalkRouteItem } from '@/store/itemFactories';
 import type { RouteItem } from '@/store/types';
+import { loadAirports } from '@/services/airports/airportService';
 import {
   buildRouteDeepLinkProject,
   hasProjectContent,
@@ -19,6 +20,12 @@ function routesOf(project: ReturnType<typeof createProject>): RouteItem[] {
 }
 
 describe('buildRouteDeepLinkProject', () => {
+  // The airport dataset is loaded on demand; the hook awaits this before building.
+  beforeAll(async () => {
+    await loadAirports();
+  });
+
+
   it('builds exactly one flight route with a plane marker and AutoCam enabled', () => {
     const { project, fromCode, toCode } = build('jfk-to-lhr');
     const routes = routesOf(project);

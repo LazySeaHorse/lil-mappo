@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
-import { cn } from '@/lib/utils';
+import { cn, errorMessage } from '@/lib/utils';
 import type { AnnotationContent, AnnotationStyleDefinition } from '@/annotations/types';
 import { imageFileToDataUrl } from '@/utils/imageDownscale';
 
@@ -119,7 +119,7 @@ function ImageField({ value, onChange }: { value?: string; onChange: (image: str
     try {
       onChange(await imageFileToDataUrl(file));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'That image could not be added.');
+      toast.error(errorMessage(error, 'Cannot add this image file.'));
     } finally {
       setBusy(false);
     }
@@ -169,7 +169,7 @@ function ImageField({ value, onChange }: { value?: string; onChange: (image: str
           )}
         >
           <ImagePlus size={16} />
-          <span>{busy ? 'Processing...' : 'Choose or drop an image'}</span>
+          <span>{busy ? 'Processing...' : 'Select or drop an image file'}</span>
         </button>
       )}
     </Field>

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { GroupNode, PolylineNode, SceneNode, StyleRenderInput, TextNode } from '../types';
 import {
   defaultHandDrawnSettings,
-  handDrawnSettingsSchema,
   handDrawnStyle,
   measureHandDrawn,
   renderHandDrawn,
@@ -46,10 +45,6 @@ describe('handDrawnStyle definition', () => {
       defaultTransition: { enter: 'auto', exit: 'auto', enterDuration: 1.6 },
     });
     expect(handDrawnStyle.controls.map((c) => c.key).sort()).toEqual(Object.keys(defaultHandDrawnSettings).sort());
-  });
-
-  it('fills defaults', () => {
-    expect(handDrawnSettingsSchema.parse({})).toEqual(defaultHandDrawnSettings);
   });
 });
 

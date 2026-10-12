@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useProjectStore } from '@/store/useProjectStore';
-import { useMapPicker } from '@/hooks/useMapPicker';
+import { useShallow } from 'zustand/react/shallow';
+import { toggleMapPicker, useMapPicker } from '@/hooks/useMapPicker';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
 import { SwitchRow, SliderField } from './InspectorShared';
 import { buildWalkGeometry, DEFAULT_SHARPNESS } from '@/engine/routeCurves';
-import { useEndpointRoutePath } from './useEndpointRoutePath';
+import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
+import { withoutHistory } from '@/store/history';
 import { convertRouteCalculation, isPlacedPoint } from '@/engine/routeMode';
 import { WalkPointList } from './WalkPointList';
 import { vehicleChangePatch } from '@/config/vehicles';
@@ -29,8 +31,8 @@ interface InspectorSearchFieldProps {
   dotColor: string;
   value: [number, number];
   onSelect: (lngLat: [number, number]) => void;
-  pointType: 'start' | 'end';
-  item: RouteItem;
+  isPicking: boolean;
+  onStartPick: () => void;
 }
 
 const InspectorSearchField = ({
@@ -38,16 +40,9 @@ const InspectorSearchField = ({
   onSelect,
   dotColor,
   label,
-  pointType,
-  item,
+  isPicking,
+  onStartPick,
 }: InspectorSearchFieldProps) => {
-  const pickerId = `route-${item.id}-${pointType}`;
-  const { isPicking, toggle: handleTogglePick } = useMapPicker(pickerId, {
-    ownerId: item.id,
-    prompt: pointType === 'start' ? 'Start' : 'End',
-    onPick: (result) => onSelect(result.lngLat),
-  });
-
   const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, clear } =
     useLocationSearch({
       onSelect: (lngLat) => onSelect(lngLat),
@@ -55,7 +50,7 @@ const InspectorSearchField = ({
     });
 
   useEffect(() => {
-    if (value[0] !== 0 || value[1] !== 0) {
+    if (isPlacedPoint(value)) {
       setQuery(`${value[0].toFixed(5)}, ${value[1].toFixed(5)}`);
     } else {
       setQuery('');
@@ -103,7 +98,7 @@ const InspectorSearchField = ({
           variant={isPicking ? 'default' : 'outline'}
           size="xs"
           className={`rounded-lg h-8 w-8 shrink-0 transition-all ${isPicking ? 'bg-primary text-primary-foreground shadow-sm' : 'border-border/50 bg-background/50'}`}
-          onClick={handleTogglePick}
+          onClick={onStartPick}
           title={isPicking ? 'Select a point on the map' : 'Select point on map'}
         >
           <Crosshair
@@ -143,8 +138,21 @@ const InspectorSearchField = ({
 // ---------------------------------------------------------------------------
 
 const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalculation }) => {
-  const { updateWalkRoute, activePicker, startPicking, stopPicking } = useProjectStore();
-  const appendPickerId = `route-${routeId}-append`;
+  const { updateWalkRoute, activePicker, stopPicking } = useProjectStore(
+    useShallow(s => ({
+      updateWalkRoute: s.updateWalkRoute,
+      activePicker: s.activePicker,
+      stopPicking: s.stopPicking,
+    }))
+  );
+  const { isPicking: isAppending, toggle: toggleAppend } = useMapPicker(`route-${routeId}-append`, {
+    ownerId: routeId,
+    prompt: 'Point',
+    onPick: (result) => {
+      updateWalkRoute(routeId, (c) => ({ points: [...c.points, result.lngLat] }));
+      toast.success('Point added');
+    },
+  });
   const movePickerPrefix = `route-${routeId}-move-`;
   const movingIndex = activePicker?.id.startsWith(movePickerPrefix)
     ? Number(activePicker.id.slice(movePickerPrefix.length))
@@ -153,14 +161,6 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
   // Removing or reordering shifts indices, so a pending "move point N" pick would land on the wrong point.
   const stopMovePicker = () => {
     if (movingIndex !== null) stopPicking();
-  };
-
-  const togglePicker = (id: string, prompt: string, onPick: (lngLat: [number, number]) => void) => {
-    if (activePicker?.id === id) {
-      stopPicking();
-      return;
-    }
-    startPicking({ id, ownerId: routeId, prompt, onPick: (result) => onPick(result.lngLat) });
   };
 
   return (
@@ -190,7 +190,7 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
 
         {calc.points.length === 0 && (
           <p className="text-xs text-muted-foreground px-1">
-            No points yet — click below to add your first point.
+            No points yet. Click below to add points.
           </p>
         )}
 
@@ -204,20 +204,19 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
             stopMovePicker();
             updateWalkRoute(routeId, (c) => ({ points: c.points.filter((_, i) => i !== index) }));
           }}
-          isAppending={activePicker?.id === appendPickerId}
-          onToggleAppend={() =>
-            togglePicker(appendPickerId, 'Point', (lngLat) => {
-              updateWalkRoute(routeId, (c) => ({ points: [...c.points, lngLat] }));
-              toast.success('Point added');
-            })
-          }
+          isAppending={isAppending}
+          onToggleAppend={toggleAppend}
           movingIndex={movingIndex}
           onToggleMove={(index) =>
-            togglePicker(`${movePickerPrefix}${index}`, `Move point ${index + 1}`, (lngLat) =>
-              updateWalkRoute(routeId, (c) => ({
-                points: c.points.map((p, i) => (i === index ? lngLat : p)),
-              })),
-            )
+            toggleMapPicker({
+              id: `${movePickerPrefix}${index}`,
+              ownerId: routeId,
+              prompt: `Move point ${index + 1}`,
+              onPick: ({ lngLat }) =>
+                updateWalkRoute(routeId, (c) => ({
+                  points: c.points.map((p, i) => (i === index ? lngLat : p)),
+                })),
+            })
           }
         />
       </div>
@@ -229,6 +228,27 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
 // Car / flight — two endpoints, computed path
 // ---------------------------------------------------------------------------
 
+/** Lands a computed path on the route ('save') or shows it as the map preview. */
+function useRoutePath(routeId: string) {
+  const { loading, calculate, cancel } = useEndpointRoutePath(routeId);
+
+  const calculateFor = (calc: EndpointRouteCalculation, target: 'save' | 'preview') =>
+    calculate(calc.mode, calc.startPoint, calc.endPoint, (geojson) => {
+      const { updateItem, setPreviewRoute } = useProjectStore.getState();
+      if (target === 'save') {
+        // Async result of an earlier request, not an edit of its own.
+        withoutHistory(() => updateItem(routeId, { geojson }));
+        setPreviewRoute(null);
+        toast.success('Route updated.');
+      } else {
+        setPreviewRoute(geojson);
+        toast.success('Route preview is ready.');
+      }
+    });
+
+  return { loading, calculate: calculateFor, cancel };
+}
+
 const EndpointPlanner = ({
   item,
   calc,
@@ -236,12 +256,14 @@ const EndpointPlanner = ({
 }: {
   item: RouteItem;
   calc: EndpointRouteCalculation;
-  path: ReturnType<typeof useEndpointRoutePath>;
+  path: ReturnType<typeof useRoutePath>;
 }) => {
-  const { updateItem, setPreviewRoute, activePicker, startPicking, stopPicking } = useProjectStore();
-
-  const isPickingStart = activePicker?.id === `route-${item.id}-start`;
-  const isPickingEnd = activePicker?.id === `route-${item.id}-end`;
+  const { updateItem, setPreviewRoute } = useProjectStore(
+    useShallow(s => ({
+      updateItem: s.updateItem,
+      setPreviewRoute: s.setPreviewRoute,
+    }))
+  );
 
   const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number]) => {
     path.cancel();
@@ -251,25 +273,16 @@ const EndpointPlanner = ({
     setPreviewRoute(null);
   };
 
-  const setStart = (lngLat: [number, number]) => setPoint('startPoint', lngLat);
-  const setEnd = (lngLat: [number, number]) => setPoint('endPoint', lngLat);
-
-  const handleTogglePick = (pointType: 'start' | 'end') => {
-    const pickerId = `route-${item.id}-${pointType}`;
-    if (activePicker?.id === pickerId) {
-      stopPicking();
-    } else {
-      startPicking({
-        id: pickerId,
-        ownerId: item.id,
-        prompt: pointType === 'start' ? 'Start' : 'End',
-        onPick: (result) => {
-          if (pointType === 'start') setStart(result.lngLat);
-          else setEnd(result.lngLat);
-        },
-      });
-    }
-  };
+  const startPicker = useMapPicker(`route-${item.id}-start`, {
+    ownerId: item.id,
+    prompt: 'Start',
+    onPick: (result) => setPoint('startPoint', result.lngLat),
+  });
+  const endPicker = useMapPicker(`route-${item.id}-end`, {
+    ownerId: item.id,
+    prompt: 'End',
+    onPick: (result) => setPoint('endPoint', result.lngLat),
+  });
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -279,38 +292,38 @@ const EndpointPlanner = ({
             label="Departure"
             placeholder="Departure airport or city (e.g. JFK)..."
             value={calc.startPoint}
-            onSelect={setStart}
+            onSelect={(lngLat) => setPoint('startPoint', lngLat)}
             color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-            isPicking={isPickingStart}
-            onStartPick={() => handleTogglePick('start')}
+            isPicking={startPicker.isPicking}
+            onStartPick={startPicker.toggle}
           />
           <AirportSearchField
             label="Arrival"
             placeholder="Arrival airport or city (e.g. LHR)..."
             value={calc.endPoint}
-            onSelect={setEnd}
+            onSelect={(lngLat) => setPoint('endPoint', lngLat)}
             color="bg-rose-500/10 text-rose-500 border-rose-500/20"
-            isPicking={isPickingEnd}
-            onStartPick={() => handleTogglePick('end')}
+            isPicking={endPicker.isPicking}
+            onStartPick={endPicker.toggle}
           />
         </>
       ) : (
         <>
           <InspectorSearchField
             label="Start"
-            pointType="start"
-            item={item}
             value={calc.startPoint}
-            onSelect={setStart}
+            onSelect={(lngLat) => setPoint('startPoint', lngLat)}
             dotColor="bg-emerald-500"
+            isPicking={startPicker.isPicking}
+            onStartPick={startPicker.toggle}
           />
           <InspectorSearchField
             label="End"
-            pointType="end"
-            item={item}
             value={calc.endPoint}
-            onSelect={setEnd}
+            onSelect={(lngLat) => setPoint('endPoint', lngLat)}
             dotColor="bg-rose-500"
+            isPicking={endPicker.isPicking}
+            onStartPick={endPicker.toggle}
           />
         </>
       )}
@@ -353,7 +366,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
   const storeItem = useProjectStore((s) => s.items[item.id]) as RouteItem | undefined;
   const activeItem = storeItem ?? item;
   const calc = activeItem.calculation ?? convertRouteCalculation(undefined, 'car');
-  const path = useEndpointRoutePath(item.id);
+  const path = useRoutePath(item.id);
 
   useEffect(() => {
     return () => {
@@ -390,7 +403,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     <div className="flex flex-col gap-3.5">
       <SegmentedControl
         options={[
-          { value: 'car', label: 'Drive', icon: <Car size={13} /> },
+          { value: 'car', label: 'Car', icon: <Car size={13} /> },
           { value: 'walk', label: 'Walk', icon: <Footprints size={13} /> },
           { value: 'flight', label: 'Flight', icon: <Plane size={13} /> },
         ]}

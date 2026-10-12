@@ -49,7 +49,6 @@ describe('mapLabelStyle definition', () => {
   });
 
   it('fills defaults and rejects unknown variants', () => {
-    expect(mapLabelSettingsSchema.parse({})).toEqual(defaultMapLabelSettings);
     expect(mapLabelSettingsSchema.safeParse({ variant: 'sea' }).success).toBe(false);
   });
 });

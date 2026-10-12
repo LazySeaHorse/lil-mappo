@@ -17,3 +17,21 @@ export const INSPECTOR_WIDTH_TABLET = 300;  // w-[300px]
 export const RIGHT_RESERVED_DESKTOP = INSPECTOR_WIDTH_DESKTOP + PANEL_MARGIN + PANEL_GAP; // 372
 export const RIGHT_RESERVED_TABLET = INSPECTOR_WIDTH_TABLET + PANEL_MARGIN + PANEL_GAP;   // 332
 
+
+/**
+ * Space to keep clear on the right edge for floating UI that shares the top
+ * of the screen with the inspector. Phones show the inspector as a drawer, so
+ * it reserves nothing there.
+ */
+export function rightReserved({
+  isInspectorOpen,
+  isMobile,
+  isTablet,
+}: {
+  isInspectorOpen: boolean;
+  isMobile: boolean;
+  isTablet: boolean;
+}): number {
+  if (!isInspectorOpen || isMobile) return PANEL_MARGIN;
+  return isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
+}

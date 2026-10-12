@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import DodoPayments from "dodopayments";
 import { createClient } from "@supabase/supabase-js";
+import { adminClient } from "./_lib/supabase.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -33,11 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── 2. Fetch the user's active subscription ────────────────────────────────
 
-  const supabaseAdmin = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const supabaseAdmin = adminClient();
 
   const { data: sub, error: subError } = await supabaseAdmin
     .from("subscriptions")

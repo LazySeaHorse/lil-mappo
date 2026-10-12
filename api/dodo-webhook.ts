@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createClient } from "@supabase/supabase-js";
+import { adminClient } from "./_lib/supabase.js";
 import { buildPlanFromProduct } from "./_lib/dodo/planCatalogue.js";
 import { readRawBody, verifyDodoWebhook } from "./_lib/dodo/verify.js";
 import { BillingService } from "./_lib/dodo/billingService.js";
@@ -13,6 +13,7 @@ import {
   handleSubscriptionUnavailable,
   handleDunningRecovered,
 } from "./_lib/dodo/eventHandlers.js";
+import { lookupSubscriptionOwner, reportSubscriptionEvent } from "./_lib/dodo/analyticsEvents.js";
 
 // Re-export types and functions for test compatibility & consumer flexibility
 export type { PlanConfig, Plans, SubEventData, PaymentEventData, DunningEventData, WebhookEvent } from "./_lib/dodo/types.js";
@@ -63,23 +64,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 3. Supabase admin client (bypasses RLS)
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const supabase = adminClient();
 
   // 4. Dispatch to Billing Service
   const billingService = new BillingService(supabase);
   const planCatalogue = buildPlanFromProduct();
 
+  // Analytics only: who owns a subscription that is about to be cancelled/expired (the row is deleted on expiry).
+  const owner = await lookupSubscriptionOwner(supabase, event);
+
+  let result;
   try {
-    await dispatchWebhookEvent(event, billingService, planCatalogue);
+    result = await dispatchWebhookEvent(event, billingService, planCatalogue);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal handler error";
     console.error("[dodo-webhook] Handler error for event", event.type, ":", err);
     return res.status(500).json({ error: message });
   }
+
+  // Only after the handler succeeded; bounded and never throws, so Dodo still gets its 200.
+  await reportSubscriptionEvent({ event, result, owner, headers: req.headers });
 
   return res.status(200).json({ received: true });
 }

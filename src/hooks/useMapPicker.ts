@@ -7,6 +7,13 @@ interface MapPickerOptions extends Omit<PickSession, 'id'> {
   enabled?: boolean;
 }
 
+/** Ends `session` if it is the active picker, otherwise starts it (replacing any other). */
+export function toggleMapPicker(session: PickSession) {
+  const { activePicker, startPicking, stopPicking } = useProjectStore.getState();
+  if (activePicker?.id === session.id) stopPicking();
+  else startPicking(session);
+}
+
 /**
  * Owns one map-picking session id: tells you whether it is the active picker,
  * toggles it, and ends it if it is still running when the component unmounts
@@ -16,9 +23,7 @@ export function useMapPicker(id: string, { enabled = true, ...session }: MapPick
   const isPicking = useProjectStore((s) => s.activePicker?.id === id);
 
   const toggle = useCallback(() => {
-    const { activePicker, startPicking, stopPicking } = useProjectStore.getState();
-    if (activePicker?.id === id) stopPicking();
-    else startPicking({ id, ...session });
+    toggleMapPicker({ id, ...session });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, session.ownerId, session.prompt, session.onPick]);
 

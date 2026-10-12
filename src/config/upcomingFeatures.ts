@@ -1,0 +1,54 @@
+import type { FeatureVoteTier } from '@/lib/database.types';
+
+/**
+ * Features we are considering building. Each one is shown by an `UpcomingFeature`
+ * trigger (a pink heart; "I'd like this" / "You asked") on the surface that would
+ * hold the feature once built (see FeatureVotes/).
+ *
+ * `id` is what gets stored in `public.feature_votes`, so it must match the SQL
+ * check in migration 022 (lowercase words joined by single hyphens, max 48 chars)
+ * and must never be renamed once people have voted for it.
+ */
+export interface UpcomingFeature {
+  id: string;
+  title: string;
+  /** One friendly sentence shown under the title. */
+  description: string;
+}
+
+export const UPCOMING_FEATURES = [
+  {
+    id: 'cloud-render',
+    title: 'Cloud render',
+    description: 'Render your video on remote servers instead of in your browser.',
+  },
+  {
+    id: 'example-projects',
+    title: 'Example projects',
+    description: 'A gallery of sample projects to open, inspect, and remix.',
+  },
+] as const satisfies readonly UpcomingFeature[];
+
+export type UpcomingFeatureId = (typeof UPCOMING_FEATURES)[number]['id'];
+
+export const UPCOMING_FEATURE_IDS: readonly UpcomingFeatureId[] = UPCOMING_FEATURES.map((f) => f.id);
+
+/** Same rule as the check constraint on public.feature_votes.feature_id. */
+export const FEATURE_ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const FEATURE_ID_MAX_LENGTH = 48;
+
+export function getUpcomingFeature(id: UpcomingFeatureId): (typeof UPCOMING_FEATURES)[number] {
+  return UPCOMING_FEATURES.find((f) => f.id === id)!;
+}
+
+/** Coarse labels only: the server never sends counts. */
+export const TIER_COPY: Record<FeatureVoteTier, string> = {
+  none: 'Be the first to ask for this',
+  few: 'A few people want this',
+  some: 'Some people want this',
+  many: 'Lots of people want this',
+  most: 'Most people want this',
+};
+
+/** Relative to the other upcoming features, so worded to sit next to any tier ("A few people want this" + "Top request"). */
+export const MOST_REQUESTED_LABEL = 'Top request';

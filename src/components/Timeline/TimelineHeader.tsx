@@ -52,6 +52,7 @@ export default function TimelineHeader({
 
   return (
     <div
+      data-ph-unmask
       className="border-b border-border/50 flex items-center px-3 shrink-0 bg-background/40 rounded-t-2xl relative"
       style={{ height: 48 }}
     >

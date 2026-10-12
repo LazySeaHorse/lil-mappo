@@ -81,6 +81,7 @@ export function ToolbarToggle({
         loading={loading}
         disabled={disabled}
         title={label}
+        className="shadow-none"
       >
         {icon}
       </IconButton>

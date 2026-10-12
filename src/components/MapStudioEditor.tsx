@@ -1,11 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { lazy, Suspense, useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/mapbox";
 import Toolbar from "@/components/Toolbar/Toolbar";
 import MapViewport from "@/components/MapViewport/MapViewport";
 import { MapLoadGate } from "@/components/MapLoadGate";
 import InspectorPanel from "@/components/Inspector/InspectorPanel";
 import TimelinePanel from "@/components/Timeline/TimelinePanel";
-import ExportModal from "@/components/ExportModal/ExportModal";
 import ProjectLibraryModal from "@/components/ProjectLibrary/ProjectLibraryModal";
 import { NewProjectModal } from "@/components/ProjectLibrary/NewProjectModal";
 import { usePlayback } from "@/hooks/usePlayback";
@@ -17,8 +16,9 @@ import FontLoader from "@/components/FontLoader";
 import { useEffect } from "react";
 import { useProjectStore, CAMERA_TRACK_ID } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 import { useSubscription } from "@/hooks/useSubscription";
-import { isFreeUser, hasByok, shouldShowWatermark } from "@/lib/cloudAccess";
+import { isFreeUser, hasByok, brandingFor } from "@/lib/cloudAccess";
 import { useMapLoadGate } from "@/hooks/useMapLoadGate";
 import { syncProjects } from "@/services/cloudSync";
 import { toast } from "sonner";
@@ -29,19 +29,19 @@ import { isDarkMapStyle } from "@/config/mapbox";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
-import { AuthModal } from "@/components/Account/AuthModal";
-import { AccountSettingsModal } from "@/components/Account/AccountSettingsModal";
-import { CreditsModal } from "@/components/Account/CreditsModal";
-import { UpgradeModal } from "@/components/Account/UpgradeModal";
-import { RendersModal } from "@/components/Account/RendersModal";
+import { loadExportModal } from "@/lib/lazyModules";
+import { LazyAccountModals } from "@/components/Account/LazyAccountModals";
 import type { CameraItem } from "@/store/types";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
+import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
 import type { RouteDeepLinkRequest } from "@/services/routeDeepLink";
 import type { Subscription } from "@/lib/database.types";
+
+const ExportModal = lazy(loadExportModal);
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
   // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
@@ -88,7 +88,7 @@ function ZenModeControls({
       <IconButton 
         variant="zen" 
         size="lg" 
-        onClick={() => takeSnapshot(mapRef, shouldShowWatermark(subscription))} 
+        onClick={() => takeSnapshot(mapRef, brandingFor(subscription))} 
         title="Take High-Res Snapshot"
       >
         <Camera size={20} />
@@ -120,6 +120,9 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
     };
   }, []);
   const [showExport, setShowExport] = useState(false);
+  // Mount the export dialog lazily on first open, then keep it so it can animate closed.
+  const exportOpenedRef = useRef(false);
+  if (showExport) exportOpenedRef.current = true;
   const [showLibrary, setShowLibrary] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const { isMobile, isTablet } = useResponsive();
@@ -127,8 +130,11 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   const deepLink = useRouteDeepLink(routeDeepLink, isWorkingDraftReady, onRouteDeepLinkSettled ?? (() => {}));
   usePlayback(mapRef);
   useHistoryShortcuts();
-  const mapLoadGate = useMapLoadGate({ deepLinkEntry: deepLink.isEntry });
-  const { user, requestSignIn } = useAuthStore();
+  const mapLoadGate = useMapLoadGate({
+    deepLinkEntry: deepLink.isEntry,
+    deepLinkPending: routeDeepLink !== null && !deepLink.ready,
+  });
+  const { user, requestSignIn } = useAuthStore(useShallow((s) => ({ user: s.user, requestSignIn: s.requestSignIn })));
   const isLocked = !user && !hasByok();
   const { data: subscription } = useSubscription();
   // Track whether we've synced for this user session to avoid repeat syncs
@@ -223,6 +229,10 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         </div>
 
         {hideUI && (
+          <SystemOverlays layers={resolveSystemOverlays({ mode: "present", branding: brandingFor(subscription) })} />
+        )}
+
+        {hideUI && (
           <ZenModeControls
             isMobile={isMobile}
             isPlaying={isPlaying}
@@ -233,16 +243,16 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
           />
         )}
 
-        <ExportModal open={showExport} onClose={() => setShowExport(false)} />
+        {exportOpenedRef.current && (
+          <Suspense fallback={null}>
+            <ExportModal open={showExport} onClose={() => setShowExport(false)} />
+          </Suspense>
+        )}
         <ProjectLibraryModal open={showLibrary} onClose={() => setShowLibrary(false)} />
 
         {/* Account Modals */}
         <NewProjectModal />
-        <AuthModal />
-        <AccountSettingsModal />
-        <CreditsModal />
-        <UpgradeModal />
-        <RendersModal />
+        <LazyAccountModals />
         <QuickWalkthrough
           isMapReady={isMapReady}
           isMobile={isMobile}

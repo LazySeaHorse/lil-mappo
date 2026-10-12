@@ -56,7 +56,7 @@ export function ConnectTab() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <label htmlFor="ai-enable" className="text-xs font-medium">Allow AI agents to control this project</label>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Off each time you open the editor.</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Resets to off when you close the editor.</p>
         </div>
         <Switch id="ai-enable" checked={enabled} onCheckedChange={handleToggle} aria-label="Allow AI agents to control this project" />
       </div>
@@ -104,7 +104,7 @@ export function ConnectTab() {
                 <p>This is an experimental feature. An AI agent you connect will be able to change this project.</p>
                 <p><strong>To connect one</strong>, use Gemini in Chrome (with WebMCP enabled), or run the small lil-mappo bridge app on your computer to use Claude Code, Codex and other local agents.</p>
                 <p><strong>It can:</strong> add and edit routes, boundaries and callouts, edit the camera and project settings, and render preview frames.</p>
-                <p><strong>It cannot:</strong> export video, save, delete or open projects, or touch your account.</p>
+                <p><strong>It cannot:</strong> export video, save or delete projects, or modify your account.</p>
                 <p>Every AI change is one undo step. Use Undo, or &ldquo;Undo last AI change&rdquo; in the Activity tab.</p>
                 {!allowed && <p className="text-muted-foreground">{signedIn ? 'AI control is part of the Wanderer plan.' : 'Sign in with a Wanderer account to turn it on.'}</p>}
               </div>
@@ -115,7 +115,7 @@ export function ConnectTab() {
             <AlertDialogAction
               onClick={() => {
                 if (!signedIn) return openAuthModal();
-                if (!allowed) return openUpgradeModal();
+                if (!allowed) return openUpgradeModal('ai');
                 recordAiConsent();
                 setEnabled(true);
               }}
