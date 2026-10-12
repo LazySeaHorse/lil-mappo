@@ -132,7 +132,7 @@ test.describe("5 Golden E2E Journeys", () => {
     await page.locator(".mapboxgl-canvas").click({ position: { x: 820, y: 420 } });
 
     await routeDropdown.getByRole("button", { name: "Preview path" }).click();
-    await expect(page.getByText("Path validated")).toBeVisible();
+    await expect(page.getByText("Route calculated")).toBeVisible();
     await routeDropdown.getByRole("button", { name: "Insert route" }).click();
 
     // Verify route was inserted and inspector is active

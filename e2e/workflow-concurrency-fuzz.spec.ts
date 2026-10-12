@@ -118,7 +118,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     // 1. Start route planning
     const planRouteBtn = page.getByTitle('Plan Route');
     await planRouteBtn.click();
-    await expect(page.getByText('Route points')).toBeVisible();
+    await expect(page.getByText('Route points', { exact: true })).toBeVisible();
 
     // 2. Click "Pick on Map" for start point
     const pickStartBtn = page.getByTitle('Pick on Map').first();
@@ -131,7 +131,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     // 3. Abruptly switch to Boundary tool while picking is active
     const addBoundaryBtn = page.getByTitle('Add Boundary');
     await addBoundaryBtn.click();
-    await expect(page.getByText('Search regions & nations')).toBeVisible();
+    await expect(page.getByText('Search regions and countries')).toBeVisible();
 
     // Verify Route picker was cleanly cancelled and no dangling picking session exists
     activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);
