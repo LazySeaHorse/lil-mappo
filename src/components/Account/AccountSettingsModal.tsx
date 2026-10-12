@@ -84,7 +84,7 @@ function AccountSettingsModalBody() {
 
     if (trimmed) {
       if (isAppOwnKey(trimmed)) {
-        setTokenError("This is the app token. Enter your own Mapbox access token.");
+        setTokenError("This token is the default app token. Enter your personal Mapbox token.");
         return;
       }
       secureLocalStorage.setItem(BYOK_STORAGE_KEY, trimmed);
@@ -234,9 +234,9 @@ function AccountSettingsModalBody() {
           />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Use your own Mapbox access token to remove free-plan export limits.
-              The app stores the token on this device. It is{" "}
-              <span className="font-medium text-foreground">not sent to our servers</span>.{" "}
+              Add your Mapbox access token to remove export limits.
+              The app stores the token locally on this device and{" "}
+              <span className="font-medium text-foreground">does not send it to our servers</span>.{" "}
               <a
                 href="https://mapbox.com/"
                 target="_blank"

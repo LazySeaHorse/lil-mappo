@@ -167,7 +167,7 @@ export const AnnotationAddDropdown = ({
 
       <div className="space-y-3">
         <p className="px-1 text-xs text-muted-foreground">
-          You can choose the style, colors, and more in the inspector panel after the callout is created.
+          You can set the style and colors in the inspector panel after you create the callout.
         </p>
       </div>
     </ToolbarDropdownPanel>

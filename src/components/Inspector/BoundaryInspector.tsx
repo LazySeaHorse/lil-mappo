@@ -119,7 +119,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
                 <FlagPicker value={item.style.flagCode} onChange={(code) => us({ flagCode: code })} />
                 {!item.style.flagCode && (
                   <span className="text-[11px] text-muted-foreground leading-tight">
-                    Choose a country to fill this boundary with its flag.
+                    Select a country to show its flag inside the boundary.
                   </span>
                 )}
               </div>
@@ -143,7 +143,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
 
             <SwitchRow
               label="Mask outside"
-              sublabel="Cover everything outside the boundary"
+              sublabel="Cover the map area outside the boundary"
               checked={item.style.maskOutside}
               onChange={(v) => us({ maskOutside: v })}
             />

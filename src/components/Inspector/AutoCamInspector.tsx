@@ -90,14 +90,14 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
           onSelect={() => u({ mode: 'cinematic' })}
           illustration={<FollowViewIllustration />}
           title="Follow view"
-          description="Follow the route with a moving camera."
+          description="Camera tracks the route."
         />
         <ModeCard
           selected={config.mode === 'navigation'}
           onSelect={() => u({ mode: 'navigation' })}
           illustration={<NavigationViewIllustration />}
           title="Navigation view"
-          description="Keep the route ahead in the map view."
+          description="Camera faces forward along the route."
         />
       </div>
 
@@ -122,7 +122,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
             ))}
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5">
-            Presets fit the camera distance to this route's length and duration.
+            Presets adjust the camera distance for this route's length and duration.
           </p>
         </div>
       )}

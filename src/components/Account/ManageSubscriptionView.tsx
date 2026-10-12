@@ -185,11 +185,11 @@ export function ManageSubscriptionView({
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Cancel plan?</p>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      You can use the plan until{" "}
+                      Your plan remains active until{" "}
                       <span className="font-medium text-foreground">
                         {renewalDate ?? "the end of your billing period"}
                       </span>
-                      . After that date, you cannot create cloud projects. Existing
+                      . After this date, you cannot create cloud projects. Existing
                       cloud projects remain available.
                     </p>
                   </div>
@@ -245,8 +245,8 @@ export function ManageSubscriptionView({
           <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-2.5">
             <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Your plan ends on <span className="font-medium text-foreground">{renewalDate}</span>.
-              After that date, you cannot create cloud projects. Existing cloud
+              Your plan remains active until <span className="font-medium text-foreground">{renewalDate}</span>.
+              After this date, you cannot create cloud projects. Existing cloud
               projects remain available.
             </p>
           </div>

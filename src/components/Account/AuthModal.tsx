@@ -113,7 +113,7 @@ export function AuthModal() {
                 <>
                   We sent a link to{" "}
                   <span className="ph-no-capture font-medium text-foreground">{confirmEmail}</span>.
-                  Open it to finish creating your account and continue to payment.
+                  Open the link to verify your account and proceed to checkout.
                 </>
               ) : isSignup ? (
                 "Create an account to continue to payment."
@@ -261,8 +261,8 @@ function AuthModalBody({
     return (
       <div className="flex flex-col items-center gap-4 pt-2">
         <p className="text-muted-foreground text-xs text-center max-w-[300px]">
-          Can't find it? Check your spam folder. After you open the link you can
-          close this tab.
+          Check your spam folder if the email does not arrive. Close this tab
+          after you open the link.
         </p>
         <Button variant="outline" size="sm" className="text-xs" onClick={handleReset}>
           Use a different email
@@ -359,7 +359,7 @@ function AuthModalBody({
       {isSignup ? (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
           <p className="text-[11px] text-muted-foreground/70">
-            Already have an account?
+            Have an account?
           </p>
           <button
             type="button"
@@ -372,7 +372,7 @@ function AuthModalBody({
       ) : (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
           <p className="text-[11px] text-muted-foreground/70">
-            Don't have an account?
+            Need an account?
           </p>
           <button
             type="button"

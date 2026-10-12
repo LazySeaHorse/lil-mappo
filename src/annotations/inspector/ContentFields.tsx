@@ -119,7 +119,7 @@ function ImageField({ value, onChange }: { value?: string; onChange: (image: str
     try {
       onChange(await imageFileToDataUrl(file));
     } catch (error) {
-      toast.error(errorMessage(error, 'That image could not be added.'));
+      toast.error(errorMessage(error, 'Cannot add this image file.'));
     } finally {
       setBusy(false);
     }
@@ -169,7 +169,7 @@ function ImageField({ value, onChange }: { value?: string; onChange: (image: str
           )}
         >
           <ImagePlus size={16} />
-          <span>{busy ? 'Processing...' : 'Choose or drop an image'}</span>
+          <span>{busy ? 'Processing...' : 'Select or drop an image file'}</span>
         </button>
       )}
     </Field>

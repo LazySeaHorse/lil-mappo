@@ -116,7 +116,7 @@ export const BoundaryAddDropdown = ({
     <PanelHeader 
       icon={<Hexagon size={16} />} 
       title="Add Boundary" 
-      subtitle="Search regions & nations"
+      subtitle="Search regions and countries"
     >
       <BoundarySearch 
         initialValue="" 
@@ -173,7 +173,7 @@ export const BoundaryAddDropdown = ({
           <div className="space-y-4">
             <SectionLabel>Visual appearance</SectionLabel>
             <div className="space-y-4 px-1">
-              <Field label="Atmospheric color">
+              <Field label="Border color">
                 <ColorPicker 
                   value={previewBoundaryStyle!.strokeColor} 
                   onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
@@ -189,9 +189,9 @@ export const BoundaryAddDropdown = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-                    <SelectItem value="fade">Subtle Fade In</SelectItem>
-                    <SelectItem value="draw">Precise Drawing</SelectItem>
-                    <SelectItem value="trace">Trace Contour</SelectItem>
+                    <SelectItem value="fade">Fade</SelectItem>
+                    <SelectItem value="draw">Outline</SelectItem>
+                    <SelectItem value="trace">Trace</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

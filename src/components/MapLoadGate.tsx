@@ -95,7 +95,7 @@ function MapLoadBlockedScreen({
           <div className="space-y-2 max-w-sm">
             <h2 className="text-xl font-medium tracking-tight">Daily limit reached</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              You've used your 3 map loads for today. Come back tomorrow, or upgrade
+              You reached the daily limit of 3 map loads. Return tomorrow, or upgrade
               to Wanderer for unlimited loads.
             </p>
           </div>
@@ -112,8 +112,8 @@ function MapLoadBlockedScreen({
           <div className="space-y-2 max-w-sm">
             <h2 className="text-xl font-medium tracking-tight">Monthly limit reached</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Unusual activity was detected on your account. You can add your own
-              Mapbox key (BYOK), upgrade to Wanderer, or wait until the 1st of next month.
+              We detected unusual activity on your account. Add your personal
+              Mapbox token (BYOK), upgrade to Wanderer, or wait until the next month.
             </p>
           </div>
           <div className="flex gap-3">
@@ -130,7 +130,7 @@ function MapLoadBlockedScreen({
           <div className="space-y-2 max-w-sm">
             <h2 className="text-xl font-medium tracking-tight">Something went wrong</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Couldn't reach the server. Please check your connection and try again.
+              The app cannot connect to the server. Check your connection and try again.
             </p>
           </div>
           <Button
@@ -157,7 +157,7 @@ function BYOKQuickEntry() {
     const t = token.trim();
     if (!t) return;
     if (isAppOwnKey(t)) {
-      setError("That's the app's built-in key — please enter your own.");
+      setError("This token is the default app token. Enter your personal Mapbox token.");
       return;
     }
     setError('');
@@ -182,7 +182,7 @@ function BYOKQuickEntry() {
           onClick={handleSave}
           disabled={!token.trim() || saved}
         >
-          {saved ? 'Saved…' : 'Use my key'}
+          {saved ? 'Saved' : 'Save token'}
         </Button>
       </div>
       {error && <p className="text-xs text-destructive pl-1">{error}</p>}

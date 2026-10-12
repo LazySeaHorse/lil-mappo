@@ -236,7 +236,7 @@ export const RouteAddDropdown = ({
     <PanelHeader
       icon={<Navigation size={16} />}
       title="Plan Route"
-      subtitle="Choose travel mode & points"
+      subtitle="Select travel mode and route points"
     >
       <SegmentedControl<RouteMode>
         options={ROUTE_MODE_OPTIONS}
@@ -326,7 +326,7 @@ export const RouteAddDropdown = ({
               variant="dropdown"
               icon={Compass}
               title="No points yet"
-              description="Click below to start adding points sequentially. Each click appends to the path."
+              description="Click below to add points. Each click adds a point to the path."
             />
           )}
 
@@ -376,7 +376,7 @@ export const RouteAddDropdown = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Check size={14} className="text-primary" />
-                  <span className="text-xs font-medium text-foreground/80">Path validated</span>
+                  <span className="text-xs font-medium text-foreground/80">Route calculated</span>
                 </div>
                 <Button
                   variant="ghost"

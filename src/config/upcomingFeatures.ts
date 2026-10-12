@@ -20,12 +20,12 @@ export const UPCOMING_FEATURES = [
   {
     id: 'cloud-render',
     title: 'Cloud render',
-    description: 'Render your video on our servers instead of in your browser.',
+    description: 'Render your video on remote servers instead of in your browser.',
   },
   {
     id: 'example-projects',
     title: 'Example projects',
-    description: 'A gallery of ready-made projects to open, learn from and remix.',
+    description: 'A gallery of sample projects to open, inspect, and remix.',
   },
 ] as const satisfies readonly UpcomingFeature[];
 

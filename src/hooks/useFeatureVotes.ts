@@ -83,7 +83,7 @@ export function useSetFeatureVote() {
           ),
         );
       }
-      toast.error("Couldn't save your vote. Please try again.");
+      toast.error("Failed to save your vote. Try again.");
     },
     onSettled: () => {
       // Refetch once the last in-flight vote lands, so a refetch never overwrites a pending optimistic flip.

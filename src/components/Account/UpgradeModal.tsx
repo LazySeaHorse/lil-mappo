@@ -170,7 +170,7 @@ export function UpgradeModal() {
             </Button>
             {!isCurrent && (
               <p className="text-[11px] text-muted-foreground text-center mt-2.5 leading-relaxed">
-                Renews automatically at ${PLAN_CONFIG.wanderer.priceMonthly}/month until cancelled. Cancel anytime in Account Settings.
+                Renews at ${PLAN_CONFIG.wanderer.priceMonthly} each month until you cancel. You can cancel anytime in Account Settings.
               </p>
             )}
           </div>

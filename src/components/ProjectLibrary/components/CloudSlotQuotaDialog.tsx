@@ -32,8 +32,8 @@ export function CloudSlotQuotaDialog({
         <div className="px-5 py-4 border-b border-border">
           <h3 className="text-sm font-medium">Cloud project limit reached</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            You used all {FREE_CLOUD_SAVE_LIMIT} cloud project slots. Remove one cloud
-            copy, then upload this project. Its local copy will be kept.
+            You reached the limit of {FREE_CLOUD_SAVE_LIMIT} cloud projects. Remove one cloud
+            project to upload this project. The app keeps your local copy.
           </p>
         </div>
         <div className="px-5 py-4 max-h-64 overflow-y-auto flex flex-col gap-2">

@@ -79,7 +79,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       );
 
       if (overlapping) {
-        toast.error(`Auto camera is already enabled for "${overlapping.name}" during this time range.`);
+        toast.error(`Auto camera is already active for "${overlapping.name}" during this time.`);
         return;
       }
 
@@ -302,7 +302,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
               <div className="mt-1.5 p-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
                 <Clapperboard size={13} className="text-primary shrink-0" />
                 <p className="text-[11px] text-primary font-medium leading-tight">
-                  Click the blue block in the Camera track to edit camera settings.
+                  Select the camera block on the timeline to edit camera settings.
                 </p>
               </div>
             )}

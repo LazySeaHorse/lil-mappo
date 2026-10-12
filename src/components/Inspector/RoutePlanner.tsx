@@ -190,7 +190,7 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
 
         {calc.points.length === 0 && (
           <p className="text-xs text-muted-foreground px-1">
-            No points yet — click below to add your first point.
+            No points yet. Click below to add points.
           </p>
         )}
 
@@ -403,7 +403,7 @@ export const RoutePlanner = ({ item }: RoutePlannerProps) => {
     <div className="flex flex-col gap-3.5">
       <SegmentedControl
         options={[
-          { value: 'car', label: 'Drive', icon: <Car size={13} /> },
+          { value: 'car', label: 'Car', icon: <Car size={13} /> },
           { value: 'walk', label: 'Walk', icon: <Footprints size={13} /> },
           { value: 'flight', label: 'Flight', icon: <Plane size={13} /> },
         ]}

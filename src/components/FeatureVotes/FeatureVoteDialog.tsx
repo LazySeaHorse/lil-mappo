@@ -36,34 +36,34 @@ interface Preview {
 const PREVIEWS: Record<UpcomingFeatureId, Preview> = {
   'example-projects': {
     intro:
-      'Example projects would be a small gallery of curated projects you could open, play with and learn from. We might also let people publish their own projects for anyone to browse.',
+      'Example projects provides a small gallery of curated projects to open, inspect, and learn from. Users can also publish their own projects for anyone to browse.',
     sections: [],
-    footnote: 'Nothing like this exists yet. A rough idea of the layout is below.',
+    footnote: 'A preview of the layout is below.',
     skeleton: <GallerySkeleton />,
   },
   'cloud-render': {
     intro:
-      'Cloud rendering would make the video on our servers instead of in your browser. You would send the project off, and download the finished file when it is ready.',
+      'Cloud rendering processes video on remote servers instead of in your browser. Send the project, and download the finished file when it is ready.',
     sections: [
       {
-        heading: 'The good',
+        heading: 'Benefits',
         items: [
-          'You would not need to keep the tab open.',
-          'It would work on weaker devices.',
-          'Higher resolution and frame rates, without your own GPU or encoder limits.',
+          'You do not need to keep the tab open.',
+          'Works on lower-end devices.',
+          'Higher resolution and frame rates without local GPU or encoder limits.',
         ],
       },
       {
-        heading: 'The catch',
+        heading: 'Constraints',
         items: [
-          'It would use paid credits or a subscription.',
+          'Requires credits or an active subscription.',
           'Uploading and waiting in a queue takes time.',
-          'It depends on our servers being up, and your project data leaves your device.',
+          'Depends on server availability, and project data leaves your device.',
           'Exporting locally stays free and keeps working offline.',
         ],
       },
     ],
-    footnote: 'Not built yet. A rough idea of the progress view is below.',
+    footnote: 'A preview of the progress view is below.',
     skeleton: <RenderSkeleton />,
   },
 };

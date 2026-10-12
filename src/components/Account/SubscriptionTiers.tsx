@@ -121,7 +121,7 @@ function TierCard({
 
       {!isCurrent && !comingSoon && (
         <p className="text-[10px] text-muted-foreground text-center mt-2 leading-tight">
-          Renews at {price} until cancelled. Cancel anytime in Account Settings.
+          Renews at {price} each month until you cancel. You can cancel anytime in Account Settings.
         </p>
       )}
     </div>
@@ -136,8 +136,8 @@ function NomadBadge() {
       <Package size={14} className="text-amber-500 shrink-0 mt-0.5" />
       <p className="text-xs text-muted-foreground leading-relaxed">
         You receive <span className="font-medium text-foreground">Nomad</span>{" "}
-        status when you buy a credit pack. Choose a monthly plan for monthly
-        credits and parallel cloud renders.
+        status when you buy credits. Select a monthly plan to receive recurring
+        credits and parallel renders.
       </p>
     </div>
   );
