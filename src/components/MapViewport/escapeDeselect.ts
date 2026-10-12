@@ -15,6 +15,14 @@ export function isEscapeHandledElsewhere(e: Pick<KeyboardEvent, 'defaultPrevente
   return target.closest(TEXT_ENTRY) !== null || target.closest(OWN_ESCAPE) !== null;
 }
 
+/** Clears the selection. Like the delete path, this leaves the inspector on project settings; a closed one stays closed. */
+export function clearSelection(): void {
+  const s = useProjectStore.getState();
+  const wasInspectorOpen = s.isInspectorOpen;
+  s.selectItem(null);
+  if (!wasInspectorOpen) s.setIsInspectorOpen(false);
+}
+
 /** Escape ends an active map picker, else clears the selection. */
 export function handleEscapeKey(e: KeyboardEvent): void {
   if (e.key !== 'Escape') return;
@@ -22,9 +30,6 @@ export function handleEscapeKey(e: KeyboardEvent): void {
   if (s.activePicker) {
     s.stopPicking();
   } else if (s.selectedItemId && !isEscapeHandledElsewhere(e)) {
-    // Like the delete path, this leaves the inspector on project settings; a closed one stays closed.
-    const wasInspectorOpen = s.isInspectorOpen;
-    s.selectItem(null);
-    if (!wasInspectorOpen) s.setIsInspectorOpen(false);
+    clearSelection();
   }
 }

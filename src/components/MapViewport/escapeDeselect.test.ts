@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { handleEscapeKey, isEscapeHandledElsewhere } from './escapeDeselect';
+import { clearSelection, handleEscapeKey, isEscapeHandledElsewhere } from './escapeDeselect';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 
@@ -96,5 +96,15 @@ describe('Escape deselect', () => {
 describe('isEscapeHandledElsewhere', () => {
   it('lets a bare window event through', () => {
     expect(isEscapeHandledElsewhere({ defaultPrevented: false, target: window })).toBe(false);
+  });
+});
+
+describe('clearSelection', () => {
+  it('keeps a closed inspector closed', () => {
+    useProjectStore.getState().selectItem('r');
+    useProjectStore.getState().setIsInspectorOpen(false);
+    clearSelection();
+    expect(useProjectStore.getState().selectedItemId).toBeNull();
+    expect(useProjectStore.getState().isInspectorOpen).toBe(false);
   });
 });
