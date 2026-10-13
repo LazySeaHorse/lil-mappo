@@ -4,8 +4,11 @@ import type { TimelineItem } from '../types';
 import type { ItemsSlice, ProjectStore } from './types';
 import { CAMERA_TRACK_ID } from '../projectDocument';
 import { applyWalkPatch } from '@/engine/routeCurves';
+import { autoCamForRoute, defaultAutoCamFor } from '@/config/vehicles';
+import { canEnableFollowCamera } from '../followCamera';
+import { isRouteItem } from '../typeGuards';
 
-export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set) => ({
+export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set, get) => ({
   addItem: (item) =>
     set((s) => ({
       items: { ...s.items, [item.id]: item },
@@ -54,6 +57,27 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
         items: { ...s.items, [id]: { ...route, ...applyWalkPatch(route.calculation, patch) } },
       };
     }),
+
+  setFollowCamera: (routeId, on) => {
+    const route = get().items[routeId];
+    if (!isRouteItem(route)) return { ok: false, reason: 'not-found' };
+
+    if (!on) {
+      if (route.autoCam) {
+        set((s) => ({ items: { ...s.items, [routeId]: { ...route, autoCam: { ...route.autoCam!, enabled: false } } } }));
+      }
+      return { ok: true };
+    }
+
+    const result = canEnableFollowCamera(get(), routeId);
+    if (!result.ok) return result;
+    // Turning it back on keeps the settings it had; the first time, it is fitted to the route.
+    const autoCam = route.autoCam
+      ? { ...defaultAutoCamFor(route.calculation?.vehicle?.type), ...route.autoCam, enabled: true }
+      : autoCamForRoute(route);
+    set((s) => ({ items: { ...s.items, [routeId]: { ...route, autoCam } } }));
+    return { ok: true };
+  },
 
   reorderItems: (newOrder) => set({ itemOrder: newOrder }),
 

@@ -5,6 +5,7 @@ import type {
   BoundaryItem,
   WalkRouteCalculation,
 } from '../types';
+import type { FollowCameraResult } from '../followCamera';
 import type { BoundaryDetailId } from '@/engine/boundaryDetail';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
@@ -67,6 +68,12 @@ export interface ItemsSlice {
    * started earlier (map pickers, drags) never overwrite newer changes.
    */
   updateWalkRoute: (id: string, update: WalkPatch | ((calc: WalkRouteCalculation) => WalkPatch)) => void;
+  /**
+   * Turns Follow camera (`autoCam`) on or off for a route. Turning on follows
+   * `canEnableFollowCamera`; when the rule says no, nothing changes and the reason comes back.
+   * The first time, the camera is fitted to the route; later, it keeps the settings it had.
+   */
+  setFollowCamera: (routeId: string, on: boolean) => FollowCameraResult;
   reorderItems: (newOrder: string[]) => void;
   duplicateItem: (id: string) => void;
 }

@@ -1,3 +1,5 @@
+import type { FollowCameraBlock } from '@/store/followCamera';
+
 /**
  * User-facing words that the toolbar add panels and the inspectors share.
  * Keep one word for one idea, so a user sees the same label everywhere.
@@ -47,6 +49,18 @@ export const ROUTE_TERMS = {
   /** The switch that makes the camera move along the route. */
   followCamera: 'Follow camera',
 } as const;
+
+/** Tells a user why Follow camera cannot turn on for a route. */
+export const FOLLOW_CAMERA_BLOCKED = (block: FollowCameraBlock): string => {
+  switch (block.reason) {
+    case 'no-path':
+      return `Add a route before you turn on ${ROUTE_TERMS.followCamera}.`;
+    case 'overlap':
+      return `${ROUTE_TERMS.followCamera} is already on for "${block.otherName}" during this time.`;
+    case 'not-found':
+      return 'This route does not exist.';
+  }
+};
 
 /** Words of the camera view panel. A camera view is one saved position of the map camera. */
 export const CAMERA_VIEW_TERMS = {

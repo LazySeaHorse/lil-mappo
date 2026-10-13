@@ -1,11 +1,10 @@
 import { useAuthStore } from '@/store/useAuthStore';
-import { extractLineCoords } from '@/engine/geoUtils';
 import { convertRouteCalculation } from '@/engine/routeMode';
 import React from 'react';
 import { toast } from 'sonner';
-import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
+import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
-import { autoCamForRoute, defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
+import { vehicleChangePatch } from '@/config/vehicles';
 import { RoutePlanner } from './RoutePlanner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { isWanderer } from '@/lib/cloudAccess';
@@ -20,7 +19,7 @@ import { formatMultiplier } from './inspectorValues';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
-import { ROUTE_TERMS } from '@/lib/terms';
+import { FOLLOW_CAMERA_BLOCKED, ROUTE_TERMS } from '@/lib/terms';
 import { TimingSection } from './timing/TimingSection';
 import { routeTiming } from './timing/timingAdapters';
 import { track } from '@/lib/analytics';
@@ -40,6 +39,7 @@ type RouteAnimationType = RouteItem['style']['animationType'];
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
+  const setFollowCamera = useProjectStore((s) => s.setFollowCamera);
   const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const { data: sub } = useSubscription();
   const isPro = isWanderer(sub);
@@ -60,38 +60,9 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   };
 
   const handleAutoCamToggle = (enabled: boolean) => {
-    if (enabled) {
-      const coordCount = extractLineCoords(item.geojson).length;
-      if (coordCount < 2) {
-        toast.error(`Add a route before you turn on ${ROUTE_TERMS.followCamera}.`);
-        return;
-      }
-
-      const allItems = useProjectStore.getState().items;
-      const overlapping = Object.values(allItems).find(
-        (other): other is RouteItem =>
-          isRouteItem(other) &&
-          other.id !== item.id &&
-          Boolean(other.autoCam?.enabled) &&
-          other.startTime < item.endTime &&
-          other.endTime > item.startTime,
-      );
-
-      if (overlapping) {
-        toast.error(`${ROUTE_TERMS.followCamera} is already on for "${overlapping.name}" during this time.`);
-        return;
-      }
-
-      // Turning it back on keeps the settings it had; the first time, it is fitted to the route.
-      u({
-        autoCam: item.autoCam
-          ? { ...defaultAutoCamFor(calc.vehicle?.type), ...item.autoCam, enabled: true }
-          : autoCamForRoute(item),
-      });
-      track('autocam_enabled');
-    } else {
-      u({ autoCam: item.autoCam ? { ...item.autoCam, enabled: false } : undefined });
-    }
+    const result = setFollowCamera(item.id, enabled);
+    if (result.ok === false) toast.error(FOLLOW_CAMERA_BLOCKED(result));
+    else if (enabled) track('autocam_enabled');
   };
 
   const animType: RouteAnimationType = item.style.animationType;

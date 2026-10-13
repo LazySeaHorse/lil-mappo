@@ -51,6 +51,7 @@ function ModeCard({ selected, onSelect, illustration, title, description }: {
 
 export function AutoCamInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
+  const setFollowCamera = useProjectStore((s) => s.setFollowCamera);
   const setSelectedAutoCamRouteId = useProjectStore((s) => s.setSelectedAutoCamRouteId);
 
   const config = item.autoCam!;
@@ -59,7 +60,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
     updateItem(item.id, { autoCam: { ...config, ...patch } });
 
   const handleDisable = () => {
-    updateItem(item.id, { autoCam: { ...config, enabled: false } });
+    setFollowCamera(item.id, false);
     setSelectedAutoCamRouteId(null);
   };
 
