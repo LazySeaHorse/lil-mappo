@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   useFloating,
   autoUpdate,
@@ -10,15 +10,13 @@ import { ArrowRight, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
-import type { MapGesture } from './walkthroughState';
-import type { WalkthroughStepConfig } from './walkthroughSteps';
+import type { WalkthroughProgress, WalkthroughStepConfig } from './walkthroughSteps';
 
 interface CoachmarkOverlayProps {
   step: WalkthroughStepConfig;
   stepIndex: number;
   totalSteps: number;
-  isMobile: boolean;
-  gestures: Record<MapGesture, boolean>;
+  progress: WalkthroughProgress;
   onSkip: () => void;
   onNext: () => void;
 }
@@ -34,13 +32,13 @@ export function CoachmarkOverlay({
   step,
   stepIndex,
   totalSteps,
-  isMobile,
-  gestures,
+  progress,
   onSkip,
   onNext,
 }: CoachmarkOverlayProps) {
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [spotlightRect, setSpotlightRect] = useState<RectBox | null>(null);
+  const scrolledTarget = useRef<HTMLElement | null>(null);
 
   // Locate the target and spotlight elements in the DOM
   useEffect(() => {
@@ -54,6 +52,12 @@ export function CoachmarkOverlay({
         : targetEl;
 
       setTargetElement(targetEl);
+
+      // Once per element: scrolling again would fight a user who scrolls away.
+      if (step.scrollIntoView && targetEl && scrolledTarget.current !== targetEl) {
+        scrolledTarget.current = targetEl;
+        targetEl.scrollIntoView?.({ block: 'center' });
+      }
 
       if (spotlightEl) {
         const b = spotlightEl.getBoundingClientRect();
@@ -82,7 +86,7 @@ export function CoachmarkOverlay({
       window.removeEventListener('resize', findElements);
       window.removeEventListener('scroll', findElements, true);
     };
-  }, [step.target, step.spotlightTarget, step.spotlightPadding]);
+  }, [step.target, step.spotlightTarget, step.spotlightPadding, step.scrollIntoView]);
 
   const { refs, floatingStyles } = useFloating({
     elements: { reference: targetElement },
@@ -165,7 +169,7 @@ export function CoachmarkOverlay({
           ...floatingStyles,
           fontFamily: "'Outfit', sans-serif",
         }}
-        className="z-[120] w-[calc(100vw-24px)] max-w-sm sm:max-w-md rounded-2xl bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/20 overflow-hidden text-foreground select-none pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
+        className={`z-[120] w-[calc(100vw-24px)] max-w-sm ${step.compact ? '' : 'sm:max-w-md'} rounded-2xl bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/20 overflow-hidden text-foreground select-none pointer-events-auto animate-in fade-in zoom-in-95 duration-200`}
       >
         {/* Top progress indicator bar */}
         <div className="h-1 w-full bg-secondary/60 relative overflow-hidden">
@@ -210,7 +214,7 @@ export function CoachmarkOverlay({
 
           {/* Content */}
           <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            {step.renderContent({ isMobile, gestures })}
+            {step.renderContent(progress)}
           </div>
 
           {/* Footer actions */}

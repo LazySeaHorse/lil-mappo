@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
@@ -8,6 +8,7 @@ import type { RouteItem } from '@/store/types';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { MapRefContext } from '@/hooks/useMapRef';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import type { MapRef } from 'react-map-gl/mapbox';
 
 vi.mock('react-secure-storage', () => ({
@@ -308,6 +309,38 @@ describe('RouteAddDropdown file import button', () => {
     renderDropdown();
     expect(screen.getByRole('button', { name: 'Import KML / GPX data' })).toBeInTheDocument();
     useAuthStore.setState({ user: null });
+  });
+});
+
+describe('RouteAddDropdown quick tour', () => {
+  const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[buttonIndex]); });
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+  };
+
+  beforeEach(() => {
+    useProjectStore.setState({ items: {}, itemOrder: [], previewRoute: null, activePicker: null });
+    useWalkthroughStore.getState().start(false);
+  });
+
+  afterEach(() => useWalkthroughStore.getState().dismiss());
+
+  it('tells the tour which places are set, and when one is cleared', () => {
+    render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+    const endpoints = () => useWalkthroughStore.getState().walkthrough.routeEndpoints;
+
+    pickPoint(0, [1, 1]);
+    expect(endpoints()).toEqual({ start: true, end: false });
+    pickPoint(1, [2, 2]);
+    expect(endpoints()).toEqual({ start: true, end: true });
+
+    fireEvent.click(screen.getAllByTitle('Clear')[0]);
+    expect(endpoints()).toEqual({ start: false, end: true });
+  });
+
+  it('does not report while the panel is closed', () => {
+    render(<RouteAddDropdown isOpen={false} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+    expect(useWalkthroughStore.getState().walkthrough.routeEndpoints).toEqual({ start: false, end: false });
   });
 });
 

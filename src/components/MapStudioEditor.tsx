@@ -14,7 +14,7 @@ import { MapRefContext } from "@/hooks/useMapRef";
 import { MapRuntimeContext, type MapSceneRuntimeRef } from "@/hooks/useMapRuntime";
 import FontLoader from "@/components/FontLoader";
 import { useEffect } from "react";
-import { useProjectStore, CAMERA_TRACK_ID } from "@/store/useProjectStore";
+import { useProjectStore } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -31,7 +31,6 @@ import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
 import { loadExportModal } from "@/lib/lazyModules";
 import { LazyAccountModals } from "@/components/Account/LazyAccountModals";
-import type { CameraItem } from "@/store/types";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
@@ -125,7 +124,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   if (showExport) exportOpenedRef.current = true;
   const [showLibrary, setShowLibrary] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
-  const { isMobile, isToolbarCollapsed, isLayersCollapsed } = useResponsive();
+  const { isMobile, isToolbarCollapsed } = useResponsive();
   const isWorkingDraftReady = useWorkingProjectDraft();
   const deepLink = useRouteDeepLink(routeDeepLink, isWorkingDraftReady, onRouteDeepLinkSettled ?? (() => {}));
   usePlayback(mapRef);
@@ -215,13 +214,8 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
               if (isLocked) requestSignIn('Sign in to open your projects.');
               else setShowLibrary(true);
             }}
-            onWalkthrough={() => {
-              const cameraCount = (useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem | undefined)?.keyframes.length ?? 0;
-              useWalkthroughStore.getState().start(isToolbarCollapsed, cameraCount, isLayersCollapsed);
-            }}
+            onWalkthrough={() => useWalkthroughStore.getState().start(isToolbarCollapsed)}
             onAddToolOpenChange={(tool, open) => useWalkthroughStore.getState().recordAddToolOpenChange(tool, open)}
-            onMapStyleOpenChange={(open) => useWalkthroughStore.getState().recordMapStyleOpenChange(open)}
-            onMapToolsOpenChange={(open) => useWalkthroughStore.getState().recordMapToolsOpenChange(open)}
           />
           <InspectorPanel />
           <TimelinePanel />
@@ -253,11 +247,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         {/* Account Modals */}
         <NewProjectModal />
         <LazyAccountModals />
-        <QuickWalkthrough
-          isMapReady={isMapReady}
-          isMobile={isToolbarCollapsed}
-          isTablet={isLayersCollapsed}
-        />
+        <QuickWalkthrough isMapReady={isMapReady} isMobile={isToolbarCollapsed} />
         </div>
       </MapRuntimeContext.Provider>
     </MapRefContext.Provider>

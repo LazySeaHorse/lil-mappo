@@ -181,7 +181,7 @@ export const AirportSearchField = ({
                 e.preventDefault();
               }
             }}
-            className="w-fit min-w-[280px] sm:min-w-[340px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            className="z-[130] w-fit min-w-[280px] sm:min-w-[340px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
           >
             <CommandList className="ph-no-capture flex flex-col p-1 max-h-[300px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {loading && (

@@ -20,18 +20,14 @@ import {
 
 interface QuickWalkthroughProps {
   isMapReady: boolean;
+  /** True when the toolbar is collapsed into the Add menu layout (phones and narrow tablets). */
   isMobile: boolean;
-  isTablet: boolean;
 }
 
-export default function QuickWalkthrough({ isMapReady, isMobile, isTablet }: QuickWalkthroughProps) {
-  const usesLayerMenu = isMobile || isTablet;
-
+export default function QuickWalkthrough({ isMapReady, isMobile }: QuickWalkthroughProps) {
   const {
     isRunning,
     walkthrough,
-    isMapStyleOpen,
-    isMapToolsOpen,
     showMobileWarning,
     showInvitation,
     start,
@@ -42,8 +38,8 @@ export default function QuickWalkthrough({ isMapReady, isMobile, isTablet }: Qui
   } = useWalkthroughStore();
 
   const handleStart = useCallback(() => {
-    start(isMobile, undefined, usesLayerMenu);
-  }, [isMobile, start, usesLayerMenu]);
+    start(isMobile);
+  }, [isMobile, start]);
 
   // Prompt invitation / experimental mobile warning on initial mount when map is ready
   useEffect(() => {
@@ -77,32 +73,20 @@ export default function QuickWalkthrough({ isMapReady, isMobile, isTablet }: Qui
     dismiss();
   }, [dismiss, setShowInvitation]);
 
-  const stages = useMemo(
-    () => getWalkthroughStages(isMobile, usesLayerMenu),
-    [isMobile, usesLayerMenu],
-  );
+  const stages = useMemo(() => getWalkthroughStages(isMobile), [isMobile]);
 
   const visibleStepIndex = stages.indexOf(walkthrough.stage as VisibleWalkthroughStage);
   const hasVisibleStep = visibleStepIndex >= 0;
 
-  const isUsingAddTool = walkthrough.stage.endsWith('-editor');
-  const isUsingStylePopup = isMapStyleOpen || (
-    isTablet &&
-    isMapToolsOpen &&
-    (walkthrough.stage === 'change-map-style' ||
-      walkthrough.stage === 'return-standard-style' ||
-      walkthrough.stage === 'map-settings')
-  );
-  const isTooltipHidden = isUsingAddTool || isUsingStylePopup;
-
   const currentStepConfig = useMemo(() => {
     if (!hasVisibleStep) return null;
-    return getWalkthroughStepConfig(
-      walkthrough.stage as VisibleWalkthroughStage,
-      isMobile,
-      isTablet,
-    );
-  }, [hasVisibleStep, isMobile, isTablet, walkthrough.stage]);
+    return getWalkthroughStepConfig(walkthrough.stage as VisibleWalkthroughStage, isMobile);
+  }, [hasVisibleStep, isMobile, walkthrough.stage]);
+
+  const progress = useMemo(
+    () => ({ isMobile, gestures: walkthrough.gestures, routeEndpoints: walkthrough.routeEndpoints }),
+    [isMobile, walkthrough.gestures, walkthrough.routeEndpoints],
+  );
 
   return (
     <>
@@ -117,13 +101,12 @@ export default function QuickWalkthrough({ isMapReady, isMobile, isTablet }: Qui
         onDismiss={handleDismissInvitation}
       />
 
-      {isRunning && hasVisibleStep && !isTooltipHidden && currentStepConfig && (
+      {isRunning && hasVisibleStep && currentStepConfig && (
         <CoachmarkOverlay
           step={currentStepConfig}
           stepIndex={visibleStepIndex}
           totalSteps={stages.length}
-          isMobile={isMobile}
-          gestures={walkthrough.gestures}
+          progress={progress}
           onSkip={dismiss}
           onNext={next}
         />

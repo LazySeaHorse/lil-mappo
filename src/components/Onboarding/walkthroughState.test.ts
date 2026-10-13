@@ -3,6 +3,7 @@ import {
   walkthroughReducer,
   type MapGesture,
   type WalkthroughEvent,
+  type WalkthroughStage,
   type WalkthroughState,
 } from './walkthroughState';
 
@@ -18,16 +19,27 @@ const gesture = (value: MapGesture): WalkthroughEvent => ({
   gesture: value,
 });
 
+const at = (stage: WalkthroughStage, isMobile = false, initialRouteCount = 0): WalkthroughState => ({
+  ...createWalkthroughState(isMobile, initialRouteCount),
+  stage,
+});
+
+const endpoints = (start: boolean, end: boolean): WalkthroughEvent => ({
+  type: 'route-endpoints-changed',
+  start,
+  end,
+});
+
 describe('quick walkthrough progression', () => {
   it('waits until pan, orbit, and zoom have all been tried', () => {
     const initial = createWalkthroughState(false, 0);
     const partial = reduce(initial, gesture('pan'), gesture('zoom'));
 
     expect(partial.stage).toBe('map-controls');
-    expect(reduce(partial, gesture('orbit')).stage).toBe('first-keyframe');
+    expect(reduce(partial, gesture('orbit')).stage).toBe('route');
   });
 
-  it('opens the mobile add tray before highlighting the keyframe control', () => {
+  it('opens the mobile add tray before highlighting Plan Route', () => {
     const afterGestures = reduce(
       createWalkthroughState(true, 0),
       gesture('pan'),
@@ -38,101 +50,77 @@ describe('quick walkthrough progression', () => {
     expect(afterGestures.stage).toBe('open-add-menu');
     expect(
       walkthroughReducer(afterGestures, { type: 'add-menu-opened' }).stage,
-    ).toBe('first-keyframe');
-  });
-
-  it('requires moving the playhead, then allows exploration before the second keyframe', () => {
-    const ready = reduce(
-      createWalkthroughState(false, 3),
-      gesture('pan'),
-      gesture('orbit'),
-      gesture('zoom'),
-    );
-    const firstSaved = walkthroughReducer(ready, {
-      type: 'keyframe-count-changed',
-      count: 4,
-      playheadTime: 0,
-    });
-
-    expect(firstSaved.stage).toBe('move-playhead');
-    expect(
-      walkthroughReducer(firstSaved, {
-        type: 'keyframe-count-changed',
-        count: 5,
-        playheadTime: 0,
-      }).stage,
-    ).toBe('move-playhead');
-
-    expect(
-      walkthroughReducer(firstSaved, { type: 'playhead-time-changed', time: 0.05 }).stage,
-    ).toBe('move-playhead');
-
-    const moved = walkthroughReducer(firstSaved, { type: 'playhead-time-changed', time: 5 });
-    expect(moved.stage).toBe('second-keyframe');
-    const secondSaved = walkthroughReducer(moved, {
-      type: 'keyframe-count-changed',
-      count: 5,
-      playheadTime: 5,
-    });
-    expect(secondSaved.stage).toBe('play-animation');
-
-    const inspecting = reduce(
-      secondSaved,
-      { type: 'play-preview-acknowledged' },
-      { type: 'keyframe-selected' },
-    );
-    expect(inspecting.stage).toBe('inspect-keyframe');
-    expect(
-      walkthroughReducer(inspecting, { type: 'inspector-acknowledged' }).stage,
     ).toBe('route');
   });
 
-  it('continues from add tools through map styling, settings, and export', () => {
-    const initial = {
-      ...createWalkthroughState(false, 0),
-      stage: 'route' as const,
-    };
+  it('follows one trip from Plan Route to export, one real action at a time', () => {
+    let state = at('route');
 
-    const mapTools = reduce(
-      initial,
-      { type: 'add-tool-opened', tool: 'route' },
-      { type: 'add-tool-closed', tool: 'route' },
-      { type: 'add-tool-opened', tool: 'boundary' },
-      { type: 'add-tool-closed', tool: 'boundary' },
-      { type: 'add-tool-opened', tool: 'callout' },
-      { type: 'add-tool-closed', tool: 'callout' },
-    );
+    state = walkthroughReducer(state, { type: 'add-tool-opened', tool: 'route' });
+    expect(state.stage).toBe('route-places');
 
-    expect(mapTools.stage).toBe('terrain-buildings');
+    state = reduce(state, endpoints(true, false));
+    expect(state.stage).toBe('route-places');
+    expect(state.routeEndpoints).toEqual({ start: true, end: false });
+    state = reduce(state, endpoints(true, true));
+    expect(state.stage).toBe('route-preview');
 
-    const complete = reduce(
-      mapTools,
-      { type: 'terrain-intro-acknowledged', currentStyle: 'standard' },
-      { type: 'map-style-changed', style: 'dark' },
-      { type: 'map-style-changed', style: 'standard' },
-      { type: 'map-settings-opened' },
-      { type: 'project-settings-tab-changed', tab: 'map' },
-      { type: 'map-settings-overview-acknowledged' },
-      { type: 'render-layout-ready' },
-      { type: 'export-opened' },
-    );
+    state = walkthroughReducer(state, { type: 'route-preview-changed', hasPreview: true });
+    expect(state.stage).toBe('route-insert');
 
-    expect(complete.stage).toBe('complete');
+    state = walkthroughReducer(state, { type: 'route-count-changed', count: 1 });
+    expect(state.stage).toBe('follow-route');
+
+    state = walkthroughReducer(state, { type: 'follow-route-changed', enabled: true });
+    expect(state.stage).toBe('play-animation');
+
+    state = walkthroughReducer(state, { type: 'play-preview-acknowledged' });
+    expect(state.stage).toBe('more-tools');
+
+    state = walkthroughReducer(state, { type: 'more-tools-acknowledged' });
+    expect(state.stage).toBe('render');
+
+    expect(walkthroughReducer(state, { type: 'export-opened' }).stage).toBe('complete');
   });
 
-  it('opens compact layer controls before introducing terrain and buildings', () => {
-    const calloutEditor = {
-      ...createWalkthroughState(false, 0, true),
-      stage: 'callout-editor' as const,
-    };
+  it('does not move on when the wrong thing happens', () => {
+    expect(walkthroughReducer(at('route'), { type: 'add-tool-opened', tool: 'boundary' }).stage).toBe('route');
+    expect(walkthroughReducer(at('route-preview'), { type: 'route-count-changed', count: 0 }).stage).toBe('route-preview');
+    expect(walkthroughReducer(at('follow-route'), { type: 'follow-route-changed', enabled: false }).stage).toBe('follow-route');
+    expect(walkthroughReducer(at('render'), { type: 'play-preview-acknowledged' }).stage).toBe('render');
+  });
 
-    const closed = walkthroughReducer(calloutEditor, {
-      type: 'add-tool-closed',
-      tool: 'callout',
-    });
-    expect(closed.stage).toBe('open-map-tools');
-    expect(walkthroughReducer(closed, { type: 'map-tools-opened' }).stage).toBe(
-      'terrain-buildings',
+  it('skips the endpoint steps when both places are already set', () => {
+    const state = reduce(at('route'), endpoints(true, true), { type: 'add-tool-opened', tool: 'route' });
+    expect(state.stage).toBe('route-preview');
+  });
+
+  it('forgets a place the user clears', () => {
+    const state = reduce(at('route-places'), endpoints(true, false), endpoints(false, false));
+    expect(state.routeEndpoints).toEqual({ start: false, end: false });
+    expect(reduce(state, endpoints(false, true)).stage).toBe('route-places');
+  });
+
+  it('goes back to the preview step when the preview goes away', () => {
+    expect(walkthroughReducer(at('route-insert'), { type: 'route-preview-changed', hasPreview: false }).stage).toBe(
+      'route-preview',
+    );
+  });
+
+  it('goes back to Plan Route when the panel closes before the route is added', () => {
+    for (const stage of ['route-places', 'route-preview', 'route-insert'] as const) {
+      expect(walkthroughReducer(at(stage), { type: 'add-tool-closed', tool: 'route' }).stage).toBe('route');
+    }
+    // Closing it after the route exists is the normal end of the panel.
+    expect(walkthroughReducer(at('follow-route'), { type: 'add-tool-closed', tool: 'route' }).stage).toBe('follow-route');
+  });
+
+  it('moves on when a route is added another way, such as a walk path or an import', () => {
+    for (const stage of ['route-places', 'route-preview', 'route-insert'] as const) {
+      expect(walkthroughReducer(at(stage, false, 2), { type: 'route-count-changed', count: 3 }).stage).toBe('follow-route');
+    }
+    expect(walkthroughReducer(at('route-places', false, 2), { type: 'route-count-changed', count: 2 }).stage).toBe(
+      'route-places',
     );
   });
 });

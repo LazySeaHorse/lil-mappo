@@ -24,7 +24,6 @@ const layerProps = {
   setBuildingsEnabled: vi.fn(),
   terrainLoading: false,
   isScrubbing: false,
-  onMapStyleOpenChange: vi.fn(),
   onProjectSettings: vi.fn(),
   onExport: vi.fn(),
   onImportClick: vi.fn(),
@@ -38,7 +37,7 @@ const layerProps = {
 function renderToolbars(mapStyle: string) {
   render(
     <>
-      <DesktopToolbarLayout {...layerProps} mapStyle={mapStyle} isTablet={false} isPlaying={false} onMapToolsOpenChange={vi.fn()} />
+      <DesktopToolbarLayout {...layerProps} mapStyle={mapStyle} isTablet={false} isPlaying={false} />
       <MobileToolbarLayout {...layerProps} mapStyle={mapStyle} mobileMode="layers" setMobileMode={vi.fn()} isPlaying2={false} />
     </>,
   );

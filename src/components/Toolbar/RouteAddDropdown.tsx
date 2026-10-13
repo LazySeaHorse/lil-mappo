@@ -5,6 +5,7 @@ import { useMapPicker } from '@/hooks/useMapPicker';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { useGuestLock } from '@/hooks/useGuestLock';
+import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { Button } from '@/components/ui/button';
 import {
   Car, Footprints, Plane, Search, Loader2,
@@ -95,6 +96,11 @@ export const RouteAddDropdown = ({
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
   const [walkCurved, setWalkCurved] = useState(true);
+
+  // The quick tour waits for a start and an end place.
+  useEffect(() => {
+    if (isOpen) useWalkthroughStore.getState().recordRouteEndpoints(isPlacedPoint(start), isPlacedPoint(end));
+  }, [isOpen, start, end]);
 
   /** Drops any path request in flight and the preview drawn from the old inputs. */
   const discardPath = () => {
@@ -273,6 +279,7 @@ export const RouteAddDropdown = ({
       <Button
         variant="secondary"
         size="sm"
+        data-walkthrough="route-action"
         onClick={calculate}
         disabled={path.loading}
         className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium bg-secondary/50 hover:bg-secondary border border-border/50 rounded-lg transition-all"
@@ -285,6 +292,7 @@ export const RouteAddDropdown = ({
       <Button
         variant="default"
         size="sm"
+        data-walkthrough="route-action"
         onClick={handleAddCarFlight}
         className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
       >
@@ -350,7 +358,7 @@ export const RouteAddDropdown = ({
         </div>
       ) : (
         /* Car / flight — start + end */
-        <div className="space-y-4">
+        <div className="space-y-4" data-walkthrough="route-places">
           <SectionLabel>{mode === 'flight' ? 'Airport route' : 'Route points'}</SectionLabel>
           <EndpointField
             {...fieldCopy.start}

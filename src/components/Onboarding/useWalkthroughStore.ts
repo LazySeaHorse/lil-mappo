@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
-import { CAMERA_TRACK_ID, useProjectStore, type ProjectStore } from '@/store/useProjectStore';
-import type { CameraItem } from '@/store/types';
+import { useProjectStore, type ProjectStore } from '@/store/useProjectStore';
 import { track } from '@/lib/analytics';
 import {
   createWalkthroughState,
@@ -50,37 +49,22 @@ export function storeMobileWarningStatus() {
   }
 }
 
-let layoutTimer: ReturnType<typeof setTimeout> | null = null;
 let projectStoreUnsubscribers: (() => void)[] = [];
 
 function executeStageEntryEffects(stage: WalkthroughStage) {
   const projectStore = useProjectStore.getState();
 
   switch (stage) {
-    case 'move-playhead':
-      projectStore.setIsInspectorOpen(false);
+    case 'follow-route':
+      // Inserting a route opens the inspector; keep it open if the user closed it, since the switch is there.
+      projectStore.setIsInspectorOpen(true);
       break;
 
     case 'play-animation':
       projectStore.setPlayheadTime(0);
-      break;
-
-    case 'select-keyframe':
-      projectStore.selectKeyframe(null);
+      // The timeline, with the Play button, is hidden on a phone while the inspector is open.
       projectStore.setIsInspectorOpen(false);
       break;
-
-    case 'prepare-render': {
-      projectStore.setIsInspectorOpen(false);
-      if (layoutTimer !== null) {
-        clearTimeout(layoutTimer);
-      }
-      layoutTimer = setTimeout(() => {
-        layoutTimer = null;
-        useWalkthroughStore.getState().send({ type: 'render-layout-ready' });
-      }, 350);
-      break;
-    }
 
     case 'complete':
       useWalkthroughStore.getState().complete();
@@ -104,32 +88,22 @@ const watch = <T,>(w: ProjectWatch<T>) => w;
 
 const PROJECT_WATCHES = [
   watch({
-    select: (state) => (state.items[CAMERA_TRACK_ID] as CameraItem | undefined)?.keyframes.length ?? 0,
-    toEvent: (count) => ({
-      type: 'keyframe-count-changed',
-      count,
-      playheadTime: useProjectStore.getState().playheadTime,
-    }),
+    select: (state) => Object.values(state.items).filter((item) => item.kind === 'route').length,
+    stages: ['route-places', 'route-preview', 'route-insert'],
+    toEvent: (count) => ({ type: 'route-count-changed', count }),
   }),
   watch({
-    select: (state) => state.playheadTime,
-    stages: ['move-playhead'],
-    toEvent: (time) => ({ type: 'playhead-time-changed', time }),
+    select: (state) => state.previewRoute !== null,
+    stages: ['route-preview', 'route-insert'],
+    toEvent: (hasPreview) => ({ type: 'route-preview-changed', hasPreview }),
   }),
   watch({
-    select: (state) => state.selectedKeyframeId,
-    stages: ['select-keyframe'],
-    toEvent: (selectedKeyframeId) => (selectedKeyframeId ? { type: 'keyframe-selected' } : null),
-  }),
-  watch({
-    select: (state) => state.mapStyle,
-    stages: ['change-map-style', 'return-standard-style'],
-    toEvent: (style) => ({ type: 'map-style-changed', style }),
-  }),
-  watch({
-    select: (state) => state.projectSettingsTab,
-    stages: ['map-settings-tab'],
-    toEvent: (tab) => ({ type: 'project-settings-tab-changed', tab }),
+    select: (state) => {
+      const item = state.selectedItemId ? state.items[state.selectedItemId] : undefined;
+      return item?.kind === 'route' && item.autoCam?.enabled === true;
+    },
+    stages: ['follow-route'],
+    toEvent: (enabled) => ({ type: 'follow-route-changed', enabled }),
   }),
 ] as ProjectWatch<unknown>[];
 
@@ -148,43 +122,31 @@ function startProjectSubscriptions() {
 }
 
 function stopProjectSubscriptions() {
-  if (layoutTimer !== null) {
-    clearTimeout(layoutTimer);
-    layoutTimer = null;
-  }
   projectStoreUnsubscribers.forEach((unsub) => unsub());
   projectStoreUnsubscribers = [];
 }
 
 /** The event the Next button sends in stages that wait for an acknowledgement. */
-const NEXT_EVENTS: Partial<Record<WalkthroughStage, () => WalkthroughEvent>> = {
-  'play-animation': () => ({ type: 'play-preview-acknowledged' }),
-  'inspect-keyframe': () => ({ type: 'inspector-acknowledged' }),
-  'map-settings-overview': () => ({ type: 'map-settings-overview-acknowledged' }),
-  'terrain-buildings': () => ({
-    type: 'terrain-intro-acknowledged',
-    currentStyle: useProjectStore.getState().mapStyle,
-  }),
+const NEXT_EVENTS: Partial<Record<WalkthroughStage, WalkthroughEvent>> = {
+  'play-animation': { type: 'play-preview-acknowledged' },
+  'more-tools': { type: 'more-tools-acknowledged' },
 };
 
 export interface WalkthroughStore {
   isRunning: boolean;
   walkthrough: WalkthroughState;
-  isMapStyleOpen: boolean;
-  isMapToolsOpen: boolean;
   showMobileWarning: boolean;
   showInvitation: boolean;
 
   // Actions
-  start: (isMobile?: boolean, cameraKeyframeCount?: number, usesLayerMenu?: boolean) => void;
+  start: (isMobile?: boolean) => void;
   dismiss: () => void;
   complete: () => void;
   next: () => void;
   send: (event: WalkthroughEvent) => void;
   recordMapGesture: (gesture: MapGesture) => void;
   recordAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => boolean;
-  recordMapStyleOpenChange: (open: boolean) => void;
-  recordMapToolsOpenChange: (open: boolean) => void;
+  recordRouteEndpoints: (start: boolean, end: boolean) => void;
   recordExportOpened: () => void;
   setShowMobileWarning: (show: boolean) => void;
   setShowInvitation: (show: boolean) => void;
@@ -192,25 +154,22 @@ export interface WalkthroughStore {
 
 export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
   isRunning: false,
-  walkthrough: createWalkthroughState(false, 0, false),
-  isMapStyleOpen: false,
-  isMapToolsOpen: false,
+  walkthrough: createWalkthroughState(false, 0),
   showMobileWarning: false,
   showInvitation: false,
 
-  start: (isMobile = false, cameraKeyframeCount, usesLayerMenu) => {
+  start: (isMobile = false) => {
     stopProjectSubscriptions();
 
-    const actualKeyframeCount =
-      cameraKeyframeCount ??
-      ((useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem | undefined)?.keyframes.length ?? 0);
-    const actualUsesLayerMenu = usesLayerMenu ?? isMobile;
+    const initialRouteCount = Object.values(useProjectStore.getState().items).filter(
+      (item) => item.kind === 'route',
+    ).length;
 
     useProjectStore.getState().setIsInspectorOpen(false);
 
     set({
       showInvitation: false,
-      walkthrough: createWalkthroughState(isMobile, actualKeyframeCount, actualUsesLayerMenu),
+      walkthrough: createWalkthroughState(isMobile, initialRouteCount),
       isRunning: true,
     });
     storeStatus('started');
@@ -228,15 +187,15 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
     stopProjectSubscriptions();
     set({ isRunning: false });
     storeStatus('completed');
-    toast.success('Tour complete. You can now create your map animation.');
+    toast.success('Tour complete. Press Export when your trip video is ready.');
   },
 
   next: () => {
     const stage = get().walkthrough.stage;
-    const toEvent = NEXT_EVENTS[stage];
-    if (!toEvent) return;
+    const event = NEXT_EVENTS[stage];
+    if (!event) return;
     if (stage === 'play-animation') useProjectStore.getState().setIsPlaying(false);
-    get().send(toEvent());
+    get().send(event);
   },
 
   send: (event) => {
@@ -260,14 +219,9 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
     return true;
   },
 
-  recordMapStyleOpenChange: (open) => {
-    set({ isMapStyleOpen: open });
-  },
-
-  recordMapToolsOpenChange: (open) => {
-    set({ isMapToolsOpen: open });
-    if (get().isRunning && open) {
-      get().send({ type: 'map-tools-opened' });
+  recordRouteEndpoints: (start, end) => {
+    if (get().isRunning) {
+      get().send({ type: 'route-endpoints-changed', start, end });
     }
   },
 

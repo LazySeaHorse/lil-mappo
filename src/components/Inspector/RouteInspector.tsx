@@ -291,6 +291,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
           <div className="flex flex-col gap-2">
             <SwitchRow
               label="Follow route"
+              walkthroughTarget="follow-route"
               sublabel="Keeps the route or marker in view during playback."
               checked={item.autoCam?.enabled ?? false}
               onChange={handleAutoCamToggle}

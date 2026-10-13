@@ -18,8 +18,6 @@ interface ToolbarProps {
   onLibrary: () => void;
   onWalkthrough: () => void;
   onAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => boolean | undefined;
-  onMapStyleOpenChange: (open: boolean) => void;
-  onMapToolsOpenChange: (open: boolean) => void;
 }
 
 export default function Toolbar({
@@ -27,8 +25,6 @@ export default function Toolbar({
   onLibrary,
   onWalkthrough,
   onAddToolOpenChange,
-  onMapStyleOpenChange,
-  onMapToolsOpenChange,
 }: ToolbarProps) {
   const routeInputRef = useRef<HTMLInputElement>(null);
   const projectInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +37,9 @@ export default function Toolbar({
     if (previous === activeDropdown) return;
     if (previous) {
       const wasWalkthroughActive = onAddToolOpenChange(previous, false);
-      if (wasWalkthroughActive && previous === 'callout') setMobileMode('default');
+      // Once the tour has its route, it goes on to Play and Export, which the Add menu hides on a phone.
+      const tourHasRoute = useWalkthroughStore.getState().walkthrough.stage === 'follow-route';
+      if (wasWalkthroughActive && previous === 'route' && tourHasRoute) setMobileMode('default');
     }
     if (activeDropdown) onAddToolOpenChange(activeDropdown, true);
     previousActiveDropdown.current = activeDropdown;
@@ -88,14 +86,11 @@ export default function Toolbar({
     buildingsEnabled, setBuildingsEnabled,
     terrainLoading,
     isScrubbing,
-    onMapStyleOpenChange,
-    onMapToolsOpenChange,
   };
 
   const openProjectSettings = () => {
     setProjectSettingsTab('general');
     selectItem(null);
-    useWalkthroughStore.getState().send({ type: 'map-settings-opened' });
   };
 
   return (
