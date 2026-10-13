@@ -91,6 +91,12 @@ export interface CameraSlice {
   addCameraKeyframe: (kf: CameraKeyframe) => void;
   updateCameraKeyframe: (kfId: string, updates: Partial<CameraKeyframe>) => void;
   removeCameraKeyframe: (kfId: string) => void;
+  /**
+   * Copies a camera view to 1 s later, or halfway to the next view or the end
+   * of the video when that is closer, then selects the copy. Returns the new
+   * id, or null when the view is unknown or there is no room after it.
+   */
+  duplicateCameraKeyframe: (kfId: string) => string | null;
   setIsCameraEnabled: (v: boolean) => void;
 }
 

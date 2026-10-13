@@ -50,11 +50,9 @@ export function InspectorHeader({ kind, id, name, onRename, placeholder, startTi
           </IconButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44 rounded-xl">
-          {actions.duplicate && (
-            <DropdownMenuItem onSelect={actions.duplicate} className="text-xs">
-              <Copy size={13} /> Duplicate
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem onSelect={actions.duplicate} className="text-xs">
+            <Copy size={13} /> Duplicate
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={actions.goToStart} className="text-xs">
             <SkipBack size={13} /> Go to start
           </DropdownMenuItem>

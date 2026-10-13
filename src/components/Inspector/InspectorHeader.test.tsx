@@ -33,6 +33,7 @@ function openMenu() {
 
 const spies = {
   duplicateItem: vi.fn(),
+  duplicateCameraKeyframe: vi.fn(),
   removeItem: vi.fn(),
   selectItem: vi.fn(),
   removeCameraKeyframe: vi.fn(),
@@ -103,10 +104,17 @@ describe('InspectorHeader', () => {
     expect(spies.setPlayheadTime).toHaveBeenCalledWith(4.5);
   });
 
-  it('a camera view has no Duplicate and deletes the keyframe', () => {
+  it('a camera view duplicates the keyframe, not an item', () => {
     render(<InspectorHeader kind="camera-kf" id="k1" name="A" startTime={1} />);
     openMenu();
-    expect(screen.queryByRole('menuitem', { name: 'Duplicate' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }));
+    expect(spies.duplicateCameraKeyframe).toHaveBeenCalledWith('k1');
+    expect(spies.duplicateItem).not.toHaveBeenCalled();
+  });
+
+  it('a camera view deletes the keyframe', () => {
+    render(<InspectorHeader kind="camera-kf" id="k1" name="A" startTime={1} />);
+    openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     expect(spies.removeCameraKeyframe).toHaveBeenCalledWith('k1');
     expect(spies.selectKeyframe).toHaveBeenCalledWith(null);

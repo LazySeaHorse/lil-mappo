@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { InspectorItemKind } from '@/lib/terms';
+import { toast } from 'sonner';
+import { CAMERA_VIEW_TERMS, type InspectorItemKind } from '@/lib/terms';
 
 export interface InspectorItemActions {
-  /** Not offered for camera views. */
-  duplicate: (() => void) | null;
+  /** A camera view copy lands just after the original (see `duplicateCameraKeyframe`). */
+  duplicate: () => void;
   remove: () => void;
   /** Pauses, then moves the playhead to the item's start time. */
   goToStart: () => void;
@@ -20,6 +21,7 @@ export function useInspectorItemActions(
   const s = useProjectStore(
     useShallow((st) => ({
       duplicateItem: st.duplicateItem,
+      duplicateCameraKeyframe: st.duplicateCameraKeyframe,
       removeItem: st.removeItem,
       selectItem: st.selectItem,
       removeCameraKeyframe: st.removeCameraKeyframe,
@@ -31,7 +33,10 @@ export function useInspectorItemActions(
 
   return useMemo(
     () => ({
-      duplicate: kind === 'camera-kf' ? null : () => s.duplicateItem(id),
+      duplicate: () => {
+        if (kind !== 'camera-kf') s.duplicateItem(id);
+        else if (!s.duplicateCameraKeyframe(id)) toast.info(CAMERA_VIEW_TERMS.noRoomToDuplicate);
+      },
       remove: () => {
         if (kind === 'camera-kf') {
           s.removeCameraKeyframe(id);

@@ -134,6 +134,8 @@ export const CAMERA_VIEW_TERMS = {
   help: 'Move the map to the view you want. Then click Use current view.',
   useCurrent: 'Use current view',
   goTo: 'Go to this view',
+  /** Toast when Duplicate finds no free time after the view. */
+  noRoomToDuplicate: 'There is no time after this view for a copy. Move it earlier first.',
 } as const;
 
 /** Words for the length of the whole video. */
