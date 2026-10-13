@@ -5,6 +5,7 @@ import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import { ProjectSettings } from './ProjectSettings';
 import { MAP_SETTING_HINTS } from '@/lib/terms';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
+import { readInfoTips } from '@/test/infoTips';
 
 const plan = vi.hoisted(() => ({ data: { tier: 'cartographer' } as { tier: string; status?: string } | null }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: plan.data }) }));
@@ -79,11 +80,13 @@ describe('ProjectSettings map hints', () => {
     }));
   });
 
-  it('explains projection, lighting and terrain height in the Map section', () => {
+  it('explains projection, lighting and terrain height in (i) tips in the Map section', async () => {
     render(<ProjectSettings />);
-    expect(screen.getByText(MAP_SETTING_HINTS.projection)).toBeInTheDocument();
-    expect(screen.getByText(MAP_SETTING_HINTS.lighting)).toBeInTheDocument();
-    expect(screen.getByText(MAP_SETTING_HINTS.terrainHeight)).toBeInTheDocument();
+    for (const hint of [MAP_SETTING_HINTS.projection, MAP_SETTING_HINTS.lighting, MAP_SETTING_HINTS.terrainHeight]) {
+      expect(screen.queryByText(hint)).toBeNull();
+    }
+    const tips = await readInfoTips(screen.getByRole('region', { name: 'Map' }));
+    expect(tips).toEqual([MAP_SETTING_HINTS.projection, MAP_SETTING_HINTS.lighting, MAP_SETTING_HINTS.terrainHeight]);
   });
 
   it('labels the ends of the terrain slider', () => {
@@ -92,27 +95,31 @@ describe('ProjectSettings map hints', () => {
     expect(screen.getByText('Dramatic')).toBeInTheDocument();
   });
 
-  it('explains stars and fog color in the Atmosphere section', () => {
-    render(<ProjectSettings />);
-    openAtmosphere();
-    expect(screen.getByText(MAP_SETTING_HINTS.stars)).toBeInTheDocument();
-    expect(screen.getByText(MAP_SETTING_HINTS.fogColor)).toBeInTheDocument();
-  });
-
-  it('explains each 3D feature and where to turn buildings on', () => {
-    render(<ProjectSettings />);
-    expect(screen.getByText(MAP_SETTING_HINTS.features3d)).toBeInTheDocument();
-    expect(screen.getByText(MAP_SETTING_HINTS.landmarks)).toBeInTheDocument();
-    expect(screen.getByText(MAP_SETTING_HINTS.trees)).toBeInTheDocument();
-    expect(screen.getByText(MAP_SETTING_HINTS.facades)).toBeInTheDocument();
-  });
-
-  it('shows no star hint on the flat map, where there are no stars', () => {
-    act(() => useProjectStore.getState().setProjection('mercator'));
+  it('explains stars and fog color in (i) tips in the Atmosphere section', async () => {
     render(<ProjectSettings />);
     openAtmosphere();
     expect(screen.queryByText(MAP_SETTING_HINTS.stars)).toBeNull();
-    expect(screen.getByText(MAP_SETTING_HINTS.fogColor)).toBeInTheDocument();
+    const tips = await readInfoTips(screen.getByRole('region', { name: 'Atmosphere' }));
+    expect(tips).toEqual([MAP_SETTING_HINTS.stars, MAP_SETTING_HINTS.fogColor]);
+  });
+
+  it('explains each 3D feature in an (i) tip, and where to turn buildings on in a tip on the section title', async () => {
+    render(<ProjectSettings />);
+    for (const hint of [MAP_SETTING_HINTS.features3d, MAP_SETTING_HINTS.landmarks, MAP_SETTING_HINTS.trees, MAP_SETTING_HINTS.facades]) {
+      expect(screen.queryByText(hint)).toBeNull();
+    }
+    const heading = screen.getByRole('button', { name: '3D features' }).closest('h3')!;
+    expect(await readInfoTips(heading)).toEqual([MAP_SETTING_HINTS.features3d]);
+    const tips = await readInfoTips(screen.getByRole('region', { name: '3D features' }));
+    expect(tips).toEqual([MAP_SETTING_HINTS.landmarks, MAP_SETTING_HINTS.trees, MAP_SETTING_HINTS.facades]);
+  });
+
+  it('shows no star tip on the flat map, where there are no stars', async () => {
+    act(() => useProjectStore.getState().setProjection('mercator'));
+    render(<ProjectSettings />);
+    openAtmosphere();
+    const tips = await readInfoTips(screen.getByRole('region', { name: 'Atmosphere' }));
+    expect(tips).toEqual([MAP_SETTING_HINTS.fogColor]);
   });
 });
 

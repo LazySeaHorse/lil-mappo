@@ -244,8 +244,7 @@ export function ProjectSettings() {
       )}
 
       {(capabilities.landmarks3d || capabilities.trees3d || capabilities.facades3d) && (
-        <InspectorSection kind="project" id="3d">
-          <p className="text-[11px] leading-tight text-muted-foreground">{MAP_SETTING_HINTS.features3d}</p>
+        <InspectorSection kind="project" id="3d" info={MAP_SETTING_HINTS.features3d}>
           {capabilities.landmarks3d && <SwitchRow checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" sublabel={MAP_SETTING_HINTS.landmarks} />}
           {capabilities.trees3d && <SwitchRow checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" sublabel={MAP_SETTING_HINTS.trees} />}
           {capabilities.facades3d && <SwitchRow checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" sublabel={MAP_SETTING_HINTS.facades} />}

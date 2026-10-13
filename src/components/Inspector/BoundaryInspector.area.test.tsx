@@ -6,6 +6,7 @@ import { BOUNDARY_TERMS } from '@/lib/terms';
 import { useProjectStore } from '@/store/useProjectStore';
 import { createBoundaryItem } from '@/store/itemFactories';
 import type { BoundaryItem } from '@/store/types';
+import { readInfoTips } from '@/test/infoTips';
 
 vi.mock('@/services/nominatim', async (importActual) => ({
   ...(await importActual<typeof import('@/services/nominatim')>()),
@@ -86,9 +87,10 @@ describe('highlight length', () => {
     expect(screen.getByText(text)).toBeInTheDocument();
   });
 
-  it('explains the slider with a hint and the words Short and Long', () => {
+  it('explains the slider with an (i) tip and the words Short and Long', async () => {
     render(<BoundaryInspector item={setBoundary({ animateStroke: true, animationStyle: 'trace', traceLength: 0.1 })} />);
-    expect(screen.getByText(BOUNDARY_TERMS.highlightHint)).toBeInTheDocument();
+    expect(screen.queryByText(BOUNDARY_TERMS.highlightHint)).toBeNull();
+    expect(await readInfoTips()).toContain(BOUNDARY_TERMS.highlightHint);
     expect(screen.getByText('Short')).toBeInTheDocument();
     expect(screen.getByText('Long')).toBeInTheDocument();
   });

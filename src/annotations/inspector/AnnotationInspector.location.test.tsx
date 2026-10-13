@@ -6,6 +6,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
 import { CALLOUT_LOCATION_TERMS } from '@/lib/terms';
 import { AnnotationInspector } from './AnnotationInspector';
+import { readInfoTips } from '@/test/infoTips';
 
 vi.mock('./stylePreview', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./stylePreview')>()),
@@ -73,13 +74,14 @@ describe('callout location field', () => {
     expect(stored().locationName).toBe('');
   });
 
-  it('keeps the place, the height and the exact position in one Location section', () => {
+  it('keeps the place, the height and the exact position in one Location section', async () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     const location = screen.getByRole('region', { name: 'Location' });
     expect(within(location).getByPlaceholderText(LOCATION_FIELD)).toHaveValue('Central Park');
     expect(within(location).getByTitle('Pick on Map')).toBeInTheDocument();
     expect(within(location).getByText(CALLOUT_LOCATION_TERMS.dragOnMap)).toBeInTheDocument();
-    expect(within(location).getByText(CALLOUT_LOCATION_TERMS.heightHint)).toBeInTheDocument();
+    expect(within(location).queryByText(CALLOUT_LOCATION_TERMS.heightHint)).toBeNull();
+    expect(await readInfoTips(location)).toEqual([CALLOUT_LOCATION_TERMS.heightHint]);
     expect(within(location).getByText(CALLOUT_LOCATION_TERMS.heightAboveMap)).toBeInTheDocument();
     // The old second section is gone, and so is the old name for the height.
     expect(screen.queryByRole('region', { name: 'Position' })).toBeNull();

@@ -120,4 +120,26 @@ describe('InspectorSection', () => {
     const region = screen.getByRole('region', { name: 'Map' });
     expect(button.getAttribute('aria-controls')).toBe(region.id);
   });
+
+  it('shows an (i) tip next to the title when it has info, and the tip does not toggle the section', async () => {
+    render(<InspectorSection kind="project" id="env" info="Some help."><p>Inside</p></InspectorSection>);
+    const title = screen.getByRole('button', { name: 'Map' });
+    const tip = screen.getByRole('button', { name: 'More info' });
+    expect(title.contains(tip)).toBe(false);
+    expect(title.compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(tip);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Some help.');
+    expect(title).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('has no tip without info', () => {
+    render(<InspectorSection kind="project" id="env"><p>Inside</p></InspectorSection>);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
+  });
+
+  it('still opens and closes from the title when it has info', () => {
+    render(<InspectorSection kind="project" id="env" info="Some help."><p>Inside</p></InspectorSection>);
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }));
+    expect(screen.queryByText('Inside')).not.toBeInTheDocument();
+  });
 });

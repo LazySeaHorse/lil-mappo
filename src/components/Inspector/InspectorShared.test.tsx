@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { Field } from '@/components/ui/field';
 import {
   EasingSelect,
   SliderRow,
@@ -109,10 +110,20 @@ describe('SliderRow', () => {
 describe('SliderRow hint and end labels', () => {
   const base = { label: 'Energy', value: 0.5, onChange: () => {}, min: 0, max: 1, step: 0.1 };
 
-  it('shows a hint under the label', () => {
-    render(<SliderRow {...base} hint="How lively the motion feels." />);
-    expect(screen.getByText('How lively the motion feels.')).toBeInTheDocument();
+  it('puts the hint in an (i) tip next to the label, not on a visible line', async () => {
+    const { container } = render(<SliderRow {...base} hint="How lively the motion feels." />);
     expect(screen.getByText('Energy')).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="slider-hint"]')).toBeNull();
+    expect(screen.queryByText('How lively the motion feels.')).toBeNull();
+    const tip = screen.getByRole('button', { name: 'More info' });
+    expect(screen.getByText('Energy').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.focus(tip);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('How lively the motion feels.');
+  });
+
+  it('has no (i) tip without a hint', () => {
+    render(<SliderRow {...base} />);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
   });
 
   it('shows no hint or end labels unless asked', () => {
@@ -178,7 +189,9 @@ describe('SwitchRow', () => {
     );
 
     expect(screen.getByText('Enable glow')).toBeInTheDocument();
-    expect(screen.getByText('Adds soft glow effect')).toBeInTheDocument();
+    // The explanation is an (i) tip, not a visible line.
+    expect(screen.queryByText('Adds soft glow effect')).toBeNull();
+    expect(screen.getByRole('button', { name: 'More info' })).toBeInTheDocument();
 
     const switchBtn = screen.getByRole('switch');
     fireEvent.click(switchBtn);
@@ -343,5 +356,39 @@ describe('VisualCardSelect locked options', () => {
     fireEvent.click(car);
     expect(onLockedSelect).toHaveBeenCalledWith('car');
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('(i) tips on shared controls', () => {
+  it('SwitchRow shows its sublabel on hover, and the tip does not toggle the switch', async () => {
+    const onChange = vi.fn();
+    render(<SwitchRow label="Glow" sublabel="Adds a soft glow." checked={false} onChange={onChange} />);
+    const tip = screen.getByRole('button', { name: 'More info' });
+    fireEvent.click(tip);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Adds a soft glow.');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Glow').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('SwitchRow has no tip without a sublabel', () => {
+    render(<SwitchRow label="Glow" checked={false} onChange={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
+  });
+
+  it('Field shows its hint in an (i) tip after the label', async () => {
+    const { container } = render(<Field label="Projection" hint="Globe is round."><input aria-label="p" /></Field>);
+    expect(container.querySelector('[data-slot="field-hint"]')).toBeNull();
+    expect(screen.queryByText('Globe is round.')).toBeNull();
+    const tip = screen.getByRole('button', { name: 'More info' });
+    expect(screen.getByText('Projection').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The tip is not part of the label element, so it cannot become the control the label points at.
+    expect(screen.getByText('Projection').closest('label')?.contains(tip)).toBe(false);
+    fireEvent.focus(tip);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Globe is round.');
+  });
+
+  it('Field without a hint has no tip', () => {
+    render(<Field label="Projection"><input aria-label="p" /></Field>);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
   });
 });

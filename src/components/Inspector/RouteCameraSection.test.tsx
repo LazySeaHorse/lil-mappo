@@ -9,6 +9,7 @@ import { createEndpointRouteItem, wrapGeometry } from '@/store/itemFactories';
 import { autoCamForRoute, AUTO_CAM_PRESETS } from '@/config/vehicles';
 import { FOLLOW_CAMERA_TERMS, ROUTE_TERMS } from '@/lib/terms';
 import type { RouteItem } from '@/store/types';
+import { readInfoTips } from '@/test/infoTips';
 
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: null }) }));
 vi.mock('@/hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false, isTablet: false }) }));
@@ -38,11 +39,12 @@ describe('Follow camera in the route panel', () => {
     useProjectStore.setState({ items: {}, itemOrder: [], selectedItemId: null, selectedAutoCamRouteId: null });
   });
 
-  it('is off at first and shows the switch with a one line hint', () => {
+  it('is off at first and shows the switch with the hint in an (i) tip', async () => {
     open(false);
     const region = within(cameraRegion());
     expect(region.getByText(ROUTE_TERMS.followCamera)).toBeInTheDocument();
-    expect(region.getByText(FOLLOW_CAMERA_TERMS.hint)).toBeInTheDocument();
+    expect(region.queryByText(FOLLOW_CAMERA_TERMS.hint)).toBeNull();
+    expect(await readInfoTips(cameraRegion())).toEqual([FOLLOW_CAMERA_TERMS.hint]);
     expect(region.getByRole('switch')).toHaveAttribute('data-state', 'unchecked');
     expect(region.queryByRole('button', { name: FOLLOW_CAMERA_TERMS.editCamera })).not.toBeInTheDocument();
     expect(stored().autoCam).toBeUndefined();
