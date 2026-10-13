@@ -7,6 +7,8 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { syntheticIsland } from '@/test/syntheticGeometry';
 import type { BoundaryItem } from '@/store/types';
+import { MapRefContext } from '@/hooks/useMapRef';
+import type { MapRef } from 'react-map-gl/mapbox';
 
 const island = syntheticIsland();
 
@@ -83,3 +85,28 @@ describe('BoundaryAddDropdown detail levels', () => {
     expect(useProjectStore.getState().boundaryDetail).toBe('detailed');
   });
 });
+
+describe('BoundaryAddDropdown map framing', () => {
+  const fitBounds = vi.fn();
+  const map = {
+    getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+    getZoom: () => 5,
+    project: () => ({ x: 600, y: 400 }),
+    fitBounds,
+    easeTo: vi.fn(),
+  };
+
+  it('fits the map to the picked place, clear of the panels', () => {
+    fitBounds.mockClear();
+    useProjectStore.setState({ isPlaying: false, isScrubbing: false, isExporting: false });
+    render(
+      <MapRefContext.Provider value={{ current: { getMap: () => map } as unknown as MapRef }}>
+        <BoundaryAddDropdown isOpen onOpenChange={vi.fn()} />
+      </MapRefContext.Provider>,
+    );
+    fireEvent.click(screen.getByText('pick-result'));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    expect(fitBounds.mock.calls[0][1].padding.top).toBeGreaterThanOrEqual(88);
+  });
+});
+

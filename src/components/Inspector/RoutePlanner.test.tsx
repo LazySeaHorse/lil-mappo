@@ -6,6 +6,8 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
 import type { RouteItem } from '@/store/types';
 import { getDirections } from '@/services/directions';
+import { MapRefContext } from '@/hooks/useMapRef';
+import type { MapRef } from 'react-map-gl/mapbox';
 
 vi.mock('react-secure-storage', () => ({
   default: {
@@ -349,6 +351,47 @@ describe('RoutePlanner in Inspector', () => {
       fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
       act(() => { useProjectStore.getState().removeItem('route-test-1'); });
       expect(useProjectStore.getState().activePicker).toBeNull();
+    });
+  });
+
+  describe('map framing', () => {
+    const fitBounds = vi.fn();
+    const map = {
+      getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+      getZoom: () => 5,
+      project: () => ({ x: 600, y: 400 }),
+      fitBounds,
+      easeTo: vi.fn(),
+    };
+    const renderRoute = () => {
+      const route = createBaseRouteItem('car');
+      route.calculation = { mode: 'car', startPoint: [1, 1], endPoint: [3, 4] };
+      useProjectStore.setState({ items: { [route.id]: route }, isPlaying: false, isScrubbing: false, isExporting: false });
+      render(
+        <MapRefContext.Provider value={{ current: { getMap: () => map } as unknown as MapRef }}>
+          <RoutePlanner item={route} />
+        </MapRefContext.Provider>,
+      );
+    };
+
+    beforeEach(() => {
+      fitBounds.mockClear();
+      vi.mocked(getDirections).mockReset().mockResolvedValue({
+        geometry: { type: 'LineString', coordinates: [[1, 1], [2, 2], [3, 4]] }, distance: 1, duration: 1,
+      });
+    });
+
+    it('shows the applied route on the map', async () => {
+      renderRoute();
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Apply route/i })); });
+      expect(fitBounds).toHaveBeenCalledTimes(1);
+      expect(fitBounds.mock.calls[0][0]).toEqual([[1, 1], [3, 4]]);
+    });
+
+    it('shows the previewed route on the map', async () => {
+      renderRoute();
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview route/i })); });
+      expect(fitBounds).toHaveBeenCalledTimes(1);
     });
   });
 

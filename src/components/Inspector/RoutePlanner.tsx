@@ -18,6 +18,7 @@ import { SearchFieldActions } from '@/components/Search/SearchFieldActions';
 import { SwitchRow, SliderField } from './InspectorShared';
 import { buildWalkGeometry, DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { withoutHistory } from '@/store/history';
 import { convertRouteCalculation, isPlacedPoint } from '@/engine/routeMode';
 import { WalkPointList } from './WalkPointList';
@@ -223,6 +224,7 @@ const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalcul
 /** Lands a computed path on the route ('save') or shows it as the map preview. */
 function useRoutePath(routeId: string) {
   const { loading, calculate, cancel } = useEndpointRoutePath(routeId);
+  const frame = useFrameOnMap();
 
   const calculateFor = (calc: EndpointRouteCalculation, target: 'save' | 'preview') =>
     calculate(calc.mode, calc.startPoint, calc.endPoint, (geojson) => {
@@ -231,9 +233,11 @@ function useRoutePath(routeId: string) {
         // Async result of an earlier request, not an edit of its own.
         withoutHistory(() => updateItem(routeId, { geojson }));
         setPreviewRoute(null);
+        frame.frameGeometry(geojson);
         toast.success('Route updated.');
       } else {
         setPreviewRoute(geojson);
+        frame.frameGeometry(geojson);
         toast.success('Route preview is ready.');
       }
     });

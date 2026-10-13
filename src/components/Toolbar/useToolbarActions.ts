@@ -5,6 +5,7 @@ import { loadFileImport } from '@/lib/lazyModules';
 import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
 import { CloudProjectSizeError } from '@/services/cloudProjectLibrary';
 import { isFreeUser, hasByok } from '@/lib/cloudAccess';
@@ -19,6 +20,7 @@ import { reportRouteAdded } from '@/lib/analytics/reporters';
 
 export function useToolbarActions() {
   const mapRef = useMapRef();
+  const frame = useFrameOnMap();
   const { addItem, addCameraKeyframe, selectItem, setTerrainEnabled, setBuildingsEnabled } = useProjectStore(
     useShallow(s => ({
       addItem: s.addItem,
@@ -51,6 +53,7 @@ export function useToolbarActions() {
         setTerrainEnabled(false);
         setBuildingsEnabled(false);
         selectItem(item.id);
+        frame.frameGeometry(geojson);
         const pointCount = extractLineCoords(geojson).length;
         reportRouteAdded(importSourceOf(file.name), pointCount);
         toast.success(`Imported "${name}" (${pointCount} points)`);
@@ -60,7 +63,7 @@ export function useToolbarActions() {
       }
     }
     e.target.value = '';
-  }, [addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn]);
+  }, [addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn, frame]);
 
   const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {

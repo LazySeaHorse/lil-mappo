@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { agentEvents, getAgentMap, getAgentTools, type AgentEvent } from '@/agent';
-import { boundsOfItems, withMinimumSpan } from '@/agent/tools/camera';
+import { boundsOfItems } from '@/agent/tools/camera';
+import { canMoveCamera, frameBox, frameDuration, type FrameLayout } from '@/engine/mapFraming';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
-import { isGestureActive } from '@/store/history';
 import type { CameraItem } from '@/store/types';
 import { useAiPanelStore } from './useAiPanelStore';
 
@@ -19,7 +20,6 @@ import { useAiPanelStore } from './useAiPanelStore';
 export const VISUAL_MIN_MS = 600;
 /** When more than this many are waiting, drop everything but the latest. */
 export const VISUAL_QUEUE_LIMIT = 5;
-export const MAP_EASE_MS = 800;
 const PULSE_MS = 1400;
 const ERROR_TOAST_GAP_MS = 4000;
 
@@ -58,14 +58,6 @@ function pulse(el: Element | null, className: string): void {
   window.setTimeout(() => el.classList.remove(className), PULSE_MS);
 }
 
-function prefersReducedMotion(): boolean {
-  try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  } catch {
-    return false;
-  }
-}
-
 function selectAffected(job: VisualJob): void {
   const s = useProjectStore.getState();
   const wasOpen = s.isInspectorOpen;
@@ -101,13 +93,12 @@ function pulseTargets(job: VisualJob): void {
   }
 }
 
-function followOnMap(job: VisualJob): void {
+function followOnMap(job: VisualJob, layout: FrameLayout): void {
   if (!useAiPanelStore.getState().followAi) return;
+  if (!canMoveCamera()) return;
   const s = useProjectStore.getState();
-  if (s.isPlaying || s.isExporting || s.isScrubbing || isGestureActive()) return;
   const map = getAgentMap();
   if (!map) return;
-  const duration = prefersReducedMotion() ? 0 : MAP_EASE_MS;
 
   try {
     if (CAMERA_TOOLS.has(job.tool)) {
@@ -119,25 +110,23 @@ function followOnMap(job: VisualJob): void {
         zoom: kf.camera.zoom,
         pitch: kf.camera.pitch,
         bearing: kf.camera.bearing,
-        duration,
+        duration: frameDuration(),
       });
       return;
     }
     const ids = job.itemIds.filter((id) => id !== CAMERA_TRACK_ID && s.items[id]);
     if (ids.length === 0) return;
-    const [w, so, e, n] = withMinimumSpan(boundsOfItems(ids));
-    const rect = map.getContainer().getBoundingClientRect();
-    const roomy = rect.height > 560 && rect.width > 480;
-    map.fitBounds(
-      [[w, so], [e, n]],
-      { padding: roomy ? { top: 100, bottom: 220, left: 80, right: 80 } : 48, maxZoom: 16, duration },
-    );
+    frameBox(map, boundsOfItems(ids), layout);
   } catch {
     // Items with no map extent (screen-pinned callouts, removed items): nothing to follow.
   }
 }
 
 export function useAgentActionVisuals(): void {
+  const { isMobile, isTablet } = useResponsive();
+  const layoutRef = useRef<FrameLayout>({ isMobile, isTablet });
+  layoutRef.current = { isMobile, isTablet };
+
   useEffect(() => {
     let writeTools: Set<string> | null = null;
     const isWriteTool = (name: string) => {
@@ -160,7 +149,7 @@ export function useAgentActionVisuals(): void {
       if (rendering.size === 0) {
         selectAffected(job);
         pulseTargets(job);
-        followOnMap(job);
+        followOnMap(job, layoutRef.current);
       }
       timer = setTimeout(() => {
         busy = false;

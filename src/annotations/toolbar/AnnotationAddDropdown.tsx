@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Flag, Plus, Link as LinkIcon } from 'lucide-react';
@@ -32,6 +33,8 @@ export const AnnotationAddDropdown = ({
   const { addItem, selectItem } = useProjectStore(
     useShallow(s => ({ addItem: s.addItem, selectItem: s.selectItem }))
   );
+
+  const frame = useFrameOnMap();
 
   const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
   const [locationName, setLocationName] = useState('');
@@ -75,6 +78,7 @@ export const AnnotationAddDropdown = ({
 
     addItem(item);
     selectItem(id);
+    frame.framePoint(lngLat);
     setLngLat([0, 0]);
     setLocationName('');
     setTitle('New Callout');

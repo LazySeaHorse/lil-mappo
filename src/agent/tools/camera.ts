@@ -17,6 +17,7 @@ import {
 } from './shared';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { track } from '@/lib/analytics';
+import { withMinimumSpan } from '@/engine/mapFraming';
 
 const KEYFRAME_TIME_EPSILON = 1e-3;
 
@@ -186,14 +187,6 @@ export function boundsOfItems(itemIds: string[]): BBox {
   const bbox = unionBBox(boxes);
   if (!bbox) throw new ToolError('no_geometry', 'None of the items has any geometry to frame yet.');
   return bbox;
-}
-
-/** Points/very small areas would zoom to the maximum; keep a sensible minimum span (~1 km). */
-export function withMinimumSpan(b: BBox, span = 0.01): BBox {
-  const [w, s, e, n] = b;
-  const padX = Math.max(0, (span - (e - w)) / 2);
-  const padY = Math.max(0, (span - (n - s)) / 2);
-  return [w - padX, s - padY, e + padX, n + padY];
 }
 
 export const frameItems = defineTool({

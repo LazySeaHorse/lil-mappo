@@ -1,4 +1,3 @@
-import { geometryBounds } from '@/engine/geoUtils';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { BoundaryDetailPicker } from './BoundaryDetailPicker';
 import React from 'react';
@@ -14,7 +13,7 @@ import { createBoundaryItem } from '@/store/itemFactories';
 import { shortPlaceName, type NominatimResult } from '@/services/nominatim';
 import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
-import { useMapRef } from '@/hooks/useMapRef';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { IconButton } from '@/components/ui/icon-button';
@@ -51,7 +50,7 @@ export const BoundaryAddDropdown = ({
     }))
   );
   
-  const mapRef = useMapRef();
+  const frame = useFrameOnMap();
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -71,13 +70,7 @@ export const BoundaryAddDropdown = ({
 
   const handleSelect = (r: NominatimResult) => {
     setPreviewBoundary(r.geojson, shortPlaceName(r.display_name), r.countryCode);
-    
-    // Zoom to boundary
-    const map = mapRef.current?.getMap();
-    if (map && r.geojson) {
-      const bounds = geometryBounds(r.geojson);
-      if (bounds) map.fitBounds(bounds, { padding: 50, duration: 1000 });
-    }
+    frame.frameGeometry(r.geojson);
   };
 
   const handleAdd = () => {

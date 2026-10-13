@@ -6,6 +6,8 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
 import type { RouteItem } from '@/store/types';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
+import { MapRefContext } from '@/hooks/useMapRef';
+import type { MapRef } from 'react-map-gl/mapbox';
 
 vi.mock('react-secure-storage', () => ({
   default: {
@@ -218,3 +220,67 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(reportRouteAdded).toHaveBeenLastCalledWith('walk', 3);
   });
 });
+
+describe('RouteAddDropdown map framing', () => {
+  const fitBounds = vi.fn();
+  const map = {
+    getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+    getZoom: () => 5,
+    project: () => ({ x: 600, y: 400 }),
+    fitBounds,
+    easeTo: vi.fn(),
+  };
+  const renderWithMap = () =>
+    render(
+      <MapRefContext.Provider value={{ current: { getMap: () => map } as unknown as MapRef }}>
+        <RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />
+      </MapRefContext.Provider>,
+    );
+  const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[buttonIndex]); });
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+  };
+
+  beforeEach(() => {
+    fitBounds.mockClear();
+    useProjectStore.setState({
+      items: {}, itemOrder: [], selectedItemId: null, previewRoute: null, activePicker: null,
+      playheadTime: 0, isPlaying: false, isExporting: false, isScrubbing: false,
+    });
+  });
+
+  it('shows the previewed path and the inserted route on the map', async () => {
+    renderWithMap();
+    pickPoint(0, [1, 1]);
+    pickPoint(1, [2, 2]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview path/i })); });
+    const insert = await screen.findByRole('button', { name: /Insert route/i });
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+
+    act(() => { fireEvent.click(insert); });
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect(fitBounds.mock.calls[1][0]).toEqual([[0, 0], [1, 1]]);
+  });
+
+  it('shows an inserted walk path on the map', () => {
+    renderWithMap();
+    fireEvent.click(screen.getByRole('radio', { name: /walk/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
+    const pick = (lngLat: [number, number]) =>
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+    pick([10, 10]);
+    pick([11, 11]);
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Insert walk path/i })); });
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the camera still while the project plays', async () => {
+    useProjectStore.setState({ isPlaying: true });
+    renderWithMap();
+    pickPoint(0, [1, 1]);
+    pickPoint(1, [2, 2]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview path/i })); });
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
+});
+

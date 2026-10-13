@@ -91,10 +91,11 @@ export function splitAtAntimeridian(coords: number[][]): GeoJSON.LineString | Ge
 }
 
 /**
- * Bounding box of a geometry as [[west, south], [east, north]], covering every
- * polygon/line/point in it. Returns null if it has no valid coordinates.
+ * Bounding box of any GeoJSON (geometry, feature or collection) as
+ * [[west, south], [east, north]], covering every polygon/line/point in it.
+ * Returns null if it has no valid coordinates.
  */
-export function geometryBounds(geometry: GeoJSON.Geometry): [[number, number], [number, number]] | null {
+export function geojsonBounds(geojson: GeoJSON.GeoJSON): [[number, number], [number, number]] | null {
   let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
   const visit = (c: unknown): void => {
     if (!Array.isArray(c)) return;
@@ -105,11 +106,13 @@ export function geometryBounds(geometry: GeoJSON.Geometry): [[number, number], [
     }
     for (const child of c) visit(child);
   };
-  if (geometry.type === 'GeometryCollection') {
-    for (const g of geometry.geometries) visit((g as { coordinates?: unknown }).coordinates);
-  } else {
-    visit(geometry.coordinates);
-  }
+  const walk = (g: GeoJSON.GeoJSON): void => {
+    if (g.type === 'FeatureCollection') g.features.forEach(walk);
+    else if (g.type === 'Feature') walk(g.geometry);
+    else if (g.type === 'GeometryCollection') g.geometries.forEach(walk);
+    else visit(g.coordinates);
+  };
+  walk(geojson);
   return Number.isFinite(w) ? [[w, s], [e, n]] : null;
 }
 

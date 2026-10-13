@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { Button } from '@/components/ui/button';
 import {
   Car, Footprints, Plane, Search, Loader2,
@@ -87,6 +88,7 @@ export const RouteAddDropdown = ({
   const [end, setEnd] = useState<[number, number]>([0, 0]);
   const [endName, setEndName] = useState('');
   const path = useEndpointRoutePath(undefined, PATH_MESSAGES);
+  const frame = useFrameOnMap();
 
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
@@ -178,6 +180,7 @@ export const RouteAddDropdown = ({
     if (mode === 'walk') return;
     void path.calculate(mode, start, end, (geojson) => {
       setPreviewRoute(geojson);
+      frame.frameGeometry(geojson);
       toast.success('Path preview ready');
     });
   };
@@ -185,6 +188,8 @@ export const RouteAddDropdown = ({
   const insertItem = (item: RouteItem, pointCount: number) => {
     addItem(item);
     selectItem(item.id);
+    // After selecting: the inspector opens with the item and takes room on the right.
+    frame.frameGeometry(item.geojson);
     reportRouteAdded(mode, pointCount);
     resetAll();
     onOpenChange(false);
