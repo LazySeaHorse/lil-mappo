@@ -2,10 +2,10 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { CameraItem } from '@/store/types';
-import { Accordion } from "@/components/ui/accordion";
 import { SliderRow, EasingSelect, CoordinatesRows, NumberRow } from './InspectorShared';
 import { formatDegrees } from './inspectorValues';
-import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { PanelWrapper } from './InspectorLayout';
+import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
 import { formatTimelineTime } from '@/components/Timeline/timelineTime';
 import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
@@ -56,55 +56,53 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
         className="mb-3"
       />
 
-      <Accordion type="multiple" defaultValue={['cam']} className="w-full">
-        <InspectorSection value="cam" title="Camera">
-          <div className="flex flex-col gap-3">
-            <CoordinatesRows
-              lngLat={kf.camera.center}
-              onChange={(center) => u({ camera: { ...kf.camera, center } })}
-            />
+      <InspectorSection kind="camera-kf" id="camera">
+        <div className="flex flex-col gap-3">
+          <CoordinatesRows
+            lngLat={kf.camera.center}
+            onChange={(center) => u({ camera: { ...kf.camera, center } })}
+          />
 
-            <SliderRow
-              label="Zoom"
-              icon={<ZoomIn size={13} />}
-              value={kf.camera.zoom}
-              onChange={(v) => u({ camera: { ...kf.camera, zoom: v } })}
-              min={0}
-              max={22}
-              step={0.1}
-              formatValue={(v) => v.toFixed(1)}
-            />
+          <SliderRow
+            label="Zoom"
+            icon={<ZoomIn size={13} />}
+            value={kf.camera.zoom}
+            onChange={(v) => u({ camera: { ...kf.camera, zoom: v } })}
+            min={0}
+            max={22}
+            step={0.1}
+            formatValue={(v) => v.toFixed(1)}
+          />
 
-            <SliderRow
-              label="Pitch"
-              icon={<Compass size={13} />}
-              value={kf.camera.pitch}
-              onChange={(v) => u({ camera: { ...kf.camera, pitch: v } })}
-              min={0}
-              max={85}
-              step={0.1}
-              formatValue={formatDegrees}
-            />
+          <SliderRow
+            label="Pitch"
+            icon={<Compass size={13} />}
+            value={kf.camera.pitch}
+            onChange={(v) => u({ camera: { ...kf.camera, pitch: v } })}
+            min={0}
+            max={85}
+            step={0.1}
+            formatValue={formatDegrees}
+          />
 
-            <SliderRow
-              label="Bearing"
-              icon={<RotateCw size={13} />}
-              value={kf.camera.bearing}
-              onChange={(v) => u({ camera: { ...kf.camera, bearing: v } })}
-              min={0}
-              max={360}
-              step={0.1}
-              formatValue={formatDegrees}
-            />
+          <SliderRow
+            label="Bearing"
+            icon={<RotateCw size={13} />}
+            value={kf.camera.bearing}
+            onChange={(v) => u({ camera: { ...kf.camera, bearing: v } })}
+            min={0}
+            max={360}
+            step={0.1}
+            formatValue={formatDegrees}
+          />
 
-            <EasingSelect 
-              value={kf.easing} 
-              onChange={(v) => u({ easing: v })} 
-              icon={<Sparkles size={13} />}
-            />
-          </div>
-        </InspectorSection>
-      </Accordion>
+          <EasingSelect 
+            value={kf.easing} 
+            onChange={(v) => u({ easing: v })} 
+            icon={<Sparkles size={13} />}
+          />
+        </div>
+      </InspectorSection>
     </PanelWrapper>
   );
 }

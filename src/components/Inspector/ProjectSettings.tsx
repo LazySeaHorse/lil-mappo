@@ -6,9 +6,9 @@ import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Accordion } from "@/components/ui/accordion";
 import { Field, InputText, InputNumber, SliderField } from './InspectorShared';
-import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { PanelWrapper } from './InspectorLayout';
+import { InspectorSection } from './InspectorSection';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
@@ -147,8 +147,8 @@ export function ProjectSettings() {
           )}
         </>
       ) : (
-        <Accordion type="multiple" defaultValue={['env', 'labels', '3d']} className="w-full">
-          <InspectorSection value="env" title="Map">
+        <>
+          <InspectorSection kind="project" id="env">
             <Field label="Projection">
               <Select value={projection} onValueChange={(v) => setProjection(parseProjection(v))}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
@@ -176,7 +176,7 @@ export function ProjectSettings() {
             <SliderField label="Terrain exaggeration" value={terrainExaggeration} onChange={setTerrainExaggeration} min={1} max={3} step={0.1} />
           </InspectorSection>
 
-          <InspectorSection value="atmos" title="Atmosphere">
+          <InspectorSection kind="project" id="atmos">
             {/* Mercator draws no stars; the fog color still tints its horizon haze */}
             {projectionShowsStars(projection) && (
               <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
@@ -201,7 +201,7 @@ export function ProjectSettings() {
           </InspectorSection>
 
           {capabilities.labelGroups.length > 0 && (
-            <InspectorSection value="labels" title="Labels">
+            <InspectorSection kind="project" id="labels">
               <div className="flex gap-2 mb-3">
                 <Button
                   onClick={() => setAllLabelsVisibility(true)}
@@ -234,13 +234,13 @@ export function ProjectSettings() {
           )}
 
           {(capabilities.landmarks3d || capabilities.trees3d || capabilities.facades3d) && (
-            <InspectorSection value="3d" title="3D features">
+            <InspectorSection kind="project" id="3d">
               {capabilities.landmarks3d && <SwitchField checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />}
               {capabilities.trees3d && <SwitchField checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />}
               {capabilities.facades3d && <SwitchField checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />}
             </InspectorSection>
           )}
-        </Accordion>
+        </>
       )}
     </PanelWrapper>
   );

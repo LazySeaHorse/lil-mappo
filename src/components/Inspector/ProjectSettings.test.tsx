@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import { ProjectSettings } from './ProjectSettings';
 
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: { tier: 'cartographer' } }) }));
@@ -10,6 +11,8 @@ const initialStore = useProjectStore.getState();
 beforeEach(() => {
   act(() => useProjectStore.setState(initialStore, true));
   act(() => useProjectStore.setState({ projectSettingsTab: 'map' }));
+  // Section choices are remembered, so each test starts from the defaults.
+  act(() => useUiPreferencesStore.setState({ inspectorSections: {} }));
 });
 
 /** The Atmosphere section starts collapsed. */

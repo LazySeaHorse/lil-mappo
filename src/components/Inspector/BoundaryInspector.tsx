@@ -4,7 +4,6 @@ import type { BoundaryItem } from '@/store/types';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { NominatimResult, shortPlaceName } from '@/services/nominatim';
 import { toast } from 'sonner';
-import { Accordion } from "@/components/ui/accordion";
 import { BoundarySearch } from './BoundarySearch';
 import { FlagPicker } from './FlagPicker';
 import { Field } from '@/components/ui/field';
@@ -18,7 +17,8 @@ import {
   type VisualCardOption,
 } from './InspectorShared';
 import { formatPercent } from './inspectorValues';
-import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { PanelWrapper } from './InspectorLayout';
+import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 
@@ -73,141 +73,138 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       }
     >
 
-      <Accordion type="multiple" defaultValue={['region', 'appearance', 'animation', 'timing']} className="w-full">
-        
-        <InspectorSection value="region" title="Search area">
-          <div className="flex flex-col gap-2.5">
-            <BoundarySearch
-              initialValue={item.placeName}
-              onSelect={handleSelect}
-            />
-          </div>
-        </InspectorSection>
-
-        <InspectorSection value="appearance" title="Appearance">
-          <div className="flex flex-col gap-3">
-            <ColorRow 
-              label="Stroke color" 
-              value={item.style.strokeColor} 
-              onChange={(v) => us({ strokeColor: v })} 
-            />
-            
-            <SliderRow 
-              label="Line width"
-              value={item.style.strokeWidth} 
-              onChange={(v) => us({ strokeWidth: v })} 
-              min={1} 
-              max={15} 
-              step={1} 
-              unit="px"
-            />
-            
-            <SwitchRow 
-              label="Glow" 
-              checked={item.style.glow} 
-              onChange={(v) => us({ glow: v })} 
-            />
-            
-            <Field label="Fill">
-              <SegmentedControl
-                options={[{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }]}
-                value={item.style.fillMode}
-                onValueChange={(v) => us({ fillMode: v })}
-              />
-            </Field>
-
-            {item.style.fillMode === 'flag' ? (
-              <div className="flex flex-col gap-1.5">
-                <FlagPicker value={item.style.flagCode} onChange={(code) => us({ flagCode: code })} />
-                {!item.style.flagCode && (
-                  <span className="text-[11px] text-muted-foreground leading-tight">
-                    Select a country to show its flag inside the boundary.
-                  </span>
-                )}
-              </div>
-            ) : (
-              <ColorRow
-                label="Fill color"
-                value={item.style.fillColor}
-                onChange={(v) => us({ fillColor: v })}
-              />
-            )}
-
-            <SliderRow 
-              label="Fill opacity" 
-              value={item.style.fillOpacity} 
-              onChange={(v) => us({ fillOpacity: v })} 
-              min={0} 
-              max={1} 
-              step={0.01} 
-              formatValue={formatPercent}
-            />
-
-            <SwitchRow
-              label="Mask outside"
-              sublabel="Cover the map area outside the boundary"
-              checked={item.style.maskOutside}
-              onChange={(v) => us({ maskOutside: v })}
-            />
-
-            {item.style.maskOutside && (
-              <div className="flex flex-col gap-3 pl-2 border-l-2 border-primary/20">
-                <ColorRow
-                  label="Mask color"
-                  value={item.style.maskColor}
-                  onChange={(v) => us({ maskColor: v })}
-                />
-                <SliderRow
-                  label="Mask opacity"
-                  value={item.style.maskOpacity}
-                  onChange={(v) => us({ maskOpacity: v })}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  formatValue={formatPercent}
-                />
-              </div>
-            )}
-          </div>
-        </InspectorSection>
-
-        <InspectorSection value="animation" title="Animation">
-          <div className="flex flex-col gap-3">
-            <VisualCardSelect
-              options={animationOptions}
-              value={activeAnimMode}
-              onChange={handleAnimModeChange}
-              columns={4}
-            />
-
-            {activeAnimMode === 'trace' && (
-              <SliderRow 
-                label="Highlight length" 
-                value={item.style.traceLength}
-                onChange={(v) => us({ traceLength: v })} 
-                min={0.01} 
-                max={0.5} 
-                step={0.01} 
-                formatValue={(v) => `${Math.round((v / 0.5) * 100)} %`}
-              />
-            )}
-          </div>
-        </InspectorSection>
-
-        <InspectorSection value="timing" title="Timing">
-          <TimingControls
-            startTime={item.startTime}
-            endTime={item.endTime}
-            onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
-            easing={item.easing}
-            onChangeEasing={(v) => u({ easing: v })}
-            exitAnimation={item.exitAnimation}
-            onChangeExitAnimation={(v) => u({ exitAnimation: v })}
-            showExitAnimation={activeAnimMode !== 'trace'}
+      <InspectorSection kind="boundary" id="region">
+        <div className="flex flex-col gap-2.5">
+          <BoundarySearch
+            initialValue={item.placeName}
+            onSelect={handleSelect}
           />
-        </InspectorSection>
+        </div>
+      </InspectorSection>
 
-      </Accordion>
+      <InspectorSection kind="boundary" id="appearance">
+        <div className="flex flex-col gap-3">
+          <ColorRow 
+            label="Stroke color" 
+            value={item.style.strokeColor} 
+            onChange={(v) => us({ strokeColor: v })} 
+          />
+          
+          <SliderRow 
+            label="Line width"
+            value={item.style.strokeWidth} 
+            onChange={(v) => us({ strokeWidth: v })} 
+            min={1} 
+            max={15} 
+            step={1} 
+            unit="px"
+          />
+          
+          <SwitchRow 
+            label="Glow" 
+            checked={item.style.glow} 
+            onChange={(v) => us({ glow: v })} 
+          />
+          
+          <Field label="Fill">
+            <SegmentedControl
+              options={[{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }]}
+              value={item.style.fillMode}
+              onValueChange={(v) => us({ fillMode: v })}
+            />
+          </Field>
+
+          {item.style.fillMode === 'flag' ? (
+            <div className="flex flex-col gap-1.5">
+              <FlagPicker value={item.style.flagCode} onChange={(code) => us({ flagCode: code })} />
+              {!item.style.flagCode && (
+                <span className="text-[11px] text-muted-foreground leading-tight">
+                  Select a country to show its flag inside the boundary.
+                </span>
+              )}
+            </div>
+          ) : (
+            <ColorRow
+              label="Fill color"
+              value={item.style.fillColor}
+              onChange={(v) => us({ fillColor: v })}
+            />
+          )}
+
+          <SliderRow 
+            label="Fill opacity" 
+            value={item.style.fillOpacity} 
+            onChange={(v) => us({ fillOpacity: v })} 
+            min={0} 
+            max={1} 
+            step={0.01} 
+            formatValue={formatPercent}
+          />
+
+          <SwitchRow
+            label="Mask outside"
+            sublabel="Cover the map area outside the boundary"
+            checked={item.style.maskOutside}
+            onChange={(v) => us({ maskOutside: v })}
+          />
+
+          {item.style.maskOutside && (
+            <div className="flex flex-col gap-3 pl-2 border-l-2 border-primary/20">
+              <ColorRow
+                label="Mask color"
+                value={item.style.maskColor}
+                onChange={(v) => us({ maskColor: v })}
+              />
+              <SliderRow
+                label="Mask opacity"
+                value={item.style.maskOpacity}
+                onChange={(v) => us({ maskOpacity: v })}
+                min={0}
+                max={1}
+                step={0.01}
+                formatValue={formatPercent}
+              />
+            </div>
+          )}
+        </div>
+      </InspectorSection>
+
+      <InspectorSection kind="boundary" id="animation">
+        <div className="flex flex-col gap-3">
+          <VisualCardSelect
+            options={animationOptions}
+            value={activeAnimMode}
+            onChange={handleAnimModeChange}
+            columns={4}
+          />
+
+          {activeAnimMode === 'trace' && (
+            <SliderRow 
+              label="Highlight length" 
+              value={item.style.traceLength}
+              onChange={(v) => us({ traceLength: v })} 
+              min={0.01} 
+              max={0.5} 
+              step={0.01} 
+              formatValue={(v) => `${Math.round((v / 0.5) * 100)} %`}
+            />
+          )}
+        </div>
+      </InspectorSection>
+
+      <InspectorSection kind="boundary" id="timing">
+        <TimingControls
+          startTime={item.startTime}
+          endTime={item.endTime}
+          onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
+          easing={item.easing}
+          onChangeEasing={(v) => u({ easing: v })}
+          exitAnimation={item.exitAnimation}
+          onChangeExitAnimation={(v) => u({ exitAnimation: v })}
+          showExitAnimation={activeAnimMode !== 'trace'}
+        />
+      </InspectorSection>
+
     </PanelWrapper>
   );
 }

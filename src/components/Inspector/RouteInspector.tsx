@@ -7,7 +7,6 @@ import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 import { autoCamForRoute, defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
 import { RoutePlanner } from './RoutePlanner';
-import { Accordion } from "@/components/ui/accordion";
 import { useSubscription } from '@/hooks/useSubscription';
 import { isWanderer } from '@/lib/cloudAccess';
 import { 
@@ -19,7 +18,8 @@ import {
   type VisualCardOption,
 } from './InspectorShared';
 import { formatMultiplier } from './inspectorValues';
-import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { PanelWrapper } from './InspectorLayout';
+import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
 import { track } from '@/lib/analytics';
 import { 
@@ -120,197 +120,194 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       }
     >
 
-      <Accordion type="multiple" defaultValue={['path', 'appearance', 'animation', 'camera']} className="w-full">
-        
-        <InspectorSection value="path" title="Path">
-          <RoutePlanner item={item} />
-        </InspectorSection>
+      <InspectorSection kind="route" id="path">
+        <RoutePlanner item={item} />
+      </InspectorSection>
 
-        <InspectorSection value="appearance" title="Appearance">
-          <div className="flex flex-col gap-3">
-            <ColorRow 
-              label="Color" 
-              value={item.style.color} 
-              onChange={(v) => us({ color: v })} 
+      <InspectorSection kind="route" id="appearance">
+        <div className="flex flex-col gap-3">
+          <ColorRow 
+            label="Color" 
+            value={item.style.color} 
+            onChange={(v) => us({ color: v })} 
+          />
+
+          <SliderRow 
+            label="Width" 
+            value={item.style.width} 
+            onChange={(v) => us({ width: v })} 
+            min={1} 
+            max={15} 
+            step={1} 
+            unit="px"
+          />
+
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            <span className="text-xs font-medium text-muted-foreground">Line style</span>
+            <VisualCardSelect
+              options={[
+                { 
+                  value: 'solid', 
+                  label: 'Solid', 
+                  icon: <div className="w-5 h-[2.5px] bg-current rounded-full my-0.5" /> 
+                },
+                { 
+                  value: 'dashed', 
+                  label: 'Dashed', 
+                  icon: <div className="w-5 border-t-[2.5px] border-dashed border-current my-0.5" /> 
+                },
+                { 
+                  value: 'dotted', 
+                  label: 'Dotted', 
+                  icon: <div className="w-5 border-t-[2.5px] border-dotted border-current my-0.5" /> 
+                },
+              ] satisfies readonly VisualCardOption<RouteLineStyle>[]}
+              value={lineStyleValue}
+              onChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}
+              columns={3}
             />
-
-            <SliderRow 
-              label="Width" 
-              value={item.style.width} 
-              onChange={(v) => us({ width: v })} 
-              min={1} 
-              max={15} 
-              step={1} 
-              unit="px"
-            />
-
-            <div className="flex flex-col gap-1.5 pt-0.5">
-              <span className="text-xs font-medium text-muted-foreground">Line style</span>
-              <VisualCardSelect
-                options={[
-                  { 
-                    value: 'solid', 
-                    label: 'Solid', 
-                    icon: <div className="w-5 h-[2.5px] bg-current rounded-full my-0.5" /> 
-                  },
-                  { 
-                    value: 'dashed', 
-                    label: 'Dashed', 
-                    icon: <div className="w-5 border-t-[2.5px] border-dashed border-current my-0.5" /> 
-                  },
-                  { 
-                    value: 'dotted', 
-                    label: 'Dotted', 
-                    icon: <div className="w-5 border-t-[2.5px] border-dotted border-current my-0.5" /> 
-                  },
-                ] satisfies readonly VisualCardOption<RouteLineStyle>[]}
-                value={lineStyleValue}
-                onChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}
-                columns={3}
-              />
-            </div>
-
-            <SwitchRow 
-              label="Glow" 
-              checked={item.style.glow} 
-              onChange={(v) => us({ glow: v })} 
-            />
-
-            {item.style.glow && (
-              <>
-                <SliderRow
-                  label="Glow width"
-                  value={item.style.glowWidth}
-                  onChange={(v) => us({ glowWidth: v })}
-                  min={2}
-                  max={40}
-                  step={1}
-                  unit="px"
-                />
-              </>
-            )}
           </div>
-        </InspectorSection>
 
-        <InspectorSection value="animation" title="Animation">
-          <div className="flex flex-col gap-3.5">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Style</span>
-              <VisualCardSelect
-                options={animOptions}
-                value={animType}
-                onChange={(v) => us({ animationType: v })}
-                columns={3}
+          <SwitchRow 
+            label="Glow" 
+            checked={item.style.glow} 
+            onChange={(v) => us({ glow: v })} 
+          />
+
+          {item.style.glow && (
+            <>
+              <SliderRow
+                label="Glow width"
+                value={item.style.glowWidth}
+                onChange={(v) => us({ glowWidth: v })}
+                min={2}
+                max={40}
+                step={1}
+                unit="px"
               />
-            </div>
+            </>
+          )}
+        </div>
+      </InspectorSection>
 
-            {/* Travel Marker */}
-            <div className="flex flex-col gap-3 pt-1 border-t border-border/30">
-              <SwitchRow
-                label="Route marker"
-                checked={calc.vehicle?.enabled || false}
-                onChange={(v) => updateVehicle({ enabled: v })}
-              />
+      <InspectorSection kind="route" id="animation">
+        <div className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Style</span>
+            <VisualCardSelect
+              options={animOptions}
+              value={animType}
+              onChange={(v) => us({ animationType: v })}
+              columns={3}
+            />
+          </div>
 
-              {calc.vehicle?.enabled && (
-                <div className="flex flex-col gap-3 pl-0.5">
-                  <div className="flex flex-col gap-1.5 pt-0.5">
-                    <span className="text-xs font-medium text-muted-foreground">Marker type</span>
-                    <VisualCardSelect
-                      options={[
-                        { value: 'dot', label: 'Dot', icon: <Circle size={14} /> },
-                        { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
-                        { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
-                      ]}
-                      value={calc.vehicle?.type || 'dot'}
-                      onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
-                      onLockedSelect={() => openUpgradeModal('vehicle_lock')}
-                      columns={3}
-                    />
-                  </div>
+          {/* Travel Marker */}
+          <div className="flex flex-col gap-3 pt-1 border-t border-border/30">
+            <SwitchRow
+              label="Route marker"
+              checked={calc.vehicle?.enabled || false}
+              onChange={(v) => updateVehicle({ enabled: v })}
+            />
 
-                  <SliderRow 
-                    label="Size" 
-                    value={calc.vehicle?.scale || 1} 
-                    onChange={(v) => updateVehicle({ scale: v })} 
-                    min={0.2} 
-                    max={4} 
-                    step={0.1} 
-                    formatValue={formatMultiplier}
+            {calc.vehicle?.enabled && (
+              <div className="flex flex-col gap-3 pl-0.5">
+                <div className="flex flex-col gap-1.5 pt-0.5">
+                  <span className="text-xs font-medium text-muted-foreground">Marker type</span>
+                  <VisualCardSelect
+                    options={[
+                      { value: 'dot', label: 'Dot', icon: <Circle size={14} /> },
+                      { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
+                      { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
+                    ]}
+                    value={calc.vehicle?.type || 'dot'}
+                    onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
+                    onLockedSelect={() => openUpgradeModal('vehicle_lock')}
+                    columns={3}
                   />
                 </div>
+
+                <SliderRow 
+                  label="Size" 
+                  value={calc.vehicle?.scale || 1} 
+                  onChange={(v) => updateVehicle({ scale: v })} 
+                  min={0.2} 
+                  max={4} 
+                  step={0.1} 
+                  formatValue={formatMultiplier}
+                />
+              </div>
+            )}
+          </div>
+
+          {animType === 'comet' && (
+            <SliderRow
+              label="Trail length"
+              value={item.style.cometTrailLength}
+              onChange={(v) => us({ cometTrailLength: v })}
+              min={0.05}
+              max={0.8}
+              step={0.05}
+              formatValue={(v) => v.toFixed(2)}
+            />
+          )}
+
+          {animType === 'draw' && (
+            <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
+              <SwitchRow 
+                label="Fade trail"
+                checked={item.style.trailFade} 
+                onChange={(v) => us({ trailFade: v })} 
+              />
+              {item.style.trailFade && (
+                <SliderRow 
+                  label="Fade length"
+                  value={item.style.trailFadeLength} 
+                  onChange={(v) => us({ trailFadeLength: v })} 
+                  min={0.05} 
+                  max={1} 
+                  step={0.05} 
+                  formatValue={(v) => v.toFixed(2)}
+                />
               )}
             </div>
+          )}
 
-            {animType === 'comet' && (
-              <SliderRow
-                label="Trail length"
-                value={item.style.cometTrailLength}
-                onChange={(v) => us({ cometTrailLength: v })}
-                min={0.05}
-                max={0.8}
-                step={0.05}
-                formatValue={(v) => v.toFixed(2)}
-              />
-            )}
-
-            {animType === 'draw' && (
-              <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
-                <SwitchRow 
-                  label="Fade trail"
-                  checked={item.style.trailFade} 
-                  onChange={(v) => us({ trailFade: v })} 
-                />
-                {item.style.trailFade && (
-                  <SliderRow 
-                    label="Fade length"
-                    value={item.style.trailFadeLength} 
-                    onChange={(v) => us({ trailFadeLength: v })} 
-                    min={0.05} 
-                    max={1} 
-                    step={0.05} 
-                    formatValue={(v) => v.toFixed(2)}
-                  />
-                )}
-              </div>
-            )}
-
-            <div className="pt-2 border-t border-border/30">
-              <TimingControls
-                startTime={item.startTime}
-                endTime={item.endTime}
-                onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
-                easing={item.easing}
-                onChangeEasing={(v) => u({ easing: v })}
-                exitAnimation={item.exitAnimation}
-                onChangeExitAnimation={(v) => u({ exitAnimation: v })}
-                showExitAnimation={animType === 'draw'}
-              />
-            </div>
-          </div>
-        </InspectorSection>
-
-        <InspectorSection value="camera" title="Camera">
-          <div className="flex flex-col gap-2">
-            <SwitchRow
-              label="Follow route"
-              walkthroughTarget="follow-route"
-              sublabel="Keeps the route or marker in view during playback."
-              checked={item.autoCam?.enabled ?? false}
-              onChange={handleAutoCamToggle}
+          <div className="pt-2 border-t border-border/30">
+            <TimingControls
+              startTime={item.startTime}
+              endTime={item.endTime}
+              onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
+              easing={item.easing}
+              onChangeEasing={(v) => u({ easing: v })}
+              exitAnimation={item.exitAnimation}
+              onChangeExitAnimation={(v) => u({ exitAnimation: v })}
+              showExitAnimation={animType === 'draw'}
             />
-            {item.autoCam?.enabled && (
-              <div className="mt-1.5 p-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
-                <Clapperboard size={13} className="text-primary shrink-0" />
-                <p className="text-[11px] text-primary font-medium leading-tight">
-                  Select the camera block on the timeline to edit camera settings.
-                </p>
-              </div>
-            )}
           </div>
-        </InspectorSection>
+        </div>
+      </InspectorSection>
 
-      </Accordion>
+      <InspectorSection kind="route" id="camera">
+        <div className="flex flex-col gap-2">
+          <SwitchRow
+            label="Follow route"
+            walkthroughTarget="follow-route"
+            sublabel="Keeps the route or marker in view during playback."
+            checked={item.autoCam?.enabled ?? false}
+            onChange={handleAutoCamToggle}
+          />
+          {item.autoCam?.enabled && (
+            <div className="mt-1.5 p-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
+              <Clapperboard size={13} className="text-primary shrink-0" />
+              <p className="text-[11px] text-primary font-medium leading-tight">
+                Select the camera block on the timeline to edit camera settings.
+              </p>
+            </div>
+          )}
+        </div>
+      </InspectorSection>
+
     </PanelWrapper>
   );
 }

@@ -1,6 +1,5 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Drawer,
@@ -19,35 +18,6 @@ import {
 } from '@/constants/layout';
 import { IconButton } from '@/components/ui/icon-button';
 import { cn } from '@/lib/utils';
-
-export function InspectorSection({ 
-  value, 
-  title, 
-  children,
-  className,
-}: { 
-  value: string; 
-  title: string; 
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <AccordionItem 
-      value={value} 
-      className={cn(
-        "border border-border/40 bg-secondary/25 hover:bg-secondary/35 rounded-xl px-3.5 mb-2.5 transition-colors overflow-hidden data-[state=open]:bg-secondary/35",
-        className
-      )}
-    >
-      <AccordionTrigger className="hover:no-underline py-2.5 text-xs font-medium tracking-tight text-foreground/90 hover:text-foreground">
-        <span>{title}</span>
-      </AccordionTrigger>
-      <AccordionContent className="pt-1 pb-3.5 flex flex-col gap-3">
-        {children}
-      </AccordionContent>
-    </AccordionItem>
-  );
-}
 
 export function PanelWrapper({ 
   title, 

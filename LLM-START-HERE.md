@@ -144,6 +144,8 @@ Right-side panel for editing selected items. Uses local state for draft values (
 
 **Panel header.** Every item panel (route, area, callout, camera view) passes an `InspectorHeader` to `PanelWrapper`'s `header` slot (it also works in the phone drawer). It shows the editable name, the type label (`ITEM_TYPE_LABELS` in `src/lib/terms.ts`) and a ... menu with Duplicate, Go to start (pauses, moves the playhead to the item's start) and Delete. The store actions live in `useInspectorItemActions`. There is no footer `ItemActions` any more; Delete has no confirm step, and undo restores the item. The Auto camera panel is a sub-panel of a route and keeps its own footer button.
 
+**Collapsible sections.** `<InspectorSection kind="route" id="appearance">` (`InspectorSection.tsx`) is a button with `aria-expanded` plus its content. Its title and default state come from `INSPECTOR_SECTIONS` in `inspectorSections.ts`, the one config module (add a section there first; ids are stored in user preferences, so do not rename them). `useInspectorSections(kind)` returns `{ sections, isOpen, setOpen, toggle }`. A user's choices live in `useUiPreferencesStore` and localStorage (`lil-mappo-inspector-sections`, read and written through `store/inspectorSectionsPreference.ts` in try/catch, like `timelineHeightPreference.ts`). Only the choices a user made are stored, so untouched sections follow their default. Closed sections do not render their content.
+
 ### 3.5 Label System (Dynamic Capabilities)
 
 **Lesson Learned**: Hardcoded label toggles per style + incorrect Config API property names = broken UX.

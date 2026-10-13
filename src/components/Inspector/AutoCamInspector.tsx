@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { SliderRow } from './InspectorShared';
 import { formatPercent } from './inspectorValues';
 import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIllustrations';
-import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { PanelWrapper } from './InspectorLayout';
+import { InspectorSection } from './InspectorSection';
 import { Video, VideoOff, Compass, Activity, Car, Plane, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges, routeFitOf } from '@/config/vehicles';
@@ -127,127 +128,125 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
         </div>
       )}
 
-      <Accordion type="multiple" defaultValue={['camera', 'framing', 'motion']} className="w-full">
-        <InspectorSection value="camera" title="Camera">
+      <InspectorSection kind="autocam" id="camera">
+        <div className="flex flex-col gap-3">
+          <SliderRow
+            label="Camera pitch"
+            icon={<Compass size={13} />}
+            value={config.pitch}
+            onChange={(v) => u({ pitch: v })}
+            min={0}
+            max={85}
+            step={1}
+            unit="°"
+          />
+          <SliderRow
+            label="Camera smoothing"
+            icon={<Activity size={13} />}
+            value={config.smoothing}
+            onChange={(v) => u({ smoothing: v })}
+            min={0}
+            max={1}
+            step={0.05}
+            formatValue={formatPercent}
+          />
+        </div>
+      </InspectorSection>
+
+      {config.mode === 'cinematic' && (
+        <InspectorSection kind="autocam" id="follow-view">
           <div className="flex flex-col gap-3">
             <SliderRow
-              label="Camera pitch"
-              icon={<Compass size={13} />}
-              value={config.pitch}
-              onChange={(v) => u({ pitch: v })}
-              min={0}
-              max={85}
-              step={1}
-              unit="°"
-            />
-            <SliderRow
-              label="Camera smoothing"
-              icon={<Activity size={13} />}
-              value={config.smoothing}
-              onChange={(v) => u({ smoothing: v })}
-              min={0}
-              max={1}
-              step={0.05}
-              formatValue={formatPercent}
+              label="Follow distance"
+              icon={isPlane ? <Plane size={13} /> : <Car size={13} />}
+              value={config.distance}
+              onChange={(v) => u({ distance: v })}
+              min={ranges.distance.min}
+              max={ranges.distance.max}
+              step={ranges.distance.step}
+              logarithmic
+              unit={isPlane ? '' : 'm'}
+              formatValue={formatDistance}
             />
           </div>
         </InspectorSection>
+      )}
 
-        {config.mode === 'cinematic' && (
-          <InspectorSection value="framing" title="Follow view">
-            <div className="flex flex-col gap-3">
-              <SliderRow
-                label="Follow distance"
-                icon={isPlane ? <Plane size={13} /> : <Car size={13} />}
-                value={config.distance}
-                onChange={(v) => u({ distance: v })}
-                min={ranges.distance.min}
-                max={ranges.distance.max}
-                step={ranges.distance.step}
-                logarithmic
-                unit={isPlane ? '' : 'm'}
-                formatValue={formatDistance}
-              />
-            </div>
-          </InspectorSection>
-        )}
-
-        {config.mode === 'navigation' && (
-          <InspectorSection value="framing" title="Navigation view">
-            <div className="flex flex-col gap-3">
-              <SliderRow
-                label="Zoom"
-                icon={<ZoomIn size={13} />}
-                value={config.zoom}
-                onChange={(v) => u({ zoom: v })}
-                min={8}
-                max={20}
-                step={0.5}
-                formatValue={(v) => v.toFixed(1)}
-              />
-              <SliderRow
-                label="Look ahead"
-                icon={<Eye size={13} />}
-                value={config.lookAhead}
-                onChange={(v) => u({ lookAhead: v })}
-                min={50}
-                max={1000}
-                step={50}
-                unit="m"
-              />
-            </div>
-          </InspectorSection>
-        )}
-
-        <InspectorSection value="motion" title="Motion">
+      {config.mode === 'navigation' && (
+        <InspectorSection kind="autocam" id="navigation-view">
           <div className="flex flex-col gap-3">
             <SliderRow
-              label="Dynamics"
-              icon={<Gauge size={13} />}
-              value={config.dynamics ?? 0.5}
-              onChange={(v) => u({ dynamics: v })}
-              min={0}
-              max={1}
-              step={0.05}
-              formatValue={formatPercent}
+              label="Zoom"
+              icon={<ZoomIn size={13} />}
+              value={config.zoom}
+              onChange={(v) => u({ zoom: v })}
+              min={8}
+              max={20}
+              step={0.5}
+              formatValue={(v) => v.toFixed(1)}
             />
-            {config.mode === 'cinematic' && (
-              <>
-                <SliderRow
-                  label="Orbit drift"
-                  icon={<Orbit size={13} />}
-                  value={config.orbit ?? 0}
-                  onChange={(v) => u({ orbit: v })}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  formatValue={formatPercent}
-                />
-                <SliderRow
-                  label="Intro swoop"
-                  icon={<Clapperboard size={13} />}
-                  value={config.intro ?? 0}
-                  onChange={(v) => u({ intro: v })}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  formatValue={formatPercent}
-                />
-                <SliderRow
-                  label="Outro pull-back"
-                  icon={<Maximize2 size={13} />}
-                  value={config.outro ?? 0}
-                  onChange={(v) => u({ outro: v })}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  formatValue={formatPercent}
-                />
-              </>
-            )}
+            <SliderRow
+              label="Look ahead"
+              icon={<Eye size={13} />}
+              value={config.lookAhead}
+              onChange={(v) => u({ lookAhead: v })}
+              min={50}
+              max={1000}
+              step={50}
+              unit="m"
+            />
           </div>
         </InspectorSection>
-      </Accordion>
+      )}
+
+      <InspectorSection kind="autocam" id="motion">
+        <div className="flex flex-col gap-3">
+          <SliderRow
+            label="Dynamics"
+            icon={<Gauge size={13} />}
+            value={config.dynamics ?? 0.5}
+            onChange={(v) => u({ dynamics: v })}
+            min={0}
+            max={1}
+            step={0.05}
+            formatValue={formatPercent}
+          />
+          {config.mode === 'cinematic' && (
+            <>
+              <SliderRow
+                label="Orbit drift"
+                icon={<Orbit size={13} />}
+                value={config.orbit ?? 0}
+                onChange={(v) => u({ orbit: v })}
+                min={0}
+                max={1}
+                step={0.05}
+                formatValue={formatPercent}
+              />
+              <SliderRow
+                label="Intro swoop"
+                icon={<Clapperboard size={13} />}
+                value={config.intro ?? 0}
+                onChange={(v) => u({ intro: v })}
+                min={0}
+                max={1}
+                step={0.05}
+                formatValue={formatPercent}
+              />
+              <SliderRow
+                label="Outro pull-back"
+                icon={<Maximize2 size={13} />}
+                value={config.outro ?? 0}
+                onChange={(v) => u({ outro: v })}
+                min={0}
+                max={1}
+                step={0.05}
+                formatValue={formatPercent}
+              />
+            </>
+          )}
+        </div>
+      </InspectorSection>
     </PanelWrapper>
   );
 }

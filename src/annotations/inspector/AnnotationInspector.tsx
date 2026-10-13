@@ -12,7 +12,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import type { CalloutItem } from '@/store/types';
 import { Button } from "@/components/ui/button";
-import { Accordion } from "@/components/ui/accordion";
 import { Check, Crosshair, MapPin } from 'lucide-react';
 import { SearchField } from '@/components/Search/SearchField';
 import {
@@ -23,7 +22,8 @@ import {
   TimingControls,
   CoordinatesRows,
 } from '@/components/Inspector/InspectorShared';
-import { PanelWrapper, InspectorSection } from '@/components/Inspector/InspectorLayout';
+import { PanelWrapper } from '@/components/Inspector/InspectorLayout';
+import { InspectorSection } from '@/components/Inspector/InspectorSection';
 import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
 import { getStyle } from '@/annotations/registry';
 import { createCalloutStyleDefaults } from '@/store/itemFactories';
@@ -97,193 +97,190 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       }
     >
 
-      <Accordion type="multiple" defaultValue={['style', 'location', 'appearance', 'size', 'connector', 'position', 'animation', 'timing']} className="w-full">
+      <InspectorSection kind="callout" id="style">
+        <StylePicker
+          value={item.styleId}
+          onChange={(newStyleId) => {
+            const newStyle = getStyle(newStyleId);
+            if (!newStyle) return;
+            // Each style is designed around its own placement and motion, so a
+            // new style starts from its own defaults.
+            const { altitude: defaultAltitude, ...defaults } = createCalloutStyleDefaults(newStyle);
+            const patch: Partial<CalloutItem> = { ...defaults };
+            if (item.binding.kind === 'geographic') {
+              patch.binding = { ...item.binding, altitude: defaultAltitude };
+            }
+            u(patch);
+          }}
+        />
+      </InspectorSection>
 
-        <InspectorSection value="style" title="Style">
-          <StylePicker
-            value={item.styleId}
-            onChange={(newStyleId) => {
-              const newStyle = getStyle(newStyleId);
-              if (!newStyle) return;
-              // Each style is designed around its own placement and motion, so a
-              // new style starts from its own defaults.
-              const { altitude: defaultAltitude, ...defaults } = createCalloutStyleDefaults(newStyle);
-              const patch: Partial<CalloutItem> = { ...defaults };
-              if (item.binding.kind === 'geographic') {
-                patch.binding = { ...item.binding, altitude: defaultAltitude };
-              }
-              u(patch);
-            }}
-          />
-        </InspectorSection>
-
-        <InspectorSection value="location" title="Location and content">
-          <div className="flex flex-col gap-2.5">
-            <SearchField
-              label="Search for a place or enter coordinates"
-              value={lngLat as [number, number]}
-              name={placeLabel(item.locationName, lngLat as [number, number])}
-              onSelect={(coords, name) => {
-                const patch: Partial<CalloutItem> = {
-                  binding: {
-                    kind: 'geographic',
-                    lngLat: coords,
-                    altitude,
-                  },
-                  locationName: name,
-                };
-                if (item.linkTitleToLocation) {
-                  patch.content = { ...item.content, title: name };
-                }
-                u(patch);
-                toast.success('Callout location updated.');
-              }}
-              isPicking={isPicking}
-              onStartPick={handleTogglePick}
-              showDot={false}
-              className="px-0"
-              color={item.linkTitleToLocation
-                ? "bg-primary/10 text-primary border-primary/20"
-                : "bg-secondary/50 text-muted-foreground border-border/50"
-              }
-            />
-
-            <SwitchRow
-              label="Use place name as title"
-              checked={item.linkTitleToLocation}
-              onChange={(v) => u({ linkTitleToLocation: v })}
-            />
-
-            <ContentFields
-              content={item.content}
-              slots={style?.contentSlots ?? []}
-              eyebrowFallback={style?.eyebrowFallback}
-              onChange={(content) => u({ content })}
-            />
-          </div>
-        </InspectorSection>
-
-        {style && style.controls.length > 0 && (
-          <InspectorSection value="appearance" title="Appearance">
-            <DynamicControls
-              controls={style.controls}
-              settings={item.settings}
-              onUpdate={updateSettings}
-            />
-          </InspectorSection>
-        )}
-
-        <InspectorSection value="size" title="Size">
-          <SizeControls item={item} onChange={u} />
-        </InspectorSection>
-
-        {supportsAltitude && !style?.drawsConnector && (
-          <InspectorSection value="connector" title="Anchor line">
-            <div className="flex flex-col gap-2.5">
-              <SwitchRow
-                label="Show anchor line"
-                checked={item.connector.visible}
-                onChange={(v) => u({ connector: { ...item.connector, visible: v } })}
-              />
-              {item.connector.visible && (
-                <ColorRow
-                  label="Line color"
-                  value={item.connector.color}
-                  onChange={(v) => u({ connector: { ...item.connector, color: v } })}
-                />
-              )}
-            </div>
-          </InspectorSection>
-        )}
-
-        <InspectorSection value="position" title="Position">
-          <div className="flex flex-col gap-3.5 pt-0.5">
-            <Button
-              type="button"
-              onClick={() => setMoveModeActive(!isMoveModeActive)}
-              variant={isMoveModeActive ? "default" : "outline"}
-              className="w-full h-11 py-2.5 px-4 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow"
-            >
-              {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
-              <span>{isMoveModeActive ? 'Finish positioning' : 'Position on map'}</span>
-            </Button>
-
-            {supportsAltitude && (
-              <SliderRow
-                label="Altitude"
-                value={altitude}
-                onChange={(v) => u({
-                  binding: item.binding.kind === 'geographic'
-                    ? { ...item.binding, altitude: v }
-                    : item.binding,
-                })}
-                min={0}
-                max={150}
-                step={2}
-                unit="px"
-              />
-            )}
-
-            <CoordinatesRows
-              lngLat={lngLat as [number, number]}
-              onChange={(coords) => u({
+      <InspectorSection kind="callout" id="location">
+        <div className="flex flex-col gap-2.5">
+          <SearchField
+            label="Search for a place or enter coordinates"
+            value={lngLat as [number, number]}
+            name={placeLabel(item.locationName, lngLat as [number, number])}
+            onSelect={(coords, name) => {
+              const patch: Partial<CalloutItem> = {
                 binding: {
                   kind: 'geographic',
                   lngLat: coords,
                   altitude,
                 },
-                linkTitleToLocation: false,
-                locationName: '',
-              })}
-              className="pt-1"
-            />
-          </div>
-        </InspectorSection>
+                locationName: name,
+              };
+              if (item.linkTitleToLocation) {
+                patch.content = { ...item.content, title: name };
+              }
+              u(patch);
+              toast.success('Callout location updated.');
+            }}
+            isPicking={isPicking}
+            onStartPick={handleTogglePick}
+            showDot={false}
+            className="px-0"
+            color={item.linkTitleToLocation
+              ? "bg-primary/10 text-primary border-primary/20"
+              : "bg-secondary/50 text-muted-foreground border-border/50"
+            }
+          />
 
-        <InspectorSection value="animation" title="Animation">
-          <div className="flex flex-col gap-3.5">
-            <SelectRow
-              label="Enter"
-              value={item.transition.enter}
-              onChange={(enter) => u({ transition: { ...item.transition, enter } })}
-              options={transitionOptions(ENTER_TRANSITIONS, item.transition.enter)}
-            />
-            <SliderRow
-              label="Enter duration"
-              value={item.transition.enterDuration}
-              onChange={(enterDuration) => u({ transition: { ...item.transition, enterDuration } })}
-              min={0}
-              max={3}
-              step={0.1}
-              unit="s"
-            />
-            <SelectRow
-              label="Exit"
-              value={item.transition.exit}
-              onChange={(exit) => u({ transition: { ...item.transition, exit } })}
-              options={transitionOptions(EXIT_TRANSITIONS, item.transition.exit)}
-            />
-            <SliderRow
-              label="Exit duration"
-              value={item.transition.exitDuration}
-              onChange={(exitDuration) => u({ transition: { ...item.transition, exitDuration } })}
-              min={0}
-              max={3}
-              step={0.1}
-              unit="s"
-            />
-          </div>
-        </InspectorSection>
+          <SwitchRow
+            label="Use place name as title"
+            checked={item.linkTitleToLocation}
+            onChange={(v) => u({ linkTitleToLocation: v })}
+          />
 
-        <InspectorSection value="timing" title="Timing">
-          <TimingControls
-            startTime={item.startTime}
-            endTime={item.endTime}
-            onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
+          <ContentFields
+            content={item.content}
+            slots={style?.contentSlots ?? []}
+            eyebrowFallback={style?.eyebrowFallback}
+            onChange={(content) => u({ content })}
+          />
+        </div>
+      </InspectorSection>
+
+      {style && style.controls.length > 0 && (
+        <InspectorSection kind="callout" id="appearance">
+          <DynamicControls
+            controls={style.controls}
+            settings={item.settings}
+            onUpdate={updateSettings}
           />
         </InspectorSection>
+      )}
 
-      </Accordion>
+      <InspectorSection kind="callout" id="size">
+        <SizeControls item={item} onChange={u} />
+      </InspectorSection>
+
+      {supportsAltitude && !style?.drawsConnector && (
+        <InspectorSection kind="callout" id="connector">
+          <div className="flex flex-col gap-2.5">
+            <SwitchRow
+              label="Show anchor line"
+              checked={item.connector.visible}
+              onChange={(v) => u({ connector: { ...item.connector, visible: v } })}
+            />
+            {item.connector.visible && (
+              <ColorRow
+                label="Line color"
+                value={item.connector.color}
+                onChange={(v) => u({ connector: { ...item.connector, color: v } })}
+              />
+            )}
+          </div>
+        </InspectorSection>
+      )}
+
+      <InspectorSection kind="callout" id="position">
+        <div className="flex flex-col gap-3.5 pt-0.5">
+          <Button
+            type="button"
+            onClick={() => setMoveModeActive(!isMoveModeActive)}
+            variant={isMoveModeActive ? "default" : "outline"}
+            className="w-full h-11 py-2.5 px-4 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow"
+          >
+            {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
+            <span>{isMoveModeActive ? 'Finish positioning' : 'Position on map'}</span>
+          </Button>
+
+          {supportsAltitude && (
+            <SliderRow
+              label="Altitude"
+              value={altitude}
+              onChange={(v) => u({
+                binding: item.binding.kind === 'geographic'
+                  ? { ...item.binding, altitude: v }
+                  : item.binding,
+              })}
+              min={0}
+              max={150}
+              step={2}
+              unit="px"
+            />
+          )}
+
+          <CoordinatesRows
+            lngLat={lngLat as [number, number]}
+            onChange={(coords) => u({
+              binding: {
+                kind: 'geographic',
+                lngLat: coords,
+                altitude,
+              },
+              linkTitleToLocation: false,
+              locationName: '',
+            })}
+            className="pt-1"
+          />
+        </div>
+      </InspectorSection>
+
+      <InspectorSection kind="callout" id="animation">
+        <div className="flex flex-col gap-3.5">
+          <SelectRow
+            label="Enter"
+            value={item.transition.enter}
+            onChange={(enter) => u({ transition: { ...item.transition, enter } })}
+            options={transitionOptions(ENTER_TRANSITIONS, item.transition.enter)}
+          />
+          <SliderRow
+            label="Enter duration"
+            value={item.transition.enterDuration}
+            onChange={(enterDuration) => u({ transition: { ...item.transition, enterDuration } })}
+            min={0}
+            max={3}
+            step={0.1}
+            unit="s"
+          />
+          <SelectRow
+            label="Exit"
+            value={item.transition.exit}
+            onChange={(exit) => u({ transition: { ...item.transition, exit } })}
+            options={transitionOptions(EXIT_TRANSITIONS, item.transition.exit)}
+          />
+          <SliderRow
+            label="Exit duration"
+            value={item.transition.exitDuration}
+            onChange={(exitDuration) => u({ transition: { ...item.transition, exitDuration } })}
+            min={0}
+            max={3}
+            step={0.1}
+            unit="s"
+          />
+        </div>
+      </InspectorSection>
+
+      <InspectorSection kind="callout" id="timing">
+        <TimingControls
+          startTime={item.startTime}
+          endTime={item.endTime}
+          onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
+        />
+      </InspectorSection>
+
     </PanelWrapper>
   );
 }

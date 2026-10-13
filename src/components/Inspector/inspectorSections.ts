@@ -1,0 +1,54 @@
+/**
+ * The collapsible sections of each inspector panel, in one place.
+ * `defaultOpen` is what a user sees until they open or close the section.
+ * A section id is stored in the user's preferences, so do not rename one lightly.
+ */
+export interface InspectorSectionConfig {
+  id: string;
+  title: string;
+  defaultOpen: boolean;
+}
+
+export const INSPECTOR_SECTIONS = {
+  route: [
+    { id: 'path', title: 'Path', defaultOpen: true },
+    { id: 'appearance', title: 'Appearance', defaultOpen: true },
+    { id: 'animation', title: 'Animation', defaultOpen: true },
+    { id: 'camera', title: 'Camera', defaultOpen: true },
+  ],
+  boundary: [
+    { id: 'region', title: 'Search area', defaultOpen: true },
+    { id: 'appearance', title: 'Appearance', defaultOpen: true },
+    { id: 'animation', title: 'Animation', defaultOpen: true },
+    { id: 'timing', title: 'Timing', defaultOpen: true },
+  ],
+  callout: [
+    { id: 'style', title: 'Style', defaultOpen: true },
+    { id: 'location', title: 'Location and content', defaultOpen: true },
+    { id: 'appearance', title: 'Appearance', defaultOpen: true },
+    { id: 'size', title: 'Size', defaultOpen: true },
+    { id: 'connector', title: 'Anchor line', defaultOpen: true },
+    { id: 'position', title: 'Position', defaultOpen: true },
+    { id: 'animation', title: 'Animation', defaultOpen: true },
+    { id: 'timing', title: 'Timing', defaultOpen: true },
+  ],
+  'camera-kf': [
+    { id: 'camera', title: 'Camera', defaultOpen: true },
+  ],
+  autocam: [
+    { id: 'camera', title: 'Camera', defaultOpen: true },
+    { id: 'follow-view', title: 'Follow view', defaultOpen: true },
+    { id: 'navigation-view', title: 'Navigation view', defaultOpen: true },
+    { id: 'motion', title: 'Motion', defaultOpen: true },
+  ],
+  project: [
+    { id: 'env', title: 'Map', defaultOpen: true },
+    { id: 'atmos', title: 'Atmosphere', defaultOpen: false },
+    { id: 'labels', title: 'Labels', defaultOpen: true },
+    { id: '3d', title: '3D features', defaultOpen: true },
+  ],
+} as const satisfies Record<string, readonly InspectorSectionConfig[]>;
+
+export type InspectorSectionKind = keyof typeof INSPECTOR_SECTIONS;
+export type InspectorSectionId<K extends InspectorSectionKind> =
+  (typeof INSPECTOR_SECTIONS)[K][number]['id'];
