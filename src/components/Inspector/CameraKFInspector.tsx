@@ -30,10 +30,10 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
 
   if (!kf) {
     return (
-      <PanelWrapper title="Camera track" icon={<Video size={15} />}>
+      <PanelWrapper title={CAMERA_VIEW_TERMS.track} icon={<Video size={15} />}>
         <div className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">Select a keyframe in the timeline to edit it.</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-2">{item.keyframes.length} keyframe{item.keyframes.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-muted-foreground">{CAMERA_VIEW_TERMS.selectOne}</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-2">{item.keyframes.length} camera view{item.keyframes.length !== 1 ? 's' : ''}</p>
         </div>
       </PanelWrapper>
     );

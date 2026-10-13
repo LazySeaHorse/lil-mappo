@@ -50,6 +50,11 @@ export const ROUTE_TERMS = {
 
 /** Words of the camera view panel. A camera view is one saved position of the map camera. */
 export const CAMERA_VIEW_TERMS = {
+  /** Tooltip of the toolbar button that adds one. */
+  add: 'Add camera view',
+  /** The timeline row that holds every camera view. */
+  track: 'Camera views',
+  selectOne: 'Select a camera view in the timeline to edit it.',
   help: 'Move the map to the view you want. Then click Use current view.',
   useCurrent: 'Use current view',
   goTo: 'Go to this view',

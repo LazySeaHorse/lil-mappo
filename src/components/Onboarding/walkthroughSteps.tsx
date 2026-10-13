@@ -187,7 +187,7 @@ export function getWalkthroughStepConfig(
         buttons: ['skip', 'primary'],
         nextLabel: 'Next',
         renderContent: () =>
-          'Camera keyframes, boundaries, callouts, and map styles are in the toolbar. Try them when you are ready.',
+          'Camera views, boundaries, callouts, and map styles are in the toolbar. Try them when you are ready.',
       };
 
     case 'render':

@@ -10,6 +10,7 @@ import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
+import { CAMERA_VIEW_TERMS } from '@/lib/terms';
 
 interface MobileToolbarLayoutProps {
   mobileMode: 'default' | 'add' | 'layers';
@@ -90,7 +91,7 @@ export function MobileToolbarLayout({
             <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
             <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
             <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-            <ToolbarButton icon={<Video size={18} />} label="Camera Keyframe" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
+            <ToolbarButton icon={<Video size={18} />} label={CAMERA_VIEW_TERMS.add} hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
             <IconButton variant="toolbar" size="sm" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />
             </IconButton>

@@ -186,7 +186,7 @@ test("2. map and editor load", async ({ page }) => {
 
   await expect(page.locator(".mapboxgl-map")).toBeVisible();
   await expect(page.locator(".mapboxgl-canvas")).toHaveCount(1);
-  await expect(page.getByText("Camera", { exact: true })).toBeVisible();
+  await expect(page.getByText("Camera views", { exact: true })).toBeVisible();
   await expect(page.getByTitle("Plan Route")).toBeEnabled();
 });
 

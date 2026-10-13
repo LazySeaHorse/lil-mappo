@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
+import { ITEM_TYPE_LABELS } from '@/lib/terms';
 import { readMapCamera } from '@/engine/readMapCamera';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { track } from '@/lib/analytics';
@@ -158,7 +159,7 @@ export function useToolbarActions() {
     // Opens the inspector on the new view (a bottom drawer on a phone).
     selectKeyframe(keyframe.id);
     track('keyframe_added', { source: 'toolbar' });
-    toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
+    toast.success(`${ITEM_TYPE_LABELS['camera-kf']} added at ${playheadTime.toFixed(1)}s`);
   };
 
   return {

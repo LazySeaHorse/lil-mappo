@@ -80,7 +80,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
     weight: 5,
     execute: async (page, _rng, recorder) => {
       recorder.record('timeline', 'Add Camera Keyframe');
-      const kfBtn = page.getByTitle('Camera Keyframe', { exact: true });
+      const kfBtn = page.getByTitle('Add camera view', { exact: true });
       if (await kfBtn.isVisible().catch(() => false)) {
         await safeClick(kfBtn);
       }

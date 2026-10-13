@@ -5,6 +5,8 @@ import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { toast } from 'sonner';
+import { ITEM_TYPE_LABELS } from '@/lib/terms';
 import { useToolbarActions } from './useToolbarActions';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import type { CameraItem } from '@/store/types';
@@ -12,6 +14,7 @@ import type { CameraItem } from '@/store/types';
 vi.mock('react-secure-storage', () => ({
   default: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn() },
 }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: null }) }));
 vi.mock('@/lib/analytics/reporters', () => ({ reportRouteAdded: vi.fn() }));
 vi.mock('@/lib/lazyModules', () => ({
@@ -121,5 +124,11 @@ describe('useToolbarActions handleAddCameraKF', () => {
     expect(s.selectedItemId).toBe(CAMERA_TRACK_ID);
     expect(s.selectedKeyframeId).toBe(added.id);
     expect(s.isInspectorOpen).toBe(true);
+  });
+
+  it('says "camera view" in the toast', () => {
+    const { result } = renderHook(() => useToolbarActions(), { wrapper });
+    act(() => result.current.handleAddCameraKF());
+    expect(toast.success).toHaveBeenCalledWith(`${ITEM_TYPE_LABELS['camera-kf']} added at 3.0s`);
   });
 });

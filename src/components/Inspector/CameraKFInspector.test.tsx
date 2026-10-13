@@ -9,7 +9,7 @@ import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import { createCameraKeyframe } from '@/store/itemFactories';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { INSPECTOR_SECTIONS } from './inspectorSections';
-import { CAMERA_VIEW_TERMS } from '@/lib/terms';
+import { CAMERA_VIEW_TERMS, ITEM_TYPE_LABELS } from '@/lib/terms';
 import type { CameraItem } from '@/store/types';
 
 vi.mock('@/hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false, isTablet: false }) }));
@@ -105,5 +105,20 @@ describe('CameraKFInspector exact values', () => {
     expect(screen.getByText('Zoom')).toBeInTheDocument();
     expect(screen.getByText('Pitch')).toBeInTheDocument();
     expect(screen.getByText('Bearing')).toBeInTheDocument();
+  });
+});
+
+describe('CameraKFInspector words', () => {
+  it('names the panel type with the camera view term', () => {
+    render(<CameraKFInspector item={item} />, { wrapper });
+    expect(screen.getByText(ITEM_TYPE_LABELS['camera-kf'])).toBeInTheDocument();
+  });
+
+  it('asks for a camera view, not a keyframe, when none is selected', () => {
+    useProjectStore.setState({ selectedKeyframeId: null });
+    render(<CameraKFInspector item={item} />, { wrapper });
+    expect(screen.getByText(CAMERA_VIEW_TERMS.selectOne)).toBeInTheDocument();
+    expect(screen.getByText('1 camera view')).toBeInTheDocument();
+    expect(screen.queryByText(/keyframe/i)).not.toBeInTheDocument();
   });
 });
