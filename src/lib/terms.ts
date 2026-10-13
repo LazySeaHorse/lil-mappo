@@ -66,3 +66,16 @@ export const DURATION_TERMS = {
   /** Tells a user why their length was cut down. */
   limit: (maxSeconds: number) => `The free plan allows ${maxSeconds} seconds at most.`,
 } as const;
+
+/** One short line of help under each setting on the Map tab of the project settings. */
+export const MAP_SETTING_HINTS = {
+  projection: 'Globe shows a round Earth when you zoom out. Mercator shows a flat map.',
+  lighting: 'Sets the time of day for the light on the map.',
+  terrainHeight: 'Makes hills and mountains look taller. Turn on Terrain in the toolbar first.',
+  stars: 'Sets how many stars show in space around the Earth.',
+  fogColor: 'Sets the color of the haze at the horizon.',
+  features3d: 'Turn on Buildings in the toolbar to see these.',
+  landmarks: 'Shows famous buildings as 3D models.',
+  trees: 'Shows trees in 3D.',
+  facades: 'Shows more detail on the walls of buildings.',
+} as const;

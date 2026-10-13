@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import { ProjectSettings } from './ProjectSettings';
+import { MAP_SETTING_HINTS } from '@/lib/terms';
+import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: { tier: 'cartographer' } }) }));
 
@@ -65,5 +67,51 @@ describe('ProjectSettings atmosphere', () => {
     render(<ProjectSettings />);
     openAtmosphere();
     expect(screen.getByLabelText('Custom color #123456')).toBeInTheDocument();
+  });
+});
+
+describe('ProjectSettings map hints', () => {
+  beforeEach(() => {
+    act(() => useProjectStore.setState({
+      mapStyle: 'standard',
+      projection: 'globe',
+      detectedCapabilities: { ...STANDARD_CAPABILITIES, timeOfDayPreset: true, landmarks3d: true, trees3d: true, facades3d: true },
+    }));
+  });
+
+  it('explains projection, lighting and terrain height in the Map section', () => {
+    render(<ProjectSettings />);
+    expect(screen.getByText(MAP_SETTING_HINTS.projection)).toBeInTheDocument();
+    expect(screen.getByText(MAP_SETTING_HINTS.lighting)).toBeInTheDocument();
+    expect(screen.getByText(MAP_SETTING_HINTS.terrainHeight)).toBeInTheDocument();
+  });
+
+  it('labels the ends of the terrain slider', () => {
+    render(<ProjectSettings />);
+    expect(screen.getByText('Natural')).toBeInTheDocument();
+    expect(screen.getByText('Dramatic')).toBeInTheDocument();
+  });
+
+  it('explains stars and fog color in the Atmosphere section', () => {
+    render(<ProjectSettings />);
+    openAtmosphere();
+    expect(screen.getByText(MAP_SETTING_HINTS.stars)).toBeInTheDocument();
+    expect(screen.getByText(MAP_SETTING_HINTS.fogColor)).toBeInTheDocument();
+  });
+
+  it('explains each 3D feature and where to turn buildings on', () => {
+    render(<ProjectSettings />);
+    expect(screen.getByText(MAP_SETTING_HINTS.features3d)).toBeInTheDocument();
+    expect(screen.getByText(MAP_SETTING_HINTS.landmarks)).toBeInTheDocument();
+    expect(screen.getByText(MAP_SETTING_HINTS.trees)).toBeInTheDocument();
+    expect(screen.getByText(MAP_SETTING_HINTS.facades)).toBeInTheDocument();
+  });
+
+  it('shows no star hint on the flat map, where there are no stars', () => {
+    act(() => useProjectStore.getState().setProjection('mercator'));
+    render(<ProjectSettings />);
+    openAtmosphere();
+    expect(screen.queryByText(MAP_SETTING_HINTS.stars)).toBeNull();
+    expect(screen.getByText(MAP_SETTING_HINTS.fogColor)).toBeInTheDocument();
   });
 });

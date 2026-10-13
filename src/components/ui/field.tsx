@@ -6,10 +6,13 @@ import { cn } from "@/lib/utils";
 function Field({
   label,
   children,
+  hint,
   className,
 }: {
   label: React.ReactNode;
   children: React.ReactNode;
+  /** One muted line of help under the control. */
+  hint?: string;
   className?: string;
 }) {
   return (
@@ -20,6 +23,11 @@ function Field({
         </label>
       )}
       {children}
+      {hint && (
+        <p data-slot="field-hint" className="mt-1.5 text-[11px] leading-tight text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

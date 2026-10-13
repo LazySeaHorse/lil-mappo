@@ -7,7 +7,9 @@ import { useProjectDuration } from '@/hooks/useProjectDuration';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Field, InputText, InputNumber, SliderField } from './InspectorShared';
+import { Field, InputText, InputNumber, SliderRow, SwitchRow } from './InspectorShared';
+import { formatMultiplier, formatPercent } from './inspectorValues';
+import { MAP_SETTING_HINTS } from '@/lib/terms';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -152,7 +154,7 @@ export function ProjectSettings() {
       ) : (
         <>
           <InspectorSection kind="project" id="env">
-            <Field label="Projection">
+            <Field label="Projection" hint={MAP_SETTING_HINTS.projection}>
               <Select value={projection} onValueChange={(v) => setProjection(parseProjection(v))}>
                 <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -163,7 +165,7 @@ export function ProjectSettings() {
             </Field>
 
             {capabilities.timeOfDayPreset && (
-              <Field label="Lighting">
+              <Field label="Lighting" hint={MAP_SETTING_HINTS.lighting}>
                 <Select value={lightPreset} onValueChange={(v) => setLightPreset(parseLightPreset(v))}>
                   <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -176,15 +178,35 @@ export function ProjectSettings() {
               </Field>
             )}
 
-            <SliderField label="Terrain exaggeration" value={terrainExaggeration} onChange={setTerrainExaggeration} min={1} max={3} step={0.1} />
+            <SliderRow
+              label="Terrain height"
+              value={terrainExaggeration}
+              onChange={setTerrainExaggeration}
+              min={1}
+              max={3}
+              step={0.1}
+              formatValue={formatMultiplier}
+              endLabels={['Natural', 'Dramatic']}
+              hint={MAP_SETTING_HINTS.terrainHeight}
+            />
           </InspectorSection>
 
           <InspectorSection kind="project" id="atmos">
             {/* Mercator draws no stars; the fog color still tints its horizon haze */}
             {projectionShowsStars(projection) && (
-              <SliderField label="Star intensity" value={starIntensity} onChange={(v) => setAtmosphere({ starIntensity: v })} min={0} max={1} step={0.01} />
+              <SliderRow
+                label="Star intensity"
+                value={starIntensity}
+                onChange={(v) => setAtmosphere({ starIntensity: v })}
+                min={0}
+                max={1}
+                step={0.01}
+                formatValue={formatPercent}
+                endLabels={['None', 'Many']}
+                hint={MAP_SETTING_HINTS.stars}
+              />
             )}
-            <Field label="Fog color">
+            <Field label="Fog color" hint={MAP_SETTING_HINTS.fogColor}>
               <div className="flex gap-2 items-center">
                 <ColorPicker
                   value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
@@ -238,9 +260,10 @@ export function ProjectSettings() {
 
           {(capabilities.landmarks3d || capabilities.trees3d || capabilities.facades3d) && (
             <InspectorSection kind="project" id="3d">
-              {capabilities.landmarks3d && <SwitchField checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" />}
-              {capabilities.trees3d && <SwitchField checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" />}
-              {capabilities.facades3d && <SwitchField checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" />}
+              <p className="text-[11px] leading-tight text-muted-foreground">{MAP_SETTING_HINTS.features3d}</p>
+              {capabilities.landmarks3d && <SwitchRow checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" sublabel={MAP_SETTING_HINTS.landmarks} />}
+              {capabilities.trees3d && <SwitchRow checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" sublabel={MAP_SETTING_HINTS.trees} />}
+              {capabilities.facades3d && <SwitchRow checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" sublabel={MAP_SETTING_HINTS.facades} />}
             </InspectorSection>
           )}
         </>
