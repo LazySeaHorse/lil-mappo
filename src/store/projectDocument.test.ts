@@ -110,6 +110,70 @@ describe('project document persistence boundary', () => {
     }
   });
 
+  describe('place names', () => {
+    const baseRoute = {
+      kind: 'route', id: 'r1', name: 'Route',
+      geojson: { type: 'FeatureCollection', features: [] },
+      startTime: 0, endTime: 10,
+      style: {
+        color: '#ef4444', width: 4, glow: true, glowWidth: 12,
+        trailFade: false, trailFadeLength: 0.3, dashPattern: null,
+      },
+      easing: 'linear',
+    };
+    const baseCallout = {
+      kind: 'callout', id: 'c1', styleId: 'leader-line', styleVersion: 1,
+      content: { title: 'Park' },
+      binding: { kind: 'geographic', lngLat: [1, 2], altitude: 0 },
+      offset: [0, 0], anchor: 'bottom', startTime: 0, endTime: 5,
+      transition: { enter: 'fade', exit: 'fade', enterDuration: 1, exitDuration: 1 },
+      connector: { visible: true, style: 'solid', color: '#fff', width: 2, endDot: true, endDotRadius: 3 },
+      opacity: 1, scale: 1, settings: {}, linkTitleToLocation: true,
+    };
+    const parseWith = (items: Record<string, unknown>) => {
+      const project = createProject({ id: 'names' });
+      return parseProjectDocument({
+        ...project,
+        schemaVersion: PROJECT_SCHEMA_VERSION,
+        items: { ...project.items, ...items },
+        itemOrder: [...project.itemOrder, ...Object.keys(items)],
+      });
+    };
+
+    it('defaults the endpoint names of older car and flight routes to empty', () => {
+      const parsed = parseWith({
+        r1: { ...baseRoute, calculation: { mode: 'car', startPoint: [1, 2], endPoint: [3, 4] } },
+      });
+      const route = parsed.items.r1;
+      if (route.kind !== 'route' || route.calculation?.mode === 'walk') throw new Error('expected an endpoint route');
+      expect(route.calculation).toMatchObject({ startName: '', endName: '' });
+    });
+
+    it('keeps saved endpoint names', () => {
+      const parsed = parseWith({
+        r1: { ...baseRoute, calculation: { mode: 'flight', startPoint: [1, 2], endPoint: [3, 4], startName: 'JFK', endName: 'LHR' } },
+      });
+      expect(toProjectDocument({ ...useProjectStore.getState(), ...parsed }).items.r1).toMatchObject({
+        calculation: { startName: 'JFK', endName: 'LHR' },
+      });
+    });
+
+    it('keeps endpoint names when an already parsed project is parsed again', () => {
+      const parsed = parseWith({
+        r1: { ...baseRoute, calculation: { mode: 'car', startPoint: [1, 2], endPoint: [3, 4], startName: 'Times Square', endName: 'Central Park' } },
+      });
+      // A Project has no schemaVersion, so loading it runs the whole migration chain.
+      const reparsed = parseProjectDocument(parsed);
+      expect(reparsed.items.r1).toMatchObject({ calculation: { startName: 'Times Square', endName: 'Central Park' } });
+    });
+
+    it('defaults the location name of older callouts to empty and keeps a saved one', () => {
+      const parsed = parseWith({ c1: baseCallout, c2: { ...baseCallout, id: 'c2', locationName: 'Central Park' } });
+      expect(parsed.items.c1).toMatchObject({ locationName: '' });
+      expect(parsed.items.c2).toMatchObject({ locationName: 'Central Park' });
+    });
+  });
+
   it('loads polluted input without allowing it to replace store actions', () => {
     const project = createProject({ id: 'safe-load' });
 
@@ -566,21 +630,21 @@ describe('project document persistence boundary', () => {
 
     it('turns API-routed walks into car routes and keeps their geometry', () => {
       const route = migrate({ mode: 'walk', startPoint: [0, 1], endPoint: [1, 2], vehicle });
-      expect(route.calculation).toEqual({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2], vehicle });
+      expect(route.calculation).toEqual({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2], startName: '', endName: '', vehicle });
       expect(route.geojson).toEqual(routedGeometry);
     });
 
     it('turns manual routes into car routes and keeps their geometry', () => {
       const route = migrate({ mode: 'manual', startPoint: [0, 0], endPoint: [0, 0] });
-      expect(route.calculation).toEqual({ mode: 'car', startPoint: [0, 0], endPoint: [0, 0] });
+      expect(route.calculation).toEqual({ mode: 'car', startPoint: [0, 0], endPoint: [0, 0], startName: '', endName: '' });
       expect(route.geojson).toEqual(routedGeometry);
     });
 
     it('keeps car and flight routes and drops freehand fields', () => {
       expect(migrate({ mode: 'flight', startPoint: [0, 1], endPoint: [1, 2], waypoints: [], vehicle }).calculation)
-        .toEqual({ mode: 'flight', startPoint: [0, 1], endPoint: [1, 2], vehicle });
+        .toEqual({ mode: 'flight', startPoint: [0, 1], endPoint: [1, 2], startName: '', endName: '', vehicle });
       expect(migrate({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2], waypoints: [] }).calculation)
-        .toEqual({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2] });
+        .toEqual({ mode: 'car', startPoint: [0, 1], endPoint: [1, 2], startName: '', endName: '' });
     });
 
     it('turns freehand walk/manual routes into ordered walk points', () => {

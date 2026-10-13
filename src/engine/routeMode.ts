@@ -1,5 +1,6 @@
 import type { RouteCalculation, RouteMode } from '@/store/types';
 import { createWalkCalculation } from '@/engine/routeCurves';
+import { formatLngLat } from '@/engine/geoUtils';
 
 /** Car and flight endpoints use [0, 0] to mean "not set yet". */
 export const UNSET_POINT: [number, number] = [0, 0];
@@ -7,9 +8,16 @@ export const UNSET_POINT: [number, number] = [0, 0];
 export const isPlacedPoint = (p: [number, number] | undefined): p is [number, number] =>
   p !== undefined && (p[0] !== 0 || p[1] !== 0);
 
+/** What a place field shows: the place name when one is known, else the coordinates, else nothing. */
+export function placeLabel(name: string, point: [number, number] | undefined): string {
+  if (name) return name;
+  return isPlacedPoint(point) ? formatLngLat(point) : '';
+}
+
 /**
  * Converts a route's calculation to another mode, carrying its points across:
- * endpoints become the first and last walk points and vice versa. The vehicle
+ * endpoints become the first and last walk points and vice versa. Place names
+ * follow the endpoints between car and flight; a walk has none. The vehicle
  * is kept as-is; callers adjust it through vehicleChangePatch.
  */
 export function convertRouteCalculation(
@@ -23,7 +31,7 @@ export function convertRouteCalculation(
     const { points } = calc;
     const startPoint = points[0] ?? UNSET_POINT;
     const endPoint = points.length >= 2 ? points[points.length - 1] : UNSET_POINT;
-    return mode === 'walk' ? calc : { mode, startPoint, endPoint, ...(vehicle ? { vehicle } : {}) };
+    return mode === 'walk' ? calc : { mode, startPoint, endPoint, startName: '', endName: '', ...(vehicle ? { vehicle } : {}) };
   }
 
   const startPoint = calc?.startPoint ?? UNSET_POINT;
@@ -32,5 +40,10 @@ export function convertRouteCalculation(
     return createWalkCalculation([startPoint, endPoint].filter(isPlacedPoint), vehicle);
   }
 
-  return { mode, startPoint, endPoint, ...(vehicle ? { vehicle } : {}) };
+  return {
+    mode, startPoint, endPoint,
+    startName: calc?.startName ?? '',
+    endName: calc?.endName ?? '',
+    ...(vehicle ? { vehicle } : {}),
+  };
 }

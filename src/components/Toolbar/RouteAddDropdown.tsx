@@ -203,6 +203,8 @@ export const RouteAddDropdown = ({
         geojson: previewRoute,
         start,
         end,
+        startName,
+        endName,
         name: defaultEndpointRouteName(mode, startName, endName),
         startTime: useProjectStore.getState().playheadTime,
       }),

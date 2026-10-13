@@ -180,6 +180,7 @@ describe('Map Point Picking Architecture', () => {
         referenceZoom: 12,
         settings: {},
         linkTitleToLocation: true,
+        locationName: '',
       };
 
       useProjectStore.setState({

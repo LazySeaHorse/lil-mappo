@@ -71,6 +71,9 @@ const routeCalculationSchema = z.discriminatedUnion('mode', [
     mode: z.enum(['car', 'flight']),
     startPoint: coordinateSchema,
     endPoint: coordinateSchema,
+    // Older documents have no names; the inspector shows coordinates for them.
+    startName: z.string().default(''),
+    endName: z.string().default(''),
     vehicle: routeVehicleSchema.optional(),
   }),
   z.object({
@@ -345,6 +348,9 @@ const legacyRouteCalculationSchema = z.object({
   curved: z.boolean().optional(),
   sharpness: z.number().optional(),
   vehicle: z.unknown().optional(),
+  // Not v2 fields: an already parsed project has no schemaVersion and runs the whole chain again.
+  startName: z.unknown().optional(),
+  endName: z.unknown().optional(),
 }).passthrough();
 
 const legacyRouteSchema = z.object({
@@ -366,8 +372,12 @@ function migrateRouteCalculationV2ToV3(value: unknown): unknown {
   const result = legacyRouteSchema.safeParse(value);
   if (!result.success) return value;
   const route = result.data;
-  const { mode, startPoint, endPoint, waypoints, curved, sharpness, vehicle } = route.calculation;
+  const { mode, startPoint, endPoint, waypoints, curved, sharpness, vehicle, startName, endName } = route.calculation;
   const vehicleField = vehicle === undefined ? {} : { vehicle };
+  const namesField = {
+    ...(startName === undefined ? {} : { startName }),
+    ...(endName === undefined ? {} : { endName }),
+  };
 
   const isLegacyFreehand = (mode === 'walk' || mode === 'manual')
     && (curved !== undefined || (waypoints?.length ?? 0) > 0);
@@ -395,6 +405,7 @@ function migrateRouteCalculationV2ToV3(value: unknown): unknown {
       mode: mode === 'flight' ? 'flight' : 'car',
       startPoint,
       endPoint,
+      ...namesField,
       ...vehicleField,
     },
   };

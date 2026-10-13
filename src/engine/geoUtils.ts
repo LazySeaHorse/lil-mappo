@@ -90,6 +90,11 @@ export function splitAtAntimeridian(coords: number[][]): GeoJSON.LineString | Ge
     : { type: 'LineString', coordinates: segments[0] };
 }
 
+/** "lng, lat" with 5 decimals (about 1 m), the way coordinates show in search fields. */
+export function formatLngLat([lng, lat]: [number, number]): string {
+  return `${lng.toFixed(5)}, ${lat.toFixed(5)}`;
+}
+
 /**
  * Bounding box of any GeoJSON (geometry, feature or collection) as
  * [[west, south], [east, north]], covering every polygon/line/point in it.

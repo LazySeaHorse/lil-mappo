@@ -20,6 +20,8 @@ const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): R
     mode: 'car',
     startPoint: [0, 0],
     endPoint: [1, 1],
+    startName: '',
+    endName: '',
     vehicle: { enabled: true, type, modelId: '', scale: 1 },
   },
   autoCam,

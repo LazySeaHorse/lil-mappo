@@ -69,6 +69,7 @@ export const AnnotationAddDropdown = ({
       lngLat,
       startTime: useProjectStore.getState().playheadTime,
       linkTitleToLocation: linkTitle,
+      locationName,
     });
     if (!item) {
       toast.error('Invalid style selected');

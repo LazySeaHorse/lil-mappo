@@ -39,6 +39,10 @@ describe('buildRouteDeepLinkProject', () => {
     const [route] = routes;
     expect(route.calculation?.mode).toBe('flight');
     expect(route.calculation?.vehicle).toEqual(createDefaultVehicle('flight'));
+    expect(route.calculation).toMatchObject({
+      startName: expect.stringMatching(/Kennedy/i),
+      endName: expect.stringMatching(/Heathrow/i),
+    });
     expect(route.autoCam?.enabled).toBe(true);
     expect(route.autoCam?.preset).toBe('chase');
     expect(route.startTime).toBe(0);

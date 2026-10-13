@@ -28,6 +28,22 @@ describe('itemFactories', () => {
     expect(defaultEndpointRouteName('car')).toBe('Start to End');
   });
 
+  it('stores the place names of the endpoints, and none for unnamed picks', () => {
+    const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
+    const named = createEndpointRouteItem({
+      mode: 'car', geojson: wrapGeometry(line), start: [0, 0], end: [1, 1], name: 'r', startTime: 0,
+      startName: 'Times Square', endName: 'Central Park',
+    });
+    expect(named.calculation).toMatchObject({ startName: 'Times Square', endName: 'Central Park' });
+    const unnamed = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry(line), start: [0, 0], end: [1, 1], name: 'r', startTime: 0 });
+    expect(unnamed.calculation).toMatchObject({ startName: '', endName: '' });
+  });
+
+  it('stores the place name of a callout location', () => {
+    expect(createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0, locationName: 'Central Park' })?.locationName).toBe('Central Park');
+    expect(createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 })?.locationName).toBe('');
+  });
+
   it('builds routes and boundaries that stay on screen after their end', () => {
     const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
     const car = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry(line), start: [0, 0], end: [1, 1], name: 'r', startTime: 0 });

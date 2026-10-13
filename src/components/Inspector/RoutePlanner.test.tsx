@@ -1,13 +1,23 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { RoutePlanner } from './RoutePlanner';
 import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
-import type { RouteItem } from '@/store/types';
+import type { EndpointRouteCalculation, RouteItem } from '@/store/types';
 import { getDirections } from '@/services/directions';
 import { MapRefContext } from '@/hooks/useMapRef';
 import type { MapRef } from 'react-map-gl/mapbox';
+
+const { suggest, retrieve } = vi.hoisted(() => ({ suggest: vi.fn(), retrieve: vi.fn() }));
+
+vi.mock('@mapbox/search-js-core', () => ({
+  SearchBoxCore: class {},
+  SearchSession: class {
+    suggest = suggest;
+    retrieve = retrieve;
+  },
+}));
 
 vi.mock('react-secure-storage', () => ({
   default: {
@@ -61,6 +71,8 @@ describe('RoutePlanner in Inspector', () => {
       mode,
       startPoint: [0, 0],
       endPoint: [0, 0],
+      startName: '',
+      endName: '',
       vehicle: {
         enabled: true,
         type: 'dot',
@@ -122,7 +134,7 @@ describe('RoutePlanner in Inspector', () => {
   describe('endpoint map pickers', () => {
     const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
     const pick = (lngLat: [number, number]) =>
-      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: '' }); });
 
     it('car: picks start and end on the map and toggles a picker off', () => {
       render(<RoutePlanner item={createBaseRouteItem('car')} />);
@@ -354,6 +366,87 @@ describe('RoutePlanner in Inspector', () => {
     });
   });
 
+  describe('place names', () => {
+    const SEARCH = 'Search address or coordinates';
+    const calcOf = () => (useProjectStore.getState().items['route-test-1'] as RouteItem).calculation as EndpointRouteCalculation;
+    const setCalc = (patch: Partial<EndpointRouteCalculation>) => {
+      const route = createBaseRouteItem('car');
+      route.calculation = { mode: 'car', startPoint: [-73.99785, 40.71234], endPoint: [-73.96542, 40.78243], startName: '', endName: '', ...patch };
+      useProjectStore.setState({ items: { [route.id]: route } });
+      return route;
+    };
+
+    beforeEach(() => {
+      suggest.mockReset();
+      retrieve.mockReset();
+    });
+
+    it('shows the saved names in the Start and End fields', () => {
+      render(<RoutePlanner item={setCalc({ startName: 'Times Square', endName: 'Central Park' })} />);
+      const [start, end] = screen.getAllByPlaceholderText(SEARCH);
+      expect(start).toHaveValue('Times Square');
+      expect(end).toHaveValue('Central Park');
+    });
+
+    it('shows formatted coordinates when no name is known', () => {
+      render(<RoutePlanner item={setCalc({ startName: 'Times Square' })} />);
+      const [start, end] = screen.getAllByPlaceholderText(SEARCH);
+      expect(start).toHaveValue('Times Square');
+      expect(end).toHaveValue('-73.96542, 40.78243');
+    });
+
+    it('stores the name of a place picked from the search results', async () => {
+      suggest.mockResolvedValue({ suggestions: [{ mapbox_id: 'a', name: 'Brooklyn Bridge' }] });
+      retrieve.mockResolvedValue({ features: [{ geometry: { coordinates: [-73.9969, 40.7061] }, properties: { name: 'Brooklyn Bridge' } }] });
+      render(<RoutePlanner item={setCalc({})} />);
+
+      const start = screen.getAllByPlaceholderText(SEARCH)[0];
+      fireEvent.change(start, { target: { value: 'Brooklyn Bridge' } });
+      fireEvent.keyDown(start, { key: 'Enter' });
+      fireEvent.click(await screen.findByText('Brooklyn Bridge', { selector: 'span' }));
+
+      await waitFor(() => expect(calcOf().startName).toBe('Brooklyn Bridge'));
+      expect(calcOf().startPoint).toEqual([-73.9969, 40.7061]);
+      expect(calcOf().endName).toBe('');
+    });
+
+    it('clears the name when coordinates are typed', async () => {
+      render(<RoutePlanner item={setCalc({ startName: 'Times Square' })} />);
+      const start = screen.getAllByPlaceholderText(SEARCH)[0];
+      fireEvent.change(start, { target: { value: '-74.0, 40.7' } });
+      fireEvent.keyDown(start, { key: 'Enter' });
+
+      await waitFor(() => expect(calcOf().startPoint).toEqual([-74, 40.7]));
+      expect(calcOf().startName).toBe('');
+    });
+
+    it('stores the name of a place picked on the map, or none when the pick has no name', () => {
+      render(<RoutePlanner item={setCalc({ endName: 'Central Park' })} />);
+      act(() => { fireEvent.click(screen.getAllByTitle('Select point on map')[1]); });
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [2, 3], name: 'Pier 17' }); });
+      expect(calcOf()).toMatchObject({ endPoint: [2, 3], endName: 'Pier 17' });
+
+      act(() => { useProjectStore.getState().stopPicking(); });
+      act(() => { fireEvent.click(screen.getAllByTitle('Select point on map')[1]); });
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [4, 5], name: '' }); });
+      expect(calcOf()).toMatchObject({ endPoint: [4, 5], endName: '' });
+    });
+
+    it('shows and stores airport names in Flight mode', async () => {
+      const route = createBaseRouteItem('flight');
+      route.calculation = { mode: 'flight', startPoint: [1, 1], endPoint: [2, 2], startName: 'London Heathrow Airport', endName: '' };
+      useProjectStore.setState({ items: { [route.id]: route } });
+      render(<RoutePlanner item={route} />);
+      expect(screen.getByPlaceholderText(/Departure airport or city/i)).toHaveValue('London Heathrow Airport');
+
+      const arrival = screen.getByPlaceholderText(/Arrival airport or city/i);
+      fireEvent.focus(arrival);
+      fireEvent.change(arrival, { target: { value: 'JFK' } });
+      act(() => { fireEvent.click(screen.getByText(/John F Kennedy/i)); });
+      expect(calcOf().endName).toMatch(/John F Kennedy/i);
+    });
+  });
+
   describe('map framing', () => {
     const fitBounds = vi.fn();
     const map = {
@@ -365,7 +458,7 @@ describe('RoutePlanner in Inspector', () => {
     };
     const renderRoute = () => {
       const route = createBaseRouteItem('car');
-      route.calculation = { mode: 'car', startPoint: [1, 1], endPoint: [3, 4] };
+      route.calculation = { mode: 'car', startPoint: [1, 1], endPoint: [3, 4], startName: '', endName: '' };
       useProjectStore.setState({ items: { [route.id]: route }, isPlaying: false, isScrubbing: false, isExporting: false });
       render(
         <MapRefContext.Provider value={{ current: { getMap: () => map } as unknown as MapRef }}>
@@ -416,7 +509,7 @@ describe('RoutePlanner in Inspector', () => {
     it('car → walk redraws the path through the two endpoints', () => {
       const route = setRoute({
         geojson: drivenGeometry,
-        calculation: { mode: 'car', startPoint: [1, 1], endPoint: [2, 2] },
+        calculation: { mode: 'car', startPoint: [1, 1], endPoint: [2, 2], startName: '', endName: '' },
       });
       render(<RoutePlanner item={route} />);
       clickMode(/walk/i);

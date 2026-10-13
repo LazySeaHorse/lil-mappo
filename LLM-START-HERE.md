@@ -599,6 +599,10 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 `src/engine/mapFraming.ts` is the one place that moves the camera to show something (`frameGeometry`, `frameBox`, `framePoint`); `useFrameOnMap()` wraps it for components. Padding leaves room for the toolbar (top), the timeline (bottom, from `timelineHeight`) and the inspector (right, via `rightReserved`), and a phone's inspector drawer. It never moves the camera while playing, scrubbing, exporting or mid-gesture (`canMoveCamera`), a point already well inside the free area does not move the map, and reduced motion gives a 0 ms move. Callers: Plan Route preview and insert, file import, callout create, Route inspector apply/preview, the boundary picker and AI Follow. `easeTo` gets an `offset`, never `padding`, because Mapbox keeps `easeTo` padding on the camera. Call it after `selectItem`, so the open inspector counts.
 
+### 7.1b Place Names on Routes and Callouts
+
+Car and flight calculations store `startName`/`endName`, and callouts store `locationName`, so inspector search fields can show the place a user chose instead of raw coordinates. All are required TS fields with a zod `.default('')` (older documents load with empty names). `''` means "unknown": map picks, typed coordinates, edited coordinates and legacy projects. Fields render `placeLabel(name, point)` (`engine/routeMode.ts`), which falls back to formatted coordinates. Set them in `createEndpointRouteItem` / `createCalloutItem`, and when a place is picked, a map point is picked or coordinates change (clear the name, so it never describes another place). The AI tools set them from the geocoded name where one exists.
+
 ### 7.2 Callout Styling
 
 - **Four Variants**: Default (sharp rectangle), Modern (pill + glow), News (left accent bar), Topo (border + elevation metadata).

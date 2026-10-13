@@ -52,6 +52,7 @@ function makeInspectorCallout(overrides: Partial<CalloutItem> = {}): CalloutItem
     referenceZoom: 12,
     settings: {},
     linkTitleToLocation: false,
+    locationName: '',
     ...overrides,
   };
 }
@@ -106,6 +107,8 @@ describe('Inspector Components Integration', () => {
         mode: 'car',
         startPoint: [0, 0],
         endPoint: [1, 1],
+        startName: '',
+        endName: '',
         vehicle: {
           enabled: true,
           type: 'car',
@@ -238,6 +241,7 @@ describe('Inspector Components Integration', () => {
       startTime: 2,
       endTime: 6,
       linkTitleToLocation: false,
+      locationName: '',
       transition: {
         enter: 'fade',
         exit: 'fade',
@@ -317,6 +321,7 @@ describe('Inspector Components Integration', () => {
       startTime: 1,
       endTime: 5,
       linkTitleToLocation: false,
+      locationName: '',
       transition: {
         enter: 'fade',
         exit: 'fade',

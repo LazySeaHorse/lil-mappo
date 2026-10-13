@@ -45,6 +45,8 @@ export function buildRouteDeepLinkProject(request: RouteDeepLinkRequest): RouteD
     geojson: wrapGeometry(calculateFlightArc(from.coordinates, to.coordinates)),
     start: from.coordinates,
     end: to.coordinates,
+    startName: from.name,
+    endName: to.name,
     name: defaultEndpointRouteName('flight', from.name, to.name),
     startTime: 0,
   });

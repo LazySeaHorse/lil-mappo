@@ -47,6 +47,12 @@ describe('AnnotationAddDropdown map framing', () => {
     expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [2.35, 48.85] }));
   });
 
+  it('keeps the place name of the location', () => {
+    renderDropdown();
+    const callout = Object.values(useProjectStore.getState().items).find((i) => i.kind === 'callout');
+    expect(callout).toMatchObject({ locationName: 'Paris' });
+  });
+
   it('leaves the map alone when the callout is already well in view', () => {
     projected = { x: 500, y: 350 };
     renderDropdown();

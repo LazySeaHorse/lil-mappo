@@ -49,7 +49,7 @@ describe('RouteWaypointMarkers', () => {
     },
     calculation: mode === 'walk'
       ? { mode: 'walk', points: [[-73.98, 40.75], [-73.97, 40.76], [-73.96, 40.78]], curved: true, sharpness: 0.85 }
-      : { mode: 'car', startPoint: [-73.98, 40.75], endPoint: [-73.96, 40.78] },
+      : { mode: 'car', startPoint: [-73.98, 40.75], endPoint: [-73.96, 40.78], startName: '', endName: '' },
     easing: 'easeInOutQuad', exitAnimation: 'none',
   });
 

@@ -20,7 +20,7 @@ import { buildWalkGeometry, DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { withoutHistory } from '@/store/history';
-import { convertRouteCalculation, isPlacedPoint } from '@/engine/routeMode';
+import { convertRouteCalculation, isPlacedPoint, placeLabel } from '@/engine/routeMode';
 import { WalkPointList } from './WalkPointList';
 import { vehicleChangePatch } from '@/config/vehicles';
 
@@ -32,13 +32,16 @@ interface InspectorSearchFieldProps {
   label: string;
   dotColor: string;
   value: [number, number];
-  onSelect: (lngLat: [number, number]) => void;
+  /** Place name of `value`, '' when unknown. */
+  name: string;
+  onSelect: (lngLat: [number, number], name?: string) => void;
   isPicking: boolean;
   onStartPick: () => void;
 }
 
 const InspectorSearchField = ({
   value,
+  name,
   onSelect,
   dotColor,
   label,
@@ -47,17 +50,13 @@ const InspectorSearchField = ({
 }: InspectorSearchFieldProps) => {
   const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, clear } =
     useLocationSearch({
-      onSelect: (lngLat) => onSelect(lngLat),
+      onSelect,
       parseCoordinates: true,
     });
 
   useEffect(() => {
-    if (isPlacedPoint(value)) {
-      setQuery(`${value[0].toFixed(5)}, ${value[1].toFixed(5)}`);
-    } else {
-      setQuery('');
-    }
-  }, [value, setQuery]);
+    setQuery(placeLabel(name, value));
+  }, [name, value, setQuery]);
 
   return (
     <div className="relative group w-full">
@@ -261,23 +260,24 @@ const EndpointPlanner = ({
     }))
   );
 
-  const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number]) => {
+  const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number], name = '') => {
     path.cancel();
     const current = useProjectStore.getState().items[item.id];
     if (current?.kind !== 'route' || current.calculation?.mode === 'walk') return;
-    updateItem(item.id, { calculation: { ...(current.calculation ?? calc), [key]: lngLat } });
+    const nameKey = key === 'startPoint' ? 'startName' : 'endName';
+    updateItem(item.id, { calculation: { ...(current.calculation ?? calc), [key]: lngLat, [nameKey]: name } });
     setPreviewRoute(null);
   };
 
   const startPicker = useMapPicker(`route-${item.id}-start`, {
     ownerId: item.id,
     prompt: 'Start',
-    onPick: (result) => setPoint('startPoint', result.lngLat),
+    onPick: (result) => setPoint('startPoint', result.lngLat, result.name),
   });
   const endPicker = useMapPicker(`route-${item.id}-end`, {
     ownerId: item.id,
     prompt: 'End',
-    onPick: (result) => setPoint('endPoint', result.lngLat),
+    onPick: (result) => setPoint('endPoint', result.lngLat, result.name),
   });
 
   return (
@@ -288,7 +288,8 @@ const EndpointPlanner = ({
             label="Departure"
             placeholder="Departure airport or city (e.g. JFK)..."
             value={calc.startPoint}
-            onSelect={(lngLat) => setPoint('startPoint', lngLat)}
+            name={placeLabel(calc.startName, calc.startPoint)}
+            onSelect={(lngLat, name) => setPoint('startPoint', lngLat, name)}
             color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
             isPicking={startPicker.isPicking}
             onStartPick={startPicker.toggle}
@@ -297,7 +298,8 @@ const EndpointPlanner = ({
             label="Arrival"
             placeholder="Arrival airport or city (e.g. LHR)..."
             value={calc.endPoint}
-            onSelect={(lngLat) => setPoint('endPoint', lngLat)}
+            name={placeLabel(calc.endName, calc.endPoint)}
+            onSelect={(lngLat, name) => setPoint('endPoint', lngLat, name)}
             color="bg-rose-500/10 text-rose-500 border-rose-500/20"
             isPicking={endPicker.isPicking}
             onStartPick={endPicker.toggle}
@@ -308,7 +310,8 @@ const EndpointPlanner = ({
           <InspectorSearchField
             label="Start"
             value={calc.startPoint}
-            onSelect={(lngLat) => setPoint('startPoint', lngLat)}
+            name={calc.startName}
+            onSelect={(lngLat, name) => setPoint('startPoint', lngLat, name)}
             dotColor="bg-emerald-500"
             isPicking={startPicker.isPicking}
             onStartPick={startPicker.toggle}
@@ -316,7 +319,8 @@ const EndpointPlanner = ({
           <InspectorSearchField
             label="End"
             value={calc.endPoint}
-            onSelect={(lngLat) => setPoint('endPoint', lngLat)}
+            name={calc.endName}
+            onSelect={(lngLat, name) => setPoint('endPoint', lngLat, name)}
             dotColor="bg-rose-500"
             isPicking={endPicker.isPicking}
             onStartPick={endPicker.toggle}

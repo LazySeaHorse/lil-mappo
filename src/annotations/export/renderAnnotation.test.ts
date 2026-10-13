@@ -82,6 +82,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
+      locationName: '',
     };
 
     compositeAnnotations(map, ctx, { c1: callout }, ['c1'], 5);
@@ -136,6 +137,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
+      locationName: '',
     };
 
     compositeAnnotations(mapZoom10, ctxZoom10, { c2: callout }, ['c2'], 5);
@@ -184,6 +186,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
+      locationName: '',
     };
 
     compositeAnnotations(map, ctx, { r1: rippleCallout }, ['r1'], 5);
@@ -215,6 +218,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
+      locationName: '',
     };
 
     compositeAnnotations(map, ctx, { l1: callout }, ['l1'], 5);
@@ -250,6 +254,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
+      locationName: '',
     };
 
     const start = createMockCtx();
@@ -283,6 +288,7 @@ describe('renderAnnotation and compositeAnnotations', () => {
       referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
+      locationName: '',
       ...overrides,
     });
 

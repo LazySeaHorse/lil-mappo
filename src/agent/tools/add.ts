@@ -107,6 +107,8 @@ export const addRoute = defineTool({
         geojson: path.geojson,
         start: from.coordinates,
         end: to.coordinates,
+        startName: from.name,
+        endName: to.name,
         name: input.name ?? defaultEndpointRouteName(mode, from.name, to.name),
         startTime: 0,
       });
@@ -231,6 +233,7 @@ export const addCallout = defineTool({
       lngLat: place.coordinates,
       startTime: 0,
       linkTitleToLocation: false,
+      locationName: place.name,
       referenceZoom: currentMapZoom(),
     })!;
     if (input.scale !== undefined) item.scale = input.scale;

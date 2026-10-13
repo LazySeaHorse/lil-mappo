@@ -93,6 +93,9 @@ export interface EndpointRouteInput {
   geojson: GeoJSON.FeatureCollection;
   start: [number, number];
   end: [number, number];
+  /** Place names of the endpoints, when known. */
+  startName?: string;
+  endName?: string;
   name: string;
   startTime: number;
   endTime?: number;
@@ -113,6 +116,8 @@ export function createEndpointRouteItem(input: EndpointRouteInput): RouteItem {
       mode: input.mode,
       startPoint: input.start,
       endPoint: input.end,
+      startName: input.startName ?? '',
+      endName: input.endName ?? '',
       vehicle: createDefaultVehicle(input.mode),
     },
     easing: 'easeInOutQuad',
@@ -209,6 +214,8 @@ export interface CalloutInput {
   startTime: number;
   endTime?: number;
   linkTitleToLocation?: boolean;
+  /** Name of the place at `lngLat`, when known. */
+  locationName?: string;
   /** Map zoom that size-with-map callouts are sized at. */
   referenceZoom?: number;
   id?: string;
@@ -265,6 +272,7 @@ export function createCalloutItem(input: CalloutInput): CalloutItem | null {
     sizeMode: 'screen',
     referenceZoom: input.referenceZoom ?? DEFAULT_VIEW_ZOOM,
     linkTitleToLocation: input.linkTitleToLocation ?? true,
+    locationName: input.locationName ?? '',
     ...defaults,
   };
 }

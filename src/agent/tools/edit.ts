@@ -217,6 +217,7 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
       lngLat: place ? place.coordinates : item.binding.lngLat,
       altitude: patch.altitude ?? item.binding.altitude,
     };
+    if (patch.location !== undefined) updates.locationName = place?.name ?? '';
   }
   if (patch.anchor) updates.anchor = patch.anchor;
   if (patch.offset) updates.offset = patch.offset as [number, number];

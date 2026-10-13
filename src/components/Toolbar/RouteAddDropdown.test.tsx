@@ -135,6 +135,10 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(addedRoute.calculation?.mode).toBe('flight');
     expect(addedRoute.calculation?.vehicle?.type).toBe('plane');
     expect(addedRoute.name).toContain('→');
+    expect(addedRoute.calculation).toMatchObject({
+      startName: 'London Heathrow Airport',
+      endName: expect.stringMatching(/John F Kennedy/i),
+    });
     expect(addedRoute.style.color).toBe('#f59e0b');
     expect(addedRoute.style).not.toHaveProperty('glowColor');
     expect(onOpenChange).toHaveBeenCalledWith(false);

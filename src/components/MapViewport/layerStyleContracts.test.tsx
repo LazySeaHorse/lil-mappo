@@ -75,6 +75,8 @@ const route: RouteItem = {
     mode: 'flight',
     startPoint: [0, 0],
     endPoint: [1, 1],
+    startName: '',
+    endName: '',
   },
 };
 

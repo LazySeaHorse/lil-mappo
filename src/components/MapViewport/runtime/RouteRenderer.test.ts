@@ -80,6 +80,8 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         mode: "flight",
         startPoint: [-74.006, 40.7128],
         endPoint: [2.3522, 48.8566],
+        startName: '',
+        endName: '',
         vehicle: {
           enabled: true,
           type: "plane",
@@ -149,6 +151,8 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
         mode: "flight",
         startPoint: [0, 0],
         endPoint: [2, 2],
+        startName: '',
+        endName: '',
         vehicle: {
           enabled: true,
           type: "plane",
@@ -201,6 +205,8 @@ describe("RouteRenderer vehicle type switching", () => {
         mode: "car",
         startPoint: [0, 0],
         endPoint: [1, 1],
+        startName: '',
+        endName: '',
         vehicle: { enabled: true, type, modelId: "", scale: 1 },
       },
     };
@@ -280,6 +286,8 @@ describe("RouteRenderer trim-driven line", () => {
       mode: "car",
       startPoint: [0, 0],
       endPoint: [0, 80],
+      startName: '',
+      endName: '',
       vehicle: { enabled: true, type: "dot", modelId: "", scale: 1 },
     },
   };

@@ -27,6 +27,7 @@ import {
 import { PanelWrapper, InspectorSection, ItemActions } from '@/components/Inspector/InspectorLayout';
 import { getStyle } from '@/annotations/registry';
 import { createCalloutStyleDefaults } from '@/store/itemFactories';
+import { placeLabel } from '@/engine/routeMode';
 import { ENTER_TRANSITIONS, EXIT_TRANSITIONS, TRANSITION_LABELS } from '@/annotations/animation';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
@@ -61,6 +62,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           lngLat: result.lngLat,
           altitude: current.binding.kind === 'geographic' ? current.binding.altitude : 0,
         },
+        locationName: result.name,
       };
       if (current.linkTitleToLocation) {
         patch.content = { ...current.content, title: result.name };
@@ -118,7 +120,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
             <SearchField
               label="Search for a place or enter coordinates"
               value={lngLat as [number, number]}
-              name=""
+              name={placeLabel(item.locationName, lngLat as [number, number])}
               onSelect={(coords, name) => {
                 const patch: Partial<CalloutItem> = {
                   binding: {
@@ -126,6 +128,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
                     lngLat: coords,
                     altitude,
                   },
+                  locationName: name,
                 };
                 if (item.linkTitleToLocation) {
                   patch.content = { ...item.content, title: name };
@@ -228,6 +231,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
                   altitude,
                 },
                 linkTitleToLocation: false,
+                locationName: '',
               })}
               className="pt-1"
             />

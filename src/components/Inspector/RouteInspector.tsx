@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/store/useAuthStore';
 import { extractLineCoords } from '@/engine/geoUtils';
+import { convertRouteCalculation } from '@/engine/routeMode';
 import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
@@ -44,11 +45,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
 
-  const calc = item.calculation || {
-    mode: 'car' as const,
-    startPoint: [0, 0] as [number, number],
-    endPoint: [0, 0] as [number, number],
-  };
+  const calc: NonNullable<RouteItem['calculation']> = item.calculation || convertRouteCalculation(undefined, 'car');
 
   const updateVehicle = (patch: Partial<NonNullable<RouteItem['calculation']>['vehicle']>) => {
     const currentVehicle = calc.vehicle || {

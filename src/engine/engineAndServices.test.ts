@@ -200,6 +200,7 @@ describe('annotations/animation', () => {
       referenceZoom: 12,
       settings: {},
       linkTitleToLocation: false,
+      locationName: '',
     };
 
     // Before start

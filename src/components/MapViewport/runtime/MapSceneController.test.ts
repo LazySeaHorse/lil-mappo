@@ -31,7 +31,7 @@ const route: RouteItem = {
     animationType: 'draw', cometTrailLength: 0.2,
   },
   easing: 'linear', exitAnimation: 'none',
-  calculation: { mode: 'car', startPoint: [0, 0], endPoint: [1, 1] },
+  calculation: { mode: 'car', startPoint: [0, 0], endPoint: [1, 1], startName: '', endName: '' },
 };
 
 function createMapDouble() {
