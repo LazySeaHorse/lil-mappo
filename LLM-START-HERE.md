@@ -635,7 +635,7 @@ Car and flight calculations store `startName`/`endName`, and callouts store `loc
 
 ### 7.1c Guest Hints
 
-- **Guest hints.** `useGuestLock()` (signed out and no BYOK) replaces ad hoc `!user && !hasByok()`. Locked avatar menu items keep their lock and get a tooltip that says why. The route panel import button reads "Sign in to import KML / GPX data", and `pickRouteFile` opens sign-in without opening the file picker. The Export dialog tells guests before the click (note + "Sign in to export" button). The map-load gate says signing in is free. It must not name the guest cap (owner decision: guests do not need to know the number).
+- **Guest hints.** `useGuestLock()` (signed out and no BYOK) replaces ad hoc `!user && !hasByok()`. Locked avatar menu items keep their lock and get a tooltip that says why. The avatar menu has no Project settings item; that panel opens from the toolbar Map Settings button and shows when nothing is selected. The route panel import button reads "Sign in to import KML / GPX data", and `pickRouteFile` opens sign-in without opening the file picker. The Export dialog tells guests before the click (note + "Sign in to export" button). The map-load gate says signing in is free. It must not name the guest cap (owner decision: guests do not need to know the number).
 
 ### 7.1d Quick Tour (`src/components/Onboarding/`)
 

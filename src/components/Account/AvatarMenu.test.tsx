@@ -35,4 +35,12 @@ describe('<AvatarMenu />', () => {
     const item = await screen.findByRole('menuitem', { name: /Save to Library/ });
     expect(item).not.toHaveAttribute('title');
   });
+
+  it('has no Project Settings item; the panel opens from the toolbar', async () => {
+    openMenu();
+    await screen.findByRole('menuitem', { name: /Quick Walkthrough/ });
+    expect(screen.queryByRole('menuitem', { name: /Project Settings/i })).not.toBeInTheDocument();
+    // The account Settings item stays.
+    expect(screen.getByRole('menuitem', { name: 'Settings' })).toBeInTheDocument();
+  });
 });

@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useGuestLock } from '@/hooks/useGuestLock';
@@ -13,7 +12,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
-  FilePlus2, Save, Library, FileJson, Upload, Settings,
+  FilePlus2, Save, Library, FileJson, Upload,
   ChevronDown, Settings2, LogIn, LogOut, Lock,
   Compass,
 } from 'lucide-react';
@@ -40,12 +39,6 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
       openSettingsModal: s.openSettingsModal,
       signOut: s.signOut,
     })),
-  );
-  const { selectItem, setProjectSettingsTab } = useProjectStore(
-    useShallow(s => ({
-      selectItem: s.selectItem,
-      setProjectSettingsTab: s.setProjectSettingsTab,
-    }))
   );
   const actions = useToolbarActions();
   const { data: subscription } = useSubscription();
@@ -141,12 +134,6 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
             {isLocked && <Lock size={10} className="ml-auto opacity-40" aria-label="Needs sign-in" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
-          <DropdownMenuItem
-            onClick={() => { setProjectSettingsTab('general'); selectItem(null); }}
-            className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg"
-          >
-            <Settings size={14} /> Project Settings
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={afterClose(onWalkthrough)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Compass size={14} /> Quick Walkthrough
           </DropdownMenuItem>
