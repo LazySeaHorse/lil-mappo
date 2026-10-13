@@ -6,6 +6,8 @@ import { MapRefContext } from '@/hooks/useMapRef';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useToolbarActions } from './useToolbarActions';
+import { CAMERA_TRACK_ID } from '@/store/projectDocument';
+import type { CameraItem } from '@/store/types';
 
 vi.mock('react-secure-storage', () => ({
   default: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn() },
@@ -28,6 +30,9 @@ const fitBounds = vi.fn();
 const map = {
   getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
   getZoom: () => 5,
+  getCenter: () => ({ lng: 8.5, lat: 47.3 }),
+  getPitch: () => 30,
+  getBearing: () => 15,
   project: () => ({ x: 600, y: 400 }),
   fitBounds,
   easeTo: vi.fn(),
@@ -84,3 +89,37 @@ describe('useToolbarActions pickRouteFile', () => {
   });
 });
 
+
+describe('useToolbarActions handleAddCameraKF', () => {
+  beforeEach(() => {
+    const camera: CameraItem = { id: CAMERA_TRACK_ID, kind: 'camera', keyframes: [] };
+    useProjectStore.setState({
+      items: { [CAMERA_TRACK_ID]: camera },
+      itemOrder: [CAMERA_TRACK_ID],
+      isPlaying: false,
+      playheadTime: 3,
+      isInspectorOpen: false,
+      selectedItemId: null,
+      selectedKeyframeId: null,
+    });
+  });
+
+  const keyframes = () => (useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem).keyframes;
+
+  it('adds a camera view that shows the live map camera', () => {
+    const { result } = renderHook(() => useToolbarActions(), { wrapper });
+    act(() => result.current.handleAddCameraKF());
+    const added = keyframes().find((k) => k.time === 3);
+    expect(added?.camera).toMatchObject({ center: [8.5, 47.3], zoom: 5, pitch: 30, bearing: 15 });
+  });
+
+  it('selects the new camera view and opens the inspector on it', () => {
+    const { result } = renderHook(() => useToolbarActions(), { wrapper });
+    act(() => result.current.handleAddCameraKF());
+    const added = keyframes().find((k) => k.time === 3)!;
+    const s = useProjectStore.getState();
+    expect(s.selectedItemId).toBe(CAMERA_TRACK_ID);
+    expect(s.selectedKeyframeId).toBe(added.id);
+    expect(s.isInspectorOpen).toBe(true);
+  });
+});

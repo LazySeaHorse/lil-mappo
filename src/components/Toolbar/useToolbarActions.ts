@@ -25,10 +25,11 @@ const ROUTE_IMPORT_SIGN_IN = 'Sign in to import a route.';
 export function useToolbarActions() {
   const mapRef = useMapRef();
   const frame = useFrameOnMap();
-  const { addItem, addCameraKeyframe, selectItem, setTerrainEnabled, setBuildingsEnabled } = useProjectStore(
+  const { addItem, addCameraKeyframe, selectKeyframe, selectItem, setTerrainEnabled, setBuildingsEnabled } = useProjectStore(
     useShallow(s => ({
       addItem: s.addItem,
       addCameraKeyframe: s.addCameraKeyframe,
+      selectKeyframe: s.selectKeyframe,
       selectItem: s.selectItem,
       setTerrainEnabled: s.setTerrainEnabled,
       setBuildingsEnabled: s.setBuildingsEnabled,
@@ -152,7 +153,10 @@ export function useToolbarActions() {
     const playheadTime = useProjectStore.getState().playheadTime;
     const view = readMapCamera(mapRef.current?.getMap?.());
 
-    addCameraKeyframe(createCameraKeyframe({ time: playheadTime, ...view }));
+    const keyframe = createCameraKeyframe({ time: playheadTime, ...view });
+    addCameraKeyframe(keyframe);
+    // Opens the inspector on the new view (a bottom drawer on a phone).
+    selectKeyframe(keyframe.id);
     track('keyframe_added', { source: 'toolbar' });
     toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
   };
