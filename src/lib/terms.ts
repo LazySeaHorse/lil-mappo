@@ -84,6 +84,17 @@ export const ROUTE_PATH_TERMS = {
   previewReady: 'Route preview is ready.',
 } as const;
 
+/** Words of Follow camera in the route panel and in its own panel. */
+export const FOLLOW_CAMERA_TERMS = {
+  /** One line under the switch, when it is off. */
+  hint: 'The camera follows the route while the video plays.',
+  editCamera: 'Edit camera',
+  /** The link at the top of the Follow camera panel. It goes back to the route panel. */
+  backToRoute: 'Route',
+  followView: { title: 'Follow view', description: 'Camera tracks the route.' },
+  navigationView: { title: 'Navigation view', description: 'Camera faces forward along the route.' },
+} as const;
+
 /** Tells a user why Follow camera cannot turn on for a route. */
 export const FOLLOW_CAMERA_BLOCKED = (block: FollowCameraBlock): string => {
   switch (block.reason) {

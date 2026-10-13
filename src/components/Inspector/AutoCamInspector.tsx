@@ -8,8 +8,8 @@ import { formatPercent } from './inspectorValues';
 import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIllustrations';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
-import { ROUTE_TERMS } from '@/lib/terms';
-import { Video, VideoOff, Compass, Activity, Car, Plane, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
+import { FOLLOW_CAMERA_TERMS, ROUTE_TERMS } from '@/lib/terms';
+import { ArrowLeft, Video, VideoOff, Compass, Activity, Car, Plane, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges, routeFitOf } from '@/config/vehicles';
 import type { AutoCamPreset } from '@/store/types';
@@ -87,20 +87,27 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
       icon={<Video size={15} />}
       footer={footer}
     >
+      <button
+        type="button"
+        onClick={() => setSelectedAutoCamRouteId(null)}
+        className="-mb-1 flex w-fit items-center gap-1 rounded-md py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
+        <ArrowLeft size={13} aria-hidden="true" />
+        {FOLLOW_CAMERA_TERMS.backToRoute}
+      </button>
+
       <div className="grid grid-cols-2 gap-2.5 mb-3">
         <ModeCard
           selected={config.mode === 'cinematic'}
           onSelect={() => u({ mode: 'cinematic' })}
           illustration={<FollowViewIllustration />}
-          title="Follow view"
-          description="Camera tracks the route."
+          {...FOLLOW_CAMERA_TERMS.followView}
         />
         <ModeCard
           selected={config.mode === 'navigation'}
           onSelect={() => u({ mode: 'navigation' })}
           illustration={<NavigationViewIllustration />}
-          title="Navigation view"
-          description="Camera faces forward along the route."
+          {...FOLLOW_CAMERA_TERMS.navigationView}
         />
       </div>
 

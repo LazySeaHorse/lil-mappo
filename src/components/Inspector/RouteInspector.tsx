@@ -8,18 +8,18 @@ import { vehicleChangePatch } from '@/config/vehicles';
 import { RoutePathSection } from './RoutePathSection';
 import { useSubscription } from '@/hooks/useSubscription';
 import { isWanderer } from '@/lib/cloudAccess';
-import { SwitchRow } from './InspectorShared';
+import { RouteCameraSection } from './RouteCameraSection';
+import { InspectorSection } from './InspectorSection';
 import { RouteLineSection } from './RouteLineSection';
 import { RouteAnimationSection } from './RouteAnimationSection';
 import { RouteMarkerSection } from './RouteMarkerSection';
 import { PanelWrapper } from './InspectorLayout';
-import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
-import { FOLLOW_CAMERA_BLOCKED, ROUTE_TERMS } from '@/lib/terms';
+import { FOLLOW_CAMERA_BLOCKED } from '@/lib/terms';
 import { TimingSection } from './timing/TimingSection';
 import { routeTiming } from './timing/timingAdapters';
 import { track } from '@/lib/analytics';
-import { Navigation, Clapperboard } from 'lucide-react';
+import { Navigation } from 'lucide-react';
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
@@ -82,25 +82,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
 
       <TimingSection adapter={routeTiming} item={item} onChange={u} />
 
-      <InspectorSection kind="route" id="camera">
-        <div className="flex flex-col gap-2">
-          <SwitchRow
-            label={ROUTE_TERMS.followCamera}
-            walkthroughTarget="follow-route"
-            sublabel="Keeps the route or marker in view during playback."
-            checked={item.autoCam?.enabled ?? false}
-            onChange={handleAutoCamToggle}
-          />
-          {item.autoCam?.enabled && (
-            <div className="mt-1.5 p-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
-              <Clapperboard size={13} className="text-primary shrink-0" />
-              <p className="text-[11px] text-primary font-medium leading-tight">
-                Select the camera block on the timeline to edit camera settings.
-              </p>
-            </div>
-          )}
-        </div>
-      </InspectorSection>
+      <RouteCameraSection item={item} onToggle={handleAutoCamToggle} />
 
     </PanelWrapper>
   );
