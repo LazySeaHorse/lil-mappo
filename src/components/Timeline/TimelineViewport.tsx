@@ -107,7 +107,7 @@ export default function TimelineViewport({
           <div className="w-[160px] h-full bg-background/90 border-r border-border/50 shrink-0 sticky left-0 z-30 pointer-events-none flex items-center px-4">
             {isMobile && (
               <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
-                <span ref={timeDisplayRef}>{formatTimelineTime(useProjectStore.getState().playheadTime)}</span>
+                <span ref={timeDisplayRef} data-testid="playhead-time">{formatTimelineTime(useProjectStore.getState().playheadTime)}</span>
                 <span className="opacity-50"> / {formatTimelineTime(duration)}</span>
               </span>
             )}

@@ -178,9 +178,9 @@ test.describe("5 Golden E2E Journeys", () => {
     await page.waitForTimeout(1500);
     await playButton.click(); // pause
 
-    // Verify time display is no longer at 00:00.00
-    const timeDisplay = page.locator("#root").getByText(/00:0[1-9]\.[0-9]{2}/);
-    await expect(timeDisplay).toBeVisible();
+    // Verify the playhead time is no longer at 00:00.00 (the header also shows the video length)
+    const timeDisplay = page.locator("#root").getByTestId("playhead-time").filter({ visible: true });
+    await expect(timeDisplay).toHaveText(/00:0[1-9]\.[0-9]{2}/);
   });
 
   // ---------------------------------------------------------------------------
