@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import InspectorPanel from './InspectorPanel';
 import { RouteInspector } from './RouteInspector';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import { createEndpointRouteItem, wrapGeometry } from '@/store/itemFactories';
 import { autoCamForRoute, AUTO_CAM_PRESETS } from '@/config/vehicles';
 import { FOLLOW_CAMERA_TERMS, ROUTE_TERMS } from '@/lib/terms';
@@ -33,6 +34,7 @@ function open(followCamera: boolean) {
 describe('Follow camera in the route panel', () => {
   beforeEach(() => {
     localStorage.clear();
+    useUiPreferencesStore.setState({ inspectorSections: {} });
     useProjectStore.setState({ items: {}, itemOrder: [], selectedItemId: null, selectedAutoCamRouteId: null });
   });
 

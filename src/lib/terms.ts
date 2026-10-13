@@ -95,6 +95,23 @@ export const FOLLOW_CAMERA_TERMS = {
   navigationView: { title: 'Navigation view', description: 'Camera faces forward along the route.' },
 } as const;
 
+/**
+ * The sliders in Fine-tune of the Follow camera panel. The words under the two ends of a slider
+ * replace its number. The first word is the lowest value.
+ */
+export const FOLLOW_CAMERA_SLIDERS = {
+  fineTune: 'Fine-tune',
+  pitch: { label: 'Camera angle', ends: ['Overhead', 'Horizon'], hint: 'Tilts the camera. Low values look straight down.' },
+  smoothing: { label: 'Smoothness', ends: ['Tight', 'Smooth'], hint: 'A smooth camera ignores small turns of the route.' },
+  distance: { label: 'Distance', ends: ['Close', 'Far'], hint: 'How far the camera is from the vehicle.' },
+  zoom: { label: 'Zoom', ends: ['Far', 'Close'], hint: 'How close the map looks.' },
+  lookAhead: { label: 'Look ahead', ends: ['Near', 'Far'], hint: 'How far ahead on the route the camera looks.' },
+  dynamics: { label: 'Movement', ends: ['Calm', 'Lively'], hint: 'How much the camera reacts to turns and speed.' },
+  orbit: { label: 'Side drift', ends: ['Steady', 'Drifting'], hint: 'The camera slowly moves around the route.' },
+  intro: { label: 'Opening shot', ends: ['None', 'Strong'], hint: 'Starts with a wide shot, then moves in.' },
+  outro: { label: 'Closing shot', ends: ['None', 'Strong'], hint: 'Ends with a wide shot of the route.' },
+} as const;
+
 /** Tells a user why Follow camera cannot turn on for a route. */
 export const FOLLOW_CAMERA_BLOCKED = (block: FollowCameraBlock): string => {
   switch (block.reason) {
