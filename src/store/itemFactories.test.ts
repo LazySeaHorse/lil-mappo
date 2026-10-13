@@ -11,6 +11,7 @@ import {
   createImportedRouteItem,
   createWalkRouteItem,
   defaultEndpointRouteName,
+  switchCalloutStyle,
   wrapGeometry,
 } from './itemFactories';
 
@@ -96,6 +97,43 @@ describe('itemFactories', () => {
     expect(createCalloutItem({ styleId: 'nope', content: { title: '' }, lngLat: [0, 0], startTime: 0 })).toBeNull();
     expect(createCameraKeyframe({ time: 3, center: [1, 2], zoom: 4 })).toMatchObject({
       time: 3, easing: 'easeInOutCubic', followRoute: null, camera: { pitch: 0, bearing: 0, altitude: null },
+    });
+  });
+
+  describe('switchCalloutStyle', () => {
+    const base = () => createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 })!;
+
+    it('takes the new style defaults and keeps the map point, size and content out of the patch', () => {
+      const item = { ...base(), scale: 2, settings: { accentColor: '#000000' } };
+      const patch = switchCalloutStyle(item, 'editorial')!;
+      const defaults = createCalloutStyleDefaults(getStyle('editorial')!);
+      expect(patch).toMatchObject({
+        styleId: 'editorial',
+        styleVersion: defaults.styleVersion,
+        settings: defaults.settings,
+        offset: defaults.offset,
+        anchor: defaults.anchor,
+        transition: defaults.transition,
+        connector: defaults.connector,
+      });
+      expect(patch.binding).toEqual({ kind: 'geographic', lngLat: [1, 2], altitude: defaults.altitude });
+      expect(patch).not.toHaveProperty('scale');
+      expect(patch).not.toHaveProperty('content');
+      expect(patch).not.toHaveProperty('startTime');
+    });
+
+    it('returns a copy of the defaults, never the style object itself', () => {
+      const patch = switchCalloutStyle(base(), 'editorial')!;
+      expect(patch.settings).not.toBe(getStyle('editorial')!.defaultSettings);
+    });
+
+    it('leaves a screen-pinned callout binding alone', () => {
+      const item = { ...base(), binding: { kind: 'screen' as const, position: [0.5, 0.5] as [number, number] } };
+      expect(switchCalloutStyle(item, 'editorial')).not.toHaveProperty('binding');
+    });
+
+    it('returns null for an unknown style', () => {
+      expect(switchCalloutStyle(base(), 'nope')).toBeNull();
     });
   });
 });

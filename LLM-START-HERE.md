@@ -647,6 +647,7 @@ One goal: "Make your first trip video". Stages (`walkthroughState.ts`, a pure re
 
 - **Four Variants**: Default (sharp rectangle), Modern (pill + glow), News (left accent bar), Topo (border + elevation metadata).
 - **Title Linking**: If `linkTitleToLocation` enabled, callout title auto-syncs with geocoded location name.
+- **Changing style**: `switchCalloutStyle(item, newStyleId)` (`store/itemFactories.ts`, pure) returns the patch for a style change. The inspector style picker and the AI `update_item` tool (`styleId`) both call it; do not rebuild the rule.
 - **Animations**: Simple fade in/out (no scale/slide variants exposed in UI).
 
 ### 7.3 B.Y.O.K. (Bring Your Own Key)

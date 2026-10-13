@@ -3,6 +3,7 @@ import { getStyle } from '@/annotations/registry';
 import { applyWalkPatch } from '@/engine/routeCurves';
 import { vehicleChangePatch } from '@/config/vehicles';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
+import { switchCalloutStyle } from '@/store/itemFactories';
 import type {
   BoundaryItem,
   CalloutItem,
@@ -178,12 +179,14 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
   let settings = item.settings;
 
   if (patch.styleId !== undefined && patch.styleId !== item.styleId) {
-    const next = getStyle(patch.styleId);
-    if (!next) throw new ToolError('unknown_style', `Unknown callout styleId "${patch.styleId}".`);
+    const switched = switchCalloutStyle(item, patch.styleId);
+    if (!switched) throw new ToolError('unknown_style', `Unknown callout styleId "${patch.styleId}".`);
+    // The tool changes the style and its settings only; placement, motion and
+    // connector are separate fields of the patch.
     styleId = patch.styleId;
-    settings = { ...next.defaultSettings } as Record<string, unknown>;
+    settings = switched.settings;
     updates.styleId = styleId;
-    updates.styleVersion = next.version;
+    updates.styleVersion = switched.styleVersion;
   }
   if (patch.settings) {
     settings = parseCalloutSettings(getStyle(styleId)!, styleId, { ...settings, ...patch.settings });

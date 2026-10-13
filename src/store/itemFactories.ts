@@ -255,6 +255,24 @@ export function createCalloutStyleDefaults(style: AnnotationStyleDefinition): Pi
   };
 }
 
+/**
+ * The patch that moves a callout onto another style, or null when the style is
+ * not registered. Each style is designed around its own placement and motion,
+ * so the callout takes the new style's defaults for settings, offset, anchor,
+ * transition and connector. Size, timing, content and the map point stay. This is the one place that rule lives: the inspector and
+ * the AI edit tool both call it.
+ */
+export function switchCalloutStyle(item: CalloutItem, newStyleId: string): Partial<CalloutItem> | null {
+  const style = getStyle(newStyleId);
+  if (!style) return null;
+  const { altitude, ...defaults } = createCalloutStyleDefaults(style);
+  const patch: Partial<CalloutItem> = { ...defaults };
+  if (item.binding.kind === 'geographic') {
+    patch.binding = { ...item.binding, altitude };
+  }
+  return patch;
+}
+
 /** Returns null when the style is not registered. */
 export function createCalloutItem(input: CalloutInput): CalloutItem | null {
   const style = getStyle(input.styleId);

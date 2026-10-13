@@ -27,7 +27,7 @@ import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
 import { TimingSection } from '@/components/Inspector/timing/TimingSection';
 import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
-import { createCalloutStyleDefaults } from '@/store/itemFactories';
+import { switchCalloutStyle } from '@/store/itemFactories';
 import { placeLabel } from '@/engine/routeMode';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
@@ -95,16 +95,8 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
         <StylePicker
           value={item.styleId}
           onChange={(newStyleId) => {
-            const newStyle = getStyle(newStyleId);
-            if (!newStyle) return;
-            // Each style is designed around its own placement and motion, so a
-            // new style starts from its own defaults.
-            const { altitude: defaultAltitude, ...defaults } = createCalloutStyleDefaults(newStyle);
-            const patch: Partial<CalloutItem> = { ...defaults };
-            if (item.binding.kind === 'geographic') {
-              patch.binding = { ...item.binding, altitude: defaultAltitude };
-            }
-            u(patch);
+            const patch = switchCalloutStyle(item, newStyleId);
+            if (patch) u(patch);
           }}
         />
       </InspectorSection>
