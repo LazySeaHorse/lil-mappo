@@ -33,7 +33,7 @@ export const INSPECTOR_SECTIONS = {
     { id: 'timing', title: 'Timing', defaultOpen: true },
   ],
   'camera-kf': [
-    { id: 'camera', title: 'Camera', defaultOpen: true },
+    { id: 'exact', title: 'Exact values', defaultOpen: false },
     { id: 'timing', title: 'Timing', defaultOpen: true },
   ],
   autocam: [

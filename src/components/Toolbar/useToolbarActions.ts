@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
+import { readMapCamera } from '@/engine/readMapCamera';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { track } from '@/lib/analytics';
 import { classifyImportError, importFormatOf, importSourceOf } from '@/lib/analytics/classify';
@@ -149,21 +150,9 @@ export function useToolbarActions() {
 
   const handleAddCameraKF = () => {
     const playheadTime = useProjectStore.getState().playheadTime;
-    const map = mapRef.current?.getMap?.();
-    let center: [number, number] = [0, 20];
-    let zoom = 2;
-    let pitch = 0;
-    let bearing = 0;
+    const view = readMapCamera(mapRef.current?.getMap?.());
 
-    if (map) {
-      const c = map.getCenter();
-      center = [c.lng, c.lat];
-      zoom = map.getZoom();
-      pitch = map.getPitch();
-      bearing = map.getBearing();
-    }
-
-    addCameraKeyframe(createCameraKeyframe({ time: playheadTime, center, zoom, pitch, bearing }));
+    addCameraKeyframe(createCameraKeyframe({ time: playheadTime, ...view }));
     track('keyframe_added', { source: 'toolbar' });
     toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
   };

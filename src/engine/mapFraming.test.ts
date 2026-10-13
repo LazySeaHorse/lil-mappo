@@ -3,7 +3,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP } from '@/constants/layout';
 import { useProjectStore } from '@/store/useProjectStore';
 import { beginGesture, endGesture } from '@/store/history';
-import { canMoveCamera, frameBox, frameGeometry, framePadding, framePoint, withMinimumSpan } from './mapFraming';
+import { canMoveCamera, frameBox, moveToCamera, frameGeometry, framePadding, framePoint, withMinimumSpan } from './mapFraming';
 
 const desktop = { isMobile: false, isTablet: false };
 
@@ -136,5 +136,29 @@ describe('frameGeometry', () => {
     const { map, api } = fakeMap();
     expect(frameGeometry(api, { type: 'FeatureCollection', features: [] }, desktop)).toBe(false);
     expect(map.fitBounds).not.toHaveBeenCalled();
+  });
+});
+
+describe('moveToCamera', () => {
+  const view = { center: [8, 46] as [number, number], zoom: 9, pitch: 40, bearing: 120 };
+
+  it('eases the map to the camera with no panel offset', () => {
+    const { map, api } = fakeMap();
+    expect(moveToCamera(api, view)).toBe(true);
+    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining(view));
+    expect(map.easeTo.mock.calls[0][0]).not.toHaveProperty('padding');
+    expect(map.easeTo.mock.calls[0][0]).not.toHaveProperty('offset');
+  });
+
+  it('does not move while playing, scrubbing, exporting or dragging', () => {
+    const { map, api } = fakeMap();
+    for (const key of ['isPlaying', 'isScrubbing', 'isExporting'] as const) {
+      useProjectStore.setState({ [key]: true });
+      expect(moveToCamera(api, view)).toBe(false);
+      useProjectStore.setState({ [key]: false });
+    }
+    beginGesture();
+    expect(moveToCamera(api, view)).toBe(false);
+    expect(map.easeTo).not.toHaveBeenCalled();
   });
 });

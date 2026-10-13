@@ -47,3 +47,10 @@ export const ROUTE_TERMS = {
   /** The switch that makes the camera move along the route. */
   followCamera: 'Follow camera',
 } as const;
+
+/** Words of the camera view panel. A camera view is one saved position of the map camera. */
+export const CAMERA_VIEW_TERMS = {
+  help: 'Move the map to the view you want. Then click Use current view.',
+  useCurrent: 'Use current view',
+  goTo: 'Go to this view',
+} as const;

@@ -387,6 +387,8 @@ describe('Inspector Components Integration', () => {
 
     expect(screen.getByLabelText('Starts')).toHaveValue('00:02.50');
     expect(screen.getByText('Motion')).toBeInTheDocument();
+    expect(screen.queryByText('Zoom')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Exact values' }));
     expect(screen.getByText('Zoom')).toBeInTheDocument();
     expect(screen.getByText('45.0°')).toBeInTheDocument();
     expect(screen.getByText('90.0°')).toBeInTheDocument();

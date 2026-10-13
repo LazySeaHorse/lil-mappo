@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { isGestureActive } from '@/store/history';
 import { PANEL_GAP, PANEL_MARGIN, rightReserved } from '@/constants/layout';
 import { geojsonBounds } from '@/engine/geoUtils';
+import type { MapCameraView } from '@/engine/readMapCamera';
 
 /** [west, south, east, north] */
 export type FrameBox = [number, number, number, number];
@@ -122,4 +123,21 @@ export function frameGeometry(map: MapboxMap, geojson: GeoJSON.GeoJSON, layout: 
   const [[w, s], [e, n]] = bounds;
   if (w === e && s === n) return framePoint(map, [w, s], layout, options);
   return frameBox(map, [w, s, e, n], layout, options);
+}
+
+/**
+ * Eases the map to a stored camera view, such as a camera view in the timeline.
+ * The view fills the whole map, as it does in the video, so there is no panel offset.
+ * Returns false when the camera must not move.
+ */
+export function moveToCamera(map: MapboxMap, view: MapCameraView): boolean {
+  if (!canMoveCamera()) return false;
+  map.easeTo({
+    center: view.center,
+    zoom: view.zoom,
+    pitch: view.pitch,
+    bearing: view.bearing,
+    duration: frameDuration(),
+  });
+  return true;
 }

@@ -10,9 +10,15 @@ import { InspectorHeader } from './InspectorHeader';
 import { TimingSection } from './timing/TimingSection';
 import { cameraViewTiming } from './timing/timingAdapters';
 import { formatTimelineTime } from '@/components/Timeline/timelineTime';
-import { Video, Compass, ZoomIn, RotateCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useMapRef } from '@/hooks/useMapRef';
+import { readMapCamera } from '@/engine/readMapCamera';
+import { moveToCamera } from '@/engine/mapFraming';
+import { CAMERA_VIEW_TERMS } from '@/lib/terms';
+import { Video, Compass, ZoomIn, RotateCw, Crosshair, Eye } from 'lucide-react';
 
 export function CameraKFInspector({ item }: { item: CameraItem }) {
+  const mapRef = useMapRef();
   const { selectedKeyframeId, updateCameraKeyframe } = useProjectStore(
     useShallow(s => ({
       selectedKeyframeId: s.selectedKeyframeId,
@@ -35,6 +41,18 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
 
   const u = (updates: Partial<typeof kf>) => updateCameraKeyframe(kf.id, updates);
 
+  /** Saves what the map shows now into this camera view. One store write, so one undo step. */
+  const saveCurrentView = () => {
+    const map = mapRef.current?.getMap?.();
+    if (map) u({ camera: { ...kf.camera, ...readMapCamera(map) } });
+  };
+
+  /** Shows this camera view on the map. Does nothing while the project plays, scrubs or exports. */
+  const goToView = () => {
+    const map = mapRef.current?.getMap?.();
+    if (map) moveToCamera(map, kf.camera);
+  };
+
   return (
     <PanelWrapper 
       title="Camera view"
@@ -48,7 +66,21 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
         />
       }
     >
-      <InspectorSection kind="camera-kf" id="camera">
+      <div className="flex flex-col gap-2 pb-1">
+        <p className="text-[11px] leading-tight text-muted-foreground">{CAMERA_VIEW_TERMS.help}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" size="sm" onClick={saveCurrentView} className="h-9 text-xs">
+            <Crosshair size={14} aria-hidden="true" />
+            {CAMERA_VIEW_TERMS.useCurrent}
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={goToView} className="h-9 text-xs">
+            <Eye size={14} aria-hidden="true" />
+            {CAMERA_VIEW_TERMS.goTo}
+          </Button>
+        </div>
+      </div>
+
+      <InspectorSection kind="camera-kf" id="exact">
         <div className="flex flex-col gap-3">
           <CoordinatesRows
             lngLat={kf.camera.center}
