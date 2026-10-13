@@ -36,6 +36,7 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
         selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
         selectedAutoCamRouteId: s.selectedAutoCamRouteId === id ? null : s.selectedAutoCamRouteId,
         activePicker: s.activePicker?.ownerId === id ? null : s.activePicker,
+        routeDraft: s.routeDraft?.routeId === id ? null : s.routeDraft,
       };
     }),
 

@@ -50,6 +50,32 @@ export const ROUTE_TERMS = {
   followCamera: 'Follow camera',
 } as const;
 
+/** The way a route travels. */
+export const ROUTE_MODE_LABELS = {
+  car: 'Car',
+  walk: 'Walk',
+  flight: 'Flight',
+} as const;
+
+/** Words of the path section in the route panel: a summary, and a draft that stays local until Apply. */
+export const ROUTE_PATH_TERMS = {
+  edit: 'Edit',
+  /** Closes the editor when nothing changed. */
+  close: 'Close',
+  apply: 'Apply',
+  cancel: 'Cancel',
+  preview: 'Preview route',
+  /** Summary of an imported path, which has no start and end. */
+  imported: 'Imported path',
+  noPlaces: 'No places set',
+  notSet: 'not set',
+  noPoints: 'No points yet',
+  onePoint: '1 point',
+  points: (count: number) => `${count} points`,
+  applied: 'Route updated.',
+  previewReady: 'Route preview is ready.',
+} as const;
+
 /** Tells a user why Follow camera cannot turn on for a route. */
 export const FOLLOW_CAMERA_BLOCKED = (block: FollowCameraBlock): string => {
   switch (block.reason) {

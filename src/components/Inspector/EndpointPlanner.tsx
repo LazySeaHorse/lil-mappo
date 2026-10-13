@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { useShallow } from 'zustand/react/shallow';
-import { Loader2, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useMapPicker } from '@/hooks/useMapPicker';
-import type { RoutePath } from '@/hooks/useRoutePath';
+import type { RouteDraftEditor } from '@/hooks/useRouteDraft';
+import { ROUTE_PATH_TERMS } from '@/lib/terms';
 import { placeLabel } from '@/engine/routeMode';
-import type { EndpointRouteCalculation, RouteItem } from '@/store/types';
+import type { EndpointRouteCalculation } from '@/store/types';
 import { Button } from '@/components/ui/button';
 import { SearchField } from '@/components/Search/SearchField';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
@@ -22,37 +22,30 @@ const Labelled = ({ label, children }: { label: string; children: ReactNode }) =
 
 /** Car / flight: two endpoints and a computed path. */
 export const EndpointPlanner = ({
-  item,
+  routeId,
   calc,
-  path,
+  editor,
 }: {
-  item: RouteItem;
+  routeId: string;
   calc: EndpointRouteCalculation;
-  path: RoutePath;
+  editor: RouteDraftEditor;
 }) => {
-  const { updateItem, setPreviewRoute } = useProjectStore(
-    useShallow(s => ({
-      updateItem: s.updateItem,
-      setPreviewRoute: s.setPreviewRoute,
-    }))
-  );
+  const { path } = editor;
 
   const setPoint = (key: 'startPoint' | 'endPoint', lngLat: [number, number], name = '') => {
     path.cancel();
-    const current = useProjectStore.getState().items[item.id];
-    if (current?.kind !== 'route' || current.calculation?.mode === 'walk') return;
     const nameKey = key === 'startPoint' ? 'startName' : 'endName';
-    updateItem(item.id, { calculation: { ...(current.calculation ?? calc), [key]: lngLat, [nameKey]: name } });
-    setPreviewRoute(null);
+    editor.edit((current) => (current.mode === 'walk' ? current : { ...current, [key]: lngLat, [nameKey]: name }));
+    useProjectStore.getState().setPreviewRoute(null);
   };
 
-  const startPicker = useMapPicker(`route-${item.id}-start`, {
-    ownerId: item.id,
+  const startPicker = useMapPicker(`route-${routeId}-start`, {
+    ownerId: routeId,
     prompt: 'Start',
     onPick: (result) => setPoint('startPoint', result.lngLat, result.name),
   });
-  const endPicker = useMapPicker(`route-${item.id}-end`, {
-    ownerId: item.id,
+  const endPicker = useMapPicker(`route-${routeId}-end`, {
+    ownerId: routeId,
     prompt: 'End',
     onPick: (result) => setPoint('endPoint', result.lngLat, result.name),
   });
@@ -117,27 +110,16 @@ export const EndpointPlanner = ({
         </>
       )}
 
-      <div className="flex flex-col gap-2.5 pt-1">
-        <Button
-          type="button"
-          onClick={() => path.calculate(calc, 'save')}
-          disabled={path.loading}
-          className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          {path.loading ? <Loader2 size={15} className="animate-spin" /> : 'Apply route'}
-        </Button>
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => path.calculate(calc, 'preview')}
-          disabled={path.loading}
-          className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Eye size={15} className="text-muted-foreground" />
-          <span>Preview route</span>
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => path.preview(calc)}
+        disabled={path.loading}
+        className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <Eye size={15} className="text-muted-foreground" />
+        <span>{ROUTE_PATH_TERMS.preview}</span>
+      </Button>
     </div>
   );
 };

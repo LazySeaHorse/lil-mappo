@@ -1,21 +1,30 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
 import { toggleMapPicker, useMapPicker } from '@/hooks/useMapPicker';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
-import type { WalkRouteCalculation } from '@/store/types';
+import type { RouteCalculation, WalkRouteCalculation } from '@/store/types';
+import type { WalkPatch } from '@/engine/routeCurves';
 import { SwitchRow, SliderField } from './InspectorShared';
 import { WalkPointList } from './WalkPointList';
 
-export const WalkPlanner = ({ routeId, calc }: { routeId: string; calc: WalkRouteCalculation }) => {
-  const { updateWalkRoute, activePicker, stopPicking } = useProjectStore(
-    useShallow(s => ({
-      updateWalkRoute: s.updateWalkRoute,
-      activePicker: s.activePicker,
-      stopPicking: s.stopPicking,
-    }))
-  );
+export const WalkPlanner = ({
+  routeId,
+  calc,
+  edit,
+}: {
+  routeId: string;
+  calc: WalkRouteCalculation;
+  /** Edits the draft. */
+  edit: (update: (calc: RouteCalculation) => RouteCalculation) => void;
+}) => {
+  const activePicker = useProjectStore((s) => s.activePicker);
+  const stopPicking = useProjectStore((s) => s.stopPicking);
+  // Function updates get the latest draft, so a pick or a drag that began earlier never overwrites newer edits.
+  const updateWalkRoute = (_id: string, change: WalkPatch | ((calc: WalkRouteCalculation) => WalkPatch)) =>
+    edit((current) =>
+      current.mode === 'walk' ? { ...current, ...(typeof change === 'function' ? change(current) : change) } : current,
+    );
   const { isPicking: isAppending, toggle: toggleAppend } = useMapPicker(`route-${routeId}-append`, {
     ownerId: routeId,
     prompt: 'Point',

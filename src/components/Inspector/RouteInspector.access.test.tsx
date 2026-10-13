@@ -9,7 +9,7 @@ import type { Subscription } from '@/lib/database.types';
 let subscription: Partial<Subscription> | null = null;
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: subscription }) }));
 vi.mock('@/hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false, isTablet: false }) }));
-vi.mock('./RoutePlanner', () => ({ RoutePlanner: () => <div /> }));
+vi.mock('./RoutePathSection', () => ({ RoutePathSection: () => <div /> }));
 
 const route = createEndpointRouteItem({
   id: 'r1',

@@ -10,7 +10,7 @@ const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: null }) }));
 vi.mock('@/hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false, isTablet: false }) }));
-vi.mock('./RoutePlanner', () => ({ RoutePlanner: () => <div /> }));
+vi.mock('./RoutePathSection', () => ({ RoutePathSection: () => <div /> }));
 
 const makeRoute = (id: string, coords: number[][], over: Partial<RouteItem> = {}): RouteItem => ({
   ...createEndpointRouteItem({

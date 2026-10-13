@@ -1,5 +1,6 @@
 import type {
   Project,
+  RouteCalculation,
   TimelineItem,
   CameraKeyframe,
   BoundaryItem,
@@ -14,6 +15,12 @@ import type { AspectRatio, ExportResolution } from '@/types/render';
 export interface PickResult {
   lngLat: [number, number];
   name: string;
+}
+
+/** A route's path being edited. It stays here, apart from the project, until the user applies it. */
+export interface RouteDraft {
+  routeId: string;
+  calculation: RouteCalculation;
 }
 
 export interface PickSession {
@@ -51,6 +58,8 @@ export interface TransientProjectState {
   previewRoute: GeoJSON.FeatureCollection | null;
   /** Walk being built in the Plan Route dropdown; drawn live on the map until inserted. */
   draftWalk: WalkRouteCalculation | null;
+  /** The path editor of the selected route (not persisted, not in undo history). */
+  routeDraft: RouteDraft | null;
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
   draftBoundaryName: string;
@@ -133,6 +142,11 @@ export interface EditorUiSlice {
   stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
   setDraftWalk: (v: WalkRouteCalculation | null) => void;
+  /** Opens a draft that starts as a copy of the route's saved path settings. */
+  startRouteDraft: (routeId: string) => void;
+  /** Edits the open draft. The function gets the latest draft, so late map picks and drags never overwrite newer edits. */
+  updateRouteDraft: (update: (calc: RouteCalculation) => RouteCalculation) => void;
+  discardRouteDraft: () => void;
   setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string, countryCode?: string | null) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;

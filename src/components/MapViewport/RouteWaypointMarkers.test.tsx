@@ -113,4 +113,34 @@ describe('RouteWaypointMarkers', () => {
     const coords = (updatedRoute.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(coords.length).toBeGreaterThan(3);
   });
+
+  describe('while the route has a path draft', () => {
+    it('shows the draft points and drags the draft, not the saved route', () => {
+      const route = createTestRoute();
+      useProjectStore.setState({ items: { [route.id]: route }, selectedItemId: route.id });
+      useProjectStore.getState().startRouteDraft(route.id);
+      useProjectStore.getState().updateRouteDraft((c) =>
+        c.mode === 'walk' ? { ...c, points: [...c.points, [-73.95, 40.8]] } : c);
+
+      render(<RouteWaypointMarkers />);
+      const markers = screen.getAllByTestId('map-marker');
+      expect(markers).toHaveLength(4);
+
+      act(() => { fireEvent.click(markers[1]); });
+      const draft = useProjectStore.getState().routeDraft!.calculation;
+      expect(draft.mode === 'walk' && draft.points[1][0]).toBeCloseTo(-73.96, 2);
+      expect(useProjectStore.getState().items[route.id]).toBe(route);
+    });
+
+    it('shows no markers when the draft is not a walk', () => {
+      const route = createTestRoute();
+      useProjectStore.setState({ items: { [route.id]: route }, selectedItemId: route.id });
+      useProjectStore.getState().startRouteDraft(route.id);
+      useProjectStore.getState().updateRouteDraft(() => (
+        { mode: 'car', startPoint: [1, 1], endPoint: [2, 2], startName: '', endName: '' }));
+
+      const { container } = render(<RouteWaypointMarkers />);
+      expect(container).toBeEmptyDOMElement();
+    });
+  });
 });

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 import { vehicleChangePatch } from '@/config/vehicles';
-import { RoutePlanner } from './RoutePlanner';
+import { RoutePathSection } from './RoutePathSection';
 import { useSubscription } from '@/hooks/useSubscription';
 import { isWanderer } from '@/lib/cloudAccess';
 import { 
@@ -94,7 +94,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     >
 
       <InspectorSection kind="route" id="path">
-        <RoutePlanner item={item} />
+        <RoutePathSection key={item.id} item={item} />
       </InspectorSection>
 
       <InspectorSection kind="route" id="appearance">

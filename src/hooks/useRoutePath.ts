@@ -1,32 +1,28 @@
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
-import { withoutHistory } from '@/store/history';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
+import { ROUTE_PATH_TERMS } from '@/lib/terms';
 import type { EndpointRouteCalculation } from '@/store/types';
 
-/** Lands a computed path on the route ('save') or shows it as the map preview. */
+/** Computes the path of a car or flight route, for a map preview or for the caller to save. */
 export function useRoutePath(routeId: string) {
   const { loading, calculate, cancel } = useEndpointRoutePath(routeId);
   const frame = useFrameOnMap();
 
-  const calculateFor = (calc: EndpointRouteCalculation, target: 'save' | 'preview') =>
+  /** Shows the path on the map as a preview. The route does not change. */
+  const preview = (calc: EndpointRouteCalculation) =>
     calculate(calc.mode, calc.startPoint, calc.endPoint, (geojson) => {
-      const { updateItem, setPreviewRoute } = useProjectStore.getState();
-      if (target === 'save') {
-        // Async result of an earlier request, not an edit of its own.
-        withoutHistory(() => updateItem(routeId, { geojson }));
-        setPreviewRoute(null);
-        frame.frameGeometry(geojson);
-        toast.success('Route updated.');
-      } else {
-        setPreviewRoute(geojson);
-        frame.frameGeometry(geojson);
-        toast.success('Route preview is ready.');
-      }
+      useProjectStore.getState().setPreviewRoute(geojson);
+      frame.frameGeometry(geojson);
+      toast.success(ROUTE_PATH_TERMS.previewReady);
     });
 
-  return { loading, calculate: calculateFor, cancel };
+  /** Calls `onReady` with the path, unless a newer request or a cancel replaced this one. */
+  const compute = (calc: EndpointRouteCalculation, onReady: (geojson: GeoJSON.FeatureCollection) => void) =>
+    calculate(calc.mode, calc.startPoint, calc.endPoint, onReady);
+
+  return { loading, preview, compute, cancel };
 }
 
 export type RoutePath = ReturnType<typeof useRoutePath>;

@@ -223,8 +223,8 @@ test("2a. quick walkthrough makes a first trip video through real actions", asyn
   await page.getByRole("button", { name: "Insert route" }).click();
 
   await expect(page.getByText("Make the camera follow the route")).toBeVisible();
-  // The route inspector shows the places by name, not as coordinates.
-  await expect(page.getByPlaceholder("Search address or coordinates").first()).toHaveValue("Times Square");
+  // The route inspector sums up the path with the place names, not coordinates.
+  await expect(page.getByTestId("route-summary")).toContainText("Times Square");
   await page.locator('[data-walkthrough="follow-route"]').getByRole("switch").click();
 
   await expect(page.getByText("Play your trip")).toBeVisible();

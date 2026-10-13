@@ -27,6 +27,7 @@ export function createTransientState(): TransientProjectState {
     activePicker: null,
     previewRoute: null,
     draftWalk: null,
+    routeDraft: null,
     previewBoundary: null,
     previewBoundaryStyle: null,
     draftBoundaryName: '',
