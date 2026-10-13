@@ -140,6 +140,8 @@ Manages the Mapbox instance. Hosts:
 
 Right-side panel for editing selected items. Uses local state for draft values (to avoid store thrashing on keystroke) and flushes to store on blur/Enter. Shares unified **Route Planning UI** between Toolbar (new items) and Inspector (existing items) to avoid duplication.
 
+**Shared controls.** Small, single-purpose files: `controls/` (`EditableTitle`, `inputs` for `InputText`/`InputNumber`, `NumberRow`, `SliderRow`/`SliderField`, `ColorRow`, `SwitchRow`, `SelectRow`, `EasingSelect`, `CoordinatesRows`, internal `RowLabel`), `timing/TimingControls.tsx`, and `VisualCardSelect.tsx`. `InspectorShared.tsx` is only a re-export barrel; import from the specific file in new code.
+
 ### 3.5 Label System (Dynamic Capabilities)
 
 **Lesson Learned**: Hardcoded label toggles per style + incorrect Config API property names = broken UX.
