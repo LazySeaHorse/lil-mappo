@@ -65,7 +65,7 @@ export default function Toolbar({
     }))
   );
 
-  const { isMobile, isTablet } = useResponsive();
+  const { isMobile, isTablet, isToolbarCollapsed, isLayersCollapsed } = useResponsive();
   const actions = useToolbarActions();
 
   const rightMarginVal = rightReserved({ isInspectorOpen, isMobile, isTablet });
@@ -107,7 +107,7 @@ export default function Toolbar({
       <input ref={routeInputRef} type="file" accept=".kml,.gpx,.geojson,.json" multiple className="hidden" onChange={actions.handleImport} />
       <input ref={projectInputRef} type="file" accept=".lilmap,.json" className="hidden" onChange={actions.handleImportProject} />
 
-      {isMobile ? (
+      {isToolbarCollapsed ? (
         <MobileToolbarLayout
           mobileMode={mobileMode}
           setMobileMode={setMobileMode}
@@ -122,12 +122,13 @@ export default function Toolbar({
             setMobileMode('default');
             openProjectSettings();
           }}
+          hideAi={isMobile}
           isPlaying2={isPlaying}
           {...layerProps}
         />
       ) : (
         <DesktopToolbarLayout
-          isTablet={isTablet}
+          isTablet={isLayersCollapsed}
           activeDropdown={activeDropdown}
           setActiveDropdown={setActiveDropdown}
           isPlaying={isPlaying}

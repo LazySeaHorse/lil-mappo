@@ -29,6 +29,8 @@ interface MobileToolbarLayoutProps {
   setBuildingsEnabled: (v: boolean) => void;
   terrainLoading: boolean;
   isPlaying2: boolean;
+  /** Phones cannot run the AI panel, so its button is not rendered. */
+  hideAi?: boolean;
   isScrubbing: boolean;
   handleAddCameraKF: () => void;
   onProjectSettings: () => void;
@@ -44,7 +46,7 @@ export function MobileToolbarLayout({
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
   terrainLoading,
-  isPlaying2, isScrubbing,
+  isPlaying2, isScrubbing, hideAi,
   handleAddCameraKF,
   onProjectSettings, onMapStyleOpenChange,
 }: MobileToolbarLayoutProps) {
@@ -67,8 +69,12 @@ export function MobileToolbarLayout({
           <Divider />
           <HistoryButtons iconSize={18} />
           <div className="flex-1" />
-          <AiToolbarButton iconSize={18} />
-          <div className="w-1" />
+          {!hideAi && (
+            <>
+              <AiToolbarButton iconSize={18} />
+              <div className="w-1" />
+            </>
+          )}
           <ToolbarButton icon={<Clapperboard size={18} />} label="Export" hideLabel onClick={onExport} walkthroughTarget="render" />
           <div className="w-1" />
           <ToolbarButton icon={<EyeOff size={18} />} label="Hide UI" hideLabel onClick={onHideUI} />
