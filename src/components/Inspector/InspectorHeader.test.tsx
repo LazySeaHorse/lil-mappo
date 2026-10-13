@@ -53,21 +53,19 @@ beforeEach(() => {
 });
 
 describe('InspectorHeader', () => {
-  it('shows the item name and its type label', () => {
+  it('shows the item name', () => {
     render(<InspectorHeader kind="route" id="r1" name="Road trip" startTime={2} onRename={() => {}} />);
     expect(screen.getByDisplayValue('Road trip')).toBeInTheDocument();
-    expect(screen.getByText(ITEM_TYPE_LABELS.route)).toBeInTheDocument();
   });
 
-  it.each([
-    ['route', 'Route'],
-    ['callout', 'Callout'],
-    ['boundary', 'Area'],
-    ['camera-kf', 'Camera view'],
-  ] as const)('labels a %s as "%s"', (kind, label) => {
-    render(<InspectorHeader kind={kind} id="x" name="Thing" startTime={0} />);
-    expect(screen.getByText(label)).toBeInTheDocument();
-  });
+  it.each(['route', 'callout', 'boundary', 'camera-kf'] as const)(
+    'shows no type line under the name of a %s, and names the panel for screen readers only',
+    (kind) => {
+      render(<InspectorHeader kind={kind} id="x" name="Thing" startTime={0} />);
+      const heading = screen.getByRole('heading', { name: ITEM_TYPE_LABELS[kind] });
+      expect(heading).toHaveClass('sr-only');
+    },
+  );
 
   it('sends renames to onRename', () => {
     const onRename = vi.fn();

@@ -109,9 +109,9 @@ describe('CameraKFInspector exact values', () => {
 });
 
 describe('CameraKFInspector words', () => {
-  it('names the panel type with the camera view term', () => {
+  it('names the panel with the camera view term and its time', () => {
     render(<CameraKFInspector item={item} />, { wrapper });
-    expect(screen.getByText(ITEM_TYPE_LABELS['camera-kf'])).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`^${ITEM_TYPE_LABELS['camera-kf']} at \\d\\d:\\d\\d\\.\\d\\d$`))).toBeInTheDocument();
   });
 
   it('asks for a camera view, not a keyframe, when none is selected', () => {

@@ -24,8 +24,8 @@ interface InspectorHeaderProps {
 }
 
 /**
- * Top of every item panel: the item name, what kind of item it is, and a
- * menu with Duplicate, Go to start and Delete. Put it in `PanelWrapper`'s
+ * Top of every item panel: the item name and a menu with Duplicate, Go to
+ * start and Delete. Put it in `PanelWrapper`'s
  * `header` slot, so it also works in the phone drawer.
  */
 export function InspectorHeader({ kind, id, name, onRename, placeholder, startTime }: InspectorHeaderProps) {
@@ -33,15 +33,14 @@ export function InspectorHeader({ kind, id, name, onRename, placeholder, startTi
 
   return (
     <div className="flex flex-1 min-w-0 items-center gap-1">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <div className="min-w-0 flex-1">
+        {/* The panel type is for screen readers only; the name says enough on screen. */}
+        <h2 className="sr-only">{ITEM_TYPE_LABELS[kind]}</h2>
         {onRename ? (
           <EditableTitle value={name} onChange={onRename} placeholder={placeholder} className="mb-0" />
         ) : (
           <p className="truncate px-1 text-sm font-medium text-foreground">{name}</p>
         )}
-        <h2 className="px-1 text-[11px] font-medium leading-none text-muted-foreground">
-          {ITEM_TYPE_LABELS[kind]}
-        </h2>
       </div>
 
       <DropdownMenu modal={false}>

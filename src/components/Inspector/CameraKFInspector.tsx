@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useMapRef } from '@/hooks/useMapRef';
 import { readMapCamera } from '@/engine/readMapCamera';
 import { moveToCamera } from '@/engine/mapFraming';
-import { CAMERA_VIEW_TERMS } from '@/lib/terms';
+import { CAMERA_VIEW_TERMS, ITEM_TYPE_LABELS } from '@/lib/terms';
 import { Video, Compass, ZoomIn, RotateCw, Crosshair, Eye } from 'lucide-react';
 
 export function CameraKFInspector({ item }: { item: CameraItem }) {
@@ -61,7 +61,7 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
         <InspectorHeader
           kind="camera-kf"
           id={kf.id}
-          name={`At ${formatTimelineTime(kf.time)}`}
+          name={`${ITEM_TYPE_LABELS['camera-kf']} at ${formatTimelineTime(kf.time)}`}
           startTime={kf.time}
         />
       }
