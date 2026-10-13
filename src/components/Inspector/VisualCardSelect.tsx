@@ -7,6 +7,11 @@ export interface VisualCardOption<T extends string> {
   icon?: React.ReactNode;
   badge?: string;
   disabled?: boolean;
+  /**
+   * Shown above the label, e.g. a small looping SVG or canvas. A function gets
+   * whether the card is selected, so a preview can play only then.
+   */
+  preview?: React.ReactNode | ((state: { selected: boolean }) => React.ReactNode);
   /** Plan-gated: stays clickable, but selecting it calls `onLockedSelect` instead of `onChange`. */
   locked?: boolean;
 }
@@ -55,6 +60,11 @@ export function VisualCardSelect<T extends string>({
                 isSelected ? "text-primary" : "text-muted-foreground/80"
               )}>
                 {opt.icon}
+              </div>
+            )}
+            {opt.preview != null && (
+              <div className="flex w-full items-center justify-center">
+                {typeof opt.preview === 'function' ? opt.preview({ selected: isSelected }) : opt.preview}
               </div>
             )}
             <span className="text-[10px] font-medium leading-tight text-center w-full block whitespace-normal break-words">{opt.label}</span>

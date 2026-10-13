@@ -16,6 +16,9 @@ export function SliderRow({
   formatValue,
   onReset,
   logarithmic = false,
+  hint,
+  endLabels,
+  showValue = true,
   className,
 }: {
   label: string;
@@ -31,6 +34,12 @@ export function SliderRow({
   onReset?: () => void;
   /** Spreads a range spanning orders of magnitude evenly; `min` must be positive. */
   logarithmic?: boolean;
+  /** One muted line of help text under the row. */
+  hint?: string;
+  /** Words under the left and right ends of the slider, e.g. ["Calm", "Lively"]. */
+  endLabels?: readonly [string, string];
+  /** Set to false to hide the number, usually when `endLabels` say enough. */
+  showValue?: boolean;
   className?: string;
 }) {
   const displayVal = formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ''}`;
@@ -39,21 +48,38 @@ export function SliderRow({
   const fromSlider = (v: number) =>
     logarithmic ? Math.min(max, Math.max(min, Math.round(Math.exp(v) / step) * step)) : v;
   return (
-    <div className={cn("flex items-center justify-between gap-3 text-xs py-0.5", className)}>
-      <RowLabel label={label} icon={icon} className="w-28 truncate" />
-      <Slider
-        min={toSlider(min)}
-        max={toSlider(max)}
-        step={logarithmic ? (toSlider(max) - toSlider(min)) / 500 : step}
-        value={[toSlider(value)]}
-        onValueChange={([v]) => onChange(fromSlider(v))}
-        onDoubleClick={onReset}
-        title={onReset ? 'Double-click to reset' : undefined}
-        className="flex-1 py-1"
-      />
-      <span className="text-xs font-mono text-muted-foreground shrink-0 w-14 text-right tabular-nums">
-        {displayVal}
-      </span>
+    <div className={cn("flex flex-col gap-1 text-xs py-0.5", className)}>
+      <div className="flex items-start justify-between gap-3">
+        <RowLabel label={label} icon={icon} className="w-28 h-6 truncate" />
+        <div className="flex flex-1 flex-col gap-0.5 min-w-0">
+          <Slider
+            min={toSlider(min)}
+            max={toSlider(max)}
+            step={logarithmic ? (toSlider(max) - toSlider(min)) / 500 : step}
+            value={[toSlider(value)]}
+            onValueChange={([v]) => onChange(fromSlider(v))}
+            onDoubleClick={onReset}
+            title={onReset ? 'Double-click to reset' : undefined}
+            className="py-1"
+          />
+          {endLabels && (
+            <div data-slot="slider-end-labels" className="flex justify-between text-[10px] leading-none text-muted-foreground">
+              <span>{endLabels[0]}</span>
+              <span>{endLabels[1]}</span>
+            </div>
+          )}
+        </div>
+        {showValue && (
+          <span className="flex h-6 items-center justify-end text-xs font-mono text-muted-foreground shrink-0 w-14 tabular-nums">
+            {displayVal}
+          </span>
+        )}
+      </div>
+      {hint && (
+        <p data-slot="slider-hint" className="text-[11px] leading-tight text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

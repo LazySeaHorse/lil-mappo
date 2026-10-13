@@ -106,6 +106,46 @@ describe('SliderRow', () => {
   });
 });
 
+describe('SliderRow hint and end labels', () => {
+  const base = { label: 'Energy', value: 0.5, onChange: () => {}, min: 0, max: 1, step: 0.1 };
+
+  it('shows a hint under the label', () => {
+    render(<SliderRow {...base} hint="How lively the motion feels." />);
+    expect(screen.getByText('How lively the motion feels.')).toBeInTheDocument();
+    expect(screen.getByText('Energy')).toBeInTheDocument();
+  });
+
+  it('shows no hint or end labels unless asked', () => {
+    const { container } = render(<SliderRow {...base} />);
+    expect(container.querySelector('[data-slot="slider-hint"]')).toBeNull();
+    expect(container.querySelector('[data-slot="slider-end-labels"]')).toBeNull();
+  });
+
+  it('shows words under the left and right ends of the slider', () => {
+    render(<SliderRow {...base} endLabels={['Calm', 'Lively']} />);
+    const [left, right] = [screen.getByText('Calm'), screen.getByText('Lively')];
+    expect(left.parentElement).toBe(right.parentElement);
+    expect(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the readout unless it is hidden', () => {
+    const { rerender } = render(<SliderRow {...base} endLabels={['Calm', 'Lively']} unit="x" />);
+    expect(screen.getByText('0.5 x')).toBeInTheDocument();
+    rerender(<SliderRow {...base} endLabels={['Calm', 'Lively']} unit="x" showValue={false} />);
+    expect(screen.queryByText('0.5 x')).not.toBeInTheDocument();
+    expect(screen.getByText('Calm')).toBeInTheDocument();
+  });
+
+  it('still moves the slider with the keyboard when the readout is hidden', () => {
+    const onChange = vi.fn();
+    render(<SliderRow {...base} onChange={onChange} endLabels={['Calm', 'Lively']} showValue={false} />);
+    const thumb = screen.getByRole('slider');
+    thumb.focus();
+    fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenCalledWith(0.6);
+  });
+});
+
 describe('ColorRow', () => {
   it('renders label and color picker', () => {
     const onChange = vi.fn();
@@ -235,6 +275,50 @@ describe('VisualCardSelect', () => {
 
     fireEvent.click(screen.getByText('Dotted'));
     expect(onChange).not.toHaveBeenCalledWith('dotted');
+  });
+});
+
+describe('VisualCardSelect preview', () => {
+  it('shows a preview above the label', () => {
+    render(
+      <VisualCardSelect
+        options={[
+          { value: 'a', label: 'Alpha', preview: <svg data-testid="preview-a" /> },
+          { value: 'b', label: 'Beta' },
+        ]}
+        value="a"
+        onChange={() => {}}
+      />
+    );
+    const preview = screen.getByTestId('preview-a');
+    const label = screen.getByText('Alpha');
+    expect(preview.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByTestId('preview-b')).not.toBeInTheDocument();
+  });
+
+  it('gives a render function the selected state', () => {
+    const preview = vi.fn(({ selected }: { selected: boolean }) => (
+      <span data-testid="p">{selected ? 'on' : 'off'}</span>
+    ));
+    const { rerender } = render(
+      <VisualCardSelect options={[{ value: 'a', label: 'Alpha', preview }]} value="a" onChange={() => {}} />
+    );
+    expect(screen.getByTestId('p')).toHaveTextContent('on');
+    rerender(<VisualCardSelect options={[{ value: 'a', label: 'Alpha', preview }]} value="b" onChange={() => {}} />);
+    expect(screen.getByTestId('p')).toHaveTextContent('off');
+  });
+
+  it('selecting the card still works through the preview', () => {
+    const onChange = vi.fn();
+    render(
+      <VisualCardSelect
+        options={[{ value: 'a', label: 'Alpha', preview: <svg data-testid="pa" /> }]}
+        value="b"
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(screen.getByTestId('pa'));
+    expect(onChange).toHaveBeenCalledWith('a');
   });
 });
 

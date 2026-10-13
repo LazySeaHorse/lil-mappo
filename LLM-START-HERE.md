@@ -150,6 +150,8 @@ Right-side panel for editing selected items. Uses local state for draft values (
 
 **Terms.** `src/lib/terms.ts` holds the words the toolbar add panels and the inspectors share: `ITEM_TYPE_LABELS`, `TIMING_LABELS`, `BOUNDARY_TERMS` (the outline is the Border, the inside is the Fill), `BOUNDARY_ANIMATION_LABELS` ("Fade in", "Outline", "Trace", "Off") and `ROUTE_TERMS.followCamera` ("Follow camera", the autoCam switch; the tour text uses it too). Import a term; do not retype it. `sharedTerms.test.tsx` checks that the add panel and the inspector show the same words. Internal ids (`data-walkthrough="follow-route"`, `autoCam`) do not change.
 
+**Control props for richer panels.** `SliderRow` takes `hint` (one muted line under the row), `endLabels={['Calm', 'Lively']}` (words under the slider ends) and `showValue={false}` (hides the number when the end labels say enough). `VisualCardSelect` options take `preview`: a node, or `({ selected }) => node`, drawn above the label, so a card can hold a looping SVG or canvas.
+
 ### 3.5 Label System (Dynamic Capabilities)
 
 **Lesson Learned**: Hardcoded label toggles per style + incorrect Config API property names = broken UX.
