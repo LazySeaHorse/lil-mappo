@@ -14,13 +14,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { cn, errorMessage } from '@/lib/utils';
+import { CALLOUT_TEXT_TERMS } from '@/lib/terms';
 import type { AnnotationContent, AnnotationStyleDefinition } from '@/annotations/types';
 import { imageFileToDataUrl } from '@/utils/imageDownscale';
 
 type TextSlot = 'eyebrow' | 'subtitle' | 'badge';
 
 const TEXT_FIELDS: Record<TextSlot, { label: string; placeholder: string; maxLength: number }> = {
-  eyebrow: { label: 'Eyebrow', placeholder: 'Small line above the title', maxLength: 100 },
+  eyebrow: { label: CALLOUT_TEXT_TERMS.topLine, placeholder: 'Small line above the title', maxLength: 100 },
   subtitle: { label: 'Subtitle', placeholder: 'Secondary line', maxLength: 300 },
   badge: { label: 'Badge', placeholder: 'e.g. Day 3', maxLength: 60 },
 };

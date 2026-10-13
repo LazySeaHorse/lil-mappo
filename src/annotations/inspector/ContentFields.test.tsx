@@ -50,18 +50,25 @@ describe('callout content fields', () => {
 
   it('shows only the slots the style consumes, in a fixed order', () => {
     mount(ALL, { title: 'T' });
-    const labels = ['Eyebrow', 'Subtitle', 'Body', 'Badge', 'Number value', 'Image file'].map((l) => screen.getByLabelText(l));
+    const labels = ['Top line', 'Subtitle', 'Body', 'Badge', 'Number value', 'Image file'].map((l) => screen.getByLabelText(l));
     labels.slice(0, -1).forEach((el, i) => {
       expect(el.compareDocumentPosition(labels[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
-    expect(screen.getByLabelText('Eyebrow')).not.toHaveAttribute('placeholder', 'Defaults to coordinates');
+    expect(screen.getByLabelText('Top line')).not.toHaveAttribute('placeholder', 'Defaults to coordinates');
     expect(screen.getByLabelText('Body').tagName).toBe('TEXTAREA');
     expect(screen.getByLabelText('Number value')).toHaveAttribute('type', 'number');
   });
 
-  it('promises coordinates in the eyebrow only for styles that fall back to them', () => {
+  it('calls the small line above the title "Top line", never "Eyebrow"', () => {
+    mount(ALL, { title: 'T' });
+    expect(screen.getByLabelText('Top line')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Eyebrow')).not.toBeInTheDocument();
+    expect(screen.queryByText('Eyebrow')).not.toBeInTheDocument();
+  });
+
+  it('promises coordinates in the top line only for styles that fall back to them', () => {
     mount(COORDS, { title: 'T' });
-    expect(screen.getByLabelText('Eyebrow')).toHaveAttribute('placeholder', 'Defaults to coordinates');
+    expect(screen.getByLabelText('Top line')).toHaveAttribute('placeholder', 'Defaults to coordinates');
   });
 
   it('shows no extra fields for a title-only style', () => {

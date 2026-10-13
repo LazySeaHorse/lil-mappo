@@ -148,6 +148,12 @@ export const STYLE_TERMS = {
   sampleText: 'Paris',
 } as const;
 
+/** Labels of the callout text fields that need a plainer word than the code key. */
+export const CALLOUT_TEXT_TERMS = {
+  /** The small line above the title. The code key is `eyebrow`. */
+  topLine: 'Top line',
+} as const;
+
 /** Words for the colors of a callout style. One accent color sets the main colors; the rest are folded away. */
 export const ACCENT_TERMS = {
   accent: 'Accent color',
