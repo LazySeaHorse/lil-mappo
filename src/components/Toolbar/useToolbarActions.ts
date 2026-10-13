@@ -8,7 +8,8 @@ import { useMapRef } from '@/hooks/useMapRef';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
 import { CloudProjectSizeError } from '@/services/cloudProjectLibrary';
-import { isFreeUser, hasByok } from '@/lib/cloudAccess';
+import { isFreeUser } from '@/lib/cloudAccess';
+import { useGuestLock } from '@/hooks/useGuestLock';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { saveAs } from 'file-saver';
@@ -17,6 +18,8 @@ import { extractLineCoords } from '@/engine/geoUtils';
 import { track } from '@/lib/analytics';
 import { classifyImportError, importFormatOf, importSourceOf } from '@/lib/analytics/classify';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
+
+const ROUTE_IMPORT_SIGN_IN = 'Sign in to import a route.';
 
 export function useToolbarActions() {
   const mapRef = useMapRef();
@@ -32,12 +35,18 @@ export function useToolbarActions() {
   );
 
   const { data: subscription } = useSubscription();
-  const { user, requestSignIn } = useAuthStore(useShallow((s) => ({ user: s.user, requestSignIn: s.requestSignIn })));
-  const isLocked = !user && !hasByok();
+  const requestSignIn = useAuthStore((s) => s.requestSignIn);
+  const isLocked = useGuestLock();
+
+  /** Opens the route file picker, or asks a guest to sign in first so they do not pick a file for nothing. */
+  const pickRouteFile = (input: HTMLInputElement | null) => {
+    if (isLocked) requestSignIn(ROUTE_IMPORT_SIGN_IN);
+    else input?.click();
+  };
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {
-      requestSignIn('Sign in to import a route.');
+      requestSignIn(ROUTE_IMPORT_SIGN_IN);
       e.target.value = '';
       return;
     }
@@ -160,6 +169,7 @@ export function useToolbarActions() {
   };
 
   return {
+    pickRouteFile,
     handleImport,
     handleImportProject,
     handleExportProject,

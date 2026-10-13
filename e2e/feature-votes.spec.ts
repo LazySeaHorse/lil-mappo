@@ -35,7 +35,7 @@ test("signed out: the Cloud render control previews the feature and sends voters
   await expect(trigger).toBeEnabled();
   await expect(exportDialog.getByText("Not available yet")).toHaveCount(0);
   // Same height as the Export button, side by side.
-  const exportButton = exportDialog.getByRole("button", { name: /Export locally/ });
+  const exportButton = exportDialog.getByRole("button", { name: /Sign in to export/ });
   const [t, e] = [await trigger.boundingBox(), await exportButton.boundingBox()];
   expect(t!.height).toBeCloseTo(e!.height, 0);
   expect(t!.y).toBeCloseTo(e!.y, 0);

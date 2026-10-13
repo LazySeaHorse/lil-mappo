@@ -114,7 +114,7 @@ export default function Toolbar({
           activeDropdown={activeDropdown}
           setActiveDropdown={setActiveDropdown}
           onExport={onExport}
-          onImportClick={() => routeInputRef.current?.click()}
+          onImportClick={() => actions.pickRouteFile(routeInputRef.current)}
           onHideUI={() => setHideUI(true)}
           renderAvatarMenu={renderAvatarMenu}
           handleAddCameraKF={actions.handleAddCameraKF}
@@ -133,7 +133,7 @@ export default function Toolbar({
           setActiveDropdown={setActiveDropdown}
           isPlaying={isPlaying}
           onExport={onExport}
-          onImportClick={() => routeInputRef.current?.click()}
+          onImportClick={() => actions.pickRouteFile(routeInputRef.current)}
           onHideUI={() => setHideUI(true)}
           onProjectSettings={openProjectSettings}
           renderAvatarMenu={renderAvatarMenu}

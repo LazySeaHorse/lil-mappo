@@ -4,10 +4,11 @@ import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
+import { useGuestLock } from '@/hooks/useGuestLock';
 import { Button } from '@/components/ui/button';
 import {
   Car, Footprints, Plane, Search, Loader2,
-  Navigation, Upload, Plus, Check, Compass,
+  Navigation, Upload, Lock, Plus, Check, Compass,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
@@ -89,6 +90,7 @@ export const RouteAddDropdown = ({
   const [endName, setEndName] = useState('');
   const path = useEndpointRoutePath(undefined, PATH_MESSAGES);
   const frame = useFrameOnMap();
+  const isGuest = useGuestLock();
 
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
@@ -300,7 +302,8 @@ export const RouteAddDropdown = ({
         onClick={onImportClick}
         className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
       >
-        <Upload size={13} /> Import KML / GPX data
+        {isGuest ? <Lock size={13} /> : <Upload size={13} />}
+        {isGuest ? 'Sign in to import KML / GPX data' : 'Import KML / GPX data'}
       </Button>
     </div>
   );

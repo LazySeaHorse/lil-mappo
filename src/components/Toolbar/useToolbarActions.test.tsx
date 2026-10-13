@@ -55,3 +55,32 @@ describe('useToolbarActions handleImport', () => {
     expect(fitBounds.mock.calls[0][0]).toEqual([[8, 46], [9, 47]]);
   });
 });
+
+describe('useToolbarActions pickRouteFile', () => {
+  const requestSignIn = vi.fn();
+  const input = () => ({ click: vi.fn() }) as unknown as HTMLInputElement;
+
+  beforeEach(() => {
+    requestSignIn.mockClear();
+    useAuthStore.setState({ requestSignIn } as never);
+  });
+
+  it('asks a guest to sign in instead of opening the file picker', () => {
+    useAuthStore.setState({ user: null });
+    const { result } = renderHook(() => useToolbarActions(), { wrapper });
+    const el = input();
+    result.current.pickRouteFile(el);
+    expect(requestSignIn).toHaveBeenCalledWith('Sign in to import a route.');
+    expect(el.click).not.toHaveBeenCalled();
+  });
+
+  it('opens the file picker for a signed-in user', () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    const { result } = renderHook(() => useToolbarActions(), { wrapper });
+    const el = input();
+    result.current.pickRouteFile(el);
+    expect(el.click).toHaveBeenCalledTimes(1);
+    expect(requestSignIn).not.toHaveBeenCalled();
+  });
+});
+

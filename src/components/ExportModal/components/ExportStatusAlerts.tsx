@@ -1,10 +1,12 @@
 import React from 'react';
-import { AlertTriangle, ArrowRight, CheckCircle2, Download, Cloud } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, Download, Cloud, LogIn } from 'lucide-react';
 import type { LocalExportCapability } from '@/services/localExportCapability';
 import type { ExportLimits } from '@/lib/cloudAccess';
 
 interface ExportStatusAlertsProps {
   limits: ExportLimits;
+  /** Guests: say before the click that exporting needs an account. */
+  requiresSignIn?: boolean;
   isExporting: boolean;
   exportDuration: number;
   effectiveWidth: number;
@@ -21,6 +23,7 @@ interface ExportStatusAlertsProps {
 
 export function ExportStatusAlerts({
   limits,
+  requiresSignIn = false,
   isExporting,
   exportDuration,
   effectiveWidth,
@@ -36,6 +39,13 @@ export function ExportStatusAlerts({
 }: ExportStatusAlertsProps) {
   return (
     <div className="space-y-4">
+      {requiresSignIn && !isExporting && (
+        <div className="flex items-start gap-2 text-xs text-primary bg-primary/10 rounded-xl p-3">
+          <LogIn size={14} className="mt-0.5 shrink-0" />
+          <span>You need an account to export video. Signing in is free.</span>
+        </div>
+      )}
+
       {/* Plan limit / Keep open warning */}
       {(limits.limited || isExporting) && (
         <div

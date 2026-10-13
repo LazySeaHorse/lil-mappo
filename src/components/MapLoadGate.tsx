@@ -82,7 +82,7 @@ function MapLoadBlockedScreen({
         <>
           <div className="space-y-2 max-w-sm">
             <h2 className="text-xl font-medium tracking-tight">Mappo is napping</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">Sign in to wake them up.</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">Sign in to wake Mappo up. It is free.</p>
           </div>
           <Button className="rounded-lg px-8 h-11 font-medium" onClick={onSignIn}>
             Sign in / Create account

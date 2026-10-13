@@ -7,6 +7,7 @@ import { loadAirports } from '@/services/airports/airportService';
 import type { RouteItem } from '@/store/types';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { MapRefContext } from '@/hooks/useMapRef';
+import { useAuthStore } from '@/store/useAuthStore';
 import type { MapRef } from 'react-map-gl/mapbox';
 
 vi.mock('react-secure-storage', () => ({
@@ -285,6 +286,28 @@ describe('RouteAddDropdown map framing', () => {
     pickPoint(1, [2, 2]);
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview path/i })); });
     expect(fitBounds).not.toHaveBeenCalled();
+  });
+});
+
+describe('RouteAddDropdown file import button', () => {
+  const renderDropdown = (onImportClick = vi.fn()) => {
+    render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={onImportClick} />);
+    return onImportClick;
+  };
+
+  it('tells guests before they click that import needs sign-in', () => {
+    useAuthStore.setState({ user: null });
+    const onImportClick = renderDropdown();
+    expect(screen.queryByRole('button', { name: 'Import KML / GPX data' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in to import KML / GPX data' }));
+    expect(onImportClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the plain label to signed-in users', () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    renderDropdown();
+    expect(screen.getByRole('button', { name: 'Import KML / GPX data' })).toBeInTheDocument();
+    useAuthStore.setState({ user: null });
   });
 });
 

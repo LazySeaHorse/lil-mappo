@@ -7,6 +7,7 @@ vi.mock('@/store/projectDocument', async (importOriginal) => {
 });
 import {
   WORKING_DRAFT_SAVE_INTERVAL_MS,
+  WorkingDraftError,
   WorkingProjectDraftManager,
   type WorkingDraftStorage,
 } from './workingProjectDraft';
@@ -212,5 +213,115 @@ describe('WorkingProjectDraftManager', () => {
     expect(saved).toEqual([toProjectDocument(project)]);
     expect(storage.save).toHaveBeenCalledTimes(2);
     manager.stop();
+  });
+
+  describe('save status', () => {
+    it('starts saved, shows saving while changes wait, and is saved after the write', async () => {
+      const project = createProject({ id: 'draft', name: 'Status' });
+      const manager = new WorkingProjectDraftManager(storage);
+      expect(manager.getStatus()).toEqual({ state: 'saved' });
+
+      manager.start(() => project);
+      manager.markDirty();
+      expect(manager.getStatus()).toEqual({ state: 'saving' });
+
+      await vi.advanceTimersByTimeAsync(WORKING_DRAFT_SAVE_INTERVAL_MS);
+      expect(manager.getStatus()).toEqual({ state: 'saved' });
+      manager.stop();
+    });
+
+    it('tells subscribers only when the status changes', async () => {
+      const project = createProject({ id: 'draft', name: 'Notify' });
+      const manager = new WorkingProjectDraftManager(storage);
+      const listener = vi.fn();
+      const off = manager.subscribe(listener);
+      manager.start(() => project);
+
+      manager.markDirty();
+      manager.markDirty();
+      manager.markDirty();
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      await manager.flush();
+      expect(listener).toHaveBeenCalledTimes(2);
+
+      off();
+      manager.markDirty();
+      expect(listener).toHaveBeenCalledTimes(2);
+      manager.stop();
+    });
+
+    it('keeps the same status object while nothing changes, for useSyncExternalStore', () => {
+      const manager = new WorkingProjectDraftManager(storage);
+      const first = manager.getStatus();
+      manager.markDirty();
+      const saving = manager.getStatus();
+      manager.markDirty();
+      expect(manager.getStatus()).toBe(saving);
+      expect(first).not.toBe(saving);
+    });
+
+    it('reports why a write failed, and recovers on the next write', async () => {
+      const project = createProject({ id: 'draft', name: 'Full' });
+      vi.mocked(storage.save)
+        .mockRejectedValueOnce(new WorkingDraftError('storage-full'))
+        .mockImplementationOnce(async (document) => {
+          saved.push(document);
+        });
+      const manager = new WorkingProjectDraftManager(storage);
+      manager.start(() => project);
+      manager.markDirty();
+
+      await vi.advanceTimersByTimeAsync(WORKING_DRAFT_SAVE_INTERVAL_MS);
+      expect(manager.getStatus()).toEqual({ state: 'error', reason: 'storage-full' });
+
+      await vi.advanceTimersByTimeAsync(WORKING_DRAFT_SAVE_INTERVAL_MS);
+      expect(manager.getStatus()).toEqual({ state: 'saved' });
+      manager.stop();
+    });
+
+    it('reports an unknown failure as failed', async () => {
+      const project = createProject({ id: 'draft', name: 'Odd' });
+      vi.mocked(storage.save).mockRejectedValueOnce(new Error('boom'));
+      const manager = new WorkingProjectDraftManager(storage);
+      manager.start(() => project);
+      manager.markDirty();
+
+      await vi.advanceTimersByTimeAsync(WORKING_DRAFT_SAVE_INTERVAL_MS);
+      expect(manager.getStatus()).toEqual({ state: 'error', reason: 'failed' });
+      manager.stop();
+    });
+
+    it('stays saving when more changes arrive during a write', async () => {
+      const project = createProject({ id: 'draft', name: 'Busy' });
+      let finish!: () => void;
+      vi.mocked(storage.save).mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+      const manager = new WorkingProjectDraftManager(storage);
+      manager.start(() => project);
+      manager.markDirty();
+
+      const flushing = manager.flush();
+      manager.markDirty();
+      finish();
+      await flushing;
+
+      expect(manager.getStatus()).toEqual({ state: 'saving' });
+      manager.stop();
+    });
+
+    it('is saved when the changed values equal the saved ones', async () => {
+      const restored = createProject({ id: 'restored', name: 'Restored' });
+      vi.mocked(storage.load).mockResolvedValue(restored);
+      const manager = new WorkingProjectDraftManager(storage);
+      await manager.hydrate();
+      const inStore = parseProjectDocument(toProjectDocument(restored));
+      manager.start(() => inStore);
+      manager.markDirty();
+      expect(manager.getStatus()).toEqual({ state: 'saving' });
+
+      await vi.advanceTimersByTimeAsync(WORKING_DRAFT_SAVE_INTERVAL_MS);
+      expect(manager.getStatus()).toEqual({ state: 'saved' });
+      manager.stop();
+    });
   });
 });

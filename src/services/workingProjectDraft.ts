@@ -13,6 +13,37 @@ const CURRENT_DRAFT_KEY = 'current';
 
 export const WORKING_DRAFT_SAVE_INTERVAL_MS = 5_000;
 
+export type DraftSaveFailure = 'storage-full' | 'storage-unavailable' | 'failed';
+
+/** What the editor shows about the autosave: all changes written, changes waiting, or the last write failed. */
+export type DraftSaveStatus =
+  | { state: 'saved' }
+  | { state: 'saving' }
+  | { state: 'error'; reason: DraftSaveFailure };
+
+const SAVED: DraftSaveStatus = { state: 'saved' };
+const SAVING: DraftSaveStatus = { state: 'saving' };
+
+/** A failed draft write with a reason a person can act on. */
+export class WorkingDraftError extends Error {
+  constructor(readonly reason: DraftSaveFailure) {
+    super(`Working draft save failed: ${reason}`);
+    this.name = 'WorkingDraftError';
+  }
+}
+
+function sameStatus(a: DraftSaveStatus, b: DraftSaveStatus): boolean {
+  return a.state === b.state && (a.state !== 'error' || (b.state === 'error' && a.reason === b.reason));
+}
+
+function failureOf(error: unknown): DraftSaveFailure {
+  return error instanceof WorkingDraftError ? error.reason : 'failed';
+}
+
+function storageFailure(cause: DOMException | null | undefined): WorkingDraftError {
+  return new WorkingDraftError(cause?.name === 'QuotaExceededError' ? 'storage-full' : 'storage-unavailable');
+}
+
 interface StoredWorkingDraft {
   key: typeof CURRENT_DRAFT_KEY;
   project: ProjectDocument;
@@ -28,7 +59,7 @@ function openDraftDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onerror = () => reject(new Error('Failed to open working draft database'));
+    request.onerror = () => reject(new WorkingDraftError('storage-unavailable'));
     request.onsuccess = () => resolve(request.result);
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -80,8 +111,8 @@ export const browserWorkingDraftStorage: WorkingDraftStorage = {
           updatedAt: Date.now(),
         } satisfies StoredWorkingDraft);
         transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(new Error('Failed to save working draft'));
-        transaction.onabort = () => reject(new Error('Failed to save working draft'));
+        transaction.onerror = () => reject(storageFailure(transaction.error));
+        transaction.onabort = () => reject(storageFailure(transaction.error));
       });
     } finally {
       db.close();
@@ -156,6 +187,8 @@ export class WorkingProjectDraftManager {
   private queued: { document: ProjectDocument; refs: PersistedRefs } | null = null;
   private drainPromise: Promise<void> | null = null;
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private status: DraftSaveStatus = SAVED;
+  private readonly listeners = new Set<() => void>();
 
   constructor(private readonly storage: WorkingDraftStorage) {}
 
@@ -189,6 +222,28 @@ export class WorkingProjectDraftManager {
 
   markDirty(): void {
     this.dirty = true;
+    this.setStatus(SAVING);
+  }
+
+  /** The current autosave status. The object only changes when the status does. */
+  getStatus = (): DraftSaveStatus => this.status;
+
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  private setStatus(next: DraftSaveStatus): void {
+    if (sameStatus(this.status, next)) return;
+    this.status = next;
+    this.listeners.forEach((listener) => listener());
+  }
+
+  /** Back to saved once nothing is waiting or being written. */
+  private settle(): void {
+    if (!this.dirty && !this.queued && !this.drainPromise) this.setStatus(SAVED);
   }
 
   async saveIfChanged(force = false): Promise<void> {
@@ -198,6 +253,7 @@ export class WorkingProjectDraftManager {
     this.dirty = false;
 
     if (sameRefs(project, this.saved) || sameRefs(project, this.queued?.refs ?? null)) {
+      this.settle();
       return this.drainPromise ?? Promise.resolve();
     }
 
@@ -205,10 +261,17 @@ export class WorkingProjectDraftManager {
     // map settling on the same center): adopt them so later ticks stay cheap.
     if (!this.queued && !this.drainPromise && sameValues(project, this.saved)) {
       this.saved = pickPersistedRefs(project);
+      this.settle();
       return;
     }
 
-    this.queued = { document: toProjectDocument(project), refs: pickPersistedRefs(project) };
+    try {
+      this.queued = { document: toProjectDocument(project), refs: pickPersistedRefs(project) };
+    } catch (error) {
+      this.dirty = true;
+      this.setStatus({ state: 'error', reason: failureOf(error) });
+      throw error;
+    }
     if (!this.drainPromise) this.drainPromise = this.drain();
     return this.drainPromise;
   }
@@ -226,12 +289,14 @@ export class WorkingProjectDraftManager {
         await this.storage.save(next.document);
         this.saved = next.refs;
       }
+      this.drainPromise = null;
+      this.settle();
     } catch (error) {
       this.queued = null;
       this.dirty = true;
-      throw error;
-    } finally {
       this.drainPromise = null;
+      this.setStatus({ state: 'error', reason: failureOf(error) });
+      throw error;
     }
   }
 }

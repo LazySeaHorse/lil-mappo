@@ -14,10 +14,10 @@ const blocked = (reason: string) =>
 describe('<MapLoadGate />', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('shows a napping Mappo to guests, without mentioning the load cap, and opens sign-in', () => {
+  it('shows a napping Mappo to guests, without mentioning the load cap, says signing in is free, and opens sign-in', () => {
     const { container } = render(<MapLoadGate gate={blocked('guest_limit')}><div>map</div></MapLoadGate>);
     expect(screen.getByText('Mappo is napping')).toBeTruthy();
-    expect(screen.getByText('Sign in to wake them up.')).toBeTruthy();
+    expect(screen.getByText('Sign in to wake Mappo up. It is free.')).toBeTruthy();
     expect(container.textContent).not.toMatch(/\b3\b/);
     expect(container.querySelector('svg')?.getAttribute('data-mood')).toBe('sleepy');
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));

@@ -144,6 +144,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
 
           <ExportStatusAlerts
             limits={limits}
+            requiresSignIn={isLimitedGuest}
             isExporting={isExporting}
             exportDuration={exportDuration}
             effectiveWidth={effectiveWidth}
@@ -165,6 +166,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           cloudSubmitted={false}
           progress={progress}
           localExportCapability={localExportCapability}
+          requiresSignIn={isLimitedGuest}
           onExport={startExport}
           onCancel={cancelExport}
         />

@@ -3,7 +3,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
-import { hasByok } from '@/lib/cloudAccess';
+import { useGuestLock } from '@/hooks/useGuestLock';
+import { AutosaveStatus } from '@/components/Toolbar/AutosaveStatus';
 import { useToolbarActions } from '@/components/Toolbar/useToolbarActions';
 import { Mappo } from '@/components/Mappo/Mappo';
 import { accountMood } from '@/components/Mappo/moods';
@@ -49,7 +50,9 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
   );
   const actions = useToolbarActions();
   const { data: subscription } = useSubscription();
-  const isLocked = !user && !hasByok();
+  const isLocked = useGuestLock();
+  /** Tooltip that says why an item is locked; nothing once it is unlocked. */
+  const lockedHint = (reason: string) => (isLocked ? reason : undefined);
   const mood = accountMood({ signedIn: !!user, subscription });
   const tierLabel = !user ? 'Guest' : mood === 'explorer' ? 'Wanderer' : 'Free';
   const accountName = user ? (user.displayName || user.email) : "Exploring as a guest";
@@ -109,6 +112,9 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
                 </DropdownMenuItem>
               )}
             </div>
+            <div className="mt-1 text-[11px]">
+              <AutosaveStatus iconSize={12} showLabel />
+            </div>
           </div>
         </div>
         <DropdownMenuSeparator className="bg-border/50 mx-1" />
@@ -121,22 +127,22 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
           <DropdownMenuItem onClick={afterClose(actions.handleNewProject)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <FilePlus2 size={14} /> New Project
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={actions.handleSaveToLibrary} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={actions.handleSaveToLibrary} title={lockedHint('Sign in to save projects to your library.')} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Save size={14} /> Save to Library
-            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" aria-label="Needs sign-in" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={afterClose(onLibrary)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(onLibrary)} title={lockedHint('Sign in to open your project library.')} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Library size={14} /> Projects
-            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" aria-label="Needs sign-in" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
-          <DropdownMenuItem onClick={afterClose(actions.handleExportProject)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(actions.handleExportProject)} title={lockedHint('Sign in to export a project file.')} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <FileJson size={14} /> Export Project File
-            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" aria-label="Needs sign-in" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => gatedClick('Sign in to import a project file.', onImportProjectClick)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={() => gatedClick('Sign in to import a project file.', onImportProjectClick)} title={lockedHint('Sign in to import a project file.')} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Upload size={14} /> Import Project File
-            {isLocked && <Lock size={10} className="ml-auto opacity-40" />}
+            {isLocked && <Lock size={10} className="ml-auto opacity-40" aria-label="Needs sign-in" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
           <DropdownMenuItem
