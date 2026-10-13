@@ -281,7 +281,7 @@ export const targetLockStyle: AnnotationStyleDefinition<TargetLockSettings> = {
     exitDuration: 0.6,
   },
   controls: [
-    { type: 'color', key: 'accentColor', label: 'Accent color' },
+    { type: 'color', key: 'accentColor', label: 'Accent color', role: 'accent' },
     { type: 'color', key: 'textColor', label: 'Text color' },
     HALO_CONTROL,
     SIDE_CONTROL,

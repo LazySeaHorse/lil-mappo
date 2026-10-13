@@ -252,8 +252,8 @@ export const leaderLineStyle: AnnotationStyleDefinition<LeaderLineSettings> = {
     exitDuration: 0.5,
   },
   controls: [
-    { type: 'color', key: 'lineColor', label: 'Line color' },
-    { type: 'color', key: 'accentColor', label: 'Dot color' },
+    { type: 'color', key: 'accentColor', label: 'Dot color', role: 'accent' },
+    { type: 'color', key: 'lineColor', label: 'Line color', role: 'accent' },
     { type: 'color', key: 'textColor', label: 'Text color' },
     HALO_CONTROL,
     SIDE_CONTROL,

@@ -148,6 +148,12 @@ export const STYLE_TERMS = {
   sampleText: 'Paris',
 } as const;
 
+/** Words for the colors of a callout style. One accent color sets the main colors; the rest are folded away. */
+export const ACCENT_TERMS = {
+  accent: 'Accent color',
+  customize: 'Customize colors',
+} as const;
+
 /** Words of the Location section of a callout. */
 export const CALLOUT_LOCATION_TERMS = {
   /** Label and placeholder of the place search field. */

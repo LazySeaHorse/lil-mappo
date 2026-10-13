@@ -256,7 +256,7 @@ export const polaroidStyle: AnnotationStyleDefinition<PolaroidSettings> = {
     exitDuration: 0.5,
   },
   controls: [
-    { type: 'color', key: 'frameColor', label: 'Frame color' },
+    { type: 'color', key: 'frameColor', label: 'Frame color', role: 'accent' },
     { type: 'color', key: 'captionColor', label: 'Caption color' },
     { type: 'slider', key: 'rotation', label: 'Rotation', min: -15, max: 15, step: 1, unit: '°' },
     { type: 'slider', key: 'size', label: 'Photo size', min: 80, max: 220, step: 5, unit: 'px' },

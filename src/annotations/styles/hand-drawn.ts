@@ -253,7 +253,7 @@ export const handDrawnStyle: AnnotationStyleDefinition<HandDrawnSettings> = {
     exitDuration: 0.5,
   },
   controls: [
-    { type: 'color', key: 'strokeColor', label: 'Marker color' },
+    { type: 'color', key: 'strokeColor', label: 'Marker color', role: 'accent' },
     { type: 'color', key: 'textColor', label: 'Text color' },
     HALO_CONTROL,
     SIDE_CONTROL,

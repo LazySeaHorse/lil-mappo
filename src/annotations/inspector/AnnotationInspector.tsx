@@ -78,8 +78,8 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
   });
 
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates);
-  const updateSettings = (key: string, value: unknown) => {
-    u({ settings: { ...item.settings, [key]: value } });
+  const updateSettings = (changes: Record<string, unknown>) => {
+    u({ settings: { ...item.settings, ...changes } });
   };
 
   const style = getStyle(item.styleId);

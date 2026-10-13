@@ -386,7 +386,7 @@ export const flagStyle: AnnotationStyleDefinition<FlagSettings> = {
     exitDuration: 0.6,
   },
   controls: [
-    { type: 'color', key: 'clothColor', label: 'Flag color' },
+    { type: 'color', key: 'clothColor', label: 'Flag color', role: 'accent' },
     { type: 'color', key: 'textColor', label: 'Text color' },
     { type: 'color', key: 'poleColor', label: 'Pole color' },
     {

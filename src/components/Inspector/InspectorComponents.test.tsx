@@ -280,8 +280,12 @@ describe('Inspector Components Integration', () => {
     render(<AnnotationInspector item={calloutItem} />);
 
     expect(screen.getByDisplayValue('Golden Gate Bridge')).toBeInTheDocument();
-    expect(screen.getByText('Line color')).toBeInTheDocument();
-    expect(screen.getByText('Dot color')).toBeInTheDocument();
+    // The line and dot colors are one accent row; the text color waits in a closed fold.
+    expect(screen.getByText('Accent color')).toBeInTheDocument();
+    expect(screen.queryByText('Line color')).not.toBeInTheDocument();
+    expect(screen.queryByText('Text color')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Customize colors' }));
+    expect(screen.getByText('Text color')).toBeInTheDocument();
     expect(screen.getByText('Soft shadow')).toBeInTheDocument();
     expect(screen.queryByText('Font')).not.toBeInTheDocument();
     // The raw coordinates sit in a closed disclosure.
