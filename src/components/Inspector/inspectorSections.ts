@@ -14,6 +14,7 @@ export const INSPECTOR_SECTIONS = {
     { id: 'path', title: 'Path', defaultOpen: true },
     { id: 'appearance', title: 'Appearance', defaultOpen: true },
     { id: 'animation', title: 'Animation', defaultOpen: true },
+    { id: 'timing', title: 'Timing', defaultOpen: true },
     { id: 'camera', title: 'Camera', defaultOpen: true },
   ],
   boundary: [
@@ -29,11 +30,11 @@ export const INSPECTOR_SECTIONS = {
     { id: 'size', title: 'Size', defaultOpen: true },
     { id: 'connector', title: 'Anchor line', defaultOpen: true },
     { id: 'position', title: 'Position', defaultOpen: true },
-    { id: 'animation', title: 'Animation', defaultOpen: true },
     { id: 'timing', title: 'Timing', defaultOpen: true },
   ],
   'camera-kf': [
     { id: 'camera', title: 'Camera', defaultOpen: true },
+    { id: 'timing', title: 'Timing', defaultOpen: true },
   ],
   autocam: [
     { id: 'camera', title: 'Camera', defaultOpen: true },

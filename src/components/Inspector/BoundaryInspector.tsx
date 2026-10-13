@@ -12,7 +12,6 @@ import {
   SliderRow, 
   ColorRow, 
   SwitchRow, 
-  TimingControls, 
   VisualCardSelect,
   type VisualCardOption,
 } from './InspectorShared';
@@ -20,6 +19,8 @@ import { formatPercent } from './inspectorValues';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
+import { TimingSection } from './timing/TimingSection';
+import { boundaryTiming } from './timing/timingAdapters';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 
 type BoundaryAnimationMode = 'none' | BoundaryItem['style']['animationStyle'];
@@ -192,18 +193,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
         </div>
       </InspectorSection>
 
-      <InspectorSection kind="boundary" id="timing">
-        <TimingControls
-          startTime={item.startTime}
-          endTime={item.endTime}
-          onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
-          easing={item.easing}
-          onChangeEasing={(v) => u({ easing: v })}
-          exitAnimation={item.exitAnimation}
-          onChangeExitAnimation={(v) => u({ exitAnimation: v })}
-          showExitAnimation={activeAnimMode !== 'trace'}
-        />
-      </InspectorSection>
+      <TimingSection adapter={boundaryTiming} item={item} onChange={u} />
 
     </PanelWrapper>
   );

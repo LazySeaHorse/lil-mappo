@@ -19,26 +19,20 @@ import {
   ColorRow,
   SwitchRow,
   SelectRow,
-  TimingControls,
   CoordinatesRows,
 } from '@/components/Inspector/InspectorShared';
 import { PanelWrapper } from '@/components/Inspector/InspectorLayout';
 import { InspectorSection } from '@/components/Inspector/InspectorSection';
 import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
+import { TimingSection } from '@/components/Inspector/timing/TimingSection';
+import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
 import { createCalloutStyleDefaults } from '@/store/itemFactories';
 import { placeLabel } from '@/engine/routeMode';
-import { ENTER_TRANSITIONS, EXIT_TRANSITIONS, TRANSITION_LABELS } from '@/annotations/animation';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
 import { SizeControls } from './SizeControls';
-
-/** Picker options for a transition list, keeping an unrecognised saved value selectable. */
-function transitionOptions(names: readonly string[], current: string) {
-  const all = names.includes(current) ? names : [...names, current];
-  return all.map((value) => ({ value, label: TRANSITION_LABELS[value] ?? value }));
-}
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const { updateItem, isMoveModeActive, setMoveModeActive } = useProjectStore(
@@ -238,48 +232,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
         </div>
       </InspectorSection>
 
-      <InspectorSection kind="callout" id="animation">
-        <div className="flex flex-col gap-3.5">
-          <SelectRow
-            label="Enter"
-            value={item.transition.enter}
-            onChange={(enter) => u({ transition: { ...item.transition, enter } })}
-            options={transitionOptions(ENTER_TRANSITIONS, item.transition.enter)}
-          />
-          <SliderRow
-            label="Enter duration"
-            value={item.transition.enterDuration}
-            onChange={(enterDuration) => u({ transition: { ...item.transition, enterDuration } })}
-            min={0}
-            max={3}
-            step={0.1}
-            unit="s"
-          />
-          <SelectRow
-            label="Exit"
-            value={item.transition.exit}
-            onChange={(exit) => u({ transition: { ...item.transition, exit } })}
-            options={transitionOptions(EXIT_TRANSITIONS, item.transition.exit)}
-          />
-          <SliderRow
-            label="Exit duration"
-            value={item.transition.exitDuration}
-            onChange={(exitDuration) => u({ transition: { ...item.transition, exitDuration } })}
-            min={0}
-            max={3}
-            step={0.1}
-            unit="s"
-          />
-        </div>
-      </InspectorSection>
-
-      <InspectorSection kind="callout" id="timing">
-        <TimingControls
-          startTime={item.startTime}
-          endTime={item.endTime}
-          onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
-        />
-      </InspectorSection>
+      <TimingSection adapter={calloutTiming} item={item} onChange={u} />
 
     </PanelWrapper>
   );

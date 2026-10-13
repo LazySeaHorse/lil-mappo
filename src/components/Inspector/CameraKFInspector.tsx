@@ -2,13 +2,15 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { CameraItem } from '@/store/types';
-import { SliderRow, EasingSelect, CoordinatesRows, NumberRow } from './InspectorShared';
+import { SliderRow, CoordinatesRows } from './InspectorShared';
 import { formatDegrees } from './inspectorValues';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
+import { TimingSection } from './timing/TimingSection';
+import { cameraViewTiming } from './timing/timingAdapters';
 import { formatTimelineTime } from '@/components/Timeline/timelineTime';
-import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
+import { Video, Compass, ZoomIn, RotateCw } from 'lucide-react';
 
 export function CameraKFInspector({ item }: { item: CameraItem }) {
   const { selectedKeyframeId, updateCameraKeyframe } = useProjectStore(
@@ -46,16 +48,6 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
         />
       }
     >
-      <NumberRow
-        label="Time"
-        value={kf.time}
-        onChange={(v) => u({ time: v })}
-        min={0}
-        step={0.01}
-        unit="s"
-        className="mb-3"
-      />
-
       <InspectorSection kind="camera-kf" id="camera">
         <div className="flex flex-col gap-3">
           <CoordinatesRows
@@ -95,14 +87,10 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
             step={0.1}
             formatValue={formatDegrees}
           />
-
-          <EasingSelect 
-            value={kf.easing} 
-            onChange={(v) => u({ easing: v })} 
-            icon={<Sparkles size={13} />}
-          />
         </div>
       </InspectorSection>
+
+      <TimingSection adapter={cameraViewTiming} item={kf} onChange={u} />
     </PanelWrapper>
   );
 }

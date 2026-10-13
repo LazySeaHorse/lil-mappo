@@ -2,7 +2,6 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import {
-  TimingControls,
   EasingSelect,
   SliderRow,
   ColorRow,
@@ -239,69 +238,7 @@ describe('VisualCardSelect', () => {
   });
 });
 
-describe('TimingControls', () => {
-  it('computes duration correctly and adjusts end time when start time changes', () => {
-    const onChangeTime = vi.fn();
-    render(
-      <TimingControls
-        startTime={2.0}
-        endTime={6.0}
-        onChangeTime={onChangeTime}
-      />
-    );
-
-    const startInput = screen.getByLabelText('Start time');
-    const durationInput = screen.getByLabelText('Duration');
-
-    expect(startInput).toHaveValue(2);
-    expect(durationInput).toHaveValue(4);
-
-    // Shift start time to 3.0 -> with duration 4.0, new end should be 7.0
-    fireEvent.change(startInput, { target: { value: '3' } });
-    expect(onChangeTime).toHaveBeenCalledWith(3, 7);
-  });
-
-  it('adjusts end time when duration changes', () => {
-    const onChangeTime = vi.fn();
-    render(
-      <TimingControls
-        startTime={1.5}
-        endTime={4.5}
-        onChangeTime={onChangeTime}
-      />
-    );
-
-    const durationInput = screen.getByLabelText('Duration');
-    expect(durationInput).toHaveValue(3);
-
-    // Change duration to 5.0 -> new end should be 1.5 + 5.0 = 6.5
-    fireEvent.change(durationInput, { target: { value: '5' } });
-    expect(onChangeTime).toHaveBeenCalledWith(1.5, 6.5);
-  });
-
-  it('renders easing and exit animation controls when enabled', () => {
-    const onChangeTime = vi.fn();
-    const onChangeEasing = vi.fn();
-    const onChangeExitAnimation = vi.fn();
-
-    render(
-      <TimingControls
-        startTime={0}
-        endTime={5}
-        onChangeTime={onChangeTime}
-        easing="easeInOutSine"
-        onChangeEasing={onChangeEasing}
-        exitAnimation="fade"
-        onChangeExitAnimation={onChangeExitAnimation}
-        showExitAnimation={true}
-      />
-    );
-
-    expect(screen.getByText('Motion')).toBeInTheDocument();
-    expect(screen.getByText('After end')).toBeInTheDocument();
-    expect(screen.getByText('Fade out')).toBeInTheDocument();
-  });
-
+describe('VisualCardSelect locked options', () => {
   it('sends plan-locked options to onLockedSelect instead of onChange', () => {
     const onChange = vi.fn();
     const onLockedSelect = vi.fn();

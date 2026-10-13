@@ -16,6 +16,5 @@ export { SwitchRow } from './controls/SwitchRow';
 export { NumberRow } from './controls/NumberRow';
 export { SelectRow } from './controls/SelectRow';
 export { EasingSelect } from './controls/EasingSelect';
-export { TimingControls } from './timing/TimingControls';
 export { VisualCardSelect } from './VisualCardSelect';
 export type { VisualCardOption } from './VisualCardSelect';

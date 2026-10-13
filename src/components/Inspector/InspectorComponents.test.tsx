@@ -128,8 +128,8 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByDisplayValue('Highway Drive')).toBeInTheDocument();
     expect(screen.getByText('Route marker')).toBeInTheDocument();
     expect(screen.getByText('1.5x')).toBeInTheDocument();
-    expect(screen.getByLabelText('Start time')).toHaveValue(1);
-    expect(screen.getByLabelText('Duration')).toHaveValue(4);
+    expect(screen.getByLabelText('Starts')).toHaveValue('00:01.00');
+    expect(screen.getByLabelText('Length')).toHaveValue(4);
   });
 
   it('renders BoundaryInspector and updates styling & timing', () => {
@@ -173,8 +173,8 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByText('Line width')).toBeInTheDocument();
     expect(screen.getByText('Fill opacity')).toBeInTheDocument();
     expect(screen.getByText('50 %')).toBeInTheDocument();
-    expect(screen.getByLabelText('Start time')).toHaveValue(0);
-    expect(screen.getByLabelText('Duration')).toHaveValue(4);
+    expect(screen.getByLabelText('Starts')).toHaveValue('00:00.00');
+    expect(screen.getByLabelText('Length')).toHaveValue(4);
     expect(screen.getByText('Mask outside')).toBeInTheDocument();
     expect(screen.queryByText('Mask color')).not.toBeInTheDocument();
   });
@@ -296,7 +296,7 @@ describe('Inspector Components Integration', () => {
     useProjectStore.setState({ items: { [item.id]: item }, selectedItemId: item.id });
     render(<AnnotationInspector item={item} />);
 
-    expect(screen.getByText('Animation')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Timing' })).toBeInTheDocument();
     expect(screen.getAllByText('Style animation')).toHaveLength(2); // enter and exit
     expect(screen.getByText('1.2 s')).toBeInTheDocument();
     expect(screen.getByText('0.5 s')).toBeInTheDocument();
@@ -385,8 +385,8 @@ describe('Inspector Components Integration', () => {
 
     render(<CameraKFInspector item={cameraItem} />);
 
-    expect(screen.getByText('Time')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2.5')).toBeInTheDocument();
+    expect(screen.getByLabelText('Starts')).toHaveValue('00:02.50');
+    expect(screen.getByText('Motion')).toBeInTheDocument();
     expect(screen.getByText('Zoom')).toBeInTheDocument();
     expect(screen.getByText('45.0°')).toBeInTheDocument();
     expect(screen.getByText('90.0°')).toBeInTheDocument();

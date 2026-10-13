@@ -13,7 +13,6 @@ import {
   SliderRow, 
   ColorRow, 
   SwitchRow, 
-  TimingControls, 
   VisualCardSelect,
   type VisualCardOption,
 } from './InspectorShared';
@@ -21,6 +20,8 @@ import { formatMultiplier } from './inspectorValues';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
+import { TimingSection } from './timing/TimingSection';
+import { routeTiming } from './timing/timingAdapters';
 import { track } from '@/lib/analytics';
 import { 
   Navigation, 
@@ -272,21 +273,10 @@ export function RouteInspector({ item }: { item: RouteItem }) {
               )}
             </div>
           )}
-
-          <div className="pt-2 border-t border-border/30">
-            <TimingControls
-              startTime={item.startTime}
-              endTime={item.endTime}
-              onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
-              easing={item.easing}
-              onChangeEasing={(v) => u({ easing: v })}
-              exitAnimation={item.exitAnimation}
-              onChangeExitAnimation={(v) => u({ exitAnimation: v })}
-              showExitAnimation={animType === 'draw'}
-            />
-          </div>
         </div>
       </InspectorSection>
+
+      <TimingSection adapter={routeTiming} item={item} onChange={u} />
 
       <InspectorSection kind="route" id="camera">
         <div className="flex flex-col gap-2">
