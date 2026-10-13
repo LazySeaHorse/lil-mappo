@@ -23,18 +23,39 @@ import {
 } from '@/components/Inspector/InspectorShared';
 import { PanelWrapper } from '@/components/Inspector/InspectorLayout';
 import { InspectorSection } from '@/components/Inspector/InspectorSection';
+import { Disclosure } from '@/components/Inspector/controls/Disclosure';
 import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
 import { TimingSection } from '@/components/Inspector/timing/TimingSection';
 import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
 import { switchCalloutStyle } from '@/store/itemFactories';
 import { placeLabel } from '@/engine/routeMode';
-import { STYLE_TERMS } from '@/lib/terms';
+import { CALLOUT_LOCATION_TERMS, STYLE_TERMS } from '@/lib/terms';
 import { undo } from '@/store/history';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
 import { SizeControls } from './SizeControls';
+
+/**
+ * The patch that moves a callout to a point. A name says which place it is; no
+ * name (typed or edited coordinates, a pick with no place) clears the old one,
+ * so the stored name never describes another place. A title that follows the
+ * place name follows a real name; with no name it keeps its text and stops
+ * following.
+ */
+function movePatch(item: CalloutItem, lngLat: [number, number], name: string): Partial<CalloutItem> {
+  const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
+  const patch: Partial<CalloutItem> = {
+    binding: { kind: 'geographic', lngLat, altitude },
+    locationName: name,
+  };
+  if (item.linkTitleToLocation) {
+    if (name) patch.content = { ...item.content, title: name };
+    else patch.linkTitleToLocation = false;
+  }
+  return patch;
+}
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const { updateItem, isMoveModeActive, setMoveModeActive } = useProjectStore(
@@ -52,18 +73,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       // Read the latest item: it may have been edited since picking started.
       const current = useProjectStore.getState().items[item.id];
       if (current?.kind !== 'callout') return;
-      const patch: Partial<CalloutItem> = {
-        binding: {
-          kind: 'geographic',
-          lngLat: result.lngLat,
-          altitude: current.binding.kind === 'geographic' ? current.binding.altitude : 0,
-        },
-        locationName: result.name,
-      };
-      if (current.linkTitleToLocation) {
-        patch.content = { ...current.content, title: result.name };
-      }
-      updateItem(item.id, patch);
+      updateItem(item.id, movePatch(current, result.lngLat, result.name));
     },
   });
 
@@ -107,49 +117,69 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       </InspectorSection>
 
       <InspectorSection kind="callout" id="location">
-        <div className="flex flex-col gap-2.5">
-          <SearchField
-            label="Search for a place or enter coordinates"
-            value={lngLat as [number, number]}
-            name={placeLabel(item.locationName, lngLat as [number, number])}
-            onSelect={(coords, name) => {
-              const patch: Partial<CalloutItem> = {
-                binding: {
-                  kind: 'geographic',
-                  lngLat: coords,
-                  altitude,
-                },
-                locationName: name,
-              };
-              if (item.linkTitleToLocation) {
-                patch.content = { ...item.content, title: name };
-              }
-              u(patch);
-              toast.success('Callout location updated.');
-            }}
-            isPicking={isPicking}
-            onStartPick={handleTogglePick}
-            showDot={false}
-            className="px-0"
-            color={item.linkTitleToLocation
-              ? "bg-primary/10 text-primary border-primary/20"
-              : "bg-secondary/50 text-muted-foreground border-border/50"
-            }
-          />
+        <SearchField
+          label={CALLOUT_LOCATION_TERMS.search}
+          value={lngLat as [number, number]}
+          name={placeLabel(item.locationName, lngLat as [number, number])}
+          onSelect={(coords, name) => {
+            u(movePatch(item, coords, name));
+            toast.success(CALLOUT_LOCATION_TERMS.updated);
+          }}
+          parseCoordinates
+          isPicking={isPicking}
+          onStartPick={handleTogglePick}
+          showDot={false}
+          className="px-0"
+        />
 
-          <SwitchRow
-            label="Use place name as title"
-            checked={item.linkTitleToLocation}
-            onChange={(v) => u({ linkTitleToLocation: v })}
-          />
+        <Button
+          type="button"
+          onClick={() => setMoveModeActive(!isMoveModeActive)}
+          variant={isMoveModeActive ? 'default' : 'outline'}
+          className="w-full h-9 rounded-lg text-xs font-medium flex items-center justify-center gap-2"
+        >
+          {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
+          <span>{isMoveModeActive ? CALLOUT_LOCATION_TERMS.doneDragging : CALLOUT_LOCATION_TERMS.dragOnMap}</span>
+        </Button>
 
-          <ContentFields
-            content={item.content}
-            slots={style?.contentSlots ?? []}
-            eyebrowFallback={style?.eyebrowFallback}
-            onChange={(content) => u({ content })}
+        {supportsAltitude && (
+          <SliderRow
+            label={CALLOUT_LOCATION_TERMS.heightAboveMap}
+            hint={CALLOUT_LOCATION_TERMS.heightHint}
+            value={altitude}
+            onChange={(v) => u({
+              binding: item.binding.kind === 'geographic'
+                ? { ...item.binding, altitude: v }
+                : item.binding,
+            })}
+            min={0}
+            max={150}
+            step={2}
+            unit="px"
           />
-        </div>
+        )}
+
+        <Disclosure label={CALLOUT_LOCATION_TERMS.exactPosition}>
+          <CoordinatesRows
+            lngLat={lngLat as [number, number]}
+            onChange={(coords) => u(movePatch(item, coords, ''))}
+          />
+        </Disclosure>
+      </InspectorSection>
+
+      <InspectorSection kind="callout" id="content">
+        <SwitchRow
+          label={CALLOUT_LOCATION_TERMS.linkTitle}
+          checked={item.linkTitleToLocation}
+          onChange={(v) => u({ linkTitleToLocation: v })}
+        />
+
+        <ContentFields
+          content={item.content}
+          slots={style?.contentSlots ?? []}
+          eyebrowFallback={style?.eyebrowFallback}
+          onChange={(content) => u({ content })}
+        />
       </InspectorSection>
 
       {style && style.controls.length > 0 && (
@@ -184,50 +214,6 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           </div>
         </InspectorSection>
       )}
-
-      <InspectorSection kind="callout" id="position">
-        <div className="flex flex-col gap-3.5 pt-0.5">
-          <Button
-            type="button"
-            onClick={() => setMoveModeActive(!isMoveModeActive)}
-            variant={isMoveModeActive ? "default" : "outline"}
-            className="w-full h-11 py-2.5 px-4 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow"
-          >
-            {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
-            <span>{isMoveModeActive ? 'Finish positioning' : 'Position on map'}</span>
-          </Button>
-
-          {supportsAltitude && (
-            <SliderRow
-              label="Altitude"
-              value={altitude}
-              onChange={(v) => u({
-                binding: item.binding.kind === 'geographic'
-                  ? { ...item.binding, altitude: v }
-                  : item.binding,
-              })}
-              min={0}
-              max={150}
-              step={2}
-              unit="px"
-            />
-          )}
-
-          <CoordinatesRows
-            lngLat={lngLat as [number, number]}
-            onChange={(coords) => u({
-              binding: {
-                kind: 'geographic',
-                lngLat: coords,
-                altitude,
-              },
-              linkTitleToLocation: false,
-              locationName: '',
-            })}
-            className="pt-1"
-          />
-        </div>
-      </InspectorSection>
 
       <TimingSection adapter={calloutTiming} item={item} onChange={u} />
 

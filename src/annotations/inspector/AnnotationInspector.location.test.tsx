@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@/annotations/styles/index';
 import { createCalloutItem } from '@/store/itemFactories';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
+import { CALLOUT_LOCATION_TERMS } from '@/lib/terms';
 import { AnnotationInspector } from './AnnotationInspector';
 
 vi.mock('./stylePreview', async (importOriginal) => ({
@@ -70,5 +71,77 @@ describe('callout location field', () => {
     fireEvent.click(screen.getAllByTitle('Pick on Map')[0]);
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
     expect(stored().locationName).toBe('');
+  });
+
+  it('keeps the place, the height and the exact position in one Location section', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    const location = screen.getByRole('region', { name: 'Location' });
+    expect(within(location).getByPlaceholderText(LOCATION_FIELD)).toHaveValue('Central Park');
+    expect(within(location).getByTitle('Pick on Map')).toBeInTheDocument();
+    expect(within(location).getByText(CALLOUT_LOCATION_TERMS.dragOnMap)).toBeInTheDocument();
+    expect(within(location).getByText(CALLOUT_LOCATION_TERMS.heightHint)).toBeInTheDocument();
+    expect(within(location).getByText(CALLOUT_LOCATION_TERMS.heightAboveMap)).toBeInTheDocument();
+    // The old second section is gone, and so is the old name for the height.
+    expect(screen.queryByRole('region', { name: 'Position' })).toBeNull();
+    expect(screen.queryByText('Altitude')).toBeNull();
+  });
+
+  it('hides the raw coordinates until the user opens Exact position', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    const toggle = screen.getByRole('button', { name: CALLOUT_LOCATION_TERMS.exactPosition });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Longitude')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('Longitude')).toHaveValue(-73.96542);
+    expect(screen.getByLabelText('Latitude')).toHaveValue(40.78243);
+  });
+
+  it('clears the place name and unlinks the title when the user edits the coordinates by hand', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    fireEvent.click(screen.getByRole('button', { name: CALLOUT_LOCATION_TERMS.exactPosition }));
+    const latitude = screen.getByLabelText('Latitude');
+    fireEvent.change(latitude, { target: { value: '41' } });
+    fireEvent.blur(latitude);
+    expect(stored().binding).toMatchObject({ lngLat: [-73.96542, 41] });
+    expect(stored().locationName).toBe('');
+    expect(stored().linkTitleToLocation).toBe(false);
+  });
+
+  it('takes typed coordinates in the place field, with no name, and keeps the title', async () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    const input = screen.getByPlaceholderText(LOCATION_FIELD);
+    fireEvent.change(input, { target: { value: '2.35, 48.85' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(stored().binding).toMatchObject({ lngLat: [2.35, 48.85] }));
+    expect(stored().locationName).toBe('');
+    expect(stored().content.title).toBe('Park');
+    expect(stored().linkTitleToLocation).toBe(false);
+    expect(suggest).not.toHaveBeenCalled();
+  });
+
+  it('keeps the title when a map pick has no place name', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    fireEvent.click(screen.getAllByTitle('Pick on Map')[0]);
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
+    expect(stored().content.title).toBe('Park');
+    expect(stored().linkTitleToLocation).toBe(false);
+  });
+
+  it('still follows the place name with the title when it has one', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    fireEvent.click(screen.getAllByTitle('Pick on Map')[0]);
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [1, 2], name: 'Pier 17' }); });
+    expect(stored().content.title).toBe('Pier 17');
+    expect(stored().linkTitleToLocation).toBe(true);
+  });
+
+  it('puts the title switch and the text fields in their own Text section', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    const text = screen.getByRole('region', { name: 'Text' });
+    expect(within(text).getByText('Use place name as title')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Location' })).queryByText('Use place name as title')).toBeNull();
   });
 });

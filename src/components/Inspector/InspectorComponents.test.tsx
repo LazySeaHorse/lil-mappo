@@ -6,6 +6,7 @@ import { BoundaryInspector } from './BoundaryInspector';
 import { AnnotationInspector } from '@/annotations/inspector/AnnotationInspector';
 import { CameraKFInspector } from './CameraKFInspector';
 import { useProjectStore } from '@/store/useProjectStore';
+import { CALLOUT_LOCATION_TERMS } from '@/lib/terms';
 import '@/annotations/styles/index';
 import { registerTestStyles, TEST_FLAT_STYLE_ID } from '@/annotations/testStyles';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
@@ -283,9 +284,12 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByText('Dot color')).toBeInTheDocument();
     expect(screen.getByText('Soft shadow')).toBeInTheDocument();
     expect(screen.queryByText('Font')).not.toBeInTheDocument();
+    // The raw coordinates sit in a closed disclosure.
+    expect(screen.queryByLabelText('Longitude')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: CALLOUT_LOCATION_TERMS.exactPosition }));
     expect(screen.getByLabelText('Longitude')).toHaveValue(-122.4783);
     expect(screen.getByLabelText('Latitude')).toHaveValue(37.8199);
-    expect(screen.getByText('Altitude')).toBeInTheDocument();
+    expect(screen.getByText(CALLOUT_LOCATION_TERMS.heightAboveMap)).toBeInTheDocument();
     expect(screen.getByText('100 px')).toBeInTheDocument();
     // Leader lines draw their own line to the ground, so there is no generic anchor line to style.
     expect(screen.queryByText('Anchor line')).not.toBeInTheDocument();

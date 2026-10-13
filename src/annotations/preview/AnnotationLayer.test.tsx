@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@/annotations/styles';
 import { registerTestStyles, TEST_CARD_STYLE_ID } from '@/annotations/testStyles';
@@ -12,7 +12,12 @@ const fakeMap = { id: 'map' };
 let mapRef: { getMap: () => unknown } | undefined = { getMap: () => fakeMap };
 
 vi.mock('react-map-gl/mapbox', () => ({
-  Marker: ({ children }: { children: React.ReactNode }) => <div data-testid="marker">{children}</div>,
+  Marker: ({ children, onDragEnd }: { children: React.ReactNode; onDragEnd?: (e: { lngLat: { lng: number; lat: number } }) => void }) => (
+    <div data-testid="marker">
+      <button type="button" data-testid="drop" onClick={() => onDragEnd?.({ lngLat: { lng: 30, lat: 40 } })} />
+      {children}
+    </div>
+  ),
   useMap: () => ({ current: mapRef }),
 }));
 
@@ -101,5 +106,19 @@ describe('AnnotationLayer', () => {
     });
     render(<AnnotationLayer />);
     expect(screen.queryByTestId('marker')).toBeNull();
+  });
+
+  it('forgets the place name when the handle is dropped on a new point', () => {
+    useProjectStore.setState({
+      items: { c1: makeCallout({ locationName: 'Harbour', linkTitleToLocation: true }) },
+      isMoveModeActive: true,
+    });
+    render(<AnnotationLayer />);
+    fireEvent.click(screen.getByTestId('drop'));
+    expect(useProjectStore.getState().items.c1).toMatchObject({
+      binding: { kind: 'geographic', lngLat: [30, 40], altitude: 40 },
+      locationName: '',
+      linkTitleToLocation: false,
+    });
   });
 });

@@ -26,11 +26,11 @@ export const INSPECTOR_SECTIONS = {
   ],
   callout: [
     { id: 'style', title: 'Style', defaultOpen: true },
-    { id: 'location', title: 'Location and content', defaultOpen: true },
+    { id: 'location', title: 'Location', defaultOpen: true },
+    { id: 'content', title: 'Text', defaultOpen: true },
     { id: 'appearance', title: 'Appearance', defaultOpen: true },
     { id: 'size', title: 'Size', defaultOpen: true },
     { id: 'connector', title: 'Anchor line', defaultOpen: true },
-    { id: 'position', title: 'Position', defaultOpen: true },
     { id: 'timing', title: 'Timing', defaultOpen: true },
   ],
   'camera-kf': [

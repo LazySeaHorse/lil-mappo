@@ -21,8 +21,11 @@ function AnnotationMoveHandle({ callout, lngLat }: { callout: CalloutItem; lngLa
 
   const handleDragEnd = (e: MarkerDragEvent) => {
     if (callout.binding.kind !== 'geographic') return;
+    // A dragged point is no longer at the place the name describes.
     updateItem(callout.id, {
       binding: { ...callout.binding, lngLat: [e.lngLat.lng, e.lngLat.lat] },
+      locationName: '',
+      linkTitleToLocation: false,
     });
   };
 
