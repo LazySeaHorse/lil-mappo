@@ -4,7 +4,6 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useGuestLock } from '@/hooks/useGuestLock';
-import { AutosaveStatus } from '@/components/Toolbar/AutosaveStatus';
 import { useToolbarActions } from '@/components/Toolbar/useToolbarActions';
 import { Mappo } from '@/components/Mappo/Mappo';
 import { accountMood } from '@/components/Mappo/moods';
@@ -111,9 +110,6 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
                   </button>
                 </DropdownMenuItem>
               )}
-            </div>
-            <div className="mt-1 text-[11px]">
-              <AutosaveStatus iconSize={12} showLabel />
             </div>
           </div>
         </div>

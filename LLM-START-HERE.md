@@ -625,9 +625,8 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 Car and flight calculations store `startName`/`endName`, and callouts store `locationName`, so inspector search fields can show the place a user chose instead of raw coordinates. All are required TS fields with a zod `.default('')` (older documents load with empty names). `''` means "unknown": map picks, typed coordinates, edited coordinates and legacy projects. Fields render `placeLabel(name, point)` (`engine/routeMode.ts`), which falls back to formatted coordinates. Set them in `createEndpointRouteItem` / `createCalloutItem`, and when a place is picked, a map point is picked or coordinates change (clear the name, so it never describes another place). The AI tools set them from the geocoded name where one exists.
 
-### 7.1c Autosave Status and Guest Hints
+### 7.1c Guest Hints
 
-- **Autosave status.** `WorkingProjectDraftManager` exposes `getStatus()` / `subscribe()` (no polling): `saved`, `saving` (changes waiting or a write in flight) or `error` with a `reason` (`storage-full`, `storage-unavailable`, `failed`; storage rejects with `WorkingDraftError`). The status object only changes when the status does. `useWorkingDraftStatus()` reads it with `useSyncExternalStore`; `AutosaveStatus` shows an icon with a tooltip next to undo/redo (desktop and tablet toolbar) and a text line in the avatar menu header (all sizes). The draft is local, so the copy says "Saved on this device".
 - **Guest hints.** `useGuestLock()` (signed out and no BYOK) replaces ad hoc `!user && !hasByok()`. Locked avatar menu items keep their lock and get a tooltip that says why. The route panel import button reads "Sign in to import KML / GPX data", and `pickRouteFile` opens sign-in without opening the file picker. The Export dialog tells guests before the click (note + "Sign in to export" button). The map-load gate says signing in is free. It must not name the guest cap (owner decision: guests do not need to know the number).
 
 ### 7.1d Quick Tour (`src/components/Onboarding/`)

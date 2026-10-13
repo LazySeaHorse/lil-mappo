@@ -15,7 +15,6 @@ import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './To
 import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
-import { AutosaveStatus } from './AutosaveStatus';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { CAMERA_VIEW_TERMS } from '@/lib/terms';
 
@@ -150,10 +149,7 @@ export function DesktopToolbarLayout({
       {renderAvatarMenu()}
       <Divider />
 
-      <div className="flex items-center">
-        <HistoryButtons />
-        <AutosaveStatus />
-      </div>
+      <HistoryButtons />
       <Divider />
 
       <div className="flex items-center gap-0.5">

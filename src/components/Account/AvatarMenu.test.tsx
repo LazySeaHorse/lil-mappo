@@ -18,11 +18,6 @@ describe('<AvatarMenu />', () => {
     useAuthStore.setState({ user: null });
   });
 
-  it('says the work is saved on this device, so guests know it is not lost', async () => {
-    openMenu();
-    expect(await screen.findByText('Saved on this device')).toBeInTheDocument();
-  });
-
   it.each([
     ['Save to Library', 'Sign in to save projects to your library.'],
     ['Projects', 'Sign in to open your project library.'],
