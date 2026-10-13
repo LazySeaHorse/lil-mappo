@@ -71,7 +71,7 @@ function ToolbarDropdownPanel({
         )}
       >
         {header}
-        <ScrollArea className="flex-1 overflow-hidden min-h-0">
+        <ScrollArea verticalOnly className="flex-1 overflow-hidden min-h-0">
           <div className="p-4 space-y-6">{children}</div>
         </ScrollArea>
         <div className="p-4 border-t border-border/50 bg-secondary/5 shrink-0">

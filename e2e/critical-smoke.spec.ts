@@ -149,6 +149,12 @@ async function pickMapPoint(page: Page, pickerIndex = 0, position = { x: 720, y:
   await page.locator(".mapboxgl-canvas").click({ position });
 }
 
+/** Inspector content must fit the panel: long text truncates instead of widening it and getting cut off. */
+async function expectInspectorFitsWidth(page: Page) {
+  const viewport = page.locator('[data-walkthrough="inspector-panel"] [data-slot="scroll-area-viewport"]');
+  await expect.poll(() => viewport.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+}
+
 async function openMenu(page: Page) {
   await page.getByTitle("li'l Mappo menu").click();
 }
@@ -258,6 +264,7 @@ test("3. a route can be created and appears in the inspector and timeline", asyn
   const routeName = page.locator('input[placeholder="Route name"]');
   await expect(routeName).toHaveValue(/.+ (to|→) .+/);
   await expect(page.getByText(await routeName.inputValue(), { exact: true })).toBeVisible();
+  await expectInspectorFitsWidth(page);
 });
 
 test("4. a callout can be added and edited", async ({ page }) => {
@@ -271,6 +278,7 @@ test("4. a callout can be added and edited", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Callout", exact: true })).toBeVisible();
   const titleInput = page.locator("#root").getByRole("textbox", { name: "Callout title" });
   await expect(titleInput).toHaveValue("Customer HQ");
+  await expectInspectorFitsWidth(page);
   await titleInput.fill("Customer HQ Updated");
   // Callouts draw on one overlay canvas next to the map canvas, so there is no text to find: check it holds pixels.
   await expect.poll(() => page.evaluate(() => {
@@ -294,6 +302,7 @@ test("5. a boundary can be added and edited", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
   const nameInput = page.locator('input[placeholder="Boundary name"]');
   await expect(nameInput).toHaveValue("Testland");
+  await expectInspectorFitsWidth(page);
   await nameInput.fill("Testland Updated");
   await expect(page.getByText("Testland Updated", { exact: true })).toBeVisible();
 });

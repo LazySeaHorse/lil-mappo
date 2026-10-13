@@ -113,7 +113,7 @@ export function PanelWrapper({
           <X size={14} />
         </IconButton>
       </div>
-      <ScrollArea className="flex-1 w-full relative group min-h-0">
+      <ScrollArea verticalOnly className="flex-1 w-full relative group min-h-0">
         <div className="p-4 flex flex-col gap-1">
           {children}
         </div>
