@@ -19,6 +19,7 @@ import { formatPercent } from './inspectorValues';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
+import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
 import { TimingSection } from './timing/TimingSection';
 import { boundaryTiming } from './timing/timingAdapters';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
@@ -52,10 +53,10 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   };
 
   const animationOptions = [
-    { value: 'none', label: 'Off', icon: <Ban size={13} /> },
-    { value: 'fade', label: 'Fade-in', icon: <Layers size={13} /> },
-    { value: 'draw', label: 'Outline', icon: <PenLine size={13} /> },
-    { value: 'trace', label: 'Trace', icon: <Sparkles size={13} /> },
+    { value: 'none', label: BOUNDARY_ANIMATION_LABELS.none, icon: <Ban size={13} /> },
+    { value: 'fade', label: BOUNDARY_ANIMATION_LABELS.fade, icon: <Layers size={13} /> },
+    { value: 'draw', label: BOUNDARY_ANIMATION_LABELS.draw, icon: <PenLine size={13} /> },
+    { value: 'trace', label: BOUNDARY_ANIMATION_LABELS.trace, icon: <Sparkles size={13} /> },
   ] as const satisfies readonly VisualCardOption<BoundaryAnimationMode>[];
 
   return (
@@ -86,13 +87,13 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       <InspectorSection kind="boundary" id="appearance">
         <div className="flex flex-col gap-3">
           <ColorRow 
-            label="Stroke color" 
+            label={BOUNDARY_TERMS.borderColor} 
             value={item.style.strokeColor} 
             onChange={(v) => us({ strokeColor: v })} 
           />
           
           <SliderRow 
-            label="Line width"
+            label={BOUNDARY_TERMS.borderWidth}
             value={item.style.strokeWidth} 
             onChange={(v) => us({ strokeWidth: v })} 
             min={1} 
@@ -107,7 +108,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             onChange={(v) => us({ glow: v })} 
           />
           
-          <Field label="Fill">
+          <Field label={BOUNDARY_TERMS.fill}>
             <SegmentedControl
               options={[{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }]}
               value={item.style.fillMode}
@@ -126,14 +127,14 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             </div>
           ) : (
             <ColorRow
-              label="Fill color"
+              label={BOUNDARY_TERMS.fillColor}
               value={item.style.fillColor}
               onChange={(v) => us({ fillColor: v })}
             />
           )}
 
           <SliderRow 
-            label="Fill opacity" 
+            label={BOUNDARY_TERMS.fillOpacity} 
             value={item.style.fillOpacity} 
             onChange={(v) => us({ fillOpacity: v })} 
             min={0} 

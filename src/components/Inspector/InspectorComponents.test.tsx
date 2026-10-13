@@ -169,8 +169,8 @@ describe('Inspector Components Integration', () => {
     render(<BoundaryInspector item={boundaryItem} />);
 
     expect(screen.getByDisplayValue('California')).toBeInTheDocument();
-    expect(screen.getByText('Stroke color')).toBeInTheDocument();
-    expect(screen.getByText('Line width')).toBeInTheDocument();
+    expect(screen.getByText('Border color')).toBeInTheDocument();
+    expect(screen.getByText('Border width')).toBeInTheDocument();
     expect(screen.getByText('Fill opacity')).toBeInTheDocument();
     expect(screen.getByText('50 %')).toBeInTheDocument();
     expect(screen.getByLabelText('Starts')).toHaveValue('00:00.00');

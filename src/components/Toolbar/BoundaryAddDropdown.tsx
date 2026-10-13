@@ -21,6 +21,7 @@ import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SectionLabel, Field } from '@/components/ui/field';
 import { ColorPicker } from '@/components/ui/color-picker';
+import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
 
 export const BoundaryAddDropdown = ({ 
   isOpen, 
@@ -166,25 +167,25 @@ export const BoundaryAddDropdown = ({
           <div className="space-y-4">
             <SectionLabel>Visual appearance</SectionLabel>
             <div className="space-y-4 px-1">
-              <Field label="Border color">
+              <Field label={BOUNDARY_TERMS.borderColor}>
                 <ColorPicker 
                   value={previewBoundaryStyle!.strokeColor} 
                   onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
                 />
               </Field>
               
-              <Field label="Entrance animation">
+              <Field label={BOUNDARY_TERMS.animation}>
                 <Select 
                   value={previewBoundaryStyle!.animationStyle}
                   onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: parseBoundaryAnimationStyle(v) })}
                 >
-                  <SelectTrigger className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
+                  <SelectTrigger aria-label={BOUNDARY_TERMS.animation} className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-                    <SelectItem value="fade">Fade</SelectItem>
-                    <SelectItem value="draw">Outline</SelectItem>
-                    <SelectItem value="trace">Trace</SelectItem>
+                    <SelectItem value="fade">{BOUNDARY_ANIMATION_LABELS.fade}</SelectItem>
+                    <SelectItem value="draw">{BOUNDARY_ANIMATION_LABELS.draw}</SelectItem>
+                    <SelectItem value="trace">{BOUNDARY_ANIMATION_LABELS.trace}</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

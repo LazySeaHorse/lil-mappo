@@ -23,3 +23,27 @@ export const TIMING_LABELS = {
   motion: 'Motion',
   whenItEnds: 'When it ends',
 } as const;
+
+/** Words for the outline and the inside of an area. The outline is the Border, the inside is the Fill. */
+export const BOUNDARY_TERMS = {
+  border: 'Border',
+  borderColor: 'Border color',
+  borderWidth: 'Border width',
+  fill: 'Fill',
+  fillColor: 'Fill color',
+  fillOpacity: 'Fill opacity',
+  animation: 'Animation',
+} as const;
+
+/** How an area appears. `none` shows it at once. */
+export const BOUNDARY_ANIMATION_LABELS = {
+  none: 'Off',
+  fade: 'Fade in',
+  draw: 'Outline',
+  trace: 'Trace',
+} as const;
+
+export const ROUTE_TERMS = {
+  /** The switch that makes the camera move along the route. */
+  followCamera: 'Follow camera',
+} as const;

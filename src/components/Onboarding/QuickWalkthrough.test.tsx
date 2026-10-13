@@ -159,7 +159,7 @@ describe('QuickWalkthrough Component UI', () => {
       expect(screen.getByText('Action required')).toBeInTheDocument();
     });
 
-    it('scrolls the Follow route switch into view and says the camera moves along the route', () => {
+    it('scrolls the Follow camera switch into view and says the camera moves along the route', () => {
       const target = addTarget('follow-route');
       target.scrollIntoView = vi.fn();
       render(<QuickWalkthrough isMapReady={true} isMobile={false} />);

@@ -8,6 +8,7 @@ import { formatPercent } from './inspectorValues';
 import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIllustrations';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
+import { ROUTE_TERMS } from '@/lib/terms';
 import { Video, VideoOff, Compass, Activity, Car, Plane, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges, routeFitOf } from '@/config/vehicles';
@@ -75,13 +76,13 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
       onClick={handleDisable}
       className="w-full h-9 rounded-lg flex items-center justify-center gap-2 text-xs font-medium bg-background/40 hover:bg-secondary/80 border-border/50 transition-all"
     >
-      <VideoOff size={13} /> Disable auto camera
+      <VideoOff size={13} /> Turn off {ROUTE_TERMS.followCamera}
     </Button>
   );
 
   return (
     <PanelWrapper 
-      title="Auto camera"
+      title={ROUTE_TERMS.followCamera}
       icon={<Video size={15} />}
       footer={footer}
     >

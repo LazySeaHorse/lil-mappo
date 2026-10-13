@@ -41,7 +41,7 @@ const TRANSPARENT_PNG = Buffer.from(
 );
 
 test.describe("Boundary Animation Mode Switching", () => {
-  test("switches between Draw, Off, and Fade-in without leaving partial or blank outlines", async ({ page }) => {
+  test("switches between Draw, Off, and Fade in without leaving partial or blank outlines", async ({ page }) => {
     // Stub external endpoints
     await page.route("https://api.mapbox.com/**", (route) =>
       route.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
@@ -127,8 +127,8 @@ test.describe("Boundary Animation Mode Switching", () => {
     await page.getByRole("button", { name: /Outline/i }).click();
     await setTime(2.5);
 
-    // 4. Switch to "Fade-in" - should immediately become the full Polygon
-    await page.getByRole("button", { name: /Fade-in/i }).click();
+    // 4. Switch to "Fade in" - should immediately become the full Polygon
+    await page.getByRole("button", { name: /Fade in/i }).click();
     await page.waitForTimeout(50);
     const fadeData = await getStrokeSourceData();
     expect(fadeData.features[0].geometry.type).toBe("Polygon");

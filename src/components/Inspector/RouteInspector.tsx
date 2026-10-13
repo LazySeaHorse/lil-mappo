@@ -20,6 +20,7 @@ import { formatMultiplier } from './inspectorValues';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
+import { ROUTE_TERMS } from '@/lib/terms';
 import { TimingSection } from './timing/TimingSection';
 import { routeTiming } from './timing/timingAdapters';
 import { track } from '@/lib/analytics';
@@ -62,7 +63,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     if (enabled) {
       const coordCount = extractLineCoords(item.geojson).length;
       if (coordCount < 2) {
-        toast.error('Add a route before you enable Auto camera.');
+        toast.error(`Add a route before you turn on ${ROUTE_TERMS.followCamera}.`);
         return;
       }
 
@@ -77,7 +78,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       );
 
       if (overlapping) {
-        toast.error(`Auto camera is already active for "${overlapping.name}" during this time.`);
+        toast.error(`${ROUTE_TERMS.followCamera} is already on for "${overlapping.name}" during this time.`);
         return;
       }
 
@@ -281,7 +282,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       <InspectorSection kind="route" id="camera">
         <div className="flex flex-col gap-2">
           <SwitchRow
-            label="Follow route"
+            label={ROUTE_TERMS.followCamera}
             walkthroughTarget="follow-route"
             sublabel="Keeps the route or marker in view during playback."
             checked={item.autoCam?.enabled ?? false}

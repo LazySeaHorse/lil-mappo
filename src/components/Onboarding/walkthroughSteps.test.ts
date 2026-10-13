@@ -42,7 +42,7 @@ describe('walkthrough steps', () => {
     expect(informing).toEqual(['play-animation', 'more-tools']);
   });
 
-  it('teaches Enter, Follow route and where new items start', () => {
+  it('teaches Enter, Follow camera and where new items start', () => {
     const text = (stage: VisibleWalkthroughStage) => {
       const step = getWalkthroughStepConfig(stage, false);
       const content = step.renderContent({ isMobile: false, gestures: { pan: false, orbit: false, zoom: false }, routeEndpoints: { start: false, end: false } });
@@ -51,7 +51,7 @@ describe('walkthrough steps', () => {
     expect(text('route-places')).toMatch(/Enter/);
     expect(text('route-insert')).toMatch(/playhead/);
     expect(getWalkthroughStepConfig('follow-route', false).target).toBe('[data-walkthrough="follow-route"]');
-    expect(text('follow-route')).toMatch(/Follow route/);
+    expect(text('follow-route')).toMatch(/Follow camera/);
     expect(text('follow-route')).toMatch(/along the route/);
   });
 

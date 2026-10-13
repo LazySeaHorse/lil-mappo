@@ -2,6 +2,7 @@ import React from 'react';
 import type { Placement } from '@floating-ui/react';
 import type { MapGesture, WalkthroughState, WalkthroughStage } from './walkthroughState';
 import { GestureStatus } from './GestureStatus';
+import { ROUTE_TERMS } from '@/lib/terms';
 
 export type VisibleWalkthroughStage = Exclude<WalkthroughStage, 'complete'>;
 
@@ -163,7 +164,7 @@ export function getWalkthroughStepConfig(
         placement: isMobile ? 'top' : 'left-start',
         scrollIntoView: true,
         buttons: ['skip'],
-        renderContent: () => 'Turn on Follow route. When you play the video, the camera moves along the route.',
+        renderContent: () => `Turn on ${ROUTE_TERMS.followCamera}. When you play the video, the camera moves along the route.`,
       };
 
     case 'play-animation':

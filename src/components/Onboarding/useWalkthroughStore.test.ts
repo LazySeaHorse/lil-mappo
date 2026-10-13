@@ -105,7 +105,7 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     expect(stage()).toBe('route-preview');
   });
 
-  it('moves on when the route is inserted, and opens the inspector for the Follow route switch', () => {
+  it('moves on when the route is inserted, and opens the inspector for the Follow camera switch', () => {
     walkthrough().start(false);
     advanceTo('route-insert');
     useProjectStore.setState({ isInspectorOpen: false });
@@ -129,7 +129,7 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     expect(stage()).toBe('follow-route');
   });
 
-  it('moves on when the user turns on Follow route, and resets the playhead for the preview', () => {
+  it('moves on when the user turns on Follow camera, and resets the playhead for the preview', () => {
     walkthrough().start(false);
     advanceTo('follow-route');
     useProjectStore.getState().selectItem('r1');
