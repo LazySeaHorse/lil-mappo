@@ -23,7 +23,6 @@ export function createTransientState(): TransientProjectState {
     isExporting: false,
     isCapturingViewport: false,
     showNewProjectModal: false,
-    projectSettingsTab: 'general',
     activePicker: null,
     previewRoute: null,
     draftWalk: null,

@@ -52,7 +52,6 @@ export interface TransientProjectState {
   /** The map is temporarily resized to render a capture (export, snapshot, agent frames). */
   isCapturingViewport: boolean;
   showNewProjectModal: boolean;
-  projectSettingsTab: 'general' | 'map';
   // Transient picking state (not persisted)
   activePicker: PickSession | null;
   previewRoute: GeoJSON.FeatureCollection | null;
@@ -140,7 +139,6 @@ export interface EditorUiSlice {
   setHideUI: (v: boolean) => void;
   setIsExporting: (v: boolean) => void;
   setShowNewProjectModal: (v: boolean) => void;
-  setProjectSettingsTab: (tab: 'general' | 'map') => void;
   setIsInspectorOpen: (v: boolean) => void;
   setTimelineHeight: (v: number) => void;
   setMapCenter: (v: [number, number]) => void;

@@ -27,6 +27,7 @@ export function InspectorSection<K extends InspectorSectionKind>({
   return (
     <section
       data-state={open ? 'open' : 'closed'}
+      data-section={`${kind}-${id}`}
       className={cn(
         'border border-border/40 bg-secondary/25 hover:bg-secondary/35 rounded-xl px-3.5 mb-2.5 transition-colors overflow-hidden data-[state=open]:bg-secondary/35',
         className,

@@ -49,7 +49,6 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
   setHideUI: (v) => set({ hideUI: v }),
   setIsExporting: (v) => set({ isExporting: v }),
   setShowNewProjectModal: (v) => set({ showNewProjectModal: v }),
-  setProjectSettingsTab: (tab) => set({ projectSettingsTab: tab }),
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),
   setTimelineHeight: (v) => {
     writeTimelineHeight(v);

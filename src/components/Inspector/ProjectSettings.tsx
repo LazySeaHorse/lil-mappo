@@ -32,7 +32,6 @@ export function ProjectSettings() {
     setProjectName, setFps, setTerrainExaggeration,
     setProjection, setLightPreset, set3dDetails, setAtmosphere,
     mapStyle,
-    projectSettingsTab, setProjectSettingsTab,
     aspectRatio, exportResolution, isVertical,
     setAspectRatio, setExportResolution, setIsVertical,
   } = useProjectStore(
@@ -48,7 +47,6 @@ export function ProjectSettings() {
       setProjection: s.setProjection, setLightPreset: s.setLightPreset,
       set3dDetails: s.set3dDetails, setAtmosphere: s.setAtmosphere,
       mapStyle: s.mapStyle,
-      projectSettingsTab: s.projectSettingsTab, setProjectSettingsTab: s.setProjectSettingsTab,
       aspectRatio: s.aspectRatio, exportResolution: s.exportResolution, isVertical: s.isVertical,
       setAspectRatio: s.setAspectRatio, setExportResolution: s.setExportResolution, setIsVertical: s.setIsVertical,
     }))
@@ -61,212 +59,197 @@ export function ProjectSettings() {
 
   return (
     <PanelWrapper title="Project settings" icon={<Settings2 size={15} />}>
-      <SegmentedControl
-
-        options={[
-          { value: 'general', label: 'General' },
-          { value: 'map', label: 'Map', walkthroughTarget: 'project-settings-map-tab' },
-        ]}
-        value={projectSettingsTab}
-        onValueChange={setProjectSettingsTab}
-        className="mb-4"
-      />
-
-      {projectSettingsTab === 'general' ? (
-        <>
-          <Field label="Name"><InputText value={name} onChange={setProjectName} /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Duration (s)">
-              <InputNumber
-                value={duration}
-                aria-label="Duration (s)"
-                onChange={(v) => setDuration(v)}
-                min={1}
-                max={maxDuration}
-              />
-            </Field>
-            <Field label="Frame rate">
-              <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
-                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <FpsSelectItems limits={limits} />
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Aspect ratio">
-              <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
-                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="16:9">16:9</SelectItem>
-                  <SelectItem value="21:9">21:9</SelectItem>
-                  <SelectItem value="4:3">4:3</SelectItem>
-                  <SelectItem value="1:1">1:1</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field label="Orientation">
-              <SegmentedControl
-                options={[
-                  { value: 'landscape', icon: <Monitor size={14} />, title: 'Landscape', 'aria-label': 'Landscape' },
-                  { value: 'portrait', icon: <Smartphone size={14} />, title: 'Portrait', 'aria-label': 'Portrait' },
-                ]}
-                value={isVertical ? 'portrait' : 'landscape'}
-                onValueChange={(v) => setIsVertical(v === 'portrait')}
-                className="h-8 w-full"
-              />
-            </Field>
-          </div>
-
-          <Field label="Resolution">
-            <div className="flex items-center gap-2">
-              <Select
-                value={exportResolution}
-                onValueChange={(v) => setExportResolution(v as ExportResolution)}
-              >
-                <SelectTrigger className="h-8 text-sm flex-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <ResolutionSelectItems limits={limits} />
-                </SelectContent>
-              </Select>
-              <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap min-w-[70px] text-right">
-                {resolution[0]} × {resolution[1]}
-              </span>
-            </div>
+      <InspectorSection kind="project" id="video">
+        <Field label="Name"><InputText value={name} onChange={setProjectName} /></Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Duration (s)">
+            <InputNumber
+              value={duration}
+              aria-label="Duration (s)"
+              onChange={(v) => setDuration(v)}
+              min={1}
+              max={maxDuration}
+            />
+          </Field>
+          <Field label="Frame rate">
+            <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <FpsSelectItems limits={limits} />
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Aspect ratio">
+            <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="16:9">16:9</SelectItem>
+                <SelectItem value="21:9">21:9</SelectItem>
+                <SelectItem value="4:3">4:3</SelectItem>
+                <SelectItem value="1:1">1:1</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
 
-          {limits.limited && (
-            <div className="mt-4 p-3 bg-primary/5 rounded-xl border border-primary/10 space-y-2">
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
-              </p>
-              <button
-                onClick={() => openUpgradeModal('project_settings')}
-                className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
-              >
-                Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />
-              </button>
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          <InspectorSection kind="project" id="env">
-            <Field label="Projection" hint={MAP_SETTING_HINTS.projection}>
-              <Select value={projection} onValueChange={(v) => setProjection(parseProjection(v))}>
-                <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="globe">Globe</SelectItem>
-                  <SelectItem value="mercator">Mercator</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            {capabilities.timeOfDayPreset && (
-              <Field label="Lighting" hint={MAP_SETTING_HINTS.lighting}>
-                <Select value={lightPreset} onValueChange={(v) => setLightPreset(parseLightPreset(v))}>
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="day">Day</SelectItem>
-                    <SelectItem value="night">Night</SelectItem>
-                    <SelectItem value="dusk">Dusk</SelectItem>
-                    <SelectItem value="dawn">Dawn</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-
-            <SliderRow
-              label="Terrain height"
-              value={terrainExaggeration}
-              onChange={setTerrainExaggeration}
-              min={1}
-              max={3}
-              step={0.1}
-              formatValue={formatMultiplier}
-              endLabels={['Natural', 'Dramatic']}
-              hint={MAP_SETTING_HINTS.terrainHeight}
+          <Field label="Orientation">
+            <SegmentedControl
+              options={[
+                { value: 'landscape', icon: <Monitor size={14} />, title: 'Landscape', 'aria-label': 'Landscape' },
+                { value: 'portrait', icon: <Smartphone size={14} />, title: 'Portrait', 'aria-label': 'Portrait' },
+              ]}
+              value={isVertical ? 'portrait' : 'landscape'}
+              onValueChange={(v) => setIsVertical(v === 'portrait')}
+              className="h-8 w-full"
             />
-          </InspectorSection>
+          </Field>
+        </div>
 
-          <InspectorSection kind="project" id="atmos">
-            {/* Mercator draws no stars; the fog color still tints its horizon haze */}
-            {projectionShowsStars(projection) && (
-              <SliderRow
-                label="Star intensity"
-                value={starIntensity}
-                onChange={(v) => setAtmosphere({ starIntensity: v })}
-                min={0}
-                max={1}
-                step={0.01}
-                formatValue={formatPercent}
-                endLabels={['None', 'Many']}
-                hint={MAP_SETTING_HINTS.stars}
+        <Field label="Resolution">
+          <div className="flex items-center gap-2">
+            <Select
+              value={exportResolution}
+              onValueChange={(v) => setExportResolution(v as ExportResolution)}
+            >
+              <SelectTrigger className="h-8 text-sm flex-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <ResolutionSelectItems limits={limits} />
+              </SelectContent>
+            </Select>
+            <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap min-w-[70px] text-right">
+              {resolution[0]} × {resolution[1]}
+            </span>
+          </div>
+        </Field>
+
+        {limits.limited && (
+          <div className="p-3 bg-primary/5 rounded-xl border border-primary/10 space-y-2">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
+            </p>
+            <button
+              onClick={() => openUpgradeModal('project_settings')}
+              className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
+            >
+              Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />
+            </button>
+          </div>
+        )}
+      </InspectorSection>
+
+      <InspectorSection kind="project" id="env">
+        <Field label="Projection" hint={MAP_SETTING_HINTS.projection}>
+          <Select value={projection} onValueChange={(v) => setProjection(parseProjection(v))}>
+            <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="globe">Globe</SelectItem>
+              <SelectItem value="mercator">Mercator</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+
+        {capabilities.timeOfDayPreset && (
+          <Field label="Lighting" hint={MAP_SETTING_HINTS.lighting}>
+            <Select value={lightPreset} onValueChange={(v) => setLightPreset(parseLightPreset(v))}>
+              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="day">Day</SelectItem>
+                <SelectItem value="night">Night</SelectItem>
+                <SelectItem value="dusk">Dusk</SelectItem>
+                <SelectItem value="dawn">Dawn</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+
+        <SliderRow
+          label="Terrain height"
+          value={terrainExaggeration}
+          onChange={setTerrainExaggeration}
+          min={1}
+          max={3}
+          step={0.1}
+          formatValue={formatMultiplier}
+          endLabels={['Natural', 'Dramatic']}
+          hint={MAP_SETTING_HINTS.terrainHeight}
+        />
+      </InspectorSection>
+
+      <InspectorSection kind="project" id="atmos">
+        {/* Mercator draws no stars; the fog color still tints its horizon haze */}
+        {projectionShowsStars(projection) && (
+          <SliderRow
+            label="Star intensity"
+            value={starIntensity}
+            onChange={(v) => setAtmosphere({ starIntensity: v })}
+            min={0}
+            max={1}
+            step={0.01}
+            formatValue={formatPercent}
+            endLabels={['None', 'Many']}
+            hint={MAP_SETTING_HINTS.stars}
+          />
+        )}
+        <Field label="Fog color" hint={MAP_SETTING_HINTS.fogColor}>
+          <div className="flex gap-2 items-center">
+            <ColorPicker
+              value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
+              onChange={(v) => setAtmosphere({ fogColor: v })}
+            />
+            <Button
+              onClick={() => setAtmosphere({ fogColor: null })}
+              variant="outline"
+              size="sm"
+              className="px-3 h-8 text-xs font-medium transition-all"
+              title="Reset to map style"
+            >
+              Reset
+            </Button>
+          </div>
+        </Field>
+      </InspectorSection>
+
+      {capabilities.labelGroups.length > 0 && (
+        <InspectorSection kind="project" id="labels">
+          <div className="flex gap-2 mb-3">
+            <Button
+              onClick={() => setAllLabelsVisibility(true)}
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs h-8"
+            >
+              Enable all
+            </Button>
+            <Button
+              onClick={() => setAllLabelsVisibility(false)}
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs h-8"
+            >
+              Disable all
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {capabilities.labelGroups.map((group) => (
+              <SwitchField
+                key={group.id}
+                checked={labelVisibility[group.id] ?? true}
+                onChange={(v) => setLabelGroupVisibility(group.id, v)}
+                label={group.label}
               />
-            )}
-            <Field label="Fog color" hint={MAP_SETTING_HINTS.fogColor}>
-              <div className="flex gap-2 items-center">
-                <ColorPicker
-                  value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
-                  onChange={(v) => setAtmosphere({ fogColor: v })}
-                />
-                <Button
-                  onClick={() => setAtmosphere({ fogColor: null })}
-                  variant="outline"
-                  size="sm"
-                  className="px-3 h-8 text-xs font-medium transition-all"
-                  title="Reset to map style"
-                >
-                  Reset
-                </Button>
-              </div>
-            </Field>
-          </InspectorSection>
+            ))}
+          </div>
+        </InspectorSection>
+      )}
 
-          {capabilities.labelGroups.length > 0 && (
-            <InspectorSection kind="project" id="labels">
-              <div className="flex gap-2 mb-3">
-                <Button
-                  onClick={() => setAllLabelsVisibility(true)}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs h-8"
-                >
-                  Enable all
-                </Button>
-                <Button
-                  onClick={() => setAllLabelsVisibility(false)}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs h-8"
-                >
-                  Disable all
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {capabilities.labelGroups.map((group) => (
-                  <SwitchField
-                    key={group.id}
-                    checked={labelVisibility[group.id] ?? true}
-                    onChange={(v) => setLabelGroupVisibility(group.id, v)}
-                    label={group.label}
-                  />
-                ))}
-              </div>
-            </InspectorSection>
-          )}
-
-          {(capabilities.landmarks3d || capabilities.trees3d || capabilities.facades3d) && (
-            <InspectorSection kind="project" id="3d">
-              <p className="text-[11px] leading-tight text-muted-foreground">{MAP_SETTING_HINTS.features3d}</p>
-              {capabilities.landmarks3d && <SwitchRow checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" sublabel={MAP_SETTING_HINTS.landmarks} />}
-              {capabilities.trees3d && <SwitchRow checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" sublabel={MAP_SETTING_HINTS.trees} />}
-              {capabilities.facades3d && <SwitchRow checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" sublabel={MAP_SETTING_HINTS.facades} />}
-            </InspectorSection>
-          )}
-        </>
+      {(capabilities.landmarks3d || capabilities.trees3d || capabilities.facades3d) && (
+        <InspectorSection kind="project" id="3d">
+          <p className="text-[11px] leading-tight text-muted-foreground">{MAP_SETTING_HINTS.features3d}</p>
+          {capabilities.landmarks3d && <SwitchRow checked={show3dLandmarks} onChange={(v) => set3dDetails('landmarks', v)} label="Landmarks" sublabel={MAP_SETTING_HINTS.landmarks} />}
+          {capabilities.trees3d && <SwitchRow checked={show3dTrees} onChange={(v) => set3dDetails('trees', v)} label="Trees" sublabel={MAP_SETTING_HINTS.trees} />}
+          {capabilities.facades3d && <SwitchRow checked={show3dFacades} onChange={(v) => set3dDetails('facades', v)} label="Facades" sublabel={MAP_SETTING_HINTS.facades} />}
+        </InspectorSection>
       )}
     </PanelWrapper>
   );

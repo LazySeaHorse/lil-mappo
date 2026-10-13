@@ -40,6 +40,7 @@ export const INSPECTOR_SECTIONS = {
     { id: 'fine-tune', title: 'Fine-tune', defaultOpen: false },
   ],
   project: [
+    { id: 'video', title: 'Video', defaultOpen: true },
     { id: 'env', title: 'Map', defaultOpen: true },
     { id: 'atmos', title: 'Atmosphere', defaultOpen: false },
     { id: 'labels', title: 'Labels', defaultOpen: true },

@@ -18,7 +18,7 @@ const paid = { tier: 'wanderer', status: 'active' };
 beforeEach(() => {
   subscription.current = paid;
   vi.mocked(toast.info).mockClear();
-  useProjectStore.setState({ duration: 10, playheadTime: 0, isPlaying: false, projectSettingsTab: 'general' });
+  useProjectStore.setState({ duration: 10, playheadTime: 0, isPlaying: false });
 });
 
 const open = () => fireEvent.click(screen.getByRole('button', { name: new RegExp(DURATION_TERMS.change) }));

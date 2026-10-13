@@ -7,6 +7,7 @@ import {
   PANEL_MARGIN,
 } from '@/constants/layout';
 import { useToolbarActions } from './useToolbarActions';
+import { openProjectSettings } from './openProjectSettings';
 import { MobileToolbarLayout } from './MobileToolbarLayout';
 import { DesktopToolbarLayout } from './DesktopToolbarLayout';
 import { AvatarMenu } from '@/components/Account/AvatarMenu';
@@ -49,17 +50,15 @@ export default function Toolbar({
     isPlaying, mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading,
-    selectItem, setHideUI, isInspectorOpen, isScrubbing,
-    setProjectSettingsTab,
+    setHideUI, isInspectorOpen, isScrubbing,
   } = useProjectStore(
     useShallow(s => ({
       isPlaying: s.isPlaying, mapStyle: s.mapStyle, setMapStyle: s.setMapStyle,
       terrainEnabled: s.terrainEnabled, setTerrainEnabled: s.setTerrainEnabled,
       buildingsEnabled: s.buildingsEnabled, setBuildingsEnabled: s.setBuildingsEnabled,
       terrainLoading: s.terrainLoading,
-      selectItem: s.selectItem, setHideUI: s.setHideUI,
+      setHideUI: s.setHideUI,
       isInspectorOpen: s.isInspectorOpen, isScrubbing: s.isScrubbing,
-      setProjectSettingsTab: s.setProjectSettingsTab,
     }))
   );
 
@@ -88,11 +87,6 @@ export default function Toolbar({
     isScrubbing,
   };
 
-  const openProjectSettings = () => {
-    setProjectSettingsTab('general');
-    selectItem(null);
-  };
-
   return (
     <div
       data-ph-unmask
@@ -115,7 +109,7 @@ export default function Toolbar({
           handleAddCameraKF={actions.handleAddCameraKF}
           onProjectSettings={() => {
             setMobileMode('default');
-            openProjectSettings();
+            openProjectSettings({ scrollTo: 'map' });
           }}
           hideAi={isMobile}
           isPlaying2={isPlaying}
@@ -130,7 +124,7 @@ export default function Toolbar({
           onExport={onExport}
           onImportClick={() => actions.pickRouteFile(routeInputRef.current)}
           onHideUI={() => setHideUI(true)}
-          onProjectSettings={openProjectSettings}
+          onProjectSettings={() => openProjectSettings({ scrollTo: 'map' })}
           renderAvatarMenu={renderAvatarMenu}
           handleAddCameraKF={actions.handleAddCameraKF}
           {...layerProps}
