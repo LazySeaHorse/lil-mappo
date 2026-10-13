@@ -125,7 +125,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   if (showExport) exportOpenedRef.current = true;
   const [showLibrary, setShowLibrary] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
-  const { isMobile, isTablet } = useResponsive();
+  const { isMobile, isToolbarCollapsed, isLayersCollapsed } = useResponsive();
   const isWorkingDraftReady = useWorkingProjectDraft();
   const deepLink = useRouteDeepLink(routeDeepLink, isWorkingDraftReady, onRouteDeepLinkSettled ?? (() => {}));
   usePlayback(mapRef);
@@ -217,7 +217,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
             }}
             onWalkthrough={() => {
               const cameraCount = (useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem | undefined)?.keyframes.length ?? 0;
-              useWalkthroughStore.getState().start(isMobile, cameraCount, isMobile || isTablet);
+              useWalkthroughStore.getState().start(isToolbarCollapsed, cameraCount, isLayersCollapsed);
             }}
             onAddToolOpenChange={(tool, open) => useWalkthroughStore.getState().recordAddToolOpenChange(tool, open)}
             onMapStyleOpenChange={(open) => useWalkthroughStore.getState().recordMapStyleOpenChange(open)}
@@ -255,8 +255,8 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         <LazyAccountModals />
         <QuickWalkthrough
           isMapReady={isMapReady}
-          isMobile={isMobile}
-          isTablet={isTablet}
+          isMobile={isToolbarCollapsed}
+          isTablet={isLayersCollapsed}
         />
         </div>
       </MapRuntimeContext.Provider>
