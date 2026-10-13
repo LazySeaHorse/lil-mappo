@@ -42,4 +42,24 @@ describe('SearchField', () => {
     await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
     expect(suggest.mock.calls[0][0]).toBe('Central Park');
   });
+
+  it('reads typed coordinates only when parseCoordinates is set', async () => {
+    const onSelect = vi.fn();
+    const { rerender } = render(
+      <SearchField label="Location" value={[0, 0]} name="" onSelect={onSelect} isPicking={false} onStartPick={vi.fn()} />,
+    );
+    const input = screen.getByPlaceholderText('Location');
+    fireEvent.change(input, { target: { value: '-74.0, 40.7' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
+    expect(onSelect).not.toHaveBeenCalled();
+
+    suggest.mockClear();
+    rerender(
+      <SearchField label="Location" value={[0, 0]} name="" onSelect={onSelect} isPicking={false} onStartPick={vi.fn()} parseCoordinates />,
+    );
+    fireEvent.keyDown(screen.getByPlaceholderText('Location'), { key: 'Enter' });
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith([-74, 40.7], ''));
+    expect(suggest).not.toHaveBeenCalled();
+  });
 });

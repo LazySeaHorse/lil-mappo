@@ -22,6 +22,8 @@ interface SearchFieldProps {
   onStartPick: () => void;
   className?: string;
   placeholder?: string;
+  /** Also accept typed coordinates such as "-74.006, 40.712" (they select a point with no place name). */
+  parseCoordinates?: boolean;
 }
 
 export const SearchField = ({
@@ -33,7 +35,8 @@ export const SearchField = ({
   isPicking,
   onStartPick,
   className = "",
-  placeholder
+  placeholder,
+  parseCoordinates = false,
 }: SearchFieldProps) => {
   // Wrap the prop callback to ensure name is always provided
   const onSelectWithName = (lngLat: [number, number], name?: string) => {
@@ -42,6 +45,7 @@ export const SearchField = ({
 
   const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, handleClose, clear } = useLocationSearch({
     onSelect: onSelectWithName,
+    parseCoordinates,
   });
 
   // Sync internal query when name prop changes

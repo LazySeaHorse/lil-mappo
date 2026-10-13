@@ -138,17 +138,18 @@ describe('RoutePlanner in Inspector', () => {
 
     it('car: picks start and end on the map and toggles a picker off', () => {
       render(<RoutePlanner item={createBaseRouteItem('car')} />);
-      const [startBtn, endBtn] = screen.getAllByTitle('Select point on map');
+      const [startBtn, endBtn] = screen.getAllByTitle('Pick on Map');
 
       fireEvent.click(startBtn);
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-start', ownerId: 'route-test-1', prompt: 'Start' });
       pick([0, 51.48]);
       expect(stored().calculation).toMatchObject({ startPoint: [0, 51.48], endPoint: [0, 0] });
-      expect(screen.getAllByPlaceholderText('Search address or coordinates')[0]).toHaveValue('0.00000, 51.48000');
 
       fireEvent.click(endBtn);
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-end', prompt: 'End' });
-      fireEvent.click(screen.getByTitle('Select a point on the map'));
+      // The field being picked is blank; the other one shows its point.
+      expect(screen.getByPlaceholderText('Search address or coordinates')).toHaveValue('0.00000, 51.48000');
+      fireEvent.click(screen.getAllByTitle('Pick on Map')[1]);
       expect(useProjectStore.getState().activePicker).toBeNull();
     });
 
@@ -410,6 +411,22 @@ describe('RoutePlanner in Inspector', () => {
       expect(calcOf().endName).toBe('');
     });
 
+    it('searches with the search button too', async () => {
+      suggest.mockResolvedValue({ suggestions: [] });
+      render(<RoutePlanner item={setCalc({})} />);
+      const start = screen.getAllByPlaceholderText(SEARCH)[0];
+      fireEvent.change(start, { target: { value: 'Brooklyn Bridge' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Search' })[0]);
+      await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
+      expect(suggest.mock.calls[0][0]).toBe('Brooklyn Bridge');
+    });
+
+    it('searches only on Enter, not while typing', () => {
+      render(<RoutePlanner item={setCalc({})} />);
+      fireEvent.change(screen.getAllByPlaceholderText(SEARCH)[0], { target: { value: 'Brooklyn Bridge' } });
+      expect(suggest).not.toHaveBeenCalled();
+    });
+
     it('clears the name when coordinates are typed', async () => {
       render(<RoutePlanner item={setCalc({ startName: 'Times Square' })} />);
       const start = screen.getAllByPlaceholderText(SEARCH)[0];
@@ -422,12 +439,12 @@ describe('RoutePlanner in Inspector', () => {
 
     it('stores the name of a place picked on the map, or none when the pick has no name', () => {
       render(<RoutePlanner item={setCalc({ endName: 'Central Park' })} />);
-      act(() => { fireEvent.click(screen.getAllByTitle('Select point on map')[1]); });
+      act(() => { fireEvent.click(screen.getAllByTitle('Pick on Map')[1]); });
       act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [2, 3], name: 'Pier 17' }); });
       expect(calcOf()).toMatchObject({ endPoint: [2, 3], endName: 'Pier 17' });
 
       act(() => { useProjectStore.getState().stopPicking(); });
-      act(() => { fireEvent.click(screen.getAllByTitle('Select point on map')[1]); });
+      act(() => { fireEvent.click(screen.getAllByTitle('Pick on Map')[1]); });
       act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [4, 5], name: '' }); });
       expect(calcOf()).toMatchObject({ endPoint: [4, 5], endName: '' });
     });
