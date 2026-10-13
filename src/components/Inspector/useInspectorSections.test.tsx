@@ -55,8 +55,8 @@ describe('useInspectorSections', () => {
   it('keeps panels apart', () => {
     const route = renderHook(() => useInspectorSections('route'));
     const callout = renderHook(() => useInspectorSections('callout'));
-    act(() => route.result.current.toggle('appearance'));
-    expect(route.result.current.isOpen('appearance')).toBe(false);
+    act(() => route.result.current.toggle('line'));
+    expect(route.result.current.isOpen('line')).toBe(false);
     expect(callout.result.current.isOpen('appearance')).toBe(true);
   });
 
@@ -69,7 +69,7 @@ describe('useInspectorSections', () => {
     reloadPreferences();
     const { result } = renderHook(() => useInspectorSections('route'));
     expect(result.current.isOpen('path')).toBe(true);
-    expect(result.current.isOpen('appearance')).toBe(true);
+    expect(result.current.isOpen('line')).toBe(true);
   });
 
   it('falls back to defaults when storage throws, and still toggles', () => {

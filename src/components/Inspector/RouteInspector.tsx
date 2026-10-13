@@ -8,14 +8,10 @@ import { vehicleChangePatch } from '@/config/vehicles';
 import { RoutePathSection } from './RoutePathSection';
 import { useSubscription } from '@/hooks/useSubscription';
 import { isWanderer } from '@/lib/cloudAccess';
-import { 
-  SliderRow, 
-  ColorRow, 
-  SwitchRow, 
-  VisualCardSelect,
-  type VisualCardOption,
-} from './InspectorShared';
-import { formatMultiplier } from './inspectorValues';
+import { SwitchRow } from './InspectorShared';
+import { RouteLineSection } from './RouteLineSection';
+import { RouteAnimationSection } from './RouteAnimationSection';
+import { RouteMarkerSection } from './RouteMarkerSection';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { InspectorHeader } from './InspectorHeader';
@@ -23,19 +19,7 @@ import { FOLLOW_CAMERA_BLOCKED, ROUTE_TERMS } from '@/lib/terms';
 import { TimingSection } from './timing/TimingSection';
 import { routeTiming } from './timing/timingAdapters';
 import { track } from '@/lib/analytics';
-import { 
-  Navigation, 
-  Clapperboard, 
-  CircleDot, 
-  Flame, 
-  Spline, 
-  Car, 
-  Plane, 
-  Circle 
-} from 'lucide-react';
-
-type RouteLineStyle = 'solid' | 'dashed' | 'dotted';
-type RouteAnimationType = RouteItem['style']['animationType'];
+import { Navigation, Clapperboard } from 'lucide-react';
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
@@ -65,18 +49,6 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     else if (enabled) track('autocam_enabled');
   };
 
-  const animType: RouteAnimationType = item.style.animationType;
-
-  const lineStyleValue: RouteLineStyle =
-    !item.style.dashPattern ? 'solid' :
-    item.style.dashPattern[0] === 2 ? 'dotted' : 'dashed';
-
-  const animOptions = [
-    { value: 'draw', label: 'Draw', icon: <Spline size={13} /> },
-    { value: 'navigation', label: 'Progress', icon: <CircleDot size={13} /> },
-    { value: 'comet', label: 'Moving trail', icon: <Flame size={13} /> },
-  ] as const satisfies readonly VisualCardOption<RouteAnimationType>[];
-
   return (
     <PanelWrapper 
       title="Route" 
@@ -97,156 +69,16 @@ export function RouteInspector({ item }: { item: RouteItem }) {
         <RoutePathSection key={item.id} item={item} />
       </InspectorSection>
 
-      <InspectorSection kind="route" id="appearance">
-        <div className="flex flex-col gap-3">
-          <ColorRow 
-            label="Color" 
-            value={item.style.color} 
-            onChange={(v) => us({ color: v })} 
-          />
+      <RouteLineSection style={item.style} onStyle={us} />
 
-          <SliderRow 
-            label="Width" 
-            value={item.style.width} 
-            onChange={(v) => us({ width: v })} 
-            min={1} 
-            max={15} 
-            step={1} 
-            unit="px"
-          />
+      <RouteAnimationSection style={item.style} onStyle={us} />
 
-          <div className="flex flex-col gap-1.5 pt-0.5">
-            <span className="text-xs font-medium text-muted-foreground">Line style</span>
-            <VisualCardSelect
-              options={[
-                { 
-                  value: 'solid', 
-                  label: 'Solid', 
-                  icon: <div className="w-5 h-[2.5px] bg-current rounded-full my-0.5" /> 
-                },
-                { 
-                  value: 'dashed', 
-                  label: 'Dashed', 
-                  icon: <div className="w-5 border-t-[2.5px] border-dashed border-current my-0.5" /> 
-                },
-                { 
-                  value: 'dotted', 
-                  label: 'Dotted', 
-                  icon: <div className="w-5 border-t-[2.5px] border-dotted border-current my-0.5" /> 
-                },
-              ] satisfies readonly VisualCardOption<RouteLineStyle>[]}
-              value={lineStyleValue}
-              onChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}
-              columns={3}
-            />
-          </div>
-
-          <SwitchRow 
-            label="Glow" 
-            checked={item.style.glow} 
-            onChange={(v) => us({ glow: v })} 
-          />
-
-          {item.style.glow && (
-            <>
-              <SliderRow
-                label="Glow width"
-                value={item.style.glowWidth}
-                onChange={(v) => us({ glowWidth: v })}
-                min={2}
-                max={40}
-                step={1}
-                unit="px"
-              />
-            </>
-          )}
-        </div>
-      </InspectorSection>
-
-      <InspectorSection kind="route" id="animation">
-        <div className="flex flex-col gap-3.5">
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Style</span>
-            <VisualCardSelect
-              options={animOptions}
-              value={animType}
-              onChange={(v) => us({ animationType: v })}
-              columns={3}
-            />
-          </div>
-
-          {/* Travel Marker */}
-          <div className="flex flex-col gap-3 pt-1 border-t border-border/30">
-            <SwitchRow
-              label="Route marker"
-              checked={calc.vehicle?.enabled || false}
-              onChange={(v) => updateVehicle({ enabled: v })}
-            />
-
-            {calc.vehicle?.enabled && (
-              <div className="flex flex-col gap-3 pl-0.5">
-                <div className="flex flex-col gap-1.5 pt-0.5">
-                  <span className="text-xs font-medium text-muted-foreground">Marker type</span>
-                  <VisualCardSelect
-                    options={[
-                      { value: 'dot', label: 'Dot', icon: <Circle size={14} /> },
-                      { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
-                      { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
-                    ]}
-                    value={calc.vehicle?.type || 'dot'}
-                    onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
-                    onLockedSelect={() => openUpgradeModal('vehicle_lock')}
-                    columns={3}
-                  />
-                </div>
-
-                <SliderRow 
-                  label="Size" 
-                  value={calc.vehicle?.scale || 1} 
-                  onChange={(v) => updateVehicle({ scale: v })} 
-                  min={0.2} 
-                  max={4} 
-                  step={0.1} 
-                  formatValue={formatMultiplier}
-                />
-              </div>
-            )}
-          </div>
-
-          {animType === 'comet' && (
-            <SliderRow
-              label="Trail length"
-              value={item.style.cometTrailLength}
-              onChange={(v) => us({ cometTrailLength: v })}
-              min={0.05}
-              max={0.8}
-              step={0.05}
-              formatValue={(v) => v.toFixed(2)}
-            />
-          )}
-
-          {animType === 'draw' && (
-            <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
-              <SwitchRow 
-                label="Fade trail"
-                checked={item.style.trailFade} 
-                onChange={(v) => us({ trailFade: v })} 
-              />
-              {item.style.trailFade && (
-                <SliderRow 
-                  label="Fade length"
-                  value={item.style.trailFadeLength} 
-                  onChange={(v) => us({ trailFadeLength: v })} 
-                  min={0.05} 
-                  max={1} 
-                  step={0.05} 
-                  formatValue={(v) => v.toFixed(2)}
-                />
-              )}
-            </div>
-          )}
-        </div>
-      </InspectorSection>
+      <RouteMarkerSection
+        vehicle={calc.vehicle}
+        isPro={isPro}
+        onChange={updateVehicle}
+        onLockedSelect={() => openUpgradeModal('vehicle_lock')}
+      />
 
       <TimingSection adapter={routeTiming} item={item} onChange={u} />
 

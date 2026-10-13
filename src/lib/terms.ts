@@ -50,6 +50,14 @@ export const ROUTE_TERMS = {
   followCamera: 'Follow camera',
 } as const;
 
+/** How the line of a route appears. The hint says what the user sees. */
+export const ROUTE_ANIMATION_TERMS = {
+  label: 'How the line appears',
+  draw: { label: 'Draw', hint: 'The line draws itself from the start to the end.' },
+  navigation: { label: 'Route ahead', hint: 'The whole line shows. The part behind the marker goes away.' },
+  comet: { label: 'Moving trail', hint: 'A short trail moves along the route.' },
+} as const;
+
 /** The way a route travels. */
 export const ROUTE_MODE_LABELS = {
   car: 'Car',

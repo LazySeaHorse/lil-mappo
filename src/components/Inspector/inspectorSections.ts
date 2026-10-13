@@ -12,8 +12,9 @@ export interface InspectorSectionConfig {
 export const INSPECTOR_SECTIONS = {
   route: [
     { id: 'path', title: 'Path', defaultOpen: true },
-    { id: 'appearance', title: 'Appearance', defaultOpen: true },
+    { id: 'line', title: 'Line', defaultOpen: true },
     { id: 'animation', title: 'Animation', defaultOpen: true },
+    { id: 'marker', title: 'Marker', defaultOpen: true },
     { id: 'timing', title: 'Timing', defaultOpen: true },
     { id: 'camera', title: 'Camera', defaultOpen: true },
   ],
