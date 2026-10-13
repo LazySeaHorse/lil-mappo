@@ -221,8 +221,6 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
           width: 4,
           glow: true,
           glowWidth: 12,
-          trailFade: false,
-          trailFadeLength: 0.3,
           dashPattern: null,
           animationType: 'draw',
           cometTrailLength: 0.2,

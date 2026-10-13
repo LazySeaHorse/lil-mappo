@@ -65,7 +65,7 @@ const patchSchema = z
       .strictObject({ ...routeStyleShape, ...boundaryStyleShape })
       .partial()
       .describe(
-        'Partial style merged into the existing style (other fields are kept). Route keys: color (also used for the glow and vehicle dot), width, glow, glowWidth, trailFade, trailFadeLength, dashPattern, animationType, cometTrailLength. ' +
+        'Partial style merged into the existing style (other fields are kept). Route keys: color (also used for the glow and vehicle dot), width, glow, glowWidth, dashPattern, animationType, cometTrailLength. ' +
           'Boundary keys: strokeColor, fillColor, strokeWidth, glow, fillOpacity, animateStroke, animationStyle, traceLength, maskOutside (spotlight: paint everything outside the region), maskColor, maskOpacity, fillMode (color | flag: fill the region with a country flag), flagCode (lowercase ISO 3166-1 alpha-2, e.g. "fr"; used when fillMode is flag).',
       ),
     // callout

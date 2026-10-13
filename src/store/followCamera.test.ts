@@ -23,8 +23,8 @@ const route = (id: string, over: Partial<RouteItem> = {}): RouteItem => ({
   endTime: 5,
   geojson: line(3),
   style: {
-    color: '#3b82f6', width: 4, glow: true, glowWidth: 12, trailFade: false,
-    trailFadeLength: 0.2, dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
+    color: '#3b82f6', width: 4, glow: true, glowWidth: 12,
+    dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
   },
   easing: 'linear',
   exitAnimation: 'none',

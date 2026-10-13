@@ -117,6 +117,14 @@ describe('update_item', () => {
     expect(steps()).toBe(0);
   });
 
+  it('refuses the retired trailFade style keys like any other unknown field', async () => {
+    const { route } = seed();
+    const result = await runAgentTool('update_item', { id: route.id, patch: { style: { trailFade: true } } });
+    expect(result.isError).toBe(true);
+    expect(resultJson(result).error).toBe('invalid_input');
+    expect(steps()).toBe(0);
+  });
+
   it('rebuilds walk geometry from new points and applies vehicle changes', async () => {
     const { walk, route } = seed();
     await runAgentTool('update_item', { id: walk.id, patch: { points: [[0, 0], [0.5, 0.5], [1, 0]], curved: false } });

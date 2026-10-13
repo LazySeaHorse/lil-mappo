@@ -46,13 +46,12 @@ const geometrySchema = z.custom<GeoJSON.Geometry>(
 /** Documents saved before exit animations had a default load as 'none': they stay on screen after their end. */
 const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).default('none');
 
+// Plain z.object strips unknown keys, so old saves that still hold the retired trailFade/trailFadeLength load without them.
 const routeStyleSchema = z.object({
   color: z.string(),
   width: z.number(),
   glow: z.boolean(),
   glowWidth: z.number(),
-  trailFade: z.boolean(),
-  trailFadeLength: z.number(),
   dashPattern: z.array(z.number()).nullable(),
   // Older documents may lack these; they load as the draw animation and a 0.2 trail.
   animationType: z.enum(['draw', 'navigation', 'comet']).default('draw'),

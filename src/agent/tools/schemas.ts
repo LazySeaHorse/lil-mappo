@@ -13,8 +13,6 @@ export const routeStyleShape = {
   width: z.number().min(0.5).max(30).describe('Line width in pixels.'),
   glow: z.boolean().describe('Soft glow around the line.'),
   glowWidth: z.number().min(0).max(60).describe('Glow width in pixels.'),
-  trailFade: z.boolean().describe('Fade the tail of the line behind the head as it draws.'),
-  trailFadeLength: z.number().min(0).max(1).describe('Fraction of the route (0-1) over which the tail fades.'),
   dashPattern: z.array(z.number().min(0)).max(8).nullable().describe('Dash lengths [dash, gap, ...] in line widths, or null for solid.'),
   animationType: z.enum(['draw', 'navigation', 'comet']).describe('draw = line grows along the path; navigation = full line with a moving head; comet = short bright head with a trail.'),
   cometTrailLength: z.number().min(0).max(1).describe('Comet trail length as a fraction of the route (0-1).'),

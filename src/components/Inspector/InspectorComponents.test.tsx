@@ -99,8 +99,6 @@ describe('Inspector Components Integration', () => {
         width: 4,
         glow: false,
         glowWidth: 8,
-        trailFade: false,
-        trailFadeLength: 0.2,
         dashPattern: null,
         animationType: 'draw', cometTrailLength: 0.2,
       },

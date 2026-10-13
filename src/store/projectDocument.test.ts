@@ -110,6 +110,38 @@ describe('project document persistence boundary', () => {
     }
   });
 
+  it('loads old routes that still have the retired trailFade keys, and drops them', () => {
+    const project = createProject({ id: 'fade-project' });
+    const oldRoute = {
+      kind: 'route', id: 'r1', name: 'Route',
+      geojson: { type: 'FeatureCollection', features: [] },
+      startTime: 0, endTime: 10,
+      style: {
+        color: '#ef4444', width: 4, glow: true, glowWidth: 12,
+        trailFade: true, trailFadeLength: 0.5, dashPattern: null,
+      },
+      easing: 'linear',
+    };
+    const newRoute = { ...oldRoute, id: 'r2', style: { ...oldRoute.style, trailFade: undefined, trailFadeLength: undefined } };
+    for (const schemaVersion of [PROJECT_SCHEMA_VERSION, 4]) {
+      const parsed = parseProjectDocument({
+        ...project,
+        schemaVersion,
+        items: { ...project.items, r1: oldRoute, r2: newRoute },
+        itemOrder: [...project.itemOrder, 'r1', 'r2'],
+      });
+      for (const id of ['r1', 'r2']) {
+        const loaded = parsed.items[id];
+        expect(loaded.kind).toBe('route');
+        if (loaded.kind === 'route') {
+          expect(loaded.style.color).toBe('#ef4444');
+          expect(loaded.style).not.toHaveProperty('trailFade');
+          expect(loaded.style).not.toHaveProperty('trailFadeLength');
+        }
+      }
+    }
+  });
+
   describe('place names', () => {
     const baseRoute = {
       kind: 'route', id: 'r1', name: 'Route',

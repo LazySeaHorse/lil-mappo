@@ -1,6 +1,6 @@
 import type { RouteItem } from '@/store/types';
 import { ROUTE_ANIMATION_TERMS } from '@/lib/terms';
-import { SliderRow, SwitchRow, VisualCardSelect, type VisualCardOption } from './InspectorShared';
+import { SliderRow, VisualCardSelect, type VisualCardOption } from './InspectorShared';
 import { InspectorSection } from './InspectorSection';
 import { RouteAnimationPreview } from './RouteAnimationPreview';
 
@@ -45,23 +45,6 @@ export function RouteAnimationSection({
           step={0.05}
           formatValue={(v) => v.toFixed(2)}
         />
-      )}
-
-      {type === 'draw' && (
-        <div className="flex flex-col gap-2">
-          <SwitchRow label="Fade trail" checked={style.trailFade} onChange={(trailFade) => onStyle({ trailFade })} />
-          {style.trailFade && (
-            <SliderRow
-              label="Fade length"
-              value={style.trailFadeLength}
-              onChange={(trailFadeLength) => onStyle({ trailFadeLength })}
-              min={0.05}
-              max={1}
-              step={0.05}
-              formatValue={(v) => v.toFixed(2)}
-            />
-          )}
-        </div>
       )}
     </InspectorSection>
   );

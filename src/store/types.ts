@@ -79,8 +79,6 @@ export interface RouteStyle {
   width: number;
   glow: boolean;
   glowWidth: number;
-  trailFade: boolean;
-  trailFadeLength: number;
   dashPattern: number[] | null;
   animationType: 'draw' | 'navigation' | 'comet';
   /** Fraction of the route the comet trail covers. */

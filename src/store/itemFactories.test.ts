@@ -7,6 +7,7 @@ import {
   createCalloutItem,
   createCalloutStyleDefaults,
   createCameraKeyframe,
+  createDefaultRouteStyle,
   createEndpointRouteItem,
   createImportedRouteItem,
   createWalkRouteItem,
@@ -27,6 +28,15 @@ describe('itemFactories', () => {
     expect(flight.style.color).toBe('#f59e0b');
     expect(flight.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' } });
     expect(defaultEndpointRouteName('car')).toBe('Start to End');
+  });
+
+  it('builds route styles without the retired trail fade keys', () => {
+    for (const preset of ['car', 'flight', 'walk', 'import'] as const) {
+      const style = createDefaultRouteStyle(preset);
+      expect(style).not.toHaveProperty('trailFade');
+      expect(style).not.toHaveProperty('trailFadeLength');
+      expect(style.cometTrailLength).toBe(0.2);
+    }
   });
 
   it('stores the place names of the endpoints, and none for unnamed picks', () => {

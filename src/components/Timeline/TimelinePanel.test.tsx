@@ -58,8 +58,6 @@ function route(
       width: 4,
       glow: false,
       glowWidth: 0,
-      trailFade: false,
-      trailFadeLength: 0,
       dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
     },
     easing: 'linear', exitAnimation: 'none',

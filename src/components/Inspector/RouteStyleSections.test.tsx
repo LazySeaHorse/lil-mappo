@@ -98,7 +98,8 @@ describe('route style sections', () => {
 
   it('Animation shows the options of the chosen type only', () => {
     show();
-    expect(within(region('Animation')).getByText('Fade trail')).toBeInTheDocument();
+    expect(within(region('Animation')).queryByText('Fade trail')).not.toBeInTheDocument();
+    expect(within(region('Animation')).queryByText('Fade length')).not.toBeInTheDocument();
     expect(within(region('Animation')).queryByText('Trail length')).not.toBeInTheDocument();
     fireEvent.click(within(region('Animation')).getByRole('button', { name: new RegExp(ROUTE_ANIMATION_TERMS.comet.label) }));
     expect(within(region('Animation')).getByText('Trail length')).toBeInTheDocument();

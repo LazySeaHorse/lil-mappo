@@ -65,8 +65,6 @@ const route: RouteItem = {
     width: 4,
     glow: true,
     glowWidth: 18,
-    trailFade: false,
-    trailFadeLength: 0.3,
     dashPattern: null,
     animationType: 'draw', cometTrailLength: 0.2,
   },
