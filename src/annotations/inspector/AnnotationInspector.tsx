@@ -96,6 +96,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       <InspectorSection kind="callout" id="style">
         <StylePicker
           value={item.styleId}
+          title={item.content.title}
           onChange={(newStyleId) => {
             const patch = switchCalloutStyle(item, newStyleId);
             if (!patch) return;

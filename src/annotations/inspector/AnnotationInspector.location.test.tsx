@@ -6,6 +6,11 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem } from '@/store/types';
 import { AnnotationInspector } from './AnnotationInspector';
 
+vi.mock('./stylePreview', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./stylePreview')>()),
+  getStylePreview: vi.fn().mockResolvedValue(null),
+}));
+
 const { suggest, retrieve } = vi.hoisted(() => ({ suggest: vi.fn(), retrieve: vi.fn() }));
 
 vi.mock('@mapbox/search-js-core', () => ({

@@ -9,6 +9,10 @@ import { STYLE_TERMS } from '@/lib/terms';
 import { AnnotationInspector } from './AnnotationInspector';
 
 const { toastMessage } = vi.hoisted(() => ({ toastMessage: vi.fn() }));
+vi.mock('./stylePreview', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./stylePreview')>()),
+  getStylePreview: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('sonner', () => ({ toast: Object.assign(toastMessage, { success: vi.fn(), error: vi.fn() }) }));
 
 function setCallout() {
@@ -18,6 +22,11 @@ function setCallout() {
   clearHistory();
   return withColor;
 }
+/** Opens the folded picker and clicks a style. */
+function pickStyle(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: STYLE_TERMS.change }));
+  fireEvent.click(screen.getByRole('button', { name }));
+}
 const stored = () => useProjectStore.getState().items.c1 as CalloutItem;
 
 describe('changing the callout style', () => {
@@ -25,7 +34,7 @@ describe('changing the callout style', () => {
 
   it('keeps settings the new style shares and tells the user, with Undo', () => {
     render(<AnnotationInspector item={setCallout()} />);
-    fireEvent.click(screen.getByText('Target Lock'));
+    pickStyle('Target Lock');
 
     expect(stored().styleId).toBe('target-lock');
     expect(stored().settings.accentColor).toBe('#123456');
@@ -36,7 +45,7 @@ describe('changing the callout style', () => {
 
   it('puts the old style back when the user clicks Undo', () => {
     render(<AnnotationInspector item={setCallout()} />);
-    fireEvent.click(screen.getByText('Target Lock'));
+    pickStyle('Target Lock');
     toastMessage.mock.calls[0][1].action.onClick();
 
     expect(stored().styleId).toBe('leader-line');
@@ -46,7 +55,7 @@ describe('changing the callout style', () => {
 
   it('does nothing when the user picks the style it already has', () => {
     render(<AnnotationInspector item={setCallout()} />);
-    fireEvent.click(screen.getByText('Leader Line'));
+    pickStyle('Leader Line');
     expect(toastMessage).not.toHaveBeenCalled();
   });
 });

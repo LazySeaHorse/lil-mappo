@@ -1,12 +1,18 @@
 /**
- * Style picker grid for the annotation creation and inspector UIs.
- * Shows all registered styles grouped by category with visual icons.
+ * Style picker for the callout inspector.
+ *
+ * A callout always has a style, so the picker starts folded: one row with a
+ * picture of the style, its name and a Change button. Change opens the full
+ * grid of styles, grouped by category, each with a picture drawn by the real
+ * renderer. Picking a style folds the picker again.
  */
 
-import React from 'react';
-import { getAllStyles, getCategories } from '@/annotations/registry';
+import React, { useState } from 'react';
+import { getAllStyles, getCategories, getStyle } from '@/annotations/registry';
 import type { AnnotationStyleDefinition, StyleCategory } from '@/annotations/types';
-import { StyleIcon } from './StyleIcon';
+import { VisualCardSelect } from '@/components/Inspector/VisualCardSelect';
+import { STYLE_TERMS } from '@/lib/terms';
+import { StylePreview } from './StylePreview';
 
 const CATEGORY_LABELS: Record<StyleCategory, string> = {
   label: 'Labels',
@@ -17,19 +23,47 @@ const CATEGORY_LABELS: Record<StyleCategory, string> = {
   sign: 'Signs',
 };
 
+/** Longest sample text drawn in a preview. */
+const SAMPLE_TEXT_LIMIT = 24;
+
 interface StylePickerProps {
   value: string;
   onChange: (styleId: string) => void;
-  columns?: number;
+  /** The callout's own title; the pictures show it. */
+  title?: string;
 }
 
-export function StylePicker({ value, onChange, columns = 4 }: StylePickerProps) {
-  const categories = getCategories();
-  const allStyles = getAllStyles();
+export function StylePicker({ value, onChange, title }: StylePickerProps) {
+  const [open, setOpen] = useState(false);
+  const sample = title?.trim().slice(0, SAMPLE_TEXT_LIMIT) || STYLE_TERMS.sampleText;
+  const current = getStyle(value);
 
-  // Group styles by category
+  if (!open) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="w-20 shrink-0 rounded-lg border border-border/40 bg-secondary/40">
+          {current && <StylePreview styleId={current.id} icon={current.icon} text={sample} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-xs font-medium text-foreground">
+            {current?.name ?? value}
+            <span className="text-muted-foreground"> · </span>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="text-primary hover:underline cursor-pointer"
+            >
+              {STYLE_TERMS.change}
+            </button>
+          </div>
+          {current && <div className="truncate text-[11px] text-muted-foreground">{current.description}</div>}
+        </div>
+      </div>
+    );
+  }
+
   const grouped = new Map<StyleCategory, AnnotationStyleDefinition[]>();
-  for (const style of allStyles) {
+  for (const style of getAllStyles()) {
     const list = grouped.get(style.category) || [];
     list.push(style);
     grouped.set(style.category, list);
@@ -37,46 +71,27 @@ export function StylePicker({ value, onChange, columns = 4 }: StylePickerProps) 
 
   return (
     <div className="space-y-3">
-      {categories.map((category) => {
+      {getCategories().map((category) => {
         const styles = grouped.get(category);
         if (!styles?.length) return null;
-
         return (
           <div key={category}>
             <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 px-0.5">
               {CATEGORY_LABELS[category] || category}
             </div>
-            <div
-              className="grid gap-1.5"
-              style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-            >
-              {styles.map((style) => {
-                const isSelected = value === style.id;
-                return (
-                  <button
-                    key={style.id}
-                    type="button"
-                    onClick={() => onChange(style.id)}
-                    className={`
-                      flex flex-col items-center gap-1 p-2 rounded-lg text-center transition-all
-                      border cursor-pointer
-                      ${isSelected
-                        ? 'bg-primary/10 border-primary/30 text-primary shadow-sm'
-                        : 'bg-secondary/30 border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                      }
-                    `}
-                    title={style.description}
-                  >
-                    <div className="flex items-center justify-center h-6">
-                      <StyleIcon name={style.icon} />
-                    </div>
-                    <span className="text-[10px] font-medium leading-tight truncate w-full">
-                      {style.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <VisualCardSelect
+              columns={3}
+              value={value}
+              onChange={(styleId) => {
+                setOpen(false);
+                onChange(styleId);
+              }}
+              options={styles.map((style) => ({
+                value: style.id,
+                label: style.name,
+                preview: <StylePreview styleId={style.id} icon={style.icon} text={sample} />,
+              }))}
+            />
           </div>
         );
       })}

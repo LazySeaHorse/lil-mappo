@@ -142,6 +142,10 @@ export const CAMERA_VIEW_TERMS = {
 export const STYLE_TERMS = {
   changed: 'Style changed.',
   undo: 'Undo',
+  /** Opens the full list of styles. */
+  change: 'Change',
+  /** The text a style picture shows when the callout has no title. */
+  sampleText: 'Paris',
 } as const;
 
 /** Words for the length of the whole video. */
