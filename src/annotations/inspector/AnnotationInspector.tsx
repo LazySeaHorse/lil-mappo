@@ -29,6 +29,8 @@ import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
 import { switchCalloutStyle } from '@/store/itemFactories';
 import { placeLabel } from '@/engine/routeMode';
+import { STYLE_TERMS } from '@/lib/terms';
+import { undo } from '@/store/history';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
@@ -96,7 +98,9 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           value={item.styleId}
           onChange={(newStyleId) => {
             const patch = switchCalloutStyle(item, newStyleId);
-            if (patch) u(patch);
+            if (!patch) return;
+            u(patch);
+            toast(STYLE_TERMS.changed, { action: { label: STYLE_TERMS.undo, onClick: () => { undo(); } } });
           }}
         />
       </InspectorSection>

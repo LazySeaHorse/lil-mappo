@@ -104,7 +104,7 @@ describe('itemFactories', () => {
     const base = () => createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 })!;
 
     it('takes the new style defaults and keeps the map point, size and content out of the patch', () => {
-      const item = { ...base(), scale: 2, settings: { accentColor: '#000000' } };
+      const item = { ...base(), scale: 2, settings: {} };
       const patch = switchCalloutStyle(item, 'editorial')!;
       const defaults = createCalloutStyleDefaults(getStyle('editorial')!);
       expect(patch).toMatchObject({
@@ -122,6 +122,15 @@ describe('itemFactories', () => {
       expect(patch).not.toHaveProperty('startTime');
     });
 
+    it('keeps settings whose key and control type exist in the new style', () => {
+      const item = { ...base(), settings: { ...base().settings, accentColor: '#123456', textColor: '#abcdef', lineColor: '#654321' } };
+      const patch = switchCalloutStyle(item, 'target-lock')!;
+      const defaults = getStyle('target-lock')!.defaultSettings as Record<string, unknown>;
+      expect(patch.settings).toMatchObject({ accentColor: '#123456', textColor: '#abcdef' });
+      expect(patch.settings).not.toHaveProperty('lineColor');
+      expect(patch.settings!.pulse).toBe(defaults.pulse);
+    });
+
     it('returns a copy of the defaults, never the style object itself', () => {
       const patch = switchCalloutStyle(base(), 'editorial')!;
       expect(patch.settings).not.toBe(getStyle('editorial')!.defaultSettings);
@@ -132,8 +141,9 @@ describe('itemFactories', () => {
       expect(switchCalloutStyle(item, 'editorial')).not.toHaveProperty('binding');
     });
 
-    it('returns null for an unknown style', () => {
+    it('returns null for an unknown style and for the style the callout already has', () => {
       expect(switchCalloutStyle(base(), 'nope')).toBeNull();
+      expect(switchCalloutStyle(base(), 'leader-line')).toBeNull();
     });
   });
 });

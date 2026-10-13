@@ -138,6 +138,12 @@ export const CAMERA_VIEW_TERMS = {
   noRoomToDuplicate: 'There is no time after this view for a copy. Move it earlier first.',
 } as const;
 
+/** Words for changing the style of a callout. */
+export const STYLE_TERMS = {
+  changed: 'Style changed.',
+  undo: 'Undo',
+} as const;
+
 /** Words for the length of the whole video. */
 export const DURATION_TERMS = {
   change: 'Change video length',

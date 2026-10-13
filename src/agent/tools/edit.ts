@@ -71,7 +71,7 @@ const patchSchema = z
     // callout
     content: contentPatchSchema.describe('Callout content fields merged into the existing content. Set an optional slot (subtitle, eyebrow, body, badge, metric) to null to clear it. Images cannot be set by agents.'),
     location: locationSchema.describe('Callout: new [lng, lat] or place name.'),
-    styleId: z.string().max(60).describe('Callout: switch to another style id (settings reset to that style\'s defaults, then `settings` applied).'),
+    styleId: z.string().max(60).describe('Callout: switch to another style id (a setting that the new style also has with the same key and control type keeps its value, fitted to the new range or options; every other setting takes the new style\'s default; then `settings` is applied).'),
     anchor: anchorSchema,
     altitude: z.number().min(0).max(500).describe('Callout: height above the ground point in pixels.'),
     offset: z.tuple([z.number().min(-1000).max(1000), z.number().min(-1000).max(1000)]).describe('Callout: [x, y] pixel nudge from the anchor point.'),

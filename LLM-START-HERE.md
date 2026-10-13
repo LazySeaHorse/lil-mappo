@@ -647,7 +647,7 @@ One goal: "Make your first trip video". Stages (`walkthroughState.ts`, a pure re
 
 - **Four Variants**: Default (sharp rectangle), Modern (pill + glow), News (left accent bar), Topo (border + elevation metadata).
 - **Title Linking**: If `linkTitleToLocation` enabled, callout title auto-syncs with geocoded location name.
-- **Changing style**: `switchCalloutStyle(item, newStyleId)` (`store/itemFactories.ts`, pure) returns the patch for a style change. The inspector style picker and the AI `update_item` tool (`styleId`) both call it; do not rebuild the rule.
+- **Changing style**: `switchCalloutStyle(item, newStyleId)` (`store/itemFactories.ts`, pure) returns the patch for a style change, or null (unknown style, or the same style). The inspector style picker and the AI `update_item` tool (`styleId`) both call it; do not rebuild the rule. Offset, anchor, transition and connector take the new style's defaults. Settings go through `carrySettings` (`annotations/carrySettings.ts`): a setting whose key and control type exist in both styles keeps its value (slider clamped to the new range and step, select kept only if the option exists, and the new style's zod schema must accept it); all others take the new default. The inspector then shows a toast (`STYLE_TERMS`) with an Undo action that calls `undo()`. (The AI tool takes only `styleId`, `styleVersion` and `settings` from the patch; placement is its own fields.)
 - **Animations**: Simple fade in/out (no scale/slide variants exposed in UI).
 
 ### 7.3 B.Y.O.K. (Bring Your Own Key)
