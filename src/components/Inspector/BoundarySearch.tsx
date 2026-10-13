@@ -10,10 +10,12 @@ import { readMapView } from '@/services/locationSearch';
 interface BoundarySearchProps {
   initialValue: string;
   onSelect: (result: NominatimResult) => void;
+  /** Put the cursor in the field on mount, for a search the user just asked for. */
+  autoFocus?: boolean;
 }
 
 /** The search's progress is local to this component: the boundary item only changes when a result is picked. */
-export function BoundarySearch({ initialValue, onSelect }: BoundarySearchProps) {
+export function BoundarySearch({ initialValue, onSelect, autoFocus = false }: BoundarySearchProps) {
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -112,6 +114,7 @@ export function BoundarySearch({ initialValue, onSelect }: BoundarySearchProps) 
       <div className="flex gap-2 relative">
         <Input 
           type="text" 
+          autoFocus={autoFocus}
           value={query} 
           onChange={(e) => handleChange(e.target.value)} 
           onKeyDown={handleKeyDown} 

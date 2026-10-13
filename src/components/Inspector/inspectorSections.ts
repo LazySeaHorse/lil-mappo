@@ -19,7 +19,6 @@ export const INSPECTOR_SECTIONS = {
     { id: 'camera', title: 'Camera', defaultOpen: true },
   ],
   boundary: [
-    { id: 'region', title: 'Search area', defaultOpen: true },
     { id: 'appearance', title: 'Appearance', defaultOpen: true },
     { id: 'animation', title: 'Animation', defaultOpen: true },
     { id: 'timing', title: 'Timing', defaultOpen: true },
