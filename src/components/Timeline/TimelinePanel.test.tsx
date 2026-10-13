@@ -8,6 +8,7 @@ const responsive = vi.hoisted(() => ({
   current: { isMobile: false, isTablet: false },
 }));
 
+vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: null }) }));
 vi.mock('@/hooks/useResponsive', () => ({
   useResponsive: () => responsive.current,
 }));
@@ -103,6 +104,14 @@ beforeEach(() => {
 });
 
 describe('TimelinePanel', () => {
+  it('lets a user change the video length from the header', () => {
+    renderTimeline();
+    fireEvent.click(screen.getByTitle('Change video length'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Change video length' }), { target: { value: '20' } });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Change video length' }), { key: 'Enter' });
+    expect(useProjectStore.getState().duration).toBe(20);
+  });
+
   it('renders tracks, transport state, and auto-camera overlays', () => {
     renderTimeline(route('ordinary', 1, 3), route('automatic', 4, 6, true));
 

@@ -59,3 +59,10 @@ export const CAMERA_VIEW_TERMS = {
   useCurrent: 'Use current view',
   goTo: 'Go to this view',
 } as const;
+
+/** Words for the length of the whole video. */
+export const DURATION_TERMS = {
+  change: 'Change video length',
+  /** Tells a user why their length was cut down. */
+  limit: (maxSeconds: number) => `The free plan allows ${maxSeconds} seconds at most.`,
+} as const;

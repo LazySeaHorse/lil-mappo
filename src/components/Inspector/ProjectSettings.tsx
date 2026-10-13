@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
+import { useProjectDuration } from '@/hooks/useProjectDuration';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,10 @@ import { projectionShowsStars, resolveFog } from '@/config/mapbox';
 
 export function ProjectSettings() {
   const {
-    name, duration, fps, resolution, terrainExaggeration, projection, lightPreset,
+    name, fps, resolution, terrainExaggeration, projection, lightPreset,
     show3dLandmarks, show3dTrees, show3dFacades, starIntensity, fogColor,
     labelVisibility, setLabelGroupVisibility, setAllLabelsVisibility,
-    setProjectName, setDuration, setFps, setTerrainExaggeration,
+    setProjectName, setFps, setTerrainExaggeration,
     setProjection, setLightPreset, set3dDetails, setAtmosphere,
     mapStyle,
     projectSettingsTab, setProjectSettingsTab,
@@ -34,13 +35,13 @@ export function ProjectSettings() {
     setAspectRatio, setExportResolution, setIsVertical,
   } = useProjectStore(
     useShallow(s => ({
-      name: s.name, duration: s.duration, fps: s.fps, resolution: s.resolution,
+      name: s.name, fps: s.fps, resolution: s.resolution,
       terrainExaggeration: s.terrainExaggeration, projection: s.projection, lightPreset: s.lightPreset,
       show3dLandmarks: s.show3dLandmarks, show3dTrees: s.show3dTrees, show3dFacades: s.show3dFacades,
       starIntensity: s.starIntensity, fogColor: s.fogColor,
       labelVisibility: s.labelVisibility,
       setLabelGroupVisibility: s.setLabelGroupVisibility, setAllLabelsVisibility: s.setAllLabelsVisibility,
-      setProjectName: s.setProjectName, setDuration: s.setDuration, setFps: s.setFps,
+      setProjectName: s.setProjectName, setFps: s.setFps,
       setTerrainExaggeration: s.setTerrainExaggeration,
       setProjection: s.setProjection, setLightPreset: s.setLightPreset,
       set3dDetails: s.set3dDetails, setAtmosphere: s.setAtmosphere,
@@ -50,6 +51,7 @@ export function ProjectSettings() {
       setAspectRatio: s.setAspectRatio, setExportResolution: s.setExportResolution, setIsVertical: s.setIsVertical,
     }))
   );
+  const { duration, setDuration, maxDuration } = useProjectDuration();
   const capabilities = useMapStyleCapabilities();
   const { data: subscription } = useSubscription();
   const limits = getExportLimits(subscription);
@@ -75,9 +77,10 @@ export function ProjectSettings() {
             <Field label="Duration (s)">
               <InputNumber
                 value={duration}
-                onChange={(v) => setDuration(Math.min(v, limits.maxDuration))}
+                aria-label="Duration (s)"
+                onChange={(v) => setDuration(v)}
                 min={1}
-                max={limits.maxDuration}
+                max={maxDuration}
               />
             </Field>
             <Field label="Frame rate">
