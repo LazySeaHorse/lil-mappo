@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Car, Footprints, Plane, Loader2, Crosshair, MapPin, X, Eye } from 'lucide-react';
+import { Car, Footprints, Plane, Loader2, Crosshair, MapPin, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import type { EndpointRouteCalculation, RouteItem, RouteMode, WalkRouteCalculation } from '@/store/types';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
+import { SearchFieldActions } from '@/components/Search/SearchFieldActions';
 import { SwitchRow, SliderField } from './InspectorShared';
 import { buildWalkGeometry, DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
@@ -76,22 +77,13 @@ const InspectorSearchField = ({
                 performSearch(query);
               }
             }}
-            className="h-8 text-xs font-mono pl-3 pr-8 bg-background/50 border-border/50 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset"
+            className="h-8 text-xs font-mono pl-3 pr-14 bg-background/50 border-border/50 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset"
           />
-          {query && (
-            <button
-              type="button"
-              onClick={clear}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-full hover:bg-muted/50"
-            >
-              <X size={11} />
-            </button>
-          )}
-          {loading && (
-            <div className="absolute right-7 top-1/2 -translate-y-1/2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin opacity-50 text-primary" />
-            </div>
-          )}
+          <SearchFieldActions
+            onSearch={() => performSearch(query)}
+            loading={loading}
+            onClear={query ? clear : undefined}
+          />
         </div>
 
         <IconButton

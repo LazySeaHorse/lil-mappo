@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Input } from '@/components/ui/input';
-import { Loader2, Crosshair, MapPin, X } from 'lucide-react';
+import { Crosshair, MapPin } from 'lucide-react';
 
 import {
   Popover,
@@ -9,6 +9,7 @@ import {
   PopoverAnchor,
 } from "@/components/ui/popover";
 import { IconButton } from '@/components/ui/icon-button';
+import { SearchFieldActions } from './SearchFieldActions';
 
 interface SearchFieldProps {
   label: string;
@@ -93,17 +94,15 @@ export const SearchField = ({
                   }
                 }}
                 disabled={isPicking}
-                className={`h-8 text-sm pl-2 pr-7 bg-secondary/20 border-transparent focus:border-border/50 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-primary/20 ${isPicking ? 'placeholder:text-primary animate-pulse' : ''}`}
+                className={`h-8 text-sm pl-2 pr-14 bg-secondary/20 border-transparent focus:border-border/50 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-primary/20 ${isPicking ? 'placeholder:text-primary animate-pulse' : ''}`}
               />
-              {query && !isPicking && (
-                <button
-                  onClick={clear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted/50"
-                >
-                  <X size={10} />
-                </button>
+              {!isPicking && (
+                <SearchFieldActions
+                  onSearch={() => performSearch(query)}
+                  loading={loading}
+                  onClear={query ? clear : undefined}
+                />
               )}
-              {loading && <div className="absolute right-8 top-1/2 -translate-y-1/2"><Loader2 className="w-3.5 h-3.5 animate-spin opacity-40 text-primary" /></div>}
             </div>
             <IconButton
               variant="ghost"

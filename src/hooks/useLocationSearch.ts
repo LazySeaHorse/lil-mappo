@@ -9,6 +9,8 @@ import type {
 import { useProjectStore } from '@/store/useProjectStore';
 import { getEffectiveMapboxToken } from '@/config/mapbox';
 import { isPlacedPoint } from '@/engine/routeMode';
+import { useMapRef } from '@/hooks/useMapRef';
+import { readMapView, suggestForView } from '@/services/locationSearch';
 
 type SearchBoxSession = SearchSession<
   SearchBoxOptions,
@@ -36,7 +38,9 @@ interface UseLocationSearchReturn {
 
 /**
  * Hook that manages location search state and Mapbox SearchBox session.
- * Handles session initialization, proximity bias, suggestion fetching, and selection.
+ * Handles session initialization, suggestion fetching, and selection. A search favors the
+ * visible map: first inside its bounds, then (only if that finds nothing) anywhere, both
+ * near its center. Without a live map it falls back to the stored `mapCenter`.
  *
  * @param onSelect Callback when a location is selected: (lngLat, name?) => void
  * @param parseCoordinates If true, allows direct coordinate input like "-74.006, 40.712"
@@ -49,15 +53,9 @@ export function useLocationSearch({
   const [suggestions, setSuggestions] = useState<SearchBoxSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const mapCenter = useProjectStore(s => s.mapCenter);
+  const mapRef = useMapRef();
 
   const sessionRef = useRef<SearchBoxSession | null>(null);
-  const mapCenterRef = useRef(mapCenter);
-
-  // Keep proximity ref in sync with store mapCenter
-  useEffect(() => {
-    mapCenterRef.current = mapCenter;
-  }, [mapCenter]);
 
   // Initialize SearchBox session once
   useEffect(() => {
@@ -92,9 +90,11 @@ export function useLocationSearch({
 
     setLoading(true);
     try {
-      const center = mapCenterRef.current;
-      const proximity = isPlacedPoint(center) ? center : undefined;
-      const response = await sessionRef.current!.suggest(trimmed, { proximity });
+      const storedCenter = useProjectStore.getState().mapCenter;
+      const view = readMapView(mapRef.current?.getMap()) ?? {
+        center: isPlacedPoint(storedCenter) ? storedCenter : undefined,
+      };
+      const response = await suggestForView(sessionRef.current!, trimmed, view);
       setSuggestions(response.suggestions || []);
       setIsOpen((response.suggestions || []).length > 0);
     } catch {
@@ -103,7 +103,7 @@ export function useLocationSearch({
     } finally {
       setLoading(false);
     }
-  }, [parseCoordinates, onSelect]);
+  }, [parseCoordinates, onSelect, mapRef]);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);

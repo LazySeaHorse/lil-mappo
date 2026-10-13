@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchBoundary, shortPlaceName, NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
-import { IconButton } from '@/components/ui/icon-button';
+import { SearchFieldActions } from '@/components/Search/SearchFieldActions';
+import { useMapRef } from '@/hooks/useMapRef';
+import { readMapView } from '@/services/locationSearch';
 
 interface BoundarySearchProps {
   initialValue: string;
@@ -16,6 +17,7 @@ export function BoundarySearch({ initialValue, onSelect }: BoundarySearchProps) 
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const mapRef = useMapRef();
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,7 +50,8 @@ export function BoundarySearch({ initialValue, onSelect }: BoundarySearchProps) 
     setLoading(true);
 
     try {
-      const res = await searchBoundary(trimmed, abortController.signal);
+      const view = readMapView(mapRef.current?.getMap());
+      const res = await searchBoundary(trimmed, abortController.signal, view?.bbox);
       if (abortController.signal.aborted) {
         return;
       }
@@ -115,16 +118,7 @@ export function BoundarySearch({ initialValue, onSelect }: BoundarySearchProps) 
           className="h-9 text-sm bg-secondary/30 border-border/40 focus:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset pr-10"
           placeholder="Search for a place or region"
         />
-        <IconButton 
-          onClick={handleSearchClick} 
-          disabled={loading} 
-          variant="ghost" 
-          size="sm" 
-          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-primary"
-          loading={loading}
-        >
-          <Search size={14} />
-        </IconButton>
+        <SearchFieldActions onSearch={handleSearchClick} loading={loading} />
       </div>
 
       {results.length > 0 && (

@@ -590,7 +590,8 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 ### 7.1 Search & Geocoding
 
 - **Search Box API**: Uses session-based pricing. Searches **triggered only on Enter key** (not onChange) to prevent UI flickering during rapid typing.
-- **Viewport Proximity Bias**: Searches favor results near `mapCenter` for local relevance.
+- **Viewport Bias**: `useLocationSearch` reads the *live* map through `useMapRef` (`readMapView` in `services/locationSearch.ts`). On Enter it searches inside the visible bounds (SearchBox `bbox`) with proximity at the live center; only if that returns nothing it searches once more without `bbox`. At most two calls per Enter. Without a map (tests) it falls back to the stored `mapCenter`. The store `mapCenter` is only written on pan, so it must not be the primary bias. `BoundarySearch` passes the same bounds to Nominatim as `viewbox` with `bounded=0` (ranking only). `AirportSearchField` is a local lookup and has no bias.
+- **Search button**: every search field shows a search icon button (`SearchFieldActions`, tooltip "Search (Enter)") that does the same as Enter.
 - **Shared Geocoding**: Centralized in `SearchField.tsx` + `BoundarySearch.tsx`.
 - **POI Coverage**: Search Box API includes improved `place_formatted` secondary text vs. legacy Geocoding v5.
 
