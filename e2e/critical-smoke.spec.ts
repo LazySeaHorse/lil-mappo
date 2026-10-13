@@ -291,7 +291,7 @@ test("5. a boundary can be added and edited", async ({ page }) => {
   await page.getByRole("button", { name: /Testland/ }).click();
   await page.getByRole("button", { name: "Insert boundary" }).click();
 
-  await expect(page.getByRole("heading", { name: "Boundary", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
   const nameInput = page.locator('input[placeholder="Boundary name"]');
   await expect(nameInput).toHaveValue("Testland");
   await nameInput.fill("Testland Updated");

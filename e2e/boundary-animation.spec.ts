@@ -74,7 +74,7 @@ test.describe("Boundary Animation Mode Switching", () => {
     await page.getByRole("button", { name: /Testland/ }).click();
     await page.getByRole("button", { name: "Insert boundary" }).click();
 
-    await expect(page.getByRole("heading", { name: "Boundary", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
 
     interface WindowWithStores {
       __mapInstance?: {

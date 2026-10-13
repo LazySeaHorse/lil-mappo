@@ -142,6 +142,8 @@ Right-side panel for editing selected items. Uses local state for draft values (
 
 **Shared controls.** Small, single-purpose files: `controls/` (`EditableTitle`, `inputs` for `InputText`/`InputNumber`, `NumberRow`, `SliderRow`/`SliderField`, `ColorRow`, `SwitchRow`, `SelectRow`, `EasingSelect`, `CoordinatesRows`, internal `RowLabel`), `timing/TimingControls.tsx`, and `VisualCardSelect.tsx`. `InspectorShared.tsx` is only a re-export barrel; import from the specific file in new code.
 
+**Panel header.** Every item panel (route, area, callout, camera view) passes an `InspectorHeader` to `PanelWrapper`'s `header` slot (it also works in the phone drawer). It shows the editable name, the type label (`ITEM_TYPE_LABELS` in `src/lib/terms.ts`) and a ... menu with Duplicate, Go to start (pauses, moves the playhead to the item's start) and Delete. The store actions live in `useInspectorItemActions`. There is no footer `ItemActions` any more; Delete has no confirm step, and undo restores the item. The Auto camera panel is a sub-panel of a route and keeps its own footer button.
+
 ### 3.5 Label System (Dynamic Capabilities)
 
 **Lesson Learned**: Hardcoded label toggles per style + incorrect Config API property names = broken UX.

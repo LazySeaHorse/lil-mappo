@@ -162,7 +162,7 @@ test.describe("5 Golden E2E Journeys", () => {
     await searchInput.press("Enter");
     await boundaryDropdown.getByRole("button", { name: /Testland/ }).click();
     await boundaryDropdown.getByRole("button", { name: "Insert boundary" }).click();
-    await expect(page.getByRole("heading", { name: "Boundary", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
 
     // 4. Verify all items exist on Timeline
     await expect(page.getByText(createdRouteName, { exact: true })).toBeVisible();

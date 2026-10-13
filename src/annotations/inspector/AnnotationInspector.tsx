@@ -16,7 +16,6 @@ import { Accordion } from "@/components/ui/accordion";
 import { Check, Crosshair, MapPin } from 'lucide-react';
 import { SearchField } from '@/components/Search/SearchField';
 import {
-  EditableTitle,
   SliderRow,
   ColorRow,
   SwitchRow,
@@ -24,7 +23,8 @@ import {
   TimingControls,
   CoordinatesRows,
 } from '@/components/Inspector/InspectorShared';
-import { PanelWrapper, InspectorSection, ItemActions } from '@/components/Inspector/InspectorLayout';
+import { PanelWrapper, InspectorSection } from '@/components/Inspector/InspectorLayout';
+import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
 import { getStyle } from '@/annotations/registry';
 import { createCalloutStyleDefaults } from '@/store/itemFactories';
 import { placeLabel } from '@/engine/routeMode';
@@ -81,19 +81,21 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const lngLat = item.binding.kind === 'geographic' ? item.binding.lngLat : [0, 0] as [number, number];
   const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
 
-  const footer = <ItemActions id={item.id} kind="callout" customLabel="Delete Callout" />;
-
   return (
     <PanelWrapper
       title="Callout"
       icon={<MapPin size={15} />}
-      footer={footer}
+      header={
+        <InspectorHeader
+          kind="callout"
+          id={item.id}
+          name={item.content.title}
+          onRename={(v) => u({ content: { ...item.content, title: v }, linkTitleToLocation: false })}
+          placeholder="Callout title"
+          startTime={item.startTime}
+        />
+      }
     >
-      <EditableTitle
-        value={item.content.title}
-        onChange={(v) => u({ content: { ...item.content, title: v }, linkTitleToLocation: false })}
-        placeholder="Callout title"
-      />
 
       <Accordion type="multiple" defaultValue={['style', 'location', 'appearance', 'size', 'connector', 'position', 'animation', 'timing']} className="w-full">
 

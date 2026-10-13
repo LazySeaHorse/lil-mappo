@@ -5,7 +5,9 @@ import type { CameraItem } from '@/store/types';
 import { Accordion } from "@/components/ui/accordion";
 import { SliderRow, EasingSelect, CoordinatesRows, NumberRow } from './InspectorShared';
 import { formatDegrees } from './inspectorValues';
-import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { InspectorHeader } from './InspectorHeader';
+import { formatTimelineTime } from '@/components/Timeline/timelineTime';
 import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
 
 export function CameraKFInspector({ item }: { item: CameraItem }) {
@@ -18,11 +20,9 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
 
   const kf = item.keyframes.find((k) => k.id === selectedKeyframeId);
 
-  const footer = kf ? <ItemActions id={kf.id} kind="camera-kf" customLabel="Delete Keyframe" /> : null;
-
   if (!kf) {
     return (
-      <PanelWrapper title="Camera track" icon={<Video size={15} />} footer={footer}>
+      <PanelWrapper title="Camera track" icon={<Video size={15} />}>
         <div className="p-4 text-center">
           <p className="text-xs text-muted-foreground">Select a keyframe in the timeline to edit it.</p>
           <p className="text-[11px] text-muted-foreground/70 mt-2">{item.keyframes.length} keyframe{item.keyframes.length !== 1 ? 's' : ''}</p>
@@ -35,9 +35,16 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
 
   return (
     <PanelWrapper 
-      title={`Camera keyframe at ${kf.time.toFixed(2)} s`}
+      title="Camera view"
       icon={<Video size={15} />}
-      footer={footer}
+      header={
+        <InspectorHeader
+          kind="camera-kf"
+          id={kf.id}
+          name={`At ${formatTimelineTime(kf.time)}`}
+          startTime={kf.time}
+        />
+      }
     >
       <NumberRow
         label="Time"

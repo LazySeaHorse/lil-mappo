@@ -11,7 +11,6 @@ import { Accordion } from "@/components/ui/accordion";
 import { useSubscription } from '@/hooks/useSubscription';
 import { isWanderer } from '@/lib/cloudAccess';
 import { 
-  EditableTitle, 
   SliderRow, 
   ColorRow, 
   SwitchRow, 
@@ -20,7 +19,8 @@ import {
   type VisualCardOption,
 } from './InspectorShared';
 import { formatMultiplier } from './inspectorValues';
-import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { InspectorHeader } from './InspectorHeader';
 import { track } from '@/lib/analytics';
 import { 
   Navigation, 
@@ -93,7 +93,6 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   };
 
   const animType: RouteAnimationType = item.style.animationType;
-  const footer = <ItemActions id={item.id} kind="route" customLabel="Delete Route" />;
 
   const lineStyleValue: RouteLineStyle =
     !item.style.dashPattern ? 'solid' :
@@ -109,13 +108,17 @@ export function RouteInspector({ item }: { item: RouteItem }) {
     <PanelWrapper 
       title="Route" 
       icon={<Navigation size={15} />}
-      footer={footer}
+      header={
+        <InspectorHeader
+          kind="route"
+          id={item.id}
+          name={item.name}
+          onRename={(v) => u({ name: v })}
+          placeholder="Route name"
+          startTime={item.startTime}
+        />
+      }
     >
-      <EditableTitle 
-        value={item.name} 
-        onChange={(v) => u({ name: v })} 
-        placeholder="Route name"
-      />
 
       <Accordion type="multiple" defaultValue={['path', 'appearance', 'animation', 'camera']} className="w-full">
         

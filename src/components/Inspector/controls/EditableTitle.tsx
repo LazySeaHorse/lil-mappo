@@ -1,17 +1,20 @@
 import { Input } from "@/components/ui/input";
 import { Pencil } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 export function EditableTitle({
   value,
   onChange,
-  placeholder = "Item name..."
+  placeholder = "Item name...",
+  className,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  className?: string;
 }) {
   return (
-    <div className="relative w-full mb-3">
+    <div className={cn("relative w-full mb-3", className)}>
       <Input
         type="text"
         value={value}

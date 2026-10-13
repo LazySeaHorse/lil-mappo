@@ -416,8 +416,9 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await titleInput.focus();
     await titleInput.fill('UNCOMMITTED_DIRTY_VALUE_DO_NOT_RESURRECT');
 
-    // 4. Press "Delete Callout" button in inspector before Enter/blur
-    const deleteBtn = page.getByRole('button', { name: 'Delete Callout' });
+    // 4. Choose Delete from the inspector header menu before Enter/blur
+    await page.getByRole('button', { name: 'Item actions' }).click();
+    const deleteBtn = page.getByRole('menuitem', { name: 'Delete' });
     await expect(deleteBtn).toBeVisible();
     await deleteBtn.click();
 

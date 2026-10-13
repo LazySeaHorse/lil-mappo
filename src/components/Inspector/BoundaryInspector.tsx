@@ -10,7 +10,6 @@ import { FlagPicker } from './FlagPicker';
 import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { 
-  EditableTitle, 
   SliderRow, 
   ColorRow, 
   SwitchRow, 
@@ -19,7 +18,8 @@ import {
   type VisualCardOption,
 } from './InspectorShared';
 import { formatPercent } from './inspectorValues';
-import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { PanelWrapper, InspectorSection } from './InspectorLayout';
+import { InspectorHeader } from './InspectorHeader';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 
 type BoundaryAnimationMode = 'none' | BoundaryItem['style']['animationStyle'];
@@ -38,8 +38,6 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
     });
     toast.success('Boundary updated.');
   };
-
-  const footer = <ItemActions id={item.id} kind="boundary" customLabel="Delete Boundary" />;
 
   // Determine active animation card
   const activeAnimMode = item.style.animateStroke ? item.style.animationStyle : 'none';
@@ -61,15 +59,19 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
 
   return (
     <PanelWrapper 
-      title="Boundary" 
+      title="Area" 
       icon={<Shield size={15} />}
-      footer={footer}
+      header={
+        <InspectorHeader
+          kind="boundary"
+          id={item.id}
+          name={item.placeName}
+          onRename={(v) => u({ placeName: v })}
+          placeholder="Boundary name"
+          startTime={item.startTime}
+        />
+      }
     >
-      <EditableTitle 
-        value={item.placeName} 
-        onChange={(v) => u({ placeName: v })} 
-        placeholder="Boundary name"
-      />
 
       <Accordion type="multiple" defaultValue={['region', 'appearance', 'animation', 'timing']} className="w-full">
         
