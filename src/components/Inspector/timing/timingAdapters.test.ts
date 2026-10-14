@@ -28,7 +28,7 @@ function route(over: Partial<ReturnType<typeof createEndpointRouteItem>> = {}) {
 describe('routeTiming', () => {
   it('reads start, length, motion and what happens at the end', () => {
     const item = route({ easing: 'linear', exitAnimation: 'fade' });
-    expect(routeTiming.read(item)).toEqual({ start: 2, length: 4, easing: 'linear', whenItEnds: 'fade' });
+    expect(routeTiming.read(item)).toEqual({ start: 2, length: 4, end: 6, easing: 'linear', whenItEnds: 'fade' });
   });
 
   it('hides "when it ends" unless the route draws itself', () => {
@@ -54,6 +54,33 @@ describe('routeTiming', () => {
     expect(routeTiming.write(route(), { length: 0 })).toEqual({ startTime: 2, endTime: 2.01 });
   });
 
+  it('reads the end as start plus length', () => {
+    expect(routeTiming.read(route()).end).toBe(6);
+  });
+
+  it('a new end changes the length and keeps the start', () => {
+    expect(routeTiming.write(route(), { end: 8 })).toEqual({ startTime: 2, endTime: 8 });
+    expect(routeTiming.write(route(), { end: 3 })).toEqual({ startTime: 2, endTime: 3 });
+  });
+
+  it('a new start with the old end trims the start edge', () => {
+    expect(routeTiming.write(route(), { start: 4, end: 6 })).toEqual({ startTime: 4, endTime: 6 });
+    expect(routeTiming.write(route(), { start: -1, end: 6 })).toEqual({ startTime: 0, endTime: 6 });
+  });
+
+  it('rejects an end that is not after the start', () => {
+    expect(routeTiming.write(route(), { end: 2 })).toEqual({});
+    expect(routeTiming.write(route(), { end: 1 })).toEqual({});
+    expect(routeTiming.write(route(), { end: 2.005 })).toEqual({});
+    expect(routeTiming.write(route(), { start: 6, end: 6 })).toEqual({});
+    expect(routeTiming.write(route(), { start: 7, end: 6 })).toEqual({});
+    expect(routeTiming.write(route(), { end: 2.01 })).toEqual({ startTime: 2, endTime: 2.01 });
+  });
+
+  it('rejects the bad end but still writes the other fields', () => {
+    expect(routeTiming.write(route(), { end: 1, easing: 'bounce' })).toEqual({ easing: 'bounce' });
+  });
+
   it('rounds the end time to hundredths', () => {
     expect(routeTiming.write(route(), { start: 0.1, length: 0.2 })).toEqual({ startTime: 0.1, endTime: 0.3 });
   });
@@ -71,9 +98,15 @@ describe('boundaryTiming', () => {
     expect(boundaryTiming.read(boundary)).toEqual({
       start: 1,
       length: 3,
+      end: 4,
       easing: 'easeInOutCubic',
       whenItEnds: 'none',
     });
+  });
+
+  it('writes a new end like a route does', () => {
+    expect(boundaryTiming.write(boundary, { end: 6 })).toEqual({ startTime: 1, endTime: 6 });
+    expect(boundaryTiming.write(boundary, { end: 1 })).toEqual({});
   });
 
   it('hides "when it ends" for the trace animation only', () => {

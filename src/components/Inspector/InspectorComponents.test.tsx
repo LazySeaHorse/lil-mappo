@@ -127,8 +127,9 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByDisplayValue('Highway Drive')).toBeInTheDocument();
     expect(screen.getByText('Route marker')).toBeInTheDocument();
     expect(screen.getByText('1.5x')).toBeInTheDocument();
-    expect(screen.getByLabelText('Starts')).toHaveValue('00:01.00');
-    expect(screen.getByLabelText('Length')).toHaveValue(4);
+    expect(screen.getByLabelText('Start')).toHaveValue('00:01.00');
+    expect(screen.getByLabelText('End')).toBeInTheDocument();
+    expect(screen.getByText('4.00 s')).toBeInTheDocument();
   });
 
   it('renders BoundaryInspector and updates styling & timing', () => {
@@ -172,8 +173,9 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByText('Border width')).toBeInTheDocument();
     expect(screen.getByText('Fill opacity')).toBeInTheDocument();
     expect(screen.getByText('50 %')).toBeInTheDocument();
-    expect(screen.getByLabelText('Starts')).toHaveValue('00:00.00');
-    expect(screen.getByLabelText('Length')).toHaveValue(4);
+    expect(screen.getByLabelText('Start')).toHaveValue('00:00.00');
+    expect(screen.getByLabelText('End')).toBeInTheDocument();
+    expect(screen.getByText('4.00 s')).toBeInTheDocument();
     expect(screen.getByText('Mask outside')).toBeInTheDocument();
     expect(screen.queryByText('Mask color')).not.toBeInTheDocument();
   });
@@ -391,7 +393,7 @@ describe('Inspector Components Integration', () => {
 
     render(<CameraKFInspector item={cameraItem} />);
 
-    expect(screen.getByLabelText('Starts')).toHaveValue('00:02.50');
+    expect(screen.getByLabelText('Start')).toHaveValue('00:02.50');
     expect(screen.getByText('Motion')).toBeInTheDocument();
     expect(screen.queryByText('Zoom')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Exact values' }));

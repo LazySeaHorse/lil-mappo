@@ -31,11 +31,11 @@ describe('TimingSection fields', () => {
   it('shows every field a route supports', () => {
     render(<TimingSection adapter={routeTiming} item={route} onChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Timing' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Starts')).toHaveValue('00:02.00');
+    expect(screen.getByLabelText('Start')).toHaveValue('00:02.00');
     expect(screen.getByRole('button', { name: 'At playhead' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Length')).toHaveValue(4);
-    expect(screen.getByText('Ends at')).toBeInTheDocument();
-    expect(screen.getByText('00:06.00')).toBeInTheDocument();
+    expect(screen.getByLabelText('End')).toHaveValue('00:06.00');
+    expect(screen.getByText('Length')).toBeInTheDocument();
+    expect(screen.getByText('4.00 s')).toBeInTheDocument();
     expect(screen.getByText('Motion')).toBeInTheDocument();
     expect(screen.getByText('When it ends')).toBeInTheDocument();
     expect(screen.queryByText('Enter')).not.toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('TimingSection fields', () => {
 
   it('shows the enter and exit animation for a callout, and no motion', () => {
     render(<TimingSection adapter={calloutTiming} item={callout} onChange={vi.fn()} />);
-    expect(screen.getByLabelText('Length')).toHaveValue(5);
+    expect(screen.getByText('5.00 s')).toBeInTheDocument();
     expect(screen.getByText('Enter')).toBeInTheDocument();
     expect(screen.getByText('Enter duration')).toBeInTheDocument();
     expect(screen.getByText('Exit')).toBeInTheDocument();
@@ -61,17 +61,17 @@ describe('TimingSection fields', () => {
 
   it('shows only the start and motion for a camera view', () => {
     render(<TimingSection adapter={cameraViewTiming} item={kf} onChange={vi.fn()} />);
-    expect(screen.getByLabelText('Starts')).toHaveValue('00:02.50');
+    expect(screen.getByLabelText('Start')).toHaveValue('00:02.50');
     expect(screen.getByRole('button', { name: 'At playhead' })).toBeInTheDocument();
     expect(screen.getByText('Motion')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Length')).not.toBeInTheDocument();
-    expect(screen.queryByText('Ends at')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('End')).not.toBeInTheDocument();
+    expect(screen.queryByText('Length')).not.toBeInTheDocument();
   });
 
   it('can be collapsed like any section', () => {
     render(<TimingSection adapter={boundaryTiming} item={boundary} onChange={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Timing' }));
-    expect(screen.queryByLabelText('Starts')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Start')).not.toBeInTheDocument();
   });
 });
 
@@ -79,27 +79,27 @@ describe('TimingSection edits', () => {
   it('writes a new start through the adapter', () => {
     const onChange = vi.fn();
     render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
-    const input = screen.getByLabelText('Starts');
+    const input = screen.getByLabelText('Start');
     fireEvent.change(input, { target: { value: '00:03.00' } });
     // Nothing is written while the user types.
     expect(onChange).not.toHaveBeenCalled();
     fireEvent.blur(input);
-    expect(onChange).toHaveBeenCalledWith({ startTime: 3, endTime: 7 });
+    expect(onChange).toHaveBeenCalledWith({ startTime: 3, endTime: 6 });
   });
 
   it('accepts plain seconds and Enter', () => {
     const onChange = vi.fn();
     render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
-    const input = screen.getByLabelText('Starts');
+    const input = screen.getByLabelText('Start');
     fireEvent.change(input, { target: { value: '5' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onChange).toHaveBeenCalledWith({ startTime: 5, endTime: 9 });
+    expect(onChange).toHaveBeenCalledWith({ startTime: 5, endTime: 6 });
   });
 
   it('puts back the old time when the text is not a time', () => {
     const onChange = vi.fn();
     render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
-    const input = screen.getByLabelText('Starts');
+    const input = screen.getByLabelText('Start');
     fireEvent.change(input, { target: { value: 'soon' } });
     fireEvent.blur(input);
     expect(onChange).not.toHaveBeenCalled();
@@ -122,19 +122,68 @@ describe('TimingSection edits', () => {
     expect(onChange).toHaveBeenCalledWith({ time: 1.25 });
   });
 
-  it('changing the length keeps the start, and Ends at follows the item', () => {
+  it('writes a new end and keeps the start', () => {
     const onChange = vi.fn();
-    const { rerender } = render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
-    fireEvent.change(screen.getByLabelText('Length'), { target: { value: '5' } });
-    expect(onChange).toHaveBeenCalledWith({ startTime: 2, endTime: 7 });
-    rerender(<TimingSection adapter={routeTiming} item={{ ...route, endTime: 7 }} onChange={onChange} />);
-    expect(screen.getByText('00:07.00')).toBeInTheDocument();
+    render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
+    const input = screen.getByLabelText('End');
+    fireEvent.change(input, { target: { value: '00:09.00' } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith({ startTime: 2, endTime: 9 });
   });
 
-  it('Ends at is start plus length, formatted as a timeline time', () => {
-    const item = { ...boundary, startTime: 0.1, endTime: 2.4 };
-    render(<TimingSection adapter={boundaryTiming} item={item} onChange={vi.fn()} />);
-    expect(screen.getByText('00:02.40')).toBeInTheDocument();
+  it('a new start keeps the end where it is', () => {
+    const onChange = vi.fn();
+    render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
+    const input = screen.getByLabelText('Start');
+    fireEvent.change(input, { target: { value: '4' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith({ startTime: 4, endTime: 6 });
+  });
+
+  it('puts back the old time when the end would be at or before the start', () => {
+    const onChange = vi.fn();
+    render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
+    const end = screen.getByLabelText('End');
+    fireEvent.change(end, { target: { value: '1' } });
+    fireEvent.blur(end);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(end).toHaveValue('00:06.00');
+    const start = screen.getByLabelText('Start');
+    fireEvent.change(start, { target: { value: '6' } });
+    fireEvent.blur(start);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(start).toHaveValue('00:02.00');
+  });
+
+  it('the length is shown, not edited, and follows the item', () => {
+    const { rerender } = render(<TimingSection adapter={routeTiming} item={route} onChange={vi.fn()} />);
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Length')).not.toBeInTheDocument();
+    rerender(<TimingSection adapter={routeTiming} item={{ ...route, endTime: 7.5 }} onChange={vi.fn()} />);
+    expect(screen.getByText('5.50 s')).toBeInTheDocument();
+    expect(screen.getByLabelText('End')).toHaveValue('00:07.50');
+  });
+
+  it('puts the titles above the fields, with Start and End side by side', () => {
+    render(<TimingSection adapter={routeTiming} item={route} onChange={vi.fn()} />);
+    const start = screen.getByLabelText('Start');
+    const end = screen.getByLabelText('End');
+    const grid = start.closest('[data-slot="timing-times"]') as HTMLElement;
+    expect(grid.className).toContain('grid-cols-2');
+    expect(grid.contains(end)).toBe(true);
+    const startCell = start.closest('[data-slot="time-field"]') as HTMLElement;
+    expect(startCell.className).toContain('flex-col');
+    expect(screen.getByText('Start').compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // "At playhead" is in the Start cell.
+    expect(startCell.contains(screen.getByRole('button', { name: 'At playhead' }))).toBe(true);
+    expect(end.closest('[data-slot="time-field"]')!.contains(screen.getByRole('button', { name: 'At playhead' }))).toBe(false);
+  });
+
+  it('a camera view shows only Start', () => {
+    render(<TimingSection adapter={cameraViewTiming} item={kf} onChange={vi.fn()} />);
+    const grid = screen.getByLabelText('Start').closest('[data-slot="timing-times"]') as HTMLElement;
+    expect(grid.className).not.toContain('grid-cols-2');
   });
 
   it('puts "When it ends" above the tabs, not beside them', () => {

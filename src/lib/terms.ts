@@ -18,10 +18,10 @@ export type InspectorItemKind = keyof typeof ITEM_TYPE_LABELS;
 /** Labels of the timing fields, shared by every item that has a time range. */
 export const TIMING_LABELS = {
   section: 'Timing',
-  starts: 'Starts',
+  start: 'Start',
   atPlayhead: 'At playhead',
+  end: 'End',
   length: 'Length',
-  endsAt: 'Ends at',
   motion: 'Motion',
   whenItEnds: 'When it ends',
 } as const;

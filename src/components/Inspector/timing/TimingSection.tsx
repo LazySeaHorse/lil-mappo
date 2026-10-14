@@ -3,10 +3,9 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { ExitAnimation } from '@/store/types';
 import { ENTER_TRANSITIONS, EXIT_TRANSITIONS } from '@/annotations/animation';
-import { formatTimelineTime } from '@/components/Timeline/timelineTime';
 import { TIMING_LABELS } from '@/lib/terms';
+import { cn } from '@/lib/utils';
 import { InspectorSection } from '../InspectorSection';
-import { NumberRow } from '../controls/NumberRow';
 import { TimeRow } from '../controls/TimeRow';
 import { ReadoutRow } from '../controls/ReadoutRow';
 import { RowLabel } from '../controls/RowLabel';
@@ -36,45 +35,42 @@ export function TimingSection<T>({
   onChange: (updates: Partial<T>) => void;
 }) {
   const model = adapter.read(item);
-  const write = (patch: Parameters<typeof adapter.write>[1]) => onChange(adapter.write(item, patch));
-  const setStart = (start: number) => write({ start });
-  const atPlayhead = () => setStart(useProjectStore.getState().playheadTime);
+  // An empty update is a change the adapter rejected (e.g. an end before the start).
+  const write = (patch: Parameters<typeof adapter.write>[1]) => {
+    const updates = adapter.write(item, patch);
+    if (Object.keys(updates).length > 0) onChange(updates);
+  };
+  const atPlayhead = () => write({ start: useProjectStore.getState().playheadTime });
+  const hasLength = model.length !== undefined && model.end !== undefined;
 
   return (
     <InspectorSection kind={adapter.panel} id="timing">
       <div className="flex flex-col gap-2.5">
         <div className="flex flex-col gap-2">
-          <TimeRow
-            label={TIMING_LABELS.starts}
-            value={model.start}
-            onChange={setStart}
-            action={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={atPlayhead}
-                className="h-8 rounded-lg px-2 text-[11px] font-medium"
-              >
-                {TIMING_LABELS.atPlayhead}
-              </Button>
-            }
-          />
-          {model.length !== undefined && (
-            <>
-              <NumberRow
-                label={TIMING_LABELS.length}
-                value={model.length}
-                onChange={(length) => write({ length })}
-                min={0.01}
-                step={0.01}
-                unit="s"
-              />
-              <ReadoutRow
-                label={TIMING_LABELS.endsAt}
-                value={formatTimelineTime(+(model.start + model.length).toFixed(2))}
-              />
-            </>
+          <div data-slot="timing-times" className={cn("grid gap-2", hasLength ? "grid-cols-2" : "grid-cols-1")}>
+            <TimeRow
+              label={TIMING_LABELS.start}
+              value={model.start}
+              // With an end, a new start trims the start edge and the end stays.
+              onChange={(start) => write(hasLength ? { start, end: model.end } : { start })}
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={atPlayhead}
+                  className="h-8 rounded-lg px-2 text-[11px] font-medium"
+                >
+                  {TIMING_LABELS.atPlayhead}
+                </Button>
+              }
+            />
+            {hasLength && (
+              <TimeRow label={TIMING_LABELS.end} value={model.end!} onChange={(end) => write({ end })} />
+            )}
+          </div>
+          {hasLength && (
+            <ReadoutRow label={TIMING_LABELS.length} value={`${model.length!.toFixed(2)} s`} />
           )}
         </div>
 

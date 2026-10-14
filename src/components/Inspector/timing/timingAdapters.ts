@@ -18,6 +18,8 @@ export interface TimingModel {
   start: number;
   /** How long it lasts, in seconds. Items that last no time (a camera view) have none. */
   length?: number;
+  /** When it ends: start plus length. Items without a length have none. */
+  end?: number;
   /** "Motion". */
   easing?: EasingName;
   /** "When it ends": stay on screen, un-draw, or fade out. */
@@ -44,18 +46,26 @@ const round2 = (value: number) => +value.toFixed(2);
 
 type Timed = { startTime: number; endTime: number };
 
-function readSpan(item: Timed): Pick<TimingModel, 'start' | 'length'> {
-  return { start: item.startTime, length: Math.max(MIN_LENGTH, round2(item.endTime - item.startTime)) };
+function readSpan(item: Timed): Pick<TimingModel, 'start' | 'length' | 'end'> {
+  const length = Math.max(MIN_LENGTH, round2(item.endTime - item.startTime));
+  return { start: item.startTime, length, end: round2(item.startTime + length) };
 }
 
 /**
- * Start and length become startTime and endTime. A new start keeps the length;
- * a new length keeps the start.
+ * Start, length and end become startTime and endTime. A new start alone keeps
+ * the length; a new length keeps the start; a new end keeps the start. A start
+ * and an end together set both edges. An end that leaves less than the minimum
+ * length is rejected: the result is empty.
  */
 function writeSpan(item: Timed, patch: TimingPatch): Partial<Timed> {
-  if (patch.start === undefined && patch.length === undefined) return {};
+  if (patch.start === undefined && patch.length === undefined && patch.end === undefined) return {};
   const { start, length } = readSpan(item);
   const nextStart = Math.max(0, patch.start ?? start);
+  if (patch.end !== undefined) {
+    // Compare the raw end, so that 2.005 does not round up to a valid 2.01.
+    if (patch.end - nextStart < MIN_LENGTH - 1e-9) return {};
+    return { startTime: nextStart, endTime: round2(patch.end) };
+  }
   const nextLength = Math.max(MIN_LENGTH, patch.length ?? length!);
   return { startTime: nextStart, endTime: round2(nextStart + nextLength) };
 }
