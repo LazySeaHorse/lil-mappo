@@ -10,7 +10,7 @@ export { Field, SectionLabel, SwitchField };
 export { EditableTitle } from './controls/EditableTitle';
 export { InputText, InputNumber } from './controls/inputs';
 export { CoordinatesRows } from './controls/CoordinatesRows';
-export { SliderRow, SliderField } from './controls/SliderRow';
+export { SliderRow } from './controls/SliderRow';
 export { ColorRow } from './controls/ColorRow';
 export { SwitchRow } from './controls/SwitchRow';
 export { NumberRow } from './controls/NumberRow';

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Field } from '@/components/ui/field';
+import * as shared from './InspectorShared';
 import {
   EasingSelect,
   SliderRow,
@@ -154,6 +155,45 @@ describe('SliderRow hint and end labels', () => {
     thumb.focus();
     fireEvent.keyDown(thumb, { key: 'ArrowRight' });
     expect(onChange).toHaveBeenCalledWith(0.6);
+  });
+});
+
+describe('SliderRow layout', () => {
+  it('is the only slider control', () => {
+    expect(Object.keys(shared)).not.toContain('SliderField');
+  });
+
+  const base = { label: 'Energy', value: 0.5, onChange: () => {}, min: 0, max: 1, step: 0.1, unit: 'x' };
+
+  it('puts the label and the number on one line, and the slider on its own line below', () => {
+    const { container } = render(<SliderRow {...base} endLabels={['Calm', 'Lively']} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('flex-col');
+    const label = screen.getByText('Energy');
+    const readout = screen.getByText('0.5 x');
+    const slider = container.querySelector('[data-slot="slider"]') as HTMLElement;
+    const endLabels = container.querySelector('[data-slot="slider-end-labels"]') as HTMLElement;
+    const topLine = label.closest('[data-slot="slider-top-line"]') as HTMLElement;
+    expect(topLine).not.toBeNull();
+    expect(topLine.contains(readout)).toBe(true);
+    // The readout is at the right end of the top line.
+    expect(topLine.lastElementChild).toBe(readout);
+    expect(topLine.contains(slider)).toBe(false);
+    expect(label.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(slider.compareDocumentPosition(endLabels) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the (i) tip with the label on the top line', () => {
+    const { container } = render(<SliderRow {...base} hint="How lively." />);
+    const topLine = container.querySelector('[data-slot="slider-top-line"]') as HTMLElement;
+    expect(topLine.contains(screen.getByRole('button', { name: 'More info' }))).toBe(true);
+  });
+
+  it('resets on double-click', () => {
+    const onReset = vi.fn();
+    const { container } = render(<SliderRow {...base} onReset={onReset} />);
+    fireEvent.doubleClick(container.querySelector('[data-slot="slider"]') as HTMLElement);
+    expect(onReset).toHaveBeenCalled();
   });
 });
 

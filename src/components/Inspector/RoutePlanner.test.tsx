@@ -227,7 +227,8 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
 
     // Curve controls are present
     expect(screen.getByText('Smooth Curve')).toBeInTheDocument();
-    expect(screen.getByText(/Curvature/)).toBeInTheDocument();
+    expect(screen.getByText('Curvature')).toBeInTheDocument();
+    expect(screen.getByText('0.85')).toBeInTheDocument();
 
     expect(screen.getAllByTitle('Remove point')).toHaveLength(3);
     expect(screen.getByText('-73.9780, 40.7550')).toBeInTheDocument();

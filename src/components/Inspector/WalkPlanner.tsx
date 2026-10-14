@@ -5,8 +5,9 @@ import { toggleMapPicker, useMapPicker } from '@/hooks/useMapPicker';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import type { RouteCalculation, WalkRouteCalculation } from '@/store/types';
 import type { WalkPatch } from '@/engine/routeCurves';
-import { SwitchRow, SliderField } from './InspectorShared';
+import { SwitchRow, SliderRow } from './InspectorShared';
 import { WalkPointList } from './WalkPointList';
+import { formatDecimals } from './inspectorValues';
 
 export const WalkPlanner = ({
   routeId,
@@ -53,12 +54,13 @@ export const WalkPlanner = ({
       />
 
       {calc.curved && (
-        <SliderField
+        <SliderRow
           label="Curvature"
           value={calc.sharpness ?? DEFAULT_SHARPNESS}
           min={0.1}
           max={1.0}
           step={0.05}
+          formatValue={formatDecimals(2)}
           onChange={(sharpness) => updateWalkRoute(routeId, { sharpness })}
         />
       )}
