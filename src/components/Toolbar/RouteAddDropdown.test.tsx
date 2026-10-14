@@ -345,7 +345,7 @@ describe('RouteAddDropdown quick tour', () => {
     pickPoint(1, [2, 2]);
     expect(endpoints()).toEqual({ start: true, end: true });
 
-    fireEvent.click(screen.getAllByTitle('Clear')[0]);
+    fireEvent.click(screen.getAllByTitle('Clear search')[0]);
     expect(endpoints()).toEqual({ start: false, end: true });
   });
 

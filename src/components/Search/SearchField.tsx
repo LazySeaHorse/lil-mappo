@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Input } from '@/components/ui/input';
 import { MapPin } from 'lucide-react';
@@ -10,6 +10,9 @@ import {
 } from "@/components/ui/popover";
 import { SearchFieldActions } from './SearchFieldActions';
 import { PickOnMapButton } from './PickOnMapButton';
+import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
+import { cn } from '@/lib/utils';
+import { SEARCH_TERMS } from '@/lib/terms';
 
 interface SearchFieldProps {
   label: string;
@@ -43,6 +46,10 @@ export const SearchField = ({
     onSelect: onSelectWithName,
     parseCoordinates,
   });
+
+  // The text the user last searched with Enter. The hint under the field is for text not searched yet.
+  const [searched, setSearched] = useState('');
+  const showEnterHint = !isPicking && !loading && query.trim() !== '' && query !== name && query !== searched;
 
   // Sync internal query when name prop changes
   useEffect(() => {
@@ -85,18 +92,15 @@ export const SearchField = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
+                    setSearched(query);
                     performSearch(query);
                   }
                 }}
                 disabled={isPicking}
-                className={`h-8 text-sm pl-2 pr-14 bg-secondary/20 border-transparent focus:border-border/50 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-primary/20 ${isPicking ? 'placeholder:text-primary animate-pulse' : ''}`}
+                className={cn('h-8', SEARCH_INPUT_CLASS, isPicking && 'placeholder:text-primary animate-pulse')}
               />
               {!isPicking && (
-                <SearchFieldActions
-                  onSearch={() => performSearch(query)}
-                  loading={loading}
-                  onClear={query ? clear : undefined}
-                />
+                <SearchFieldActions hasText={query !== ''} loading={loading} onClear={clear} />
               )}
             </div>
             <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />
@@ -116,6 +120,7 @@ export const SearchField = ({
           {renderResults()}
         </PopoverContent>
       </Popover>
+      {showEnterHint && <p className="mt-1 px-1 text-[11px] text-muted-foreground">{SEARCH_TERMS.enterHint}</p>}
     </div>
   );
 };

@@ -36,12 +36,48 @@ describe('SearchField', () => {
     await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
   });
 
-  it('has a search button that does the same as Enter', async () => {
+  it('shows a magnifying glass when the box is empty and only an X when it has text', () => {
+    const { container } = renderField();
+    expect(container.querySelector('svg.lucide-search')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Search' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: SEARCH_TERMS.clear })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Location'), { target: { value: 'Central Park' } });
+    expect(container.querySelector('svg.lucide-search')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Search' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: SEARCH_TERMS.clear })).toBeInTheDocument();
+  });
+
+  it('clears the box with the X, and does not search', () => {
+    renderField();
+    const input = screen.getByPlaceholderText('Location');
+    fireEvent.change(input, { target: { value: 'Central Park' } });
+    fireEvent.click(screen.getByRole('button', { name: SEARCH_TERMS.clear }));
+    expect(input).toHaveValue('');
+    expect(suggest).not.toHaveBeenCalled();
+  });
+
+  it('does not search while the user types', () => {
     renderField();
     fireEvent.change(screen.getByPlaceholderText('Location'), { target: { value: 'Central Park' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(suggest).not.toHaveBeenCalled();
+  });
+
+  it('tells the user to press Enter until the text is searched', async () => {
+    renderField();
+    expect(screen.queryByText(SEARCH_TERMS.enterHint)).not.toBeInTheDocument();
+    const input = screen.getByPlaceholderText('Location');
+    fireEvent.change(input, { target: { value: 'Central Park' } });
+    expect(screen.getByText(SEARCH_TERMS.enterHint)).toBeInTheDocument();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
-    expect(suggest.mock.calls[0][0]).toBe('Central Park');
+    expect(screen.queryByText(SEARCH_TERMS.enterHint)).not.toBeInTheDocument();
+  });
+
+  it('has a visible border', () => {
+    renderField();
+    expect(screen.getByPlaceholderText('Location').className).toContain('border-foreground/25');
   });
 
   it('reads typed coordinates only when parseCoordinates is set', async () => {

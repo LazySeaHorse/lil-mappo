@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Plane, Loader2, X } from 'lucide-react';
+import { Plane, Loader2 } from 'lucide-react';
 import { Command as CommandPrimitive } from 'cmdk';
 
 import {
@@ -15,6 +15,8 @@ import {
   PopoverAnchor,
 } from '@/components/ui/popover';
 import { PickOnMapButton } from './PickOnMapButton';
+import { SearchFieldActions } from './SearchFieldActions';
+import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
 import {
   useAirportSearch,
   parseCoordinates,
@@ -119,31 +121,12 @@ export const AirportSearchField = ({
                   onKeyDown={handleKeyDown}
                   disabled={isPicking}
                   className={cn(
-                    "h-8 w-full text-sm pl-2 pr-7 bg-secondary/20 border border-transparent focus:border-border/50 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-primary/20 outline-none text-foreground placeholder:text-muted-foreground",
-                    isPicking && "placeholder:text-primary animate-pulse"
+                    'h-8',
+                    SEARCH_INPUT_CLASS,
+                    isPicking && 'placeholder:text-primary animate-pulse',
                   )}
                 />
-                {query && !isPicking && (
-                  <button
-                    type="button"
-                    onClick={clear}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted/50"
-                    aria-label="Clear"
-                    title="Clear"
-                  >
-                    <X size={10} />
-                  </button>
-                )}
-                {loading && (
-                  <div
-                    className={cn(
-                      "absolute top-1/2 -translate-y-1/2",
-                      query && !isPicking ? "right-8" : "right-3"
-                    )}
-                  >
-                    <Loader2 className="w-3.5 h-3.5 animate-spin opacity-40 text-primary" />
-                  </div>
-                )}
+                {!isPicking && <SearchFieldActions hasText={query !== ''} loading={loading} onClear={clear} />}
               </div>
               <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />
             </div>

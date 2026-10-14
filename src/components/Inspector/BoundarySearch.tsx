@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { searchBoundary, shortPlaceName, NominatimResult } from '@/services/nominatim';
 import { toast } from 'sonner';
 import { SearchFieldActions } from '@/components/Search/SearchFieldActions';
+import { SEARCH_INPUT_CLASS } from '@/components/Search/searchFieldStyles';
+import { cn } from '@/lib/utils';
 import { useMapRef } from '@/hooks/useMapRef';
 import { readMapView } from '@/services/locationSearch';
 
@@ -102,11 +104,14 @@ export function BoundarySearch({ initialValue, onSelect, autoFocus = false }: Bo
     }
   };
 
-  const handleSearchClick = () => {
+  const handleClear = () => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
-    executeSearch(query);
+    abortControllerRef.current?.abort();
+    setQuery('');
+    setResults([]);
+    setLoading(false);
   };
 
   return (
@@ -118,10 +123,10 @@ export function BoundarySearch({ initialValue, onSelect, autoFocus = false }: Bo
           value={query} 
           onChange={(e) => handleChange(e.target.value)} 
           onKeyDown={handleKeyDown} 
-          className="h-9 text-sm bg-secondary/30 border-border/40 focus:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset pr-10"
+          className={cn('h-9', SEARCH_INPUT_CLASS)}
           placeholder="Search for a place or region"
         />
-        <SearchFieldActions onSearch={handleSearchClick} loading={loading} />
+        <SearchFieldActions hasText={query !== ''} loading={loading} onClear={handleClear} />
       </div>
 
       {results.length > 0 && (

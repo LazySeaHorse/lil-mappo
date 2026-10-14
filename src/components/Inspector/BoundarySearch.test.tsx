@@ -4,6 +4,7 @@ import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';
 import { searchBoundary } from '@/services/nominatim';
 import { BoundarySearch } from './BoundarySearch';
+import { SEARCH_TERMS } from '@/lib/terms';
 
 vi.mock('@/services/nominatim', async (importActual) => ({
   ...(await importActual<typeof import('@/services/nominatim')>()),
@@ -28,5 +29,23 @@ describe('BoundarySearch', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(searchBoundary).toHaveBeenCalled());
     expect(searchBoundary).toHaveBeenCalledWith('Central Park', expect.any(AbortSignal), [-74.1, 40.7, -73.8, 40.9]);
+  });
+
+  it('shows a magnifying glass when empty and an X that clears the box when filled', () => {
+    const { container } = render(<BoundarySearch initialValue="" onSelect={vi.fn()} />);
+    const input = screen.getByPlaceholderText('Search for a place or region');
+    expect(container.querySelector('svg.lucide-search')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: SEARCH_TERMS.clear })).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: 'Lyon' } });
+    expect(container.querySelector('svg.lucide-search')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: SEARCH_TERMS.clear }));
+    expect(input).toHaveValue('');
+    expect(container.querySelector('svg.lucide-search')).not.toBeNull();
+  });
+
+  it('has a visible border', () => {
+    render(<BoundarySearch initialValue="" onSelect={vi.fn()} />);
+    expect(screen.getByPlaceholderText('Search for a place or region').className).toContain('border-foreground/25');
   });
 });

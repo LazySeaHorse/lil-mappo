@@ -427,12 +427,13 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
       expect((useProjectStore.getState().items['route-test-1'] as RouteItem).calculation).toMatchObject({ startName: '' });
     });
 
-    it('searches with the search button too', async () => {
+    it('has no search button: the box shows a magnifying glass until it has text', async () => {
       suggest.mockResolvedValue({ suggestions: [] });
       openEditor(setCalc({}));
       const start = screen.getAllByPlaceholderText(SEARCH)[0];
       fireEvent.change(start, { target: { value: 'Brooklyn Bridge' } });
-      fireEvent.click(screen.getAllByRole('button', { name: 'Search' })[0]);
+      expect(screen.queryByRole('button', { name: 'Search' })).not.toBeInTheDocument();
+      fireEvent.keyDown(start, { key: 'Enter' });
       await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
       expect(suggest.mock.calls[0][0]).toBe('Brooklyn Bridge');
     });

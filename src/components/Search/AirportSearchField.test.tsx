@@ -127,6 +127,21 @@ describe('AirportSearchField', () => {
     expect(container.querySelector('.rounded-full.border')).toBeNull();
   });
 
+  it('shows a magnifying glass when the box is empty and an X when it has text', () => {
+    const { container } = render(<AirportSearchField onSelect={vi.fn()} placeholder="Search airports" />);
+    expect(container.querySelector('svg.lucide-search')).not.toBeNull();
+    expect(screen.queryByLabelText(SEARCH_TERMS.clear)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Search airports'), { target: { value: 'SFO' } });
+    expect(container.querySelector('svg.lucide-search')).toBeNull();
+    expect(screen.getByLabelText(SEARCH_TERMS.clear)).toBeInTheDocument();
+  });
+
+  it('has a visible border', () => {
+    render(<AirportSearchField onSelect={vi.fn()} placeholder="Search airports" />);
+    expect(screen.getByPlaceholderText('Search airports').className).toContain('border-foreground/25');
+  });
+
   it('resets input when clear button is clicked', async () => {
     const onSelect = vi.fn();
     render(
@@ -141,7 +156,7 @@ describe('AirportSearchField', () => {
     fireEvent.change(input, { target: { value: 'SFO' } });
     expect(input.value).toBe('SFO');
 
-    const clearButton = screen.getByLabelText('Clear');
+    const clearButton = screen.getByLabelText(SEARCH_TERMS.clear);
     fireEvent.click(clearButton);
 
     expect(input.value).toBe('');

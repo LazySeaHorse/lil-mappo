@@ -300,10 +300,10 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
       page.locator("[data-sonner-toast]").getByText(/Cannot search boundaries/i),
     ).toBeVisible({ timeout: 5000 });
 
-    // Assert search button is restored and actionable rather than stuck
-    const searchButton = page.locator("button:has(svg.lucide-search)");
-    await expect(searchButton).toBeEnabled();
-    await expect(searchButton.locator(".animate-spin")).toHaveCount(0);
+    // Assert the field is restored (no spinner, X button usable) rather than stuck
+    const clearButton = page.getByRole("button", { name: "Clear search" });
+    await expect(clearButton).toBeEnabled();
+    await expect(clearButton.locator("xpath=..").locator(".animate-spin")).toHaveCount(0);
 
     // Close Boundary dialog
     await page.keyboard.press("Escape");
@@ -435,10 +435,10 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
       page.locator("[data-sonner-toast]").getByText(/Cannot search boundaries/i),
     ).toBeVisible({ timeout: 5000 });
 
-    // Search button is restored
-    const searchButton = page.locator("button:has(svg.lucide-search)");
-    await expect(searchButton).toBeEnabled();
-    await expect(searchButton.locator(".animate-spin")).toHaveCount(0);
+    // The field is restored (no spinner, X button usable)
+    const clearButton = page.getByRole("button", { name: "Clear search" });
+    await expect(clearButton).toBeEnabled();
+    await expect(clearButton.locator("xpath=..").locator(".animate-spin")).toHaveCount(0);
 
     // User cancellation via Escape closes the panel
     await page.keyboard.press("Escape");

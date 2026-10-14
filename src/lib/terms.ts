@@ -97,6 +97,10 @@ export const PLACE_FIELD_TERMS = {
 export const SEARCH_TERMS = {
   /** The button that lets the user click a place on the map. */
   pickOnMap: 'Pick on the map',
+  /** The X in a search box. It empties the box. */
+  clear: 'Clear search',
+  /** Shows under a Mapbox place field after the user types. Every search costs money, so it starts on Enter only. */
+  enterHint: 'Press Enter to search.',
 } as const;
 
 /** Words of Follow camera in the route panel and in its own panel. */
