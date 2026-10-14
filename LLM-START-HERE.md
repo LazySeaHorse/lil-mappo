@@ -6,7 +6,7 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 
 **li'l Mappo** (`https://app.lilmappo.tech`) is a browser-based "motion graphics" tool specifically for maps. Users can:
 - **Import & Plan Routes**: Auto-generate car, walking, or 3D flight paths using Mapbox Directions and Great Circle math.
-- **Interactive Callouts & Boundaries**: Search-based placement workflow with "Pick on Map" and unified drafting tools.
+- **Interactive Callouts & Boundaries**: Search-based placement workflow with "Pick on the map" and unified drafting tools.
 - **Choreograph**: Camera movements via keyframe-based timeline.
 - **Annotate**: 3D callout cards with multiple style variants (default, modern, news, topo).
 - **Save & Export**: Local IndexedDB library, cloud sync via Supabase, MP4 video export.
@@ -626,6 +626,7 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **Search Box API**: Uses session-based pricing. Searches **triggered only on Enter key** (not onChange) to prevent UI flickering during rapid typing.
 - **Viewport Bias**: `useLocationSearch` reads the *live* map through `useMapRef` (`readMapView` in `services/locationSearch.ts`). On Enter it searches inside the visible bounds (SearchBox `bbox`) with proximity at the live center; only if that returns nothing it searches once more without `bbox`. At most two calls per Enter. Without a map (tests) it falls back to the stored `mapCenter`. The store `mapCenter` is only written on pan, so it must not be the primary bias. `BoundarySearch` passes the same bounds to Nominatim as `viewbox` with `bounded=0` (ranking only). `AirportSearchField` is a local lookup and has no bias.
 - **Search button**: every search field shows a search icon button (`SearchFieldActions`, tooltip "Search (Enter)") that does the same as Enter.
+- **Place fields (no dots)**: `SearchField` and `AirportSearchField` have no coloured start/end circle (the old `color`/`showDot` props are gone). A place field is named by the label above it: `LabelledField` (`Search/LabelledField.tsx`) with `PLACE_FIELD_TERMS` (Start / End, Departure / Arrival) in the route planner and in the toolbar Route dropdown. The pick button is the shared `PickOnMapButton` (map pin icon, `SEARCH_TERMS.pickOnMap` = "Pick on the map" as title and aria-label, `aria-pressed` while picking).
 - **Shared Geocoding**: Centralized in `SearchField.tsx` + `BoundarySearch.tsx`. `SearchField` takes `parseCoordinates` (typed `lng, lat` selects a point with no name); the Route inspector uses it. There is no second search field in the inspector.
 - **POI Coverage**: Search Box API includes improved `place_formatted` secondary text vs. legacy Geocoding v5.
 
@@ -704,7 +705,7 @@ The Mapbox Sync Engine is exposed on the map instance as `_syncRef` to allow the
 ### 7.5 Common Gotchas
 
 - **Scrollbar Aesthetics**: Hidden in search menus via CSS (`scrollbar-width: none`) to maintain clean design.
-- **Move Mode UX**: During "Pick on Map" or "Move Mode", input fields pulse with "Click on map..." placeholder + disabled state.
+- **Move Mode UX**: During "Pick on the map" or "Move Mode", input fields pulse with "Click on map..." placeholder + disabled state.
 - **Session Pricing**: Search Box API session tokens are scoped per `SearchSession` instance to prevent cross-component token reuse.
 
 ### 7.6 Anti-Abuse & Email Allowlist

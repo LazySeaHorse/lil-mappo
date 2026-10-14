@@ -17,6 +17,8 @@ import type { RouteItem, RouteMode } from '@/store/types';
 import { createEndpointRouteItem, createWalkRouteItem, defaultEndpointRouteName } from '@/store/itemFactories';
 import { SearchField } from '../Search/SearchField';
 import { AirportSearchField } from '../Search/AirportSearchField';
+import { LabelledField } from '../Search/LabelledField';
+import { PLACE_FIELD_TERMS } from '@/lib/terms';
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
@@ -42,11 +44,6 @@ const ROUTE_MODE_OPTIONS: SegmentedControlOption<RouteMode>[] = [
 ];
 
 const PATH_MESSAGES = { missingEndpoints: 'Set start and end', failed: 'Calculation failed' };
-
-const ENDPOINT_COLORS = {
-  start: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-  end: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
-};
 
 const ENDPOINT_FIELD_COPY = {
   car: {
@@ -360,25 +357,26 @@ export const RouteAddDropdown = ({
         /* Car / flight — start + end */
         <div className="space-y-4" data-walkthrough="route-places">
           <SectionLabel>{mode === 'flight' ? 'Airport route' : 'Route points'}</SectionLabel>
-          <EndpointField
-            {...fieldCopy.start}
-            value={start}
-            name={startName}
-            onSelect={handleStartChange}
-            color={ENDPOINT_COLORS.start}
-            isPicking={isPickingStart}
-            onStartPick={handleTogglePickStart}
-          />
-          <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
-          <EndpointField
-            {...fieldCopy.end}
-            value={end}
-            name={endName}
-            onSelect={handleEndChange}
-            color={ENDPOINT_COLORS.end}
-            isPicking={isPickingEnd}
-            onStartPick={handleTogglePickEnd}
-          />
+          <LabelledField label={mode === 'flight' ? PLACE_FIELD_TERMS.departure : PLACE_FIELD_TERMS.start}>
+            <EndpointField
+              {...fieldCopy.start}
+              value={start}
+              name={startName}
+              onSelect={handleStartChange}
+              isPicking={isPickingStart}
+              onStartPick={handleTogglePickStart}
+            />
+          </LabelledField>
+          <LabelledField label={mode === 'flight' ? PLACE_FIELD_TERMS.arrival : PLACE_FIELD_TERMS.end}>
+            <EndpointField
+              {...fieldCopy.end}
+              value={end}
+              name={endName}
+              onSelect={handleEndChange}
+              isPicking={isPickingEnd}
+              onStartPick={handleTogglePickEnd}
+            />
+          </LabelledField>
 
           {!previewRoute && !isPlacedPoint(start) && !isPlacedPoint(end) && (
             <EmptyState

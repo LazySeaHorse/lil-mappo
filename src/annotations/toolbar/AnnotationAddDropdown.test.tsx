@@ -26,7 +26,7 @@ function renderDropdown() {
       <AnnotationAddDropdown isOpen onOpenChange={vi.fn()} />
     </MapRefContext.Provider>,
   );
-  fireEvent.click(screen.getByTitle('Pick on Map'));
+  fireEvent.click(screen.getByTitle('Pick on the map'));
   act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [2.35, 48.85], name: 'Paris' }); });
   act(() => { fireEvent.click(screen.getByRole('button', { name: /Create callout/i })); });
 }

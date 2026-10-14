@@ -120,8 +120,8 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await planRouteBtn.click();
     await expect(page.getByText('Route points', { exact: true })).toBeVisible();
 
-    // 2. Click "Pick on Map" for start point
-    const pickStartBtn = page.getByTitle('Pick on Map').first();
+    // 2. Click "Pick on the map" for start point
+    const pickStartBtn = page.getByTitle('Pick on the map').first();
     await pickStartBtn.click();
 
     // Verify picking session is active in store
@@ -147,7 +147,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await addCalloutBtn.click();
     await expect(page.getByText('Place a 3D label on the map')).toBeVisible();
 
-    const pickCalloutBtn = page.getByTitle('Pick on Map').first();
+    const pickCalloutBtn = page.getByTitle('Pick on the map').first();
     await pickCalloutBtn.click();
     activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);
     expect(activePickerId).toBe('callout-new');

@@ -147,6 +147,17 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(reportRouteAdded).toHaveBeenCalledWith('flight', expect.any(Number));
   });
 
+  it('labels the two places in car and flight mode, with no coloured dots', () => {
+    const { container } = render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+    expect(screen.getByText('Start')).toBeInTheDocument();
+    expect(screen.getByText('End')).toBeInTheDocument();
+    expect(container.ownerDocument.querySelector('.rounded-full.border.text-emerald-500')).toBeNull();
+
+    fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
+    expect(screen.getByText('Departure')).toBeInTheDocument();
+    expect(screen.getByText('Arrival')).toBeInTheDocument();
+  });
+
   it('allows map picking while in flight mode', () => {
     render(
       <RouteAddDropdown
@@ -158,7 +169,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
 
-    const pickButtons = screen.getAllByTitle(/Pick on Map/i);
+    const pickButtons = screen.getAllByTitle(/Pick on the map/i);
     expect(pickButtons.length).toBeGreaterThanOrEqual(2);
 
     act(() => {
@@ -168,7 +179,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(useProjectStore.getState().activePicker?.id).toBe('route-start');
   });
   const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
-    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[buttonIndex]); });
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[buttonIndex]); });
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
   };
 
@@ -243,7 +254,7 @@ describe('RouteAddDropdown map framing', () => {
       </MapRefContext.Provider>,
     );
   const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
-    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[buttonIndex]); });
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[buttonIndex]); });
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
   };
 
@@ -314,7 +325,7 @@ describe('RouteAddDropdown file import button', () => {
 
 describe('RouteAddDropdown quick tour', () => {
   const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
-    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[buttonIndex]); });
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[buttonIndex]); });
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
   };
 

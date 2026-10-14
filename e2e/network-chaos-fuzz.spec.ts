@@ -131,7 +131,7 @@ async function openEditor(page: Page) {
  * `xFrac`/`yFrac` (0-1) place the click within that uncovered region.
  */
 async function pickMapPoint(page: Page, pickerIndex = 0, { xFrac = 0.5, yFrac = 0.5 } = {}) {
-  await page.getByTitle("Pick on Map").nth(pickerIndex).click();
+  await page.getByTitle("Pick on the map").nth(pickerIndex).click();
   const canvas = page.locator(".mapboxgl-canvas");
   const canvasBox = await canvas.boundingBox();
   const popoverBox = await page.locator("[data-radix-popper-content-wrapper]").first().boundingBox();

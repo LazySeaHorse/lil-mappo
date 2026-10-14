@@ -1,23 +1,21 @@
 import { useEffect } from 'react';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Input } from '@/components/ui/input';
-import { Crosshair, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 import {
   Popover,
   PopoverContent,
   PopoverAnchor,
 } from "@/components/ui/popover";
-import { IconButton } from '@/components/ui/icon-button';
 import { SearchFieldActions } from './SearchFieldActions';
+import { PickOnMapButton } from './PickOnMapButton';
 
 interface SearchFieldProps {
   label: string;
   value: [number, number];
   name: string;
   onSelect: (lngLat: [number, number], name: string) => void;
-  color?: string;
-  showDot?: boolean;
   isPicking: boolean;
   onStartPick: () => void;
   className?: string;
@@ -30,8 +28,6 @@ export const SearchField = ({
   label,
   name,
   onSelect: onSelectProp,
-  color = "bg-primary/10 text-primary border-primary/20",
-  showDot = true,
   isPicking,
   onStartPick,
   className = "",
@@ -78,11 +74,6 @@ export const SearchField = ({
       <Popover open={isOpen && suggestions.length > 0} onOpenChange={(o) => !o && handleClose()}>
         <PopoverAnchor asChild>
           <div className="flex items-center gap-2">
-            {showDot && (
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${color} shadow-sm transition-all group-focus-within:scale-110`}>
-                <div className="w-1.5 h-1.5 rounded-full bg-current" />
-              </div>
-            )}
             <div className="relative flex-1">
               <Input
                 placeholder={isPicking ? "Click on map..." : (placeholder || label)}
@@ -108,15 +99,7 @@ export const SearchField = ({
                 />
               )}
             </div>
-            <IconButton
-              variant="ghost"
-              size="sm"
-              className={`h-8 w-8 shrink-0 rounded-lg transition-all ${isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
-              onClick={onStartPick}
-              title="Pick on Map"
-            >
-              <Crosshair size={14} className={isPicking ? 'animate-spin-slow' : ''} />
-            </IconButton>
+            <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />
           </div>
         </PopoverAnchor>
 

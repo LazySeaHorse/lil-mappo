@@ -125,10 +125,10 @@ test.describe("5 Golden E2E Journeys", () => {
     const routeDropdown = page.getByRole("menu");
     await routeDropdown.getByRole("radio", { name: "Flight" }).click();
 
-    await routeDropdown.getByTitle("Pick on Map").nth(0).click();
+    await routeDropdown.getByTitle("Pick on the map").nth(0).click();
     await page.locator(".mapboxgl-canvas").click({ position: { x: 620, y: 320 } });
 
-    await routeDropdown.getByTitle("Pick on Map").nth(1).click();
+    await routeDropdown.getByTitle("Pick on the map").nth(1).click();
     await page.locator(".mapboxgl-canvas").click({ position: { x: 820, y: 420 } });
 
     await routeDropdown.getByRole("button", { name: "Preview path" }).click();
@@ -144,7 +144,7 @@ test.describe("5 Golden E2E Journeys", () => {
     // 2. Add a 3D Callout
     await page.getByTitle("Add Callout").click();
     const calloutDropdown = page.getByRole("menu");
-    await calloutDropdown.getByTitle("Pick on Map").click();
+    await calloutDropdown.getByTitle("Pick on the map").click();
     await page.locator(".mapboxgl-canvas").click({ position: { x: 740, y: 350 } });
 
     const calloutTitle = "Alpha Basecamp";

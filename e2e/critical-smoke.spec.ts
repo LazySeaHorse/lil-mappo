@@ -145,7 +145,7 @@ async function dragMap(
 }
 
 async function pickMapPoint(page: Page, pickerIndex = 0, position = { x: 720, y: 350 }) {
-  await page.getByTitle("Pick on Map").nth(pickerIndex).click();
+  await page.getByTitle("Pick on the map").nth(pickerIndex).click();
   await page.locator(".mapboxgl-canvas").click({ position });
 }
 

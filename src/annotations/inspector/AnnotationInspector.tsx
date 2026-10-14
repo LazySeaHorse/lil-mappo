@@ -128,7 +128,6 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           parseCoordinates
           isPicking={isPicking}
           onStartPick={handleTogglePick}
-          showDot={false}
           className="px-0"
         />
 

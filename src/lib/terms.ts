@@ -85,6 +85,20 @@ export const ROUTE_PATH_TERMS = {
   previewReady: 'Route preview is ready.',
 } as const;
 
+/** The names of the two places of a route. They show above the place search fields. */
+export const PLACE_FIELD_TERMS = {
+  start: 'Start',
+  end: 'End',
+  departure: 'Departure',
+  arrival: 'Arrival',
+} as const;
+
+/** Words of the search fields. */
+export const SEARCH_TERMS = {
+  /** The button that lets the user click a place on the map. */
+  pickOnMap: 'Pick on the map',
+} as const;
+
 /** Words of Follow camera in the route panel and in its own panel. */
 export const FOLLOW_CAMERA_TERMS = {
   /** One line under the switch, when it is off. */

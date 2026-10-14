@@ -64,12 +64,12 @@ describe('callout location field', () => {
 
   it('stores the name of a place picked on the map, and clears it when the pick has none', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
-    fireEvent.click(screen.getAllByTitle('Pick on Map')[0]);
+    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [1, 2], name: 'Pier 17' }); });
     expect(stored().locationName).toBe('Pier 17');
 
     act(() => { useProjectStore.getState().stopPicking(); });
-    fireEvent.click(screen.getAllByTitle('Pick on Map')[0]);
+    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
     expect(stored().locationName).toBe('');
   });
@@ -78,7 +78,7 @@ describe('callout location field', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     const location = screen.getByRole('region', { name: 'Location' });
     expect(within(location).getByPlaceholderText(LOCATION_FIELD)).toHaveValue('Central Park');
-    expect(within(location).getByTitle('Pick on Map')).toBeInTheDocument();
+    expect(within(location).getByTitle('Pick on the map')).toBeInTheDocument();
     expect(within(location).getByText(CALLOUT_LOCATION_TERMS.dragOnMap)).toBeInTheDocument();
     expect(within(location).queryByText(CALLOUT_LOCATION_TERMS.heightHint)).toBeNull();
     expect(await readInfoTips(location)).toEqual([CALLOUT_LOCATION_TERMS.heightHint]);
@@ -126,7 +126,7 @@ describe('callout location field', () => {
 
   it('keeps the title when a map pick has no place name', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
-    fireEvent.click(screen.getAllByTitle('Pick on Map')[0]);
+    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
     expect(stored().content.title).toBe('Park');
     expect(stored().linkTitleToLocation).toBe(false);
@@ -134,7 +134,7 @@ describe('callout location field', () => {
 
   it('still follows the place name with the title when it has one', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
-    fireEvent.click(screen.getAllByTitle('Pick on Map')[0]);
+    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [1, 2], name: 'Pier 17' }); });
     expect(stored().content.title).toBe('Pier 17');
     expect(stored().linkTitleToLocation).toBe(true);

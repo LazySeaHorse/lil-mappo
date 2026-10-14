@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Plane, Loader2, Crosshair, X } from 'lucide-react';
+import { Plane, Loader2, X } from 'lucide-react';
 import { Command as CommandPrimitive } from 'cmdk';
 
 import {
@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverAnchor,
 } from '@/components/ui/popover';
-import { IconButton } from '@/components/ui/icon-button';
+import { PickOnMapButton } from './PickOnMapButton';
 import {
   useAirportSearch,
   parseCoordinates,
@@ -28,8 +28,6 @@ export interface AirportSearchFieldProps {
   value?: [number, number];
   name?: string;
   onSelect: (lngLat: [number, number], name: string) => void;
-  color?: string;
-  showDot?: boolean;
   isPicking?: boolean;
   onStartPick?: () => void;
   className?: string;
@@ -41,8 +39,6 @@ export const AirportSearchField = ({
   value,
   name = "",
   onSelect,
-  color = "bg-primary/10 text-primary border-primary/20",
-  showDot = true,
   isPicking = false,
   onStartPick = () => {},
   className = "",
@@ -106,13 +102,6 @@ export const AirportSearchField = ({
         >
           <PopoverAnchor asChild>
             <div className="flex items-center gap-2">
-              {showDot && (
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${color} shadow-sm transition-all group-focus-within:scale-110`}
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-current" />
-                </div>
-              )}
               <div className="relative flex-1">
                 <CommandPrimitive.Input
                   placeholder={isPicking ? "Click on map..." : (placeholder || label)}
@@ -156,18 +145,7 @@ export const AirportSearchField = ({
                   </div>
                 )}
               </div>
-              <IconButton
-                variant="ghost"
-                size="sm"
-                className={`h-8 w-8 shrink-0 rounded-lg transition-all ${
-                  isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={onStartPick}
-                title="Pick on Map"
-                aria-label="Pick on Map"
-              >
-                <Crosshair size={14} className={isPicking ? 'animate-spin-slow' : ''} />
-              </IconButton>
+              <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />
             </div>
           </PopoverAnchor>
 

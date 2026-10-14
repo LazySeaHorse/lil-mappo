@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { AirportSearchField } from './AirportSearchField';
 import { loadAirports } from '@/services/airports/airportService';
+import { SEARCH_TERMS } from '@/lib/terms';
 
 describe('AirportSearchField', () => {
   beforeAll(async () => {
@@ -103,7 +104,7 @@ describe('AirportSearchField', () => {
     expect(coordinates[1]).toBeCloseTo(51.4706, 1);
   });
 
-  it('calls onStartPick when Pick on Map button is clicked', () => {
+  it('calls onStartPick when the Pick on the map button is clicked', () => {
     const onStartPick = vi.fn();
     render(
       <AirportSearchField
@@ -113,10 +114,17 @@ describe('AirportSearchField', () => {
       />
     );
 
-    const pickButton = screen.getByTitle('Pick on Map');
+    const pickButton = screen.getByRole('button', { name: SEARCH_TERMS.pickOnMap });
+    expect(pickButton).toHaveAttribute('title', 'Pick on the map');
+    expect(pickButton.querySelector('svg.lucide-map-pin')).not.toBeNull();
     fireEvent.click(pickButton);
 
     expect(onStartPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no coloured dot: the label above the field says which place it is', () => {
+    const { container } = render(<AirportSearchField onSelect={vi.fn()} placeholder="Search airports" />);
+    expect(container.querySelector('.rounded-full.border')).toBeNull();
   });
 
   it('resets input when clear button is clicked', async () => {

@@ -119,6 +119,11 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
     expect(screen.getAllByPlaceholderText('Search address or coordinates').length).toBe(2);
   });
 
+  it('has no coloured dots beside the start and end fields', () => {
+    const { container } = openEditor(createBaseRouteItem('car'));
+    expect(container.querySelector('.rounded-full.border')).toBeNull();
+  });
+
   it('switches to flight mode without changing the route marker', async () => {
     openEditor(createBaseRouteItem('car'));
 
@@ -148,7 +153,7 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
 
     it('car: picks start and end on the map and toggles a picker off', () => {
       openEditor(createBaseRouteItem('car'));
-      const [startBtn, endBtn] = screen.getAllByTitle('Pick on Map');
+      const [startBtn, endBtn] = screen.getAllByTitle('Pick on the map');
 
       fireEvent.click(startBtn);
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-start', ownerId: 'route-test-1', prompt: 'Start' });
@@ -159,7 +164,7 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-end', prompt: 'End' });
       // The field being picked is blank; the other one shows its point.
       expect(screen.getByPlaceholderText('Search address or coordinates')).toHaveValue('0.00000, 51.48000');
-      fireEvent.click(screen.getAllByTitle('Pick on Map')[1]);
+      fireEvent.click(screen.getAllByTitle('Pick on the map')[1]);
       expect(useProjectStore.getState().activePicker).toBeNull();
     });
 
@@ -167,7 +172,7 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
       const route = createBaseRouteItem('flight');
       openEditor(route);
 
-      fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[0]);
+      fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[0]);
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-start', ownerId: 'route-test-1', prompt: 'Start' });
       pick([2, 3]);
       expect(draftCalc()).toMatchObject({ mode: 'flight', startPoint: [2, 3] });
@@ -450,12 +455,12 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
 
     it('stores the name of a place picked on the map, or none when the pick has no name', () => {
       openEditor(setCalc({ endName: 'Central Park' }));
-      act(() => { fireEvent.click(screen.getAllByTitle('Pick on Map')[1]); });
+      act(() => { fireEvent.click(screen.getAllByTitle('Pick on the map')[1]); });
       act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [2, 3], name: 'Pier 17' }); });
       expect(calcOf()).toMatchObject({ endPoint: [2, 3], endName: 'Pier 17' });
 
       act(() => { useProjectStore.getState().stopPicking(); });
-      act(() => { fireEvent.click(screen.getAllByTitle('Pick on Map')[1]); });
+      act(() => { fireEvent.click(screen.getAllByTitle('Pick on the map')[1]); });
       act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [4, 5], name: '' }); });
       expect(calcOf()).toMatchObject({ endPoint: [4, 5], endName: '' });
     });

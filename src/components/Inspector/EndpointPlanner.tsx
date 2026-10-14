@@ -1,24 +1,14 @@
-import type { ReactNode } from 'react';
 import { Eye } from 'lucide-react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import type { RouteDraftEditor } from '@/hooks/useRouteDraft';
-import { ROUTE_PATH_TERMS } from '@/lib/terms';
+import { PLACE_FIELD_TERMS, ROUTE_PATH_TERMS } from '@/lib/terms';
 import { placeLabel } from '@/engine/routeMode';
 import type { EndpointRouteCalculation } from '@/store/types';
 import { Button } from '@/components/ui/button';
 import { SearchField } from '@/components/Search/SearchField';
 import { AirportSearchField } from '@/components/Search/AirportSearchField';
-
-const START_COLOR = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-const END_COLOR = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
-
-const Labelled = ({ label, children }: { label: string; children: ReactNode }) => (
-  <div className="flex flex-col gap-1">
-    <span className="px-1 text-[11px] font-medium text-foreground/90">{label}</span>
-    {children}
-  </div>
-);
+import { LabelledField } from '@/components/Search/LabelledField';
 
 /** Car / flight: two endpoints and a computed path. */
 export const EndpointPlanner = ({
@@ -54,59 +44,55 @@ export const EndpointPlanner = ({
     <div className="flex flex-col gap-2.5">
       {calc.mode === 'flight' ? (
         <>
-          <Labelled label="Departure">
+          <LabelledField label={PLACE_FIELD_TERMS.departure}>
             <AirportSearchField
-              label="Departure"
+              label={PLACE_FIELD_TERMS.departure}
               placeholder="Departure airport or city (e.g. JFK)..."
               value={calc.startPoint}
               name={placeLabel(calc.startName, calc.startPoint)}
               onSelect={(lngLat, name) => setPoint('startPoint', lngLat, name)}
-              color={START_COLOR}
               isPicking={startPicker.isPicking}
               onStartPick={startPicker.toggle}
             />
-          </Labelled>
-          <Labelled label="Arrival">
+          </LabelledField>
+          <LabelledField label={PLACE_FIELD_TERMS.arrival}>
             <AirportSearchField
-              label="Arrival"
+              label={PLACE_FIELD_TERMS.arrival}
               placeholder="Arrival airport or city (e.g. LHR)..."
               value={calc.endPoint}
               name={placeLabel(calc.endName, calc.endPoint)}
               onSelect={(lngLat, name) => setPoint('endPoint', lngLat, name)}
-              color={END_COLOR}
               isPicking={endPicker.isPicking}
               onStartPick={endPicker.toggle}
             />
-          </Labelled>
+          </LabelledField>
         </>
       ) : (
         <>
-          <Labelled label="Start">
+          <LabelledField label={PLACE_FIELD_TERMS.start}>
             <SearchField
-              label="Start"
+              label={PLACE_FIELD_TERMS.start}
               placeholder="Search address or coordinates"
               parseCoordinates
               value={calc.startPoint}
               name={placeLabel(calc.startName, calc.startPoint)}
               onSelect={(lngLat, name) => setPoint('startPoint', lngLat, name)}
-              color={START_COLOR}
               isPicking={startPicker.isPicking}
               onStartPick={startPicker.toggle}
             />
-          </Labelled>
-          <Labelled label="End">
+          </LabelledField>
+          <LabelledField label={PLACE_FIELD_TERMS.end}>
             <SearchField
-              label="End"
+              label={PLACE_FIELD_TERMS.end}
               placeholder="Search address or coordinates"
               parseCoordinates
               value={calc.endPoint}
               name={placeLabel(calc.endName, calc.endPoint)}
               onSelect={(lngLat, name) => setPoint('endPoint', lngLat, name)}
-              color={END_COLOR}
               isPicking={endPicker.isPicking}
               onStartPick={endPicker.toggle}
             />
-          </Labelled>
+          </LabelledField>
         </>
       )}
 
