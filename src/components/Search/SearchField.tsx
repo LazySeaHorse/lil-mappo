@@ -1,38 +1,41 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Input } from '@/components/ui/input';
-import { Loader2, Crosshair, MapPin, X } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 import {
   Popover,
   PopoverContent,
   PopoverAnchor,
 } from "@/components/ui/popover";
-import { IconButton } from '@/components/ui/icon-button';
+import { SearchFieldActions } from './SearchFieldActions';
+import { PickOnMapButton } from './PickOnMapButton';
+import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
+import { cn } from '@/lib/utils';
+import { SEARCH_TERMS } from '@/lib/terms';
 
 interface SearchFieldProps {
   label: string;
   value: [number, number];
   name: string;
   onSelect: (lngLat: [number, number], name: string) => void;
-  color?: string;
-  showDot?: boolean;
   isPicking: boolean;
   onStartPick: () => void;
   className?: string;
   placeholder?: string;
+  /** Also accept typed coordinates such as "-74.006, 40.712" (they select a point with no place name). */
+  parseCoordinates?: boolean;
 }
 
 export const SearchField = ({
   label,
   name,
   onSelect: onSelectProp,
-  color = "bg-primary/10 text-primary border-primary/20",
-  showDot = true,
   isPicking,
   onStartPick,
   className = "",
-  placeholder
+  placeholder,
+  parseCoordinates = false,
 }: SearchFieldProps) => {
   // Wrap the prop callback to ensure name is always provided
   const onSelectWithName = (lngLat: [number, number], name?: string) => {
@@ -41,7 +44,12 @@ export const SearchField = ({
 
   const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, handleClose, clear } = useLocationSearch({
     onSelect: onSelectWithName,
+    parseCoordinates,
   });
+
+  // The text the user last searched with Enter. The hint under the field is for text not searched yet.
+  const [searched, setSearched] = useState('');
+  const showEnterHint = !isPicking && !loading && query.trim() !== '' && query !== name && query !== searched;
 
   // Sync internal query when name prop changes
   useEffect(() => {
@@ -73,11 +81,6 @@ export const SearchField = ({
       <Popover open={isOpen && suggestions.length > 0} onOpenChange={(o) => !o && handleClose()}>
         <PopoverAnchor asChild>
           <div className="flex items-center gap-2">
-            {showDot && (
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${color} shadow-sm transition-all group-focus-within:scale-110`}>
-                <div className="w-1.5 h-1.5 rounded-full bg-current" />
-              </div>
-            )}
             <div className="relative flex-1">
               <Input
                 placeholder={isPicking ? "Click on map..." : (placeholder || label)}
@@ -89,34 +92,22 @@ export const SearchField = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
+                    setSearched(query);
                     performSearch(query);
                   }
                 }}
                 disabled={isPicking}
-                className={`h-8 text-sm pl-2 pr-7 bg-secondary/20 border-transparent focus:border-border/50 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-primary/20 ${isPicking ? 'placeholder:text-primary animate-pulse' : ''}`}
+                className={cn('h-8', SEARCH_INPUT_CLASS, isPicking && 'placeholder:text-primary animate-pulse')}
               />
-              {query && !isPicking && (
-                <button
-                  onClick={clear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted/50"
-                >
-                  <X size={10} />
-                </button>
+              {!isPicking && (
+                <SearchFieldActions hasText={query !== ''} loading={loading} onClear={clear} />
               )}
-              {loading && <div className="absolute right-8 top-1/2 -translate-y-1/2"><Loader2 className="w-3.5 h-3.5 animate-spin opacity-40 text-primary" /></div>}
             </div>
-            <IconButton
-              variant="ghost"
-              size="sm"
-              className={`h-8 w-8 shrink-0 rounded-lg transition-all ${isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
-              onClick={onStartPick}
-              title="Pick on Map"
-            >
-              <Crosshair size={14} className={isPicking ? 'animate-spin-slow' : ''} />
-            </IconButton>
+            <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />
           </div>
         </PopoverAnchor>
 
+        {/* Above the quick tour card (z-120), so results stay clickable beside it. */}
         <PopoverContent
           side="bottom"
           align="start"
@@ -124,11 +115,12 @@ export const SearchField = ({
           onOpenAutoFocus={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
-          className="w-fit min-w-[240px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+          className="z-[130] w-fit min-w-[240px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
           {renderResults()}
         </PopoverContent>
       </Popover>
+      {showEnterHint && <p className="mt-1 px-1 text-[11px] text-muted-foreground">{SEARCH_TERMS.enterHint}</p>}
     </div>
   );
 };

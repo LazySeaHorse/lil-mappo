@@ -3,10 +3,13 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
+import { useGuestLock } from '@/hooks/useGuestLock';
+import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { Button } from '@/components/ui/button';
 import {
   Car, Footprints, Plane, Search, Loader2,
-  Navigation, Upload, Plus, Check, Compass,
+  Navigation, Upload, Lock, Plus, Check, Compass,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
@@ -14,6 +17,8 @@ import type { RouteItem, RouteMode } from '@/store/types';
 import { createEndpointRouteItem, createWalkRouteItem, defaultEndpointRouteName } from '@/store/itemFactories';
 import { SearchField } from '../Search/SearchField';
 import { AirportSearchField } from '../Search/AirportSearchField';
+import { LabelledField } from '../Search/LabelledField';
+import { PLACE_FIELD_TERMS } from '@/lib/terms';
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
@@ -39,11 +44,6 @@ const ROUTE_MODE_OPTIONS: SegmentedControlOption<RouteMode>[] = [
 ];
 
 const PATH_MESSAGES = { missingEndpoints: 'Set start and end', failed: 'Calculation failed' };
-
-const ENDPOINT_COLORS = {
-  start: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-  end: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
-};
 
 const ENDPOINT_FIELD_COPY = {
   car: {
@@ -87,10 +87,17 @@ export const RouteAddDropdown = ({
   const [end, setEnd] = useState<[number, number]>([0, 0]);
   const [endName, setEndName] = useState('');
   const path = useEndpointRoutePath(undefined, PATH_MESSAGES);
+  const frame = useFrameOnMap();
+  const isGuest = useGuestLock();
 
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
   const [walkCurved, setWalkCurved] = useState(true);
+
+  // The quick tour waits for a start and an end place.
+  useEffect(() => {
+    if (isOpen) useWalkthroughStore.getState().recordRouteEndpoints(isPlacedPoint(start), isPlacedPoint(end));
+  }, [isOpen, start, end]);
 
   /** Drops any path request in flight and the preview drawn from the old inputs. */
   const discardPath = () => {
@@ -178,6 +185,7 @@ export const RouteAddDropdown = ({
     if (mode === 'walk') return;
     void path.calculate(mode, start, end, (geojson) => {
       setPreviewRoute(geojson);
+      frame.frameGeometry(geojson);
       toast.success('Path preview ready');
     });
   };
@@ -185,6 +193,8 @@ export const RouteAddDropdown = ({
   const insertItem = (item: RouteItem, pointCount: number) => {
     addItem(item);
     selectItem(item.id);
+    // After selecting: the inspector opens with the item and takes room on the right.
+    frame.frameGeometry(item.geojson);
     reportRouteAdded(mode, pointCount);
     resetAll();
     onOpenChange(false);
@@ -198,6 +208,8 @@ export const RouteAddDropdown = ({
         geojson: previewRoute,
         start,
         end,
+        startName,
+        endName,
         name: defaultEndpointRouteName(mode, startName, endName),
         startTime: useProjectStore.getState().playheadTime,
       }),
@@ -264,6 +276,7 @@ export const RouteAddDropdown = ({
       <Button
         variant="secondary"
         size="sm"
+        data-walkthrough="route-action"
         onClick={calculate}
         disabled={path.loading}
         className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium bg-secondary/50 hover:bg-secondary border border-border/50 rounded-lg transition-all"
@@ -276,6 +289,7 @@ export const RouteAddDropdown = ({
       <Button
         variant="default"
         size="sm"
+        data-walkthrough="route-action"
         onClick={handleAddCarFlight}
         className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
       >
@@ -293,7 +307,8 @@ export const RouteAddDropdown = ({
         onClick={onImportClick}
         className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
       >
-        <Upload size={13} /> Import KML / GPX data
+        {isGuest ? <Lock size={13} /> : <Upload size={13} />}
+        {isGuest ? 'Sign in to import KML / GPX data' : 'Import KML / GPX data'}
       </Button>
     </div>
   );
@@ -340,27 +355,28 @@ export const RouteAddDropdown = ({
         </div>
       ) : (
         /* Car / flight — start + end */
-        <div className="space-y-4">
+        <div className="space-y-4" data-walkthrough="route-places">
           <SectionLabel>{mode === 'flight' ? 'Airport route' : 'Route points'}</SectionLabel>
-          <EndpointField
-            {...fieldCopy.start}
-            value={start}
-            name={startName}
-            onSelect={handleStartChange}
-            color={ENDPOINT_COLORS.start}
-            isPicking={isPickingStart}
-            onStartPick={handleTogglePickStart}
-          />
-          <div className="relative h-2 ml-4 border-l-2 border-dashed border-border/50" />
-          <EndpointField
-            {...fieldCopy.end}
-            value={end}
-            name={endName}
-            onSelect={handleEndChange}
-            color={ENDPOINT_COLORS.end}
-            isPicking={isPickingEnd}
-            onStartPick={handleTogglePickEnd}
-          />
+          <LabelledField label={mode === 'flight' ? PLACE_FIELD_TERMS.departure : PLACE_FIELD_TERMS.start}>
+            <EndpointField
+              {...fieldCopy.start}
+              value={start}
+              name={startName}
+              onSelect={handleStartChange}
+              isPicking={isPickingStart}
+              onStartPick={handleTogglePickStart}
+            />
+          </LabelledField>
+          <LabelledField label={mode === 'flight' ? PLACE_FIELD_TERMS.arrival : PLACE_FIELD_TERMS.end}>
+            <EndpointField
+              {...fieldCopy.end}
+              value={end}
+              name={endName}
+              onSelect={handleEndChange}
+              isPicking={isPickingEnd}
+              onStartPick={handleTogglePickEnd}
+            />
+          </LabelledField>
 
           {!previewRoute && !isPlacedPoint(start) && !isPlacedPoint(end) && (
             <EmptyState

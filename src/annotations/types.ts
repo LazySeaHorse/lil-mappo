@@ -353,7 +353,18 @@ export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> 
 // ─── Inspector Control Definitions ────────────────────────────────────────────
 
 export type ControlDefinition =
-  | { type: 'color'; key: string; label: string }
+  | {
+      type: 'color';
+      key: string;
+      label: string;
+      /**
+       * The style's main highlight color. The inspector shows every accent
+       * control as one "Accent color" row that sets them all, and folds the
+       * other colors away. Leave it off a style with a single color: that
+       * color keeps its own label.
+       */
+      role?: 'accent';
+    }
   | { type: 'slider'; key: string; label: string; min: number; max: number; step: number; unit?: string }
   | { type: 'switch'; key: string; label: string }
   | {

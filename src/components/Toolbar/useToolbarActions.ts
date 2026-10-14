@@ -5,24 +5,32 @@ import { loadFileImport } from '@/lib/lazyModules';
 import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
 import { CloudProjectSizeError } from '@/services/cloudProjectLibrary';
-import { isFreeUser, hasByok } from '@/lib/cloudAccess';
+import { isFreeUser } from '@/lib/cloudAccess';
+import { useGuestLock } from '@/hooks/useGuestLock';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
+import { ITEM_TYPE_LABELS } from '@/lib/terms';
+import { readMapCamera } from '@/engine/readMapCamera';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { track } from '@/lib/analytics';
 import { classifyImportError, importFormatOf, importSourceOf } from '@/lib/analytics/classify';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
 
+const ROUTE_IMPORT_SIGN_IN = 'Sign in to import a route.';
+
 export function useToolbarActions() {
   const mapRef = useMapRef();
-  const { addItem, addCameraKeyframe, selectItem, setTerrainEnabled, setBuildingsEnabled } = useProjectStore(
+  const frame = useFrameOnMap();
+  const { addItem, addCameraKeyframe, selectKeyframe, selectItem, setTerrainEnabled, setBuildingsEnabled } = useProjectStore(
     useShallow(s => ({
       addItem: s.addItem,
       addCameraKeyframe: s.addCameraKeyframe,
+      selectKeyframe: s.selectKeyframe,
       selectItem: s.selectItem,
       setTerrainEnabled: s.setTerrainEnabled,
       setBuildingsEnabled: s.setBuildingsEnabled,
@@ -30,12 +38,18 @@ export function useToolbarActions() {
   );
 
   const { data: subscription } = useSubscription();
-  const { user, requestSignIn } = useAuthStore(useShallow((s) => ({ user: s.user, requestSignIn: s.requestSignIn })));
-  const isLocked = !user && !hasByok();
+  const requestSignIn = useAuthStore((s) => s.requestSignIn);
+  const isLocked = useGuestLock();
+
+  /** Opens the route file picker, or asks a guest to sign in first so they do not pick a file for nothing. */
+  const pickRouteFile = (input: HTMLInputElement | null) => {
+    if (isLocked) requestSignIn(ROUTE_IMPORT_SIGN_IN);
+    else input?.click();
+  };
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {
-      requestSignIn('Sign in to import a route.');
+      requestSignIn(ROUTE_IMPORT_SIGN_IN);
       e.target.value = '';
       return;
     }
@@ -51,6 +65,7 @@ export function useToolbarActions() {
         setTerrainEnabled(false);
         setBuildingsEnabled(false);
         selectItem(item.id);
+        frame.frameGeometry(geojson);
         const pointCount = extractLineCoords(geojson).length;
         reportRouteAdded(importSourceOf(file.name), pointCount);
         toast.success(`Imported "${name}" (${pointCount} points)`);
@@ -60,7 +75,7 @@ export function useToolbarActions() {
       }
     }
     e.target.value = '';
-  }, [addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn]);
+  }, [addItem, selectItem, setTerrainEnabled, setBuildingsEnabled, isLocked, requestSignIn, frame]);
 
   const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLocked) {
@@ -137,26 +152,18 @@ export function useToolbarActions() {
 
   const handleAddCameraKF = () => {
     const playheadTime = useProjectStore.getState().playheadTime;
-    const map = mapRef.current?.getMap?.();
-    let center: [number, number] = [0, 20];
-    let zoom = 2;
-    let pitch = 0;
-    let bearing = 0;
+    const view = readMapCamera(mapRef.current?.getMap?.());
 
-    if (map) {
-      const c = map.getCenter();
-      center = [c.lng, c.lat];
-      zoom = map.getZoom();
-      pitch = map.getPitch();
-      bearing = map.getBearing();
-    }
-
-    addCameraKeyframe(createCameraKeyframe({ time: playheadTime, center, zoom, pitch, bearing }));
+    const keyframe = createCameraKeyframe({ time: playheadTime, ...view });
+    addCameraKeyframe(keyframe);
+    // Opens the inspector on the new view (a bottom drawer on a phone).
+    selectKeyframe(keyframe.id);
     track('keyframe_added', { source: 'toolbar' });
-    toast.success(`Camera keyframe added at ${playheadTime.toFixed(1)}s`);
+    toast.success(`${ITEM_TYPE_LABELS['camera-kf']} added at ${playheadTime.toFixed(1)}s`);
   };
 
   return {
+    pickRouteFile,
     handleImport,
     handleImportProject,
     handleExportProject,

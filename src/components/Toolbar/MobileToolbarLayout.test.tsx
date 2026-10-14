@@ -1,6 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MobileToolbarLayout } from './MobileToolbarLayout';
+import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
+import { createWalkthroughState } from '@/components/Onboarding/walkthroughState';
 
 vi.mock('react-secure-storage', () => ({
   default: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn() },
@@ -31,7 +33,6 @@ const props = {
   isScrubbing: false,
   handleAddCameraKF: vi.fn(),
   onProjectSettings: vi.fn(),
-  onMapStyleOpenChange: vi.fn(),
 };
 
 describe('MobileToolbarLayout AI button', () => {
@@ -45,3 +46,17 @@ describe('MobileToolbarLayout AI button', () => {
     expect(screen.queryByText('AI')).toBeNull();
   });
 });
+
+describe('MobileToolbarLayout Add menu', () => {
+  it('opens the Add menu and tells the quick tour', () => {
+    const setMobileMode = vi.fn();
+    useWalkthroughStore.setState({ walkthrough: { ...createWalkthroughState(true, 0), stage: 'open-add-menu' } });
+    render(<MobileToolbarLayout {...props} setMobileMode={setMobileMode} />);
+
+    fireEvent.click(screen.getByTitle('Add New Track'));
+
+    expect(setMobileMode).toHaveBeenCalledWith('add');
+    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('route');
+  });
+});
+

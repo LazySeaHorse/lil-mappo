@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import { DEFAULT_VIEW_ZOOM } from '@/annotations/migration';
+import { carrySettings } from '@/annotations/carrySettings';
 import { getStyle } from '@/annotations/registry';
 import type { AnnotationStyleDefinition } from '@/annotations/types';
 import { buildWalkGeometry, createWalkCalculation } from '@/engine/routeCurves';
@@ -50,8 +51,6 @@ export function createDefaultRouteStyle(preset: RouteStylePreset): RouteStyle {
       width: 4,
       glow: false,
       glowWidth: 12,
-      trailFade: false,
-      trailFadeLength: 0.3,
       dashPattern: null,
       animationType: 'draw',
       cometTrailLength: 0.2,
@@ -63,8 +62,6 @@ export function createDefaultRouteStyle(preset: RouteStylePreset): RouteStyle {
     width: 4,
     glow: true,
     glowWidth: 12,
-    trailFade: false,
-    trailFadeLength: 0.3,
     dashPattern: null,
     animationType: 'draw',
     cometTrailLength: 0.2,
@@ -93,6 +90,9 @@ export interface EndpointRouteInput {
   geojson: GeoJSON.FeatureCollection;
   start: [number, number];
   end: [number, number];
+  /** Place names of the endpoints, when known. */
+  startName?: string;
+  endName?: string;
   name: string;
   startTime: number;
   endTime?: number;
@@ -113,6 +113,8 @@ export function createEndpointRouteItem(input: EndpointRouteInput): RouteItem {
       mode: input.mode,
       startPoint: input.start,
       endPoint: input.end,
+      startName: input.startName ?? '',
+      endName: input.endName ?? '',
       vehicle: createDefaultVehicle(input.mode),
     },
     easing: 'easeInOutQuad',
@@ -209,6 +211,8 @@ export interface CalloutInput {
   startTime: number;
   endTime?: number;
   linkTitleToLocation?: boolean;
+  /** Name of the place at `lngLat`, when known. */
+  locationName?: string;
   /** Map zoom that size-with-map callouts are sized at. */
   referenceZoom?: number;
   id?: string;
@@ -248,6 +252,30 @@ export function createCalloutStyleDefaults(style: AnnotationStyleDefinition): Pi
   };
 }
 
+/**
+ * The patch that moves a callout onto another style, or null when the style is
+ * not registered or is the one the callout already has. Each style is designed
+ * around its own placement and motion, so the callout takes the new style's
+ * defaults for offset, anchor, transition and connector. Settings are the
+ * exception: a setting that the new style also has (same key, same control
+ * type) keeps its value, fitted to the new control (`carrySettings`). Size,
+ * timing, content and the map point stay. This is the one place that rule
+ * lives: the inspector and the AI edit tool both call it.
+ */
+export function switchCalloutStyle(item: CalloutItem, newStyleId: string): Partial<CalloutItem> | null {
+  const style = getStyle(newStyleId);
+  if (!style || newStyleId === item.styleId) return null;
+  const { altitude, ...defaults } = createCalloutStyleDefaults(style);
+  const patch: Partial<CalloutItem> = {
+    ...defaults,
+    settings: carrySettings(getStyle(item.styleId), item.settings, style),
+  };
+  if (item.binding.kind === 'geographic') {
+    patch.binding = { ...item.binding, altitude };
+  }
+  return patch;
+}
+
 /** Returns null when the style is not registered. */
 export function createCalloutItem(input: CalloutInput): CalloutItem | null {
   const style = getStyle(input.styleId);
@@ -265,6 +293,7 @@ export function createCalloutItem(input: CalloutInput): CalloutItem | null {
     sizeMode: 'screen',
     referenceZoom: input.referenceZoom ?? DEFAULT_VIEW_ZOOM,
     linkTitleToLocation: input.linkTitleToLocation ?? true,
+    locationName: input.locationName ?? '',
     ...defaults,
   };
 }

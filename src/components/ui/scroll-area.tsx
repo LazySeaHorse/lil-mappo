@@ -8,8 +8,17 @@ import { cn } from "@/lib/utils";
 function ScrollArea({
   className,
   children,
+  verticalOnly = false,
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
+  /**
+   * Radix wraps the content in a `display: table` box that grows to its
+   * widest line, so `truncate` text widens the content and the edges get cut
+   * off. Set this when the area only scrolls up and down: the content then
+   * keeps the viewport's width and long text truncates.
+   */
+  verticalOnly?: boolean;
+}) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -18,7 +27,10 @@ function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+        className={cn(
+          "focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1",
+          verticalOnly && "[&>div]:!block",
+        )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

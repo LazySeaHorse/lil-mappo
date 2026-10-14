@@ -1,4 +1,5 @@
 import { truncateCoordinates } from '@/engine/geoUtils';
+import { toViewbox, type SearchBBox } from '@/services/locationSearch';
 
 /** Search results keep the raw outline; the chosen detail level is applied when a boundary is added (see boundaryDetail). */
 export interface NominatimResult {
@@ -27,8 +28,10 @@ export function parseCountryCode(extratags: Record<string, string> | null | unde
   return /^[a-z]{2}$/.test(code) ? code : null;
 }
 
-export async function searchBoundary(query: string, signal?: AbortSignal): Promise<NominatimResult[]> {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=geojson&polygon_geojson=1&extratags=1&limit=5`;
+/** `view` (the visible map) only ranks nearer places first; `bounded=0` keeps results elsewhere. */
+export async function searchBoundary(query: string, signal?: AbortSignal, view?: SearchBBox | null): Promise<NominatimResult[]> {
+  const bias = view ? `&viewbox=${toViewbox(view)}&bounded=0` : '';
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=geojson&polygon_geojson=1&extratags=1&limit=5${bias}`;
   const res = await fetch(url, {
     signal,
     headers: { 'User-Agent': 'MapStudio/1.0' },

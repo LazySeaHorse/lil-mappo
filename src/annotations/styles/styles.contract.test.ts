@@ -93,6 +93,17 @@ describe('registered styles', () => {
       }
     });
 
+    it('marks accent colors on color controls only, and at least one when the style has several colors', () => {
+      const colors = style.controls.filter((c) => c.type === 'color');
+      for (const control of style.controls) {
+        if ('role' in control && control.role !== undefined) {
+          expect(control.type, `control "${control.key}"`).toBe('color');
+          expect(control.role).toBe('accent');
+        }
+      }
+      if (colors.length > 1) expect(colors.some((c) => 'role' in c && c.role === 'accent')).toBe(true);
+    });
+
     it('renders and measures every phase without throwing', () => {
       for (const [phase, progress] of [['enter', 0], ['enter', 0.5], ['enter', 1], ['visible', 1], ['exit', 0.5], ['exit', 1]] as const) {
         const input = inputFor(style, { phase, phaseProgress: progress });

@@ -65,8 +65,6 @@ const route: RouteItem = {
     width: 4,
     glow: true,
     glowWidth: 18,
-    trailFade: false,
-    trailFadeLength: 0.3,
     dashPattern: null,
     animationType: 'draw', cometTrailLength: 0.2,
   },
@@ -75,6 +73,8 @@ const route: RouteItem = {
     mode: 'flight',
     startPoint: [0, 0],
     endPoint: [1, 1],
+    startName: '',
+    endName: '',
   },
 };
 

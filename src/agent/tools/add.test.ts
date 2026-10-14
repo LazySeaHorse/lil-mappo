@@ -64,6 +64,7 @@ describe('add tools', () => {
 
     const route = state().items[body.created.id];
     expect(route).toMatchObject({ kind: 'route', startTime: 2, endTime: 8, style: { color: '#ff0000', glow: true } });
+    expect(route.kind === 'route' && route.calculation).toMatchObject({ startName: 'Lisbon', endName: 'Porto' });
     expect(state().itemOrder).toContain(body.created.id);
 
     expect(steps()).toBe(1);
@@ -81,7 +82,7 @@ describe('add tools', () => {
     const result = await runAgentTool('add_route', { mode: 'flight', from: [-9.14, 38.72], to: [2.35, 48.85] });
     const { created } = resultJson<{ created: { id: string } }>(result);
     const route = state().items[created.id];
-    expect(route.kind === 'route' && route.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' } });
+    expect(route.kind === 'route' && route.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' }, startName: '', endName: '' });
     expect(route.kind === 'route' && route.endTime).toBe(5);
     expect(route.kind === 'route' && route.exitAnimation).toBe('none');
     expect(steps()).toBe(1);
@@ -184,6 +185,7 @@ describe('add tools', () => {
       content: { title: 'Hello', subtitle: 'World' },
       binding: { kind: 'geographic', lngLat: [-9.14, 38.72], altitude: 0 },
       linkTitleToLocation: false,
+      locationName: 'Lisbon',
     });
     expect(steps()).toBe(1);
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add callout "Hello"' });

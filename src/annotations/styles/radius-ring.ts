@@ -188,8 +188,8 @@ export const radiusRingStyle: AnnotationStyleDefinition<RadiusRingSettings> = {
   },
   controls: [
     { type: 'slider', key: 'radius', label: 'Radius', min: 30, max: 200, step: 5, unit: 'px' },
-    { type: 'color', key: 'ringColor', label: 'Ring color' },
-    { type: 'color', key: 'accentColor', label: 'Dot color' },
+    { type: 'color', key: 'accentColor', label: 'Dot color', role: 'accent' },
+    { type: 'color', key: 'ringColor', label: 'Ring color', role: 'accent' },
     { type: 'switch', key: 'dashed', label: 'Dashed' },
     { type: 'switch', key: 'fill', label: 'Faint fill' },
     HALO_CONTROL,

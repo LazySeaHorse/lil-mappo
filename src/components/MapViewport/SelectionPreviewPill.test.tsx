@@ -48,6 +48,15 @@ describe('SelectionPreviewPill', () => {
     expect(parseInt(wrapper().style.right)).toBeGreaterThan(parseInt(closed));
   });
 
+  it('hides while playing and comes back once stopped', () => {
+    render(<SelectionPreviewPill />);
+    act(() => useProjectStore.getState().selectItem('r'));
+    act(() => useProjectStore.getState().setIsPlaying(true));
+    expect(screen.queryByTestId('selection-preview-pill')).toBeNull();
+    act(() => useProjectStore.getState().setIsPlaying(false));
+    expect(screen.getByTestId('selection-preview-pill')).toBeInTheDocument();
+  });
+
   it('hides in present mode', () => {
     render(<SelectionPreviewPill />);
     act(() => useProjectStore.getState().selectItem('r'));

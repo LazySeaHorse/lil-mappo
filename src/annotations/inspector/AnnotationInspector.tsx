@@ -12,31 +12,49 @@ import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import type { CalloutItem } from '@/store/types';
 import { Button } from "@/components/ui/button";
-import { Accordion } from "@/components/ui/accordion";
 import { Check, Crosshair, MapPin } from 'lucide-react';
 import { SearchField } from '@/components/Search/SearchField';
 import {
-  EditableTitle,
   SliderRow,
   ColorRow,
   SwitchRow,
   SelectRow,
-  TimingControls,
   CoordinatesRows,
 } from '@/components/Inspector/InspectorShared';
-import { PanelWrapper, InspectorSection, ItemActions } from '@/components/Inspector/InspectorLayout';
+import { PanelWrapper } from '@/components/Inspector/InspectorLayout';
+import { InspectorSection } from '@/components/Inspector/InspectorSection';
+import { Disclosure } from '@/components/Inspector/controls/Disclosure';
+import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
+import { TimingSection } from '@/components/Inspector/timing/TimingSection';
+import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
-import { createCalloutStyleDefaults } from '@/store/itemFactories';
-import { ENTER_TRANSITIONS, EXIT_TRANSITIONS, TRANSITION_LABELS } from '@/annotations/animation';
+import { switchCalloutStyle } from '@/store/itemFactories';
+import { placeLabel } from '@/engine/routeMode';
+import { CALLOUT_LOCATION_TERMS, STYLE_TERMS } from '@/lib/terms';
+import { undo } from '@/store/history';
 import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
 import { SizeControls } from './SizeControls';
 
-/** Picker options for a transition list, keeping an unrecognised saved value selectable. */
-function transitionOptions(names: readonly string[], current: string) {
-  const all = names.includes(current) ? names : [...names, current];
-  return all.map((value) => ({ value, label: TRANSITION_LABELS[value] ?? value }));
+/**
+ * The patch that moves a callout to a point. A name says which place it is; no
+ * name (typed or edited coordinates, a pick with no place) clears the old one,
+ * so the stored name never describes another place. A title that follows the
+ * place name follows a real name; with no name it keeps its text and stops
+ * following.
+ */
+function movePatch(item: CalloutItem, lngLat: [number, number], name: string): Partial<CalloutItem> {
+  const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
+  const patch: Partial<CalloutItem> = {
+    binding: { kind: 'geographic', lngLat, altitude },
+    locationName: name,
+  };
+  if (item.linkTitleToLocation) {
+    if (name) patch.content = { ...item.content, title: name };
+    else patch.linkTitleToLocation = false;
+  }
+  return patch;
 }
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
@@ -55,23 +73,13 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       // Read the latest item: it may have been edited since picking started.
       const current = useProjectStore.getState().items[item.id];
       if (current?.kind !== 'callout') return;
-      const patch: Partial<CalloutItem> = {
-        binding: {
-          kind: 'geographic',
-          lngLat: result.lngLat,
-          altitude: current.binding.kind === 'geographic' ? current.binding.altitude : 0,
-        },
-      };
-      if (current.linkTitleToLocation) {
-        patch.content = { ...current.content, title: result.name };
-      }
-      updateItem(item.id, patch);
+      updateItem(item.id, movePatch(current, result.lngLat, result.name));
     },
   });
 
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates);
-  const updateSettings = (key: string, value: unknown) => {
-    u({ settings: { ...item.settings, [key]: value } });
+  const updateSettings = (changes: Record<string, unknown>) => {
+    u({ settings: { ...item.settings, ...changes } });
   };
 
   const style = getStyle(item.styleId);
@@ -79,205 +87,135 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const lngLat = item.binding.kind === 'geographic' ? item.binding.lngLat : [0, 0] as [number, number];
   const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
 
-  const footer = <ItemActions id={item.id} kind="callout" customLabel="Delete Callout" />;
-
   return (
     <PanelWrapper
       title="Callout"
       icon={<MapPin size={15} />}
-      footer={footer}
+      header={
+        <InspectorHeader
+          kind="callout"
+          id={item.id}
+          name={item.content.title}
+          onRename={(v) => u({ content: { ...item.content, title: v }, linkTitleToLocation: false })}
+          placeholder="Callout title"
+          startTime={item.startTime}
+        />
+      }
     >
-      <EditableTitle
-        value={item.content.title}
-        onChange={(v) => u({ content: { ...item.content, title: v }, linkTitleToLocation: false })}
-        placeholder="Callout title"
-      />
 
-      <Accordion type="multiple" defaultValue={['style', 'location', 'appearance', 'size', 'connector', 'position', 'animation', 'timing']} className="w-full">
+      <InspectorSection kind="callout" id="style">
+        <StylePicker
+          value={item.styleId}
+          title={item.content.title}
+          onChange={(newStyleId) => {
+            const patch = switchCalloutStyle(item, newStyleId);
+            if (!patch) return;
+            u(patch);
+            toast(STYLE_TERMS.changed, { action: { label: STYLE_TERMS.undo, onClick: () => { undo(); } } });
+          }}
+        />
+      </InspectorSection>
 
-        <InspectorSection value="style" title="Style">
-          <StylePicker
-            value={item.styleId}
-            onChange={(newStyleId) => {
-              const newStyle = getStyle(newStyleId);
-              if (!newStyle) return;
-              // Each style is designed around its own placement and motion, so a
-              // new style starts from its own defaults.
-              const { altitude: defaultAltitude, ...defaults } = createCalloutStyleDefaults(newStyle);
-              const patch: Partial<CalloutItem> = { ...defaults };
-              if (item.binding.kind === 'geographic') {
-                patch.binding = { ...item.binding, altitude: defaultAltitude };
-              }
-              u(patch);
-            }}
+      <InspectorSection kind="callout" id="location">
+        <SearchField
+          label={CALLOUT_LOCATION_TERMS.search}
+          value={lngLat as [number, number]}
+          name={placeLabel(item.locationName, lngLat as [number, number])}
+          onSelect={(coords, name) => {
+            u(movePatch(item, coords, name));
+            toast.success(CALLOUT_LOCATION_TERMS.updated);
+          }}
+          parseCoordinates
+          isPicking={isPicking}
+          onStartPick={handleTogglePick}
+          className="px-0"
+        />
+
+        <Button
+          type="button"
+          onClick={() => setMoveModeActive(!isMoveModeActive)}
+          variant={isMoveModeActive ? 'default' : 'outline'}
+          className="w-full h-9 rounded-lg text-xs font-medium flex items-center justify-center gap-2"
+        >
+          {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
+          <span>{isMoveModeActive ? CALLOUT_LOCATION_TERMS.doneDragging : CALLOUT_LOCATION_TERMS.dragOnMap}</span>
+        </Button>
+
+        {supportsAltitude && (
+          <SliderRow
+            label={CALLOUT_LOCATION_TERMS.heightAboveMap}
+            hint={CALLOUT_LOCATION_TERMS.heightHint}
+            value={altitude}
+            onChange={(v) => u({
+              binding: item.binding.kind === 'geographic'
+                ? { ...item.binding, altitude: v }
+                : item.binding,
+            })}
+            min={0}
+            max={150}
+            step={2}
+            unit="px"
+          />
+        )}
+
+        <Disclosure label={CALLOUT_LOCATION_TERMS.exactPosition}>
+          <CoordinatesRows
+            lngLat={lngLat as [number, number]}
+            onChange={(coords) => u(movePatch(item, coords, ''))}
+          />
+        </Disclosure>
+      </InspectorSection>
+
+      <InspectorSection kind="callout" id="content">
+        <SwitchRow
+          label={CALLOUT_LOCATION_TERMS.linkTitle}
+          checked={item.linkTitleToLocation}
+          onChange={(v) => u({ linkTitleToLocation: v })}
+        />
+
+        <ContentFields
+          content={item.content}
+          slots={style?.contentSlots ?? []}
+          eyebrowFallback={style?.eyebrowFallback}
+          onChange={(content) => u({ content })}
+        />
+      </InspectorSection>
+
+      {style && style.controls.length > 0 && (
+        <InspectorSection kind="callout" id="appearance">
+          <DynamicControls
+            controls={style.controls}
+            settings={item.settings}
+            onUpdate={updateSettings}
           />
         </InspectorSection>
+      )}
 
-        <InspectorSection value="location" title="Location and content">
+      <InspectorSection kind="callout" id="size">
+        <SizeControls item={item} onChange={u} />
+      </InspectorSection>
+
+      {supportsAltitude && !style?.drawsConnector && (
+        <InspectorSection kind="callout" id="connector">
           <div className="flex flex-col gap-2.5">
-            <SearchField
-              label="Search for a place or enter coordinates"
-              value={lngLat as [number, number]}
-              name=""
-              onSelect={(coords, name) => {
-                const patch: Partial<CalloutItem> = {
-                  binding: {
-                    kind: 'geographic',
-                    lngLat: coords,
-                    altitude,
-                  },
-                };
-                if (item.linkTitleToLocation) {
-                  patch.content = { ...item.content, title: name };
-                }
-                u(patch);
-                toast.success('Callout location updated.');
-              }}
-              isPicking={isPicking}
-              onStartPick={handleTogglePick}
-              showDot={false}
-              className="px-0"
-              color={item.linkTitleToLocation
-                ? "bg-primary/10 text-primary border-primary/20"
-                : "bg-secondary/50 text-muted-foreground border-border/50"
-              }
-            />
-
             <SwitchRow
-              label="Use place name as title"
-              checked={item.linkTitleToLocation}
-              onChange={(v) => u({ linkTitleToLocation: v })}
+              label="Show anchor line"
+              checked={item.connector.visible}
+              onChange={(v) => u({ connector: { ...item.connector, visible: v } })}
             />
-
-            <ContentFields
-              content={item.content}
-              slots={style?.contentSlots ?? []}
-              eyebrowFallback={style?.eyebrowFallback}
-              onChange={(content) => u({ content })}
-            />
-          </div>
-        </InspectorSection>
-
-        {style && style.controls.length > 0 && (
-          <InspectorSection value="appearance" title="Appearance">
-            <DynamicControls
-              controls={style.controls}
-              settings={item.settings}
-              onUpdate={updateSettings}
-            />
-          </InspectorSection>
-        )}
-
-        <InspectorSection value="size" title="Size">
-          <SizeControls item={item} onChange={u} />
-        </InspectorSection>
-
-        {supportsAltitude && !style?.drawsConnector && (
-          <InspectorSection value="connector" title="Anchor line">
-            <div className="flex flex-col gap-2.5">
-              <SwitchRow
-                label="Show anchor line"
-                checked={item.connector.visible}
-                onChange={(v) => u({ connector: { ...item.connector, visible: v } })}
-              />
-              {item.connector.visible && (
-                <ColorRow
-                  label="Line color"
-                  value={item.connector.color}
-                  onChange={(v) => u({ connector: { ...item.connector, color: v } })}
-                />
-              )}
-            </div>
-          </InspectorSection>
-        )}
-
-        <InspectorSection value="position" title="Position">
-          <div className="flex flex-col gap-3.5 pt-0.5">
-            <Button
-              type="button"
-              onClick={() => setMoveModeActive(!isMoveModeActive)}
-              variant={isMoveModeActive ? "default" : "outline"}
-              className="w-full h-11 py-2.5 px-4 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow"
-            >
-              {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
-              <span>{isMoveModeActive ? 'Finish positioning' : 'Position on map'}</span>
-            </Button>
-
-            {supportsAltitude && (
-              <SliderRow
-                label="Altitude"
-                value={altitude}
-                onChange={(v) => u({
-                  binding: item.binding.kind === 'geographic'
-                    ? { ...item.binding, altitude: v }
-                    : item.binding,
-                })}
-                min={0}
-                max={150}
-                step={2}
-                unit="px"
+            {item.connector.visible && (
+              <ColorRow
+                label="Line color"
+                value={item.connector.color}
+                onChange={(v) => u({ connector: { ...item.connector, color: v } })}
               />
             )}
-
-            <CoordinatesRows
-              lngLat={lngLat as [number, number]}
-              onChange={(coords) => u({
-                binding: {
-                  kind: 'geographic',
-                  lngLat: coords,
-                  altitude,
-                },
-                linkTitleToLocation: false,
-              })}
-              className="pt-1"
-            />
           </div>
         </InspectorSection>
+      )}
 
-        <InspectorSection value="animation" title="Animation">
-          <div className="flex flex-col gap-3.5">
-            <SelectRow
-              label="Enter"
-              value={item.transition.enter}
-              onChange={(enter) => u({ transition: { ...item.transition, enter } })}
-              options={transitionOptions(ENTER_TRANSITIONS, item.transition.enter)}
-            />
-            <SliderRow
-              label="Enter duration"
-              value={item.transition.enterDuration}
-              onChange={(enterDuration) => u({ transition: { ...item.transition, enterDuration } })}
-              min={0}
-              max={3}
-              step={0.1}
-              unit="s"
-            />
-            <SelectRow
-              label="Exit"
-              value={item.transition.exit}
-              onChange={(exit) => u({ transition: { ...item.transition, exit } })}
-              options={transitionOptions(EXIT_TRANSITIONS, item.transition.exit)}
-            />
-            <SliderRow
-              label="Exit duration"
-              value={item.transition.exitDuration}
-              onChange={(exitDuration) => u({ transition: { ...item.transition, exitDuration } })}
-              min={0}
-              max={3}
-              step={0.1}
-              unit="s"
-            />
-          </div>
-        </InspectorSection>
+      <TimingSection adapter={calloutTiming} item={item} onChange={u} />
 
-        <InspectorSection value="timing" title="Timing">
-          <TimingControls
-            startTime={item.startTime}
-            endTime={item.endTime}
-            onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
-          />
-        </InspectorSection>
-
-      </Accordion>
     </PanelWrapper>
   );
 }

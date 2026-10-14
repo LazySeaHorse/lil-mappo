@@ -87,6 +87,25 @@ describe('ExportModal Sub-components', () => {
       expect(screen.queryByRole('button', { name: /I'd like this/ })).toBeNull();
     });
 
+    it('tells guests to sign in before they click, and still hands the click to onExport', () => {
+      const onExport = vi.fn();
+      render(
+        <ExportModalFooter
+          isExporting={false}
+          cloudSubmitted={false}
+          progress={0}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
+          requiresSignIn
+          onExport={onExport}
+          onCancel={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /Export locally/i })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in to export' }));
+      expect(onExport).toHaveBeenCalledTimes(1);
+    });
+
     it('disables export button when local export is unsupported', () => {
       render(
         <ExportModalFooter
@@ -133,6 +152,51 @@ describe('ExportModal Sub-components', () => {
       const upgradeBtn = screen.getByText(/higher limits/);
       fireEvent.click(upgradeBtn);
       expect(onOpenUpgrade).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells guests that exporting needs an account, and that it is free', () => {
+      render(
+        <ExportStatusAlerts
+          limits={freeLimits}
+          requiresSignIn
+          isExporting={false}
+          exportDuration={15}
+          effectiveWidth={1280}
+          effectiveHeight={720}
+          effectiveFps={30}
+          totalFrames={450}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
+          phase="capture"
+          progress={0}
+          error={null}
+          cloudSubmitted={false}
+          onOpenUpgrade={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('You need an account to export video. Signing in is free.')).toBeDefined();
+    });
+
+    it('does not show the sign-in note to signed-in users', () => {
+      render(
+        <ExportStatusAlerts
+          limits={freeLimits}
+          isExporting={false}
+          exportDuration={15}
+          effectiveWidth={1280}
+          effectiveHeight={720}
+          effectiveFps={30}
+          totalFrames={450}
+          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
+          phase="capture"
+          progress={0}
+          error={null}
+          cloudSubmitted={false}
+          onOpenUpgrade={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByText(/You need an account/)).toBeNull();
     });
 
     it('renders keep tab open warning and progress bar during export', () => {

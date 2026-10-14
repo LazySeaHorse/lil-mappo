@@ -80,7 +80,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
     weight: 5,
     execute: async (page, _rng, recorder) => {
       recorder.record('timeline', 'Add Camera Keyframe');
-      const kfBtn = page.getByTitle('Camera Keyframe', { exact: true });
+      const kfBtn = page.getByTitle('Add camera view', { exact: true });
       if (await kfBtn.isVisible().catch(() => false)) {
         await safeClick(kfBtn);
       }
@@ -162,7 +162,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
   },
   {
     category: 'canvas',
-    name: 'Click Canvas Point (Pick on Map)',
+    name: 'Click Canvas Point (Pick on the map)',
     weight: 5,
     execute: async (page, rng, recorder) => {
       const canvas = page.locator('.mapboxgl-canvas');
@@ -198,7 +198,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
           const mode = rng.pick(['Flight', 'Car', 'Walk']);
           await safeClick(routeDropdown.getByRole('radio', { name: mode }));
         } else if (subAction === 'pickMap') {
-          const pickButtons = await routeDropdown.getByTitle('Pick on Map').all().catch(() => []);
+          const pickButtons = await routeDropdown.getByTitle('Pick on the map').all().catch(() => []);
           if (pickButtons.length > 0) {
             await safeClick(rng.pick(pickButtons));
           }
@@ -236,7 +236,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
             await safeFill(titleInput, rng.fuzzyString());
           }
         } else if (subAction === 'pickMap') {
-          const pickBtn = calloutDropdown.getByTitle('Pick on Map');
+          const pickBtn = calloutDropdown.getByTitle('Pick on the map');
           await safeClick(pickBtn);
         } else if (subAction === 'submit') {
           const submitBtn = calloutDropdown.getByRole('button', { name: 'Create callout' });

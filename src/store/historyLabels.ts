@@ -44,14 +44,14 @@ const SETTING_LABELS: Partial<Record<TrackedKey, string>> = {
 function describeCameraChange(before: CameraItem, after: CameraItem): string {
   const b = before.keyframes;
   const a = after.keyframes;
-  if (a.length > b.length) return 'Added camera keyframe';
-  if (a.length < b.length) return 'Deleted camera keyframe';
+  if (a.length > b.length) return 'Added camera view';
+  if (a.length < b.length) return 'Deleted camera view';
   const changed = a.filter((kf, i) => kf !== b[i]);
   if (changed.length === 1) {
     const prev = b.find((k) => k.id === changed[0].id);
-    if (prev && prev.time !== changed[0].time && JSON.stringify(prev.camera) === JSON.stringify(changed[0].camera)) return 'Moved camera keyframe';
+    if (prev && prev.time !== changed[0].time && JSON.stringify(prev.camera) === JSON.stringify(changed[0].camera)) return 'Moved camera view';
   }
-  return 'Edited camera keyframe';
+  return 'Edited camera view';
 }
 
 function describeItemsChange(before: TrackedState, after: TrackedState): string | null {

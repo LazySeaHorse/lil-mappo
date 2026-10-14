@@ -1,42 +1,29 @@
 import { useAuthStore } from '@/store/useAuthStore';
-import { extractLineCoords } from '@/engine/geoUtils';
+import { convertRouteCalculation } from '@/engine/routeMode';
 import React from 'react';
 import { toast } from 'sonner';
-import { useProjectStore, isRouteItem } from '@/store/useProjectStore';
+import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
-import { autoCamForRoute, defaultAutoCamFor, vehicleChangePatch } from '@/config/vehicles';
-import { RoutePlanner } from './RoutePlanner';
-import { Accordion } from "@/components/ui/accordion";
+import { vehicleChangePatch } from '@/config/vehicles';
+import { RoutePathSection } from './RoutePathSection';
 import { useSubscription } from '@/hooks/useSubscription';
 import { isWanderer } from '@/lib/cloudAccess';
-import { 
-  EditableTitle, 
-  SliderRow, 
-  ColorRow, 
-  SwitchRow, 
-  TimingControls, 
-  VisualCardSelect,
-  type VisualCardOption,
-} from './InspectorShared';
-import { formatMultiplier } from './inspectorValues';
-import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
+import { RouteCameraSection } from './RouteCameraSection';
+import { InspectorSection } from './InspectorSection';
+import { RouteLineSection } from './RouteLineSection';
+import { RouteAnimationSection } from './RouteAnimationSection';
+import { RouteMarkerSection } from './RouteMarkerSection';
+import { PanelWrapper } from './InspectorLayout';
+import { InspectorHeader } from './InspectorHeader';
+import { FOLLOW_CAMERA_BLOCKED } from '@/lib/terms';
+import { TimingSection } from './timing/TimingSection';
+import { routeTiming } from './timing/timingAdapters';
 import { track } from '@/lib/analytics';
-import { 
-  Navigation, 
-  Clapperboard, 
-  CircleDot, 
-  Flame, 
-  Spline, 
-  Car, 
-  Plane, 
-  Circle 
-} from 'lucide-react';
-
-type RouteLineStyle = 'solid' | 'dashed' | 'dotted';
-type RouteAnimationType = RouteItem['style']['animationType'];
+import { Navigation } from 'lucide-react';
 
 export function RouteInspector({ item }: { item: RouteItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
+  const setFollowCamera = useProjectStore((s) => s.setFollowCamera);
   const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const { data: sub } = useSubscription();
   const isPro = isWanderer(sub);
@@ -44,11 +31,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   const u = (patch: Partial<RouteItem>) => updateItem(item.id, patch);
   const us = (patch: Partial<RouteItem['style']>) => u({ style: { ...item.style, ...patch } });
 
-  const calc = item.calculation || {
-    mode: 'car' as const,
-    startPoint: [0, 0] as [number, number],
-    endPoint: [0, 0] as [number, number],
-  };
+  const calc: NonNullable<RouteItem['calculation']> = item.calculation || convertRouteCalculation(undefined, 'car');
 
   const updateVehicle = (patch: Partial<NonNullable<RouteItem['calculation']>['vehicle']>) => {
     const currentVehicle = calc.vehicle || {
@@ -61,255 +44,46 @@ export function RouteInspector({ item }: { item: RouteItem }) {
   };
 
   const handleAutoCamToggle = (enabled: boolean) => {
-    if (enabled) {
-      const coordCount = extractLineCoords(item.geojson).length;
-      if (coordCount < 2) {
-        toast.error('Add a route before you enable Auto camera.');
-        return;
-      }
-
-      const allItems = useProjectStore.getState().items;
-      const overlapping = Object.values(allItems).find(
-        (other): other is RouteItem =>
-          isRouteItem(other) &&
-          other.id !== item.id &&
-          Boolean(other.autoCam?.enabled) &&
-          other.startTime < item.endTime &&
-          other.endTime > item.startTime,
-      );
-
-      if (overlapping) {
-        toast.error(`Auto camera is already active for "${overlapping.name}" during this time.`);
-        return;
-      }
-
-      // Turning it back on keeps the settings it had; the first time, it is fitted to the route.
-      u({
-        autoCam: item.autoCam
-          ? { ...defaultAutoCamFor(calc.vehicle?.type), ...item.autoCam, enabled: true }
-          : autoCamForRoute(item),
-      });
-      track('autocam_enabled');
-    } else {
-      u({ autoCam: item.autoCam ? { ...item.autoCam, enabled: false } : undefined });
-    }
+    const result = setFollowCamera(item.id, enabled);
+    if (result.ok === false) toast.error(FOLLOW_CAMERA_BLOCKED(result));
+    else if (enabled) track('autocam_enabled');
   };
-
-  const animType: RouteAnimationType = item.style.animationType;
-  const footer = <ItemActions id={item.id} kind="route" customLabel="Delete Route" />;
-
-  const lineStyleValue: RouteLineStyle =
-    !item.style.dashPattern ? 'solid' :
-    item.style.dashPattern[0] === 2 ? 'dotted' : 'dashed';
-
-  const animOptions = [
-    { value: 'draw', label: 'Draw', icon: <Spline size={13} /> },
-    { value: 'navigation', label: 'Progress', icon: <CircleDot size={13} /> },
-    { value: 'comet', label: 'Moving trail', icon: <Flame size={13} /> },
-  ] as const satisfies readonly VisualCardOption<RouteAnimationType>[];
 
   return (
     <PanelWrapper 
       title="Route" 
       icon={<Navigation size={15} />}
-      footer={footer}
+      header={
+        <InspectorHeader
+          kind="route"
+          id={item.id}
+          name={item.name}
+          onRename={(v) => u({ name: v })}
+          placeholder="Route name"
+          startTime={item.startTime}
+        />
+      }
     >
-      <EditableTitle 
-        value={item.name} 
-        onChange={(v) => u({ name: v })} 
-        placeholder="Route name"
+
+      <InspectorSection kind="route" id="path">
+        <RoutePathSection key={item.id} item={item} />
+      </InspectorSection>
+
+      <RouteLineSection style={item.style} onStyle={us} />
+
+      <RouteAnimationSection style={item.style} onStyle={us} />
+
+      <RouteMarkerSection
+        vehicle={calc.vehicle}
+        isPro={isPro}
+        onChange={updateVehicle}
+        onLockedSelect={() => openUpgradeModal('vehicle_lock')}
       />
 
-      <Accordion type="multiple" defaultValue={['path', 'appearance', 'animation', 'camera']} className="w-full">
-        
-        <InspectorSection value="path" title="Path">
-          <RoutePlanner item={item} />
-        </InspectorSection>
+      <TimingSection adapter={routeTiming} item={item} onChange={u} />
 
-        <InspectorSection value="appearance" title="Appearance">
-          <div className="flex flex-col gap-3">
-            <ColorRow 
-              label="Color" 
-              value={item.style.color} 
-              onChange={(v) => us({ color: v })} 
-            />
+      <RouteCameraSection item={item} onToggle={handleAutoCamToggle} />
 
-            <SliderRow 
-              label="Width" 
-              value={item.style.width} 
-              onChange={(v) => us({ width: v })} 
-              min={1} 
-              max={15} 
-              step={1} 
-              unit="px"
-            />
-
-            <div className="flex flex-col gap-1.5 pt-0.5">
-              <span className="text-xs font-medium text-muted-foreground">Line style</span>
-              <VisualCardSelect
-                options={[
-                  { 
-                    value: 'solid', 
-                    label: 'Solid', 
-                    icon: <div className="w-5 h-[2.5px] bg-current rounded-full my-0.5" /> 
-                  },
-                  { 
-                    value: 'dashed', 
-                    label: 'Dashed', 
-                    icon: <div className="w-5 border-t-[2.5px] border-dashed border-current my-0.5" /> 
-                  },
-                  { 
-                    value: 'dotted', 
-                    label: 'Dotted', 
-                    icon: <div className="w-5 border-t-[2.5px] border-dotted border-current my-0.5" /> 
-                  },
-                ] satisfies readonly VisualCardOption<RouteLineStyle>[]}
-                value={lineStyleValue}
-                onChange={(v) => us({ dashPattern: v === 'dashed' ? [8, 4] : v === 'dotted' ? [2, 4] : null })}
-                columns={3}
-              />
-            </div>
-
-            <SwitchRow 
-              label="Glow" 
-              checked={item.style.glow} 
-              onChange={(v) => us({ glow: v })} 
-            />
-
-            {item.style.glow && (
-              <>
-                <SliderRow
-                  label="Glow width"
-                  value={item.style.glowWidth}
-                  onChange={(v) => us({ glowWidth: v })}
-                  min={2}
-                  max={40}
-                  step={1}
-                  unit="px"
-                />
-              </>
-            )}
-          </div>
-        </InspectorSection>
-
-        <InspectorSection value="animation" title="Animation">
-          <div className="flex flex-col gap-3.5">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Style</span>
-              <VisualCardSelect
-                options={animOptions}
-                value={animType}
-                onChange={(v) => us({ animationType: v })}
-                columns={3}
-              />
-            </div>
-
-            {/* Travel Marker */}
-            <div className="flex flex-col gap-3 pt-1 border-t border-border/30">
-              <SwitchRow
-                label="Route marker"
-                checked={calc.vehicle?.enabled || false}
-                onChange={(v) => updateVehicle({ enabled: v })}
-              />
-
-              {calc.vehicle?.enabled && (
-                <div className="flex flex-col gap-3 pl-0.5">
-                  <div className="flex flex-col gap-1.5 pt-0.5">
-                    <span className="text-xs font-medium text-muted-foreground">Marker type</span>
-                    <VisualCardSelect
-                      options={[
-                        { value: 'dot', label: 'Dot', icon: <Circle size={14} /> },
-                        { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
-                        { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
-                      ]}
-                      value={calc.vehicle?.type || 'dot'}
-                      onChange={(type) => updateVehicle({ type: type as 'dot' | 'car' | 'plane' })}
-                      onLockedSelect={() => openUpgradeModal('vehicle_lock')}
-                      columns={3}
-                    />
-                  </div>
-
-                  <SliderRow 
-                    label="Size" 
-                    value={calc.vehicle?.scale || 1} 
-                    onChange={(v) => updateVehicle({ scale: v })} 
-                    min={0.2} 
-                    max={4} 
-                    step={0.1} 
-                    formatValue={formatMultiplier}
-                  />
-                </div>
-              )}
-            </div>
-
-            {animType === 'comet' && (
-              <SliderRow
-                label="Trail length"
-                value={item.style.cometTrailLength}
-                onChange={(v) => us({ cometTrailLength: v })}
-                min={0.05}
-                max={0.8}
-                step={0.05}
-                formatValue={(v) => v.toFixed(2)}
-              />
-            )}
-
-            {animType === 'draw' && (
-              <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
-                <SwitchRow 
-                  label="Fade trail"
-                  checked={item.style.trailFade} 
-                  onChange={(v) => us({ trailFade: v })} 
-                />
-                {item.style.trailFade && (
-                  <SliderRow 
-                    label="Fade length"
-                    value={item.style.trailFadeLength} 
-                    onChange={(v) => us({ trailFadeLength: v })} 
-                    min={0.05} 
-                    max={1} 
-                    step={0.05} 
-                    formatValue={(v) => v.toFixed(2)}
-                  />
-                )}
-              </div>
-            )}
-
-            <div className="pt-2 border-t border-border/30">
-              <TimingControls
-                startTime={item.startTime}
-                endTime={item.endTime}
-                onChangeTime={(start, end) => u({ startTime: start, endTime: end })}
-                easing={item.easing}
-                onChangeEasing={(v) => u({ easing: v })}
-                exitAnimation={item.exitAnimation}
-                onChangeExitAnimation={(v) => u({ exitAnimation: v })}
-                showExitAnimation={animType === 'draw'}
-              />
-            </div>
-          </div>
-        </InspectorSection>
-
-        <InspectorSection value="camera" title="Camera">
-          <div className="flex flex-col gap-2">
-            <SwitchRow
-              label="Follow route"
-              sublabel="Keeps the route or marker in view during playback."
-              checked={item.autoCam?.enabled ?? false}
-              onChange={handleAutoCamToggle}
-            />
-            {item.autoCam?.enabled && (
-              <div className="mt-1.5 p-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
-                <Clapperboard size={13} className="text-primary shrink-0" />
-                <p className="text-[11px] text-primary font-medium leading-tight">
-                  Select the camera block on the timeline to edit camera settings.
-                </p>
-              </div>
-            )}
-          </div>
-        </InspectorSection>
-
-      </Accordion>
     </PanelWrapper>
   );
 }

@@ -3,6 +3,7 @@ import { getStyle } from '@/annotations/registry';
 import { applyWalkPatch } from '@/engine/routeCurves';
 import { vehicleChangePatch } from '@/config/vehicles';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
+import { switchCalloutStyle } from '@/store/itemFactories';
 import type {
   BoundaryItem,
   CalloutItem,
@@ -64,13 +65,13 @@ const patchSchema = z
       .strictObject({ ...routeStyleShape, ...boundaryStyleShape })
       .partial()
       .describe(
-        'Partial style merged into the existing style (other fields are kept). Route keys: color (also used for the glow and vehicle dot), width, glow, glowWidth, trailFade, trailFadeLength, dashPattern, animationType, cometTrailLength. ' +
+        'Partial style merged into the existing style (other fields are kept). Route keys: color (also used for the glow and vehicle dot), width, glow, glowWidth, dashPattern, animationType, cometTrailLength. ' +
           'Boundary keys: strokeColor, fillColor, strokeWidth, glow, fillOpacity, animateStroke, animationStyle, traceLength, maskOutside (spotlight: paint everything outside the region), maskColor, maskOpacity, fillMode (color | flag: fill the region with a country flag), flagCode (lowercase ISO 3166-1 alpha-2, e.g. "fr"; used when fillMode is flag).',
       ),
     // callout
     content: contentPatchSchema.describe('Callout content fields merged into the existing content. Set an optional slot (subtitle, eyebrow, body, badge, metric) to null to clear it. Images cannot be set by agents.'),
     location: locationSchema.describe('Callout: new [lng, lat] or place name.'),
-    styleId: z.string().max(60).describe('Callout: switch to another style id (settings reset to that style\'s defaults, then `settings` applied).'),
+    styleId: z.string().max(60).describe('Callout: switch to another style id (a setting that the new style also has with the same key and control type keeps its value, fitted to the new range or options; every other setting takes the new style\'s default; then `settings` is applied).'),
     anchor: anchorSchema,
     altitude: z.number().min(0).max(500).describe('Callout: height above the ground point in pixels.'),
     offset: z.tuple([z.number().min(-1000).max(1000), z.number().min(-1000).max(1000)]).describe('Callout: [x, y] pixel nudge from the anchor point.'),
@@ -178,12 +179,14 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
   let settings = item.settings;
 
   if (patch.styleId !== undefined && patch.styleId !== item.styleId) {
-    const next = getStyle(patch.styleId);
-    if (!next) throw new ToolError('unknown_style', `Unknown callout styleId "${patch.styleId}".`);
+    const switched = switchCalloutStyle(item, patch.styleId);
+    if (!switched) throw new ToolError('unknown_style', `Unknown callout styleId "${patch.styleId}".`);
+    // The tool changes the style and its settings only; placement, motion and
+    // connector are separate fields of the patch.
     styleId = patch.styleId;
-    settings = { ...next.defaultSettings } as Record<string, unknown>;
+    settings = switched.settings;
     updates.styleId = styleId;
-    updates.styleVersion = next.version;
+    updates.styleVersion = switched.styleVersion;
   }
   if (patch.settings) {
     settings = parseCalloutSettings(getStyle(styleId)!, styleId, { ...settings, ...patch.settings });
@@ -217,6 +220,7 @@ function buildCalloutUpdates(item: CalloutItem, patch: Patch, place?: { coordina
       lngLat: place ? place.coordinates : item.binding.lngLat,
       altitude: patch.altitude ?? item.binding.altitude,
     };
+    if (patch.location !== undefined) updates.locationName = place?.name ?? '';
   }
   if (patch.anchor) updates.anchor = patch.anchor;
   if (patch.offset) updates.offset = patch.offset as [number, number];

@@ -84,7 +84,7 @@ describe('Map Point Picking Architecture', () => {
         />
       );
 
-      const pickButtons = screen.getAllByTitle(/Pick on Map/i);
+      const pickButtons = screen.getAllByTitle(/Pick on the map/i);
       expect(pickButtons.length).toBeGreaterThanOrEqual(2);
 
       // Click start pick button
@@ -117,7 +117,7 @@ describe('Map Point Picking Architecture', () => {
         />
       );
 
-      const pickButtons = screen.getAllByTitle(/Pick on Map/i);
+      const pickButtons = screen.getAllByTitle(/Pick on the map/i);
       act(() => {
         fireEvent.click(pickButtons[1]); // Pick End point
       });
@@ -140,7 +140,7 @@ describe('Map Point Picking Architecture', () => {
         />
       );
 
-      const pickButton = screen.getByTitle(/Pick on Map/i);
+      const pickButton = screen.getByTitle(/Pick on the map/i);
       act(() => {
         fireEvent.click(pickButton);
       });
@@ -180,6 +180,7 @@ describe('Map Point Picking Architecture', () => {
         referenceZoom: 12,
         settings: {},
         linkTitleToLocation: true,
+        locationName: '',
       };
 
       useProjectStore.setState({
@@ -189,7 +190,7 @@ describe('Map Point Picking Architecture', () => {
 
       const { unmount } = render(<AnnotationInspector item={callout} />);
 
-      const pickButton = screen.getByTitle(/Pick on Map/i);
+      const pickButton = screen.getByTitle(/Pick on the map/i);
       act(() => {
         fireEvent.click(pickButton);
       });

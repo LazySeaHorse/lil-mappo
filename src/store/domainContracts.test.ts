@@ -21,8 +21,6 @@ const routeStyle: RouteStyle = {
   width: 4,
   glow: true,
   glowWidth: 18,
-  trailFade: false,
-  trailFadeLength: 0.3,
   dashPattern: null,
   animationType: 'draw',
   cometTrailLength: 0.2,
@@ -45,7 +43,7 @@ function createRoute(mode: RouteMode): RouteItem {
     endTime: 5,
     style: routeStyle,
     easing: 'linear', exitAnimation: 'none',
-    calculation: convertRouteCalculation({ mode: 'car', startPoint: [0, 0], endPoint: [1, 1] }, mode),
+    calculation: convertRouteCalculation({ mode: 'car', startPoint: [0, 0], endPoint: [1, 1], startName: '', endName: '' }, mode),
   };
 }
 

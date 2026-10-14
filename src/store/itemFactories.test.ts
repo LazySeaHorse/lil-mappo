@@ -7,10 +7,12 @@ import {
   createCalloutItem,
   createCalloutStyleDefaults,
   createCameraKeyframe,
+  createDefaultRouteStyle,
   createEndpointRouteItem,
   createImportedRouteItem,
   createWalkRouteItem,
   defaultEndpointRouteName,
+  switchCalloutStyle,
   wrapGeometry,
 } from './itemFactories';
 
@@ -26,6 +28,31 @@ describe('itemFactories', () => {
     expect(flight.style.color).toBe('#f59e0b');
     expect(flight.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' } });
     expect(defaultEndpointRouteName('car')).toBe('Start to End');
+  });
+
+  it('builds route styles without the retired trail fade keys', () => {
+    for (const preset of ['car', 'flight', 'walk', 'import'] as const) {
+      const style = createDefaultRouteStyle(preset);
+      expect(style).not.toHaveProperty('trailFade');
+      expect(style).not.toHaveProperty('trailFadeLength');
+      expect(style.cometTrailLength).toBe(0.2);
+    }
+  });
+
+  it('stores the place names of the endpoints, and none for unnamed picks', () => {
+    const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
+    const named = createEndpointRouteItem({
+      mode: 'car', geojson: wrapGeometry(line), start: [0, 0], end: [1, 1], name: 'r', startTime: 0,
+      startName: 'Times Square', endName: 'Central Park',
+    });
+    expect(named.calculation).toMatchObject({ startName: 'Times Square', endName: 'Central Park' });
+    const unnamed = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry(line), start: [0, 0], end: [1, 1], name: 'r', startTime: 0 });
+    expect(unnamed.calculation).toMatchObject({ startName: '', endName: '' });
+  });
+
+  it('stores the place name of a callout location', () => {
+    expect(createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0, locationName: 'Central Park' })?.locationName).toBe('Central Park');
+    expect(createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 })?.locationName).toBe('');
   });
 
   it('builds routes and boundaries that stay on screen after their end', () => {
@@ -80,6 +107,53 @@ describe('itemFactories', () => {
     expect(createCalloutItem({ styleId: 'nope', content: { title: '' }, lngLat: [0, 0], startTime: 0 })).toBeNull();
     expect(createCameraKeyframe({ time: 3, center: [1, 2], zoom: 4 })).toMatchObject({
       time: 3, easing: 'easeInOutCubic', followRoute: null, camera: { pitch: 0, bearing: 0, altitude: null },
+    });
+  });
+
+  describe('switchCalloutStyle', () => {
+    const base = () => createCalloutItem({ styleId: 'leader-line', content: { title: 'Hi' }, lngLat: [1, 2], startTime: 0 })!;
+
+    it('takes the new style defaults and keeps the map point, size and content out of the patch', () => {
+      const item = { ...base(), scale: 2, settings: {} };
+      const patch = switchCalloutStyle(item, 'editorial')!;
+      const defaults = createCalloutStyleDefaults(getStyle('editorial')!);
+      expect(patch).toMatchObject({
+        styleId: 'editorial',
+        styleVersion: defaults.styleVersion,
+        settings: defaults.settings,
+        offset: defaults.offset,
+        anchor: defaults.anchor,
+        transition: defaults.transition,
+        connector: defaults.connector,
+      });
+      expect(patch.binding).toEqual({ kind: 'geographic', lngLat: [1, 2], altitude: defaults.altitude });
+      expect(patch).not.toHaveProperty('scale');
+      expect(patch).not.toHaveProperty('content');
+      expect(patch).not.toHaveProperty('startTime');
+    });
+
+    it('keeps settings whose key and control type exist in the new style', () => {
+      const item = { ...base(), settings: { ...base().settings, accentColor: '#123456', textColor: '#abcdef', lineColor: '#654321' } };
+      const patch = switchCalloutStyle(item, 'target-lock')!;
+      const defaults = getStyle('target-lock')!.defaultSettings as Record<string, unknown>;
+      expect(patch.settings).toMatchObject({ accentColor: '#123456', textColor: '#abcdef' });
+      expect(patch.settings).not.toHaveProperty('lineColor');
+      expect(patch.settings!.pulse).toBe(defaults.pulse);
+    });
+
+    it('returns a copy of the defaults, never the style object itself', () => {
+      const patch = switchCalloutStyle(base(), 'editorial')!;
+      expect(patch.settings).not.toBe(getStyle('editorial')!.defaultSettings);
+    });
+
+    it('leaves a screen-pinned callout binding alone', () => {
+      const item = { ...base(), binding: { kind: 'screen' as const, position: [0.5, 0.5] as [number, number] } };
+      expect(switchCalloutStyle(item, 'editorial')).not.toHaveProperty('binding');
+    });
+
+    it('returns null for an unknown style and for the style the callout already has', () => {
+      expect(switchCalloutStyle(base(), 'nope')).toBeNull();
+      expect(switchCalloutStyle(base(), 'leader-line')).toBeNull();
     });
   });
 });

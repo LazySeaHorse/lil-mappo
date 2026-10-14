@@ -34,7 +34,7 @@ function route(id: string, name = `Route ${id}`): RouteItem {
     geojson: { type: 'FeatureCollection', features: [] },
     style: {
       color: '#3b82f6', width: 4, glow: true, glowWidth: 12,
-      trailFade: false, trailFadeLength: 0.2, dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
+      dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
     },
     easing: 'linear', exitAnimation: 'none',
   };
@@ -265,8 +265,8 @@ describe('labels and sources', () => {
       'Added route',
       'Added boundary',
       'Edited Lyon boundary',
-      'Added camera keyframe',
-      'Moved camera keyframe',
+      'Added camera view',
+      'Moved camera view',
       'Changed map style',
       'Changed resolution',
       'Deleted Lyon',

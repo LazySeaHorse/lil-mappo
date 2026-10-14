@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clapperboard, Download } from 'lucide-react';
+import { Clapperboard, Download, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
 import type { LocalExportCapability } from '@/services/localExportCapability';
@@ -9,6 +9,8 @@ interface ExportModalFooterProps {
   cloudSubmitted: boolean;
   progress: number;
   localExportCapability: LocalExportCapability | null;
+  /** Guests: the button says so up front. Clicking it still goes through `onExport`, which opens sign-in. */
+  requiresSignIn?: boolean;
   onExport: () => void;
   onCancel: () => void;
 }
@@ -18,6 +20,7 @@ export function ExportModalFooter({
   cloudSubmitted,
   progress,
   localExportCapability,
+  requiresSignIn = false,
   onExport,
   onCancel,
 }: ExportModalFooterProps) {
@@ -45,7 +48,11 @@ export function ExportModalFooter({
           disabled={isExportDisabled}
           className="flex-1 min-w-0 h-11 px-3 text-sm font-medium flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:brightness-110 transition-all shadow-lg shadow-primary/10"
         >
-          {progress === 100 ? (
+          {requiresSignIn ? (
+            <>
+              <LogIn size={16} /> Sign in to export
+            </>
+          ) : progress === 100 ? (
             <>
               <Download size={16} /> Export again
             </>

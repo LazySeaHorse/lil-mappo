@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAgentMapRef } from '../mapRef';
 import '@/annotations/styles/index';
 import { registerTestStyles, TEST_CARD_STYLE_ID } from '@/annotations/testStyles';
@@ -117,6 +117,14 @@ describe('update_item', () => {
     expect(steps()).toBe(0);
   });
 
+  it('refuses the retired trailFade style keys like any other unknown field', async () => {
+    const { route } = seed();
+    const result = await runAgentTool('update_item', { id: route.id, patch: { style: { trailFade: true } } });
+    expect(result.isError).toBe(true);
+    expect(resultJson(result).error).toBe('invalid_input');
+    expect(steps()).toBe(0);
+  });
+
   it('rebuilds walk geometry from new points and applies vehicle changes', async () => {
     const { walk, route } = seed();
     await runAgentTool('update_item', { id: walk.id, patch: { points: [[0, 0], [0.5, 0.5], [1, 0]], curved: false } });
@@ -144,6 +152,33 @@ describe('update_item', () => {
 
     const noTitle = await runAgentTool('update_item', { id: callout.id, patch: { content: { title: null } } });
     expect(noTitle.isError).toBe(true);
+  });
+
+  describe('callout location name', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('clears the place name when the location is set by coordinates', async () => {
+      const { callout } = seed();
+      state().updateItem(callout.id, { locationName: 'Old Pier' });
+      await runAgentTool('update_item', { id: callout.id, patch: { location: [1, 2] } });
+      expect(state().items[callout.id]).toMatchObject({ binding: { lngLat: [1, 2] }, locationName: '' });
+    });
+
+    it('stores the resolved place name when the location is set by name', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+        features: [{ geometry: { coordinates: [-9.14, 38.72] }, properties: { name: 'Lisbon' } }],
+      }))));
+      const { callout } = seed();
+      await runAgentTool('update_item', { id: callout.id, patch: { location: 'Lisbon' } });
+      expect(state().items[callout.id]).toMatchObject({ binding: { lngLat: [-9.14, 38.72] }, locationName: 'Lisbon' });
+    });
+
+    it('keeps the place name when only the altitude changes', async () => {
+      const { callout } = seed();
+      state().updateItem(callout.id, { locationName: 'Old Pier' });
+      await runAgentTool('update_item', { id: callout.id, patch: { altitude: 20 } });
+      expect(state().items[callout.id]).toMatchObject({ locationName: 'Old Pier' });
+    });
   });
 
   it('resizes callouts, and bases map sizing on the zoom the user is looking at', async () => {

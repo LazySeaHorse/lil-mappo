@@ -1,4 +1,3 @@
-import { geometryBounds } from '@/engine/geoUtils';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { BoundaryDetailPicker } from './BoundaryDetailPicker';
 import React from 'react';
@@ -14,14 +13,15 @@ import { createBoundaryItem } from '@/store/itemFactories';
 import { shortPlaceName, type NominatimResult } from '@/services/nominatim';
 import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
-import { useMapRef } from '@/hooks/useMapRef';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SectionLabel, Field } from '@/components/ui/field';
-import { ColorPicker } from '@/components/ui/color-picker';
+import { ColorRow } from '@/components/Inspector/controls/ColorRow';
+import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
 
 export const BoundaryAddDropdown = ({ 
   isOpen, 
@@ -51,7 +51,7 @@ export const BoundaryAddDropdown = ({
     }))
   );
   
-  const mapRef = useMapRef();
+  const frame = useFrameOnMap();
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -71,13 +71,7 @@ export const BoundaryAddDropdown = ({
 
   const handleSelect = (r: NominatimResult) => {
     setPreviewBoundary(r.geojson, shortPlaceName(r.display_name), r.countryCode);
-    
-    // Zoom to boundary
-    const map = mapRef.current?.getMap();
-    if (map && r.geojson) {
-      const bounds = geometryBounds(r.geojson);
-      if (bounds) map.fitBounds(bounds, { padding: 50, duration: 1000 });
-    }
+    frame.frameGeometry(r.geojson);
   };
 
   const handleAdd = () => {
@@ -173,25 +167,24 @@ export const BoundaryAddDropdown = ({
           <div className="space-y-4">
             <SectionLabel>Visual appearance</SectionLabel>
             <div className="space-y-4 px-1">
-              <Field label="Border color">
-                <ColorPicker 
-                  value={previewBoundaryStyle!.strokeColor} 
-                  onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
-                />
-              </Field>
+              <ColorRow
+                label={BOUNDARY_TERMS.borderColor}
+                value={previewBoundaryStyle!.strokeColor}
+                onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
+              />
               
-              <Field label="Entrance animation">
+              <Field label={BOUNDARY_TERMS.animation}>
                 <Select 
                   value={previewBoundaryStyle!.animationStyle}
                   onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: parseBoundaryAnimationStyle(v) })}
                 >
-                  <SelectTrigger className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
+                  <SelectTrigger aria-label={BOUNDARY_TERMS.animation} className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-                    <SelectItem value="fade">Fade</SelectItem>
-                    <SelectItem value="draw">Outline</SelectItem>
-                    <SelectItem value="trace">Trace</SelectItem>
+                    <SelectItem value="fade">{BOUNDARY_ANIMATION_LABELS.fade}</SelectItem>
+                    <SelectItem value="draw">{BOUNDARY_ANIMATION_LABELS.draw}</SelectItem>
+                    <SelectItem value="trace">{BOUNDARY_ANIMATION_LABELS.trace}</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

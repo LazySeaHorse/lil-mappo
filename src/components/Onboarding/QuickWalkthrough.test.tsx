@@ -40,7 +40,6 @@ describe('QuickWalkthrough Component UI', () => {
       <QuickWalkthrough
         isMapReady={true}
         isMobile={false}
-        isTablet={false}
       />,
     );
 
@@ -60,7 +59,6 @@ describe('QuickWalkthrough Component UI', () => {
       <QuickWalkthrough
         isMapReady={true}
         isMobile={true}
-        isTablet={false}
       />,
     );
 
@@ -76,7 +74,6 @@ describe('QuickWalkthrough Component UI', () => {
       <QuickWalkthrough
         isMapReady={true}
         isMobile={false}
-        isTablet={false}
       />,
     );
 
@@ -104,12 +101,11 @@ describe('QuickWalkthrough Component UI', () => {
       <QuickWalkthrough
         isMapReady={true}
         isMobile={false}
-        isTablet={false}
       />,
     );
 
     act(() => {
-      useWalkthroughStore.getState().start(false, 0, false);
+      useWalkthroughStore.getState().start(false);
     });
 
     expect(useWalkthroughStore.getState().isRunning).toBe(true);
@@ -117,4 +113,62 @@ describe('QuickWalkthrough Component UI', () => {
 
     document.body.removeChild(anchor);
   });
+
+  it('invites the user to make a first trip video, with an honest time estimate', () => {
+    render(<QuickWalkthrough isMapReady={true} isMobile={false} />);
+    act(() => {
+      useWalkthroughStore.getState().setShowInvitation(true);
+    });
+
+    expect(screen.getByText('Make your first trip video')).toBeInTheDocument();
+    expect(screen.getByText(/about 3 minutes/i)).toBeInTheDocument();
+    expect(screen.getByText(/plan a route between two places/i, { selector: 'span' })).toBeInTheDocument();
+    expect(screen.queryByText(/90 seconds/)).not.toBeInTheDocument();
+  });
+
+  describe('route steps', () => {
+    const targets: HTMLElement[] = [];
+    const addTarget = (name: string) => {
+      const el = document.createElement('div');
+      el.setAttribute('data-walkthrough', name);
+      document.body.appendChild(el);
+      targets.push(el);
+      return el;
+    };
+    const goTo = (stage: 'route-places' | 'follow-route') => {
+      useWalkthroughStore.getState().start(false);
+      act(() => {
+        useWalkthroughStore.setState({
+          walkthrough: { ...useWalkthroughStore.getState().walkthrough, stage },
+        });
+      });
+    };
+
+    afterEach(() => {
+      targets.splice(0).forEach((el) => el.remove());
+    });
+
+    it('shows a checklist for the start and end places, and teaches Enter', () => {
+      addTarget('route-places');
+      render(<QuickWalkthrough isMapReady={true} isMobile={false} />);
+      goTo('route-places');
+
+      expect(screen.getByText('Pick a start and an end place')).toBeInTheDocument();
+      expect(screen.getByText(/Start: type a place, press Enter, then pick a result/)).toBeInTheDocument();
+      expect(screen.getByText(/End: do the same for the end place/)).toBeInTheDocument();
+      expect(screen.getByText('Action required')).toBeInTheDocument();
+    });
+
+    it('scrolls the Follow camera switch into view and says the camera moves along the route', () => {
+      const target = addTarget('follow-route');
+      target.scrollIntoView = vi.fn();
+      render(<QuickWalkthrough isMapReady={true} isMobile={false} />);
+      goTo('follow-route');
+
+      expect(screen.getByText('Make the camera follow the route')).toBeInTheDocument();
+      expect(screen.getByText(/the camera moves along the route/)).toBeInTheDocument();
+      expect(target.scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+

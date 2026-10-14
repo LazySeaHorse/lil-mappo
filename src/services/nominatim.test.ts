@@ -20,6 +20,24 @@ describe('searchBoundary', () => {
   });
 });
 
+describe('searchBoundary view bias', () => {
+  const stubEmpty = () => vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ type: 'FeatureCollection', features: [] }))));
+  const lastUrl = () => new URL(String((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]));
+
+  it('leans towards the visible map without limiting results to it', async () => {
+    stubEmpty();
+    await searchBoundary('park', undefined, [-74.1, 40.7, -73.8, 40.9]);
+    expect(lastUrl().searchParams.get('viewbox')).toBe('-74.1,40.9,-73.8,40.7');
+    expect(lastUrl().searchParams.get('bounded')).toBe('0');
+  });
+
+  it('sends no viewbox without a view', async () => {
+    stubEmpty();
+    await searchBoundary('park');
+    expect(lastUrl().searchParams.has('viewbox')).toBe(false);
+  });
+});
+
 describe('country code', () => {
   const stub = (props: Record<string, unknown>) => vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
     type: 'FeatureCollection',

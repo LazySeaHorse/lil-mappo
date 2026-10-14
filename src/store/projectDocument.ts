@@ -46,13 +46,12 @@ const geometrySchema = z.custom<GeoJSON.Geometry>(
 /** Documents saved before exit animations had a default load as 'none': they stay on screen after their end. */
 const exitAnimationSchema = z.enum(['none', 'reverse', 'fade']).default('none');
 
+// Plain z.object strips unknown keys, so old saves that still hold the retired trailFade/trailFadeLength load without them.
 const routeStyleSchema = z.object({
   color: z.string(),
   width: z.number(),
   glow: z.boolean(),
   glowWidth: z.number(),
-  trailFade: z.boolean(),
-  trailFadeLength: z.number(),
   dashPattern: z.array(z.number()).nullable(),
   // Older documents may lack these; they load as the draw animation and a 0.2 trail.
   animationType: z.enum(['draw', 'navigation', 'comet']).default('draw'),
@@ -71,6 +70,9 @@ const routeCalculationSchema = z.discriminatedUnion('mode', [
     mode: z.enum(['car', 'flight']),
     startPoint: coordinateSchema,
     endPoint: coordinateSchema,
+    // Older documents have no names; the inspector shows coordinates for them.
+    startName: z.string().default(''),
+    endName: z.string().default(''),
     vehicle: routeVehicleSchema.optional(),
   }),
   z.object({
@@ -345,6 +347,9 @@ const legacyRouteCalculationSchema = z.object({
   curved: z.boolean().optional(),
   sharpness: z.number().optional(),
   vehicle: z.unknown().optional(),
+  // Not v2 fields: an already parsed project has no schemaVersion and runs the whole chain again.
+  startName: z.unknown().optional(),
+  endName: z.unknown().optional(),
 }).passthrough();
 
 const legacyRouteSchema = z.object({
@@ -366,8 +371,12 @@ function migrateRouteCalculationV2ToV3(value: unknown): unknown {
   const result = legacyRouteSchema.safeParse(value);
   if (!result.success) return value;
   const route = result.data;
-  const { mode, startPoint, endPoint, waypoints, curved, sharpness, vehicle } = route.calculation;
+  const { mode, startPoint, endPoint, waypoints, curved, sharpness, vehicle, startName, endName } = route.calculation;
   const vehicleField = vehicle === undefined ? {} : { vehicle };
+  const namesField = {
+    ...(startName === undefined ? {} : { startName }),
+    ...(endName === undefined ? {} : { endName }),
+  };
 
   const isLegacyFreehand = (mode === 'walk' || mode === 'manual')
     && (curved !== undefined || (waypoints?.length ?? 0) > 0);
@@ -395,6 +404,7 @@ function migrateRouteCalculationV2ToV3(value: unknown): unknown {
       mode: mode === 'flight' ? 'flight' : 'car',
       startPoint,
       endPoint,
+      ...namesField,
       ...vehicleField,
     },
   };

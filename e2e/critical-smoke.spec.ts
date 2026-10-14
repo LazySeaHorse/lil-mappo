@@ -50,6 +50,11 @@ const TEST_DIRECTIONS = {
   ],
 };
 
+const SEARCH_PLACES: Record<string, { id: string; name: string; coordinates: [number, number] }> = {
+  "Times Square": { id: "times-square", name: "Times Square", coordinates: [-73.9855, 40.758] },
+  "Central Park": { id: "central-park", name: "Central Park", coordinates: [-73.9654, 40.7829] },
+};
+
 const TRANSPARENT_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
   "base64",
@@ -69,6 +74,33 @@ async function stubExternalServices(page: Page) {
   await page.route("https://api.mapbox.com/directions/v5/**", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(TEST_DIRECTIONS) }),
   );
+  await page.route("https://api.mapbox.com/search/searchbox/v1/suggest*", (route) => {
+    const query = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const place = SEARCH_PLACES[query];
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        suggestions: place
+          ? [{ name: place.name, mapbox_id: place.id, feature_type: "poi", place_formatted: "New York, United States" }]
+          : [],
+      }),
+    });
+  });
+  await page.route("https://api.mapbox.com/search/searchbox/v1/retrieve/**", (route) => {
+    const id = decodeURIComponent(new URL(route.request().url()).pathname.split("/").pop() ?? "");
+    const place = Object.values(SEARCH_PLACES).find((p) => p.id === id);
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        type: "FeatureCollection",
+        features: place
+          ? [{ type: "Feature", geometry: { type: "Point", coordinates: place.coordinates }, properties: { name: place.name, mapbox_id: place.id } }]
+          : [],
+      }),
+    });
+  });
   await page.route("https://api.mapbox.com/styles/v1/**", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(TEST_STYLE) }),
   );
@@ -91,7 +123,7 @@ async function openEditor(page: Page, options: { dismissWalkthrough?: boolean } 
   await expect(page.locator(".mapboxgl-canvas")).toBeVisible();
 
   if (options.dismissWalkthrough === false) {
-    const invitation = page.getByRole("alertdialog", { name: "Start the quick tour?" });
+    const invitation = page.getByRole("alertdialog", { name: "Make your first trip video" });
     await expect(invitation).toBeVisible();
   }
 }
@@ -113,8 +145,14 @@ async function dragMap(
 }
 
 async function pickMapPoint(page: Page, pickerIndex = 0, position = { x: 720, y: 350 }) {
-  await page.getByTitle("Pick on Map").nth(pickerIndex).click();
+  await page.getByTitle("Pick on the map").nth(pickerIndex).click();
   await page.locator(".mapboxgl-canvas").click({ position });
+}
+
+/** Inspector content must fit the panel: long text truncates instead of widening it and getting cut off. */
+async function expectInspectorFitsWidth(page: Page) {
+  const viewport = page.locator('[data-walkthrough="inspector-panel"] [data-slot="scroll-area-viewport"]');
+  await expect.poll(() => viewport.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
 }
 
 async function openMenu(page: Page) {
@@ -154,16 +192,17 @@ test("2. map and editor load", async ({ page }) => {
 
   await expect(page.locator(".mapboxgl-map")).toBeVisible();
   await expect(page.locator(".mapboxgl-canvas")).toHaveCount(1);
-  await expect(page.getByText("Camera", { exact: true })).toBeVisible();
+  await expect(page.getByText("Camera views", { exact: true })).toBeVisible();
   await expect(page.getByTitle("Plan Route")).toBeEnabled();
 });
 
-test("2a. quick walkthrough is opt-in and advances through real actions", async ({ page }) => {
+test("2a. quick walkthrough makes a first trip video through real actions", async ({ page }) => {
   test.slow();
   await openEditor(page, { dismissWalkthrough: false });
 
-  const invitation = page.getByRole("alertdialog", { name: "Start the quick tour?" });
+  const invitation = page.getByRole("alertdialog", { name: "Make your first trip video" });
   await expect(invitation).toBeVisible();
+  await expect(invitation.getByText(/about 3 minutes/)).toBeVisible();
   await invitation.getByRole("button", { name: "Start tour" }).click();
 
   await expect(page.getByText("Learn the map controls")).toBeVisible();
@@ -171,67 +210,43 @@ test("2a. quick walkthrough is opt-in and advances through real actions", async 
   await dragMap(page, "right", { x: 700, y: 320 }, { x: 790, y: 390 });
   await page.mouse.wheel(0, -400);
 
-  await expect(page.getByText("Save your first view")).toBeVisible();
-  await page.getByTitle("Camera Keyframe", { exact: true }).click();
+  await expect(page.getByText("Open Plan Route", { exact: true })).toBeVisible();
+  await page.getByTitle("Plan Route").click();
 
-  await expect(page.getByText("Move forward on the timeline")).toBeVisible();
-  const timelineRuler = page.getByTestId("timeline-ruler");
-  const rulerBounds = await timelineRuler.boundingBox();
-  if (!rulerBounds) throw new Error("Timeline ruler has no bounding box");
-  await page.mouse.move(rulerBounds.x + 20, rulerBounds.y + 20);
-  await page.mouse.down();
-  await page.mouse.move(rulerBounds.x + 240, rulerBounds.y + 20, { steps: 8 });
-  await page.mouse.up();
+  await expect(page.getByText("Pick a start and an end place")).toBeVisible();
+  for (const [placeholder, place] of [["Start location...", "Times Square"], ["End location...", "Central Park"]]) {
+    const field = page.getByPlaceholder(placeholder);
+    await field.fill(place);
+    await field.press("Enter");
+    await page.getByRole("button", { name: new RegExp(place) }).click();
+    await expect(field).toHaveValue(place);
+  }
 
-  await expect(page.getByText("Save your second view")).toBeVisible();
-  await dragMap(page, "left", { x: 600, y: 330 }, { x: 690, y: 300 });
-  await expect(page.getByTitle("Camera Keyframe", { exact: true })).toHaveClass(/animate-pulse/);
-  await page.getByTitle("Camera Keyframe", { exact: true }).click();
+  await expect(page.getByText("Preview the path")).toBeVisible();
+  await page.getByRole("button", { name: "Preview path" }).click();
 
-  await expect(page.getByText("Preview your animation")).toBeVisible();
+  await expect(page.getByText("Add the route to your video")).toBeVisible();
+  await page.getByRole("button", { name: "Insert route" }).click();
+
+  await expect(page.getByText("Make the camera follow the route")).toBeVisible();
+  // The route inspector shows the planner at once, with the place names, not coordinates.
+  await expect(page.getByRole("region", { name: "Path" }).getByPlaceholder("Search address or coordinates").first()).toHaveValue("Times Square");
+  await page.locator('[data-walkthrough="follow-route"]').getByRole("switch").click();
+
+  await expect(page.getByText("Play your trip")).toBeVisible();
   await expect(page.getByTestId("timeline-ruler-playhead")).toHaveCSS("left", "0px");
-  await expect(page.locator('[data-walkthrough="timeline-play"]')).toHaveAttribute("title", "Play / Pause (Space)");
   await page.locator('[data-walkthrough="timeline-play"]').click();
   await expect(page.locator('[data-walkthrough="timeline-play"]')).toHaveClass(/text-primary/);
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.locator('[data-walkthrough="timeline-play"]')).not.toHaveClass(/text-primary/);
-  await expect(page.getByText("Select a keyframe")).toBeVisible();
-  await page.locator('[data-walkthrough="timeline-keyframe"]').first().click();
-  await expect(page.getByText("Adjust keyframe settings")).toBeVisible();
-  await page.getByRole("button", { name: "Continue" }).click();
 
-  await expect(page.getByText("Add a travel route", { exact: true })).toBeVisible();
-  await page.getByTitle("Plan Route").click();
-  await expect(page.getByText("Select travel mode and route points")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByText("Highlight a boundary")).toBeVisible();
-  await page.getByTitle("Add Boundary").click();
-  await expect(page.getByText("Search regions and countries")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByText("Add a location label", { exact: true })).toBeVisible();
-  await page.getByTitle("Add Callout").click();
-  await expect(page.getByText("Place a 3D label on the map")).toBeVisible();
-  await page.keyboard.press("Escape");
-
-  await expect(page.getByText("Enable 3D terrain and buildings")).toBeVisible();
+  await expect(page.getByText("More things you can add")).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
-  await expect(page.getByText("Change the map style")).toBeVisible();
-  await page.locator('[data-walkthrough="map-style"]').click();
-  await page.getByRole("option", { name: "Dark" }).click();
-  await expect(page.getByText("Reset to Standard style")).toBeVisible();
-  await page.locator('[data-walkthrough="map-style"]').click();
-  await page.getByRole("option", { name: "Standard" }).click();
 
-  await expect(page.getByText("Open Project Settings", { exact: true })).toBeVisible();
-  await page.locator('[data-walkthrough="map-settings"]').click();
-  await expect(page.getByText("Select the Map tab")).toBeVisible();
-  await page.locator('[data-walkthrough="project-settings-map-tab"]').click();
-  await expect(page.getByText("Customize the map environment")).toBeVisible();
-  await page.getByRole("button", { name: "Next" }).click();
-  await expect(page.getByText("Export your video")).toBeVisible();
+  await expect(page.getByText("Export your video", { exact: true })).toBeVisible();
   await page.locator('[data-walkthrough="render"]').click();
   await expect(page.getByRole("dialog", { name: "Export" })).toBeVisible();
-  await expect(page.getByText("Tour complete. You can now create your map animation.")).toBeVisible();
+  await expect(page.getByText("Tour complete. Press Export when your trip video is ready.")).toBeVisible();
 });
 
 test("3. a route can be created and appears in the inspector and timeline", async ({ page }) => {
@@ -249,6 +264,7 @@ test("3. a route can be created and appears in the inspector and timeline", asyn
   const routeName = page.locator('input[placeholder="Route name"]');
   await expect(routeName).toHaveValue(/.+ (to|→) .+/);
   await expect(page.getByText(await routeName.inputValue(), { exact: true })).toBeVisible();
+  await expectInspectorFitsWidth(page);
 });
 
 test("4. a callout can be added and edited", async ({ page }) => {
@@ -262,6 +278,7 @@ test("4. a callout can be added and edited", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Callout", exact: true })).toBeVisible();
   const titleInput = page.locator("#root").getByRole("textbox", { name: "Callout title" });
   await expect(titleInput).toHaveValue("Customer HQ");
+  await expectInspectorFitsWidth(page);
   await titleInput.fill("Customer HQ Updated");
   // Callouts draw on one overlay canvas next to the map canvas, so there is no text to find: check it holds pixels.
   await expect.poll(() => page.evaluate(() => {
@@ -282,9 +299,10 @@ test("5. a boundary can be added and edited", async ({ page }) => {
   await page.getByRole("button", { name: /Testland/ }).click();
   await page.getByRole("button", { name: "Insert boundary" }).click();
 
-  await expect(page.getByRole("heading", { name: "Boundary", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
   const nameInput = page.locator('input[placeholder="Boundary name"]');
   await expect(nameInput).toHaveValue("Testland");
+  await expectInspectorFitsWidth(page);
   await nameInput.fill("Testland Updated");
   await expect(page.getByText("Testland Updated", { exact: true })).toBeVisible();
 });

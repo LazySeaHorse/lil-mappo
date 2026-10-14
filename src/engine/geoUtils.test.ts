@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractLineCoords, geometryBounds, splitAtAntimeridian } from './geoUtils';
+import { extractLineCoords, geojsonBounds, splitAtAntimeridian } from './geoUtils';
 
 const feature = (geometry: GeoJSON.Geometry): GeoJSON.Feature => ({ type: 'Feature', properties: {}, geometry });
 
@@ -30,9 +30,9 @@ describe('splitAtAntimeridian', () => {
   });
 });
 
-describe('geometryBounds', () => {
+describe('geojsonBounds of geometry', () => {
   it('covers every polygon of a MultiPolygon, not just the first', () => {
-    const bounds = geometryBounds({
+    const bounds = geojsonBounds({
       type: 'MultiPolygon',
       coordinates: [
         [[[0, 0], [1, 0], [1, 1], [0, 0]]],
@@ -43,6 +43,28 @@ describe('geometryBounds', () => {
   });
 
   it('returns null for empty geometry', () => {
-    expect(geometryBounds({ type: 'Polygon', coordinates: [] })).toBeNull();
+    expect(geojsonBounds({ type: 'Polygon', coordinates: [] })).toBeNull();
+  });
+});
+
+describe('geojsonBounds', () => {
+  it('covers every feature of a FeatureCollection', () => {
+    const bounds = geojsonBounds({
+      type: 'FeatureCollection',
+      features: [
+        feature({ type: 'LineString', coordinates: [[0, 0], [1, 1]] }),
+        feature({ type: 'Point', coordinates: [20, -5] }),
+      ],
+    });
+    expect(bounds).toEqual([[0, -5], [20, 1]]);
+  });
+
+  it('reads a single Feature and a bare geometry', () => {
+    expect(geojsonBounds(feature({ type: 'Point', coordinates: [3, 4] }))).toEqual([[3, 4], [3, 4]]);
+    expect(geojsonBounds({ type: 'LineString', coordinates: [[1, 2], [3, 4]] })).toEqual([[1, 2], [3, 4]]);
+  });
+
+  it('returns null when there is nothing to bound', () => {
+    expect(geojsonBounds({ type: 'FeatureCollection', features: [] })).toBeNull();
   });
 });

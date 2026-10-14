@@ -296,7 +296,7 @@ export const roadSignStyle: AnnotationStyleDefinition<RoadSignSettings> = {
     exitDuration: 0.5,
   },
   controls: [
-    { type: 'color', key: 'signColor', label: 'Sign color' },
+    { type: 'color', key: 'signColor', label: 'Sign color', role: 'accent' },
     { type: 'color', key: 'textColor', label: 'Text color' },
     {
       type: 'select',

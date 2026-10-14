@@ -43,15 +43,35 @@ function WalkPointMarkers({
   );
 }
 
-/** Markers for the selected walk route's points. */
+/**
+ * Markers for the selected walk route's points. While the route's path editor has a draft,
+ * they show and move the draft's points (and none when the draft is not a walk).
+ */
 export function RouteWaypointMarkers() {
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const selectedItem = useProjectStore((s) => (selectedItemId ? s.items[selectedItemId] : null));
+  const routeDraft = useProjectStore((s) => s.routeDraft);
   const updateWalkRoute = useProjectStore((s) => s.updateWalkRoute);
+  const updateRouteDraft = useProjectStore((s) => s.updateRouteDraft);
 
-  if (selectedItem?.kind !== 'route' || selectedItem.calculation?.mode !== 'walk') return null;
-
+  if (selectedItem?.kind !== 'route') return null;
   const routeId = selectedItem.id;
+
+  if (routeDraft?.routeId === routeId) {
+    if (routeDraft.calculation.mode !== 'walk') return null;
+    return (
+      <WalkPointMarkers
+        points={routeDraft.calculation.points}
+        onMove={(index, point) =>
+          updateRouteDraft((c) =>
+            c.mode === 'walk' ? { ...c, points: c.points.map((p, i) => (i === index ? point : p)) } : c,
+          )
+        }
+      />
+    );
+  }
+
+  if (selectedItem.calculation?.mode !== 'walk') return null;
   return (
     <WalkPointMarkers
       points={selectedItem.calculation.points}

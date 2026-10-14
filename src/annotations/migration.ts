@@ -208,6 +208,7 @@ export function migrateCalloutV1ToV2(legacy: unknown, viewZoom = DEFAULT_VIEW_ZO
     referenceZoom: viewZoom,
     settings: migrateStyleSettings(old),
     linkTitleToLocation: old.linkTitleToLocation ?? false,
+    locationName: '',
   };
 }
 

@@ -25,8 +25,6 @@ describe('useProjectStore modular slices', () => {
           width: 4,
           glow: true,
           glowWidth: 12,
-          trailFade: false,
-          trailFadeLength: 0.2,
           dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
         },
         easing: 'linear', exitAnimation: 'none',
@@ -101,6 +99,67 @@ describe('useProjectStore modular slices', () => {
       const finalCam = useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem;
       expect(finalCam.keyframes.length).toBe(1);
       expect(finalCam.keyframes[0].id).toBe('kf-2');
+    });
+  });
+
+  describe('duplicateCameraKeyframe', () => {
+    const kf = (id: string, time: number): CameraKeyframe => ({
+      id,
+      time,
+      camera: { center: [10, 20], zoom: 12, pitch: 30, bearing: 15, altitude: null },
+      easing: 'easeInOutCubic',
+      followRoute: null,
+    });
+    const keyframes = () => (useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem).keyframes;
+
+    beforeEach(() => useProjectStore.getState().setDuration(10));
+
+    it('puts a copy of the view 1 s later, selects it and opens the panel', () => {
+      const store = useProjectStore.getState();
+      store.addCameraKeyframe(kf('a', 2));
+      useProjectStore.setState({ isInspectorOpen: false });
+      const newId = store.duplicateCameraKeyframe('a');
+      expect(newId).toBeTruthy();
+      expect(newId).not.toBe('a');
+      const copy = keyframes().find((k) => k.id === newId)!;
+      expect(copy).toMatchObject({ ...kf('a', 3), id: newId });
+      expect(copy.camera).not.toBe(keyframes().find((k) => k.id === 'a')!.camera);
+      const state = useProjectStore.getState();
+      expect(state.selectedItemId).toBe(CAMERA_TRACK_ID);
+      expect(state.selectedKeyframeId).toBe(newId);
+      expect(state.isInspectorOpen).toBe(true);
+    });
+
+    it('goes halfway to the next view when that is closer than 1 s', () => {
+      const store = useProjectStore.getState();
+      store.addCameraKeyframe(kf('a', 2));
+      store.addCameraKeyframe(kf('b', 2.5));
+      const newId = store.duplicateCameraKeyframe('a');
+      expect(keyframes().map((k) => [k.id, k.time])).toEqual([['a', 2], [newId, 2.25], ['b', 2.5]]);
+    });
+
+    it('goes halfway to the end of the video when that is closer than 1 s', () => {
+      const store = useProjectStore.getState();
+      store.addCameraKeyframe(kf('a', 9.5));
+      const newId = store.duplicateCameraKeyframe('a');
+      expect(keyframes().find((k) => k.id === newId)!.time).toBe(9.75);
+    });
+
+    it('changes nothing when there is no room after the view', () => {
+      const store = useProjectStore.getState();
+      store.addCameraKeyframe(kf('a', 10));
+      const before = useProjectStore.getState().items;
+      expect(store.duplicateCameraKeyframe('a')).toBeNull();
+      expect(store.duplicateCameraKeyframe('missing')).toBeNull();
+      expect(useProjectStore.getState().items).toBe(before);
+    });
+
+    it('is one undo step', () => {
+      const store = useProjectStore.getState();
+      store.addCameraKeyframe(kf('a', 2));
+      useProjectStore.temporal.getState().clear();
+      store.duplicateCameraKeyframe('a');
+      expect(useProjectStore.temporal.getState().pastStates).toHaveLength(1);
     });
   });
 

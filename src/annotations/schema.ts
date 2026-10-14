@@ -85,4 +85,6 @@ export const calloutItemSchema = z.object({
   referenceZoom: z.number().finite().default(DEFAULT_VIEW_ZOOM),
   settings: z.record(z.unknown()),
   linkTitleToLocation: z.boolean(),
+  // Older documents have no name; the inspector shows coordinates for them.
+  locationName: z.string().default(''),
 });

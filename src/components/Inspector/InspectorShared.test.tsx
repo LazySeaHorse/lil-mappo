@@ -1,8 +1,9 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { Field } from '@/components/ui/field';
+import * as shared from './InspectorShared';
 import {
-  TimingControls,
   EasingSelect,
   SliderRow,
   ColorRow,
@@ -107,6 +108,95 @@ describe('SliderRow', () => {
   });
 });
 
+describe('SliderRow hint and end labels', () => {
+  const base = { label: 'Energy', value: 0.5, onChange: () => {}, min: 0, max: 1, step: 0.1 };
+
+  it('puts the hint in an (i) tip next to the label, not on a visible line', async () => {
+    const { container } = render(<SliderRow {...base} hint="How lively the motion feels." />);
+    expect(screen.getByText('Energy')).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="slider-hint"]')).toBeNull();
+    expect(screen.queryByText('How lively the motion feels.')).toBeNull();
+    const tip = screen.getByRole('button', { name: 'More info' });
+    expect(screen.getByText('Energy').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.focus(tip);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('How lively the motion feels.');
+  });
+
+  it('has no (i) tip without a hint', () => {
+    render(<SliderRow {...base} />);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
+  });
+
+  it('shows no hint or end labels unless asked', () => {
+    const { container } = render(<SliderRow {...base} />);
+    expect(container.querySelector('[data-slot="slider-hint"]')).toBeNull();
+    expect(container.querySelector('[data-slot="slider-end-labels"]')).toBeNull();
+  });
+
+  it('shows words under the left and right ends of the slider', () => {
+    render(<SliderRow {...base} endLabels={['Calm', 'Lively']} />);
+    const [left, right] = [screen.getByText('Calm'), screen.getByText('Lively')];
+    expect(left.parentElement).toBe(right.parentElement);
+    expect(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the readout unless it is hidden', () => {
+    const { rerender } = render(<SliderRow {...base} endLabels={['Calm', 'Lively']} unit="x" />);
+    expect(screen.getByText('0.5 x')).toBeInTheDocument();
+    rerender(<SliderRow {...base} endLabels={['Calm', 'Lively']} unit="x" showValue={false} />);
+    expect(screen.queryByText('0.5 x')).not.toBeInTheDocument();
+    expect(screen.getByText('Calm')).toBeInTheDocument();
+  });
+
+  it('still moves the slider with the keyboard when the readout is hidden', () => {
+    const onChange = vi.fn();
+    render(<SliderRow {...base} onChange={onChange} endLabels={['Calm', 'Lively']} showValue={false} />);
+    const thumb = screen.getByRole('slider');
+    thumb.focus();
+    fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenCalledWith(0.6);
+  });
+});
+
+describe('SliderRow layout', () => {
+  it('is the only slider control', () => {
+    expect(Object.keys(shared)).not.toContain('SliderField');
+  });
+
+  const base = { label: 'Energy', value: 0.5, onChange: () => {}, min: 0, max: 1, step: 0.1, unit: 'x' };
+
+  it('puts the label and the number on one line, and the slider on its own line below', () => {
+    const { container } = render(<SliderRow {...base} endLabels={['Calm', 'Lively']} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('flex-col');
+    const label = screen.getByText('Energy');
+    const readout = screen.getByText('0.5 x');
+    const slider = container.querySelector('[data-slot="slider"]') as HTMLElement;
+    const endLabels = container.querySelector('[data-slot="slider-end-labels"]') as HTMLElement;
+    const topLine = label.closest('[data-slot="slider-top-line"]') as HTMLElement;
+    expect(topLine).not.toBeNull();
+    expect(topLine.contains(readout)).toBe(true);
+    // The readout is at the right end of the top line.
+    expect(topLine.lastElementChild).toBe(readout);
+    expect(topLine.contains(slider)).toBe(false);
+    expect(label.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(slider.compareDocumentPosition(endLabels) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the (i) tip with the label on the top line', () => {
+    const { container } = render(<SliderRow {...base} hint="How lively." />);
+    const topLine = container.querySelector('[data-slot="slider-top-line"]') as HTMLElement;
+    expect(topLine.contains(screen.getByRole('button', { name: 'More info' }))).toBe(true);
+  });
+
+  it('resets on double-click', () => {
+    const onReset = vi.fn();
+    const { container } = render(<SliderRow {...base} onReset={onReset} />);
+    fireEvent.doubleClick(container.querySelector('[data-slot="slider"]') as HTMLElement);
+    expect(onReset).toHaveBeenCalled();
+  });
+});
+
 describe('ColorRow', () => {
   it('renders label and color picker', () => {
     const onChange = vi.fn();
@@ -124,6 +214,40 @@ describe('ColorRow', () => {
     fireEvent.click(screen.getByLabelText('Select color #ef4444'));
     expect(onChange).toHaveBeenCalledWith('#ef4444');
   });
+
+  it('puts the label above the swatches, not beside them', () => {
+    const { container } = render(<ColorRow label="Border color" value="#3b82f6" onChange={() => {}} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('flex-col');
+    const label = screen.getByText('Border color');
+    const swatches = container.querySelector('[data-slot="color-picker"]') as HTMLElement;
+    expect(label.compareDocumentPosition(swatches) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The label and the swatches are in different lines.
+    expect(label.closest('[data-slot="color-row-label"]')?.contains(swatches)).toBe(false);
+  });
+
+  it('shows the hint as an (i) tip after the label', () => {
+    render(<ColorRow label="Fog color" value="#3b82f6" onChange={() => {}} hint="Tints the horizon." />);
+    const tip = screen.getByRole('button', { name: 'More info' });
+    expect(screen.getByText('Fog color').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows an action next to the swatches', () => {
+    const onReset = vi.fn();
+    render(
+      <ColorRow
+        label="Fog color"
+        value="#3b82f6"
+        onChange={() => {}}
+        action={<button type="button" onClick={onReset}>Reset</button>}
+      />,
+    );
+    const swatches = document.querySelector('[data-slot="color-picker"]') as HTMLElement;
+    const reset = screen.getByRole('button', { name: 'Reset' });
+    expect(swatches.parentElement).toBe(reset.parentElement);
+    fireEvent.click(reset);
+    expect(onReset).toHaveBeenCalled();
+  });
 });
 
 describe('SwitchRow', () => {
@@ -139,7 +263,9 @@ describe('SwitchRow', () => {
     );
 
     expect(screen.getByText('Enable glow')).toBeInTheDocument();
-    expect(screen.getByText('Adds soft glow effect')).toBeInTheDocument();
+    // The explanation is an (i) tip, not a visible line.
+    expect(screen.queryByText('Adds soft glow effect')).toBeNull();
+    expect(screen.getByRole('button', { name: 'More info' })).toBeInTheDocument();
 
     const switchBtn = screen.getByRole('switch');
     fireEvent.click(switchBtn);
@@ -239,69 +365,51 @@ describe('VisualCardSelect', () => {
   });
 });
 
-describe('TimingControls', () => {
-  it('computes duration correctly and adjusts end time when start time changes', () => {
-    const onChangeTime = vi.fn();
+describe('VisualCardSelect preview', () => {
+  it('shows a preview above the label', () => {
     render(
-      <TimingControls
-        startTime={2.0}
-        endTime={6.0}
-        onChangeTime={onChangeTime}
+      <VisualCardSelect
+        options={[
+          { value: 'a', label: 'Alpha', preview: <svg data-testid="preview-a" /> },
+          { value: 'b', label: 'Beta' },
+        ]}
+        value="a"
+        onChange={() => {}}
       />
     );
-
-    const startInput = screen.getByLabelText('Start time');
-    const durationInput = screen.getByLabelText('Duration');
-
-    expect(startInput).toHaveValue(2);
-    expect(durationInput).toHaveValue(4);
-
-    // Shift start time to 3.0 -> with duration 4.0, new end should be 7.0
-    fireEvent.change(startInput, { target: { value: '3' } });
-    expect(onChangeTime).toHaveBeenCalledWith(3, 7);
+    const preview = screen.getByTestId('preview-a');
+    const label = screen.getByText('Alpha');
+    expect(preview.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByTestId('preview-b')).not.toBeInTheDocument();
   });
 
-  it('adjusts end time when duration changes', () => {
-    const onChangeTime = vi.fn();
+  it('gives a render function the selected state', () => {
+    const preview = vi.fn(({ selected }: { selected: boolean }) => (
+      <span data-testid="p">{selected ? 'on' : 'off'}</span>
+    ));
+    const { rerender } = render(
+      <VisualCardSelect options={[{ value: 'a', label: 'Alpha', preview }]} value="a" onChange={() => {}} />
+    );
+    expect(screen.getByTestId('p')).toHaveTextContent('on');
+    rerender(<VisualCardSelect options={[{ value: 'a', label: 'Alpha', preview }]} value="b" onChange={() => {}} />);
+    expect(screen.getByTestId('p')).toHaveTextContent('off');
+  });
+
+  it('selecting the card still works through the preview', () => {
+    const onChange = vi.fn();
     render(
-      <TimingControls
-        startTime={1.5}
-        endTime={4.5}
-        onChangeTime={onChangeTime}
+      <VisualCardSelect
+        options={[{ value: 'a', label: 'Alpha', preview: <svg data-testid="pa" /> }]}
+        value="b"
+        onChange={onChange}
       />
     );
-
-    const durationInput = screen.getByLabelText('Duration');
-    expect(durationInput).toHaveValue(3);
-
-    // Change duration to 5.0 -> new end should be 1.5 + 5.0 = 6.5
-    fireEvent.change(durationInput, { target: { value: '5' } });
-    expect(onChangeTime).toHaveBeenCalledWith(1.5, 6.5);
+    fireEvent.click(screen.getByTestId('pa'));
+    expect(onChange).toHaveBeenCalledWith('a');
   });
+});
 
-  it('renders easing and exit animation controls when enabled', () => {
-    const onChangeTime = vi.fn();
-    const onChangeEasing = vi.fn();
-    const onChangeExitAnimation = vi.fn();
-
-    render(
-      <TimingControls
-        startTime={0}
-        endTime={5}
-        onChangeTime={onChangeTime}
-        easing="easeInOutSine"
-        onChangeEasing={onChangeEasing}
-        exitAnimation="fade"
-        onChangeExitAnimation={onChangeExitAnimation}
-        showExitAnimation={true}
-      />
-    );
-
-    expect(screen.getByText('Motion')).toBeInTheDocument();
-    expect(screen.getByText('After end')).toBeInTheDocument();
-    expect(screen.getByText('Fade out')).toBeInTheDocument();
-  });
-
+describe('VisualCardSelect locked options', () => {
   it('sends plan-locked options to onLockedSelect instead of onChange', () => {
     const onChange = vi.fn();
     const onLockedSelect = vi.fn();
@@ -322,5 +430,39 @@ describe('TimingControls', () => {
     fireEvent.click(car);
     expect(onLockedSelect).toHaveBeenCalledWith('car');
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('(i) tips on shared controls', () => {
+  it('SwitchRow shows its sublabel on hover, and the tip does not toggle the switch', async () => {
+    const onChange = vi.fn();
+    render(<SwitchRow label="Glow" sublabel="Adds a soft glow." checked={false} onChange={onChange} />);
+    const tip = screen.getByRole('button', { name: 'More info' });
+    fireEvent.click(tip);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Adds a soft glow.');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Glow').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('SwitchRow has no tip without a sublabel', () => {
+    render(<SwitchRow label="Glow" checked={false} onChange={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
+  });
+
+  it('Field shows its hint in an (i) tip after the label', async () => {
+    const { container } = render(<Field label="Projection" hint="Globe is round."><input aria-label="p" /></Field>);
+    expect(container.querySelector('[data-slot="field-hint"]')).toBeNull();
+    expect(screen.queryByText('Globe is round.')).toBeNull();
+    const tip = screen.getByRole('button', { name: 'More info' });
+    expect(screen.getByText('Projection').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The tip is not part of the label element, so it cannot become the control the label points at.
+    expect(screen.getByText('Projection').closest('label')?.contains(tip)).toBe(false);
+    fireEvent.focus(tip);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Globe is round.');
+  });
+
+  it('Field without a hint has no tip', () => {
+    render(<Field label="Projection"><input aria-label="p" /></Field>);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
   });
 });

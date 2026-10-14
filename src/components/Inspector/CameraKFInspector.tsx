@@ -2,13 +2,23 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { CameraItem } from '@/store/types';
-import { Accordion } from "@/components/ui/accordion";
-import { SliderRow, EasingSelect, CoordinatesRows, NumberRow } from './InspectorShared';
+import { SliderRow, CoordinatesRows } from './InspectorShared';
 import { formatDegrees } from './inspectorValues';
-import { PanelWrapper, InspectorSection, ItemActions } from './InspectorLayout';
-import { Video, Compass, ZoomIn, RotateCw, Sparkles } from 'lucide-react';
+import { PanelWrapper } from './InspectorLayout';
+import { InspectorSection } from './InspectorSection';
+import { InspectorHeader } from './InspectorHeader';
+import { TimingSection } from './timing/TimingSection';
+import { cameraViewTiming } from './timing/timingAdapters';
+import { formatTimelineTime } from '@/components/Timeline/timelineTime';
+import { Button } from '@/components/ui/button';
+import { useMapRef } from '@/hooks/useMapRef';
+import { readMapCamera } from '@/engine/readMapCamera';
+import { moveToCamera } from '@/engine/mapFraming';
+import { CAMERA_VIEW_TERMS, ITEM_TYPE_LABELS } from '@/lib/terms';
+import { Video, Compass, ZoomIn, RotateCw, Crosshair, Eye } from 'lucide-react';
 
 export function CameraKFInspector({ item }: { item: CameraItem }) {
+  const mapRef = useMapRef();
   const { selectedKeyframeId, updateCameraKeyframe } = useProjectStore(
     useShallow(s => ({
       selectedKeyframeId: s.selectedKeyframeId,
@@ -18,14 +28,12 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
 
   const kf = item.keyframes.find((k) => k.id === selectedKeyframeId);
 
-  const footer = kf ? <ItemActions id={kf.id} kind="camera-kf" customLabel="Delete Keyframe" /> : null;
-
   if (!kf) {
     return (
-      <PanelWrapper title="Camera track" icon={<Video size={15} />} footer={footer}>
+      <PanelWrapper title={CAMERA_VIEW_TERMS.track} icon={<Video size={15} />}>
         <div className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">Select a keyframe in the timeline to edit it.</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-2">{item.keyframes.length} keyframe{item.keyframes.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-muted-foreground">{CAMERA_VIEW_TERMS.selectOne}</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-2">{item.keyframes.length} camera view{item.keyframes.length !== 1 ? 's' : ''}</p>
         </div>
       </PanelWrapper>
     );
@@ -33,71 +41,88 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
 
   const u = (updates: Partial<typeof kf>) => updateCameraKeyframe(kf.id, updates);
 
+  /** Saves what the map shows now into this camera view. One store write, so one undo step. */
+  const saveCurrentView = () => {
+    const map = mapRef.current?.getMap?.();
+    if (map) u({ camera: { ...kf.camera, ...readMapCamera(map) } });
+  };
+
+  /** Shows this camera view on the map. Does nothing while the project plays, scrubs or exports. */
+  const goToView = () => {
+    const map = mapRef.current?.getMap?.();
+    if (map) moveToCamera(map, kf.camera);
+  };
+
   return (
     <PanelWrapper 
-      title={`Camera keyframe at ${kf.time.toFixed(2)} s`}
+      title="Camera view"
       icon={<Video size={15} />}
-      footer={footer}
+      header={
+        <InspectorHeader
+          kind="camera-kf"
+          id={kf.id}
+          name={`${ITEM_TYPE_LABELS['camera-kf']} at ${formatTimelineTime(kf.time)}`}
+          startTime={kf.time}
+        />
+      }
     >
-      <NumberRow
-        label="Time"
-        value={kf.time}
-        onChange={(v) => u({ time: v })}
-        min={0}
-        step={0.01}
-        unit="s"
-        className="mb-3"
-      />
+      <div className="flex flex-col gap-2 pb-1">
+        <p className="text-[11px] leading-tight text-muted-foreground">{CAMERA_VIEW_TERMS.help}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" size="sm" onClick={saveCurrentView} className="h-9 text-xs">
+            <Crosshair size={14} aria-hidden="true" />
+            {CAMERA_VIEW_TERMS.useCurrent}
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={goToView} className="h-9 text-xs">
+            <Eye size={14} aria-hidden="true" />
+            {CAMERA_VIEW_TERMS.goTo}
+          </Button>
+        </div>
+      </div>
 
-      <Accordion type="multiple" defaultValue={['cam']} className="w-full">
-        <InspectorSection value="cam" title="Camera">
-          <div className="flex flex-col gap-3">
-            <CoordinatesRows
-              lngLat={kf.camera.center}
-              onChange={(center) => u({ camera: { ...kf.camera, center } })}
-            />
+      <InspectorSection kind="camera-kf" id="exact">
+        <div className="flex flex-col gap-3">
+          <CoordinatesRows
+            lngLat={kf.camera.center}
+            onChange={(center) => u({ camera: { ...kf.camera, center } })}
+          />
 
-            <SliderRow
-              label="Zoom"
-              icon={<ZoomIn size={13} />}
-              value={kf.camera.zoom}
-              onChange={(v) => u({ camera: { ...kf.camera, zoom: v } })}
-              min={0}
-              max={22}
-              step={0.1}
-              formatValue={(v) => v.toFixed(1)}
-            />
+          <SliderRow
+            label="Zoom"
+            icon={<ZoomIn size={13} />}
+            value={kf.camera.zoom}
+            onChange={(v) => u({ camera: { ...kf.camera, zoom: v } })}
+            min={0}
+            max={22}
+            step={0.1}
+            formatValue={(v) => v.toFixed(1)}
+          />
 
-            <SliderRow
-              label="Pitch"
-              icon={<Compass size={13} />}
-              value={kf.camera.pitch}
-              onChange={(v) => u({ camera: { ...kf.camera, pitch: v } })}
-              min={0}
-              max={85}
-              step={0.1}
-              formatValue={formatDegrees}
-            />
+          <SliderRow
+            label="Pitch"
+            icon={<Compass size={13} />}
+            value={kf.camera.pitch}
+            onChange={(v) => u({ camera: { ...kf.camera, pitch: v } })}
+            min={0}
+            max={85}
+            step={0.1}
+            formatValue={formatDegrees}
+          />
 
-            <SliderRow
-              label="Bearing"
-              icon={<RotateCw size={13} />}
-              value={kf.camera.bearing}
-              onChange={(v) => u({ camera: { ...kf.camera, bearing: v } })}
-              min={0}
-              max={360}
-              step={0.1}
-              formatValue={formatDegrees}
-            />
+          <SliderRow
+            label="Bearing"
+            icon={<RotateCw size={13} />}
+            value={kf.camera.bearing}
+            onChange={(v) => u({ camera: { ...kf.camera, bearing: v } })}
+            min={0}
+            max={360}
+            step={0.1}
+            formatValue={formatDegrees}
+          />
+        </div>
+      </InspectorSection>
 
-            <EasingSelect 
-              value={kf.easing} 
-              onChange={(v) => u({ easing: v })} 
-              icon={<Sparkles size={13} />}
-            />
-          </div>
-        </InspectorSection>
-      </Accordion>
+      <TimingSection adapter={cameraViewTiming} item={kf} onChange={u} />
     </PanelWrapper>
   );
 }

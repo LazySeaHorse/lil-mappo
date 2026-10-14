@@ -1,10 +1,12 @@
 import type {
   Project,
+  RouteCalculation,
   TimelineItem,
   CameraKeyframe,
   BoundaryItem,
   WalkRouteCalculation,
 } from '../types';
+import type { FollowCameraResult } from '../followCamera';
 import type { BoundaryDetailId } from '@/engine/boundaryDetail';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
@@ -13,6 +15,12 @@ import type { AspectRatio, ExportResolution } from '@/types/render';
 export interface PickResult {
   lngLat: [number, number];
   name: string;
+}
+
+/** A route's path being edited. It stays here, apart from the project, until the user applies it. */
+export interface RouteDraft {
+  routeId: string;
+  calculation: RouteCalculation;
 }
 
 export interface PickSession {
@@ -44,12 +52,13 @@ export interface TransientProjectState {
   /** The map is temporarily resized to render a capture (export, snapshot, agent frames). */
   isCapturingViewport: boolean;
   showNewProjectModal: boolean;
-  projectSettingsTab: 'general' | 'map';
   // Transient picking state (not persisted)
   activePicker: PickSession | null;
   previewRoute: GeoJSON.FeatureCollection | null;
   /** Walk being built in the Plan Route dropdown; drawn live on the map until inserted. */
   draftWalk: WalkRouteCalculation | null;
+  /** The path editor of the selected route (not persisted, not in undo history). */
+  routeDraft: RouteDraft | null;
   previewBoundary: GeoJSON.Geometry | null;
   previewBoundaryStyle: BoundaryItem['style'] | null;
   draftBoundaryName: string;
@@ -67,6 +76,12 @@ export interface ItemsSlice {
    * started earlier (map pickers, drags) never overwrite newer changes.
    */
   updateWalkRoute: (id: string, update: WalkPatch | ((calc: WalkRouteCalculation) => WalkPatch)) => void;
+  /**
+   * Turns Follow camera (`autoCam`) on or off for a route. Turning on follows
+   * `canEnableFollowCamera`; when the rule says no, nothing changes and the reason comes back.
+   * The first time, the camera is fitted to the route; later, it keeps the settings it had.
+   */
+  setFollowCamera: (routeId: string, on: boolean) => FollowCameraResult;
   reorderItems: (newOrder: string[]) => void;
   duplicateItem: (id: string) => void;
 }
@@ -75,6 +90,12 @@ export interface CameraSlice {
   addCameraKeyframe: (kf: CameraKeyframe) => void;
   updateCameraKeyframe: (kfId: string, updates: Partial<CameraKeyframe>) => void;
   removeCameraKeyframe: (kfId: string) => void;
+  /**
+   * Copies a camera view to 1 s later, or halfway to the next view or the end
+   * of the video when that is closer, then selects the copy. Returns the new
+   * id, or null when the view is unknown or there is no room after it.
+   */
+  duplicateCameraKeyframe: (kfId: string) => string | null;
   setIsCameraEnabled: (v: boolean) => void;
 }
 
@@ -118,7 +139,6 @@ export interface EditorUiSlice {
   setHideUI: (v: boolean) => void;
   setIsExporting: (v: boolean) => void;
   setShowNewProjectModal: (v: boolean) => void;
-  setProjectSettingsTab: (tab: 'general' | 'map') => void;
   setIsInspectorOpen: (v: boolean) => void;
   setTimelineHeight: (v: number) => void;
   setMapCenter: (v: [number, number]) => void;
@@ -126,6 +146,11 @@ export interface EditorUiSlice {
   stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
   setDraftWalk: (v: WalkRouteCalculation | null) => void;
+  /** Opens a draft that starts as a copy of the route's saved path settings. */
+  startRouteDraft: (routeId: string) => void;
+  /** Edits the open draft. The function gets the latest draft, so late map picks and drags never overwrite newer edits. */
+  updateRouteDraft: (update: (calc: RouteCalculation) => RouteCalculation) => void;
+  discardRouteDraft: () => void;
   setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string, countryCode?: string | null) => void;
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;

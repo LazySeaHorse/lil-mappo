@@ -1,11 +1,23 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
-import { RoutePlanner } from './RoutePlanner';
+import { RoutePathSection } from './RoutePathSection';
 import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
-import type { RouteItem } from '@/store/types';
+import type { EndpointRouteCalculation, RouteItem } from '@/store/types';
 import { getDirections } from '@/services/directions';
+import { MapRefContext } from '@/hooks/useMapRef';
+import type { MapRef } from 'react-map-gl/mapbox';
+
+const { suggest, retrieve } = vi.hoisted(() => ({ suggest: vi.fn(), retrieve: vi.fn() }));
+
+vi.mock('@mapbox/search-js-core', () => ({
+  SearchBoxCore: class {},
+  SearchSession: class {
+    suggest = suggest;
+    retrieve = retrieve;
+  },
+}));
 
 vi.mock('react-secure-storage', () => ({
   default: {
@@ -26,7 +38,17 @@ vi.mock('@/hooks/useSubscription', () => ({
   }),
 }));
 
-describe('RoutePlanner in Inspector', () => {
+/** Renders the route like the inspector does: the item comes from the store. */
+const LiveRoute = ({ id }: { id: string }) => {
+  const item = useProjectStore((s) => s.items[id]) as RouteItem | undefined;
+  if (!item) return null;
+  return <RoutePathSection key={item.id} item={item} />;
+};
+
+const draftCalc = () => useProjectStore.getState().routeDraft!.calculation;
+const draftEndpoints = () => draftCalc() as EndpointRouteCalculation;
+
+describe('RoutePlanner in Inspector (edits a draft)', () => {
   beforeAll(async () => {
     if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -49,8 +71,6 @@ describe('RoutePlanner in Inspector', () => {
       width: 4,
       glow: true,
       glowWidth: 12,
-      trailFade: false,
-      trailFadeLength: 0.3,
       dashPattern: null,
       animationType: 'draw',
       cometTrailLength: 0.2,
@@ -59,6 +79,8 @@ describe('RoutePlanner in Inspector', () => {
       mode,
       startPoint: [0, 0],
       endPoint: [0, 0],
+      startName: '',
+      endName: '',
       vehicle: {
         enabled: true,
         type: 'dot',
@@ -77,85 +99,90 @@ describe('RoutePlanner in Inspector', () => {
       selectedItemId: route.id,
       previewRoute: null,
       activePicker: null,
+      routeDraft: null,
     });
   });
 
+  /** Puts the route in the store, renders its path section and starts its draft. */
+  const openEditor = (route: RouteItem, wrap: (node: React.ReactNode) => React.ReactNode = (node) => node) => {
+    useProjectStore.setState({ items: { [route.id]: route }, itemOrder: [route.id], selectedItemId: route.id });
+    const view = render(<>{wrap(<LiveRoute id={route.id} />)}</>);
+    return view;
+  };
+  const applyDraft = () => act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Apply' })); });
+
   it('renders standard location search fields when mode is car', () => {
-    const route = createBaseRouteItem('car');
-    render(<RoutePlanner item={route} />);
+    openEditor(createBaseRouteItem('car'));
 
     expect(screen.getByText('Start')).toBeInTheDocument();
     expect(screen.getByText('End')).toBeInTheDocument();
     expect(screen.getAllByPlaceholderText('Search address or coordinates').length).toBe(2);
   });
 
-  it('switches to flight mode without changing the route marker', async () => {
-    const route = createBaseRouteItem('car');
-    render(<RoutePlanner item={route} />);
-
-    const flightRadio = screen.getByRole('radio', { name: /flight/i });
-    act(() => {
-      fireEvent.click(flightRadio);
-    });
-
-    const updatedItem = useProjectStore.getState().items['route-test-1'] as RouteItem;
-    expect(updatedItem.calculation?.mode).toBe('flight');
-    expect(updatedItem.calculation?.vehicle).toEqual({ enabled: true, type: 'dot', modelId: '', scale: 1 });
+  it('has no coloured dots beside the start and end fields', () => {
+    const { container } = openEditor(createBaseRouteItem('car'));
+    expect(container.querySelector('.rounded-full.border')).toBeNull();
   });
 
-  it('keeps a disabled route marker disabled when Flight mode is chosen', () => {
-    const route = createBaseRouteItem('car');
-    route.calculation!.vehicle!.enabled = false;
-    useProjectStore.setState({ items: { [route.id]: route } });
-    render(<RoutePlanner item={route} />);
+  it('switches to flight mode without changing the route marker', async () => {
+    openEditor(createBaseRouteItem('car'));
 
     act(() => {
       fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
     });
 
-    const updatedItem = useProjectStore.getState().items['route-test-1'] as RouteItem;
-    expect(updatedItem.calculation?.vehicle?.enabled).toBe(false);
+    expect(draftCalc().mode).toBe('flight');
+    expect(draftCalc().vehicle).toEqual({ enabled: true, type: 'dot', modelId: '', scale: 1 });
+  });
+
+  it('keeps a disabled route marker disabled when Flight mode is chosen', () => {
+    const route = createBaseRouteItem('car');
+    route.calculation!.vehicle!.enabled = false;
+    openEditor(route);
+
+    act(() => {
+      fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
+    });
+
+    expect(draftCalc().vehicle?.enabled).toBe(false);
   });
 
   describe('endpoint map pickers', () => {
-    const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
     const pick = (lngLat: [number, number]) =>
-      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: '' }); });
 
     it('car: picks start and end on the map and toggles a picker off', () => {
-      render(<RoutePlanner item={createBaseRouteItem('car')} />);
-      const [startBtn, endBtn] = screen.getAllByTitle('Select point on map');
+      openEditor(createBaseRouteItem('car'));
+      const [startBtn, endBtn] = screen.getAllByTitle('Pick on the map');
 
       fireEvent.click(startBtn);
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-start', ownerId: 'route-test-1', prompt: 'Start' });
       pick([0, 51.48]);
-      expect(stored().calculation).toMatchObject({ startPoint: [0, 51.48], endPoint: [0, 0] });
-      expect(screen.getAllByPlaceholderText('Search address or coordinates')[0]).toHaveValue('0.00000, 51.48000');
+      expect(draftCalc()).toMatchObject({ startPoint: [0, 51.48], endPoint: [0, 0] });
 
       fireEvent.click(endBtn);
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-end', prompt: 'End' });
-      fireEvent.click(screen.getByTitle('Select a point on the map'));
+      // The field being picked is blank; the other one shows its point.
+      expect(screen.getByPlaceholderText('Search address or coordinates')).toHaveValue('0.00000, 51.48000');
+      fireEvent.click(screen.getAllByTitle('Pick on the map')[1]);
       expect(useProjectStore.getState().activePicker).toBeNull();
     });
 
     it('flight: picks the departure on the map', () => {
       const route = createBaseRouteItem('flight');
-      useProjectStore.setState({ items: { [route.id]: route } });
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
 
-      fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[0]);
+      fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[0]);
       expect(useProjectStore.getState().activePicker).toMatchObject({ id: 'route-route-test-1-start', ownerId: 'route-test-1', prompt: 'Start' });
       pick([2, 3]);
-      expect(stored().calculation).toMatchObject({ mode: 'flight', startPoint: [2, 3] });
+      expect(draftCalc()).toMatchObject({ mode: 'flight', startPoint: [2, 3] });
     });
   });
 
   it('allows picking airports and applying flight arc', async () => {
     const route = createBaseRouteItem('flight');
     route.calculation!.vehicle!.type = 'plane';
-    useProjectStore.setState({ items: { [route.id]: route } });
-
-    render(<RoutePlanner item={route} />);
+    openEditor(route);
 
     const departureInput = screen.getByPlaceholderText(/Departure airport or city/i);
     const arrivalInput = screen.getByPlaceholderText(/Arrival airport or city/i);
@@ -173,8 +200,7 @@ describe('RoutePlanner in Inspector', () => {
     const jfkOption = await screen.findByText(/John F Kennedy/i);
     act(() => { fireEvent.click(jfkOption); });
 
-    const applyBtn = screen.getByRole('button', { name: /Apply route/i });
-    await act(async () => { fireEvent.click(applyBtn); });
+    await applyDraft();
 
     const finalItem = useProjectStore.getState().items['route-test-1'] as RouteItem;
     expect(finalItem.geojson.features.length).toBe(1);
@@ -194,22 +220,21 @@ describe('RoutePlanner in Inspector', () => {
         sharpness: 0.85,
       },
     };
-    useProjectStore.setState({ items: { [route.id]: route }, selectedItemId: route.id });
-
-    render(<RoutePlanner item={route} />);
+    openEditor(route);
 
     // No "Routing:" sub-toggle — walk is always freeform
     expect(screen.queryByText('Routing:')).not.toBeInTheDocument();
 
     // Curve controls are present
     expect(screen.getByText('Smooth Curve')).toBeInTheDocument();
-    expect(screen.getByText(/Curvature/)).toBeInTheDocument();
+    expect(screen.getByText('Curvature')).toBeInTheDocument();
+    expect(screen.getByText('0.85')).toBeInTheDocument();
 
     expect(screen.getAllByTitle('Remove point')).toHaveLength(3);
     expect(screen.getByText('-73.9780, 40.7550')).toBeInTheDocument();
   });
 
-  it('toggling Smooth Curve switch rebuilds geometry', () => {
+  it('toggling Smooth Curve switch rebuilds geometry when applied', async () => {
     const route: RouteItem = {
       ...createBaseRouteItem('car'),
       calculation: {
@@ -219,19 +244,21 @@ describe('RoutePlanner in Inspector', () => {
         sharpness: 0.85,
       },
     };
-    useProjectStore.setState({ items: { [route.id]: route }, selectedItemId: route.id });
-    render(<RoutePlanner item={route} />);
+    openEditor(route);
 
     const switchEl = screen.getByRole('switch');
     expect(switchEl).toHaveAttribute('data-state', 'checked');
 
     act(() => { fireEvent.click(switchEl); });
+    expect(draftCalc()).toMatchObject({ curved: false });
+    await applyDraft();
     const afterToggle = useProjectStore.getState().items[route.id] as RouteItem;
     expect(afterToggle.calculation).toMatchObject({ curved: false });
     const rawCoords = (afterToggle.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(rawCoords.length).toBe(3);
 
-    act(() => { fireEvent.click(switchEl); });
+    act(() => { fireEvent.click(screen.getByRole('switch')); });
+    await applyDraft();
     const curvedAgain = useProjectStore.getState().items[route.id] as RouteItem;
     expect(curvedAgain.calculation).toMatchObject({ curved: true });
     const splineCoords = (curvedAgain.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
@@ -250,14 +277,18 @@ describe('RoutePlanner in Inspector', () => {
     });
 
     const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
-    const storedPoints = () => {
-      const calc = stored().calculation;
+    const draftPoints = () => {
+      const calc = useProjectStore.getState().routeDraft?.calculation;
       return calc?.mode === 'walk' ? calc.points : undefined;
     };
+    const dragDraftPoint = (index: number, point: [number, number]) =>
+      act(() => {
+        useProjectStore.getState().updateRouteDraft((c) =>
+          c.mode === 'walk' ? { ...c, points: c.points.map((p, i) => (i === index ? point : p)) } : c);
+      });
     const setPoints = (points: [number, number][]) => {
       const route = walkRoute();
       if (route.calculation?.mode === 'walk') route.calculation.points = points;
-      useProjectStore.setState({ items: { [route.id]: route } });
       return route;
     };
     const pick = (lngLat: [number, number]) =>
@@ -265,78 +296,79 @@ describe('RoutePlanner in Inspector', () => {
         useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' });
       });
 
-    beforeEach(() => {
-      const route = walkRoute();
-      useProjectStore.setState({ items: { [route.id]: route } });
-    });
 
     it('adds a point without discarding concurrent edits', () => {
-      render(<RoutePlanner item={walkRoute()} />);
+      openEditor(walkRoute());
       fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
 
       // Simulate a concurrent drag of the middle point on the map
-      act(() => { useProjectStore.getState().updateWalkRoute('route-test-1', { points: [[0, 0.5], [1, 2], [2, 0.5]] }); });
+      dragDraftPoint(1, [1, 2]);
 
       pick([1.5, 0]);
-      expect(storedPoints()).toEqual([[0, 0.5], [1, 2], [2, 0.5], [1.5, 0]]);
+      expect(draftPoints()).toEqual([[0, 0.5], [1, 2], [2, 0.5], [1.5, 0]]);
+      expect(stored().calculation).toMatchObject({ points: [[0, 0.5], [1, 1], [2, 0.5]] });
     });
 
-    it('rebuilds geometry when a point is repositioned via map pick', () => {
-      render(<RoutePlanner item={walkRoute()} />);
+    it('moves a point via map pick and rebuilds the geometry when applied', async () => {
+      openEditor(walkRoute());
       // Point 1 is the start point — click its crosshair (first of three)
       const crosshairs = screen.getAllByTitle('Move point on map');
       fireEvent.click(crosshairs[0]);
       pick([-1, 0.5]);
+      expect(draftPoints()?.[0]).toEqual([-1, 0.5]);
 
+      await applyDraft();
       const coords = (stored().geojson.features[0].geometry as GeoJSON.LineString).coordinates;
       expect(coords[0]).toEqual([-1, 0.5]);
-      expect(storedPoints()?.[0]).toEqual([-1, 0.5]);
+      expect((stored().calculation as { points: unknown[] }).points[0]).toEqual([-1, 0.5]);
     });
 
     it('keeps a map drag made while a move pick is pending', () => {
-      render(<RoutePlanner item={walkRoute()} />);
+      openEditor(walkRoute());
       fireEvent.click(screen.getAllByTitle('Move point on map')[2]);
       // The middle point is dragged on the map before the pick lands
-      act(() => { useProjectStore.getState().updateWalkRoute('route-test-1', (c) => ({ points: c.points.map((p, i) => (i === 1 ? [9, 9] : p)) })); });
+      dragDraftPoint(1, [9, 9]);
       pick([3, 3]);
-      expect(storedPoints()).toEqual([[0, 0.5], [9, 9], [3, 3]]);
+      expect(draftPoints()).toEqual([[0, 0.5], [9, 9], [3, 3]]);
     });
 
-    it('shows a single point once and can delete it, clearing the path', () => {
+    it('shows a single point once and can delete it, clearing the path when applied', async () => {
       const route = setPoints([[0, 0.5], [2, 0.5]]);
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
 
       fireEvent.click(screen.getAllByTitle('Remove point')[1]);
       expect(screen.getAllByTitle('Remove point')).toHaveLength(1);
-      expect(storedPoints()).toEqual([[0, 0.5]]);
+      expect(draftPoints()).toEqual([[0, 0.5]]);
+      await applyDraft();
       expect(stored().geojson.features).toEqual([]);
 
       fireEvent.click(screen.getByTitle('Remove point'));
       expect(screen.queryAllByTitle('Remove point')).toHaveLength(0);
-      expect(storedPoints()).toEqual([]);
+      expect(draftPoints()).toEqual([]);
     });
 
-    it('appends the first points of an empty walk without duplicating them', () => {
+    it('appends the first points of an empty walk without duplicating them', async () => {
       const route = setPoints([]);
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
       fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
 
       pick([5, 5]);
       expect(screen.getAllByTitle('Remove point')).toHaveLength(1);
       pick([6, 6]);
-      expect(storedPoints()).toEqual([[5, 5], [6, 6]]);
+      expect(draftPoints()).toEqual([[5, 5], [6, 6]]);
+      await applyDraft();
       expect((stored().geojson.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([[5, 5], [6, 6]]);
     });
 
     it('cancels a pending move pick when points are removed', () => {
-      render(<RoutePlanner item={walkRoute()} />);
+      openEditor(walkRoute());
       fireEvent.click(screen.getAllByTitle('Move point on map')[2]);
       fireEvent.click(screen.getAllByTitle('Remove point')[0]);
       expect(useProjectStore.getState().activePicker).toBeNull();
     });
 
     it('stops its own pickers when unmounted', () => {
-      const { unmount } = render(<RoutePlanner item={walkRoute()} />);
+      const { unmount } = openEditor(walkRoute());
       fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
       expect(useProjectStore.getState().activePicker?.ownerId).toBe('route-test-1');
 
@@ -345,10 +377,151 @@ describe('RoutePlanner in Inspector', () => {
     });
 
     it('stops its pickers when the route is deleted', () => {
-      render(<RoutePlanner item={walkRoute()} />);
+      openEditor(walkRoute());
       fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
       act(() => { useProjectStore.getState().removeItem('route-test-1'); });
       expect(useProjectStore.getState().activePicker).toBeNull();
+    });
+  });
+
+  describe('place names', () => {
+    const SEARCH = 'Search address or coordinates';
+    const calcOf = draftEndpoints;
+    const setCalc = (patch: Partial<EndpointRouteCalculation>) => {
+      const route = createBaseRouteItem('car');
+      route.calculation = { mode: 'car', startPoint: [-73.99785, 40.71234], endPoint: [-73.96542, 40.78243], startName: '', endName: '', ...patch };
+      return route;
+    };
+
+    beforeEach(() => {
+      suggest.mockReset();
+      retrieve.mockReset();
+    });
+
+    it('shows the saved names in the Start and End fields', () => {
+      openEditor(setCalc({ startName: 'Times Square', endName: 'Central Park' }));
+      const [start, end] = screen.getAllByPlaceholderText(SEARCH);
+      expect(start).toHaveValue('Times Square');
+      expect(end).toHaveValue('Central Park');
+    });
+
+    it('shows formatted coordinates when no name is known', () => {
+      openEditor(setCalc({ startName: 'Times Square' }));
+      const [start, end] = screen.getAllByPlaceholderText(SEARCH);
+      expect(start).toHaveValue('Times Square');
+      expect(end).toHaveValue('-73.96542, 40.78243');
+    });
+
+    it('keeps the name of a place picked from the search results in the draft only', async () => {
+      suggest.mockResolvedValue({ suggestions: [{ mapbox_id: 'a', name: 'Brooklyn Bridge' }] });
+      retrieve.mockResolvedValue({ features: [{ geometry: { coordinates: [-73.9969, 40.7061] }, properties: { name: 'Brooklyn Bridge' } }] });
+      openEditor(setCalc({}));
+
+      const start = screen.getAllByPlaceholderText(SEARCH)[0];
+      fireEvent.change(start, { target: { value: 'Brooklyn Bridge' } });
+      fireEvent.keyDown(start, { key: 'Enter' });
+      fireEvent.click(await screen.findByText('Brooklyn Bridge', { selector: 'span' }));
+
+      await waitFor(() => expect(calcOf().startName).toBe('Brooklyn Bridge'));
+      expect(calcOf().startPoint).toEqual([-73.9969, 40.7061]);
+      expect(calcOf().endName).toBe('');
+      expect((useProjectStore.getState().items['route-test-1'] as RouteItem).calculation).toMatchObject({ startName: '' });
+    });
+
+    it('has no search button: the box shows a magnifying glass until it has text', async () => {
+      suggest.mockResolvedValue({ suggestions: [] });
+      openEditor(setCalc({}));
+      const start = screen.getAllByPlaceholderText(SEARCH)[0];
+      fireEvent.change(start, { target: { value: 'Brooklyn Bridge' } });
+      expect(screen.queryByRole('button', { name: 'Search' })).not.toBeInTheDocument();
+      fireEvent.keyDown(start, { key: 'Enter' });
+      await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
+      expect(suggest.mock.calls[0][0]).toBe('Brooklyn Bridge');
+    });
+
+    it('searches only on Enter, not while typing', () => {
+      openEditor(setCalc({}));
+      fireEvent.change(screen.getAllByPlaceholderText(SEARCH)[0], { target: { value: 'Brooklyn Bridge' } });
+      expect(suggest).not.toHaveBeenCalled();
+    });
+
+    it('clears the name when coordinates are typed', async () => {
+      openEditor(setCalc({ startName: 'Times Square' }));
+      const start = screen.getAllByPlaceholderText(SEARCH)[0];
+      fireEvent.change(start, { target: { value: '-74.0, 40.7' } });
+      fireEvent.keyDown(start, { key: 'Enter' });
+
+      await waitFor(() => expect(calcOf().startPoint).toEqual([-74, 40.7]));
+      expect(calcOf().startName).toBe('');
+    });
+
+    it('stores the name of a place picked on the map, or none when the pick has no name', () => {
+      openEditor(setCalc({ endName: 'Central Park' }));
+      act(() => { fireEvent.click(screen.getAllByTitle('Pick on the map')[1]); });
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [2, 3], name: 'Pier 17' }); });
+      expect(calcOf()).toMatchObject({ endPoint: [2, 3], endName: 'Pier 17' });
+
+      act(() => { useProjectStore.getState().stopPicking(); });
+      act(() => { fireEvent.click(screen.getAllByTitle('Pick on the map')[1]); });
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [4, 5], name: '' }); });
+      expect(calcOf()).toMatchObject({ endPoint: [4, 5], endName: '' });
+    });
+
+    it('shows and stores airport names in Flight mode', async () => {
+      const route = createBaseRouteItem('flight');
+      route.calculation = { mode: 'flight', startPoint: [1, 1], endPoint: [2, 2], startName: 'London Heathrow Airport', endName: '' };
+      openEditor(route);
+      expect(screen.getByPlaceholderText(/Departure airport or city/i)).toHaveValue('London Heathrow Airport');
+
+      const arrival = screen.getByPlaceholderText(/Arrival airport or city/i);
+      fireEvent.focus(arrival);
+      fireEvent.change(arrival, { target: { value: 'JFK' } });
+      act(() => { fireEvent.click(screen.getByText(/John F Kennedy/i)); });
+      expect(calcOf().endName).toMatch(/John F Kennedy/i);
+    });
+  });
+
+  describe('map framing', () => {
+    const fitBounds = vi.fn();
+    const map = {
+      getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+      getZoom: () => 5,
+      project: () => ({ x: 600, y: 400 }),
+      fitBounds,
+      easeTo: vi.fn(),
+    };
+    const renderRoute = () => {
+      const route = createBaseRouteItem('car');
+      route.calculation = { mode: 'car', startPoint: [1, 1], endPoint: [3, 4], startName: '', endName: '' };
+      useProjectStore.setState({ isPlaying: false, isScrubbing: false, isExporting: false });
+      openEditor(route, (node) => (
+        <MapRefContext.Provider value={{ current: { getMap: () => map } as unknown as MapRef }}>
+          {node}
+        </MapRefContext.Provider>
+      ));
+      // A change makes Apply show.
+      act(() => { useProjectStore.getState().updateRouteDraft((c) => (c.mode === 'walk' ? c : { ...c, endPoint: [3, 4.5] })); });
+    };
+
+    beforeEach(() => {
+      fitBounds.mockClear();
+      vi.mocked(getDirections).mockReset().mockResolvedValue({
+        geometry: { type: 'LineString', coordinates: [[1, 1], [2, 2], [3, 4]] }, distance: 1, duration: 1,
+      });
+    });
+
+    it('shows the applied route on the map', async () => {
+      renderRoute();
+      await applyDraft();
+      expect(fitBounds).toHaveBeenCalledTimes(1);
+      expect(fitBounds.mock.calls[0][0]).toEqual([[1, 1], [3, 4]]);
+    });
+
+    it('shows the previewed route on the map', async () => {
+      renderRoute();
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview route/i })); });
+      expect(fitBounds).toHaveBeenCalledTimes(1);
+      expect(useProjectStore.getState().previewRoute).not.toBeNull();
     });
   });
 
@@ -359,36 +532,47 @@ describe('RoutePlanner in Inspector', () => {
     };
     const stored = () => useProjectStore.getState().items['route-test-1'] as RouteItem;
     const coordsOf = (route: RouteItem) => (route.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
-    const setRoute = (patch: Partial<RouteItem>) => {
-      const route = { ...createBaseRouteItem('car'), ...patch };
-      useProjectStore.setState({ items: { [route.id]: route } });
-      return route;
-    };
+    const setRoute = (patch: Partial<RouteItem>) => ({ ...createBaseRouteItem('car'), ...patch });
     const clickMode = (name: RegExp) => act(() => { fireEvent.click(screen.getByRole('radio', { name })); });
 
     beforeEach(() => {
       vi.mocked(getDirections).mockReset();
     });
 
-    it('car → walk redraws the path through the two endpoints', () => {
+    it('keeps the route as saved until the switch is applied', () => {
       const route = setRoute({
         geojson: drivenGeometry,
-        calculation: { mode: 'car', startPoint: [1, 1], endPoint: [2, 2] },
+        calculation: { mode: 'car', startPoint: [1, 1], endPoint: [2, 2], startName: '', endName: '' },
       });
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
       clickMode(/walk/i);
+
+      expect(draftCalc()).toMatchObject({ mode: 'walk', points: [[1, 1], [2, 2]] });
+      expect(stored().calculation).toMatchObject({ mode: 'car' });
+      expect(stored().geojson).toEqual(drivenGeometry);
+    });
+
+    it('car → walk redraws the path through the two endpoints', async () => {
+      const route = setRoute({
+        geojson: drivenGeometry,
+        calculation: { mode: 'car', startPoint: [1, 1], endPoint: [2, 2], startName: '', endName: '' },
+      });
+      openEditor(route);
+      clickMode(/walk/i);
+      await applyDraft();
 
       expect(stored().calculation).toMatchObject({ mode: 'walk', points: [[1, 1], [2, 2]] });
       expect(coordsOf(stored())).toEqual([[1, 1], [2, 2]]);
     });
 
-    it('walk → flight draws an arc between the first and last points', () => {
+    it('walk → flight draws an arc between the first and last points', async () => {
       const route = setRoute({
         geojson: drivenGeometry,
         calculation: { mode: 'walk', points: [[1, 1], [5, 5], [2, 2]], curved: true, sharpness: 0.85 },
       });
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
       clickMode(/flight/i);
+      await applyDraft();
 
       expect(stored().calculation).toMatchObject({ mode: 'flight', startPoint: [1, 1], endPoint: [2, 2] });
       const coords = coordsOf(stored());
@@ -405,8 +589,10 @@ describe('RoutePlanner in Inspector', () => {
         geojson: drivenGeometry,
         calculation: { mode: 'walk', points: [[1, 1], [5, 5], [2, 2]], curved: true, sharpness: 0.85 },
       });
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
       await act(async () => { fireEvent.click(screen.getByRole('radio', { name: /car/i })); });
+      expect(getDirections).not.toHaveBeenCalled();
+      await applyDraft();
 
       expect(getDirections).toHaveBeenCalledWith([1, 1], [2, 2], expect.any(AbortSignal));
       expect(coordsOf(stored())).toEqual([[1, 1], [1.5, 1.1], [2, 2]]);
@@ -419,21 +605,25 @@ describe('RoutePlanner in Inspector', () => {
         geojson: drivenGeometry,
         calculation: { mode: 'walk', points: [[1, 1], [2, 2]], curved: true, sharpness: 0.85 },
       });
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
       clickMode(/car/i);
+      await applyDraft();
+      expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
       clickMode(/walk/i);
       await act(async () => {
         resolve({ geometry: { type: 'LineString', coordinates: [[9, 9], [8, 8]] }, distance: 1, duration: 1 });
       });
 
+      expect(draftCalc().mode).toBe('walk');
       expect(stored().calculation?.mode).toBe('walk');
-      expect(coordsOf(stored())).toEqual([[1, 1], [2, 2]]);
+      expect(coordsOf(stored())).toEqual(coordsOf({ geojson: drivenGeometry } as RouteItem));
     });
 
-    it('keeps imported geometry when there are no points to redraw from', () => {
+    it('keeps imported geometry when there are no points to redraw from', async () => {
       const route = setRoute({ geojson: drivenGeometry, calculation: undefined });
-      render(<RoutePlanner item={route} />);
+      openEditor(route);
       clickMode(/walk/i);
+      await applyDraft();
 
       expect(stored().calculation).toMatchObject({ mode: 'walk', points: [] });
       expect(stored().geojson).toEqual(drivenGeometry);

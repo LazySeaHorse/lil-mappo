@@ -1,0 +1,162 @@
+import React from 'react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AutoCamInspector } from './AutoCamInspector';
+import { useProjectStore } from '@/store/useProjectStore';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
+import { createEndpointRouteItem, wrapGeometry } from '@/store/itemFactories';
+import { AUTO_CAM_PRESETS, autoCamForRoute } from '@/config/vehicles';
+import { FOLLOW_CAMERA_TERMS, ROUTE_TERMS } from '@/lib/terms';
+import type { RouteItem } from '@/store/types';
+
+vi.mock('@/hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false, isTablet: false }) }));
+
+const makeRoute = (): RouteItem => {
+  const route = createEndpointRouteItem({
+    id: 'r1', mode: 'car', name: 'Drive', startTime: 0,
+    geojson: wrapGeometry({ type: 'LineString', coordinates: [[0, 0], [1, 1]] }), start: [0, 0], end: [1, 1],
+  });
+  return { ...route, autoCam: autoCamForRoute(route) };
+};
+
+const stored = () => useProjectStore.getState().items.r1 as RouteItem;
+
+const Live = () => <AutoCamInspector item={useProjectStore((s) => s.items.r1) as RouteItem} />;
+
+function show(patch: (route: RouteItem) => void = () => {}) {
+  const route = makeRoute();
+  patch(route);
+  useProjectStore.setState({ items: { r1: route }, itemOrder: ['r1'], selectedItemId: 'r1', selectedAutoCamRouteId: 'r1' });
+  return render(<Live />);
+}
+
+
+describe('AutoCamInspector', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiPreferencesStore.setState({ inspectorSections: {} });
+    useProjectStore.setState({ items: {}, itemOrder: [] });
+  });
+
+  it('shows the two camera modes first, each with a picture and a short description', () => {
+    const { container } = show();
+    const modes = [FOLLOW_CAMERA_TERMS.followView, FOLLOW_CAMERA_TERMS.navigationView];
+    const cards = modes.map(({ title }) => screen.getByRole('button', { name: new RegExp(title) }));
+    for (const { description } of modes) expect(screen.getByText(description)).toBeInTheDocument();
+    for (const card of cards) expect(card.querySelector('svg')).not.toBeNull();
+    // The mode cards come before the sliders and the preset cards.
+    for (const card of cards) {
+      expect(card.compareDocumentPosition(screen.getAllByRole('slider')[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(card.compareDocumentPosition(screen.getByRole('button', { name: /Chase/ })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(container.querySelectorAll('[aria-pressed]').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('marks the mode in use', () => {
+    show();
+    const follow = screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.followView.title) });
+    const navigation = screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.navigationView.title) });
+    expect(follow).toHaveAttribute('aria-pressed', 'true');
+    expect(navigation).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(navigation);
+    expect(navigation).toHaveAttribute('aria-pressed', 'true');
+    expect(follow).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('the Follow view card switches back to the follow view and keeps the follow settings', () => {
+    show((r) => { r.autoCam = { ...r.autoCam!, preset: 'drone', mode: 'navigation', distance: 777 }; });
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.followView.title) }));
+    expect(stored().autoCam).toMatchObject({ mode: 'cinematic', preset: 'drone', distance: 777 });
+  });
+
+  it('puts the four presets in an open Presets section after the sliders, with a note', () => {
+    show();
+    const toggle = screen.getByRole('button', { name: 'Presets' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const region = within(screen.getByRole('region', { name: 'Presets' }));
+    for (const key of ['chase', 'drone', 'reveal', 'topdown'] as const) {
+      expect(region.getByRole('button', { name: new RegExp(AUTO_CAM_PRESETS[key].label) })).toBeInTheDocument();
+      expect(region.getByText(AUTO_CAM_PRESETS[key].description)).toBeInTheDocument();
+    }
+    expect(region.getByText(FOLLOW_CAMERA_TERMS.presetsNote)).toBeInTheDocument();
+    const sliders = screen.getAllByRole('slider');
+    expect(sliders[sliders.length - 1].compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('hides the presets in the navigation view, because they only fit the follow view', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.navigationView.title) }));
+    expect(screen.queryByRole('button', { name: 'Presets' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Chase/ })).not.toBeInTheDocument();
+  });
+
+  it('can fold the Presets section', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Presets' }));
+    expect(screen.queryByRole('button', { name: /Chase/ })).not.toBeInTheDocument();
+  });
+
+  it('marks the preset that is in use', () => {
+    show();
+    expect(screen.getByRole('button', { name: /Chase/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Drone/ })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('keeps the preset marked while a slider moves', () => {
+    show();
+    fireEvent.keyDown(screen.getAllByRole('slider')[0], { key: 'ArrowRight' });
+    expect(stored().autoCam?.pitch).not.toBe(AUTO_CAM_PRESETS.chase.pitch);
+    expect(screen.getByRole('button', { name: /Chase/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('a preset card applies the preset', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: /Drone/ }));
+    expect(stored().autoCam).toMatchObject({ mode: 'cinematic', preset: 'drone', pitch: AUTO_CAM_PRESETS.drone.pitch });
+  });
+
+  it('the navigation card switches to the navigation view', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.navigationView.title) }));
+    expect(stored().autoCam?.mode).toBe('navigation');
+  });
+
+  it('shows the sliders straight away, between the mode cards and the presets, with no Fine-tune section', () => {
+    show();
+    expect(screen.queryByRole('button', { name: 'Fine-tune' })).not.toBeInTheDocument();
+    const sliders = screen.getAllByRole('slider');
+    const chase = screen.getByRole('button', { name: /Chase/ });
+    expect(sliders[sliders.length - 1].compareDocumentPosition(chase) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows sliders that show words at their ends and no numbers', () => {
+    const { container } = show();
+    expect(screen.getAllByRole('slider')).toHaveLength(7);
+    const endLabels = container.querySelectorAll('[data-slot="slider-end-labels"]');
+    expect(endLabels).toHaveLength(7);
+    expect(container.textContent).toContain('Close');
+    expect(container.textContent).toContain('Calm');
+    expect(container.textContent).toContain('Lively');
+
+    // No readout like "60°", "30 %", "600 m" or "1.2 km" anywhere in the panel.
+    expect(container.textContent).not.toMatch(/\d\s?(%|°|km|m)(\s|$)/);
+  });
+
+  it('shows the sliders of the view in use', () => {
+    show();
+    expect(screen.getByText('Distance')).toBeInTheDocument();
+    expect(screen.queryByText('Look ahead')).not.toBeInTheDocument();
+
+    act(() => { useProjectStore.getState().updateItem('r1', { autoCam: { ...stored().autoCam!, mode: 'navigation' } }); });
+    expect(screen.getByText('Look ahead')).toBeInTheDocument();
+    expect(screen.getByText('Zoom')).toBeInTheDocument();
+    expect(screen.queryByText('Distance')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('slider')).toHaveLength(5);
+  });
+
+  it('keeps the button that turns Follow camera off', () => {
+    show();
+    expect(screen.getByRole('button', { name: `Turn off ${ROUTE_TERMS.followCamera}` })).toBeInTheDocument();
+  });
+});

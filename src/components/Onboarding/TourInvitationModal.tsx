@@ -28,10 +28,10 @@ export function TourInvitationModal({ open, onStart, onDismiss }: TourInvitation
               <Compass size={22} aria-hidden="true" />
             </div>
             <AlertDialogTitle className="text-xl sm:text-2xl font-medium tracking-tight">
-              Start the quick tour?
+              Make your first trip video
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground text-sm leading-relaxed mt-1">
-              Learn how to navigate the map and create your first video animation. This tour takes 90 seconds.
+              This tour takes about 3 minutes. You plan a route between two places, make the camera follow it, and find the Export button.
             </AlertDialogDescription>
           </AlertDialogHeader>
         </div>
@@ -41,19 +41,19 @@ export function TourInvitationModal({ open, onStart, onDismiss }: TourInvitation
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
               <Sparkles size={13} />
             </span>
-            <span>Interactive map controls & gestures</span>
+            <span>Move around the map</span>
           </div>
           <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/25 border border-border/30 text-xs text-foreground/90">
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
               <Check size={13} />
             </span>
-            <span>Camera keyframes & timeline playback</span>
+            <span>Plan a route between two places</span>
           </div>
           <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/25 border border-border/30 text-xs text-foreground/90">
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
               <Check size={13} />
             </span>
-            <span>Routes, callouts, 3D styles & video export</span>
+            <span>Make the camera follow the route, then export</span>
           </div>
         </div>
 

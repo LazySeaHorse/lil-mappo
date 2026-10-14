@@ -15,8 +15,8 @@ import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './To
 import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
-import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
+import { CAMERA_VIEW_TERMS } from '@/lib/terms';
 
 interface DesktopToolbarLayoutProps {
   isTablet: boolean;
@@ -38,8 +38,6 @@ interface DesktopToolbarLayoutProps {
   setBuildingsEnabled: (v: boolean) => void;
   terrainLoading: boolean;
   isScrubbing: boolean;
-  onMapStyleOpenChange: (open: boolean) => void;
-  onMapToolsOpenChange: (open: boolean) => void;
 }
 
 function TabletLayerDropdown({
@@ -49,11 +47,10 @@ function TabletLayerDropdown({
   terrainLoading,
   isPlaying, isScrubbing,
   onProjectSettings,
-  onMapStyleOpenChange, onMapToolsOpenChange,
   buildingsAvailable,
-}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings' | 'onMapStyleOpenChange' | 'onMapToolsOpenChange'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
+}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
   return (
-    <DropdownMenu onOpenChange={onMapToolsOpenChange}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <IconButton variant="toolbar" size="sm" title="Map Display" data-walkthrough="map-tools">
           <Layers2 size={20} />
@@ -62,7 +59,7 @@ function TabletLayerDropdown({
       <DropdownMenuContent align="start" className="w-64 bg-background/95 p-3 space-y-4 rounded-2xl shadow-2xl border-border/50">
         <div className="space-y-2">
           <label className="text-xs font-medium text-foreground/80 px-1">Map Style</label>
-          <Select value={mapStyle} onValueChange={setMapStyle} onOpenChange={onMapStyleOpenChange}>
+          <Select value={mapStyle} onValueChange={setMapStyle}>
             <SelectTrigger data-walkthrough="map-style" className="h-9 text-xs w-full focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background/50 rounded-lg">
               <SelectValue placeholder="Map Style" />
             </SelectTrigger>
@@ -90,13 +87,12 @@ function InlineLayerGroup({
   buildingsEnabled, setBuildingsEnabled,
   terrainLoading,
   isPlaying, isScrubbing, onProjectSettings,
-  onMapStyleOpenChange,
   buildingsAvailable,
-}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings' | 'onMapStyleOpenChange'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
+}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
   return (
     <div className="flex items-center gap-1">
       <div className="flex items-center gap-1 px-1">
-        <Select value={mapStyle} onValueChange={setMapStyle} onOpenChange={onMapStyleOpenChange}>
+        <Select value={mapStyle} onValueChange={setMapStyle}>
           <SelectTrigger data-walkthrough="map-style" className="h-8 text-xs w-[130px] focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
             <SelectValue placeholder="Map Style" />
           </SelectTrigger>
@@ -139,15 +135,13 @@ export function DesktopToolbarLayout({
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
   terrainLoading, isScrubbing,
-  onMapStyleOpenChange, onMapToolsOpenChange,
 }: DesktopToolbarLayoutProps) {
-  const isCameraPulsing = useWalkthroughStore((s) => s.isRunning && s.walkthrough.stage === 'second-keyframe');
   const buildingsAvailable = useMapStyleCapabilities().buildings3d === true;
 
   const layerProps = {
     mapStyle, setMapStyle, terrainEnabled, setTerrainEnabled,
     buildingsEnabled, setBuildingsEnabled, buildingsAvailable, terrainLoading,
-    isPlaying, isScrubbing, onProjectSettings, onMapStyleOpenChange, onMapToolsOpenChange,
+    isPlaying, isScrubbing, onProjectSettings,
   };
 
   return (
@@ -162,7 +156,7 @@ export function DesktopToolbarLayout({
         <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
         <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
         <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-        <ToolbarButton icon={<Video size={16} />} label="Camera Keyframe" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" isPulsing={isCameraPulsing} />
+        <ToolbarButton icon={<Video size={16} />} label={CAMERA_VIEW_TERMS.add} hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
       </div>
 
       <Divider />

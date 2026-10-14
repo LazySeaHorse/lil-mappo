@@ -1,73 +1,55 @@
 export type MapGesture = 'pan' | 'orbit' | 'zoom';
 export type WalkthroughAddTool = 'route' | 'boundary' | 'callout';
 
+/**
+ * The tour has one goal: make a first trip video. The user plans a route, makes the
+ * camera follow it, plays it and finds Export.
+ */
 export type WalkthroughStage =
   | 'map-controls'
   | 'open-add-menu'
-  | 'first-keyframe'
-  | 'move-playhead'
-  | 'second-keyframe'
-  | 'play-animation'
-  | 'select-keyframe'
-  | 'inspect-keyframe'
   | 'route'
-  | 'route-editor'
-  | 'boundary'
-  | 'boundary-editor'
-  | 'callout'
-  | 'callout-editor'
-  | 'open-map-tools'
-  | 'terrain-buildings'
-  | 'change-map-style'
-  | 'return-standard-style'
-  | 'map-settings'
-  | 'map-settings-tab'
-  | 'map-settings-overview'
-  | 'prepare-render'
+  | 'route-places'
+  | 'route-preview'
+  | 'route-insert'
+  | 'follow-route'
+  | 'play-animation'
+  | 'more-tools'
   | 'render'
   | 'complete';
 
 export type WalkthroughEvent =
   | { type: 'map-gesture'; gesture: MapGesture }
   | { type: 'add-menu-opened' }
-  | { type: 'keyframe-count-changed'; count: number; playheadTime: number }
-  | { type: 'playhead-time-changed'; time: number }
-  | { type: 'play-preview-acknowledged' }
-  | { type: 'keyframe-selected' }
-  | { type: 'inspector-acknowledged' }
-  | { type: 'map-tools-opened' }
-  | { type: 'terrain-intro-acknowledged'; currentStyle: string }
-  | { type: 'map-style-changed'; style: string }
-  | { type: 'map-settings-opened' }
-  | { type: 'project-settings-tab-changed'; tab: 'general' | 'map' }
-  | { type: 'map-settings-overview-acknowledged' }
-  | { type: 'render-layout-ready' }
-  | { type: 'export-opened' }
   | { type: 'add-tool-opened'; tool: WalkthroughAddTool }
-  | { type: 'add-tool-closed'; tool: WalkthroughAddTool };
+  | { type: 'add-tool-closed'; tool: WalkthroughAddTool }
+  | { type: 'route-endpoints-changed'; start: boolean; end: boolean }
+  | { type: 'route-preview-changed'; hasPreview: boolean }
+  | { type: 'route-count-changed'; count: number }
+  | { type: 'follow-route-changed'; enabled: boolean }
+  | { type: 'play-preview-acknowledged' }
+  | { type: 'more-tools-acknowledged' }
+  | { type: 'export-opened' };
 
 export interface WalkthroughState {
   stage: WalkthroughStage;
   isMobile: boolean;
-  usesLayerMenu: boolean;
-  initialKeyframeCount: number;
-  firstKeyframeTime: number | null;
-  styleBeforeChange: string | null;
+  /** Routes in the project when the tour started; a larger count means the user added one. */
+  initialRouteCount: number;
+  /** Whether Plan Route has a start and an end place. */
+  routeEndpoints: { start: boolean; end: boolean };
   gestures: Record<MapGesture, boolean>;
 }
 
-export function createWalkthroughState(
-  isMobile: boolean,
-  initialKeyframeCount: number,
-  usesLayerMenu = isMobile,
-): WalkthroughState {
+/** Stages in which the Plan Route panel is open and waits for the user to finish the route. */
+const ROUTE_PANEL_STAGES: readonly WalkthroughStage[] = ['route-places', 'route-preview', 'route-insert'];
+
+export function createWalkthroughState(isMobile: boolean, initialRouteCount: number): WalkthroughState {
   return {
     stage: 'map-controls',
     isMobile,
-    usesLayerMenu,
-    initialKeyframeCount,
-    firstKeyframeTime: null,
-    styleBeforeChange: null,
+    initialRouteCount,
+    routeEndpoints: { start: false, end: false },
     gestures: { pan: false, orbit: false, zoom: false },
   };
 }
@@ -86,125 +68,55 @@ export function walkthroughReducer(
       stage: hasTriedEveryGesture
         ? state.isMobile
           ? 'open-add-menu'
-          : 'first-keyframe'
+          : 'route'
         : state.stage,
     };
   }
 
   if (state.stage === 'open-add-menu' && event.type === 'add-menu-opened') {
-    return { ...state, stage: 'first-keyframe' };
+    return { ...state, stage: 'route' };
   }
 
-  if (
-    state.stage === 'first-keyframe' &&
-    event.type === 'keyframe-count-changed' &&
-    event.count > state.initialKeyframeCount
-  ) {
-    return { ...state, firstKeyframeTime: event.playheadTime, stage: 'move-playhead' };
+  if (event.type === 'route-endpoints-changed') {
+    const routeEndpoints = { start: event.start, end: event.end };
+    const complete = event.start && event.end;
+    return {
+      ...state,
+      routeEndpoints,
+      stage: state.stage === 'route-places' && complete ? 'route-preview' : state.stage,
+    };
   }
 
-  if (
-    state.stage === 'move-playhead' &&
-    event.type === 'playhead-time-changed' &&
-    state.firstKeyframeTime !== null &&
-    Math.abs(event.time - state.firstKeyframeTime) >= 0.1
-  ) {
-    return { ...state, stage: 'second-keyframe' };
+  if (state.stage === 'route' && event.type === 'add-tool-opened' && event.tool === 'route') {
+    const { start, end } = state.routeEndpoints;
+    return { ...state, stage: start && end ? 'route-preview' : 'route-places' };
   }
 
-  if (
-    state.stage === 'second-keyframe' &&
-    event.type === 'keyframe-count-changed' &&
-    event.count > state.initialKeyframeCount + 1
-  ) {
+  if (event.type === 'add-tool-closed' && event.tool === 'route' && ROUTE_PANEL_STAGES.includes(state.stage)) {
+    return { ...state, stage: 'route' };
+  }
+
+  if (event.type === 'route-count-changed' && ROUTE_PANEL_STAGES.includes(state.stage)) {
+    return event.count > state.initialRouteCount ? { ...state, stage: 'follow-route' } : state;
+  }
+
+  if (state.stage === 'route-preview' && event.type === 'route-preview-changed' && event.hasPreview) {
+    return { ...state, stage: 'route-insert' };
+  }
+
+  if (state.stage === 'route-insert' && event.type === 'route-preview-changed' && !event.hasPreview) {
+    return { ...state, stage: 'route-preview' };
+  }
+
+  if (state.stage === 'follow-route' && event.type === 'follow-route-changed' && event.enabled) {
     return { ...state, stage: 'play-animation' };
   }
 
   if (state.stage === 'play-animation' && event.type === 'play-preview-acknowledged') {
-    return { ...state, stage: 'select-keyframe' };
+    return { ...state, stage: 'more-tools' };
   }
 
-  if (state.stage === 'select-keyframe' && event.type === 'keyframe-selected') {
-    return { ...state, stage: 'inspect-keyframe' };
-  }
-
-  if (state.stage === 'inspect-keyframe' && event.type === 'inspector-acknowledged') {
-    return { ...state, stage: 'route' };
-  }
-
-  if (state.stage === 'route' && event.type === 'add-tool-opened' && event.tool === 'route') {
-    return { ...state, stage: 'route-editor' };
-  }
-
-  if (state.stage === 'route-editor' && event.type === 'add-tool-closed' && event.tool === 'route') {
-    return { ...state, stage: 'boundary' };
-  }
-
-  if (state.stage === 'boundary' && event.type === 'add-tool-opened' && event.tool === 'boundary') {
-    return { ...state, stage: 'boundary-editor' };
-  }
-
-  if (state.stage === 'boundary-editor' && event.type === 'add-tool-closed' && event.tool === 'boundary') {
-    return { ...state, stage: 'callout' };
-  }
-
-  if (state.stage === 'callout' && event.type === 'add-tool-opened' && event.tool === 'callout') {
-    return { ...state, stage: 'callout-editor' };
-  }
-
-  if (state.stage === 'callout-editor' && event.type === 'add-tool-closed' && event.tool === 'callout') {
-    return { ...state, stage: state.usesLayerMenu ? 'open-map-tools' : 'terrain-buildings' };
-  }
-
-  if (state.stage === 'open-map-tools' && event.type === 'map-tools-opened') {
-    return { ...state, stage: 'terrain-buildings' };
-  }
-
-  if (state.stage === 'terrain-buildings' && event.type === 'terrain-intro-acknowledged') {
-    return {
-      ...state,
-      styleBeforeChange: event.currentStyle,
-      stage: 'change-map-style',
-    };
-  }
-
-  if (
-    state.stage === 'change-map-style' &&
-    event.type === 'map-style-changed' &&
-    state.styleBeforeChange !== null &&
-    event.style !== state.styleBeforeChange
-  ) {
-    return { ...state, stage: 'return-standard-style' };
-  }
-
-  if (
-    state.stage === 'return-standard-style' &&
-    event.type === 'map-style-changed' &&
-    event.style === 'standard'
-  ) {
-    return { ...state, stage: 'map-settings' };
-  }
-
-  if (state.stage === 'map-settings' && event.type === 'map-settings-opened') {
-    return { ...state, stage: 'map-settings-tab' };
-  }
-
-  if (
-    state.stage === 'map-settings-tab' &&
-    event.type === 'project-settings-tab-changed' &&
-    event.tab === 'map'
-  ) {
-    return { ...state, stage: 'map-settings-overview' };
-  }
-
-  if (
-    state.stage === 'map-settings-overview' &&
-    event.type === 'map-settings-overview-acknowledged'
-  ) {
-    return { ...state, stage: 'prepare-render' };
-  }
-
-  if (state.stage === 'prepare-render' && event.type === 'render-layout-ready') {
+  if (state.stage === 'more-tools' && event.type === 'more-tools-acknowledged') {
     return { ...state, stage: 'render' };
   }
 

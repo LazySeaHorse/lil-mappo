@@ -57,6 +57,9 @@ export interface EndpointRouteCalculation {
   mode: 'car' | 'flight';
   startPoint: [number, number];
   endPoint: [number, number];
+  /** Place names of the endpoints; '' when unknown (map picks, older projects). */
+  startName: string;
+  endName: string;
   vehicle?: RouteVehicleConfig;
 }
 
@@ -76,8 +79,6 @@ export interface RouteStyle {
   width: number;
   glow: boolean;
   glowWidth: number;
-  trailFade: boolean;
-  trailFadeLength: number;
   dashPattern: number[] | null;
   animationType: 'draw' | 'navigation' | 'comet';
   /** Fraction of the route the comet trail covers. */
@@ -177,6 +178,9 @@ export interface CalloutItem {
 
   /** Whether title auto-updates when location changes. */
   linkTitleToLocation: boolean;
+
+  /** Name of the place the callout points at; '' when unknown (map picks, older projects). */
+  locationName: string;
 }
 
 // Re-export annotation types used by other modules

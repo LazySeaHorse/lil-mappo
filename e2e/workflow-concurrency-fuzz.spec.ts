@@ -120,8 +120,8 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await planRouteBtn.click();
     await expect(page.getByText('Route points', { exact: true })).toBeVisible();
 
-    // 2. Click "Pick on Map" for start point
-    const pickStartBtn = page.getByTitle('Pick on Map').first();
+    // 2. Click "Pick on the map" for start point
+    const pickStartBtn = page.getByTitle('Pick on the map').first();
     await pickStartBtn.click();
 
     // Verify picking session is active in store
@@ -147,7 +147,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await addCalloutBtn.click();
     await expect(page.getByText('Place a 3D label on the map')).toBeVisible();
 
-    const pickCalloutBtn = page.getByTitle('Pick on Map').first();
+    const pickCalloutBtn = page.getByTitle('Pick on the map').first();
     await pickCalloutBtn.click();
     activePickerId = await page.evaluate(() => (window as unknown as ProjectStoreWindow).__projectStore.getState().activePicker?.id);
     expect(activePickerId).toBe('callout-new');
@@ -221,8 +221,6 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
           width: 4,
           glow: true,
           glowWidth: 12,
-          trailFade: false,
-          trailFadeLength: 0.3,
           dashPattern: null,
           animationType: 'draw',
           cometTrailLength: 0.2,
@@ -416,8 +414,9 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     await titleInput.focus();
     await titleInput.fill('UNCOMMITTED_DIRTY_VALUE_DO_NOT_RESURRECT');
 
-    // 4. Press "Delete Callout" button in inspector before Enter/blur
-    const deleteBtn = page.getByRole('button', { name: 'Delete Callout' });
+    // 4. Choose Delete from the inspector header menu before Enter/blur
+    await page.getByRole('button', { name: 'Item actions' }).click();
+    const deleteBtn = page.getByRole('menuitem', { name: 'Delete' });
     await expect(deleteBtn).toBeVisible();
     await deleteBtn.click();
 

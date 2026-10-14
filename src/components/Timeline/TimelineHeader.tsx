@@ -14,6 +14,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { Slider } from '@/components/ui/slider';
 import { useProjectStore } from '@/store/useProjectStore';
 import { formatTimelineTime } from './timelineTime';
+import { VideoLengthControl } from './VideoLengthControl';
 
 interface TimelineHeaderProps {
   duration: number;
@@ -59,7 +60,7 @@ export default function TimelineHeader({
       {!isMobile ? (
         <div className="flex flex-col gap-0.5 shrink-0">
           <span className="font-medium text-xs text-foreground/80 leading-none">Timeline</span>
-          <TimelineTimecode timeDisplayRef={timeDisplayRef} duration={duration} />
+          <TimelineTimecode timeDisplayRef={timeDisplayRef} />
         </div>
       ) : (
         <div className="flex items-center gap-0.5">{transport}</div>
@@ -107,17 +108,12 @@ export default function TimelineHeader({
   );
 }
 
-function TimelineTimecode({
-  timeDisplayRef,
-  duration,
-}: {
-  timeDisplayRef: RefObject<HTMLSpanElement>;
-  duration: number;
-}) {
+function TimelineTimecode({ timeDisplayRef }: { timeDisplayRef: RefObject<HTMLSpanElement> }) {
   return (
     <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
-      <span ref={timeDisplayRef}>{formatTimelineTime(useProjectStore.getState().playheadTime)}</span>
-      <span className="opacity-50"> / {formatTimelineTime(duration)}</span>
+      <span ref={timeDisplayRef} data-testid="playhead-time">{formatTimelineTime(useProjectStore.getState().playheadTime)}</span>
+      <span className="opacity-50"> / </span>
+      <VideoLengthControl />
     </span>
   );
 }

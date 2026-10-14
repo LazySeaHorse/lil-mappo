@@ -39,6 +39,7 @@ function makeCallout(overrides: Partial<CalloutItem> = {}): CalloutItem {
     referenceZoom: 12,
     settings: {},
     linkTitleToLocation: false,
+    locationName: '',
     ...overrides,
   };
 }

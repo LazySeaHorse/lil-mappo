@@ -10,6 +10,7 @@ import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
+import { CAMERA_VIEW_TERMS } from '@/lib/terms';
 
 interface MobileToolbarLayoutProps {
   mobileMode: 'default' | 'add' | 'layers';
@@ -34,7 +35,6 @@ interface MobileToolbarLayoutProps {
   isScrubbing: boolean;
   handleAddCameraKF: () => void;
   onProjectSettings: () => void;
-  onMapStyleOpenChange: (open: boolean) => void;
 }
 
 export function MobileToolbarLayout({
@@ -48,10 +48,14 @@ export function MobileToolbarLayout({
   terrainLoading,
   isPlaying2, isScrubbing, hideAi,
   handleAddCameraKF,
-  onProjectSettings, onMapStyleOpenChange,
+  onProjectSettings,
 }: MobileToolbarLayoutProps) {
-  const isCameraPulsing = useWalkthroughStore((s) => s.isRunning && s.walkthrough.stage === 'second-keyframe');
   const buildingsAvailable = useMapStyleCapabilities().buildings3d === true;
+
+  const openAddMenu = () => {
+    setMobileMode('add');
+    useWalkthroughStore.getState().send({ type: 'add-menu-opened' });
+  };
 
   return (
     <div className="w-full flex items-center h-full relative overflow-hidden">
@@ -59,7 +63,7 @@ export function MobileToolbarLayout({
         <div className="flex items-center w-full animate-in slide-in-from-left-4 duration-300 fill-mode-both">
           {renderAvatarMenu()}
           <Divider />
-          <IconButton variant="toolbar" size="sm" onClick={() => setMobileMode('add')} title="Add New Track" data-walkthrough="add-menu">
+          <IconButton variant="toolbar" size="sm" onClick={openAddMenu} title="Add New Track" data-walkthrough="add-menu">
             <Plus size={20} />
           </IconButton>
           <Divider />
@@ -87,7 +91,7 @@ export function MobileToolbarLayout({
             <RouteAddDropdown onImportClick={onImportClick} isOpen={activeDropdown === 'route'} onOpenChange={(open) => setActiveDropdown(open ? 'route' : null)} />
             <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
             <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
-            <ToolbarButton icon={<Video size={18} />} label="Camera Keyframe" hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" isPulsing={isCameraPulsing} />
+            <ToolbarButton icon={<Video size={18} />} label={CAMERA_VIEW_TERMS.add} hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
             <IconButton variant="toolbar" size="sm" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }} className="bg-secondary/50 hover:bg-secondary">
               <X size={16} />
             </IconButton>
@@ -99,7 +103,7 @@ export function MobileToolbarLayout({
         <div className="flex items-center w-full animate-in slide-in-from-right-4 duration-300 fill-mode-both">
           <div className="flex items-center gap-2 w-full justify-between px-2">
             <div className="flex items-center gap-1 px-1 flex-1">
-              <Select value={mapStyle} onValueChange={setMapStyle} onOpenChange={onMapStyleOpenChange}>
+              <Select value={mapStyle} onValueChange={setMapStyle}>
                 <SelectTrigger data-walkthrough="map-style" className="h-8 text-xs flex-1 focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
                   <SelectValue placeholder="Map Style" />
                 </SelectTrigger>

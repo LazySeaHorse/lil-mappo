@@ -6,6 +6,7 @@ import { BoundaryInspector } from './BoundaryInspector';
 import { AnnotationInspector } from '@/annotations/inspector/AnnotationInspector';
 import { CameraKFInspector } from './CameraKFInspector';
 import { useProjectStore } from '@/store/useProjectStore';
+import { CALLOUT_LOCATION_TERMS } from '@/lib/terms';
 import '@/annotations/styles/index';
 import { registerTestStyles, TEST_FLAT_STYLE_ID } from '@/annotations/testStyles';
 import type { RouteItem, BoundaryItem, CalloutItem, CameraItem } from '@/store/types';
@@ -52,6 +53,7 @@ function makeInspectorCallout(overrides: Partial<CalloutItem> = {}): CalloutItem
     referenceZoom: 12,
     settings: {},
     linkTitleToLocation: false,
+    locationName: '',
     ...overrides,
   };
 }
@@ -97,8 +99,6 @@ describe('Inspector Components Integration', () => {
         width: 4,
         glow: false,
         glowWidth: 8,
-        trailFade: false,
-        trailFadeLength: 0.2,
         dashPattern: null,
         animationType: 'draw', cometTrailLength: 0.2,
       },
@@ -106,6 +106,8 @@ describe('Inspector Components Integration', () => {
         mode: 'car',
         startPoint: [0, 0],
         endPoint: [1, 1],
+        startName: '',
+        endName: '',
         vehicle: {
           enabled: true,
           type: 'car',
@@ -125,8 +127,9 @@ describe('Inspector Components Integration', () => {
     expect(screen.getByDisplayValue('Highway Drive')).toBeInTheDocument();
     expect(screen.getByText('Route marker')).toBeInTheDocument();
     expect(screen.getByText('1.5x')).toBeInTheDocument();
-    expect(screen.getByLabelText('Start time')).toHaveValue(1);
-    expect(screen.getByLabelText('Duration')).toHaveValue(4);
+    expect(screen.getByLabelText('Start')).toHaveValue('00:01.00');
+    expect(screen.getByLabelText('End')).toBeInTheDocument();
+    expect(screen.getByText('4.00 s')).toBeInTheDocument();
   });
 
   it('renders BoundaryInspector and updates styling & timing', () => {
@@ -166,12 +169,13 @@ describe('Inspector Components Integration', () => {
     render(<BoundaryInspector item={boundaryItem} />);
 
     expect(screen.getByDisplayValue('California')).toBeInTheDocument();
-    expect(screen.getByText('Stroke color')).toBeInTheDocument();
-    expect(screen.getByText('Line width')).toBeInTheDocument();
+    expect(screen.getByText('Border color')).toBeInTheDocument();
+    expect(screen.getByText('Border width')).toBeInTheDocument();
     expect(screen.getByText('Fill opacity')).toBeInTheDocument();
     expect(screen.getByText('50 %')).toBeInTheDocument();
-    expect(screen.getByLabelText('Start time')).toHaveValue(0);
-    expect(screen.getByLabelText('Duration')).toHaveValue(4);
+    expect(screen.getByLabelText('Start')).toHaveValue('00:00.00');
+    expect(screen.getByLabelText('End')).toBeInTheDocument();
+    expect(screen.getByText('4.00 s')).toBeInTheDocument();
     expect(screen.getByText('Mask outside')).toBeInTheDocument();
     expect(screen.queryByText('Mask color')).not.toBeInTheDocument();
   });
@@ -238,6 +242,7 @@ describe('Inspector Components Integration', () => {
       startTime: 2,
       endTime: 6,
       linkTitleToLocation: false,
+      locationName: '',
       transition: {
         enter: 'fade',
         exit: 'fade',
@@ -275,13 +280,20 @@ describe('Inspector Components Integration', () => {
     render(<AnnotationInspector item={calloutItem} />);
 
     expect(screen.getByDisplayValue('Golden Gate Bridge')).toBeInTheDocument();
-    expect(screen.getByText('Line color')).toBeInTheDocument();
-    expect(screen.getByText('Dot color')).toBeInTheDocument();
+    // The line and dot colors are one accent row; the text color waits in a closed fold.
+    expect(screen.getByText('Accent color')).toBeInTheDocument();
+    expect(screen.queryByText('Line color')).not.toBeInTheDocument();
+    expect(screen.queryByText('Text color')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Customize colors' }));
+    expect(screen.getByText('Text color')).toBeInTheDocument();
     expect(screen.getByText('Soft shadow')).toBeInTheDocument();
     expect(screen.queryByText('Font')).not.toBeInTheDocument();
+    // The raw coordinates sit in a closed disclosure.
+    expect(screen.queryByLabelText('Longitude')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: CALLOUT_LOCATION_TERMS.exactPosition }));
     expect(screen.getByLabelText('Longitude')).toHaveValue(-122.4783);
     expect(screen.getByLabelText('Latitude')).toHaveValue(37.8199);
-    expect(screen.getByText('Altitude')).toBeInTheDocument();
+    expect(screen.getByText(CALLOUT_LOCATION_TERMS.heightAboveMap)).toBeInTheDocument();
     expect(screen.getByText('100 px')).toBeInTheDocument();
     // Leader lines draw their own line to the ground, so there is no generic anchor line to style.
     expect(screen.queryByText('Anchor line')).not.toBeInTheDocument();
@@ -292,7 +304,7 @@ describe('Inspector Components Integration', () => {
     useProjectStore.setState({ items: { [item.id]: item }, selectedItemId: item.id });
     render(<AnnotationInspector item={item} />);
 
-    expect(screen.getByText('Animation')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Timing' })).toBeInTheDocument();
     expect(screen.getAllByText('Style animation')).toHaveLength(2); // enter and exit
     expect(screen.getByText('1.2 s')).toBeInTheDocument();
     expect(screen.getByText('0.5 s')).toBeInTheDocument();
@@ -317,6 +329,7 @@ describe('Inspector Components Integration', () => {
       startTime: 1,
       endTime: 5,
       linkTitleToLocation: false,
+      locationName: '',
       transition: {
         enter: 'fade',
         exit: 'fade',
@@ -380,8 +393,10 @@ describe('Inspector Components Integration', () => {
 
     render(<CameraKFInspector item={cameraItem} />);
 
-    expect(screen.getByText('Time')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2.5')).toBeInTheDocument();
+    expect(screen.getByLabelText('Start')).toHaveValue('00:02.50');
+    expect(screen.getByText('Motion')).toBeInTheDocument();
+    expect(screen.queryByText('Zoom')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Exact values' }));
     expect(screen.getByText('Zoom')).toBeInTheDocument();
     expect(screen.getByText('45.0°')).toBeInTheDocument();
     expect(screen.getByText('90.0°')).toBeInTheDocument();

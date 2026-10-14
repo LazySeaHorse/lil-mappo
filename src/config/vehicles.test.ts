@@ -13,13 +13,15 @@ const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): R
   endTime: 10,
   style: {
     color: '#fff', width: 4, glow: false, glowWidth: 12,
-    trailFade: false, trailFadeLength: 0.3, dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
+    dashPattern: null, animationType: 'draw', cometTrailLength: 0.2,
   },
   easing: 'linear', exitAnimation: 'none',
   calculation: {
     mode: 'car',
     startPoint: [0, 0],
     endPoint: [1, 1],
+    startName: '',
+    endName: '',
     vehicle: { enabled: true, type, modelId: '', scale: 1 },
   },
   autoCam,

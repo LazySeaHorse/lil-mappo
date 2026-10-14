@@ -85,6 +85,54 @@ describe('applyCamera over terrain', () => {
   });
 });
 
+describe('applyCamera at globe zooms', () => {
+  const map = () => ({
+    queryTerrainElevation: vi.fn(() => 0),
+    setFreeCameraOptions: vi.fn(),
+    jumpTo: vi.fn(),
+    transform: { height: 800 },
+  });
+  const keyframe = { type: 'jumpTo' as const, center: [-96.8, 37.8] as [number, number], zoom: 3.1, pitch: 20, bearing: 10 };
+  const shot = { type: 'freeCam' as const, position: [-111.9, 40.5, 20000] as [number, number, number], lookAt: [-111.9, 40.7] as [number, number] };
+
+  // Below Mapbox's globe-to-flat switch a free camera lands elsewhere than jumpTo would.
+  it('moves off a zoomed-out keyframe toward a shot the way the keyframe itself is shown', () => {
+    const m = map();
+    applyCamera(m as unknown as mapboxgl.Map, { type: 'blend', from: keyframe, to: shot, t: 0.001 });
+    expect(m.setFreeCameraOptions).not.toHaveBeenCalled();
+    const [{ center, zoom, pitch, bearing }] = m.jumpTo.mock.calls[0];
+    expect(center[0]).toBeCloseTo(-96.8, 3);
+    expect(center[1]).toBeCloseTo(37.8, 3);
+    expect(zoom).toBeCloseTo(3.1, 3);
+    expect(pitch).toBeCloseTo(20, 2);
+    expect(bearing).toBeCloseTo(10, 2);
+  });
+
+  it('arrives at a zoomed-out keyframe the way the keyframe itself is shown', () => {
+    const m = map();
+    applyCamera(m as unknown as mapboxgl.Map, { type: 'blend', from: shot, to: keyframe, t: 0.999 });
+    expect(m.setFreeCameraOptions).not.toHaveBeenCalled();
+    expect(m.jumpTo.mock.calls[0][0].zoom).toBeCloseTo(3.1, 3);
+  });
+
+  it('shows a far-off shot the way the blend into it ends', () => {
+    const far = { type: 'freeCam' as const, position: [-111.9, 39.5, 400000] as [number, number, number], lookAt: [-111.9, 40.7] as [number, number] };
+    const plain = map();
+    applyCamera(plain as unknown as mapboxgl.Map, far);
+    const blended = map();
+    applyCamera(blended as unknown as mapboxgl.Map, { type: 'blend', from: keyframe, to: far, t: 1 });
+    expect(plain.setFreeCameraOptions).not.toHaveBeenCalled();
+    expect(plain.jumpTo.mock.calls[0][0]).toEqual(blended.jumpTo.mock.calls[0][0]);
+  });
+
+  it('still flies the close-in part of the move as a free camera', () => {
+    const m = map();
+    applyCamera(m as unknown as mapboxgl.Map, { type: 'blend', from: keyframe, to: shot, t: 0.999 });
+    expect(m.setFreeCameraOptions).toHaveBeenCalled();
+    expect(m.jumpTo).not.toHaveBeenCalled();
+  });
+});
+
 describe('hasMapCenter', () => {
   it('treats a missing centre and [0, 0] as never set', () => {
     expect(hasMapCenter(undefined)).toBe(false);

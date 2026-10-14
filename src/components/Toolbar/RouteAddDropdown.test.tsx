@@ -1,11 +1,15 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { useProjectStore } from '@/store/useProjectStore';
 import { loadAirports } from '@/services/airports/airportService';
 import type { RouteItem } from '@/store/types';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
+import { MapRefContext } from '@/hooks/useMapRef';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
+import type { MapRef } from 'react-map-gl/mapbox';
 
 vi.mock('react-secure-storage', () => ({
   default: {
@@ -133,10 +137,25 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(addedRoute.calculation?.mode).toBe('flight');
     expect(addedRoute.calculation?.vehicle?.type).toBe('plane');
     expect(addedRoute.name).toContain('→');
+    expect(addedRoute.calculation).toMatchObject({
+      startName: 'London Heathrow Airport',
+      endName: expect.stringMatching(/John F Kennedy/i),
+    });
     expect(addedRoute.style.color).toBe('#f59e0b');
     expect(addedRoute.style).not.toHaveProperty('glowColor');
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(reportRouteAdded).toHaveBeenCalledWith('flight', expect.any(Number));
+  });
+
+  it('labels the two places in car and flight mode, with no coloured dots', () => {
+    const { container } = render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+    expect(screen.getByText('Start')).toBeInTheDocument();
+    expect(screen.getByText('End')).toBeInTheDocument();
+    expect(container.ownerDocument.querySelector('.rounded-full.border.text-emerald-500')).toBeNull();
+
+    fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
+    expect(screen.getByText('Departure')).toBeInTheDocument();
+    expect(screen.getByText('Arrival')).toBeInTheDocument();
   });
 
   it('allows map picking while in flight mode', () => {
@@ -150,7 +169,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
 
-    const pickButtons = screen.getAllByTitle(/Pick on Map/i);
+    const pickButtons = screen.getAllByTitle(/Pick on the map/i);
     expect(pickButtons.length).toBeGreaterThanOrEqual(2);
 
     act(() => {
@@ -160,7 +179,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(useProjectStore.getState().activePicker?.id).toBe('route-start');
   });
   const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
-    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on Map/i)[buttonIndex]); });
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[buttonIndex]); });
     act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
   };
 
@@ -218,3 +237,121 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(reportRouteAdded).toHaveBeenLastCalledWith('walk', 3);
   });
 });
+
+describe('RouteAddDropdown map framing', () => {
+  const fitBounds = vi.fn();
+  const map = {
+    getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+    getZoom: () => 5,
+    project: () => ({ x: 600, y: 400 }),
+    fitBounds,
+    easeTo: vi.fn(),
+  };
+  const renderWithMap = () =>
+    render(
+      <MapRefContext.Provider value={{ current: { getMap: () => map } as unknown as MapRef }}>
+        <RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />
+      </MapRefContext.Provider>,
+    );
+  const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[buttonIndex]); });
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+  };
+
+  beforeEach(() => {
+    fitBounds.mockClear();
+    useProjectStore.setState({
+      items: {}, itemOrder: [], selectedItemId: null, previewRoute: null, activePicker: null,
+      playheadTime: 0, isPlaying: false, isExporting: false, isScrubbing: false,
+    });
+  });
+
+  it('shows the previewed path and the inserted route on the map', async () => {
+    renderWithMap();
+    pickPoint(0, [1, 1]);
+    pickPoint(1, [2, 2]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview path/i })); });
+    const insert = await screen.findByRole('button', { name: /Insert route/i });
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+
+    act(() => { fireEvent.click(insert); });
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect(fitBounds.mock.calls[1][0]).toEqual([[0, 0], [1, 1]]);
+  });
+
+  it('shows an inserted walk path on the map', () => {
+    renderWithMap();
+    fireEvent.click(screen.getByRole('radio', { name: /walk/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add point on map/i }));
+    const pick = (lngLat: [number, number]) =>
+      act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+    pick([10, 10]);
+    pick([11, 11]);
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Insert walk path/i })); });
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the camera still while the project plays', async () => {
+    useProjectStore.setState({ isPlaying: true });
+    renderWithMap();
+    pickPoint(0, [1, 1]);
+    pickPoint(1, [2, 2]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Preview path/i })); });
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
+});
+
+describe('RouteAddDropdown file import button', () => {
+  const renderDropdown = (onImportClick = vi.fn()) => {
+    render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={onImportClick} />);
+    return onImportClick;
+  };
+
+  it('tells guests before they click that import needs sign-in', () => {
+    useAuthStore.setState({ user: null });
+    const onImportClick = renderDropdown();
+    expect(screen.queryByRole('button', { name: 'Import KML / GPX data' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in to import KML / GPX data' }));
+    expect(onImportClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the plain label to signed-in users', () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    renderDropdown();
+    expect(screen.getByRole('button', { name: 'Import KML / GPX data' })).toBeInTheDocument();
+    useAuthStore.setState({ user: null });
+  });
+});
+
+describe('RouteAddDropdown quick tour', () => {
+  const pickPoint = (buttonIndex: number, lngLat: [number, number]) => {
+    act(() => { fireEvent.click(screen.getAllByTitle(/Pick on the map/i)[buttonIndex]); });
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat, name: 'Point' }); });
+  };
+
+  beforeEach(() => {
+    useProjectStore.setState({ items: {}, itemOrder: [], previewRoute: null, activePicker: null });
+    useWalkthroughStore.getState().start(false);
+  });
+
+  afterEach(() => useWalkthroughStore.getState().dismiss());
+
+  it('tells the tour which places are set, and when one is cleared', () => {
+    render(<RouteAddDropdown isOpen={true} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+    const endpoints = () => useWalkthroughStore.getState().walkthrough.routeEndpoints;
+
+    pickPoint(0, [1, 1]);
+    expect(endpoints()).toEqual({ start: true, end: false });
+    pickPoint(1, [2, 2]);
+    expect(endpoints()).toEqual({ start: true, end: true });
+
+    fireEvent.click(screen.getAllByTitle('Clear search')[0]);
+    expect(endpoints()).toEqual({ start: false, end: true });
+  });
+
+  it('does not report while the panel is closed', () => {
+    render(<RouteAddDropdown isOpen={false} onOpenChange={vi.fn()} onImportClick={vi.fn()} />);
+    expect(useWalkthroughStore.getState().walkthrough.routeEndpoints).toEqual({ start: false, end: false });
+  });
+});
+

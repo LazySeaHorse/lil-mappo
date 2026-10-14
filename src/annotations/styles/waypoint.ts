@@ -256,7 +256,7 @@ export const waypointStyle: AnnotationStyleDefinition<WaypointSettings> = {
     exitDuration: 0.5,
   },
   controls: [
-    { type: 'color', key: 'accentColor', label: 'Disc color' },
+    { type: 'color', key: 'accentColor', label: 'Disc color', role: 'accent' },
     { type: 'color', key: 'textColor', label: 'Text color' },
     HALO_CONTROL,
     SIDE_CONTROL,

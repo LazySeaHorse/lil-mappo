@@ -99,21 +99,36 @@ function applyJumpTo(
   map.jumpTo({ center: cam.center, zoom, pitch, bearing });
 }
 
+/**
+ * Below this zoom a pose is shown with jumpTo rather than a free camera. Zoomed out, and most of
+ * all on the globe (up to zoom 6), a free camera lands somewhere other than jumpTo for the same
+ * pose, so a move off a zoomed-out keyframe would jump as it started. From here up the two differ
+ * by a pixel or two.
+ */
+const FREE_CAMERA_MIN_ZOOM = 10;
+
+/** Shows a pose as a free camera, or zoomed out as jumpTo, so it matches a keyframe there. */
+function applyPoseAtZoom(map: mapboxgl.Map, pose: CameraPose, refHeight: number, zoomOffset: number): void {
+  const asJumpTo = poseToJumpTo(pose, refHeight);
+  if (asJumpTo.zoom + zoomOffset < FREE_CAMERA_MIN_ZOOM) applyJumpTo(map, asJumpTo, zoomOffset);
+  else applyPose(map, pose);
+}
+
 export function applyCamera(map: mapboxgl.Map, cam: CameraOutput, zoomOffset = 0): void {
+  const refHeight = viewportHeight(map, zoomOffset);
   if (cam.type === 'blend') {
     if (!isFiniteCamera(cam.from) || !isFiniteCamera(cam.to) || !Number.isFinite(cam.t)) return;
-    const refHeight = viewportHeight(map, zoomOffset);
     const pose = blendedPose(cam, refHeight, (target) => groundElevation(map, target));
     if (cam.from.type === 'jumpTo' && cam.to.type === 'jumpTo') {
       applyJumpTo(map, poseToJumpTo(pose, refHeight), zoomOffset);
     } else {
-      applyPose(map, pose);
+      applyPoseAtZoom(map, pose, refHeight, zoomOffset);
     }
     return;
   }
   if (!isFiniteCamera(cam)) return;
   if (cam.type === 'freeCam') {
-    applyPose(map, { ...poseFromFreeCam(cam.position, cam.lookAt), ground: cam.ground });
+    applyPoseAtZoom(map, toPose(cam, refHeight), refHeight, zoomOffset);
   } else {
     applyJumpTo(map, cam, zoomOffset);
   }

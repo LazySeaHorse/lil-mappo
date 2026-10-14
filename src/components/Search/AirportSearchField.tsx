@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Plane, Loader2, Crosshair, X } from 'lucide-react';
+import { Plane, Loader2 } from 'lucide-react';
 import { Command as CommandPrimitive } from 'cmdk';
 
 import {
@@ -14,7 +14,9 @@ import {
   PopoverContent,
   PopoverAnchor,
 } from '@/components/ui/popover';
-import { IconButton } from '@/components/ui/icon-button';
+import { PickOnMapButton } from './PickOnMapButton';
+import { SearchFieldActions } from './SearchFieldActions';
+import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
 import {
   useAirportSearch,
   parseCoordinates,
@@ -28,8 +30,6 @@ export interface AirportSearchFieldProps {
   value?: [number, number];
   name?: string;
   onSelect: (lngLat: [number, number], name: string) => void;
-  color?: string;
-  showDot?: boolean;
   isPicking?: boolean;
   onStartPick?: () => void;
   className?: string;
@@ -41,8 +41,6 @@ export const AirportSearchField = ({
   value,
   name = "",
   onSelect,
-  color = "bg-primary/10 text-primary border-primary/20",
-  showDot = true,
   isPicking = false,
   onStartPick = () => {},
   className = "",
@@ -106,13 +104,6 @@ export const AirportSearchField = ({
         >
           <PopoverAnchor asChild>
             <div className="flex items-center gap-2">
-              {showDot && (
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${color} shadow-sm transition-all group-focus-within:scale-110`}
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-current" />
-                </div>
-              )}
               <div className="relative flex-1">
                 <CommandPrimitive.Input
                   placeholder={isPicking ? "Click on map..." : (placeholder || label)}
@@ -130,44 +121,14 @@ export const AirportSearchField = ({
                   onKeyDown={handleKeyDown}
                   disabled={isPicking}
                   className={cn(
-                    "h-8 w-full text-sm pl-2 pr-7 bg-secondary/20 border border-transparent focus:border-border/50 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-primary/20 outline-none text-foreground placeholder:text-muted-foreground",
-                    isPicking && "placeholder:text-primary animate-pulse"
+                    'h-8',
+                    SEARCH_INPUT_CLASS,
+                    isPicking && 'placeholder:text-primary animate-pulse',
                   )}
                 />
-                {query && !isPicking && (
-                  <button
-                    type="button"
-                    onClick={clear}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted/50"
-                    aria-label="Clear"
-                    title="Clear"
-                  >
-                    <X size={10} />
-                  </button>
-                )}
-                {loading && (
-                  <div
-                    className={cn(
-                      "absolute top-1/2 -translate-y-1/2",
-                      query && !isPicking ? "right-8" : "right-3"
-                    )}
-                  >
-                    <Loader2 className="w-3.5 h-3.5 animate-spin opacity-40 text-primary" />
-                  </div>
-                )}
+                {!isPicking && <SearchFieldActions hasText={query !== ''} loading={loading} onClear={clear} />}
               </div>
-              <IconButton
-                variant="ghost"
-                size="sm"
-                className={`h-8 w-8 shrink-0 rounded-lg transition-all ${
-                  isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={onStartPick}
-                title="Pick on Map"
-                aria-label="Pick on Map"
-              >
-                <Crosshair size={14} className={isPicking ? 'animate-spin-slow' : ''} />
-              </IconButton>
+              <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />
             </div>
           </PopoverAnchor>
 
@@ -181,7 +142,7 @@ export const AirportSearchField = ({
                 e.preventDefault();
               }
             }}
-            className="w-fit min-w-[280px] sm:min-w-[340px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            className="z-[130] w-fit min-w-[280px] sm:min-w-[340px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
           >
             <CommandList className="ph-no-capture flex flex-col p-1 max-h-[300px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {loading && (

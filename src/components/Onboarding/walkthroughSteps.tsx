@@ -1,12 +1,17 @@
 import React from 'react';
 import type { Placement } from '@floating-ui/react';
-import type { MapGesture, WalkthroughStage } from './walkthroughState';
+import type { MapGesture, WalkthroughState, WalkthroughStage } from './walkthroughState';
 import { GestureStatus } from './GestureStatus';
+import { ROUTE_TERMS } from '@/lib/terms';
 
-export type VisibleWalkthroughStage = Exclude<
-  WalkthroughStage,
-  'complete' | 'prepare-render' | 'route-editor' | 'boundary-editor' | 'callout-editor'
->;
+export type VisibleWalkthroughStage = Exclude<WalkthroughStage, 'complete'>;
+
+/** What a step can show about the user's progress. */
+export interface WalkthroughProgress {
+  isMobile: boolean;
+  gestures: Record<MapGesture, boolean>;
+  routeEndpoints: WalkthroughState['routeEndpoints'];
+}
 
 export interface WalkthroughStepConfig {
   stage: VisibleWalkthroughStage;
@@ -16,31 +21,26 @@ export interface WalkthroughStepConfig {
   placement: Placement;
   spotlightPadding?: number;
   hideOverlay?: boolean;
+  /** A narrower card, for steps beside a panel that needs the room. */
+  compact?: boolean;
+  /** Scrolls the target into view, for targets inside a panel that scrolls. */
+  scrollIntoView?: boolean;
   buttons?: ('skip' | 'primary')[];
   nextLabel?: string;
-  renderContent: (props: { isMobile: boolean; gestures: Record<MapGesture, boolean> }) => React.ReactNode;
+  renderContent: (progress: WalkthroughProgress) => React.ReactNode;
 }
 
-export function getWalkthroughStages(isMobile: boolean, usesLayerMenu: boolean): VisibleWalkthroughStage[] {
+export function getWalkthroughStages(isMobile: boolean): VisibleWalkthroughStage[] {
   return [
     'map-controls',
     ...(isMobile ? ['open-add-menu' as const] : []),
-    'first-keyframe',
-    'move-playhead',
-    'second-keyframe',
-    'play-animation',
-    'select-keyframe',
-    'inspect-keyframe',
     'route',
-    'boundary',
-    'callout',
-    ...(usesLayerMenu ? ['open-map-tools' as const] : []),
-    'terrain-buildings',
-    'change-map-style',
-    'return-standard-style',
-    'map-settings',
-    'map-settings-tab',
-    'map-settings-overview',
+    'route-places',
+    'route-preview',
+    'route-insert',
+    'follow-route',
+    'play-animation',
+    'more-tools',
     'render',
   ];
 }
@@ -48,7 +48,6 @@ export function getWalkthroughStages(isMobile: boolean, usesLayerMenu: boolean):
 export function getWalkthroughStepConfig(
   stage: VisibleWalkthroughStage,
   isMobile: boolean,
-  isTablet: boolean,
 ): WalkthroughStepConfig {
   const mapControlCopy = isMobile
     ? {
@@ -61,6 +60,9 @@ export function getWalkthroughStepConfig(
         orbit: 'Right-click and drag to tilt and rotate',
         zoom: 'Scroll the mouse wheel to zoom',
       };
+
+  // The Plan Route panel opens under the toolbar, so desktop steps sit beside it.
+  const panelPlacement: Placement = isMobile ? 'bottom' : 'right-start';
 
   switch (stage) {
     case 'map-controls':
@@ -93,185 +95,99 @@ export function getWalkthroughStepConfig(
         title: 'Open the Add menu',
         placement: 'bottom-start',
         buttons: ['skip'],
-        renderContent: () => 'Tap here to add camera views, routes, boundaries, and location pins.',
-      };
-
-    case 'first-keyframe':
-      return {
-        stage,
-        target: '[data-walkthrough="camera-keyframe"]',
-        title: 'Save your first view',
-        placement: 'bottom',
-        buttons: ['skip'],
-        renderContent: () => 'Click the camera button to save this position as your starting keyframe.',
-      };
-
-    case 'move-playhead':
-      return {
-        stage,
-        target: '[data-walkthrough="timeline-panel"]',
-        title: 'Move forward on the timeline',
-        placement: 'top-start',
-        spotlightPadding: 0,
-        buttons: ['skip'],
-        renderContent: () => 'Drag the blue playhead marker to the right to set the time for your next view.',
-      };
-
-    case 'second-keyframe':
-      return {
-        stage,
-        target: '[data-walkthrough="camera-keyframe"]',
-        title: 'Save your second view',
-        placement: 'bottom',
-        hideOverlay: true,
-        buttons: ['skip'],
-        renderContent: () => 'Move the map to a new location. Then click the camera button again to save your second keyframe.',
-      };
-
-    case 'play-animation':
-      return {
-        stage,
-        target: '[data-walkthrough="timeline-play"]',
-        title: 'Preview your animation',
-        placement: 'top',
-        buttons: ['skip', 'primary'],
-        nextLabel: 'Next',
-        renderContent: () => 'Click the Play button to watch the camera move smoothly between your two saved views.',
-      };
-
-    case 'select-keyframe':
-      return {
-        stage,
-        target: '[data-walkthrough="timeline-keyframe"]',
-        spotlightTarget: '[data-walkthrough="timeline-panel"]',
-        title: 'Select a keyframe',
-        placement: 'top',
-        spotlightPadding: 0,
-        buttons: ['skip'],
-        renderContent: () => 'Click any keyframe marker on the timeline to open its settings panel.',
-      };
-
-    case 'inspect-keyframe':
-      return {
-        stage,
-        target: '[data-walkthrough="inspector-panel"]',
-        title: 'Adjust keyframe settings',
-        placement: isMobile ? 'top' : 'left-start',
-        buttons: ['skip', 'primary'],
-        nextLabel: 'Continue',
-        renderContent: () => 'Use the side panel to adjust time, camera angle, zoom level, and animation speed.',
+        renderContent: () => 'Tap here to add routes, boundaries, labels, and camera views.',
       };
 
     case 'route':
       return {
         stage,
         target: '[data-walkthrough="add-route"]',
-        title: 'Add a travel route',
+        title: 'Open Plan Route',
         placement: 'bottom',
         buttons: ['skip'],
-        renderContent: () => 'Draw a driving, walking, or flight path on the map. You can also import GPX and KML files.',
+        renderContent: () => 'Click Plan Route. You will pick a start place and an end place.',
       };
 
-    case 'boundary':
+    case 'route-places':
       return {
         stage,
-        target: '[data-walkthrough="add-boundary"]',
-        title: 'Highlight a boundary',
-        placement: 'bottom',
+        target: '[data-walkthrough="route-places"]',
+        title: 'Pick a start and an end place',
+        placement: panelPlacement,
+        // The search results open over the map, so the map stays clear.
+        hideOverlay: true,
+        compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Search and highlight any country, state, or custom region on the map.',
+        renderContent: ({ routeEndpoints }) => (
+          <div className="space-y-2 text-left mt-1">
+            <GestureStatus
+              complete={routeEndpoints.start}
+              subtext="You can also click the crosshair and then click the map."
+            >
+              Start: type a place, press Enter, then pick a result
+            </GestureStatus>
+            <GestureStatus complete={routeEndpoints.end}>
+              End: do the same for the end place
+            </GestureStatus>
+          </div>
+        ),
       };
 
-    case 'callout':
+    case 'route-preview':
       return {
         stage,
-        target: '[data-walkthrough="add-callout"]',
-        title: 'Add a location label',
-        placement: 'bottom',
+        target: '[data-walkthrough="route-action"]',
+        title: 'Preview the path',
+        placement: isMobile ? 'top' : 'right',
+        compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Place an animated 3D pin and label to highlight an important location.',
+        renderContent: () => 'Press Preview path. The map shows the route between your two places.',
       };
 
-    case 'open-map-tools':
+    case 'route-insert':
       return {
         stage,
-        target: '[data-walkthrough="map-tools"]',
-        title: 'Open Map Display',
-        placement: 'bottom',
+        target: '[data-walkthrough="route-action"]',
+        title: 'Add the route to your video',
+        placement: isMobile ? 'top' : 'right',
+        compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Tap the Map Display button to view style and 3D landscape options.',
+        renderContent: () =>
+          'Press Insert route. The route starts at the playhead on the timeline, and the map moves to show it.',
       };
 
-    case 'terrain-buildings':
+    case 'follow-route':
       return {
         stage,
-        target: '[data-walkthrough="map-3d"]',
-        title: 'Enable 3D terrain and buildings',
+        target: '[data-walkthrough="follow-route"]',
+        title: 'Make the camera follow the route',
+        placement: isMobile ? 'top' : 'left-start',
+        scrollIntoView: true,
+        buttons: ['skip'],
+        renderContent: () => `Turn on ${ROUTE_TERMS.followCamera}. When you play the video, the camera moves along the route.`,
+      };
+
+    case 'play-animation':
+      return {
+        stage,
+        target: '[data-walkthrough="timeline-play"]',
+        title: 'Play your trip',
+        placement: 'top',
+        buttons: ['skip', 'primary'],
+        nextLabel: 'Next',
+        renderContent: () => 'Press Play. The route draws itself, and the camera follows it.',
+      };
+
+    case 'more-tools':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
+        title: 'More things you can add',
         placement: 'bottom',
         buttons: ['skip', 'primary'],
         nextLabel: 'Next',
-        renderContent: () => 'Turn on Terrain for realistic hills and mountains. Turn on Buildings to show 3D city structures.',
-      };
-
-    case 'change-map-style':
-      return {
-        stage,
-        target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-style"]',
-        title: 'Change the map style',
-        placement: 'bottom',
-        buttons: ['skip'],
         renderContent: () =>
-          isTablet
-            ? 'Open Map Display. Select another style, such as Satellite or Dark.'
-            : 'Open the style menu. Select another style, such as Satellite or Dark.',
-      };
-
-    case 'return-standard-style':
-      return {
-        stage,
-        target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-style"]',
-        title: 'Reset to Standard style',
-        placement: 'bottom',
-        buttons: ['skip'],
-        renderContent: () =>
-          isTablet
-            ? 'Open Map Display again. Select the Standard style.'
-            : 'Open the style menu again. Select the Standard style.',
-      };
-
-    case 'map-settings':
-      return {
-        stage,
-        target: isTablet ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-settings"]',
-        title: 'Open Project Settings',
-        placement: 'bottom',
-        buttons: ['skip'],
-        renderContent: () =>
-          isTablet
-            ? 'Open Map Display, then choose Full Map Settings.'
-            : 'Click Settings to configure global project and map options.',
-      };
-
-    case 'map-settings-tab':
-      return {
-        stage,
-        target: '[data-walkthrough="project-settings-map-tab"]',
-        spotlightTarget: '[data-walkthrough="inspector-panel"]',
-        title: 'Select the Map tab',
-        placement: isMobile ? 'top' : 'left-start',
-        buttons: ['skip'],
-        renderContent: () => 'Click the Map tab to view environment and visual settings.',
-      };
-
-    case 'map-settings-overview':
-      return {
-        stage,
-        target: '[data-walkthrough="inspector-panel"]',
-        title: 'Customize the map environment',
-        placement: isMobile ? 'top' : 'left-start',
-        buttons: ['skip', 'primary'],
-        nextLabel: 'Next',
-        renderContent: () => 'Use this tab to adjust map projection, sun lighting, sky atmosphere, and place labels.',
+          'Camera views, boundaries, callouts, and map styles are in the toolbar. Try them when you are ready.',
       };
 
     case 'render':
@@ -281,7 +197,7 @@ export function getWalkthroughStepConfig(
         title: 'Export your video',
         placement: 'bottom-end',
         buttons: ['skip'],
-        renderContent: () => 'Click Export when you want to download your finished video. You do not need to export now.',
+        renderContent: () => 'Press Export to save your trip as a video file.',
       };
   }
 }

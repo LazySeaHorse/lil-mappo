@@ -184,7 +184,7 @@ describe("BoundaryRenderer animation style switching and state management", () =
     expect(fullCallData.features[0].geometry.coordinates).toEqual((sampleBoundary.geojson as GeoJSON.Polygon).coordinates);
   });
 
-  it("updates stroke source to full geometry when switching mid-draw to Fade-in", () => {
+  it("updates stroke source to full geometry when switching mid-draw to Fade in", () => {
     const { map, sources } = createMapDouble();
     const renderer = new BoundaryRenderer(map, sampleBoundary);
     renderer.mount();
@@ -194,7 +194,7 @@ describe("BoundaryRenderer animation style switching and state management", () =
     // 1. Render at t=5s (50% progress in 'draw' mode)
     renderer.render(5);
 
-    // 2. User switches to "Fade-in" (animateStroke: true, animationStyle: 'fade')
+    // 2. User switches to "Fade in" (animateStroke: true, animationStyle: 'fade')
     renderer.setBoundary({
       ...sampleBoundary,
       style: {

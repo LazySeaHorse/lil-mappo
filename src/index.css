@@ -322,3 +322,24 @@
   .skeleton-progress-fill { animation: none; transform: scaleX(0.55); }
   .skeleton-card-in { animation: none; }
 }
+
+/* Looping previews of the route animations in the route panel. pathLength is 1 on both paths. */
+.route-preview-draw { stroke-dasharray: 1 1; animation: route-preview-draw 2.4s ease-in-out infinite; }
+.route-preview-navigation { stroke-dasharray: 1 1; animation: route-preview-navigation 2.4s ease-in-out infinite; }
+.route-preview-comet { stroke-dasharray: 0.25 1.25; animation: route-preview-comet 2.4s linear infinite; }
+@keyframes route-preview-draw {
+  0% { stroke-dashoffset: 1; }
+  70%, 100% { stroke-dashoffset: 0; }
+}
+@keyframes route-preview-navigation {
+  0% { stroke-dashoffset: 0; }
+  70%, 100% { stroke-dashoffset: -1; }
+}
+@keyframes route-preview-comet {
+  0% { stroke-dashoffset: 0.25; }
+  85%, 100% { stroke-dashoffset: -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-preview-draw, .route-preview-navigation, .route-preview-comet { animation: none; }
+}

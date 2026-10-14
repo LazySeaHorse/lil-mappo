@@ -1,9 +1,36 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useWalkthroughStore, WALKTHROUGH_STORAGE_KEY } from './useWalkthroughStore';
-import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
+import { createWalkthroughState } from './walkthroughState';
+import { useProjectStore } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
 import { createTransientState } from '@/store/slices/mapEnvironmentSlice';
-import type { CameraItem, CameraKeyframe } from '@/store/types';
+import { createEndpointRouteItem, wrapGeometry } from '@/store/itemFactories';
+import { autoCamForRoute } from '@/config/vehicles';
+import type { RouteItem } from '@/store/types';
+
+const walkthrough = () => useWalkthroughStore.getState();
+const stage = () => walkthrough().walkthrough.stage;
+
+const line: GeoJSON.FeatureCollection = wrapGeometry({ type: 'LineString', coordinates: [[0, 1], [2, 3]] });
+
+function newRoute(id = 'r1') {
+  return createEndpointRouteItem({ id, mode: 'car', geojson: line, start: [0, 1], end: [2, 3], name: 'Trip', startTime: 0 });
+}
+
+/** Plays the tour up to a stage with the same inputs a user gives. */
+function advanceTo(target: 'route-places' | 'route-preview' | 'route-insert' | 'follow-route') {
+  const w = walkthrough();
+  w.recordMapGesture('pan');
+  w.recordMapGesture('orbit');
+  w.recordMapGesture('zoom');
+  w.recordAddToolOpenChange('route', true);
+  if (target === 'route-places') return;
+  w.recordRouteEndpoints(true, true);
+  if (target === 'route-preview') return;
+  useProjectStore.getState().setPreviewRoute(line);
+  if (target === 'route-insert') return;
+  useProjectStore.getState().addItem(newRoute());
+}
 
 describe('useWalkthroughStore store-level synchronization and entry effects', () => {
   beforeEach(() => {
@@ -15,6 +42,7 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
       playheadTime: 0,
     });
     useWalkthroughStore.getState().dismiss();
+    useWalkthroughStore.setState({ walkthrough: createWalkthroughState(false, 0) });
   });
 
   afterEach(() => {
@@ -24,222 +52,133 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
 
   it('initializes walkthrough state, closes inspector, and starts subscriptions', () => {
     useProjectStore.setState({ isInspectorOpen: true });
-    expect(useProjectStore.getState().isInspectorOpen).toBe(true);
 
-    useWalkthroughStore.getState().start(false, 0, false);
+    walkthrough().start(false);
 
-    expect(useWalkthroughStore.getState().isRunning).toBe(true);
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('map-controls');
+    expect(walkthrough().isRunning).toBe(true);
+    expect(stage()).toBe('map-controls');
     expect(useProjectStore.getState().isInspectorOpen).toBe(false);
     expect(localStorage.getItem(WALKTHROUGH_STORAGE_KEY)).toBe('started');
   });
 
-  it('transitions from map-controls to first-keyframe on desktop after gestures', () => {
-    const store = useWalkthroughStore.getState();
-    store.start(false, 0, false);
+  it('moves from the map controls to Plan Route on desktop and to the Add menu on mobile', () => {
+    walkthrough().start(false);
+    walkthrough().recordMapGesture('pan');
+    walkthrough().recordMapGesture('orbit');
+    expect(stage()).toBe('map-controls');
+    walkthrough().recordMapGesture('zoom');
+    expect(stage()).toBe('route');
 
-    store.recordMapGesture('pan');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('map-controls');
-
-    store.recordMapGesture('orbit');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('map-controls');
-
-    store.recordMapGesture('zoom');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('first-keyframe');
+    walkthrough().start(true);
+    for (const gesture of ['pan', 'orbit', 'zoom'] as const) walkthrough().recordMapGesture(gesture);
+    expect(stage()).toBe('open-add-menu');
+    walkthrough().send({ type: 'add-menu-opened' });
+    expect(stage()).toBe('route');
   });
 
-  it('transitions to move-playhead upon camera keyframe addition and closes inspector', () => {
-    const walkthrough = useWalkthroughStore.getState();
-    walkthrough.start(false, 0, false);
+  it('waits for a start and an end place after Plan Route opens', () => {
+    walkthrough().start(false);
+    advanceTo('route-places');
+    expect(stage()).toBe('route-places');
 
-    walkthrough.recordMapGesture('pan');
-    walkthrough.recordMapGesture('orbit');
-    walkthrough.recordMapGesture('zoom');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('first-keyframe');
+    walkthrough().recordRouteEndpoints(true, false);
+    expect(stage()).toBe('route-places');
+    expect(walkthrough().walkthrough.routeEndpoints).toEqual({ start: true, end: false });
 
-    useProjectStore.setState({ isInspectorOpen: true });
-
-    // Add first keyframe to useProjectStore
-    const kf1: CameraKeyframe = {
-      id: 'kf-1',
-      time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
-      easing: 'linear',
-      followRoute: null,
-    };
-    useProjectStore.getState().addCameraKeyframe(kf1);
-
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('move-playhead');
-    expect(useProjectStore.getState().isInspectorOpen).toBe(false);
+    walkthrough().recordRouteEndpoints(true, true);
+    expect(stage()).toBe('route-preview');
   });
 
-  it('advances through playhead movement and second keyframe to play-animation', () => {
-    const walkthrough = useWalkthroughStore.getState();
-    walkthrough.start(false, 0, false);
+  it('ignores endpoint changes while the tour is not running', () => {
+    walkthrough().recordRouteEndpoints(true, true);
+    expect(walkthrough().walkthrough.routeEndpoints).toEqual({ start: false, end: false });
+  });
 
-    walkthrough.recordMapGesture('pan');
-    walkthrough.recordMapGesture('orbit');
-    walkthrough.recordMapGesture('zoom');
+  it('follows the route preview in the project store', () => {
+    walkthrough().start(false);
+    advanceTo('route-preview');
 
-    // First keyframe at time 0
-    useProjectStore.getState().addCameraKeyframe({
-      id: 'kf-1',
-      time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
-      easing: 'linear',
-      followRoute: null,
-    });
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('move-playhead');
+    useProjectStore.getState().setPreviewRoute(line);
+    expect(stage()).toBe('route-insert');
 
-    // Minor playhead movement (< 0.1) should not advance
-    useProjectStore.getState().setPlayheadTime(0.05);
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('move-playhead');
+    useProjectStore.getState().setPreviewRoute(null);
+    expect(stage()).toBe('route-preview');
+  });
 
-    // Sufficient playhead movement (>= 0.1) advances to second-keyframe
-    useProjectStore.getState().setPlayheadTime(3);
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('second-keyframe');
+  it('moves on when the route is inserted, and opens the inspector for the Follow camera switch', () => {
+    walkthrough().start(false);
+    advanceTo('route-insert');
+    useProjectStore.setState({ isInspectorOpen: false });
 
-    // Add second keyframe at time 3
-    useProjectStore.getState().addCameraKeyframe({
-      id: 'kf-2',
-      time: 3,
-      camera: { center: [10, 10], zoom: 12, pitch: 30, bearing: 45, altitude: null },
-      easing: 'easeInOutCubic',
-      followRoute: null,
-    });
+    useProjectStore.getState().addItem(newRoute());
+    useProjectStore.getState().selectItem('r1');
 
-    // Entering play-animation resets playheadTime to 0
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('play-animation');
+    expect(stage()).toBe('follow-route');
+    expect(useProjectStore.getState().isInspectorOpen).toBe(true);
+  });
+
+  it('counts only routes added after the tour started', () => {
+    useProjectStore.getState().addItem(newRoute('old'));
+    walkthrough().start(false);
+    advanceTo('route-places');
+
+    useProjectStore.getState().updateItem('old', { name: 'Renamed' });
+    expect(stage()).toBe('route-places');
+
+    useProjectStore.getState().addItem(newRoute('new'));
+    expect(stage()).toBe('follow-route');
+  });
+
+  it('moves on when the user turns on Follow camera, and resets the playhead for the preview', () => {
+    walkthrough().start(false);
+    advanceTo('follow-route');
+    useProjectStore.getState().selectItem('r1');
+    useProjectStore.setState({ playheadTime: 4, isInspectorOpen: true });
+
+    const route = useProjectStore.getState().items.r1 as RouteItem;
+    useProjectStore.getState().updateItem('r1', { autoCam: autoCamForRoute(route) });
+
+    expect(stage()).toBe('play-animation');
     expect(useProjectStore.getState().playheadTime).toBe(0);
-  });
-
-  it('transitions to select-keyframe, clears selection, and detects keyframe selection', () => {
-    const walkthrough = useWalkthroughStore.getState();
-    walkthrough.start(false, 0, false);
-
-    // Skip to play-animation
-    walkthrough.send({ type: 'map-gesture', gesture: 'pan' });
-    walkthrough.send({ type: 'map-gesture', gesture: 'orbit' });
-    walkthrough.send({ type: 'map-gesture', gesture: 'zoom' });
-    useProjectStore.getState().addCameraKeyframe({
-      id: 'kf-1',
-      time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
-      easing: 'linear',
-      followRoute: null,
-    });
-    useProjectStore.getState().setPlayheadTime(3);
-    useProjectStore.getState().addCameraKeyframe({
-      id: 'kf-2',
-      time: 3,
-      camera: { center: [10, 10], zoom: 12, pitch: 30, bearing: 45, altitude: null },
-      easing: 'easeInOutCubic',
-      followRoute: null,
-    });
-
-    // Currently in play-animation
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('play-animation');
-
-    // Select a keyframe prior to moving to select-keyframe stage
-    useProjectStore.getState().selectKeyframe('kf-1');
-    useProjectStore.setState({ isInspectorOpen: true });
-    expect(useProjectStore.getState().selectedKeyframeId).toBe('kf-1');
-
-    // Advance to select-keyframe stage via next()
-    walkthrough.next();
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('select-keyframe');
-    // Entry effect should have cleared selection and closed inspector
-    expect(useProjectStore.getState().selectedKeyframeId).toBeNull();
+    // The timeline (with Play) is hidden on a phone while the inspector is open.
     expect(useProjectStore.getState().isInspectorOpen).toBe(false);
-
-    // Now selecting a keyframe in useProjectStore advances to inspect-keyframe
-    useProjectStore.getState().selectKeyframe('kf-2');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('inspect-keyframe');
   });
 
-  it('handles map style and settings changes directly via subscriptions', () => {
-    const walkthrough = useWalkthroughStore.getState();
-    walkthrough.start(false, 0, false);
+  it('goes through play, more tools and export, and completes the tour', () => {
+    walkthrough().start(false);
+    useWalkthroughStore.setState({ walkthrough: { ...walkthrough().walkthrough, stage: 'play-animation' } });
+    useProjectStore.setState({ isPlaying: true });
 
-    // Set stage to terrain-buildings
-    useWalkthroughStore.setState({
-      walkthrough: {
-        ...useWalkthroughStore.getState().walkthrough,
-        stage: 'terrain-buildings',
-      },
-    });
+    walkthrough().next();
+    expect(stage()).toBe('more-tools');
+    expect(useProjectStore.getState().isPlaying).toBe(false);
 
-    // Advance to change-map-style
-    useProjectStore.setState({ mapStyle: 'standard' });
-    walkthrough.next();
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('change-map-style');
+    walkthrough().next();
+    expect(stage()).toBe('render');
 
-    // Change style in project store
-    useProjectStore.getState().setMapStyle('satellite-streets');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('return-standard-style');
-
-    // Return to standard style
-    useProjectStore.getState().setMapStyle('standard');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('map-settings');
-
-    // Open map settings
-    walkthrough.send({ type: 'map-settings-opened' });
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('map-settings-tab');
-
-    // Switch tab to map in project store
-    useProjectStore.getState().setProjectSettingsTab('map');
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('map-settings-overview');
-  });
-
-  it('handles layout delay for prepare-render and completes walkthrough on export', () => {
-    vi.useFakeTimers();
-    const walkthrough = useWalkthroughStore.getState();
-    walkthrough.start(false, 0, false);
-
-    useWalkthroughStore.setState({
-      walkthrough: {
-        ...useWalkthroughStore.getState().walkthrough,
-        stage: 'map-settings-overview',
-      },
-    });
-
-    useProjectStore.setState({ isInspectorOpen: true });
-
-    walkthrough.next(); // advances to prepare-render
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('prepare-render');
-    expect(useProjectStore.getState().isInspectorOpen).toBe(false);
-
-    // Fast-forward layout delay
-    vi.advanceTimersByTime(350);
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('render');
-
-    // Open export
-    walkthrough.recordExportOpened();
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('complete');
-    expect(useWalkthroughStore.getState().isRunning).toBe(false);
+    walkthrough().recordExportOpened();
+    expect(stage()).toBe('complete');
+    expect(walkthrough().isRunning).toBe(false);
     expect(localStorage.getItem(WALKTHROUGH_STORAGE_KEY)).toBe('completed');
+  });
 
-    vi.useRealTimers();
+  it('ignores Next in stages that wait for an action', () => {
+    walkthrough().start(false);
+    advanceTo('route-places');
+    walkthrough().next();
+    expect(stage()).toBe('route-places');
   });
 
   it('unsubscribes and prevents state leaks when dismissed', () => {
-    const walkthrough = useWalkthroughStore.getState();
-    walkthrough.start(false, 0, false);
+    walkthrough().start(false);
+    advanceTo('route-places');
 
-    walkthrough.dismiss();
-    expect(useWalkthroughStore.getState().isRunning).toBe(false);
+    walkthrough().dismiss();
+    expect(walkthrough().isRunning).toBe(false);
     expect(localStorage.getItem(WALKTHROUGH_STORAGE_KEY)).toBe('dismissed');
 
-    // Project changes should no longer affect walkthrough
-    useProjectStore.getState().addCameraKeyframe({
-      id: 'kf-test',
-      time: 0,
-      camera: { center: [0, 0], zoom: 10, pitch: 0, bearing: 0, altitude: null },
-      easing: 'linear',
-      followRoute: null,
-    });
-
-    expect(useWalkthroughStore.getState().isRunning).toBe(false);
-    expect(useWalkthroughStore.getState().walkthrough.stage).toBe('map-controls');
+    useProjectStore.getState().addItem(newRoute('late'));
+    expect(walkthrough().isRunning).toBe(false);
+    expect(stage()).toBe('route-places');
   });
 });
