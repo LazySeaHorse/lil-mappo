@@ -1,59 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { routeDraftChanged, routeSummary } from './routeDraft';
+import { editableKey, routeDraftChanged } from './routeDraft';
 import { convertRouteCalculation } from './routeMode';
-import type { EndpointRouteCalculation, RouteCalculation, WalkRouteCalculation } from '@/store/types';
-
-const line = (coords: number[][]): GeoJSON.FeatureCollection => ({
-  type: 'FeatureCollection',
-  features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }],
-});
-const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
+import type { EndpointRouteCalculation, RouteCalculation } from '@/store/types';
 
 const car: EndpointRouteCalculation = {
   mode: 'car', startPoint: [-73.99785, 40.71234], endPoint: [-73.96542, 40.78243], startName: 'Brooklyn Bridge', endName: 'Central Park',
 };
-
-describe('routeSummary', () => {
-  it('shows the mode and the place names of a car route', () => {
-    expect(routeSummary({ calculation: car, geojson: empty })).toBe('Car · Brooklyn Bridge → Central Park');
-  });
-
-  it('shows a flight the same way', () => {
-    expect(routeSummary({ calculation: { ...car, mode: 'flight', startName: 'JFK', endName: 'LHR' }, geojson: empty }))
-      .toBe('Flight · JFK → LHR');
-  });
-
-  it('falls back to formatted coordinates when a name is unknown', () => {
-    expect(routeSummary({ calculation: { ...car, startName: '' }, geojson: empty })).toBe('Car · -73.99785, 40.71234 → Central Park');
-  });
-
-  it('says so when a place is not set', () => {
-    expect(routeSummary({ calculation: { ...car, endPoint: [0, 0], endName: '' }, geojson: empty })).toBe('Car · Brooklyn Bridge → not set');
-    expect(routeSummary({ calculation: { ...car, startPoint: [0, 0], startName: '', endPoint: [0, 0], endName: '' }, geojson: empty }))
-      .toBe('Car · No places set');
-  });
-
-  it('shows the point count and the distance of a walk', () => {
-    const walk: WalkRouteCalculation = { mode: 'walk', points: [[0, 0.1], [0, 0.2], [0, 0.3]], curved: false, sharpness: 0.85 };
-    expect(routeSummary({ calculation: walk, geojson: line([[0, 0.1], [0, 0.3]]) })).toBe('Walk · 3 points · 22.2 km');
-  });
-
-  it('handles an empty or a one point walk', () => {
-    const walk: WalkRouteCalculation = { mode: 'walk', points: [], curved: false, sharpness: 0.85 };
-    expect(routeSummary({ calculation: walk, geojson: empty })).toBe('Walk · No points yet');
-    expect(routeSummary({ calculation: { ...walk, points: [[1, 1]] }, geojson: empty })).toBe('Walk · 1 point');
-  });
-
-  it('shows short distances in meters', () => {
-    const walk: WalkRouteCalculation = { mode: 'walk', points: [[0, 0.001], [0, 0.002]], curved: false, sharpness: 0.85 };
-    expect(routeSummary({ calculation: walk, geojson: line([[0, 0.001], [0, 0.002]]) })).toBe('Walk · 2 points · 111 m');
-  });
-
-  it('describes a route with no calculation as an imported path', () => {
-    expect(routeSummary({ geojson: line([[0, 0.1], [0, 0.3]]) })).toBe('Imported path · 22.2 km');
-    expect(routeSummary({ geojson: empty })).toBe('Imported path');
-  });
-});
 
 describe('routeDraftChanged', () => {
   it('is false for a copy of the saved calculation', () => {
@@ -81,5 +33,17 @@ describe('routeDraftChanged', () => {
   it('treats a route with no calculation as an unset car route', () => {
     expect(routeDraftChanged(undefined, convertRouteCalculation(undefined, 'car'))).toBe(false);
     expect(routeDraftChanged(undefined, convertRouteCalculation(undefined, 'walk'))).toBe(true);
+  });
+});
+
+describe('editableKey', () => {
+  it('changes with the points, names and mode, not with the marker', () => {
+    expect(editableKey(car)).toBe(editableKey(structuredClone(car)));
+    expect(editableKey(car)).not.toBe(editableKey({ ...car, endPoint: [1, 1] }));
+    expect(editableKey(car)).toBe(editableKey({ ...car, vehicle: { enabled: true, type: 'car', modelId: '', scale: 2 } }));
+  });
+
+  it('treats a route with no calculation as an unset car route', () => {
+    expect(editableKey(undefined)).toBe(editableKey(convertRouteCalculation(undefined, 'car')));
   });
 });

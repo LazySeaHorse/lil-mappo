@@ -14,7 +14,8 @@ const DEFAULT_VEHICLE = { enabled: false, type: 'dot' as const, modelId: '', sca
 /**
  * The path editor of one route. Edits go to a draft (`routeDraft` in the store) and the
  * route stays as saved until `apply`, which writes the draft as one undoable update and
- * frames the result on the map. `discard` drops the draft.
+ * frames the result on the map. `start` makes a draft from the saved route; `reset` does
+ * it again and so drops the edits.
  */
 export function useRouteDraft(item: RouteItem) {
   const draft = useProjectStore((s) => (s.routeDraft?.routeId === item.id ? s.routeDraft.calculation : null));
@@ -32,9 +33,9 @@ export function useRouteDraft(item: RouteItem) {
 
   const start = () => useProjectStore.getState().startRouteDraft(item.id);
 
-  const discard = () => {
+  const reset = () => {
     clearTransient();
-    useProjectStore.getState().discardRouteDraft();
+    start();
   };
 
   const edit = (update: (calc: RouteCalculation) => RouteCalculation) =>
@@ -62,7 +63,7 @@ export function useRouteDraft(item: RouteItem) {
         ...(geojson ? { geojson } : {}),
       });
       clearTransient();
-      store.discardRouteDraft();
+      store.startRouteDraft(item.id);
       frame.frameGeometry(geojson ?? route.geojson);
       toast.success(ROUTE_PATH_TERMS.applied);
     };
@@ -77,7 +78,7 @@ export function useRouteDraft(item: RouteItem) {
     await path.compute(calc, commit);
   };
 
-  return { draft, changed, loading: path.loading, path, start, discard, edit, setMode, apply };
+  return { draft, changed, loading: path.loading, path, start, reset, edit, setMode, apply };
 }
 
 export type RouteDraftEditor = ReturnType<typeof useRouteDraft>;

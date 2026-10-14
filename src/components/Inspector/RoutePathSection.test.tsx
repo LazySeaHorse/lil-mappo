@@ -7,6 +7,7 @@ import { createProject } from '@/store/projectDocument';
 import { createTransientState } from '@/store/slices/mapEnvironmentSlice';
 import { createEndpointRouteItem, createWalkRouteItem, wrapGeometry } from '@/store/itemFactories';
 import type { RouteItem } from '@/store/types';
+import { ROUTE_PATH_TERMS } from '@/lib/terms';
 import { getDirections } from '@/services/directions';
 
 vi.mock('@mapbox/search-js-core', () => ({
@@ -36,8 +37,7 @@ const show = (route: RouteItem) => {
   return render(<LiveRoute id={route.id} />);
 };
 const button = (name: string) => screen.queryByRole('button', { name });
-const edit = () => fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-const summary = () => screen.getByTestId('route-summary').textContent;
+const endField = () => screen.getAllByPlaceholderText('Search address or coordinates')[1];
 
 describe('RoutePathSection', () => {
   beforeEach(() => {
@@ -47,43 +47,53 @@ describe('RoutePathSection', () => {
     });
   });
 
-  describe('summary', () => {
-    it('is closed at first and shows the mode and the place names', () => {
+  describe('open section', () => {
+    it('shows the planner at once, with no Edit button and no summary line', () => {
       show(car());
-      expect(summary()).toBe('Car · Brooklyn Bridge → Central Park');
-      expect(button('Edit')).toBeInTheDocument();
-      expect(screen.queryByRole('radio')).not.toBeInTheDocument();
-      expect(state().routeDraft).toBeNull();
+      expect(button('Edit')).not.toBeInTheDocument();
+      expect(button('Close')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('route-summary')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('radio')).toHaveLength(3);
+      expect(screen.getByText('Start')).toBeInTheDocument();
+      expect(endField()).toHaveValue('Central Park');
+      expect(state().routeDraft?.routeId).toBe('r1');
     });
 
-    it('falls back to coordinates when a place has no name', () => {
-      const route = car();
-      if (route.calculation?.mode === 'car') route.calculation.startName = '';
-      show(route);
-      expect(summary()).toBe('Car · -74.00000, 40.70000 → Central Park');
-    });
-
-    it('shows point count and distance for a walk', () => {
+    it('shows the point list for a walk', () => {
       show(walk());
-      expect(summary()).toMatch(/^Walk · 3 points · \d+(\.\d)? km$/);
+      expect(screen.getAllByTitle('Remove point')).toHaveLength(3);
+      expect(state().routeDraft?.calculation.mode).toBe('walk');
+    });
+
+    it('shows the fields for a flight', () => {
+      const route = car();
+      if (route.calculation) route.calculation.mode = 'flight';
+      show(route);
+      expect(screen.getByText('Departure')).toBeInTheDocument();
+      expect(screen.getByText('Arrival')).toBeInTheDocument();
+    });
+
+    it('tells that an imported path is imported and offers the planner', () => {
+      const imported = car();
+      delete imported.calculation;
+      show(imported);
+      expect(screen.getByText(ROUTE_PATH_TERMS.importedHint)).toBeInTheDocument();
+      expect(screen.getAllByRole('radio')).toHaveLength(3);
+      expect(button('Apply')).not.toBeInTheDocument();
     });
   });
 
   describe('draft', () => {
-    it('Edit opens the planner and keeps the store unchanged while the user edits', () => {
+    it('keeps the store unchanged while the user edits', () => {
       show(car());
       const before = state().items;
-      edit();
-      expect(screen.getAllByRole('radio')).toHaveLength(3);
-
       act(() => { state().updateRouteDraft((c) => (c.mode === 'walk' ? c : { ...c, endName: 'Times Square', endPoint: [-73.98, 40.76] })); });
       expect(state().items).toBe(before);
-      expect(summary()).toBe('Car · Brooklyn Bridge → Central Park');
+      expect(stored().calculation).toMatchObject({ endName: 'Central Park' });
     });
 
     it('shows Apply and Cancel only when the draft differs from the saved route', () => {
       show(car());
-      edit();
       expect(button('Apply')).not.toBeInTheDocument();
       expect(button('Cancel')).not.toBeInTheDocument();
 
@@ -96,77 +106,70 @@ describe('RoutePathSection', () => {
       expect(button('Cancel')).not.toBeInTheDocument();
     });
 
-    it('closes an unchanged editor with Close', () => {
-      show(car());
-      edit();
-      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-      expect(state().routeDraft).toBeNull();
-      expect(screen.queryByRole('radio')).not.toBeInTheDocument();
-      expect(button('Edit')).toBeInTheDocument();
-    });
-
     it('a mode switch is part of the draft', () => {
       show(car());
-      edit();
       const before = state().items;
       fireEvent.click(screen.getByRole('radio', { name: /walk/i }));
 
       expect(state().routeDraft!.calculation.mode).toBe('walk');
       expect(state().items).toBe(before);
-      expect(summary()).toMatch(/^Car/);
+      expect(stored().calculation?.mode).toBe('car');
       expect(button('Apply')).toBeInTheDocument();
       expect(button('Cancel')).toBeInTheDocument();
     });
 
-    it('Cancel drops the draft, closes the editor and clears the preview', () => {
+    it('Cancel resets the draft to the saved route, keeps the planner and clears the preview', () => {
       show(car());
-      edit();
       fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
       act(() => { state().setPreviewRoute(line); });
       const before = state().items;
 
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-      expect(state().routeDraft).toBeNull();
+      expect(state().routeDraft?.calculation).toMatchObject({ mode: 'car', endName: 'Central Park' });
       expect(state().previewRoute).toBeNull();
       expect(state().items).toBe(before);
-      expect(screen.queryByRole('radio')).not.toBeInTheDocument();
-      expect(button('Edit')).toBeInTheDocument();
+      expect(screen.getAllByRole('radio')).toHaveLength(3);
+      expect(screen.getByRole('radio', { name: /car/i })).toBeChecked();
+      expect(button('Apply')).not.toBeInTheDocument();
+      expect(button('Cancel')).not.toBeInTheDocument();
     });
 
     it('Apply writes the mode, the points and the path as one undo step', async () => {
       show(car());
       useProjectStore.temporal.getState().clear();
-      edit();
       act(() => { state().updateRouteDraft((c) => (c.mode === 'walk' ? c : { ...c, endName: 'Times Square', endPoint: [-73.98, 40.76] })); });
       fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
 
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Apply' })); });
 
       expect(stored().calculation).toMatchObject({ mode: 'flight', endName: 'Times Square', endPoint: [-73.98, 40.76] });
-      expect(summary()).toBe('Flight · Brooklyn Bridge → Times Square');
-      expect(state().routeDraft).toBeNull();
-      expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+      // The planner stays and now shows the applied route as a clean draft.
+      expect(screen.getAllByRole('radio')).toHaveLength(3);
+      expect(state().routeDraft?.calculation).toMatchObject({ mode: 'flight', endName: 'Times Square' });
+      expect(button('Apply')).not.toBeInTheDocument();
       expect(useProjectStore.temporal.getState().pastStates).toHaveLength(1);
 
       act(() => { useProjectStore.temporal.getState().undo(); });
       expect(stored().calculation).toMatchObject({ mode: 'car', endName: 'Central Park' });
+      // Undo moves the draft back to the saved route.
+      expect(state().routeDraft?.calculation).toMatchObject({ mode: 'car', endName: 'Central Park' });
+      expect(button('Apply')).not.toBeInTheDocument();
     });
 
     it('Apply keeps the draft when the path cannot be computed', async () => {
       vi.mocked(getDirections).mockRejectedValue(new Error('no route'));
       show(car());
-      edit();
       act(() => { state().updateRouteDraft((c) => (c.mode === 'walk' ? c : { ...c, endPoint: [10, 10] })); });
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Apply' })); });
 
       expect(stored().calculation).toMatchObject({ endPoint: [-73.9, 40.8] });
-      expect(state().routeDraft).not.toBeNull();
+      expect(state().routeDraft?.calculation).toMatchObject({ endPoint: [10, 10] });
       expect(button('Apply')).toBeInTheDocument();
     });
 
     it('drops the draft when the section goes away', () => {
       const { unmount } = show(car());
-      edit();
+      expect(state().routeDraft).not.toBeNull();
       unmount();
       expect(state().routeDraft).toBeNull();
     });
@@ -181,12 +184,11 @@ describe('RoutePathSection', () => {
       state().addItem(car());
       state().selectItem('r1');
       render(<Selected />);
-      edit();
       expect(state().routeDraft?.routeId).toBe('r1');
 
       act(() => { state().selectItem('w1'); });
-      expect(state().routeDraft).toBeNull();
-      expect(button('Edit')).toBeInTheDocument();
+      expect(state().routeDraft?.routeId).toBe('w1');
+      expect(state().routeDraft?.calculation.mode).toBe('walk');
     });
   });
 });

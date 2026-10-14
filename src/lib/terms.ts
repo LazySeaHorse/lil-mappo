@@ -74,21 +74,13 @@ export const ROUTE_MODE_LABELS = {
   flight: 'Flight',
 } as const;
 
-/** Words of the path section in the route panel: a summary, and a draft that stays local until Apply. */
+/** Words of the path section in the route panel: a draft that stays local until Apply. */
 export const ROUTE_PATH_TERMS = {
-  edit: 'Edit',
-  /** Closes the editor when nothing changed. */
-  close: 'Close',
   apply: 'Apply',
   cancel: 'Cancel',
   preview: 'Preview route',
-  /** Summary of an imported path, which has no start and end. */
-  imported: 'Imported path',
-  noPlaces: 'No places set',
-  notSet: 'not set',
-  noPoints: 'No points yet',
-  onePoint: '1 point',
-  points: (count: number) => `${count} points`,
+  /** Shown above the planner when the route has an imported path, which has no start and end. */
+  importedHint: 'This route uses an imported path. Choose new places to replace it.',
   applied: 'Route updated.',
   previewReady: 'Route preview is ready.',
 } as const;

@@ -103,11 +103,10 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
     });
   });
 
-  /** Puts the route in the store, renders its path section and opens the editor. */
+  /** Puts the route in the store, renders its path section and starts its draft. */
   const openEditor = (route: RouteItem, wrap: (node: React.ReactNode) => React.ReactNode = (node) => node) => {
     useProjectStore.setState({ items: { [route.id]: route }, itemOrder: [route.id], selectedItemId: route.id });
     const view = render(<>{wrap(<LiveRoute id={route.id} />)}</>);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     return view;
   };
   const applyDraft = () => act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Apply' })); });
@@ -252,7 +251,6 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
     const rawCoords = (afterToggle.geojson.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(rawCoords.length).toBe(3);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     act(() => { fireEvent.click(screen.getByRole('switch')); });
     await applyDraft();
     const curvedAgain = useProjectStore.getState().items[route.id] as RouteItem;
@@ -338,7 +336,6 @@ describe('RoutePlanner in Inspector (edits a draft)', () => {
       await applyDraft();
       expect(stored().geojson.features).toEqual([]);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
       fireEvent.click(screen.getByTitle('Remove point'));
       expect(screen.queryAllByTitle('Remove point')).toHaveLength(0);
       expect(draftPoints()).toEqual([]);
