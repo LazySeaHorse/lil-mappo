@@ -102,6 +102,8 @@ export const FOLLOW_CAMERA_TERMS = {
   backToRoute: 'Route',
   followView: { title: 'Follow view', description: 'Camera tracks the route.' },
   navigationView: { title: 'Navigation view', description: 'Camera faces forward along the route.' },
+  /** Under the preset cards. Presets only fit Follow view. */
+  presetsNote: 'A preset fits the camera to the length and time of this route.',
 } as const;
 
 /**
@@ -109,7 +111,6 @@ export const FOLLOW_CAMERA_TERMS = {
  * replace its number. The first word is the lowest value.
  */
 export const FOLLOW_CAMERA_SLIDERS = {
-  fineTune: 'Fine-tune',
   pitch: { label: 'Camera angle', ends: ['Overhead', 'Horizon'], hint: 'Tilts the camera. Low values look straight down.' },
   smoothing: { label: 'Smoothness', ends: ['Tight', 'Smooth'], hint: 'A smooth camera ignores small turns of the route.' },
   distance: { label: 'Distance', ends: ['Close', 'Far'], hint: 'How far the camera is from the vehicle.' },

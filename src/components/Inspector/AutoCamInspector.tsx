@@ -5,17 +5,17 @@ import { Button } from '@/components/ui/button';
 import { SliderRow } from './InspectorShared';
 import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIllustrations';
 import { PanelWrapper } from './InspectorLayout';
+import { InspectorSection } from './InspectorSection';
 import { FOLLOW_CAMERA_SLIDERS as SLIDERS, FOLLOW_CAMERA_TERMS, ROUTE_TERMS } from '@/lib/terms';
 import { ArrowLeft, Video, VideoOff, Compass, Activity, Car, Plane, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AUTO_CAM_PRESETS, autoCamPresetPatch, getAutoCamRanges, routeFitOf } from '@/config/vehicles';
 
-function StyleCard({ selected, onSelect, title, description, className }: {
+function StyleCard({ selected, onSelect, title, description }: {
   selected: boolean;
   onSelect: () => void;
   title: string;
   description: string;
-  className?: string;
 }) {
   return (
     <button
@@ -27,7 +27,6 @@ function StyleCard({ selected, onSelect, title, description, className }: {
         selected
           ? 'bg-primary/10 border-primary text-foreground ring-1 ring-primary/20'
           : 'bg-secondary/30 hover:bg-secondary/60 border-border/40 text-muted-foreground hover:text-foreground',
-        className,
       )}
     >
       <span className="block text-xs font-medium text-foreground">{title}</span>
@@ -238,8 +237,9 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
         )}
       </div>
 
+      {/* A preset sets the follow view up, so Navigation view has none. */}
       {isFollowView && (
-        <div className="mb-3">
+        <InspectorSection kind="autocam" id="presets">
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.keys(AUTO_CAM_PRESETS) as AutoCamPreset[]).map((key) => (
               <StyleCard
@@ -251,10 +251,8 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
               />
             ))}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1.5">
-            Each preset fits the camera distance to the length and time of this route.
-          </p>
-        </div>
+          <p className="text-[10px] text-muted-foreground">{FOLLOW_CAMERA_TERMS.presetsNote}</p>
+        </InspectorSection>
       )}
     </PanelWrapper>
   );

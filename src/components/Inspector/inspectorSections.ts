@@ -37,7 +37,7 @@ export const INSPECTOR_SECTIONS = {
     { id: 'timing', title: 'Timing', defaultOpen: true },
   ],
   autocam: [
-    { id: 'fine-tune', title: 'Fine-tune', defaultOpen: false },
+    { id: 'presets', title: 'Presets', defaultOpen: true },
   ],
   project: [
     { id: 'video', title: 'Video', defaultOpen: true },

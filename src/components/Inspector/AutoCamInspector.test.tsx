@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutoCamInspector } from './AutoCamInspector';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -70,13 +70,30 @@ describe('AutoCamInspector', () => {
     expect(stored().autoCam).toMatchObject({ mode: 'cinematic', preset: 'drone', distance: 777 });
   });
 
-  it('shows the four presets, each with a description, in the follow view only', () => {
+  it('puts the four presets in an open Presets section after the sliders, with a note', () => {
     show();
+    const toggle = screen.getByRole('button', { name: 'Presets' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const region = within(screen.getByRole('region', { name: 'Presets' }));
     for (const key of ['chase', 'drone', 'reveal', 'topdown'] as const) {
-      expect(screen.getByRole('button', { name: new RegExp(AUTO_CAM_PRESETS[key].label) })).toBeInTheDocument();
-      expect(screen.getByText(AUTO_CAM_PRESETS[key].description)).toBeInTheDocument();
+      expect(region.getByRole('button', { name: new RegExp(AUTO_CAM_PRESETS[key].label) })).toBeInTheDocument();
+      expect(region.getByText(AUTO_CAM_PRESETS[key].description)).toBeInTheDocument();
     }
+    expect(region.getByText(FOLLOW_CAMERA_TERMS.presetsNote)).toBeInTheDocument();
+    const sliders = screen.getAllByRole('slider');
+    expect(sliders[sliders.length - 1].compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('hides the presets in the navigation view, because they only fit the follow view', () => {
+    show();
     fireEvent.click(screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.navigationView.title) }));
+    expect(screen.queryByRole('button', { name: 'Presets' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Chase/ })).not.toBeInTheDocument();
+  });
+
+  it('can fold the Presets section', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Presets' }));
     expect(screen.queryByRole('button', { name: /Chase/ })).not.toBeInTheDocument();
   });
 
@@ -84,6 +101,13 @@ describe('AutoCamInspector', () => {
     show();
     expect(screen.getByRole('button', { name: /Chase/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /Drone/ })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('keeps the preset marked while a slider moves', () => {
+    show();
+    fireEvent.keyDown(screen.getAllByRole('slider')[0], { key: 'ArrowRight' });
+    expect(stored().autoCam?.pitch).not.toBe(AUTO_CAM_PRESETS.chase.pitch);
+    expect(screen.getByRole('button', { name: /Chase/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('a preset card applies the preset', () => {
