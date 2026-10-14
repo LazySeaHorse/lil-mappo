@@ -83,16 +83,14 @@ export function TimingSection<T>({
         )}
 
         {model.whenItEnds !== undefined && (
-          <div className="flex items-center justify-between gap-2 pt-1 text-xs">
+          <div data-slot="timing-end-behaviour" className="flex flex-col gap-1.5 pt-1 text-xs">
             <RowLabel label={TIMING_LABELS.whenItEnds} />
-            <div className="flex-1 max-w-[200px]">
-              <SegmentedControl
-                options={END_OPTIONS}
-                value={model.whenItEnds}
-                onValueChange={(whenItEnds) => write({ whenItEnds })}
-                className="h-7 text-[11px]"
-              />
-            </div>
+            <SegmentedControl
+              options={END_OPTIONS}
+              value={model.whenItEnds}
+              onValueChange={(whenItEnds) => write({ whenItEnds })}
+              className="h-7 w-full text-[11px]"
+            />
           </div>
         )}
 

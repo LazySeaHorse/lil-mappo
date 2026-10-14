@@ -137,6 +137,18 @@ describe('TimingSection edits', () => {
     expect(screen.getByText('00:02.40')).toBeInTheDocument();
   });
 
+  it('puts "When it ends" above the tabs, not beside them', () => {
+    render(<TimingSection adapter={routeTiming} item={route} onChange={vi.fn()} />);
+    const label = screen.getByText('When it ends');
+    const tabs = document.querySelector('[data-slot="segmented-control"]') as HTMLElement;
+    const row = label.closest('[data-slot="timing-end-behaviour"]') as HTMLElement;
+    expect(row.className).toContain('flex-col');
+    expect(row.contains(tabs)).toBe(true);
+    expect(label.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The tabs fill the row.
+    expect(tabs.className).toContain('w-full');
+  });
+
   it('writes the end behaviour', () => {
     const onChange = vi.fn();
     render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
