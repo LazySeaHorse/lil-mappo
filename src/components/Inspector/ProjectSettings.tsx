@@ -7,13 +7,12 @@ import { useProjectDuration } from '@/hooks/useProjectDuration';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Field, InputText, InputNumber, SliderRow, SwitchRow } from './InspectorShared';
+import { ColorRow, Field, InputText, InputNumber, SliderRow, SwitchRow } from './InspectorShared';
 import { formatMultiplier, formatPercent } from './inspectorValues';
 import { MAP_SETTING_HINTS } from '@/lib/terms';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { ColorPicker } from '@/components/ui/color-picker';
 import { SwitchField } from '@/components/ui/field';
 import { Monitor, Smartphone, ArrowRight, Settings2 } from 'lucide-react';
 import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
@@ -191,12 +190,12 @@ export function ProjectSettings() {
             hint={MAP_SETTING_HINTS.stars}
           />
         )}
-        <Field label="Fog color" hint={MAP_SETTING_HINTS.fogColor}>
-          <div className="flex gap-2 items-center">
-            <ColorPicker
-              value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
-              onChange={(v) => setAtmosphere({ fogColor: v })}
-            />
+        <ColorRow
+          label="Fog color"
+          hint={MAP_SETTING_HINTS.fogColor}
+          value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
+          onChange={(v) => setAtmosphere({ fogColor: v })}
+          action={
             <Button
               onClick={() => setAtmosphere({ fogColor: null })}
               variant="outline"
@@ -206,8 +205,8 @@ export function ProjectSettings() {
             >
               Reset
             </Button>
-          </div>
-        </Field>
+          }
+        />
       </InspectorSection>
 
       {capabilities.labelGroups.length > 0 && (

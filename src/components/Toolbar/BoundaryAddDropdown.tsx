@@ -20,7 +20,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SectionLabel, Field } from '@/components/ui/field';
-import { ColorPicker } from '@/components/ui/color-picker';
+import { ColorRow } from '@/components/Inspector/controls/ColorRow';
 import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
 
 export const BoundaryAddDropdown = ({ 
@@ -167,12 +167,11 @@ export const BoundaryAddDropdown = ({
           <div className="space-y-4">
             <SectionLabel>Visual appearance</SectionLabel>
             <div className="space-y-4 px-1">
-              <Field label={BOUNDARY_TERMS.borderColor}>
-                <ColorPicker 
-                  value={previewBoundaryStyle!.strokeColor} 
-                  onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
-                />
-              </Field>
+              <ColorRow
+                label={BOUNDARY_TERMS.borderColor}
+                value={previewBoundaryStyle!.strokeColor}
+                onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
+              />
               
               <Field label={BOUNDARY_TERMS.animation}>
                 <Select 

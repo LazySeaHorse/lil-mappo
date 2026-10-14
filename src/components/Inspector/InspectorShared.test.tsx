@@ -174,6 +174,40 @@ describe('ColorRow', () => {
     fireEvent.click(screen.getByLabelText('Select color #ef4444'));
     expect(onChange).toHaveBeenCalledWith('#ef4444');
   });
+
+  it('puts the label above the swatches, not beside them', () => {
+    const { container } = render(<ColorRow label="Border color" value="#3b82f6" onChange={() => {}} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('flex-col');
+    const label = screen.getByText('Border color');
+    const swatches = container.querySelector('[data-slot="color-picker"]') as HTMLElement;
+    expect(label.compareDocumentPosition(swatches) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The label and the swatches are in different lines.
+    expect(label.closest('[data-slot="color-row-label"]')?.contains(swatches)).toBe(false);
+  });
+
+  it('shows the hint as an (i) tip after the label', () => {
+    render(<ColorRow label="Fog color" value="#3b82f6" onChange={() => {}} hint="Tints the horizon." />);
+    const tip = screen.getByRole('button', { name: 'More info' });
+    expect(screen.getByText('Fog color').compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows an action next to the swatches', () => {
+    const onReset = vi.fn();
+    render(
+      <ColorRow
+        label="Fog color"
+        value="#3b82f6"
+        onChange={() => {}}
+        action={<button type="button" onClick={onReset}>Reset</button>}
+      />,
+    );
+    const swatches = document.querySelector('[data-slot="color-picker"]') as HTMLElement;
+    const reset = screen.getByRole('button', { name: 'Reset' });
+    expect(swatches.parentElement).toBe(reset.parentElement);
+    fireEvent.click(reset);
+    expect(onReset).toHaveBeenCalled();
+  });
 });
 
 describe('SwitchRow', () => {
