@@ -4,6 +4,18 @@ interface TimedItem {
 }
 
 /**
+ * The selected item the live editor may preview: none while playing, so playback
+ * shows the real animation, or while exporting, so renders match the timeline.
+ */
+export function previewableSelectionId(state: {
+  selectedItemId: string | null;
+  isPlaying: boolean;
+  isExporting: boolean;
+}): string | null {
+  return state.isPlaying || state.isExporting ? null : state.selectedItemId;
+}
+
+/**
  * Whether a selected item is shown outside its animation in the live editor, so
  * it can be edited without scrubbing to it. That is when it is off the playhead:
  * at or before the clip start, where nothing has drawn yet (selecting an item

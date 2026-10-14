@@ -8,7 +8,7 @@ import { BoundaryMaskRenderer } from './BoundaryMaskRenderer';
 import { BoundaryRenderer } from './BoundaryRenderer';
 import { RouteRenderer } from './RouteRenderer';
 import { isStyleReady } from './mapboxResources';
-import { selectionPreviewTime } from '@/engine/selectionPreview';
+import { previewableSelectionId, selectionPreviewTime } from '@/engine/selectionPreview';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -119,9 +119,9 @@ export class MapSceneController implements MapSceneRuntime {
     this.renderScene(time, null);
   };
 
-  /** Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead. */
+  /** Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead, except while playing. */
   private renderLive(state: ProjectState): void {
-    this.renderScene(state.playheadTime, state.isExporting ? null : state.selectedItemId, state.items);
+    this.renderScene(state.playheadTime, previewableSelectionId(state), state.items);
   }
 
   private renderScene = (
@@ -234,6 +234,7 @@ export class MapSceneController implements MapSceneRuntime {
       || state.playheadTime !== previous.playheadTime
       || state.selectedItemId !== previous.selectedItemId
       || state.isExporting !== previous.isExporting
+      || state.isPlaying !== previous.isPlaying
     ) this.renderLive(state);
   };
 }

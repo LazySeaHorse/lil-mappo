@@ -11,7 +11,7 @@ const items: Record<string, TimelineItem> = Object.fromEntries(
   [route, boundary, callout, camera].map((item) => [item.id, item]),
 );
 
-const base = { items, selectedItemId: 'r', playheadTime: 0, isExporting: false, hideUI: false };
+const base = { items, selectedItemId: 'r', playheadTime: 0, isExporting: false, isPlaying: false, hideUI: false };
 
 describe('selectionPreviewPillState', () => {
   it('names the selected item and seeks to the clip midpoint while it is previewed', () => {
@@ -36,8 +36,9 @@ describe('selectionPreviewPillState', () => {
     expect(selectionPreviewPillState({ ...base, selectedItemId: 'cam' })).toBeNull();
   });
 
-  it('hides in present mode and while exporting', () => {
+  it('hides in present mode, while playing and while exporting', () => {
     expect(selectionPreviewPillState({ ...base, hideUI: true })).toBeNull();
     expect(selectionPreviewPillState({ ...base, isExporting: true })).toBeNull();
+    expect(selectionPreviewPillState({ ...base, isPlaying: true })).toBeNull();
   });
 });

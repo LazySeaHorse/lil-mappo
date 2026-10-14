@@ -134,6 +134,7 @@ function setStore(callouts: CalloutItem[], extra: Partial<ReturnType<typeof useP
     selectedItemId: null,
     isMoveModeActive: false,
     isExporting: false,
+    isPlaying: false,
     ...extra,
   });
 }
@@ -313,6 +314,18 @@ describe('AnnotationOverlay', () => {
     const other = makeCallout({ id: 'c2', content: { title: 'Other' } });
     setStore([makeCallout(), other], { playheadTime: 50, selectedItemId: 'c1' });
     const { fire, ctx } = mount();
+    fire('render');
+    const texts = drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
+    expect(texts).toEqual(['Harbour']);
+  });
+
+  it('plays the selected callout as animated while playing, and settles it again once stopped', () => {
+    setStore([makeCallout()], { playheadTime: 50, selectedItemId: 'c1', isPlaying: true });
+    const { fire, ctx } = mount();
+    fire('render');
+    expect(drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText')).toEqual([]);
+
+    useProjectStore.setState({ isPlaying: false });
     fire('render');
     const texts = drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
     expect(texts).toEqual(['Harbour']);

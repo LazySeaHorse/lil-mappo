@@ -16,6 +16,7 @@ import type { CalloutItem, TimelineItem } from '@/store/types';
 import { loadCalloutAssets } from '@/annotations/draw';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { isRepaintPending } from '@/components/MapViewport/runtime/mapboxResources';
+import { previewableSelectionId } from '@/engine/selectionPreview';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -27,6 +28,7 @@ function overlayStateChanged(state: ProjectState, previous: ProjectState): boole
     || state.selectedItemId !== previous.selectedItemId
     || state.isMoveModeActive !== previous.isMoveModeActive
     || state.isExporting !== previous.isExporting
+    || state.isPlaying !== previous.isPlaying
     || state.isCapturingViewport !== previous.isCapturingViewport;
 }
 
@@ -140,7 +142,7 @@ export class AnnotationOverlay {
       ? state.itemOrder.filter((id) => id !== state.selectedItemId)
       : state.itemOrder;
     compositeAnnotations(this.map, ctx, state.items, drawn, state.playheadTime, {
-      selectedId: state.selectedItemId,
+      selectedId: previewableSelectionId(state),
     });
   };
 }

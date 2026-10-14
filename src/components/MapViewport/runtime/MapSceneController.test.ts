@@ -265,6 +265,7 @@ describe('MapSceneController', () => {
           playheadTime: previous.playheadTime,
           selectedItemId: previous.selectedItemId,
           isExporting: previous.isExporting,
+          isPlaying: previous.isPlaying,
         });
       };
       return { double, controller, restore };
@@ -281,6 +282,22 @@ describe('MapSceneController', () => {
 
         useProjectStore.getState().selectItem(null);
         expect(lastTrim(double)).toEqual([0, 1]); // selecting parked the playhead on the start: nothing drawn
+      } finally {
+        restore();
+      }
+    });
+
+    it('plays the real animation while playing, and goes back to the preview once stopped', () => {
+      const { double, restore } = setup(0);
+      try {
+        useProjectStore.getState().selectItem(route.id);
+        expect(lastTrim(double)).toEqual(FULL);
+
+        useProjectStore.getState().setIsPlaying(true);
+        expect(lastTrim(double)).toEqual([0, 1]);
+
+        useProjectStore.getState().setIsPlaying(false);
+        expect(lastTrim(double)).toEqual(FULL);
       } finally {
         restore();
       }
