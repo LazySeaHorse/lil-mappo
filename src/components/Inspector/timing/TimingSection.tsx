@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { ExitAnimation } from '@/store/types';
@@ -38,10 +37,22 @@ export function TimingSection<T>({
   // An empty update is a change the adapter rejected (e.g. an end before the start).
   const write = (patch: Parameters<typeof adapter.write>[1]) => {
     const updates = adapter.write(item, patch);
-    if (Object.keys(updates).length > 0) onChange(updates);
+    if (Object.keys(updates).length === 0) return false;
+    onChange(updates);
+    return true;
   };
-  const atPlayhead = () => write({ start: useProjectStore.getState().playheadTime });
   const hasLength = model.length !== undefined && model.end !== undefined;
+  const playhead = () => useProjectStore.getState().playheadTime;
+  // The playhead buttons set that edge, as typing the time would. When the other edge is
+  // in the way, the item moves to the playhead and keeps its length.
+  const startAtPlayhead = () => {
+    const t = playhead();
+    if (!hasLength || !write({ start: t, end: model.end })) write({ start: t });
+  };
+  const endAtPlayhead = () => {
+    const t = playhead();
+    if (!write({ end: t })) write({ start: t - model.length! });
+  };
 
   return (
     <InspectorSection kind={adapter.panel} id="timing">
@@ -53,20 +64,15 @@ export function TimingSection<T>({
               value={model.start}
               // With an end, a new start trims the start edge and the end stays.
               onChange={(start) => write(hasLength ? { start, end: model.end } : { start })}
-              action={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={atPlayhead}
-                  className="h-8 rounded-lg px-2 text-[11px] font-medium"
-                >
-                  {TIMING_LABELS.atPlayhead}
-                </Button>
-              }
+              onUsePlayhead={startAtPlayhead}
             />
             {hasLength && (
-              <TimeRow label={TIMING_LABELS.end} value={model.end!} onChange={(end) => write({ end })} />
+              <TimeRow
+                label={TIMING_LABELS.end}
+                value={model.end!}
+                onChange={(end) => write({ end })}
+                onUsePlayhead={endAtPlayhead}
+              />
             )}
           </div>
           {hasLength && (

@@ -4,6 +4,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { TimelineItem } from '@/store/types';
 import TimelineTrackRow, { type AutoCamBlock } from './TimelineTrackRow';
 import { formatTimelineTime } from './timelineTime';
+import { PlayheadIcon } from './PlayheadIcon';
 
 const RULER_HEIGHT = 40;
 const TRACK_LABEL_WIDTH = 160;
@@ -129,9 +130,7 @@ export default function TimelineViewport({
               className="absolute bottom-0 -translate-x-[5px] pointer-events-none transition-none z-10 drop-shadow-md"
               style={{ left: initialPlayheadX }}
             >
-              <svg width="11" height="12" viewBox="0 0 11 12" className="text-primary fill-current transition-transform duration-100 hover:scale-110">
-                <path d="M0 0 H11 V6 L5.5 12 L0 6 Z" />
-              </svg>
+              <PlayheadIcon className="text-primary transition-transform duration-100 hover:scale-110" />
             </div>
           </div>
         </div>

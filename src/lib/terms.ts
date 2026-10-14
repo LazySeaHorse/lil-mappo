@@ -19,7 +19,8 @@ export type InspectorItemKind = keyof typeof ITEM_TYPE_LABELS;
 export const TIMING_LABELS = {
   section: 'Timing',
   start: 'Start',
-  atPlayhead: 'At playhead',
+  /** The playhead button inside the Start and End fields. */
+  usePlayhead: 'Set to the playhead time',
   end: 'End',
   length: 'Length',
   motion: 'Motion',

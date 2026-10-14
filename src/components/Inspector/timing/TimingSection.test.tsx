@@ -32,8 +32,10 @@ describe('TimingSection fields', () => {
     render(<TimingSection adapter={routeTiming} item={route} onChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Timing' })).toBeInTheDocument();
     expect(screen.getByLabelText('Start')).toHaveValue('00:02.00');
-    expect(screen.getByRole('button', { name: 'At playhead' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start: Set to the playhead time' })).toBeInTheDocument();
     expect(screen.getByLabelText('End')).toHaveValue('00:06.00');
+    expect(screen.getByRole('button', { name: 'End: Set to the playhead time' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'At playhead' })).not.toBeInTheDocument();
     expect(screen.getByText('Length')).toBeInTheDocument();
     expect(screen.getByText('4.00 s')).toBeInTheDocument();
     expect(screen.getByText('Motion')).toBeInTheDocument();
@@ -62,7 +64,7 @@ describe('TimingSection fields', () => {
   it('shows only the start and motion for a camera view', () => {
     render(<TimingSection adapter={cameraViewTiming} item={kf} onChange={vi.fn()} />);
     expect(screen.getByLabelText('Start')).toHaveValue('00:02.50');
-    expect(screen.getByRole('button', { name: 'At playhead' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start: Set to the playhead time' })).toBeInTheDocument();
     expect(screen.getByText('Motion')).toBeInTheDocument();
     expect(screen.queryByLabelText('End')).not.toBeInTheDocument();
     expect(screen.queryByText('Length')).not.toBeInTheDocument();
@@ -106,19 +108,44 @@ describe('TimingSection edits', () => {
     expect(input).toHaveValue('00:02.00');
   });
 
-  it('At playhead moves the start to the playhead and keeps the length', () => {
+  it('the Start playhead button sets the start and keeps the end', () => {
     useProjectStore.setState({ playheadTime: 3.5 });
     const onChange = vi.fn();
     render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
-    fireEvent.click(screen.getByRole('button', { name: 'At playhead' }));
-    expect(onChange).toHaveBeenCalledWith({ startTime: 3.5, endTime: 7.5 });
+    fireEvent.click(screen.getByRole('button', { name: 'Start: Set to the playhead time' }));
+    expect(onChange).toHaveBeenCalledWith({ startTime: 3.5, endTime: 6 });
   });
 
-  it('At playhead sets the time of a camera view', () => {
+  it('the Start playhead button moves the item when the playhead is past the end', () => {
+    useProjectStore.setState({ playheadTime: 8 });
+    const onChange = vi.fn();
+    render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start: Set to the playhead time' }));
+    expect(onChange).toHaveBeenCalledWith({ startTime: 8, endTime: 12 });
+  });
+
+  it('the End playhead button sets the end and keeps the start', () => {
+    useProjectStore.setState({ playheadTime: 4.25 });
+    const onChange = vi.fn();
+    render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'End: Set to the playhead time' }));
+    expect(onChange).toHaveBeenCalledWith({ startTime: 2, endTime: 4.25 });
+  });
+
+  it('the End playhead button moves the item when the playhead is before the start', () => {
+    useProjectStore.setState({ playheadTime: 1 });
+    const onChange = vi.fn();
+    render(<TimingSection adapter={routeTiming} item={route} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'End: Set to the playhead time' }));
+    // Length 4 s ending at 1 s would start before 0, so the start stops at 0.
+    expect(onChange).toHaveBeenCalledWith({ startTime: 0, endTime: 4 });
+  });
+
+  it('the playhead button sets the time of a camera view', () => {
     useProjectStore.setState({ playheadTime: 1.25 });
     const onChange = vi.fn();
     render(<TimingSection adapter={cameraViewTiming} item={kf} onChange={onChange} />);
-    fireEvent.click(screen.getByRole('button', { name: 'At playhead' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start: Set to the playhead time' }));
     expect(onChange).toHaveBeenCalledWith({ time: 1.25 });
   });
 
@@ -175,9 +202,9 @@ describe('TimingSection edits', () => {
     const startCell = start.closest('[data-slot="time-field"]') as HTMLElement;
     expect(startCell.className).toContain('flex-col');
     expect(screen.getByText('Start').compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // "At playhead" is in the Start cell.
-    expect(startCell.contains(screen.getByRole('button', { name: 'At playhead' }))).toBe(true);
-    expect(end.closest('[data-slot="time-field"]')!.contains(screen.getByRole('button', { name: 'At playhead' }))).toBe(false);
+    // Each field holds its own playhead button.
+    expect(startCell.contains(screen.getByRole('button', { name: 'Start: Set to the playhead time' }))).toBe(true);
+    expect(end.closest('[data-slot="time-field"]')!.contains(screen.getByRole('button', { name: 'End: Set to the playhead time' }))).toBe(true);
   });
 
   it('a camera view shows only Start', () => {
