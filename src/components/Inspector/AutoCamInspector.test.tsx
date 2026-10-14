@@ -39,28 +39,57 @@ describe('AutoCamInspector', () => {
     useProjectStore.setState({ items: {}, itemOrder: [] });
   });
 
-  it('shows the camera styles first, each with a short description', () => {
-    show();
-    const cards = ['Chase', 'Drone', 'Reveal', 'Top-down', FOLLOW_CAMERA_TERMS.navigationView.title]
-      .map((name) => screen.getByRole('button', { name: new RegExp(name) }));
-    for (const key of ['chase', 'drone', 'reveal', 'topdown'] as const) {
-      expect(screen.getByText(AUTO_CAM_PRESETS[key].description)).toBeInTheDocument();
-    }
-    expect(screen.getByText(FOLLOW_CAMERA_TERMS.navigationView.description)).toBeInTheDocument();
-    // Every style card comes before the Fine-tune section.
+  it('shows the two camera modes first, each with a picture and a short description', () => {
+    const { container } = show();
+    const modes = [FOLLOW_CAMERA_TERMS.followView, FOLLOW_CAMERA_TERMS.navigationView];
+    const cards = modes.map(({ title }) => screen.getByRole('button', { name: new RegExp(title) }));
+    for (const { description } of modes) expect(screen.getByText(description)).toBeInTheDocument();
+    for (const card of cards) expect(card.querySelector('svg')).not.toBeNull();
+    // The mode cards come before the preset cards and before the Fine-tune section.
+    const chase = screen.getByRole('button', { name: /Chase/ });
     for (const card of cards) {
+      expect(card.compareDocumentPosition(chase) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(card.compareDocumentPosition(fineTuneButton()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
+    expect(container.querySelectorAll('[aria-pressed]').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('marks the style that is in use', () => {
+  it('marks the mode in use', () => {
+    show();
+    const follow = screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.followView.title) });
+    const navigation = screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.navigationView.title) });
+    expect(follow).toHaveAttribute('aria-pressed', 'true');
+    expect(navigation).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(navigation);
+    expect(navigation).toHaveAttribute('aria-pressed', 'true');
+    expect(follow).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('the Follow view card switches back to the follow view and keeps the follow settings', () => {
+    show((r) => { r.autoCam = { ...r.autoCam!, preset: 'drone', mode: 'navigation', distance: 777 }; });
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.followView.title) }));
+    expect(stored().autoCam).toMatchObject({ mode: 'cinematic', preset: 'drone', distance: 777 });
+  });
+
+  it('shows the four presets, each with a description, in the follow view only', () => {
+    show();
+    for (const key of ['chase', 'drone', 'reveal', 'topdown'] as const) {
+      expect(screen.getByRole('button', { name: new RegExp(AUTO_CAM_PRESETS[key].label) })).toBeInTheDocument();
+      expect(screen.getByText(AUTO_CAM_PRESETS[key].description)).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(FOLLOW_CAMERA_TERMS.navigationView.title) }));
+    expect(screen.queryByRole('button', { name: /Chase/ })).not.toBeInTheDocument();
+  });
+
+  it('marks the preset that is in use', () => {
     show();
     expect(screen.getByRole('button', { name: /Chase/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /Drone/ })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('a preset card applies the preset and switches to the follow view', () => {
-    show((r) => { r.autoCam = { ...r.autoCam!, mode: 'navigation' }; });
+  it('a preset card applies the preset', () => {
+    show();
     fireEvent.click(screen.getByRole('button', { name: /Drone/ }));
     expect(stored().autoCam).toMatchObject({ mode: 'cinematic', preset: 'drone', pitch: AUTO_CAM_PRESETS.drone.pitch });
   });

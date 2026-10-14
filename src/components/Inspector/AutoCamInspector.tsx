@@ -3,6 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem, AutoCamConfig, AutoCamPreset } from '@/store/types';
 import { Button } from '@/components/ui/button';
 import { SliderRow } from './InspectorShared';
+import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIllustrations';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorSection } from './InspectorSection';
 import { FOLLOW_CAMERA_SLIDERS as SLIDERS, FOLLOW_CAMERA_TERMS, ROUTE_TERMS } from '@/lib/terms';
@@ -32,6 +33,43 @@ function StyleCard({ selected, onSelect, title, description, className }: {
     >
       <span className="block text-xs font-medium text-foreground">{title}</span>
       <span className="block text-[10px] leading-tight mt-0.5">{description}</span>
+    </button>
+  );
+}
+
+/** One of the two camera modes. A picture shows what the camera does. */
+function ModeCard({ selected, onSelect, illustration, title, description }: {
+  selected: boolean;
+  onSelect: () => void;
+  illustration: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(
+        'relative flex flex-col items-center p-3 rounded-xl border text-center transition-all cursor-pointer select-none',
+        selected
+          ? 'bg-primary/10 border-primary text-foreground shadow-sm ring-1 ring-primary/20'
+          : 'bg-secondary/30 hover:bg-secondary/60 border-border/40 text-muted-foreground hover:text-foreground',
+      )}
+    >
+      <div className="w-full flex justify-start mb-1">
+        <div className={cn(
+          'w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors',
+          selected ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent',
+        )}>
+          {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+        </div>
+      </div>
+      <div className="w-full h-16 rounded-lg bg-secondary/40 flex items-center justify-center overflow-hidden mb-2 relative">
+        {illustration}
+      </div>
+      <span className="text-xs font-medium text-foreground">{title}</span>
+      <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">{description}</span>
     </button>
   );
 }
@@ -90,28 +128,39 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
         {FOLLOW_CAMERA_TERMS.backToRoute}
       </button>
 
-      <div className="mb-1">
-        <div className="grid grid-cols-2 gap-1.5">
-          {(Object.keys(AUTO_CAM_PRESETS) as AutoCamPreset[]).map((key) => (
-            <StyleCard
-              key={key}
-              selected={isFollowView && config.preset === key}
-              onSelect={() => u({ mode: 'cinematic', ...autoCamPresetPatch(key, vehicleType, routeFitOf(item)) })}
-              title={AUTO_CAM_PRESETS[key].label}
-              description={AUTO_CAM_PRESETS[key].description}
-            />
-          ))}
-          <StyleCard
-            selected={!isFollowView}
-            onSelect={() => u({ mode: 'navigation' })}
-            {...FOLLOW_CAMERA_TERMS.navigationView}
-            className="col-span-2"
-          />
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5">
-          Each style fits the camera distance to the length and time of this route.
-        </p>
+      <div className="grid grid-cols-2 gap-2.5 mb-3">
+        <ModeCard
+          selected={isFollowView}
+          onSelect={() => u({ mode: 'cinematic' })}
+          illustration={<FollowViewIllustration />}
+          {...FOLLOW_CAMERA_TERMS.followView}
+        />
+        <ModeCard
+          selected={!isFollowView}
+          onSelect={() => u({ mode: 'navigation' })}
+          illustration={<NavigationViewIllustration />}
+          {...FOLLOW_CAMERA_TERMS.navigationView}
+        />
       </div>
+
+      {isFollowView && (
+        <div className="mb-3">
+          <div className="grid grid-cols-2 gap-1.5">
+            {(Object.keys(AUTO_CAM_PRESETS) as AutoCamPreset[]).map((key) => (
+              <StyleCard
+                key={key}
+                selected={config.preset === key}
+                onSelect={() => u(autoCamPresetPatch(key, vehicleType, routeFitOf(item)))}
+                title={AUTO_CAM_PRESETS[key].label}
+                description={AUTO_CAM_PRESETS[key].description}
+              />
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            Each preset fits the camera distance to the length and time of this route.
+          </p>
+        </div>
+      )}
 
       <InspectorSection kind="autocam" id="fine-tune">
         <SliderRow
