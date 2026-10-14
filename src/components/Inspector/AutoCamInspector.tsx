@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { SliderRow } from './InspectorShared';
 import { FollowViewIllustration, NavigationViewIllustration } from './AutoCamIllustrations';
 import { PanelWrapper } from './InspectorLayout';
-import { InspectorSection } from './InspectorSection';
 import { FOLLOW_CAMERA_SLIDERS as SLIDERS, FOLLOW_CAMERA_TERMS, ROUTE_TERMS } from '@/lib/terms';
 import { ArrowLeft, Video, VideoOff, Compass, Activity, Car, Plane, ZoomIn, Eye, Gauge, Orbit, Clapperboard, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -143,26 +142,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
         />
       </div>
 
-      {isFollowView && (
-        <div className="mb-3">
-          <div className="grid grid-cols-2 gap-1.5">
-            {(Object.keys(AUTO_CAM_PRESETS) as AutoCamPreset[]).map((key) => (
-              <StyleCard
-                key={key}
-                selected={config.preset === key}
-                onSelect={() => u(autoCamPresetPatch(key, vehicleType, routeFitOf(item)))}
-                title={AUTO_CAM_PRESETS[key].label}
-                description={AUTO_CAM_PRESETS[key].description}
-              />
-            ))}
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-1.5">
-            Each preset fits the camera distance to the length and time of this route.
-          </p>
-        </div>
-      )}
-
-      <InspectorSection kind="autocam" id="fine-tune">
+      <div className="flex flex-col gap-3 mb-3">
         <SliderRow
           {...words(SLIDERS.pitch)}
           icon={<Compass size={13} />}
@@ -256,7 +236,26 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
             />
           </>
         )}
-      </InspectorSection>
+      </div>
+
+      {isFollowView && (
+        <div className="mb-3">
+          <div className="grid grid-cols-2 gap-1.5">
+            {(Object.keys(AUTO_CAM_PRESETS) as AutoCamPreset[]).map((key) => (
+              <StyleCard
+                key={key}
+                selected={config.preset === key}
+                onSelect={() => u(autoCamPresetPatch(key, vehicleType, routeFitOf(item)))}
+                title={AUTO_CAM_PRESETS[key].label}
+                description={AUTO_CAM_PRESETS[key].description}
+              />
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            Each preset fits the camera distance to the length and time of this route.
+          </p>
+        </div>
+      )}
     </PanelWrapper>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutoCamInspector } from './AutoCamInspector';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -30,7 +30,6 @@ function show(patch: (route: RouteItem) => void = () => {}) {
   return render(<Live />);
 }
 
-const fineTuneButton = () => screen.getByRole('button', { name: 'Fine-tune' });
 
 describe('AutoCamInspector', () => {
   beforeEach(() => {
@@ -45,11 +44,10 @@ describe('AutoCamInspector', () => {
     const cards = modes.map(({ title }) => screen.getByRole('button', { name: new RegExp(title) }));
     for (const { description } of modes) expect(screen.getByText(description)).toBeInTheDocument();
     for (const card of cards) expect(card.querySelector('svg')).not.toBeNull();
-    // The mode cards come before the preset cards and before the Fine-tune section.
-    const chase = screen.getByRole('button', { name: /Chase/ });
+    // The mode cards come before the sliders and the preset cards.
     for (const card of cards) {
-      expect(card.compareDocumentPosition(chase) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(card.compareDocumentPosition(fineTuneButton()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(card.compareDocumentPosition(screen.getAllByRole('slider')[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(card.compareDocumentPosition(screen.getByRole('button', { name: /Chase/ })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
     expect(container.querySelectorAll('[aria-pressed]').length).toBeGreaterThanOrEqual(2);
   });
@@ -100,24 +98,22 @@ describe('AutoCamInspector', () => {
     expect(stored().autoCam?.mode).toBe('navigation');
   });
 
-  it('keeps Fine-tune closed at first, with no slider in sight', () => {
+  it('shows the sliders straight away, between the mode cards and the presets, with no Fine-tune section', () => {
     show();
-    expect(fineTuneButton()).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fine-tune' })).not.toBeInTheDocument();
+    const sliders = screen.getAllByRole('slider');
+    const chase = screen.getByRole('button', { name: /Chase/ });
+    expect(sliders[sliders.length - 1].compareDocumentPosition(chase) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('opens Fine-tune with sliders that show words at their ends and no numbers', () => {
+  it('shows sliders that show words at their ends and no numbers', () => {
     const { container } = show();
-    fireEvent.click(fineTuneButton());
-    const region = screen.getByRole('region', { name: 'Fine-tune' });
-
-    const sliders = within(region).getAllByRole('slider');
-    expect(sliders).toHaveLength(7);
-    const endLabels = region.querySelectorAll('[data-slot="slider-end-labels"]');
+    expect(screen.getAllByRole('slider')).toHaveLength(7);
+    const endLabels = container.querySelectorAll('[data-slot="slider-end-labels"]');
     expect(endLabels).toHaveLength(7);
-    expect(region.textContent).toContain('Close');
-    expect(region.textContent).toContain('Calm');
-    expect(region.textContent).toContain('Lively');
+    expect(container.textContent).toContain('Close');
+    expect(container.textContent).toContain('Calm');
+    expect(container.textContent).toContain('Lively');
 
     // No readout like "60°", "30 %", "600 m" or "1.2 km" anywhere in the panel.
     expect(container.textContent).not.toMatch(/\d\s?(%|°|km|m)(\s|$)/);
@@ -125,7 +121,6 @@ describe('AutoCamInspector', () => {
 
   it('shows the sliders of the view in use', () => {
     show();
-    fireEvent.click(fineTuneButton());
     expect(screen.getByText('Distance')).toBeInTheDocument();
     expect(screen.queryByText('Look ahead')).not.toBeInTheDocument();
 

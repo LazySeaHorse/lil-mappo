@@ -105,7 +105,7 @@ export const FOLLOW_CAMERA_TERMS = {
 } as const;
 
 /**
- * The sliders in Fine-tune of the Follow camera panel. The words under the two ends of a slider
+ * The sliders of the Follow camera panel. The words under the two ends of a slider
  * replace its number. The first word is the lowest value.
  */
 export const FOLLOW_CAMERA_SLIDERS = {
