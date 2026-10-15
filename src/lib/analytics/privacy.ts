@@ -166,6 +166,7 @@ export function scrubEvent<T extends ScrubbableEvent>(event: T | null): T | null
  * user content, is replaced by bullets of the same length.
  */
 export function maskReplayText(text: string, element?: Element | null): string {
+  if (element?.closest?.('.ph-mask')) return text.replace(/\S/g, '\u2022');
   if (element?.closest?.('[data-ph-unmask]') && !element.closest('.ph-no-capture')) return text;
   return text.replace(/\S/g, '\u2022');
 }

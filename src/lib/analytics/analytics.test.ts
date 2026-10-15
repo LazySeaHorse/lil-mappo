@@ -225,8 +225,9 @@ describe('track', () => {
 
 describe('maskReplayText', () => {
   it('masks by default and keeps text only inside [data-ph-unmask]', () => {
-    document.body.innerHTML = '<div data-ph-unmask><button id="a">Export</button></div><p id="b">My trip to Paris</p>';
+    document.body.innerHTML = '<div data-ph-unmask><button id="a">Export</button><span id="c" class="ph-mask">Route 66</span></div><p id="b">My trip to Paris</p>';
     expect(maskReplayText('Export', document.getElementById('a'))).toBe('Export');
+    expect(maskReplayText('Route 66', document.getElementById('c'))).toBe('\u2022\u2022\u2022\u2022\u2022 \u2022\u2022');
     const masked = maskReplayText('My trip', document.getElementById('b'));
     expect(masked).toBe('\u2022\u2022 \u2022\u2022\u2022\u2022');
     expect(maskReplayText('x', undefined)).toBe('\u2022');

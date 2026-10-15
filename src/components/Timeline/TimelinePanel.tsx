@@ -162,6 +162,7 @@ export default function TimelinePanel() {
       ref={containerRef}
       data-testid="timeline-panel"
       data-walkthrough="timeline-panel"
+      data-ph-unmask
       className={`absolute ${isResizing ? 'bg-background/95' : 'backdrop-blur-xl'} bg-background/85 border border-border/50 rounded-2xl shadow-2xl flex flex-col shrink-0 select-none pointer-events-auto overflow-hidden transition-all duration-300`}
       style={{
         height: clampedHeight,
