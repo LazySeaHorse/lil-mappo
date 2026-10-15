@@ -81,7 +81,7 @@ describe('AnalyticsBridge', () => {
       disable_session_recording: true,
       capture_pageview: false,
       mask_all_text: true,
-      session_recording: { maskAllInputs: true, maskTextSelector: '*', blockSelector: '.mapboxgl-map' },
+      session_recording: { maskAllInputs: true, maskTextSelector: '.ph-mask', blockSelector: '.mapboxgl-map' },
     });
     expect(JSON.stringify(mocks.posthog.init.mock.calls)).not.toContain('a@example.com');
     expect(mocks.posthog.register).toHaveBeenCalledWith(expect.objectContaining({ environment: 'preview', is_mobile: false }));

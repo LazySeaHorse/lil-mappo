@@ -11,7 +11,7 @@ export function CoordinatesRows({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div className={cn("flex flex-col gap-2 ph-mask", className)}>
       <NumberRow
         label="Longitude"
         value={lngLat[0]}

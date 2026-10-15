@@ -177,7 +177,7 @@ describe('production SDK config', () => {
       persistence: 'memory',
       save_campaign_params: false,
     });
-    expect(cfg.session_recording).toMatchObject({ maskAllInputs: true, maskTextSelector: '*' });
+    expect(cfg.session_recording).toMatchObject({ maskAllInputs: true, maskTextSelector: '.ph-mask' });
     expect(cfg.session_recording?.maskCapturedNetworkRequestFn).toBe(maskReplayUrlRequest);
     expect(cfg.session_recording?.maskAttributeFn).toBe(maskReplayAttribute);
   });

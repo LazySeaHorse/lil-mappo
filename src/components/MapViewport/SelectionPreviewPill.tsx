@@ -29,7 +29,7 @@ export function SelectionPreviewPill() {
     >
       <div
         data-testid="selection-preview-pill"
-        className="ph-no-capture pointer-events-auto flex max-w-full items-center gap-1 rounded-full border border-border/50 bg-background/85 py-1 pl-3 pr-1.5 text-xs font-medium text-foreground shadow-lg shadow-black/10 backdrop-blur-xl"
+        className="pointer-events-auto flex max-w-full items-center gap-1 rounded-full border border-border/50 bg-background/85 py-1 pl-3 pr-1.5 text-xs font-medium text-foreground shadow-lg shadow-black/10 backdrop-blur-xl"
       >
         <button
           type="button"
@@ -38,7 +38,7 @@ export function SelectionPreviewPill() {
           className="flex min-w-0 items-center gap-2 py-0.5 transition-colors hover:text-primary"
         >
           <Eye size={13} className="shrink-0 text-primary" />
-          <span className="truncate">Showing &ldquo;{pill.name}&rdquo; in full</span>
+          <span className="truncate">Showing &ldquo;<span className="ph-mask">{pill.name}</span>&rdquo; in full</span>
         </button>
         <button
           type="button"
