@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { cameraViewLockedReason } from '@/components/Onboarding/useWalkthroughStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { loadFileImport } from '@/lib/lazyModules';
@@ -151,6 +152,11 @@ export function useToolbarActions() {
   };
 
   const handleAddCameraKF = () => {
+    const lockedReason = cameraViewLockedReason();
+    if (lockedReason) {
+      toast.info(lockedReason);
+      return;
+    }
     const playheadTime = useProjectStore.getState().playheadTime;
     const view = readMapCamera(mapRef.current?.getMap?.());
 

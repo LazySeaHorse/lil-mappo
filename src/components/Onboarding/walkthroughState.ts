@@ -15,7 +15,11 @@ export type WalkthroughStage =
   | 'follow-route'
   | 'play-animation'
   | 'more-tools'
+  | 'camera-view-time-1'
+  | 'camera-view-move-1'
   | 'camera-view-first'
+  | 'camera-view-time-2'
+  | 'camera-view-move-2'
   | 'camera-view-second'
   | 'camera-view-rewind'
   | 'camera-view-play'
@@ -24,6 +28,7 @@ export type WalkthroughStage =
   | 'callout'
   | 'callout-insert'
   | 'project-settings'
+  | 'project-settings-panel'
   | 'render'
   | 'complete';
 
@@ -41,6 +46,9 @@ export type WalkthroughEvent =
   | { type: 'extras-continued'; counts: ExtraCounts }
   | { type: 'item-count-changed'; kind: keyof ExtraCounts; count: number }
   | { type: 'playhead-changed'; time: number }
+  /** Whether the playhead is somewhere a new camera view may go. */
+  | { type: 'playhead-fit-changed'; fits: boolean }
+  | { type: 'project-settings-opened' }
   | { type: 'camera-view-play-acknowledged' }
   | { type: 'project-settings-acknowledged' }
   | { type: 'export-opened' };
@@ -85,7 +93,7 @@ export function createWalkthroughState(
   return {
     plan,
     extraBaseline,
-    stage: plan === 'extras' ? 'camera-view-first' : 'map-controls',
+    stage: plan === 'extras' ? 'camera-view-time-1' : 'map-controls',
     isMobile,
     initialRouteCount,
     routeEndpoints: { start: false, end: false },
@@ -160,13 +168,13 @@ export function walkthroughReducer(
   }
 
   if (state.stage === 'more-tools' && event.type === 'extras-continued') {
-    return { ...state, plan: 'trip+extras', extraBaseline: event.counts, stage: 'camera-view-first' };
+    return { ...state, plan: 'trip+extras', extraBaseline: event.counts, stage: 'camera-view-time-1' };
   }
 
   if (event.type === 'item-count-changed') {
     const added = event.count - state.extraBaseline[event.kind];
     if (state.stage === 'camera-view-first' && event.kind === 'camera' && added >= 1) {
-      return { ...state, stage: 'camera-view-second' };
+      return { ...state, stage: 'camera-view-time-2' };
     }
     if (state.stage === 'camera-view-second' && event.kind === 'camera' && added >= 2) {
       return { ...state, stage: 'camera-view-rewind' };
@@ -178,6 +186,21 @@ export function walkthroughReducer(
       return { ...state, stage: 'project-settings' };
     }
     return state;
+  }
+
+  if (event.type === 'playhead-fit-changed' && event.fits) {
+    if (state.stage === 'camera-view-time-1') return { ...state, stage: 'camera-view-move-1' };
+    if (state.stage === 'camera-view-time-2') return { ...state, stage: 'camera-view-move-2' };
+  }
+
+  // A camera view stays locked until the map has moved, so the views differ.
+  if (event.type === 'map-gesture') {
+    if (state.stage === 'camera-view-move-1') return { ...state, stage: 'camera-view-first' };
+    if (state.stage === 'camera-view-move-2') return { ...state, stage: 'camera-view-second' };
+  }
+
+  if (state.stage === 'project-settings' && event.type === 'project-settings-opened') {
+    return { ...state, stage: 'project-settings-panel' };
   }
 
   if (state.stage === 'camera-view-rewind' && event.type === 'playhead-changed' && event.time === 0) {
@@ -201,7 +224,7 @@ export function walkthroughReducer(
     return { ...state, stage: 'boundary' };
   }
 
-  if (state.stage === 'project-settings' && event.type === 'project-settings-acknowledged') {
+  if (state.stage === 'project-settings-panel' && event.type === 'project-settings-acknowledged') {
     return { ...state, stage: 'render' };
   }
 

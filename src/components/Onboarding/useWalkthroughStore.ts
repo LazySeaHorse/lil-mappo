@@ -51,9 +51,6 @@ export function storeMobileWarningStatus() {
   }
 }
 
-/** Seconds in, where the tour puts the playhead for the second camera view. */
-const SECOND_VIEW_TIME = 3;
-
 let projectStoreUnsubscribers: (() => void)[] = [];
 
 function executeStageEntryEffects(stage: WalkthroughStage) {
@@ -65,11 +62,13 @@ function executeStageEntryEffects(stage: WalkthroughStage) {
       projectStore.setIsInspectorOpen(true);
       break;
 
-    case 'camera-view-second': {
-      // Both views at one time would land on top of each other, so move on to a later time.
-      projectStore.setPlayheadTime(Math.min(SECOND_VIEW_TIME, projectStore.duration / 2));
-      // The inspector opened on the first view; it would sit over the Add menu on a phone.
-      projectStore.setIsInspectorOpen(false);
+    case 'camera-view-time-1':
+    case 'camera-view-time-2': {
+      // The inspector opened on the first view; it would sit over the timeline or the Add menu.
+      if (stage === 'camera-view-time-2') projectStore.setIsInspectorOpen(false);
+      if (playheadFits(projectStore, stage === 'camera-view-time-2')) {
+        useWalkthroughStore.getState().send({ type: 'playhead-fit-changed', fits: true });
+      }
       break;
     }
 
@@ -104,6 +103,40 @@ interface ProjectWatch<T> {
 
 const watch = <T,>(w: ProjectWatch<T>) => w;
 
+/**
+ * Whether a camera view can go at the playhead: not where a route's Follow camera is
+ * steering the map, and for the second view, later than the first.
+ */
+function playheadFits(state: ProjectStore, afterLastView: boolean): boolean {
+  const items = Object.values(state.items);
+  const t = state.playheadTime;
+  const steered = items.some(
+    (item) => item.kind === 'route' && item.autoCam?.enabled && t >= item.startTime && t <= item.endTime,
+  );
+  if (steered) return false;
+  if (!afterLastView) return true;
+  const camera = items.find((item) => item.kind === 'camera');
+  const lastTime = camera?.kind === 'camera' ? Math.max(-1, ...camera.keyframes.map((k) => k.time)) : -1;
+  return t > lastTime;
+}
+
+/** Why the camera view button is locked right now, or null when it may be used. */
+export function cameraViewLockedReason(): string | null {
+  const { isRunning, walkthrough } = useWalkthroughStore.getState();
+  if (!isRunning) return null;
+  switch (walkthrough.stage) {
+    case 'camera-view-time-1':
+      return 'Move the playhead to a time where the route camera is not steering, then add the view.';
+    case 'camera-view-time-2':
+      return 'Move the playhead forward first, then add the second view.';
+    case 'camera-view-move-1':
+    case 'camera-view-move-2':
+      return 'Move the map first, then add the view.';
+    default:
+      return null;
+  }
+}
+
 function countExtras(state: ProjectStore): ExtraCounts {
   const items = Object.values(state.items);
   const camera = items.find((item) => item.kind === 'camera');
@@ -123,6 +156,21 @@ const watchCount = (kind: keyof ExtraCounts, stages: WalkthroughStage[]) =>
 
 const PROJECT_WATCHES = [
   watchCount('camera', ['camera-view-first', 'camera-view-second']),
+  watch({
+    select: (state) => playheadFits(state, false),
+    stages: ['camera-view-time-1'],
+    toEvent: (fits) => ({ type: 'playhead-fit-changed', fits }),
+  }),
+  watch({
+    select: (state) => playheadFits(state, true),
+    stages: ['camera-view-time-2'],
+    toEvent: (fits) => ({ type: 'playhead-fit-changed', fits }),
+  }),
+  watch({
+    select: (state) => state.isInspectorOpen && state.selectedItemId === null,
+    stages: ['project-settings'],
+    toEvent: (open) => (open ? { type: 'project-settings-opened' } : null),
+  }),
   watchCount('boundary', ['boundary', 'boundary-insert']),
   watchCount('callout', ['callout', 'callout-insert']),
   watch({
@@ -174,7 +222,7 @@ const NEXT_EVENTS: Partial<Record<WalkthroughStage, WalkthroughEvent>> = {
   'play-animation': { type: 'play-preview-acknowledged' },
   'more-tools': { type: 'more-tools-acknowledged' },
   'camera-view-play': { type: 'camera-view-play-acknowledged' },
-  'project-settings': { type: 'project-settings-acknowledged' },
+  'project-settings-panel': { type: 'project-settings-acknowledged' },
 };
 
 export interface WalkthroughStore {

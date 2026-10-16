@@ -132,11 +132,23 @@ describe('quick walkthrough progression', () => {
 
     let state = reduce(at('more-tools'), { type: 'extras-continued', counts });
     expect(state.plan).toBe('trip+extras');
+    expect(state.stage).toBe('camera-view-time-1');
+
+    state = reduce(state, { type: 'playhead-fit-changed', fits: false });
+    expect(state.stage).toBe('camera-view-time-1');
+    state = reduce(state, { type: 'playhead-fit-changed', fits: true });
+    expect(state.stage).toBe('camera-view-move-1');
+    // The view stays locked until the map moves.
+    state = reduce(state, count('camera', 2));
+    expect(state.stage).toBe('camera-view-move-1');
+    state = reduce(state, gesture('pan'));
     expect(state.stage).toBe('camera-view-first');
 
     state = reduce(state, count('camera', 1));
     expect(state.stage).toBe('camera-view-first');
     state = reduce(state, count('camera', 2));
+    expect(state.stage).toBe('camera-view-time-2');
+    state = reduce(state, { type: 'playhead-fit-changed', fits: true }, gesture('zoom'));
     expect(state.stage).toBe('camera-view-second');
     state = reduce(state, count('camera', 3));
     expect(state.stage).toBe('camera-view-rewind');
@@ -156,11 +168,13 @@ describe('quick walkthrough progression', () => {
     expect(state.stage).toBe('callout');
     state = reduce(state, { type: 'add-tool-opened', tool: 'callout' }, count('callout', 1));
     expect(state.stage).toBe('project-settings');
+    state = reduce(state, { type: 'project-settings-opened' });
+    expect(state.stage).toBe('project-settings-panel');
     state = reduce(state, { type: 'project-settings-acknowledged' });
     expect(state.stage).toBe('render');
   });
 
   it('starts the second act on its own from the menu', () => {
-    expect(createWalkthroughState(false, 0, 'extras').stage).toBe('camera-view-first');
+    expect(createWalkthroughState(false, 0, 'extras').stage).toBe('camera-view-time-1');
   });
 });
