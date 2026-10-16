@@ -35,9 +35,12 @@ export interface WalkthroughStepConfig {
 const EXTRAS_STAGES: VisibleWalkthroughStage[] = [
   'camera-view-first',
   'camera-view-second',
+  'camera-view-rewind',
   'camera-view-play',
   'boundary',
+  'boundary-insert',
   'callout',
+  'callout-insert',
   'project-settings',
 ];
 
@@ -210,11 +213,13 @@ export function getWalkthroughStepConfig(
         target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
         title: 'Save your first camera view',
         placement: 'bottom',
-        hideOverlay: true,
         buttons: ['skip'],
-        renderContent: () => isMobile
-          ? 'Open the Add menu, then press the camera button to save this view. A camera view is a spot the camera flies to.'
-          : 'Press the camera button to save this view. A camera view is a spot the camera flies to.',
+        renderContent: () => (
+          <>
+            Move the map to where the video should start. Then {isMobile ? 'open the Add menu and ' : ''}press the
+            camera button to save that view. The camera flies from view to view.
+          </>
+        ),
       };
 
     case 'camera-view-second':
@@ -223,10 +228,19 @@ export function getWalkthroughStepConfig(
         target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
         title: 'Save a second camera view',
         placement: 'bottom',
-        hideOverlay: true,
         buttons: ['skip'],
         renderContent: () =>
-          'Drag the playhead to the right on the timeline, move the map somewhere new, then press the camera button again.',
+          `The playhead moved a few seconds ahead. Move the map somewhere new. Then ${isMobile ? 'open the Add menu and ' : ''}press the camera button again.`,
+      };
+
+    case 'camera-view-rewind':
+      return {
+        stage,
+        target: '[data-walkthrough="timeline-start"]',
+        title: 'Go back to the start',
+        placement: 'top',
+        buttons: ['skip'],
+        renderContent: () => 'Press Jump to Start, so the video plays from the first view.',
       };
 
     case 'camera-view-play':
@@ -246,10 +260,21 @@ export function getWalkthroughStepConfig(
         target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="add-boundary"]',
         title: 'Highlight a border',
         placement: 'bottom',
-        hideOverlay: true,
         buttons: ['skip'],
         renderContent: () =>
-          `${isMobile ? 'Open the Add menu and choose Add Boundary. ' : 'Click Add Boundary. '}Search for a country or region, pick a result, then press Insert boundary.`,
+          `${isMobile ? 'Open the Add menu and choose Add Boundary.' : 'Click Add Boundary.'} You can outline a country, state or city.`,
+      };
+
+    case 'boundary-insert':
+      return {
+        stage,
+        target: '[data-walkthrough="boundary-action"]',
+        title: 'Pick a place and insert it',
+        placement: isMobile ? 'top' : 'right',
+        hideOverlay: true,
+        compact: true,
+        buttons: ['skip'],
+        renderContent: () => 'Search for a place, pick a result, then press Insert boundary.',
       };
 
     case 'callout':
@@ -258,10 +283,21 @@ export function getWalkthroughStepConfig(
         target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="add-callout"]',
         title: 'Add a callout',
         placement: 'bottom',
-        hideOverlay: true,
         buttons: ['skip'],
         renderContent: () =>
-          `${isMobile ? 'Open the Add menu and choose Add Callout. ' : 'Click Add Callout. '}Pick a place and insert a pin with a label.`,
+          `${isMobile ? 'Open the Add menu and choose Add Callout.' : 'Click Add Callout.'} A callout is a pin with a label on the map.`,
+      };
+
+    case 'callout-insert':
+      return {
+        stage,
+        target: '[data-walkthrough="callout-action"]',
+        title: 'Pick a place and create it',
+        placement: isMobile ? 'top' : 'right',
+        hideOverlay: true,
+        compact: true,
+        buttons: ['skip'],
+        renderContent: () => 'Search for a place, or click the crosshair and then the map. Then press Create callout.',
       };
 
     case 'project-settings':

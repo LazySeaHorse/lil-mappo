@@ -36,7 +36,7 @@ describe('walkthrough steps', () => {
   });
 
   it('adds camera views, a border, a callout and settings when the user keeps going', () => {
-    const extras = ['camera-view-first', 'camera-view-second', 'camera-view-play', 'boundary', 'callout', 'project-settings'];
+    const extras = ['camera-view-first', 'camera-view-second', 'camera-view-rewind', 'camera-view-play', 'boundary', 'boundary-insert', 'callout', 'callout-insert', 'project-settings'];
     const stages = getWalkthroughStages(false, 'trip+extras');
     expect(stages.slice(7)).toEqual(['more-tools', ...extras, 'render']);
     expect(getWalkthroughStages(false, 'extras')).toEqual([...extras, 'render']);

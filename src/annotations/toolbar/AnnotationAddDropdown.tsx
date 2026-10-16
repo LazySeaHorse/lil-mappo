@@ -112,6 +112,7 @@ export const AnnotationAddDropdown = ({
       size="sm"
       onClick={handleAdd}
       disabled={lngLat[0] === 0}
+      data-walkthrough="callout-action"
       className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
     >
       <Plus size={16} /> Create callout

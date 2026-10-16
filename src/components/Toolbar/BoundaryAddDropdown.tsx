@@ -125,6 +125,7 @@ export const BoundaryAddDropdown = ({
       size="sm" 
       onClick={handleAdd}
       disabled={!previewBoundary}
+      data-walkthrough="boundary-action"
       className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
     >
       <Plus size={13} /> Insert boundary
