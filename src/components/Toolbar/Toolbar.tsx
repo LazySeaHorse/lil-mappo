@@ -17,7 +17,7 @@ import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore
 interface ToolbarProps {
   onExport: () => void;
   onLibrary: () => void;
-  onWalkthrough: (plan?: 'trip' | 'extras') => void;
+  onWalkthrough: () => void;
   onAddToolOpenChange: (tool: WalkthroughAddTool, open: boolean) => boolean | undefined;
 }
 
