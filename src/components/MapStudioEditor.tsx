@@ -214,7 +214,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
               if (isLocked) requestSignIn('Sign in to open your projects.');
               else setShowLibrary(true);
             }}
-            onWalkthrough={() => useWalkthroughStore.getState().start(isToolbarCollapsed)}
+            onWalkthrough={(plan) => useWalkthroughStore.getState().start(isToolbarCollapsed, plan)}
             onAddToolOpenChange={(tool, open) => useWalkthroughStore.getState().recordAddToolOpenChange(tool, open)}
           />
           <InspectorPanel />

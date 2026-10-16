@@ -19,6 +19,8 @@ interface CoachmarkOverlayProps {
   progress: WalkthroughProgress;
   onSkip: () => void;
   onNext: () => void;
+  /** The step's second button, shown when it has a `secondaryLabel`. */
+  onSecondary?: () => void;
 }
 
 interface RectBox {
@@ -35,6 +37,7 @@ export function CoachmarkOverlay({
   progress,
   onSkip,
   onNext,
+  onSecondary,
 }: CoachmarkOverlayProps) {
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [spotlightRect, setSpotlightRect] = useState<RectBox | null>(null);
@@ -245,6 +248,19 @@ export function CoachmarkOverlay({
                   title="Skip tour"
                 >
                   Skip tour
+                </Button>
+              )}
+
+              {showPrimary && step.secondaryLabel && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  data-action="secondary"
+                  onClick={onSecondary}
+                >
+                  {step.secondaryLabel}
                 </Button>
               )}
 

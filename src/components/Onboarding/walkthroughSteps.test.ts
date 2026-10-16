@@ -35,6 +35,27 @@ describe('walkthrough steps', () => {
     }
   });
 
+  it('adds camera views, a border, a callout and settings when the user keeps going', () => {
+    const extras = ['camera-view-first', 'camera-view-second', 'camera-view-play', 'boundary', 'callout', 'project-settings'];
+    const stages = getWalkthroughStages(false, 'trip+extras');
+    expect(stages.slice(7)).toEqual(['more-tools', ...extras, 'render']);
+    expect(getWalkthroughStages(false, 'extras')).toEqual([...extras, 'render']);
+  });
+
+  it('offers Keep going or Export at the end of the trip', () => {
+    const step = getWalkthroughStepConfig('more-tools', false);
+    expect(step.nextLabel).toBe('Keep going');
+    expect(step.secondaryLabel).toBe('Go to Export');
+  });
+
+  it.each([false, true])('has a titled step with a target for every extras stage (mobile: %s)', (isMobile) => {
+    for (const stage of getWalkthroughStages(isMobile, 'extras')) {
+      const step = getWalkthroughStepConfig(stage, isMobile);
+      expect(step.title).not.toBe('');
+      expect(step.target).toMatch(/^\[data-walkthrough="[a-z-]+"\]$/);
+    }
+  });
+
   it('asks for an action in every step except the ones that only inform', () => {
     const informing = getWalkthroughStages(false).filter((stage) =>
       getWalkthroughStepConfig(stage, false).buttons?.includes('primary'),

@@ -31,7 +31,7 @@ export function TourInvitationModal({ open, onStart, onDismiss }: TourInvitation
               Make your first trip video
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground text-sm leading-relaxed mt-1">
-              This tour takes about 3 minutes. You plan a route between two places, make the camera follow it, and find the Export button.
+              This tour takes about 3 minutes. You plan a route between two places, make the camera follow it, and find the Export button. Then you can keep going for 2 more minutes with camera views, a border and a callout.
             </AlertDialogDescription>
           </AlertDialogHeader>
         </div>

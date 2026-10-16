@@ -21,7 +21,7 @@ interface AvatarMenuProps {
   onLibrary: () => void;
   /** Ref-triggered click for the hidden project import input */
   onImportProjectClick: () => void;
-  onWalkthrough: () => void;
+  onWalkthrough: (plan?: 'trip' | 'extras') => void;
 }
 
 /**
@@ -134,8 +134,11 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
             {isLocked && <Lock size={10} className="ml-auto opacity-40" aria-label="Needs sign-in" />}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-border/30 mx-2" />
-          <DropdownMenuItem onClick={afterClose(onWalkthrough)} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+          <DropdownMenuItem onClick={afterClose(() => onWalkthrough('trip'))} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
             <Compass size={14} /> Quick Walkthrough
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={afterClose(() => onWalkthrough('extras'))} className="gap-2 cursor-pointer py-2.5 mx-1 rounded-lg">
+            <Compass size={14} /> Camera views and borders
           </DropdownMenuItem>
         </DropdownMenuGroup>
 

@@ -33,6 +33,8 @@ export default function QuickWalkthrough({ isMapReady, isMobile }: QuickWalkthro
     start,
     dismiss,
     next,
+    send,
+    continueToExtras,
     setShowMobileWarning,
     setShowInvitation,
   } = useWalkthroughStore();
@@ -73,7 +75,7 @@ export default function QuickWalkthrough({ isMapReady, isMobile }: QuickWalkthro
     dismiss();
   }, [dismiss, setShowInvitation]);
 
-  const stages = useMemo(() => getWalkthroughStages(isMobile), [isMobile]);
+  const stages = useMemo(() => getWalkthroughStages(isMobile, walkthrough.plan), [isMobile, walkthrough.plan]);
 
   const visibleStepIndex = stages.indexOf(walkthrough.stage as VisibleWalkthroughStage);
   const hasVisibleStep = visibleStepIndex >= 0;
@@ -108,7 +110,8 @@ export default function QuickWalkthrough({ isMapReady, isMobile }: QuickWalkthro
           totalSteps={stages.length}
           progress={progress}
           onSkip={dismiss}
-          onNext={next}
+          onNext={walkthrough.stage === 'more-tools' ? continueToExtras : next}
+          onSecondary={() => send({ type: 'more-tools-acknowledged' })}
         />
       )}
     </>

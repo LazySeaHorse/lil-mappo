@@ -5,7 +5,9 @@ import { track } from '@/lib/analytics';
 import {
   createWalkthroughState,
   walkthroughReducer,
+  type ExtraCounts,
   type MapGesture,
+  type WalkthroughPlan,
   type WalkthroughAddTool,
   type WalkthroughEvent,
   type WalkthroughStage,
@@ -60,6 +62,7 @@ function executeStageEntryEffects(stage: WalkthroughStage) {
       projectStore.setIsInspectorOpen(true);
       break;
 
+    case 'camera-view-play':
     case 'play-animation':
       projectStore.setPlayheadTime(0);
       // The timeline, with the Play button, is hidden on a phone while the inspector is open.
@@ -86,7 +89,27 @@ interface ProjectWatch<T> {
 
 const watch = <T,>(w: ProjectWatch<T>) => w;
 
+function countExtras(state: ProjectStore): ExtraCounts {
+  const items = Object.values(state.items);
+  const camera = items.find((item) => item.kind === 'camera');
+  return {
+    camera: camera?.kind === 'camera' ? camera.keyframes.length : 0,
+    boundary: items.filter((item) => item.kind === 'boundary').length,
+    callout: items.filter((item) => item.kind === 'callout').length,
+  };
+}
+
+const watchCount = (kind: keyof ExtraCounts, stages: WalkthroughStage[]) =>
+  watch({
+    select: (state) => countExtras(state)[kind],
+    stages,
+    toEvent: (count) => ({ type: 'item-count-changed', kind, count }),
+  });
+
 const PROJECT_WATCHES = [
+  watchCount('camera', ['camera-view-first', 'camera-view-second']),
+  watchCount('boundary', ['boundary']),
+  watchCount('callout', ['callout']),
   watch({
     select: (state) => Object.values(state.items).filter((item) => item.kind === 'route').length,
     stages: ['route-places', 'route-preview', 'route-insert'],
@@ -130,6 +153,8 @@ function stopProjectSubscriptions() {
 const NEXT_EVENTS: Partial<Record<WalkthroughStage, WalkthroughEvent>> = {
   'play-animation': { type: 'play-preview-acknowledged' },
   'more-tools': { type: 'more-tools-acknowledged' },
+  'camera-view-play': { type: 'camera-view-play-acknowledged' },
+  'project-settings': { type: 'project-settings-acknowledged' },
 };
 
 export interface WalkthroughStore {
@@ -139,7 +164,9 @@ export interface WalkthroughStore {
   showInvitation: boolean;
 
   // Actions
-  start: (isMobile?: boolean) => void;
+  start: (isMobile?: boolean, plan?: WalkthroughPlan) => void;
+  /** The "Keep going" button at the end of the trip tour. */
+  continueToExtras: () => void;
   dismiss: () => void;
   complete: () => void;
   next: () => void;
@@ -158,7 +185,7 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
   showMobileWarning: false,
   showInvitation: false,
 
-  start: (isMobile = false) => {
+  start: (isMobile = false, plan = 'trip') => {
     stopProjectSubscriptions();
 
     const initialRouteCount = Object.values(useProjectStore.getState().items).filter(
@@ -169,7 +196,7 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
 
     set({
       showInvitation: false,
-      walkthrough: createWalkthroughState(isMobile, initialRouteCount),
+      walkthrough: createWalkthroughState(isMobile, initialRouteCount, plan, countExtras(useProjectStore.getState())),
       isRunning: true,
     });
     storeStatus('started');
@@ -194,8 +221,13 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
     const stage = get().walkthrough.stage;
     const event = NEXT_EVENTS[stage];
     if (!event) return;
-    if (stage === 'play-animation') useProjectStore.getState().setIsPlaying(false);
+    if (stage === 'play-animation' || stage === 'camera-view-play') useProjectStore.getState().setIsPlaying(false);
     get().send(event);
+  },
+
+  continueToExtras: () => {
+    if (get().walkthrough.stage !== 'more-tools') return;
+    get().send({ type: 'extras-continued', counts: countExtras(useProjectStore.getState()) });
   },
 
   send: (event) => {

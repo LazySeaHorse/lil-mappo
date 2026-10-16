@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Placement } from '@floating-ui/react';
-import type { MapGesture, WalkthroughState, WalkthroughStage } from './walkthroughState';
+import type { MapGesture, WalkthroughPlan, WalkthroughState, WalkthroughStage } from './walkthroughState';
 import { GestureStatus } from './GestureStatus';
 import { ROUTE_TERMS } from '@/lib/terms';
 
@@ -27,10 +27,22 @@ export interface WalkthroughStepConfig {
   scrollIntoView?: boolean;
   buttons?: ('skip' | 'primary')[];
   nextLabel?: string;
+  /** A second way forward beside the primary button, e.g. "Finish" next to "Keep going". */
+  secondaryLabel?: string;
   renderContent: (progress: WalkthroughProgress) => React.ReactNode;
 }
 
-export function getWalkthroughStages(isMobile: boolean): VisibleWalkthroughStage[] {
+const EXTRAS_STAGES: VisibleWalkthroughStage[] = [
+  'camera-view-first',
+  'camera-view-second',
+  'camera-view-play',
+  'boundary',
+  'callout',
+  'project-settings',
+];
+
+export function getWalkthroughStages(isMobile: boolean, plan: WalkthroughPlan = 'trip'): VisibleWalkthroughStage[] {
+  if (plan === 'extras') return [...EXTRAS_STAGES, 'render'];
   return [
     'map-controls',
     ...(isMobile ? ['open-add-menu' as const] : []),
@@ -41,6 +53,7 @@ export function getWalkthroughStages(isMobile: boolean): VisibleWalkthroughStage
     'follow-route',
     'play-animation',
     'more-tools',
+    ...(plan === 'trip+extras' ? EXTRAS_STAGES : []),
     'render',
   ];
 }
@@ -182,12 +195,85 @@ export function getWalkthroughStepConfig(
       return {
         stage,
         target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
-        title: 'More things you can add',
+        title: 'Your trip video is ready',
+        placement: 'bottom',
+        buttons: ['skip', 'primary'],
+        nextLabel: 'Keep going',
+        secondaryLabel: 'Go to Export',
+        renderContent: () =>
+          'You can export now. Or keep going for 2 more minutes: add camera views, a border and a callout.',
+      };
+
+    case 'camera-view-first':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
+        title: 'Save your first camera view',
+        placement: 'bottom',
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () => isMobile
+          ? 'Open the Add menu, then press the camera button to save this view. A camera view is a spot the camera flies to.'
+          : 'Press the camera button to save this view. A camera view is a spot the camera flies to.',
+      };
+
+    case 'camera-view-second':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
+        title: 'Save a second camera view',
+        placement: 'bottom',
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () =>
+          'Drag the playhead to the right on the timeline, move the map somewhere new, then press the camera button again.',
+      };
+
+    case 'camera-view-play':
+      return {
+        stage,
+        target: '[data-walkthrough="timeline-play"]',
+        title: 'Watch the camera fly',
+        placement: 'top',
+        buttons: ['skip', 'primary'],
+        nextLabel: 'Next',
+        renderContent: () => 'Press Play. The camera flies smoothly from your first view to your second.',
+      };
+
+    case 'boundary':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="add-boundary"]',
+        title: 'Highlight a border',
+        placement: 'bottom',
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () =>
+          `${isMobile ? 'Open the Add menu and choose Add Boundary. ' : 'Click Add Boundary. '}Search for a country or region, pick a result, then press Insert boundary.`,
+      };
+
+    case 'callout':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="add-callout"]',
+        title: 'Add a callout',
+        placement: 'bottom',
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () =>
+          `${isMobile ? 'Open the Add menu and choose Add Callout. ' : 'Click Add Callout. '}Pick a place and insert a pin with a label.`,
+      };
+
+    case 'project-settings':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-settings"]',
+        title: 'Set up your video',
         placement: 'bottom',
         buttons: ['skip', 'primary'],
         nextLabel: 'Next',
         renderContent: () =>
-          'Camera views, boundaries, callouts, and map styles are in the toolbar. Try them when you are ready.',
+          'Map Settings holds the video length, aspect ratio, frame rate and resolution, plus the map style, lighting and terrain.',
       };
 
     case 'render':

@@ -181,4 +181,23 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     expect(walkthrough().isRunning).toBe(false);
     expect(stage()).toBe('route-places');
   });
+
+  it('counts camera views added after Keep going, not the ones already there', () => {
+    const view = (id: string, time: number) => ({
+      id, time, easing: 'linear' as const, followRoute: null,
+      camera: { center: [0, 0] as [number, number], zoom: 3, pitch: 0, bearing: 0, altitude: null },
+    });
+    walkthrough().start(false);
+    useWalkthroughStore.setState({ walkthrough: { ...createWalkthroughState(false, 0), stage: 'more-tools' } });
+    useProjectStore.getState().addCameraKeyframe(view('k0', 0));
+
+    walkthrough().continueToExtras();
+    expect(stage()).toBe('camera-view-first');
+
+    useProjectStore.getState().addCameraKeyframe(view('k1', 1));
+    expect(stage()).toBe('camera-view-second');
+    useProjectStore.getState().addCameraKeyframe(view('k2', 2));
+    expect(stage()).toBe('camera-view-play');
+    expect(useProjectStore.getState().playheadTime).toBe(0);
+  });
 });
