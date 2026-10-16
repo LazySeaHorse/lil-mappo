@@ -122,17 +122,12 @@ export function NewProjectModal() {
               </Field>
 
               <Field label="Aspect ratio">
-                <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
-                  <SelectTrigger className="h-9 text-sm bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="16:9">16:9 (Standard)</SelectItem>
-                    <SelectItem value="21:9">21:9 (Ultrawide)</SelectItem>
-                    <SelectItem value="4:3">4:3 (Classic)</SelectItem>
-                    <SelectItem value="1:1">1:1 (Square)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SegmentedControl
+                  options={(['16:9', '21:9', '4:3', '1:1'] as AspectRatio[]).map((v) => ({ value: v, label: v }))}
+                  value={aspectRatio}
+                  onValueChange={setAspectRatio}
+                  className="h-9 w-full"
+                />
               </Field>
 
               <Field label="Resolution">
@@ -151,15 +146,12 @@ export function NewProjectModal() {
               </Field>
 
               <Field label="Frame rate (FPS)">
-                <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
-                  <SelectTrigger className="h-9 text-sm bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30 FPS</SelectItem>
-                    <SelectItem value="60">60 FPS</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SegmentedControl
+                  options={[{ value: '30', label: '30 FPS' }, { value: '60', label: '60 FPS' }]}
+                  value={fps.toString()}
+                  onValueChange={(v) => setFps(Number(v) as 30 | 60)}
+                  className="h-9 w-full"
+                />
               </Field>
             </div>
 
