@@ -132,7 +132,8 @@ const TimelineTrackRow = React.memo(({
         )}
       </div>
 
-      <div className="flex-1 relative">
+      {/* isolate keeps keyframes and bars (z-10, z-20) under the sticky label when the timeline scrolls sideways */}
+      <div className="flex-1 relative isolate">
         {item.kind === 'camera' ? (
           <CameraTrackContent
             item={item}
