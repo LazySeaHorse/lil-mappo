@@ -23,7 +23,7 @@ describe('accountMood', () => {
 });
 
 describe('<Mappo />', () => {
-  const moods: MappoMood[] = ['default', 'sleepy', 'inquisitive', 'curious', 'happy', 'blush', 'sparkle', 'worried', 'explorer'];
+  const moods: MappoMood[] = ['default', 'sleepy', 'inquisitive', 'curious', 'happy', 'blush', 'sparkle', 'worried', 'explorer', 'key'];
 
   it.each(moods)('renders the %s mood', (mood) => {
     const { container } = render(<Mappo mood={mood} />);
@@ -33,6 +33,12 @@ describe('<Mappo />', () => {
   it('only the explorer wears a cap', () => {
     const cap = (mood: MappoMood) => render(<Mappo mood={mood} />).container.querySelectorAll('g').length;
     expect(cap('explorer')).toBeGreaterThan(cap('blush'));
+  });
+
+  it('widens the frame so the key held out to the right shows', () => {
+    const viewBox = (mood: MappoMood) => render(<Mappo mood={mood} />).container.querySelector('svg')?.getAttribute('viewBox');
+    expect(viewBox('key')).toBe('351 287 760 678');
+    expect(viewBox('blush')).toBe('351 287 553 678');
   });
 
   it('is hidden from assistive tech unless titled', () => {

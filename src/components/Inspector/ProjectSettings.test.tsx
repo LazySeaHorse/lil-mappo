@@ -155,11 +155,11 @@ describe('ProjectSettings is one screen', () => {
     plan.data = { tier: 'wanderer', status: 'active' };
     try {
       const { unmount } = render(<ProjectSettings />);
-      expect(screen.queryByText(/Free plan limit/)).toBeNull();
+      expect(screen.queryByText(/Free exports max out/)).toBeNull();
       unmount();
       plan.data = null;
       render(<ProjectSettings />);
-      expect(within(screen.getByRole('region', { name: 'Video' })).getByText(/Free plan limit/)).toBeInTheDocument();
+      expect(within(screen.getByRole('region', { name: 'Video' })).getByText(/Free exports max out/)).toBeInTheDocument();
     } finally {
       plan.data = { tier: 'cartographer' };
     }

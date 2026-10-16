@@ -85,6 +85,8 @@ export default defineConfig(({ mode }) => {
         : []),
     ].filter(Boolean),
     build: {
+      // Vite inlines assets under 4 KB. The map style thumbnails stay separate files, so the main bundle does not carry them.
+      assetsInlineLimit: (file) => (file.includes('/assets/map-styles/') ? false : undefined),
       rollupOptions: {
         output: {
           // mapbox-gl rarely changes; its own chunk keeps it cached across app deploys.

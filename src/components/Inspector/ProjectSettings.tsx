@@ -15,6 +15,7 @@ import { InspectorSection } from './InspectorSection';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { SwitchField } from '@/components/ui/field';
 import { Monitor, Smartphone, ArrowRight, Settings2 } from 'lucide-react';
+import { FreeLimitNotice } from './FreeLimitNotice';
 import { ResolutionSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
@@ -123,17 +124,7 @@ export function ProjectSettings() {
         </Field>
 
         {limits.limited && (
-          <div className="p-3 bg-primary/5 rounded-xl border border-primary/10 space-y-2">
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              <span className="font-medium text-primary">Free plan limit:</span> 720p, 30 FPS, and 30 seconds.
-            </p>
-            <button
-              onClick={() => openUpgradeModal('project_settings')}
-              className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
-            >
-              Use a paid plan or your own Mapbox token for higher limits <ArrowRight size={10} />
-            </button>
-          </div>
+          <FreeLimitNotice limits={limits} onUpgrade={() => openUpgradeModal('project_settings')} />
         )}
       </InspectorSection>
 

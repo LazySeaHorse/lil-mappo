@@ -1,4 +1,5 @@
 import type { Map as MapboxMap } from "mapbox-gl";
+import airplaneModelUrl from '@/assets/models/airplane.glb?url';
 import { describe, expect, it, vi } from "vitest";
 import type { RouteItem } from "@/store/types";
 import { RouteRenderer } from "./RouteRenderer";
@@ -94,7 +95,7 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
 
     renderer.mount();
 
-    expect(double.addModel).toHaveBeenCalledWith("plane", "/models/airplane.glb");
+    expect(double.addModel).toHaveBeenCalledWith("plane", airplaneModelUrl);
     const vehicleLayer = double.layers.get("vehicle-layer-flight-route");
     expect(vehicleLayer).toBeDefined();
     expect(vehicleLayer?.type).toBe("model");

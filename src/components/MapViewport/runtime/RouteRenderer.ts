@@ -14,12 +14,15 @@ import {
   removeSourceIfPresent,
 } from './mapboxResources';
 import { MODEL_BASE_SCALE } from '@/config/vehicles';
+import carModelUrl from '@/assets/models/car.glb?url';
+import airplaneModelUrl from '@/assets/models/airplane.glb?url';
 import { routeTiming, type RouteTiming } from './routeTiming';
 
 const DOT_BASE_RADIUS = 9;
+// Imported so Vite gives each model a content-hashed URL that browsers can cache until the file changes.
 const MODELS: Record<'car' | 'plane', string> = {
-  car: '/models/car.glb',
-  plane: '/models/airplane.glb',
+  car: carModelUrl,
+  plane: airplaneModelUrl,
 };
 
 interface RouteResourceIds {
