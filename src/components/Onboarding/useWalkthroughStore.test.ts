@@ -196,8 +196,11 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
 
     useProjectStore.getState().addCameraKeyframe(view('k1', 1));
     expect(stage()).toBe('camera-view-second');
+    expect(useProjectStore.getState().playheadTime).toBeGreaterThan(0);
     useProjectStore.getState().addCameraKeyframe(view('k2', 2));
+    expect(stage()).toBe('camera-view-rewind');
+
+    useProjectStore.getState().setPlayheadTime(0);
     expect(stage()).toBe('camera-view-play');
-    expect(useProjectStore.getState().playheadTime).toBe(0);
   });
 });

@@ -17,9 +17,12 @@ export type WalkthroughStage =
   | 'more-tools'
   | 'camera-view-first'
   | 'camera-view-second'
+  | 'camera-view-rewind'
   | 'camera-view-play'
   | 'boundary'
+  | 'boundary-insert'
   | 'callout'
+  | 'callout-insert'
   | 'project-settings'
   | 'render'
   | 'complete';
@@ -37,6 +40,7 @@ export type WalkthroughEvent =
   | { type: 'more-tools-acknowledged' }
   | { type: 'extras-continued'; counts: ExtraCounts }
   | { type: 'item-count-changed'; kind: keyof ExtraCounts; count: number }
+  | { type: 'playhead-changed'; time: number }
   | { type: 'camera-view-play-acknowledged' }
   | { type: 'project-settings-acknowledged' }
   | { type: 'export-opened' };
@@ -165,15 +169,32 @@ export function walkthroughReducer(
       return { ...state, stage: 'camera-view-second' };
     }
     if (state.stage === 'camera-view-second' && event.kind === 'camera' && added >= 2) {
-      return { ...state, stage: 'camera-view-play' };
+      return { ...state, stage: 'camera-view-rewind' };
     }
-    if (state.stage === 'boundary' && event.kind === 'boundary' && added >= 1) {
+    if ((state.stage === 'boundary' || state.stage === 'boundary-insert') && event.kind === 'boundary' && added >= 1) {
       return { ...state, stage: 'callout' };
     }
-    if (state.stage === 'callout' && event.kind === 'callout' && added >= 1) {
+    if ((state.stage === 'callout' || state.stage === 'callout-insert') && event.kind === 'callout' && added >= 1) {
       return { ...state, stage: 'project-settings' };
     }
     return state;
+  }
+
+  if (state.stage === 'camera-view-rewind' && event.type === 'playhead-changed' && event.time === 0) {
+    return { ...state, stage: 'camera-view-play' };
+  }
+
+  if (event.type === 'add-tool-opened' && event.tool === 'boundary' && state.stage === 'boundary') {
+    return { ...state, stage: 'boundary-insert' };
+  }
+  if (event.type === 'add-tool-opened' && event.tool === 'callout' && state.stage === 'callout') {
+    return { ...state, stage: 'callout-insert' };
+  }
+  if (event.type === 'add-tool-closed' && event.tool === 'boundary' && state.stage === 'boundary-insert') {
+    return { ...state, stage: 'boundary' };
+  }
+  if (event.type === 'add-tool-closed' && event.tool === 'callout' && state.stage === 'callout-insert') {
+    return { ...state, stage: 'callout' };
   }
 
   if (state.stage === 'camera-view-play' && event.type === 'camera-view-play-acknowledged') {

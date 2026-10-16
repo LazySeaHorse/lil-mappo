@@ -51,6 +51,9 @@ export function storeMobileWarningStatus() {
   }
 }
 
+/** Seconds in, where the tour puts the playhead for the second camera view. */
+const SECOND_VIEW_TIME = 3;
+
 let projectStoreUnsubscribers: (() => void)[] = [];
 
 function executeStageEntryEffects(stage: WalkthroughStage) {
@@ -60,6 +63,18 @@ function executeStageEntryEffects(stage: WalkthroughStage) {
     case 'follow-route':
       // Inserting a route opens the inspector; keep it open if the user closed it, since the switch is there.
       projectStore.setIsInspectorOpen(true);
+      break;
+
+    case 'camera-view-second': {
+      // Both views at one time would land on top of each other, so move on to a later time.
+      projectStore.setPlayheadTime(Math.min(SECOND_VIEW_TIME, projectStore.duration / 2));
+      // The inspector opened on the first view; it would sit over the Add menu on a phone.
+      projectStore.setIsInspectorOpen(false);
+      break;
+    }
+
+    case 'camera-view-rewind':
+      projectStore.setIsInspectorOpen(false);
       break;
 
     case 'camera-view-play':
@@ -108,8 +123,13 @@ const watchCount = (kind: keyof ExtraCounts, stages: WalkthroughStage[]) =>
 
 const PROJECT_WATCHES = [
   watchCount('camera', ['camera-view-first', 'camera-view-second']),
-  watchCount('boundary', ['boundary']),
-  watchCount('callout', ['callout']),
+  watchCount('boundary', ['boundary', 'boundary-insert']),
+  watchCount('callout', ['callout', 'callout-insert']),
+  watch({
+    select: (state) => state.playheadTime,
+    stages: ['camera-view-rewind'],
+    toEvent: (time) => ({ type: 'playhead-changed', time }),
+  }),
   watch({
     select: (state) => Object.values(state.items).filter((item) => item.kind === 'route').length,
     stages: ['route-places', 'route-preview', 'route-insert'],
