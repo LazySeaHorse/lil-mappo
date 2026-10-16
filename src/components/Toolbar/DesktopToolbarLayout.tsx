@@ -8,6 +8,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MapStylePicker } from './MapStylePicker';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
@@ -92,14 +93,7 @@ function InlineLayerGroup({
   return (
     <div className="flex items-center gap-1">
       <div className="flex items-center gap-1 px-1">
-        <Select value={mapStyle} onValueChange={setMapStyle}>
-          <SelectTrigger data-walkthrough="map-style" className="h-8 text-xs w-[130px] focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
-            <SelectValue placeholder="Map Style" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-            <MapStyleSelectItems />
-          </SelectContent>
-        </Select>
+        <MapStylePicker value={mapStyle} onChange={setMapStyle} />
       </div>
       <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
       <Divider />
