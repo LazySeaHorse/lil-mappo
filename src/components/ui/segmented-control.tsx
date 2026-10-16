@@ -9,6 +9,7 @@ interface SegmentedControlOption<T extends string> {
   title?: string;
   'aria-label'?: string;
   walkthroughTarget?: string;
+  disabled?: boolean;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -44,11 +45,12 @@ function SegmentedControl<T extends string>({
         <ToggleGroupPrimitive.Item
           key={opt.value}
           value={opt.value}
+          disabled={opt.disabled}
           title={opt.title ?? opt.label ?? opt.value}
           aria-label={opt['aria-label'] ?? opt.label ?? opt.value}
           data-walkthrough={opt.walkthroughTarget}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 transition-all z-10 text-muted-foreground py-1.5 rounded-lg text-xs font-medium select-none",
+            "flex-1 flex items-center disabled:opacity-50 disabled:pointer-events-none justify-center gap-1.5 transition-all z-10 text-muted-foreground py-1.5 rounded-lg text-xs font-medium select-none",
             value === opt.value
               ? "text-foreground font-medium"
               : "hover:text-foreground/80",
