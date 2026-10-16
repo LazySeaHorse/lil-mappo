@@ -43,4 +43,14 @@ describe('MapStylePicker', () => {
     expect(standard.textContent).toMatch(/3D buildings/);
     expect(Array.from(standard.querySelectorAll('img[alt]')).map((i) => i.getAttribute('alt')).filter(Boolean)).toEqual(['Day', 'Dawn', 'Dusk', 'Night']);
   });
+
+  it('expands in place inside a menu', () => {
+    const onChange = vi.fn();
+    render(<MapStylePicker variant="inline" value="streets" onChange={onChange} />);
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Map style: Streets' }));
+    fireEvent.click(screen.getByRole('radio', { name: /Vintage/ }));
+    expect(onChange).toHaveBeenCalledWith('vintage');
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
 });
