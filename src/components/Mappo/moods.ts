@@ -10,7 +10,9 @@ export type MappoMood =
   | 'blush'
   | 'sparkle'
   | 'worried'
-  | 'explorer';
+  | 'explorer'
+  /** Holds up a gold key, for notices about what an upgrade unlocks. Draws outside the usual frame, to the right. */
+  | 'key';
 
 interface MappoAccount {
   signedIn: boolean;

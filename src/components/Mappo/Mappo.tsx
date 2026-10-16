@@ -60,6 +60,26 @@ const OpenSmile = () => (
 
 const SmallSmile = () => <path d="M588 600 Q616 620 644 598" {...stroke} />;
 
+const KEY_GOLD = '#f6b83d';
+
+/** A raised arm ending in a fist that holds a gold key. It reaches past the right edge of the usual frame. */
+const KeyInHand = () => {
+  const outline = { stroke: INK, strokeLinejoin: 'round' as const };
+  return (
+    <>
+      <path d="M868 650 Q930 650 962 566" stroke="#1c6bde" strokeWidth={44} strokeLinecap="round" fill="none" />
+      <g transform="translate(980 520) rotate(-62)">
+        <rect x={38} y={-14} width={150} height={28} rx={8} fill={KEY_GOLD} strokeWidth={12} {...outline} />
+        <rect x={130} y={12} width={22} height={40} rx={6} fill={KEY_GOLD} strokeWidth={12} {...outline} />
+        <rect x={164} y={12} width={22} height={30} rx={6} fill={KEY_GOLD} strokeWidth={12} {...outline} />
+        <circle cx={0} cy={0} r={52} fill={KEY_GOLD} strokeWidth={14} {...outline} />
+        <circle cx={0} cy={0} r={19} fill="#fdf8ec" strokeWidth={10} {...outline} />
+        <circle cx={-8} cy={8} r={32} fill="#1c6bde" strokeWidth={14} {...outline} />
+      </g>
+    </>
+  );
+};
+
 const FeaturesFor: Record<Exclude<MappoMood, 'explorer'>, () => React.ReactElement> = {
   default: () => (
     <path
@@ -110,6 +130,17 @@ const FeaturesFor: Record<Exclude<MappoMood, 'explorer'>, () => React.ReactEleme
       <OpenSmile />
     </>
   ),
+  key: () => (
+    <>
+      {/* Glances down at whatever sits below, with a small smile */}
+      <g transform="translate(-10 22)">
+        <OpenEyes />
+        <Blush />
+      </g>
+      <path d="M574 604 Q596 624 622 606" {...stroke} />
+      <KeyInHand />
+    </>
+  ),
   worried: () => (
     <>
       <OpenEyes />
@@ -139,7 +170,7 @@ export function Mappo({ mood = 'default', className, title }: MappoProps) {
   const Features = FeaturesFor[mood === 'explorer' ? 'blush' : mood];
   return (
     <svg
-      viewBox="351 287 553 678"
+      viewBox={mood === 'key' ? '351 287 760 678' : '351 287 553 678'}
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={{ overflow: 'visible' }}
