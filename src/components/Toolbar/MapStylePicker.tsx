@@ -1,24 +1,39 @@
 import React, { useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MAP_STYLES, MAPBOX_GALLERY_TOKEN, STYLE_MOODS, getEffectiveMapboxToken, type MapStyleDef, type StyleMood } from '@/config/mapbox';
+import { MAP_STYLES, STYLE_MOODS, type MapStyleDef, type StyleMood } from '@/config/mapbox';
 
-/** Every thumbnail shows the same place, so the styles compare fairly and the browser caches each image. */
-const THUMB_VIEW = '-122.42,37.77,11,0';
 const THUMB_PX = 40;
 
-/** The Static Images API cannot draw Mapbox Standard, so its thumbnail shows the closest classic style. */
-const STATIC_STAND_IN = 'mapbox://styles/mapbox/streets-v12';
+/** Screenshots of the real styles, all of the same place (see public/map-styles). */
+const thumbnailUrl = (file: string) => `${import.meta.env.BASE_URL}map-styles/${file}.webp`;
 
-function thumbnailUrl(def: MapStyleDef): string | null {
-  const styleUrl = def.basemap === 'standard' ? STATIC_STAND_IN : def.url;
-  const match = /^mapbox:\/\/styles\/([^/]+)\/(.+)$/.exec(styleUrl);
-  if (!match) return null;
-  const [, owner, id] = match;
-  const token = owner === 'mapbox-map-design' ? MAPBOX_GALLERY_TOKEN : getEffectiveMapboxToken();
-  if (!token) return null;
-  const size = `${THUMB_PX}x${THUMB_PX}@2x`;
-  return `https://api.mapbox.com/styles/v1/${owner}/${id}/static/${THUMB_VIEW}/${size}?access_token=${token}&logo=false&attribution=false`;
+/** Standard is the one style with 3D buildings and a time of day, shown as small pictures of each. */
+const STANDARD_TIMES = [
+  { file: 'standard', label: 'Day' },
+  { file: 'standard-dawn', label: 'Dawn' },
+  { file: 'standard-dusk', label: 'Dusk' },
+  { file: 'standard-night', label: 'Night' },
+] as const;
+
+function TimesOfDay() {
+  return (
+    <span className="flex gap-0.5" title="Day, dawn, dusk and night">
+      {STANDARD_TIMES.map(({ file, label }) => (
+        <img
+          key={file}
+          src={thumbnailUrl(file)}
+          alt={label}
+          title={label}
+          width={16}
+          height={16}
+          loading="lazy"
+          draggable={false}
+          className="size-4 rounded-[4px] object-cover ring-1 ring-border/60"
+        />
+      ))}
+    </span>
+  );
 }
 
 function Swatches({ colors }: { colors: MapStyleDef['swatches'] }) {
@@ -31,28 +46,23 @@ function Swatches({ colors }: { colors: MapStyleDef['swatches'] }) {
   );
 }
 
-/** A map picture of the style, or its colors until the picture loads or if it cannot. */
-function StyleThumb({ def, size, load }: { def: MapStyleDef; size: number; load: boolean }) {
-  const [failed, setFailed] = useState(false);
-  const url = load && !failed ? thumbnailUrl(def) : null;
+/** A screenshot of the style, over its colors while the picture loads. */
+function StyleThumb({ file, def, size }: { file: string; def: MapStyleDef; size: number }) {
   const [land, water, road] = def.swatches;
   return (
     <span
       className="relative shrink-0 overflow-hidden rounded-md ring-1 ring-border/60"
       style={{ width: size, height: size, background: `linear-gradient(135deg, ${land} 0 45%, ${water} 45% 70%, ${road} 70%)` }}
     >
-      {url && (
-        <img
-          src={url}
-          alt=""
-          width={size}
-          height={size}
-          loading="lazy"
-          draggable={false}
-          onError={() => setFailed(true)}
-          className="absolute inset-0 size-full object-cover"
-        />
-      )}
+      <img
+        src={thumbnailUrl(file)}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        draggable={false}
+        className="absolute inset-0 size-full object-cover"
+      />
     </span>
   );
 }
@@ -85,9 +95,9 @@ export function MapStylePicker({ value, onChange }: MapStylePickerProps) {
           type="button"
           data-walkthrough="map-style"
           aria-label={`Map style: ${current?.label ?? 'Map style'}`}
-          className="flex h-8 w-[150px] items-center gap-2 rounded-md border border-border bg-background pl-1 pr-2 text-xs transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex h-8 w-[150px] items-center gap-2 rounded-lg pl-1 pr-2 text-xs transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-secondary/60"
         >
-          {current && <StyleThumb def={current} size={24} load />}
+          {current && <StyleThumb file={value} def={current} size={24} />}
           <span className="flex-1 truncate text-left">{current?.label ?? 'Map style'}</span>
           <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
         </button>
@@ -121,12 +131,14 @@ export function MapStylePicker({ value, onChange }: MapStylePickerProps) {
                 key === value ? 'bg-primary/10' : ''
               }`}
             >
-              <StyleThumb def={def} size={THUMB_PX} load={open} />
+              <StyleThumb file={key} def={def} size={THUMB_PX} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-xs font-medium">{def.label}</span>
-                <span className="text-[10px] text-muted-foreground">{def.mood}</span>
+                <span className="truncate text-[10px] text-muted-foreground">
+                  {def.basemap === 'standard' ? '3D buildings · four times of day' : def.mood}
+                </span>
               </span>
-              <Swatches colors={def.swatches} />
+              {def.basemap === 'standard' ? <TimesOfDay /> : <Swatches colors={def.swatches} />}
               <Check size={13} className={key === value ? 'text-primary' : 'opacity-0'} />
             </button>
           ))}
