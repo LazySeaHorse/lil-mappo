@@ -135,7 +135,7 @@ function TransportControls({
 }: TransportControlsProps) {
   return (
     <>
-      <IconButton variant="ghost" size="xs" onClick={() => setPlayheadTime(0)} title="Jump to Start ([)">
+      <IconButton data-walkthrough="timeline-start" variant="ghost" size="xs" onClick={() => setPlayheadTime(0)} title="Jump to Start ([)">
         <SkipBack />
       </IconButton>
       <IconButton

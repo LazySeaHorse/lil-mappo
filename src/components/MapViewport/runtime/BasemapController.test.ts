@@ -163,7 +163,7 @@ describe('BasemapController', () => {
     function withCompositeStyle(double: ReturnType<typeof createMapDouble>, layers = classicLayers) {
       const added = new Map<string, string>();
       double.getStyle.mockReturnValue({ version: 8, sources: {}, layers } as never);
-      double.getSource.mockImplementation(((id: string) => (id === 'composite' ? {} : undefined)) as never);
+      double.getSource.mockImplementation(((id: string) => (id === 'composite' ? { vectorLayerIds: ['road', 'building'] } : undefined)) as never);
       double.addLayer.mockImplementation(((layer: { id: string; layout: { visibility: string } }) => {
         added.set(layer.id, layer.layout.visibility);
       }) as never);
@@ -222,6 +222,27 @@ describe('BasemapController', () => {
       expect(double.addLayer).toHaveBeenCalledTimes(2);
       expect(added.get('3d-buildings')).toBe('visible');
 
+      controller.dispose();
+    });
+
+    it('is not added when the composite source has no building layer, and is added if its metadata says it does', () => {
+      const store = useProjectStore.getState();
+      store.setBuildingsEnabled(true);
+      store.setMapStyle('bubble');
+      const double = createMapDouble();
+      withCompositeStyle(double);
+      let vectorLayerIds: string[] | undefined = ['water', 'landcover'];
+      double.getSource.mockImplementation(((id: string) => (id === 'composite' ? { vectorLayerIds } : undefined)) as never);
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+      expect(double.addLayer).not.toHaveBeenCalled();
+      expect(useProjectStore.getState().detectedCapabilities?.buildings3d).toBe(false);
+
+      // satellite-streets draws no buildings, but its source lists the layer once the metadata loads
+      vectorLayerIds = ['place_label', 'building'];
+      for (const listener of double.listeners.get('sourcedata')!) listener({ sourceId: 'composite', sourceDataType: 'metadata' });
+      expect(useProjectStore.getState().detectedCapabilities?.buildings3d).toBe(true);
+      expect(double.addLayer).toHaveBeenCalledTimes(1);
       controller.dispose();
     });
 

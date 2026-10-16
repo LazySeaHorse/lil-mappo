@@ -80,11 +80,11 @@ export function buildInitConfig(userId: string, beforeSend: BeforeSend): Partial
     disable_conversations: true,
     disable_web_experiments: true,
     disable_external_dependency_loading: true,
-    // Default-deny masking: every text node is masked unless it sits inside a
-    // [data-ph-unmask] region, all inputs are masked, and the map is not recorded at all.
+    // Selective masking: elements marked with .ph-mask are masked, all inputs
+    // are masked, and the map is not recorded at all.
     session_recording: {
       maskAllInputs: true,
-      maskTextSelector: '*',
+      maskTextSelector: '.ph-mask',
       maskTextFn: maskReplayText,
       maskAttributeFn: maskReplayAttribute,
       blockSelector: '.mapboxgl-map',

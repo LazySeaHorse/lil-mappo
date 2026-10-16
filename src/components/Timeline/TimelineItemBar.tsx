@@ -114,7 +114,7 @@ const TimelineItemBar = React.memo(({
     <div
       data-testid={`timeline-item-${item.id}`}
       data-selected={isSelected}
-      className={`ph-no-capture absolute top-2 bottom-2 ${colorClass} bg-opacity-40 backdrop-blur-[2px] rounded-md border border-white/20 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] group flex items-stretch hover:shadow-md transition-shadow select-none touch-none ${isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
+      className={`absolute top-2 bottom-2 ${colorClass} bg-opacity-40 backdrop-blur-[2px] rounded-md border border-white/20 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] group flex items-stretch hover:shadow-md transition-shadow select-none touch-none ${isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
       style={{ left: startX, width: Math.max(endX - startX, 4) }}
       onPointerDown={(event) => handlePointerDown(event, 'move')}
       onPointerMove={handlePointerMove}

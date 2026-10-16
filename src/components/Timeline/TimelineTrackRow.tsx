@@ -106,12 +106,12 @@ const TimelineTrackRow = React.memo(({
   return (
     <div
       data-agent-item={item.id}
-      className={`ph-no-capture flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
+      className={`flex h-10 border-b border-border/30 cursor-pointer group transition-all ${isSelected ? 'bg-primary/5' : 'hover:bg-secondary/40'} ${item.kind === 'camera' && !isCameraEnabled ? 'opacity-40 grayscale-[0.5]' : ''}`}
       onClick={handleSelect}
     >
       <div className={`w-[160px] shrink-0 sticky left-0 z-10 flex items-center px-4 gap-2.5 border-r border-border/50 bg-background/90 backdrop-blur-sm transition-colors ${isSelected ? 'border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'}`}>
         <div className={`w-2 h-2 rounded-full ${colorClass} shadow-sm`} />
-        <span className={`text-xs truncate font-medium flex-1 ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
+        <span className={`text-xs truncate font-medium flex-1 ${item.kind !== 'camera' ? 'ph-mask' : ''} ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
           {label}
         </span>
 
@@ -132,7 +132,8 @@ const TimelineTrackRow = React.memo(({
         )}
       </div>
 
-      <div className="flex-1 relative">
+      {/* isolate keeps keyframes and bars (z-10, z-20) under the sticky label when the timeline scrolls sideways */}
+      <div className="flex-1 relative isolate">
         {item.kind === 'camera' ? (
           <CameraTrackContent
             item={item}

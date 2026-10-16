@@ -3,7 +3,8 @@ import { Clapperboard, Video, Plus, Layers2, X, Mountain, Building2, EyeOff, Set
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
-import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
+import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
+import { MapStylePicker } from './MapStylePicker';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
@@ -103,14 +104,7 @@ export function MobileToolbarLayout({
         <div className="flex items-center w-full animate-in slide-in-from-right-4 duration-300 fill-mode-both">
           <div className="flex items-center gap-2 w-full justify-between px-2">
             <div className="flex items-center gap-1 px-1 flex-1">
-              <Select value={mapStyle} onValueChange={setMapStyle}>
-                <SelectTrigger data-walkthrough="map-style" className="h-8 text-xs flex-1 focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
-                  <SelectValue placeholder="Map Style" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-                  <MapStyleSelectItems />
-                </SelectContent>
-              </Select>
+              <MapStylePicker value={mapStyle} onChange={setMapStyle} className="flex-1" />
             </div>
             <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
             <div data-walkthrough="map-3d" className="flex items-center gap-1">

@@ -28,7 +28,7 @@ export function ProjectRow({
     <div className="flex items-center justify-between p-3 border border-border rounded-xl hover:border-primary/30 hover:bg-secondary/30 transition-all group">
       <div className="flex flex-col overflow-hidden mr-4 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-medium text-foreground truncate">
+          <span className="ph-mask text-sm font-medium text-foreground truncate">
             {project.name || 'Untitled Project'}
           </span>
           <CloudStatusBadge project={project} />

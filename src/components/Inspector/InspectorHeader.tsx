@@ -39,7 +39,7 @@ export function InspectorHeader({ kind, id, name, onRename, placeholder, startTi
         {onRename ? (
           <EditableTitle value={name} onChange={onRename} placeholder={placeholder} className="mb-0" />
         ) : (
-          <p className="truncate px-1 text-sm font-medium text-foreground">{name}</p>
+          <p className="ph-mask truncate px-1 text-sm font-medium text-foreground">{name}</p>
         )}
       </div>
 

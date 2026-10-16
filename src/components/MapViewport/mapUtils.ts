@@ -15,12 +15,27 @@ interface ClickTargetEvent {
 }
 
 /**
+ * Whether the style's `composite` source has the `building` source layer that BasemapController
+ * extrudes. Many styles have a `composite` source without one (Bubble, Neon Glow, Water World,
+ * Black Marble), and extruding a missing source layer logs a validation error. The source lists
+ * its layers once its metadata loads, so a style that draws buildings is detected at once and the
+ * rest when `sourcedata` reports the metadata.
+ */
+export function compositeHasBuildings(map: MapboxMap): boolean {
+  const composite = map.getSource('composite') as { vectorLayerIds?: string[] } | undefined;
+  if (!composite) return false;
+  if (composite.vectorLayerIds) return composite.vectorLayerIds.includes('building');
+  return (map.getStyle()?.layers ?? []).some(
+    (layer) => 'source' in layer && layer.source === 'composite' && 'source-layer' in layer && layer['source-layer'] === 'building',
+  );
+}
+
+/**
  * Detects capabilities for the loaded style.
  * Standard returns its fixed config-driven label categories (its layers live inside the
  * `basemap` import, unreachable via getStyle().layers). Classic styles return only the
  * canonical label categories that match at least one layer in the loaded style, and offer
- * 3D buildings only when the style carries the `composite` (Mapbox Streets) source that
- * BasemapController extrudes them from.
+ * 3D buildings only when `compositeHasBuildings` finds the layer to extrude them from.
  */
 export function detectRuntimeCapabilities(map: MapboxMap, mapStyle: string): MapStyleCapabilities {
   if (isStandardBasemap(mapStyle)) return { ...STANDARD_CAPABILITIES, labelGroups: getStandardLabelGroups() };
@@ -32,7 +47,7 @@ export function detectRuntimeCapabilities(map: MapboxMap, mapStyle: string): Map
 
   return {
     labelGroups,
-    buildings3d: Boolean(map.getSource('composite')),
+    buildings3d: compositeHasBuildings(map),
     landmarks3d: false,
     trees3d: false,
     facades3d: false,

@@ -139,8 +139,16 @@ export interface StyleAtmosphere {
  */
 export type BasemapKind = 'standard' | 'classic';
 
+/** The feel of a style, for the filter chips in the style picker. */
+export type StyleMood = 'Day' | 'Night' | 'Imagery' | 'Playful';
+
+export const STYLE_MOODS: readonly StyleMood[] = ['Day', 'Night', 'Imagery', 'Playful'];
+
 export interface MapStyleDef {
   label: string;
+  mood: StyleMood;
+  /** Land, water and road colors. They stand in for the thumbnail while it loads or if it fails. */
+  swatches: readonly [string, string, string];
   url: string;
   category?: 'standard' | 'community';
   basemap: BasemapKind;
@@ -185,6 +193,8 @@ export function transformMapboxRequest(url: string, _resourceType?: string): { u
 export const MAP_STYLES = {
   standard: {
     label: 'Standard',
+    mood: 'Day',
+    swatches: ['#99dcfe', '#ece8e4', '#bfc3d1'],
     url: 'mapbox://styles/mapbox/standard',
     category: 'standard',
     basemap: 'standard',
@@ -193,6 +203,8 @@ export const MAP_STYLES = {
   },
   streets: {
     label: 'Streets',
+    mood: 'Day',
+    swatches: ['#f2ede9', '#98ddfe', '#d1e6e9'],
     url: 'mapbox://styles/mapbox/streets-v12',
     category: 'standard',
     basemap: 'classic',
@@ -200,6 +212,8 @@ export const MAP_STYLES = {
   },
   outdoors: {
     label: 'Outdoors',
+    mood: 'Day',
+    swatches: ['#79bcec', '#e5e0d4', '#a9cdd7'],
     url: 'mapbox://styles/mapbox/outdoors-v12',
     category: 'standard',
     basemap: 'classic',
@@ -207,6 +221,8 @@ export const MAP_STYLES = {
   },
   light: {
     label: 'Light',
+    mood: 'Day',
+    swatches: ['#dbdbdb', '#f9f9f9', '#efeff0'],
     url: 'mapbox://styles/mapbox/light-v11',
     category: 'standard',
     basemap: 'classic',
@@ -214,6 +230,8 @@ export const MAP_STYLES = {
   },
   dark: {
     label: 'Dark',
+    mood: 'Night',
+    swatches: ['#1f1f1f', '#363636', '#2a2a2a'],
     url: 'mapbox://styles/mapbox/dark-v11',
     category: 'standard',
     basemap: 'classic',
@@ -221,6 +239,8 @@ export const MAP_STYLES = {
   },
   satellite: {
     label: 'Satellite',
+    mood: 'Imagery',
+    swatches: ['#747e68', '#051323', '#3d5b47'],
     url: 'mapbox://styles/mapbox/satellite-v9',
     category: 'standard',
     basemap: 'classic',
@@ -228,6 +248,8 @@ export const MAP_STYLES = {
   },
   satelliteStreets: {
     label: 'Satellite Streets',
+    mood: 'Imagery',
+    swatches: ['#051323', '#9da18e', '#3f5c48'],
     url: 'mapbox://styles/mapbox/satellite-streets-v12',
     category: 'standard',
     basemap: 'classic',
@@ -235,6 +257,8 @@ export const MAP_STYLES = {
   },
   navigationDay: {
     label: 'Nav Day',
+    mood: 'Day',
+    swatches: ['#a2e5fe', '#faf9f6', '#d8efe9'],
     url: 'mapbox://styles/mapbox/navigation-guidance-day-v4',
     category: 'community',
     basemap: 'classic',
@@ -242,6 +266,8 @@ export const MAP_STYLES = {
   },
   navigationNight: {
     label: 'Nav Night',
+    mood: 'Night',
+    swatches: ['#637a85', '#3e4855', '#4c5c67'],
     url: 'mapbox://styles/mapbox/navigation-guidance-night-v4',
     category: 'community',
     basemap: 'classic',
@@ -249,6 +275,8 @@ export const MAP_STYLES = {
   },
   bubble: {
     label: 'Bubble',
+    mood: 'Playful',
+    swatches: ['#9db1cc', '#def4fc', '#abc4db'],
     url: 'mapbox://styles/mapbox-map-design/cl4wxue5j000c14r17uqrjpqb',
     category: 'community',
     basemap: 'classic',
@@ -256,6 +284,8 @@ export const MAP_STYLES = {
   },
   waterWorld: {
     label: 'Water World',
+    mood: 'Playful',
+    swatches: ['#f7ac71', '#267b91', '#85998b'],
     url: 'mapbox://styles/mapbox-map-design/cl4bxa84b000l15kg4a2q8zsr',
     category: 'community',
     basemap: 'classic',
@@ -263,6 +293,8 @@ export const MAP_STYLES = {
   },
   neonGlow: {
     label: 'Neon Glow',
+    mood: 'Night',
+    swatches: ['#014f65', '#10333c', '#0a4250'],
     url: 'mapbox://styles/mapbox-map-design/cl4gxqwi5001415l381n7qwak',
     category: 'community',
     basemap: 'classic',
@@ -270,6 +302,8 @@ export const MAP_STYLES = {
   },
   blackMarble: {
     label: 'Black Marble',
+    mood: 'Night',
+    swatches: ['#023047', '#4a5554', '#14160d'],
     url: 'mapbox://styles/mapbox-map-design/cl4fnpof7000i15p8jvz3aw2r',
     category: 'community',
     basemap: 'classic',
@@ -277,6 +311,8 @@ export const MAP_STYLES = {
   },
   vintage: {
     label: 'Vintage',
+    mood: 'Day',
+    swatches: ['#d0b19c', '#c1a48e', '#cdaf99'],
     url: 'mapbox://styles/mapstertech/cm15klhbj033m01r70dwy5ap8',
     category: 'community',
     basemap: 'classic',

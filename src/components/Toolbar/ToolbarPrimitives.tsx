@@ -3,8 +3,6 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
 import { Toggle } from '@/components/ui/toggle';
-import { SelectItem } from '@/components/ui/select';
-import { MAP_STYLES } from '@/config/mapbox';
 
 import { cn } from '@/lib/utils';
 
@@ -101,16 +99,4 @@ export function ToolbarToggle({
 
 export function Divider({ className }: { className?: string }) {
   return <div className={`w-px h-6 bg-border mx-1 ${className || ''}`} />;
-}
-
-export function MapStyleSelectItems() {
-  return (
-    <>
-      {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-        <SelectItem key={key} value={key} className="text-xs">
-          {label}
-        </SelectItem>
-      ))}
-    </>
-  );
 }

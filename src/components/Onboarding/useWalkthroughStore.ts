@@ -5,7 +5,9 @@ import { track } from '@/lib/analytics';
 import {
   createWalkthroughState,
   walkthroughReducer,
+  type ExtraCounts,
   type MapGesture,
+  type WalkthroughPlan,
   type WalkthroughAddTool,
   type WalkthroughEvent,
   type WalkthroughStage,
@@ -60,6 +62,21 @@ function executeStageEntryEffects(stage: WalkthroughStage) {
       projectStore.setIsInspectorOpen(true);
       break;
 
+    case 'camera-view-time-1':
+    case 'camera-view-time-2': {
+      // The inspector opened on the first view; it would sit over the timeline or the Add menu.
+      if (stage === 'camera-view-time-2') projectStore.setIsInspectorOpen(false);
+      if (playheadFits(projectStore, stage === 'camera-view-time-2')) {
+        useWalkthroughStore.getState().send({ type: 'playhead-fit-changed', fits: true });
+      }
+      break;
+    }
+
+    case 'camera-view-rewind':
+      projectStore.setIsInspectorOpen(false);
+      break;
+
+    case 'camera-view-play':
     case 'play-animation':
       projectStore.setPlayheadTime(0);
       // The timeline, with the Play button, is hidden on a phone while the inspector is open.
@@ -86,7 +103,81 @@ interface ProjectWatch<T> {
 
 const watch = <T,>(w: ProjectWatch<T>) => w;
 
+/**
+ * Whether a camera view can go at the playhead: not where a route's Follow camera is
+ * steering the map, and for the second view, later than the first.
+ */
+function playheadFits(state: ProjectStore, afterLastView: boolean): boolean {
+  const items = Object.values(state.items);
+  const t = state.playheadTime;
+  const steered = items.some(
+    (item) => item.kind === 'route' && item.autoCam?.enabled && t >= item.startTime && t <= item.endTime,
+  );
+  if (steered) return false;
+  if (!afterLastView) return true;
+  const camera = items.find((item) => item.kind === 'camera');
+  const lastTime = camera?.kind === 'camera' ? Math.max(-1, ...camera.keyframes.map((k) => k.time)) : -1;
+  return t > lastTime;
+}
+
+/** Why the camera view button is locked right now, or null when it may be used. */
+export function cameraViewLockedReason(): string | null {
+  const { isRunning, walkthrough } = useWalkthroughStore.getState();
+  if (!isRunning) return null;
+  switch (walkthrough.stage) {
+    case 'camera-view-time-1':
+      return 'Move the playhead to a time where the route camera is not steering, then add the view.';
+    case 'camera-view-time-2':
+      return 'Move the playhead forward first, then add the second view.';
+    case 'camera-view-move-1':
+    case 'camera-view-move-2':
+      return 'Move the map first, then add the view.';
+    default:
+      return null;
+  }
+}
+
+function countExtras(state: ProjectStore): ExtraCounts {
+  const items = Object.values(state.items);
+  const camera = items.find((item) => item.kind === 'camera');
+  return {
+    camera: camera?.kind === 'camera' ? camera.keyframes.length : 0,
+    boundary: items.filter((item) => item.kind === 'boundary').length,
+    callout: items.filter((item) => item.kind === 'callout').length,
+  };
+}
+
+const watchCount = (kind: keyof ExtraCounts, stages: WalkthroughStage[]) =>
+  watch({
+    select: (state) => countExtras(state)[kind],
+    stages,
+    toEvent: (count) => ({ type: 'item-count-changed', kind, count }),
+  });
+
 const PROJECT_WATCHES = [
+  watchCount('camera', ['camera-view-first', 'camera-view-second']),
+  watch({
+    select: (state) => playheadFits(state, false),
+    stages: ['camera-view-time-1'],
+    toEvent: (fits) => ({ type: 'playhead-fit-changed', fits }),
+  }),
+  watch({
+    select: (state) => playheadFits(state, true),
+    stages: ['camera-view-time-2'],
+    toEvent: (fits) => ({ type: 'playhead-fit-changed', fits }),
+  }),
+  watch({
+    select: (state) => state.isInspectorOpen && state.selectedItemId === null,
+    stages: ['project-settings'],
+    toEvent: (open) => (open ? { type: 'project-settings-opened' } : null),
+  }),
+  watchCount('boundary', ['boundary', 'boundary-insert']),
+  watchCount('callout', ['callout', 'callout-insert']),
+  watch({
+    select: (state) => state.playheadTime,
+    stages: ['camera-view-rewind'],
+    toEvent: (time) => ({ type: 'playhead-changed', time }),
+  }),
   watch({
     select: (state) => Object.values(state.items).filter((item) => item.kind === 'route').length,
     stages: ['route-places', 'route-preview', 'route-insert'],
@@ -130,6 +221,8 @@ function stopProjectSubscriptions() {
 const NEXT_EVENTS: Partial<Record<WalkthroughStage, WalkthroughEvent>> = {
   'play-animation': { type: 'play-preview-acknowledged' },
   'more-tools': { type: 'more-tools-acknowledged' },
+  'camera-view-play': { type: 'camera-view-play-acknowledged' },
+  'project-settings-panel': { type: 'project-settings-acknowledged' },
 };
 
 export interface WalkthroughStore {
@@ -139,7 +232,9 @@ export interface WalkthroughStore {
   showInvitation: boolean;
 
   // Actions
-  start: (isMobile?: boolean) => void;
+  start: (isMobile?: boolean, plan?: WalkthroughPlan) => void;
+  /** The "Keep going" button at the end of the trip tour. */
+  continueToExtras: () => void;
   dismiss: () => void;
   complete: () => void;
   next: () => void;
@@ -158,7 +253,7 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
   showMobileWarning: false,
   showInvitation: false,
 
-  start: (isMobile = false) => {
+  start: (isMobile = false, plan = 'trip') => {
     stopProjectSubscriptions();
 
     const initialRouteCount = Object.values(useProjectStore.getState().items).filter(
@@ -169,7 +264,7 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
 
     set({
       showInvitation: false,
-      walkthrough: createWalkthroughState(isMobile, initialRouteCount),
+      walkthrough: createWalkthroughState(isMobile, initialRouteCount, plan, countExtras(useProjectStore.getState())),
       isRunning: true,
     });
     storeStatus('started');
@@ -194,8 +289,13 @@ export const useWalkthroughStore = create<WalkthroughStore>((set, get) => ({
     const stage = get().walkthrough.stage;
     const event = NEXT_EVENTS[stage];
     if (!event) return;
-    if (stage === 'play-animation') useProjectStore.getState().setIsPlaying(false);
+    if (stage === 'play-animation' || stage === 'camera-view-play') useProjectStore.getState().setIsPlaying(false);
     get().send(event);
+  },
+
+  continueToExtras: () => {
+    if (get().walkthrough.stage !== 'more-tools') return;
+    get().send({ type: 'extras-continued', counts: countExtras(useProjectStore.getState()) });
   },
 
   send: (event) => {

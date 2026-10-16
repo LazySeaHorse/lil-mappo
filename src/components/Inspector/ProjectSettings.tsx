@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { useProjectDuration } from '@/hooks/useProjectDuration';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ColorRow, Field, InputText, InputNumber, SliderRow, SwitchRow } from './InspectorShared';
 import { formatMultiplier, formatPercent } from './inspectorValues';
@@ -15,7 +15,7 @@ import { InspectorSection } from './InspectorSection';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { SwitchField } from '@/components/ui/field';
 import { Monitor, Smartphone, ArrowRight, Settings2 } from 'lucide-react';
-import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
+import { ResolutionSelectItems } from '@/components/ui/render-select-items';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import { getExportLimits } from '@/lib/cloudAccess';
 import { parseLightPreset, parseProjection } from '@/store/domainValues';
@@ -71,25 +71,25 @@ export function ProjectSettings() {
             />
           </Field>
           <Field label="Frame rate">
-            <Select value={fps.toString()} onValueChange={(v) => setFps(Number(v) as 30 | 60)}>
-              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <FpsSelectItems limits={limits} />
-              </SelectContent>
-            </Select>
+            <SegmentedControl
+              options={[
+                { value: '30', label: '30' },
+                { value: '60', label: '60', disabled: limits.maxFps < 60, title: limits.maxFps < 60 ? '60 FPS requires a paid plan' : '60' },
+              ]}
+              value={fps.toString()}
+              onValueChange={(v) => setFps(Number(v) as 30 | 60)}
+              className="h-8 w-full"
+            />
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           <Field label="Aspect ratio">
-            <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
-              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="16:9">16:9</SelectItem>
-                <SelectItem value="21:9">21:9</SelectItem>
-                <SelectItem value="4:3">4:3</SelectItem>
-                <SelectItem value="1:1">1:1</SelectItem>
-              </SelectContent>
-            </Select>
+            <SegmentedControl
+              options={(['16:9', '21:9', '4:3', '1:1'] as AspectRatio[]).map((v) => ({ value: v, label: v }))}
+              value={aspectRatio}
+              onValueChange={(v) => setAspectRatio(v)}
+              className="h-8 w-full"
+            />
           </Field>
 
           <Field label="Orientation">
@@ -139,26 +139,27 @@ export function ProjectSettings() {
 
       <InspectorSection kind="project" id="env">
         <Field label="Projection" hint={MAP_SETTING_HINTS.projection}>
-          <Select value={projection} onValueChange={(v) => setProjection(parseProjection(v))}>
-            <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="globe">Globe</SelectItem>
-              <SelectItem value="mercator">Mercator</SelectItem>
-            </SelectContent>
-          </Select>
+          <SegmentedControl
+            options={[{ value: 'globe', label: 'Globe' }, { value: 'mercator', label: 'Mercator' }]}
+            value={projection}
+            onValueChange={(v) => setProjection(parseProjection(v))}
+            className="h-8 w-full"
+          />
         </Field>
 
         {capabilities.timeOfDayPreset && (
           <Field label="Lighting" hint={MAP_SETTING_HINTS.lighting}>
-            <Select value={lightPreset} onValueChange={(v) => setLightPreset(parseLightPreset(v))}>
-              <SelectTrigger className="h-8 text-sm w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="day">Day</SelectItem>
-                <SelectItem value="night">Night</SelectItem>
-                <SelectItem value="dusk">Dusk</SelectItem>
-                <SelectItem value="dawn">Dawn</SelectItem>
-              </SelectContent>
-            </Select>
+            <SegmentedControl
+              options={[
+                { value: 'day', label: 'Day' },
+                { value: 'dusk', label: 'Dusk' },
+                { value: 'night', label: 'Night' },
+                { value: 'dawn', label: 'Dawn' },
+              ]}
+              value={lightPreset}
+              onValueChange={(v) => setLightPreset(parseLightPreset(v))}
+              className="h-8 w-full"
+            />
           </Field>
         )}
 

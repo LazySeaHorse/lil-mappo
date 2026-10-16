@@ -8,10 +8,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MapStylePicker } from './MapStylePicker';
 import { RouteAddDropdown } from './RouteAddDropdown';
 import { AnnotationAddDropdown } from '@/annotations/toolbar/AnnotationAddDropdown';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
-import { ToolbarButton, ToolbarToggle, Divider, MapStyleSelectItems } from './ToolbarPrimitives';
+import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
@@ -59,14 +60,7 @@ function TabletLayerDropdown({
       <DropdownMenuContent align="start" className="w-64 bg-background/95 p-3 space-y-4 rounded-2xl shadow-2xl border-border/50">
         <div className="space-y-2">
           <label className="text-xs font-medium text-foreground/80 px-1">Map Style</label>
-          <Select value={mapStyle} onValueChange={setMapStyle}>
-            <SelectTrigger data-walkthrough="map-style" className="h-9 text-xs w-full focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background/50 rounded-lg">
-              <SelectValue placeholder="Map Style" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-              <MapStyleSelectItems />
-            </SelectContent>
-          </Select>
+          <MapStylePicker variant="inline" value={mapStyle} onChange={setMapStyle} />
         </div>
         <div data-walkthrough="map-3d" className="grid grid-cols-2 gap-2">
           <DropdownToggle icon={<Mountain size={14} />} label="Terrain" active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying && !isScrubbing} />
@@ -92,14 +86,7 @@ function InlineLayerGroup({
   return (
     <div className="flex items-center gap-1">
       <div className="flex items-center gap-1 px-1">
-        <Select value={mapStyle} onValueChange={setMapStyle}>
-          <SelectTrigger data-walkthrough="map-style" className="h-8 text-xs w-[130px] focus:ring-1 focus:ring-ring focus:ring-offset-0 border-border bg-background">
-            <SelectValue placeholder="Map Style" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-            <MapStyleSelectItems />
-          </SelectContent>
-        </Select>
+        <MapStylePicker value={mapStyle} onChange={setMapStyle} />
       </div>
       <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
       <Divider />

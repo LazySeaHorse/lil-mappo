@@ -123,4 +123,58 @@ describe('quick walkthrough progression', () => {
       'route-places',
     );
   });
+
+  it('goes on to camera views, a border and a callout only when the user chooses to', () => {
+    const counts = { camera: 1, boundary: 0, callout: 0 };
+    const count = (kind: 'camera' | 'boundary' | 'callout', n: number): WalkthroughEvent => ({ type: 'item-count-changed', kind, count: n });
+
+    expect(reduce(at('more-tools'), { type: 'more-tools-acknowledged' }).stage).toBe('render');
+
+    let state = reduce(at('more-tools'), { type: 'extras-continued', counts });
+    expect(state.plan).toBe('trip+extras');
+    expect(state.stage).toBe('camera-view-time-1');
+
+    state = reduce(state, { type: 'playhead-fit-changed', fits: false });
+    expect(state.stage).toBe('camera-view-time-1');
+    state = reduce(state, { type: 'playhead-fit-changed', fits: true });
+    expect(state.stage).toBe('camera-view-move-1');
+    // The view stays locked until the map moves.
+    state = reduce(state, count('camera', 2));
+    expect(state.stage).toBe('camera-view-move-1');
+    state = reduce(state, gesture('pan'));
+    expect(state.stage).toBe('camera-view-first');
+
+    state = reduce(state, count('camera', 1));
+    expect(state.stage).toBe('camera-view-first');
+    state = reduce(state, count('camera', 2));
+    expect(state.stage).toBe('camera-view-time-2');
+    state = reduce(state, { type: 'playhead-fit-changed', fits: true }, gesture('zoom'));
+    expect(state.stage).toBe('camera-view-second');
+    state = reduce(state, count('camera', 3));
+    expect(state.stage).toBe('camera-view-rewind');
+    state = reduce(state, { type: 'playhead-changed', time: 2 });
+    expect(state.stage).toBe('camera-view-rewind');
+    state = reduce(state, { type: 'playhead-changed', time: 0 });
+    expect(state.stage).toBe('camera-view-play');
+    state = reduce(state, { type: 'camera-view-play-acknowledged' });
+    expect(state.stage).toBe('boundary');
+    state = reduce(state, count('callout', 1));
+    expect(state.stage).toBe('boundary');
+    state = reduce(state, { type: 'add-tool-opened', tool: 'boundary' });
+    expect(state.stage).toBe('boundary-insert');
+    state = reduce(state, { type: 'add-tool-closed', tool: 'boundary' });
+    expect(state.stage).toBe('boundary');
+    state = reduce(state, { type: 'add-tool-opened', tool: 'boundary' }, count('boundary', 1));
+    expect(state.stage).toBe('callout');
+    state = reduce(state, { type: 'add-tool-opened', tool: 'callout' }, count('callout', 1));
+    expect(state.stage).toBe('project-settings');
+    state = reduce(state, { type: 'project-settings-opened' });
+    expect(state.stage).toBe('project-settings-panel');
+    state = reduce(state, { type: 'project-settings-acknowledged' });
+    expect(state.stage).toBe('render');
+  });
+
+  it('starts the second act on its own from the menu', () => {
+    expect(createWalkthroughState(false, 0, 'extras').stage).toBe('camera-view-time-1');
+  });
 });

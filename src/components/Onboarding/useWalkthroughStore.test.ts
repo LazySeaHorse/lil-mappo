@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useWalkthroughStore, WALKTHROUGH_STORAGE_KEY } from './useWalkthroughStore';
+import { cameraViewLockedReason, useWalkthroughStore, WALKTHROUGH_STORAGE_KEY } from './useWalkthroughStore';
 import { createWalkthroughState } from './walkthroughState';
 import { useProjectStore } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
@@ -180,5 +180,54 @@ describe('useWalkthroughStore store-level synchronization and entry effects', ()
     useProjectStore.getState().addItem(newRoute('late'));
     expect(walkthrough().isRunning).toBe(false);
     expect(stage()).toBe('route-places');
+  });
+
+  it('counts camera views added after Keep going, not the ones already there', () => {
+    const view = (id: string, time: number) => ({
+      id, time, easing: 'linear' as const, followRoute: null,
+      camera: { center: [0, 0] as [number, number], zoom: 3, pitch: 0, bearing: 0, altitude: null },
+    });
+    walkthrough().start(false);
+    useWalkthroughStore.setState({ walkthrough: { ...createWalkthroughState(false, 0), stage: 'more-tools' } });
+    useProjectStore.getState().addCameraKeyframe(view('k0', 0));
+
+    walkthrough().continueToExtras();
+    // Nothing steers the camera at 0s, so the tour goes straight on to moving the map.
+    expect(stage()).toBe('camera-view-move-1');
+    expect(cameraViewLockedReason()).toMatch(/Move the map/);
+
+    walkthrough().recordMapGesture('pan');
+    expect(stage()).toBe('camera-view-first');
+    expect(cameraViewLockedReason()).toBeNull();
+
+    useProjectStore.getState().addCameraKeyframe(view('k1', 1));
+    expect(stage()).toBe('camera-view-time-2');
+    expect(cameraViewLockedReason()).toMatch(/playhead forward/);
+
+    useProjectStore.getState().setPlayheadTime(2);
+    expect(stage()).toBe('camera-view-move-2');
+    walkthrough().recordMapGesture('zoom');
+    expect(stage()).toBe('camera-view-second');
+
+    useProjectStore.getState().addCameraKeyframe(view('k2', 2));
+    expect(stage()).toBe('camera-view-rewind');
+
+    useProjectStore.getState().setPlayheadTime(0);
+    expect(stage()).toBe('camera-view-play');
+  });
+
+  it('waits for the playhead to leave a Follow route stretch before the first camera view', () => {
+    useProjectStore.getState().addItem(newRoute());
+    const route = useProjectStore.getState().items.r1 as RouteItem;
+    useProjectStore.getState().updateItem('r1', { startTime: 0, endTime: 10, autoCam: autoCamForRoute(route) });
+    walkthrough().start(false);
+    useWalkthroughStore.setState({ walkthrough: { ...createWalkthroughState(false, 0), stage: 'more-tools' } });
+
+    walkthrough().continueToExtras();
+    expect(stage()).toBe('camera-view-time-1');
+    expect(cameraViewLockedReason()).toMatch(/playhead/);
+
+    useProjectStore.getState().setPlayheadTime(12);
+    expect(stage()).toBe('camera-view-move-1');
   });
 });

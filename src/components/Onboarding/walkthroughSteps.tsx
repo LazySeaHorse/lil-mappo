@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Placement } from '@floating-ui/react';
-import type { MapGesture, WalkthroughState, WalkthroughStage } from './walkthroughState';
+import type { MapGesture, WalkthroughPlan, WalkthroughState, WalkthroughStage } from './walkthroughState';
 import { GestureStatus } from './GestureStatus';
 import { ROUTE_TERMS } from '@/lib/terms';
 
@@ -27,10 +27,30 @@ export interface WalkthroughStepConfig {
   scrollIntoView?: boolean;
   buttons?: ('skip' | 'primary')[];
   nextLabel?: string;
+  /** A second way forward beside the primary button, e.g. "Finish" next to "Keep going". */
+  secondaryLabel?: string;
   renderContent: (progress: WalkthroughProgress) => React.ReactNode;
 }
 
-export function getWalkthroughStages(isMobile: boolean): VisibleWalkthroughStage[] {
+const EXTRAS_STAGES: VisibleWalkthroughStage[] = [
+  'camera-view-time-1',
+  'camera-view-move-1',
+  'camera-view-first',
+  'camera-view-time-2',
+  'camera-view-move-2',
+  'camera-view-second',
+  'camera-view-rewind',
+  'camera-view-play',
+  'boundary',
+  'boundary-insert',
+  'callout',
+  'callout-insert',
+  'project-settings',
+  'project-settings-panel',
+];
+
+export function getWalkthroughStages(isMobile: boolean, plan: WalkthroughPlan = 'trip'): VisibleWalkthroughStage[] {
+  if (plan === 'extras') return [...EXTRAS_STAGES, 'render'];
   return [
     'map-controls',
     ...(isMobile ? ['open-add-menu' as const] : []),
@@ -41,6 +61,7 @@ export function getWalkthroughStages(isMobile: boolean): VisibleWalkthroughStage
     'follow-route',
     'play-animation',
     'more-tools',
+    ...(plan === 'trip+extras' ? EXTRAS_STAGES : []),
     'render',
   ];
 }
@@ -182,12 +203,174 @@ export function getWalkthroughStepConfig(
       return {
         stage,
         target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
-        title: 'More things you can add',
+        title: 'Your trip video is ready',
         placement: 'bottom',
+        buttons: ['skip', 'primary'],
+        nextLabel: 'Keep going',
+        secondaryLabel: 'Go to Export',
+        renderContent: () =>
+          'You can export now. Or keep going for 2 more minutes: add camera views, a border and a callout.',
+      };
+
+    case 'camera-view-time-1':
+      return {
+        stage,
+        target: '[data-walkthrough="timeline-panel"]',
+        title: 'Pick a time for your first view',
+        placement: 'top-start',
+        spotlightPadding: 0,
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () =>
+          'Drag the playhead to a time after the route ends. A camera view cannot go where Follow route already steers the camera.',
+      };
+
+    case 'camera-view-move-1':
+      return {
+        stage,
+        target: '[data-walkthrough="map-coachmark-anchor"]',
+        title: 'Move the map',
+        placement: 'right-start',
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () =>
+          `${isMobile ? 'Drag' : 'Left-click and drag'} the map to where the video should look at this time. The camera button stays locked until you do.`,
+      };
+
+    case 'camera-view-first':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
+        title: 'Save your first camera view',
+        placement: 'bottom',
+        buttons: ['skip'],
+        renderContent: () =>
+          `${isMobile ? 'Open the Add menu, then press' : 'Press'} the camera button to save what the map shows now. The camera flies from view to view.`,
+      };
+
+    case 'camera-view-time-2':
+      return {
+        stage,
+        target: '[data-walkthrough="timeline-panel"]',
+        title: 'Move the playhead forward',
+        placement: 'top-start',
+        spotlightPadding: 0,
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () => 'Drag the playhead to the right of your first view. The camera flies between the two in that time.',
+      };
+
+    case 'camera-view-move-2':
+      return {
+        stage,
+        target: '[data-walkthrough="map-coachmark-anchor"]',
+        title: 'Move the map somewhere new',
+        placement: 'right-start',
+        hideOverlay: true,
+        buttons: ['skip'],
+        renderContent: () => 'Move the map to a different place, zoom or angle. The camera button stays locked until you do.',
+      };
+
+    case 'camera-view-second':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="camera-keyframe"]',
+        title: 'Save a second camera view',
+        placement: 'bottom',
+        buttons: ['skip'],
+        renderContent: () => `${isMobile ? 'Open the Add menu, then press' : 'Press'} the camera button again.`,
+      };
+
+    case 'camera-view-rewind':
+      return {
+        stage,
+        target: '[data-walkthrough="timeline-start"]',
+        title: 'Go back to the start',
+        placement: 'top',
+        buttons: ['skip'],
+        renderContent: () => 'Press Jump to Start, so the video plays from the first view.',
+      };
+
+    case 'camera-view-play':
+      return {
+        stage,
+        target: '[data-walkthrough="timeline-play"]',
+        title: 'Watch the camera fly',
+        placement: 'top',
+        buttons: ['skip', 'primary'],
+        nextLabel: 'Next',
+        renderContent: () => 'Press Play. The camera flies smoothly from your first view to your second.',
+      };
+
+    case 'boundary':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="add-boundary"]',
+        title: 'Highlight a border',
+        placement: 'bottom',
+        buttons: ['skip'],
+        renderContent: () =>
+          `${isMobile ? 'Open the Add menu and choose Add Boundary.' : 'Click Add Boundary.'} You can outline a country, state or city.`,
+      };
+
+    case 'boundary-insert':
+      return {
+        stage,
+        target: '[data-walkthrough="boundary-action"]',
+        title: 'Pick a place and insert it',
+        placement: isMobile ? 'top' : 'right',
+        hideOverlay: true,
+        compact: true,
+        buttons: ['skip'],
+        renderContent: () => 'Search for a place, pick a result, then press Insert boundary.',
+      };
+
+    case 'callout':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="add-menu"]' : '[data-walkthrough="add-callout"]',
+        title: 'Add a callout',
+        placement: 'bottom',
+        buttons: ['skip'],
+        renderContent: () =>
+          `${isMobile ? 'Open the Add menu and choose Add Callout.' : 'Click Add Callout.'} A callout is a pin with a label on the map.`,
+      };
+
+    case 'callout-insert':
+      return {
+        stage,
+        target: '[data-walkthrough="callout-action"]',
+        title: 'Pick a place and create it',
+        placement: isMobile ? 'top' : 'right',
+        hideOverlay: true,
+        compact: true,
+        buttons: ['skip'],
+        renderContent: () => 'Search for a place, or click the crosshair and then the map. Then press Create callout.',
+      };
+
+    case 'project-settings':
+      return {
+        stage,
+        target: isMobile ? '[data-walkthrough="map-tools"]' : '[data-walkthrough="map-settings"]',
+        title: 'Open Map Settings',
+        placement: 'bottom',
+        buttons: ['skip'],
+        renderContent: () =>
+          isMobile
+            ? 'Open Map Display, then choose Full Map Settings.'
+            : 'Click Map Settings to set up the video itself.',
+      };
+
+    case 'project-settings-panel':
+      return {
+        stage,
+        target: '[data-walkthrough="inspector-panel"]',
+        title: 'Adjust your video settings',
+        placement: isMobile ? 'top' : 'left-start',
         buttons: ['skip', 'primary'],
         nextLabel: 'Next',
         renderContent: () =>
-          'Camera views, boundaries, callouts, and map styles are in the toolbar. Try them when you are ready.',
+          'Set the video length, aspect ratio, frame rate and resolution here. Below them are the map style, lighting and terrain.',
       };
 
     case 'render':

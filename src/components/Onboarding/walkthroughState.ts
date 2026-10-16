@@ -15,6 +15,20 @@ export type WalkthroughStage =
   | 'follow-route'
   | 'play-animation'
   | 'more-tools'
+  | 'camera-view-time-1'
+  | 'camera-view-move-1'
+  | 'camera-view-first'
+  | 'camera-view-time-2'
+  | 'camera-view-move-2'
+  | 'camera-view-second'
+  | 'camera-view-rewind'
+  | 'camera-view-play'
+  | 'boundary'
+  | 'boundary-insert'
+  | 'callout'
+  | 'callout-insert'
+  | 'project-settings'
+  | 'project-settings-panel'
   | 'render'
   | 'complete';
 
@@ -29,9 +43,33 @@ export type WalkthroughEvent =
   | { type: 'follow-route-changed'; enabled: boolean }
   | { type: 'play-preview-acknowledged' }
   | { type: 'more-tools-acknowledged' }
+  | { type: 'extras-continued'; counts: ExtraCounts }
+  | { type: 'item-count-changed'; kind: keyof ExtraCounts; count: number }
+  | { type: 'playhead-changed'; time: number }
+  /** Whether the playhead is somewhere a new camera view may go. */
+  | { type: 'playhead-fit-changed'; fits: boolean }
+  | { type: 'project-settings-opened' }
+  | { type: 'camera-view-play-acknowledged' }
+  | { type: 'project-settings-acknowledged' }
   | { type: 'export-opened' };
 
+/** How many camera views, boundaries and callouts the project holds. */
+export interface ExtraCounts {
+  camera: number;
+  boundary: number;
+  callout: number;
+}
+
+/**
+ * `trip` is the first trip video. `trip+extras` goes on to camera views, a border and a
+ * callout when the user chooses to keep going. `extras` is that second act on its own.
+ */
+export type WalkthroughPlan = 'trip' | 'trip+extras' | 'extras';
+
 export interface WalkthroughState {
+  plan: WalkthroughPlan;
+  /** Counts when the second act began; a larger count means the user added one. */
+  extraBaseline: ExtraCounts;
   stage: WalkthroughStage;
   isMobile: boolean;
   /** Routes in the project when the tour started; a larger count means the user added one. */
@@ -44,9 +82,18 @@ export interface WalkthroughState {
 /** Stages in which the Plan Route panel is open and waits for the user to finish the route. */
 const ROUTE_PANEL_STAGES: readonly WalkthroughStage[] = ['route-places', 'route-preview', 'route-insert'];
 
-export function createWalkthroughState(isMobile: boolean, initialRouteCount: number): WalkthroughState {
+const NO_EXTRAS: ExtraCounts = { camera: 0, boundary: 0, callout: 0 };
+
+export function createWalkthroughState(
+  isMobile: boolean,
+  initialRouteCount: number,
+  plan: WalkthroughPlan = 'trip',
+  extraBaseline: ExtraCounts = NO_EXTRAS,
+): WalkthroughState {
   return {
-    stage: 'map-controls',
+    plan,
+    extraBaseline,
+    stage: plan === 'extras' ? 'camera-view-time-1' : 'map-controls',
     isMobile,
     initialRouteCount,
     routeEndpoints: { start: false, end: false },
@@ -117,6 +164,67 @@ export function walkthroughReducer(
   }
 
   if (state.stage === 'more-tools' && event.type === 'more-tools-acknowledged') {
+    return { ...state, stage: 'render' };
+  }
+
+  if (state.stage === 'more-tools' && event.type === 'extras-continued') {
+    return { ...state, plan: 'trip+extras', extraBaseline: event.counts, stage: 'camera-view-time-1' };
+  }
+
+  if (event.type === 'item-count-changed') {
+    const added = event.count - state.extraBaseline[event.kind];
+    if (state.stage === 'camera-view-first' && event.kind === 'camera' && added >= 1) {
+      return { ...state, stage: 'camera-view-time-2' };
+    }
+    if (state.stage === 'camera-view-second' && event.kind === 'camera' && added >= 2) {
+      return { ...state, stage: 'camera-view-rewind' };
+    }
+    if ((state.stage === 'boundary' || state.stage === 'boundary-insert') && event.kind === 'boundary' && added >= 1) {
+      return { ...state, stage: 'callout' };
+    }
+    if ((state.stage === 'callout' || state.stage === 'callout-insert') && event.kind === 'callout' && added >= 1) {
+      return { ...state, stage: 'project-settings' };
+    }
+    return state;
+  }
+
+  if (event.type === 'playhead-fit-changed' && event.fits) {
+    if (state.stage === 'camera-view-time-1') return { ...state, stage: 'camera-view-move-1' };
+    if (state.stage === 'camera-view-time-2') return { ...state, stage: 'camera-view-move-2' };
+  }
+
+  // A camera view stays locked until the map has moved, so the views differ.
+  if (event.type === 'map-gesture') {
+    if (state.stage === 'camera-view-move-1') return { ...state, stage: 'camera-view-first' };
+    if (state.stage === 'camera-view-move-2') return { ...state, stage: 'camera-view-second' };
+  }
+
+  if (state.stage === 'project-settings' && event.type === 'project-settings-opened') {
+    return { ...state, stage: 'project-settings-panel' };
+  }
+
+  if (state.stage === 'camera-view-rewind' && event.type === 'playhead-changed' && event.time === 0) {
+    return { ...state, stage: 'camera-view-play' };
+  }
+
+  if (event.type === 'add-tool-opened' && event.tool === 'boundary' && state.stage === 'boundary') {
+    return { ...state, stage: 'boundary-insert' };
+  }
+  if (event.type === 'add-tool-opened' && event.tool === 'callout' && state.stage === 'callout') {
+    return { ...state, stage: 'callout-insert' };
+  }
+  if (event.type === 'add-tool-closed' && event.tool === 'boundary' && state.stage === 'boundary-insert') {
+    return { ...state, stage: 'boundary' };
+  }
+  if (event.type === 'add-tool-closed' && event.tool === 'callout' && state.stage === 'callout-insert') {
+    return { ...state, stage: 'callout' };
+  }
+
+  if (state.stage === 'camera-view-play' && event.type === 'camera-view-play-acknowledged') {
+    return { ...state, stage: 'boundary' };
+  }
+
+  if (state.stage === 'project-settings-panel' && event.type === 'project-settings-acknowledged') {
     return { ...state, stage: 'render' };
   }
 
