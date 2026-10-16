@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MapStylePicker } from './MapStylePicker';
-import { existsSync } from 'node:fs';
+import { MapStylePicker, THUMBNAIL_FILES } from './MapStylePicker';
 import { MAP_STYLES } from '@/config/mapbox';
 
 describe('MapStylePicker', () => {
@@ -32,7 +31,7 @@ describe('MapStylePicker', () => {
   it('has a screenshot for every style and for each time of day of Standard', () => {
     const files = [...Object.keys(MAP_STYLES), 'standard-dawn', 'standard-dusk', 'standard-night'];
     for (const file of files) {
-      expect(existsSync(`public/map-styles/${file}.webp`), file).toBe(true);
+      expect(THUMBNAIL_FILES, file).toContain(file);
     }
   });
 

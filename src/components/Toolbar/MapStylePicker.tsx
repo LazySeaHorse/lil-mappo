@@ -5,8 +5,15 @@ import { MAP_STYLES, STYLE_MOODS, type MapStyleDef, type StyleMood } from '@/con
 
 const THUMB_PX = 40;
 
-/** Screenshots of the real styles, all of the same place (see public/map-styles). */
-const thumbnailUrl = (file: string) => `${import.meta.env.BASE_URL}map-styles/${file}.webp`;
+/**
+ * Screenshots of the real styles, all of the same place (see src/assets/map-styles). Vite gives each a
+ * content-hashed URL, so browsers cache it until the file changes (vite.config.ts keeps them from being inlined).
+ */
+const THUMBNAILS = import.meta.glob<string>('@/assets/map-styles/*.webp', { eager: true, query: '?url', import: 'default' });
+const thumbnailUrl = (file: string) => THUMBNAILS[`/src/assets/map-styles/${file}.webp`];
+
+/** The style keys and Standard's times of day that have a screenshot. */
+export const THUMBNAIL_FILES = Object.keys(THUMBNAILS).map((path) => path.replace(/^.*\/|\.webp$/g, ''));
 
 /** Standard is the one style with 3D buildings and a time of day, shown as small pictures of each. */
 const STANDARD_TIMES = [
