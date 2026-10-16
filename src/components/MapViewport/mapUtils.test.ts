@@ -3,10 +3,22 @@ import { describe, expect, it } from 'vitest';
 import { LABEL_CATEGORIES, STANDARD_CAPABILITIES } from '@/config/mapbox';
 import { detectRuntimeCapabilities } from './mapUtils';
 
-function mapWithLayers(ids: string[], sources: string[] = []): MapboxMap {
+function mapWithLayers(ids: string[], sources: string[] = [], vectorLayerIds?: string[]): MapboxMap {
   return {
     getStyle: () => ({ version: 8, sources: {}, layers: ids.map((id) => ({ id })) }),
-    getSource: (id: string) => (sources.includes(id) ? {} : undefined),
+    getSource: (id: string) => (sources.includes(id) ? { vectorLayerIds } : undefined),
+  } as unknown as MapboxMap;
+}
+
+/** A map whose style draws `sourceLayers` from the composite source. */
+function mapWithCompositeLayers(sourceLayers: string[], vectorLayerIds?: string[]): MapboxMap {
+  return {
+    getStyle: () => ({
+      version: 8,
+      sources: {},
+      layers: sourceLayers.map((layer) => ({ id: layer, source: 'composite', 'source-layer': layer })),
+    }),
+    getSource: () => ({ vectorLayerIds }),
   } as unknown as MapboxMap;
 }
 
@@ -19,12 +31,21 @@ describe('detectRuntimeCapabilities', () => {
     expect(caps.buildings3d).toBe(true);
   });
 
-  it('offers 3D buildings on classic styles only when they carry the composite (Streets) source', () => {
-    expect(detectRuntimeCapabilities(mapWithLayers(['road-label'], ['composite']), 'streets').buildings3d).toBe(true);
-    expect(detectRuntimeCapabilities(mapWithLayers(['road-label'], ['composite']), 'satelliteStreets').buildings3d).toBe(true);
-    // satellite-v9 is raster only; community styles may ship their own vector sources
+  it('offers 3D buildings only when the composite source has a building layer', () => {
+    // Streets draws buildings from the composite source
+    expect(detectRuntimeCapabilities(mapWithCompositeLayers(['road', 'building']), 'streets').buildings3d).toBe(true);
+    // Bubble, Neon Glow, Water World and Black Marble have a composite source but no building layer
+    expect(detectRuntimeCapabilities(mapWithCompositeLayers(['water', 'landcover']), 'bubble').buildings3d).toBe(false);
+    expect(detectRuntimeCapabilities(mapWithCompositeLayers(['water'], ['water', 'depth']), 'blackMarble').buildings3d).toBe(false);
+    // satellite-v9 is raster only; vintage ships its own vector source
     expect(detectRuntimeCapabilities(mapWithLayers(['satellite'], ['mapbox']), 'satellite').buildings3d).toBe(false);
     expect(detectRuntimeCapabilities(mapWithLayers(['water'], ['custom-tiles']), 'vintage').buildings3d).toBe(false);
+  });
+
+  it('finds a building layer the source lists even when the style draws none', () => {
+    // satellite-streets uses the Streets tileset but only draws labels from it
+    expect(detectRuntimeCapabilities(mapWithCompositeLayers(['place_label']), 'satelliteStreets').buildings3d).toBe(false);
+    expect(detectRuntimeCapabilities(mapWithCompositeLayers(['place_label'], ['place_label', 'building']), 'satelliteStreets').buildings3d).toBe(true);
   });
 
   it('returns only categories matching loaded layers for classic styles', () => {

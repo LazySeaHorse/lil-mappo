@@ -6,7 +6,7 @@ import type {
 import { useProjectStore } from '@/store/useProjectStore';
 import { LABEL_CATEGORIES, MAP_STYLES, isStandardBasemap, resolveFog } from '@/config/mapbox';
 import { track } from '@/lib/analytics';
-import { detectRuntimeCapabilities } from '../mapUtils';
+import { compositeHasBuildings, detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
 
@@ -280,6 +280,17 @@ export class BasemapController {
     this.onStyleLoad?.();
   };
 
+  /** The composite source lists its layers after the style loads; offer 3D buildings once it has `building`. */
+  private refreshBuildingsCapability(): void {
+    const state = useProjectStore.getState();
+    const current = state.detectedCapabilities;
+    if (!current || isStandardBasemap(state.mapStyle)) return;
+    const buildings3d = compositeHasBuildings(this.map);
+    if (buildings3d === current.buildings3d) return;
+    state.setDetectedCapabilities({ ...current, buildings3d });
+    this.reconcile();
+  }
+
   private readonly handleStyleImageMissing = (event: { id: string }) => {
     if (this.disposed) return;
     void handleMissingStyleImage(this.map, event.id);
@@ -288,6 +299,10 @@ export class BasemapController {
   private readonly handleStyleImportData = () => this.reconcile();
 
   private readonly handleSourceData = (event: MapSourceDataEvent) => {
+    if (event.sourceId === 'composite' && event.sourceDataType === 'metadata') {
+      this.refreshBuildingsCapability();
+      return;
+    }
     if (event.sourceId !== 'mapbox-dem') return;
     this.schedule(() => this.updateTerrainLoading());
   };
