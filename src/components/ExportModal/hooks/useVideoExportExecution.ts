@@ -7,6 +7,7 @@ import type { ExportPlan } from '../exportPlan';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { bucketDuration, setPersonProps, track, type ExportEventProps } from '@/lib/analytics';
 import { classifyExportError } from '@/lib/analytics/classify';
+import { isChunkLoadError } from '@/lib/chunkErrors';
 import { errorMessage } from '@/lib/utils';
 
 export function useVideoExportExecution(
@@ -69,7 +70,11 @@ export function useVideoExportExecution(
         track('export_cancelled', exportProps);
       } else {
         track('export_failed', { ...exportProps, error_class: classifyExportError(err) });
-        setError(errorMessage(err, 'Export failed'));
+        setError(
+          isChunkLoadError(err)
+            ? 'A new version is available. Reload the page to export.'
+            : errorMessage(err, 'Export failed'),
+        );
       }
     } finally {
       abortRef.current = null;
