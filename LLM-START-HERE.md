@@ -489,10 +489,19 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 - **Guest Users**: Restricted to 3 map loads (tracked in `localStorage`). Blocked from exporting or saving projects.
 - **Free Signed-in Users**: 50 map loads/month (server-tracked). Throttled to 3 loads/day after 30 monthly loads. Limited to 3 cloud saves, 30s timeline duration, and 720p 30fps exports.
 - **Wanderer ($7/mo)**: Unlimited map loads, unlimited cloud saves, unlimited quality settings.
+- **3-day pass ($3 once, "Pro pass")**: Everything Wanderer gives, for 3 days. See 6.10a.
 - **BYOK (Bring Your Own Key)**: Lifts map load counter and quality/duration limits for *all* users (even guests). Blacklists the app's own key to prevent token theft/bypass.
 - **Implementation**: `src/lib/cloudAccess.ts` provides the logic; `src/hooks/useMapLoadGate.ts` and `src/components/MapLoadGate.tsx` enforce the map mounting logic.
 - **Expiry Logic**: `api/dodo-webhook.ts` now deletes the subscription row on expiry, effectively dropping the user to the free tier (rather than the legacy 'Nomad' tier).
 - **Cleanup**: The daily account purge (`api/cleanup-free-accounts.ts`) is temporarily disabled via early return and `vercel.json` cron removal to allow free users to exist while cloud renders are broken.
+
+### 6.10a Pro Pass (3-day pass)
+
+A one-time $3 Dodo product (`DODO_PRODUCT_PASS_3DAY`) that unlocks every Wanderer gate for 3 days.
+- **Storage**: `public.pro_passes (user_id, expires_at)` (migration 023), separate from `subscriptions` so a pass and a subscription can never overwrite each other. Owner can SELECT; no browser writes.
+- **Grant**: only `payment.succeeded` in `api/dodo-webhook.ts` → `BillingService.grantProPass` → `grant_pro_pass(user, payment_id, 3)` (service role only). Requires Dodo's `product_cart` to hold the pass product, `metadata.supabase_uid`, and an amount that covers the price (USD >= 300 cents; other currencies non-zero). The payment id goes into `processed_payments` in the same transaction, so a replay cannot extend twice. Stacking: new end = max(now, current end) + 3 days. The checkout return never grants; the client only refetches.
+- **Checkout**: `plan: "pass_3day"` in `api/dodo-create-session.ts` (signed in, quantity 1, 409 for an active subscriber). UI: a pass row under Subscribe in `UpgradeModal` (hidden for subscribers, "Add 3 days" while a pass runs); settings show "Pro pass / Ends Oct 21, 3:00 PM".
+- **Entitlement**: `isWanderer` = subscription rules (`hasActiveSubscription`) OR `pass_expires_at` in the future. `useSubscription` merges the pass into the subscription row (`withProPass`; a pass alone becomes a row with status `none`, which has no tier: use `subscriptionTier`) and refetches just after the pass ends. Server copy: `isWanderer` + `loadEntitlement` in `api/_lib/entitlement.ts`; SQL copy: `has_pro_access(uuid)` (used by `upsert_cloud_project`, paid vote weight, free-account cleanup). Keep all three in sync; the parity table is in `src/lib/cloudAccess.test.ts`, SQL tests in `supabase/tests/pro_pass.test.sql`.
 
 ### 6.11 BYOK Security: Blacklist Enforcement + Quota Fail-Closed
 
@@ -733,7 +742,7 @@ Code: `src/lib/analytics/`, `api/_lib/analytics.ts`, `api/_lib/dodo/analyticsEve
 - **After sign-out the SDK stays loaded.** `stop()` stops recording and resets identity, but the dynamic import cannot be unloaded and the instance is reused on the next sign-in. Privacy for that window rests on `before_send` returning `null` whenever there is no active user (this also drops `$snapshot` replay chunks); do not weaken that guard.
 - **Anonymous counters (signed-out).** `signup_submitted`, `signin_failed`, `guest_route_added`, `guest_gate_hit` go out through `trackAnonymous`: one `fetch` POST to `/_m/i/v0/e/` with a throwaway `distinct_id`, `$process_person_profile: false`, no SDK, no storage. They exist only to measure the sign-up funnel and guest friction.
 - **Signup attribution.** `attribution.ts` reads whitelisted `utm_source|medium|campaign|content|term` and `ref` on landing, sanitizes values to `[A-Za-z0-9._-]{1,64}`, keeps them in `sessionStorage` for the tab (first touch wins) and strips them from the address bar. They are sent in `supabase.auth.signUp({ options: { data: { signup_attribution } } })` so they survive confirming on another device. `signed_up` fires once per new account: on the first session after the confirmation redirect, or, when email confirmation is off and `signUp()` returns a session immediately, via a one-shot flag (`signupIntent.ts`) that `AuthModal` raises before the call (SIGNED_IN fires inside it). `signup_submitted` then reports `outcome: signed_in`. Confirmation path: `initialAuthCallbackType` in `src/lib/supabase.ts` reads `type=signup` from the URL hash *before* `createClient` (supabase-js clears it asynchronously). Treat attribution as untrusted, analytics only.
-- **Server events** (`api/dodo-webhook.ts`): `subscription_started` (first delivery only: `provisionSubscription` returns `{ firstTime, userId }`), `subscription_cancelled` (Dodo `cancelled` = scheduled to end), `subscription_ended` (Dodo `expired`). Sent only after the handler succeeded, with `uuid` derived from the `webhook-id` header and `timestamp` from `webhook-timestamp` so redeliveries de-duplicate. `captureServerEvent` is a no-op without the key, bounded to 1.5 s, and never throws; the webhook always answers as before. The server reads the same `VITE_POSTHOG_KEY`; `DODO_ENVIRONMENT=live_mode` maps to `environment=production`, otherwise `preview`.
+- **Server events** (`api/dodo-webhook.ts`): `subscription_started` (first delivery only: `provisionSubscription` returns `{ firstTime, userId }`), `subscription_cancelled` (Dodo `cancelled` = scheduled to end), `subscription_ended` (Dodo `expired`), `pass_purchased` (first grant of a 3-day pass payment). Sent only after the handler succeeded, with `uuid` derived from the `webhook-id` header and `timestamp` from `webhook-timestamp` so redeliveries de-duplicate. `captureServerEvent` is a no-op without the key, bounded to 1.5 s, and never throws; the webhook always answers as before. The server reads the same `VITE_POSTHOG_KEY`; `DODO_ENVIRONMENT=live_mode` maps to `environment=production`, otherwise `preview`.
 
 **Events**
 
@@ -754,6 +763,7 @@ Code: `src/lib/analytics/`, `api/_lib/analytics.ts`, `api/_lib/dodo/analyticsEve
 | `project_opened`, `project_saved` | `storage`: local, cloud | library, toolbar |
 | `feature_preview_opened`, `feature_voted`, `feature_unvoted` | `feature_id` | feature votes UI |
 | `subscription_started`, `subscription_cancelled`, `subscription_ended` | `tier`, `environment` | server (Dodo webhook) |
+| `pass_purchased` | `stacked`, `environment` | server (Dodo webhook, first grant of a payment only) |
 | `signup_submitted`, `signin_failed`, `guest_route_added`, `guest_gate_hit` | `outcome`/`error_class`/`source`/`where` | anonymous counters |
 
 Person properties: `plan`, `signed_up_at` (date only), `project_count_bucket`, `has_exported`, `initial_utm_*`/`initial_ref`. Super properties on every event: `environment`, `app_version` (short git SHA from `VERCEL_GIT_COMMIT_SHA`, `dev` locally), `is_mobile`, `plan`.
