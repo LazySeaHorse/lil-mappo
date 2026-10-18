@@ -37,7 +37,7 @@ const AlertDialogOverlay = React.forwardRef<
       ref={ref}
       data-slot="alert-dialog-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/40 duration-200 ease-out",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-overlay bg-black/40 duration-200 ease-out",
         className,
       )}
       {...props}
@@ -62,7 +62,7 @@ function AlertDialogContent({
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-overlay flex items-center justify-center p-4 pointer-events-none">
         <AlertDialogPrimitive.Content
           ref={contentRef}
           data-slot="alert-dialog-content"

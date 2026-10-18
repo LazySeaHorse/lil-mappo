@@ -107,7 +107,7 @@ export const SearchField = ({
           </div>
         </PopoverAnchor>
 
-        {/* Above the quick tour card (z-120), so results stay clickable beside it. */}
+        {/* Above the quick tour card (z-tour), so results stay clickable beside it. */}
         <PopoverContent
           side="bottom"
           align="start"
@@ -115,7 +115,7 @@ export const SearchField = ({
           onOpenAutoFocus={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
-          className="z-[130] w-fit min-w-[240px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+          className="z-tour-popover w-fit min-w-[240px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
           {renderResults()}
         </PopoverContent>

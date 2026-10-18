@@ -158,7 +158,7 @@ export function ColorPicker({
           />
         </PopoverTrigger>
         <PopoverContent
-          className="w-56 p-3 rounded-xl border border-border/60 bg-popover shadow-xl z-50"
+          className="w-56 p-3 rounded-xl border border-border/60 bg-popover shadow-xl z-overlay"
           align="end"
           side="bottom"
           sideOffset={6}

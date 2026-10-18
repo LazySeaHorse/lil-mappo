@@ -118,7 +118,7 @@ export function CoachmarkOverlay({
       {/* Spotlight cutout mask over entire screen */}
       {!step.hideOverlay && (
         <svg
-          className="fixed inset-0 w-full h-full pointer-events-none select-none z-[119]"
+          className="fixed inset-0 w-full h-full pointer-events-none select-none z-tour-backdrop"
           style={{ pointerEvents: 'none' }}
           aria-hidden="true"
         >
@@ -172,7 +172,7 @@ export function CoachmarkOverlay({
           ...floatingStyles,
           fontFamily: "'Outfit', sans-serif",
         }}
-        className={`z-[120] w-[calc(100vw-24px)] max-w-sm ${step.compact ? '' : 'sm:max-w-md'} rounded-2xl bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/20 overflow-hidden text-foreground select-none pointer-events-auto animate-in fade-in zoom-in-95 duration-200`}
+        className={`z-tour w-[calc(100vw-24px)] max-w-sm ${step.compact ? '' : 'sm:max-w-md'} rounded-2xl bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/20 overflow-hidden text-foreground select-none pointer-events-auto animate-in fade-in zoom-in-95 duration-200`}
       >
         {/* Top progress indicator bar */}
         <div className="h-1 w-full bg-secondary/60 relative overflow-hidden">
