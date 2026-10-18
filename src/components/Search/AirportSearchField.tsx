@@ -22,6 +22,7 @@ import {
   parseCoordinates,
   createCoordinateAirport,
 } from '@/hooks/useAirportSearch';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Airport } from '@/services/airports/types';
 
@@ -54,6 +55,8 @@ export const AirportSearchField = ({
     results,
     isOpen,
     loading,
+    error,
+    retry,
     selectAirport,
     clear,
     open,
@@ -85,7 +88,7 @@ export const AirportSearchField = ({
     }
   };
 
-  const hasContentToShow = results.length > 0 || loading || query.trim().length > 0;
+  const hasContentToShow = results.length > 0 || loading || error || query.trim().length > 0;
 
   return (
     <div
@@ -151,7 +154,15 @@ export const AirportSearchField = ({
                   <span>Loading airports...</span>
                 </div>
               )}
-              {!loading && results.length === 0 && (
+              {error && (
+                <div className="flex items-center justify-center gap-2 py-4 px-3 text-xs text-muted-foreground">
+                  <span>Couldn't load airports.</span>
+                  <Button type="button" variant="link" size="sm" onClick={retry} className="h-auto p-0 text-xs">
+                    Retry
+                  </Button>
+                </div>
+              )}
+              {!loading && !error && results.length === 0 && (
                 <CommandEmpty className="py-4 px-3 text-center text-xs text-muted-foreground">
                   No airports found
                 </CommandEmpty>
