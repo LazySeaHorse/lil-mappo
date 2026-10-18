@@ -352,11 +352,12 @@ test.describe("5 Golden E2E Journeys", () => {
     // Toggle Map Style: Standard -> Dark -> Standard
     const styleCombobox = page.locator('[data-walkthrough="map-style"]');
     if (await styleCombobox.isVisible()) {
+      const styles = page.getByRole("radiogroup", { name: "Map style", exact: true });
       await styleCombobox.click();
-      await page.getByRole("option", { name: "Dark" }).click();
+      await styles.getByRole("radio", { name: /^Dark\b/ }).click();
       await page.waitForTimeout(300);
       await styleCombobox.click();
-      await page.getByRole("option", { name: "Standard" }).click();
+      await styles.getByRole("radio", { name: /^Standard\b/ }).click();
     }
 
     // Toggle 3D Terrain
