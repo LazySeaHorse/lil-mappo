@@ -5,8 +5,11 @@ import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
+import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
+import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAiAccess } from './useAiAccess';
 import { hasAiConsent, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
@@ -96,11 +99,12 @@ export function ConnectTab() {
       </Collapsible>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Let AI agents control this project?</AlertDialogTitle>
+        <AlertDialogContent className={cn(pinDropContentClass, 'w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto')}>
+          <PinDropHero mood="inquisitive" scene="connect" size="compact" />
+          <PopupBody>
+            <AlertDialogTitle className={popupTitleClass}>Let AI agents control this project?</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm leading-relaxed text-muted-foreground [&_strong]:text-foreground [&_strong]:font-medium">
                 <p>This is an experimental feature. An AI agent you connect will be able to change this project.</p>
                 <p><strong>To connect one</strong>, use Gemini in Chrome (with WebMCP enabled), or run the small lil-mappo bridge app on your computer to use Claude Code, Codex and other local agents.</p>
                 <p><strong>It can:</strong> add and edit routes, boundaries and callouts, edit the camera and project settings, and render preview frames.</p>
@@ -109,10 +113,10 @@ export function ConnectTab() {
                 {!allowed && <p className="text-muted-foreground">{signedIn ? 'AI control is part of the Wanderer plan.' : 'Sign in with a Wanderer account to turn it on.'}</p>}
               </div>
             </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <PopupActions>
+            <AlertDialogCancel className="mt-0 h-10 rounded-[10px] px-4">Cancel</AlertDialogCancel>
             <AlertDialogAction
+              className="h-10 rounded-[10px] px-4"
               onClick={() => {
                 if (!signedIn) return openAuthModal();
                 if (!allowed) return openUpgradeModal('ai');
@@ -122,7 +126,8 @@ export function ConnectTab() {
             >
               {!signedIn ? 'Sign in' : !allowed ? 'See Wanderer plan' : 'Turn on'}
             </AlertDialogAction>
-          </AlertDialogFooter>
+          </PopupActions>
+          </PopupBody>
         </AlertDialogContent>
       </AlertDialog>
     </div>

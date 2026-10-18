@@ -8,6 +8,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { PinDropHero } from '@/components/ui/pin-drop';
+import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
+import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/useAuthStore';
 import { track } from '@/lib/analytics';
 import { useFeatureVotes, useSetFeatureVote } from '@/hooks/useFeatureVotes';
@@ -98,15 +101,14 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 gap-0">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent border-b border-border/40">
-          <DialogHeader className="pr-6">
-            <DialogTitle className="text-xl font-medium tracking-tight">{feature.title}</DialogTitle>
-            <DialogDescription className="text-sm mt-1">Not built yet</DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent className={cn(pinDropContentClass, 'sm:max-w-[520px] max-h-[90vh] overflow-y-auto')}>
+        <PinDropHero mood="balloon" scene="soon" size="compact" />
+        <DialogHeader className="px-6 text-left">
+          <DialogTitle className={popupTitleClass}>{feature.title}</DialogTitle>
+          <DialogDescription className={popupTextClass}>Not built yet</DialogDescription>
+        </DialogHeader>
 
-        <div className="p-6 space-y-4" data-ph-unmask>
+        <div className="px-6 pt-4 pb-6 space-y-4" data-ph-unmask>
           <p className="text-sm text-foreground/90 leading-relaxed">{preview.intro}</p>
 
           {preview.sections.map((section) => (
