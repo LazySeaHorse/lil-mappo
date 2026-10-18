@@ -29,6 +29,10 @@ import {
   AccountInfoRow,
 } from "./ManageSubscriptionView";
 import secureLocalStorage from "react-secure-storage";
+import { accountMood } from "@/components/Mappo/moods";
+import { PinDropHero } from "@/components/ui/pin-drop";
+import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
+import { cn } from "@/lib/utils";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +49,7 @@ export function AccountSettingsModal() {
       open={showSettingsModal}
       onOpenChange={(open) => !open && closeSettingsModal()}
     >
-      <DialogContent className="sm:max-w-[720px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
+      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[720px]")}>
         {showSettingsModal && <AccountSettingsModalBody />}
       </DialogContent>
     </Dialog>
@@ -140,16 +144,13 @@ function AccountSettingsModalBody() {
   // ── Main view ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col">
-      <div className="p-6 pb-2 bg-gradient-to-b from-secondary/30 to-transparent">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-            <User className="text-primary h-5 w-5" /> Settings
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm mt-1">
-            Manage your account and Mapbox access token.
-          </DialogDescription>
-        </DialogHeader>
-      </div>
+      <PinDropHero mood={accountMood({ signedIn: !!user, subscription })} scene="settings" size="compact" />
+      <DialogHeader className="px-6 pb-2 text-left">
+        <DialogTitle className={popupTitleClass}>Settings</DialogTitle>
+        <DialogDescription className={popupTextClass}>
+          Manage your account and Mapbox access token.
+        </DialogDescription>
+      </DialogHeader>
 
       <div className="flex flex-col gap-8 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto">
         {/* ─── Account Info ─── */}

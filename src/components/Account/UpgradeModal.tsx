@@ -1,5 +1,7 @@
 import React from "react";
-import { Mappo } from "@/components/Mappo/Mappo";
+import { PinDropHero } from "@/components/ui/pin-drop";
+import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
+import { cn } from "@/lib/utils";
 import {
   Check,
   Cloud,
@@ -87,17 +89,14 @@ export function UpgradeModal() {
       open={showUpgradeModal}
       onOpenChange={(open) => !open && closeUpgradeModal()}
     >
-      <DialogContent className="sm:max-w-[620px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2 pr-8">
-              <Mappo mood="explorer" className="h-8 w-auto mt-2 shrink-0" /> Upgrade to Wanderer
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-1">
-              Compare the Free plan with the Wanderer plan.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[620px]")}>
+        <PinDropHero mood="key" scene="upgrade" size="compact" />
+        <DialogHeader className="px-6 pb-4 text-left">
+          <DialogTitle className={popupTitleClass}>Upgrade to Wanderer</DialogTitle>
+          <DialogDescription className={popupTextClass}>
+            Compare the Free plan with the Wanderer plan.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="px-6 pb-6 max-h-[72vh] overflow-y-auto">
           <div className="flex items-end justify-between gap-4 pb-5">

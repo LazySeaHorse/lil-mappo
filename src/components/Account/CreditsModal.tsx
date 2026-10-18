@@ -7,6 +7,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PinDropHero } from "@/components/ui/pin-drop";
+import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -19,7 +22,6 @@ import {
   Clock,
   Loader2,
   RefreshCcw,
-  Sparkles,
   CreditCard,
   Timer,
   Cloud,
@@ -42,17 +44,14 @@ export function CreditsModal() {
       open={showCreditsModal}
       onOpenChange={(open) => !open && closeCreditsModal()}
     >
-      <DialogContent className="sm:max-w-[600px] rounded-2xl bg-background/95 border-border/30 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-2">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-              <Sparkles className="text-primary h-5 w-5" /> Plans and credits
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm">
+      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[600px]")}>
+        <PinDropHero mood="sparkle" scene="credits" size="compact" />
+        <DialogHeader className="px-6 pb-2 text-left">
+          <DialogTitle className={popupTitleClass}>Plans and credits</DialogTitle>
+          <DialogDescription className={popupTextClass}>
             Manage plans and buy credits for cloud renders.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
         {showCreditsModal && <CreditsModalBody />}
       </DialogContent>
     </Dialog>

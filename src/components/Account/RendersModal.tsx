@@ -13,8 +13,11 @@ import type { ExportResolution } from '@/types/render';
 import { RESOLUTION_LABELS } from '@/types/render';
 import {
   Clapperboard, RefreshCcw, LogIn, Loader2, Download,
-  RotateCcw, Clock, CheckCircle2, AlertCircle, Hourglass, PlayCircle
+  RotateCcw, Clock, CheckCircle2, AlertCircle, Hourglass
 } from 'lucide-react';
+import { PinDropHero } from '@/components/ui/pin-drop';
+import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
+import { cn } from '@/lib/utils';
 
 export function RendersModal() {
   const { showRendersModal, closeRendersModal } = useAuthStore(
@@ -26,17 +29,14 @@ export function RendersModal() {
 
   return (
     <Dialog open={showRendersModal} onOpenChange={(open) => !open && closeRendersModal()}>
-      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-              <PlayCircle className="text-primary h-6 w-6" /> Cloud renders
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-1">
-              View cloud-render status and download completed files.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[540px]")}>
+        <PinDropHero mood="reel" scene="renders" size="compact" />
+        <DialogHeader className="px-6 pb-4 text-left">
+          <DialogTitle className={popupTitleClass}>Cloud renders</DialogTitle>
+          <DialogDescription className={popupTextClass}>
+            View cloud-render status and download completed files.
+          </DialogDescription>
+        </DialogHeader>
         {showRendersModal && <RendersModalBody />}
       </DialogContent>
     </Dialog>

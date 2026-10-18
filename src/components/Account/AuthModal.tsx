@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
-import { Mappo } from "@/components/Mappo/Mappo";
+import { PinDropHero } from "@/components/ui/pin-drop";
+import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
+import { cn } from "@/lib/utils";
 import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -94,21 +96,15 @@ export function AuthModal() {
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-          <DialogHeader>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <Mappo
-                key={mood}
-                mood={mood}
-                title="li'l Mappo"
-                className="h-16 w-auto animate-in zoom-in-95 duration-200"
-              />
-            </div>
-            <DialogTitle className="text-2xl font-medium tracking-tight text-center">
+      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[540px]")}>
+        {/* Mappo drops in once, then his face follows the form as it fills in. */}
+        <PinDropHero mood={mood} scene="signIn" size="compact" />
+        <div className="px-6 pb-4">
+          <DialogHeader className="text-left">
+            <DialogTitle className={popupTitleClass}>
               {confirmEmail ? "Check your email" : isSignup ? "Create account" : "Sign in"}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
+            <DialogDescription className={popupTextClass}>
               {confirmEmail ? (
                 <>
                   We sent a link to{" "}
