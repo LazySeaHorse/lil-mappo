@@ -240,8 +240,8 @@ test("2a. quick walkthrough makes a first trip video through real actions", asyn
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.locator('[data-walkthrough="timeline-play"]')).not.toHaveClass(/text-primary/);
 
-  await expect(page.getByText("More things you can add")).toBeVisible();
-  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Your trip video is ready")).toBeVisible();
+  await page.getByRole("button", { name: "Go to Export" }).click();
 
   await expect(page.getByText("Export your video", { exact: true })).toBeVisible();
   await page.locator('[data-walkthrough="render"]').click();
