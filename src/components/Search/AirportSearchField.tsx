@@ -157,7 +157,7 @@ export const AirportSearchField = ({
               {error && (
                 <div className="flex items-center justify-center gap-2 py-4 px-3 text-xs text-muted-foreground">
                   <span>Couldn't load airports.</span>
-                  <Button type="button" variant="link" size="sm" onClick={retry} className="h-auto p-0 text-xs">
+                  <Button type="button" variant="link" size="inline" onClick={retry}>
                     Retry
                   </Button>
                 </div>

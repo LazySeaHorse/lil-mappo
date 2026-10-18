@@ -30,6 +30,8 @@ export const buttonVariants = cva(
         lg: "h-10 rounded-[10px] px-4 text-sm has-[>svg]:px-3.5",
         xl: "h-11 rounded-[10px] px-6 text-sm has-[>svg]:px-5",
         icon: "size-9",
+        /** Sits in running text, e.g. a link variant "Retry" after a sentence: no box, inherits the text size. */
+        inline: "h-auto gap-1 p-0",
       },
     },
     defaultVariants: {
