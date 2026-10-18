@@ -5,10 +5,11 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
+import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
+import { cn } from '@/lib/utils';
 import type { LibraryProject } from '@/services/projectLibraryCoordinator';
 
 interface DeleteProjectDialogProps {
@@ -26,23 +27,24 @@ export function DeleteProjectDialog({
 }: DeleteProjectDialogProps) {
   return (
     <AlertDialog open={!!project} onOpenChange={(open) => !open && onCancel()}>
-      <AlertDialogContent className="max-w-[420px] rounded-2xl">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete project</AlertDialogTitle>
-          <AlertDialogDescription>
+      <AlertDialogContent className={cn(pinDropContentClass, 'w-[calc(100vw-2rem)] sm:max-w-[420px]')}>
+        <PinDropHero mood="nervous" scene="delete" />
+        <PopupBody>
+          <AlertDialogTitle className={popupTitleClass}>Delete project</AlertDialogTitle>
+          <AlertDialogDescription className={popupTextClass}>
             Delete <span className="ph-mask font-medium text-foreground">"{project?.name || 'Untitled project'}"</span>? You cannot undo this action.
           </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            disabled={isMutating}
-            className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
+          <PopupActions>
+            <AlertDialogCancel className="mt-0 h-10 rounded-[10px] px-4">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onConfirm}
+              disabled={isMutating}
+              className="h-10 rounded-[10px] px-4 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </PopupActions>
+        </PopupBody>
       </AlertDialogContent>
     </AlertDialog>
   );

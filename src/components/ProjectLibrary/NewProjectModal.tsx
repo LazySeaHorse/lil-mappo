@@ -13,8 +13,11 @@ import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/store/useProjectStore';
 import { AspectRatio, ExportResolution } from '@/types/render';
-import { Plus, Smartphone, Monitor } from 'lucide-react';
+import { Smartphone, Monitor } from 'lucide-react';
 import { Mappo } from '@/components/Mappo/Mappo';
+import { PinDropHero } from '@/components/ui/pin-drop';
+import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
+import { cn } from '@/lib/utils';
 import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
 import { useFeatureVoted } from '@/hooks/useFeatureVotes';
 import { Label } from '@/components/ui/label';
@@ -73,19 +76,14 @@ export function NewProjectModal() {
 
   return (
     <Dialog open={showNewProjectModal} onOpenChange={setShowNewProjectModal}>
-      <DialogContent className="sm:max-w-[760px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col h-[85vh]">
-        
-        {/* Header */}
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent border-b border-border/40 shrink-0">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-              <Plus className="text-primary h-6 w-6" /> New project
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-1">
-              Set the project name, video format, and frame rate.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent className={cn(pinDropContentClass, 'sm:max-w-[760px] flex flex-col h-[85vh]')}>
+        <PinDropHero mood="map" scene="newProject" size="compact" />
+        <DialogHeader className="px-6 pb-4 text-left border-b border-border/40 shrink-0">
+          <DialogTitle className={popupTitleClass}>New project</DialogTitle>
+          <DialogDescription className={popupTextClass}>
+            Set the project name, video format, and frame rate.
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Two column body */}
         <div className="flex-1 overflow-hidden flex flex-col sm:flex-row">

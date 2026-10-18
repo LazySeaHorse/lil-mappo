@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mappo } from '@/components/Mappo/Mappo';
+import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
+import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
+import { cn } from '@/lib/utils';
 import { FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
 import type { LibraryProject } from '@/services/projectLibraryCoordinator';
 
@@ -22,21 +24,22 @@ export function CloudSlotQuotaDialog({
   onUpgrade,
   onReplaceAndUpload,
 }: CloudSlotQuotaDialogProps) {
+  const titleId = useId();
   if (!pendingProject) return null;
 
   const cloudProjects = projects.filter((p) => p.cloud !== null);
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60">
-      <div className="bg-background border border-border rounded-2xl shadow-2xl w-[420px] overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <h3 className="text-sm font-medium">Cloud project limit reached</h3>
-          <p className="text-xs text-muted-foreground mt-1">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn(pinDropContentClass, 'w-full max-w-[420px] border')}>
+        <PinDropHero mood="worried" scene="cloudSlots" />
+        <PopupBody>
+          <h3 id={titleId} className={popupTitleClass}>Cloud project limit reached</h3>
+          <p className={popupTextClass}>
             You reached the limit of {FREE_CLOUD_SAVE_LIMIT} cloud projects. Remove one cloud
             project to upload this project. The app keeps your local copy.
           </p>
-        </div>
-        <div className="px-5 py-4 max-h-64 overflow-y-auto flex flex-col gap-2">
+        <div className="mt-2 max-h-64 overflow-y-auto flex flex-col gap-2">
           {cloudProjects.map((p) => (
             <div
               key={p.id}
@@ -60,29 +63,23 @@ export function CloudSlotQuotaDialog({
             </div>
           ))}
         </div>
-        <div className="px-5 py-3 border-t border-border bg-secondary/20 flex items-center justify-between gap-2">
+        <PopupActions className="justify-between">
           {onUpgrade ? (
             <Button
               variant="ghost"
-              size="sm"
-              className="text-xs gap-1.5 text-primary hover:text-primary hover:bg-primary/10"
+              className="h-10 rounded-[10px] px-3 text-primary hover:text-primary hover:bg-primary/10"
               onClick={onUpgrade}
             >
-              <Mappo mood="explorer" className="h-4 w-auto mt-1.5" />
               Upgrade for unlimited projects
             </Button>
           ) : (
             <span />
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs"
-            onClick={onCancel}
-          >
+          <Button variant="outline" className="h-10 rounded-[10px] px-4" onClick={onCancel}>
             Cancel
           </Button>
-        </div>
+        </PopupActions>
+        </PopupBody>
       </div>
     </div>
   );
