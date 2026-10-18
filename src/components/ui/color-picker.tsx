@@ -165,10 +165,10 @@ export function ColorPicker({
         >
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Custom Color
               </span>
-              <span className="text-[11px] font-mono text-muted-foreground uppercase">
+              <span className="text-2xs font-mono text-muted-foreground uppercase">
                 {normalizeHex(value) || value}
               </span>
             </div>

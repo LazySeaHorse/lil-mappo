@@ -72,7 +72,7 @@ export function PinDropHero({ mood, scene, tag, size = 'tall', className }: PinD
       </div>
 
       {tag && (
-        <span className="absolute left-3.5 top-3 rounded-full bg-background px-2 py-[3px] font-mono text-[10.5px] uppercase tracking-[0.06em] text-foreground shadow-[0_1px_3px_rgba(18,45,86,0.25)]">
+        <span className="absolute left-3.5 top-3 rounded-full bg-background px-2 py-[3px] font-mono text-2xs uppercase tracking-[0.06em] text-foreground shadow-[0_1px_3px_rgba(18,45,86,0.25)]">
           {tag}
         </span>
       )}

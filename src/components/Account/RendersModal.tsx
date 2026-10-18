@@ -168,7 +168,7 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
         </div>
 
         {job.error_message && (
-          <p className="text-[11px] font-medium text-destructive mt-2 truncate bg-destructive/10 px-2 py-1 rounded border border-destructive/20">
+          <p className="text-2xs font-medium text-destructive mt-2 truncate bg-destructive/10 px-2 py-1 rounded border border-destructive/20">
             {job.error_message}
           </p>
         )}
@@ -218,7 +218,7 @@ function StatusBadge({ status }: { status: RenderStatus }) {
     queued: 'bg-secondary text-muted-foreground border-border/50',
   };
   return (
-    <span className={`text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-md border shadow-sm ${colors[status]}`}>
+    <span className={`text-2xs font-medium uppercase tracking-widest px-2 py-0.5 rounded-md border shadow-sm ${colors[status]}`}>
       {STATUS_LABELS[status]}
     </span>
   );

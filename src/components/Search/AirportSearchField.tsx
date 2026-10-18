@@ -172,18 +172,18 @@ export const AirportSearchField = ({
                       <span className="font-medium tracking-tight text-foreground/90 group-hover/airport:text-foreground truncate text-xs">
                         {airport.name}
                       </span>
-                      <span className="text-[11px] text-muted-foreground truncate">
+                      <span className="text-2xs text-muted-foreground truncate">
                         {airport.city ? `${airport.city}, ${airport.country}` : airport.country}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {airport.iata && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-primary/15 text-primary tracking-wider uppercase">
+                        <span className="px-1.5 py-0.5 text-2xs font-bold rounded bg-primary/15 text-primary tracking-wider uppercase">
                           {airport.iata}
                         </span>
                       )}
                       {airport.icao && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-secondary text-muted-foreground uppercase">
+                        <span className="px-1.5 py-0.5 text-2xs font-mono rounded bg-secondary text-muted-foreground uppercase">
                           {airport.icao}
                         </span>
                       )}

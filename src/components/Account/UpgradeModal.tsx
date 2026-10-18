@@ -120,7 +120,7 @@ export function UpgradeModal() {
           )}
 
           <div className="rounded-xl border border-border/50 overflow-hidden bg-secondary/10">
-            <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_120px_170px] items-center px-4 py-2.5 bg-secondary/30 border-b border-border/40 text-[11px] font-medium text-muted-foreground">
+            <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_120px_170px] items-center px-4 py-2.5 bg-secondary/30 border-b border-border/40 text-2xs font-medium text-muted-foreground">
               <span>Feature</span>
               <span>Free plan</span>
               <span className="text-primary">Wanderer plan</span>
@@ -139,14 +139,14 @@ export function UpgradeModal() {
                 </div>
 
                 <div className="text-xs text-muted-foreground">
-                  <span className="block sm:hidden text-[10px] font-medium text-muted-foreground/70 mb-0.5">
+                  <span className="block sm:hidden text-2xs font-medium text-muted-foreground/70 mb-0.5">
                     Free plan
                   </span>
                   {free}
                 </div>
 
                 <div className="text-xs font-medium text-foreground">
-                  <span className="block sm:hidden text-[10px] font-medium text-primary mb-0.5">
+                  <span className="block sm:hidden text-2xs font-medium text-primary mb-0.5">
                     Wanderer plan
                   </span>
                   <span className="inline-flex items-start gap-1.5">
@@ -168,7 +168,7 @@ export function UpgradeModal() {
               {isCurrent ? "Current plan" : "Subscribe to Wanderer"}
             </Button>
             {!isCurrent && (
-              <p className="text-[11px] text-muted-foreground text-center mt-2.5 leading-relaxed">
+              <p className="text-2xs text-muted-foreground text-center mt-2.5 leading-relaxed">
                 Renews at ${PLAN_CONFIG.wanderer.priceMonthly} each month until you cancel. You can cancel anytime in Account Settings.
               </p>
             )}

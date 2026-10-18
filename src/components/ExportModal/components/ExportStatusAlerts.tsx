@@ -43,7 +43,7 @@ export function ExportStatusAlerts({
 function Spec({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 flex-col-reverse">
-      <dt className="text-[11px] text-muted-foreground">{label}</dt>
+      <dt className="text-2xs text-muted-foreground">{label}</dt>
       <dd className="truncate text-sm font-medium tabular-nums text-foreground">{value}</dd>
     </div>
   );
@@ -52,7 +52,7 @@ function Spec({ label, value }: { label: string; value: string }) {
 /** One look for every note: an icon and a sentence on a light tint. */
 function Note({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/[0.05] px-3.5 py-3 text-[13px] leading-relaxed text-muted-foreground">
+    <div className="flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/[0.05] px-3.5 py-3 text-sm leading-relaxed text-muted-foreground">
       <span className="mt-[3px] shrink-0 text-primary">{icon}</span>
       <div className="min-w-0">{children}</div>
     </div>

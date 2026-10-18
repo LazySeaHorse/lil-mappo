@@ -105,7 +105,7 @@ function DropdownToggle({ icon, label, active, onClick, loading, disabled }: { i
       size="sm"
       onClick={(e) => { if (!disabled) { e.preventDefault(); e.stopPropagation(); onClick(); } }}
       disabled={disabled}
-      className={`h-9 flex flex-1 items-center justify-start gap-2 text-[11px] font-medium px-2 rounded-lg transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/20' : disabled ? '' : 'text-muted-foreground'}`}
+      className={`h-9 flex flex-1 items-center justify-start gap-2 text-2xs font-medium px-2 rounded-lg transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/20' : disabled ? '' : 'text-muted-foreground'}`}
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : icon}
       <span>{label}</span>

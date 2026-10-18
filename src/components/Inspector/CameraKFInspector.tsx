@@ -33,7 +33,7 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
       <PanelWrapper title={CAMERA_VIEW_TERMS.track} icon={<Video size={15} />}>
         <div className="p-4 text-center">
           <p className="text-xs text-muted-foreground">{CAMERA_VIEW_TERMS.selectOne}</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-2">{item.keyframes.length} camera view{item.keyframes.length !== 1 ? 's' : ''}</p>
+          <p className="text-2xs text-muted-foreground/70 mt-2">{item.keyframes.length} camera view{item.keyframes.length !== 1 ? 's' : ''}</p>
         </div>
       </PanelWrapper>
     );
@@ -67,7 +67,7 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
       }
     >
       <div className="flex flex-col gap-2 pb-1">
-        <p className="text-[11px] leading-tight text-muted-foreground">{CAMERA_VIEW_TERMS.help}</p>
+        <p className="text-2xs leading-tight text-muted-foreground">{CAMERA_VIEW_TERMS.help}</p>
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" size="sm" onClick={saveCurrentView} className="h-9 text-xs">
             <Crosshair size={14} aria-hidden="true" />

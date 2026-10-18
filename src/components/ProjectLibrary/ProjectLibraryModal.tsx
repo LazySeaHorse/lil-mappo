@@ -111,7 +111,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
                 <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
               </IconButton>
               {user && !autoSyncEnabled ? (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                   <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-amber-400' : 'text-primary/70'} />
                   <span>
                     {cloudSaveCount}/{FREE_CLOUD_SAVE_LIMIT} cloud projects used
@@ -121,7 +121,7 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
                   )}
                 </div>
               ) : !user ? (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                   <CloudOff size={12} />
                   Sign in to use cloud projects
                 </div>

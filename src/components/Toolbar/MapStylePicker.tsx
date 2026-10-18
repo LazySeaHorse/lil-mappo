@@ -106,7 +106,7 @@ function MapStylePanel({ value, onPick, className }: { value: string; onPick: (s
             type="button"
             aria-pressed={mood === m}
             onClick={() => setMood(m)}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            className={`rounded-full px-2.5 py-1 text-2xs font-medium transition-colors ${
               mood === m ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -130,7 +130,7 @@ function MapStylePanel({ value, onPick, className }: { value: string; onPick: (s
             <StyleThumb file={key} def={def} size={THUMB_PX} />
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-xs font-medium">{def.label}</span>
-              <span className="truncate text-[10px] text-muted-foreground">
+              <span className="truncate text-2xs text-muted-foreground">
                 {def.basemap === 'standard' ? '3D buildings · four times of day' : def.mood}
               </span>
             </span>

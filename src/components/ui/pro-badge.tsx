@@ -6,7 +6,7 @@ function ProBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase shrink-0",
+        "text-micro bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase shrink-0",
         className,
       )}
     >
@@ -29,7 +29,7 @@ function StatusPill({
   return (
     <span
       className={cn(
-        "text-[10px] font-medium text-muted-foreground",
+        "text-2xs font-medium text-muted-foreground",
         className,
       )}
     >

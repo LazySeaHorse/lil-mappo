@@ -32,7 +32,7 @@ export function RouteAnimationSection({
           onChange={(animationType) => onStyle({ animationType })}
           columns={3}
         />
-        <p className="text-[11px] leading-tight text-muted-foreground">{ROUTE_ANIMATION_TERMS[type].hint}</p>
+        <p className="text-2xs leading-tight text-muted-foreground">{ROUTE_ANIMATION_TERMS[type].hint}</p>
       </div>
 
       {type === 'comet' && (

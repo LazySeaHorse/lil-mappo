@@ -233,7 +233,7 @@ function CreditsModalBody() {
                         credits
                       </span>
                     </p>
-                    <p className="text-[11px] font-medium text-primary flex items-center gap-1 mt-1">
+                    <p className="text-2xs font-medium text-primary flex items-center gap-1 mt-1">
                       <Timer size={11} /> About {minutesToGet.toLocaleString()} minutes at 1080p
                     </p>
                   </div>
@@ -249,7 +249,7 @@ function CreditsModalBody() {
               </div>
 
               {!user && (
-                <p className="text-[11px] text-muted-foreground/60 text-center mt-3">
+                <p className="text-2xs text-muted-foreground/60 text-center mt-3">
                   You'll create an account as part of the checkout flow.
                 </p>
               )}
@@ -280,7 +280,7 @@ function CreditsModalBody() {
       </Tabs>
 
       <div className="mt-6 pt-4 border-t border-border/20 text-center">
-        <p className="text-[11px] text-muted-foreground/60">
+        <p className="text-2xs text-muted-foreground/60">
           For credit or plan support, email <a href="mailto:support@mail.lilmappo.tech" className="text-primary hover:underline font-medium">support@mail.lilmappo.tech</a>
         </p>
       </div>

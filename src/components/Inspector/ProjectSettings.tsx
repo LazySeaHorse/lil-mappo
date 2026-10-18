@@ -117,7 +117,7 @@ export function ProjectSettings() {
                 <ResolutionSelectItems limits={limits} />
               </SelectContent>
             </Select>
-            <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap min-w-[70px] text-right">
+            <span className="text-2xs text-muted-foreground font-mono whitespace-nowrap min-w-[70px] text-right">
               {resolution[0]} × {resolution[1]}
             </span>
           </div>

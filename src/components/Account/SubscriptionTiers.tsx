@@ -57,7 +57,7 @@ function TierCard({
     >
       {comingSoon && (
         <div className="absolute -top-3 inset-x-0 flex justify-center">
-          <span className="bg-muted text-muted-foreground text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
+          <span className="bg-muted text-muted-foreground text-2xs font-medium uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
             Not available yet
           </span>
         </div>
@@ -77,7 +77,7 @@ function TierCard({
           <span className="text-xl font-medium">{price}</span>
         </div>
         {originalPrice && (
-          <p className="mt-0.5 text-[11px] font-medium text-primary">
+          <p className="mt-0.5 text-2xs font-medium text-primary">
             Limited-time discount
           </p>
         )}
@@ -120,7 +120,7 @@ function TierCard({
       </Button>
 
       {!isCurrent && !comingSoon && (
-        <p className="text-[10px] text-muted-foreground text-center mt-2 leading-tight">
+        <p className="text-2xs text-muted-foreground text-center mt-2 leading-tight">
           Renews at {price} each month until you cancel. You can cancel anytime in Account Settings.
         </p>
       )}

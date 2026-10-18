@@ -187,7 +187,7 @@ export function CoachmarkOverlay({
           <div className="flex items-center justify-between gap-2">
             <Badge
               variant="secondary"
-              className="font-mono-time text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-secondary/70 border border-border/40 text-muted-foreground font-medium"
+              className="font-mono-time text-2xs uppercase tracking-wider px-2 py-0.5 rounded-md bg-secondary/70 border border-border/40 text-muted-foreground font-medium"
             >
               Step {stepIndex + 1} of {totalSteps}
             </Badge>
@@ -224,12 +224,12 @@ export function CoachmarkOverlay({
           <div className="pt-2 mt-0.5 border-t border-border/30 flex items-center justify-between gap-2">
             <div>
               {!showPrimary ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/15">
+                <span className="inline-flex items-center gap-1.5 text-2xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/15">
                   <span className="size-1.5 rounded-full bg-primary animate-pulse" />
                   Action required
                 </span>
               ) : (
-                <span className="text-[11px] text-muted-foreground/75 font-mono-time">
+                <span className="text-2xs text-muted-foreground/75 font-mono-time">
                   {progressPercent}% completed
                 </span>
               )}

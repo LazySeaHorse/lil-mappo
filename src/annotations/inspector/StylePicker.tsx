@@ -56,7 +56,7 @@ export function StylePicker({ value, onChange, title }: StylePickerProps) {
               {STYLE_TERMS.change}
             </button>
           </div>
-          {current && <div className="truncate text-[11px] text-muted-foreground">{current.description}</div>}
+          {current && <div className="truncate text-2xs text-muted-foreground">{current.description}</div>}
         </div>
       </div>
     );
@@ -76,7 +76,7 @@ export function StylePicker({ value, onChange, title }: StylePickerProps) {
         if (!styles?.length) return null;
         return (
           <div key={category}>
-            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 px-0.5">
+            <div className="text-2xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 px-0.5">
               {CATEGORY_LABELS[category] || category}
             </div>
             <VisualCardSelect

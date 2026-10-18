@@ -91,7 +91,7 @@ export function TimingSection<T>({
               options={END_OPTIONS}
               value={model.whenItEnds}
               onValueChange={(whenItEnds) => write({ whenItEnds })}
-              className="h-7 w-full text-[11px]"
+              className="h-7 w-full text-2xs"
             />
           </div>
         )}

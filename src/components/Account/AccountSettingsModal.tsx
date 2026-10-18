@@ -194,15 +194,15 @@ function AccountSettingsModalBody() {
                     {tierLabel ?? "No plan"}
                   </p>
                   {(subscription?.status === "cancelled" || subscription?.status === "cancelling") && renewalDate ? (
-                    <p className="text-[11px] text-amber-500">
+                    <p className="text-2xs text-amber-500">
                       {subscription.status === "cancelling" ? `Cancels ${renewalDate}` : `Access until ${renewalDate}`}
                     </p>
                   ) : renewalDate ? (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       Renews {renewalDate}
                     </p>
                   ) : (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {hasSubscription ? "Credit pack" : "No active plan"}
                     </p>
                   )}
@@ -234,7 +234,7 @@ function AccountSettingsModalBody() {
             label="Mapbox access token"
           />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
+            <p className="text-2xs text-muted-foreground leading-relaxed">
               Add your Mapbox access token to remove export limits.
               The app stores the token locally on this device and{" "}
               <span className="font-medium text-foreground">does not send it to our servers</span>.{" "}

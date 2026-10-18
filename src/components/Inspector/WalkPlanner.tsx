@@ -66,7 +66,7 @@ export const WalkPlanner = ({
       )}
 
       <div className="flex flex-col gap-2 pt-1">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
           Points
         </span>
 

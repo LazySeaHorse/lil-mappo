@@ -74,10 +74,10 @@ export function ActivityTab() {
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-medium truncate">{title}</span>
                     {detail && (
-                      <span className={`block text-[11px] leading-snug ${call.phase === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>{detail}</span>
+                      <span className={`block text-2xs leading-snug ${call.phase === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>{detail}</span>
                     )}
                   </span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">{formatRelativeTime(call.at, now)}</span>
+                  <span className="shrink-0 text-2xs text-muted-foreground">{formatRelativeTime(call.at, now)}</span>
                 </>
               );
               return (

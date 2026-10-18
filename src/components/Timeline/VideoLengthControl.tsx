@@ -67,7 +67,7 @@ export function VideoLengthControl() {
           finish(false);
         }
       }}
-      className="h-4 w-[4.5rem] rounded border border-border/60 bg-background/80 px-1 text-[10px] font-mono tabular-nums text-foreground outline-none focus:ring-2 focus:ring-ring/60"
+      className="h-4 w-[4.5rem] rounded border border-border/60 bg-background/80 px-1 text-2xs font-mono tabular-nums text-foreground outline-none focus:ring-2 focus:ring-ring/60"
     />
   );
 }

@@ -398,7 +398,7 @@ export const RouteAddDropdown = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => setPreviewRoute(null)}
-                  className="h-6 text-[10px]"
+                  className="h-6 text-2xs"
                 >
                   Clear
                 </Button>

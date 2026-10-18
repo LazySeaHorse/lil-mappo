@@ -156,7 +156,7 @@ export const BoundaryAddDropdown = ({
                 <Check size={14} className="text-primary shrink-0" />
                 <span className="text-xs font-medium truncate">{draftBoundaryName}</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-[10px] font-medium text-muted-foreground hover:text-foreground">Change</Button>
+              <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-2xs font-medium text-muted-foreground hover:text-foreground">Change</Button>
             </div>
           </div>
 

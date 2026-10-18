@@ -39,7 +39,7 @@ const WalkPointRow = ({ id, index, coords, isMoving, onToggleMove, onRemove }: W
       >
         <GripVertical size={13} />
       </button>
-      <div className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+      <div className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold text-2xs flex items-center justify-center shrink-0">
         {index + 1}
       </div>
       <span className="text-xs font-mono text-foreground/80 flex-1 min-w-0 truncate">

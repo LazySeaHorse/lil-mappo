@@ -18,7 +18,7 @@ export function FreeLimitNotice({ limits, onUpgrade }: FreeLimitNoticeProps) {
           mood="key"
           className="absolute -bottom-[30px] right-3.5 w-[116px] animate-in slide-in-from-bottom-6 duration-500 motion-reduce:animate-none"
         />
-        <h3 className="relative text-[13.5px] font-medium leading-tight text-foreground">
+        <h3 className="relative text-sm font-medium leading-tight text-foreground">
           The key to 4K is one step away
         </h3>
         <p className="relative mt-3.5 max-w-[132px] text-xs leading-snug text-muted-foreground">

@@ -40,7 +40,7 @@ export function GestureStatus({
           {children}
         </div>
         {subtext && (
-          <div className="mt-0.5 text-[11px] text-muted-foreground/75 leading-tight">{subtext}</div>
+          <div className="mt-0.5 text-2xs text-muted-foreground/75 leading-tight">{subtext}</div>
         )}
       </div>
     </div>

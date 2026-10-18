@@ -94,7 +94,7 @@ export function AvatarMenu({ onLibrary, onImportProjectClick, onWalkthrough }: A
           <Mappo mood={mood} className="h-11 w-auto shrink-0 mt-2" />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium leading-tight">{accountName}</div>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <div className="mt-1 flex items-center gap-1.5 text-2xs text-muted-foreground">
               <span className="rounded-full bg-primary/10 px-1.5 py-px font-medium text-primary">{tierLabel}</span>
               {user && mood !== 'explorer' && (
                 <DropdownMenuItem asChild onClick={afterClose(() => openUpgradeModal('account_menu'))}>

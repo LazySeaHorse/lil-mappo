@@ -354,26 +354,26 @@ function AuthModalBody({
 
       {isSignup ? (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
-          <p className="text-[11px] text-muted-foreground/70">
+          <p className="text-2xs text-muted-foreground/70">
             Have an account?
           </p>
           <button
             type="button"
             onClick={onSwitchToSignin}
-            className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+            className="text-2xs text-primary hover:text-primary/80 font-medium transition-colors"
           >
             Sign in
           </button>
         </div>
       ) : (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
-          <p className="text-[11px] text-muted-foreground/70">
+          <p className="text-2xs text-muted-foreground/70">
             Need an account?
           </p>
           <button
             type="button"
             onClick={onSwitchToSignup}
-            className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+            className="text-2xs text-primary hover:text-primary/80 font-medium transition-colors"
           >
             Create account
           </button>
@@ -381,7 +381,7 @@ function AuthModalBody({
       )}
 
       <div className="mt-2 text-center">
-        <p className="text-[10px] text-muted-foreground/50">
+        <p className="text-2xs text-muted-foreground/50">
           Need help? Email <a href="mailto:support@mail.lilmappo.tech" className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2">support@mail.lilmappo.tech</a>
         </p>
       </div>

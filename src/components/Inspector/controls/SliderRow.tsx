@@ -69,7 +69,7 @@ export function SliderRow({
         className="py-1"
       />
       {endLabels && (
-        <div data-slot="slider-end-labels" className="flex justify-between text-[10px] leading-none text-muted-foreground">
+        <div data-slot="slider-end-labels" className="flex justify-between text-2xs leading-none text-muted-foreground">
           <span>{endLabels[0]}</span>
           <span>{endLabels[1]}</span>
         </div>

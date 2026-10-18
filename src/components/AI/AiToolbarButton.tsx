@@ -18,7 +18,7 @@ export function AiToolbarButton({ iconSize = 16 }: { iconSize?: number }) {
       icon={
         <span className="relative inline-flex">
           <Sparkles size={iconSize} />
-          {!isPro && <ProBadge className="absolute -top-2 -right-4 px-1 py-0 text-[7px]" />}
+          {!isPro && <ProBadge className="absolute -top-2 -right-4 px-1 py-0" />}
         </span>
       }
       label="AI (Experimental)"

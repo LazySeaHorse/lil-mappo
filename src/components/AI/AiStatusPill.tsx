@@ -24,7 +24,7 @@ export function AiStatusPill() {
       type="button"
       data-testid="ai-status-pill"
       onClick={() => openPanel('activity')}
-      className="absolute left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-full border border-border/50 bg-background/85 px-3 py-1.5 text-[11px] font-medium shadow-lg backdrop-blur-xl pointer-events-auto hover:bg-background"
+      className="absolute left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-full border border-border/50 bg-background/85 px-3 py-1.5 text-2xs font-medium shadow-lg backdrop-blur-xl pointer-events-auto hover:bg-background"
       style={{ top: belowToolbarTop(isMobile) }}
     >
       <span

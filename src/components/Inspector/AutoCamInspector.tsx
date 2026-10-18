@@ -30,7 +30,7 @@ function StyleCard({ selected, onSelect, title, description }: {
       )}
     >
       <span className="block text-xs font-medium text-foreground">{title}</span>
-      <span className="block text-[10px] leading-tight mt-0.5">{description}</span>
+      <span className="block text-2xs leading-tight mt-0.5">{description}</span>
     </button>
   );
 }
@@ -67,7 +67,7 @@ function ModeCard({ selected, onSelect, illustration, title, description }: {
         {illustration}
       </div>
       <span className="text-xs font-medium text-foreground">{title}</span>
-      <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">{description}</span>
+      <span className="text-2xs text-muted-foreground leading-tight mt-0.5">{description}</span>
     </button>
   );
 }
@@ -251,7 +251,7 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
               />
             ))}
           </div>
-          <p className="text-[10px] text-muted-foreground">{FOLLOW_CAMERA_TERMS.presetsNote}</p>
+          <p className="text-2xs text-muted-foreground">{FOLLOW_CAMERA_TERMS.presetsNote}</p>
         </InspectorSection>
       )}
     </PanelWrapper>

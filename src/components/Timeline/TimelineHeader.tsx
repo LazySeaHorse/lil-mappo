@@ -110,7 +110,7 @@ export default function TimelineHeader({
 
 function TimelineTimecode({ timeDisplayRef }: { timeDisplayRef: RefObject<HTMLSpanElement> }) {
   return (
-    <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 leading-none">
+    <span className="text-2xs font-mono tabular-nums text-muted-foreground/70 leading-none">
       <span ref={timeDisplayRef} data-testid="playhead-time">{formatTimelineTime(useProjectStore.getState().playheadTime)}</span>
       <span className="opacity-50"> / </span>
       <VideoLengthControl />

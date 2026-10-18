@@ -120,7 +120,7 @@ export const SearchField = ({
           {renderResults()}
         </PopoverContent>
       </Popover>
-      {showEnterHint && <p className="mt-1 px-1 text-[11px] text-muted-foreground">{SEARCH_TERMS.enterHint}</p>}
+      {showEnterHint && <p className="mt-1 px-1 text-2xs text-muted-foreground">{SEARCH_TERMS.enterHint}</p>}
     </div>
   );
 };

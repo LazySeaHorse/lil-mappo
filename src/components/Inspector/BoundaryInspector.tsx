@@ -115,7 +115,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             <div className="flex flex-col gap-1.5">
               <FlagPicker value={item.style.flagCode} onChange={(code) => us({ flagCode: code })} />
               {!item.style.flagCode && (
-                <span className="text-[11px] text-muted-foreground leading-tight">
+                <span className="text-2xs text-muted-foreground leading-tight">
                   Select a country to show its flag inside the boundary.
                 </span>
               )}

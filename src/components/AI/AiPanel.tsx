@@ -14,7 +14,7 @@ import { useAiPanelStore, type AiPanelTab } from './useAiPanelStore';
 
 export function ExperimentalBadge() {
   return (
-    <span className="text-[8px] bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase shrink-0">
+    <span className="text-micro bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase shrink-0">
       Experimental
     </span>
   );

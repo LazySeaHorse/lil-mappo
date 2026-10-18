@@ -84,7 +84,7 @@ export function ManageSubscriptionView({
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-foreground/80">Status</p>
             <span
-              className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+              className={`text-2xs font-medium px-2 py-0.5 rounded-full ${
                 isCancelled
                   ? "bg-amber-500/10 text-amber-500"
                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
@@ -123,7 +123,7 @@ export function ManageSubscriptionView({
                 credits available
               </span>
             </div>
-            <p className="text-[11px] font-medium text-primary flex items-center gap-1 -mt-1 mb-1">
+            <p className="text-2xs font-medium text-primary flex items-center gap-1 -mt-1 mb-1">
               <Timer size={11} /> About {creditsToMinutesAt1080p(totalCredits).toLocaleString()} minutes at 1080p
             </p>
             <div className="flex flex-wrap gap-2">
@@ -142,7 +142,7 @@ export function ManageSubscriptionView({
               )}
             </div>
             {credits?.monthly_reset_date && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Monthly credits reset on{" "}
                 {new Date(credits.monthly_reset_date).toLocaleDateString("en-US", {
                   month: "long",

@@ -59,7 +59,7 @@ export function ConnectTab() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <label htmlFor="ai-enable" className="text-xs font-medium">Allow AI agents to control this project</label>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Resets to off when you close the editor.</p>
+          <p className="text-2xs text-muted-foreground mt-0.5">Resets to off when you close the editor.</p>
         </div>
         <Switch id="ai-enable" checked={enabled} onCheckedChange={handleToggle} aria-label="Allow AI agents to control this project" />
       </div>
@@ -71,12 +71,12 @@ export function ConnectTab() {
       )}
 
       <AiStatusLine enabled={enabled} supported={supported} count={count} bridged={bridged} />
-      <p className="text-[11px] text-muted-foreground leading-relaxed">{BRIDGE_DOCS_HINT}</p>
+      <p className="text-2xs text-muted-foreground leading-relaxed">{BRIDGE_DOCS_HINT}</p>
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <label htmlFor="ai-follow" className="text-xs font-medium">Follow AI</label>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Move the map to what the agent changes.</p>
+          <p className="text-2xs text-muted-foreground mt-0.5">Move the map to what the agent changes.</p>
         </div>
         <Switch id="ai-follow" checked={followAi} onCheckedChange={setFollowAi} aria-label="Follow AI" />
       </div>
@@ -87,11 +87,11 @@ export function ConnectTab() {
           <ChevronDown size={14} className="transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <ul className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+          <ul className="mt-2 space-y-1 text-2xs text-muted-foreground">
             {tools.map((t) => (
               <li key={t.name} className="flex items-center justify-between gap-2">
                 <span>{t.title}</span>
-                {!t.annotations.readOnlyHint && <span className="text-[9px] uppercase tracking-wider opacity-70">edits</span>}
+                {!t.annotations.readOnlyHint && <span className="text-micro uppercase tracking-wider opacity-70">edits</span>}
               </li>
             ))}
           </ul>
