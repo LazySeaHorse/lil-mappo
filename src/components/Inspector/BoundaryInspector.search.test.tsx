@@ -25,7 +25,6 @@ describe('BoundaryInspector search', () => {
     useProjectStore.setState({ items: { b1: item }, itemOrder: ['b1'], selectedItemId: 'b1' });
     render(<BoundaryInspector item={item} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
     const input = screen.getByPlaceholderText('Search for a place or region');
     fireEvent.change(input, { target: { value: 'Lyon' } });
     fireEvent.keyDown(input, { key: 'Enter' });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { BoundaryItem } from '@/store/types';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
@@ -22,14 +22,11 @@ import { InspectorHeader } from './InspectorHeader';
 import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
 import { TimingSection } from './timing/TimingSection';
 import { boundaryTiming } from './timing/timingAdapters';
-import { Button } from '@/components/ui/button';
 import { Shield, Ban, Layers, PenLine, Sparkles } from 'lucide-react';
 
 type BoundaryAnimationMode = 'none' | BoundaryItem['style']['animationStyle'];
 
 export function BoundaryInspector({ item }: { item: BoundaryItem }) {
-  // The area search stays closed until the user asks to change the area.
-  const [changingArea, setChangingArea] = useState(false);
   const updateItem = useProjectStore(s => s.updateItem);
 
   const u = (updates: Partial<BoundaryItem>) => updateItem(item.id, updates);
@@ -42,7 +39,6 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       placeName: shortPlaceName(r.display_name),
     });
     toast.success('Boundary updated.');
-    setChangingArea(false);
   };
 
   // Determine active animation card
@@ -79,24 +75,8 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       }
     >
 
-      <div className="mb-2.5 flex flex-col gap-2.5 rounded-xl border border-border/40 bg-secondary/25 px-3.5 py-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <span className="min-w-0 truncate text-xs font-medium text-foreground/90">
-            {`${BOUNDARY_TERMS.area}: ${item.placeName || BOUNDARY_TERMS.unnamed}`}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setChangingArea((open) => !open)}
-            className="h-7 shrink-0 px-2 text-xs"
-          >
-            {changingArea ? BOUNDARY_TERMS.cancel : BOUNDARY_TERMS.change}
-          </Button>
-        </div>
-        {changingArea && (
-          <BoundarySearch initialValue={item.placeName} onSelect={handleSelect} autoFocus />
-        )}
+      <div className="mb-2.5">
+        <BoundarySearch initialValue={item.placeName} onSelect={handleSelect} />
       </div>
 
       <InspectorSection kind="boundary" id="appearance">

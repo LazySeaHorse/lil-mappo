@@ -36,11 +36,6 @@ export const BOUNDARY_TERMS = {
   fillColor: 'Fill color',
   fillOpacity: 'Fill opacity',
   animation: 'Animation',
-  /** The summary row at the top of the panel: "Area: Paris" and a button. */
-  area: 'Area',
-  unnamed: 'No name',
-  change: 'Change',
-  cancel: 'Cancel',
   /** How much of the outline the Trace animation lights up at one time. */
   highlightLength: 'Highlight length',
   highlightHint: 'How much of the outline lights up at one time.',
