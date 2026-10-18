@@ -30,7 +30,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
 import ExportModal from "@/components/ExportModal/ExportModal";
-import { LazyAccountModals } from "@/components/Account/LazyAccountModals";
+import { AccountModals } from "@/components/Account/AccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
@@ -243,7 +243,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
 
         {/* Account Modals */}
         <NewProjectModal />
-        <LazyAccountModals />
+        <AccountModals />
         <QuickWalkthrough isMapReady={isMapReady} isMobile={isToolbarCollapsed} />
         </div>
       </MapRuntimeContext.Provider>

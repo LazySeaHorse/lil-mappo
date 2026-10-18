@@ -19,7 +19,7 @@ function useOpenedOnce(open: boolean): boolean {
 }
 
 /** Account, billing and auth dialogs, mounted the first time one is opened. Renders nothing until then. */
-export function LazyAccountModals() {
+export function AccountModals() {
   const authOpen = useOpenedOnce(useAuthStore((s) => s.showAuthModal));
   const settingsOpen = useOpenedOnce(useAuthStore((s) => s.showSettingsModal));
   const creditsOpen = useOpenedOnce(useAuthStore((s) => s.showCreditsModal));
