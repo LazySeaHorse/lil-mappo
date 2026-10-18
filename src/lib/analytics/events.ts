@@ -23,6 +23,7 @@ export type ProjectSource = 'blank' | 'import_file' | 'deep_link';
 export type UpgradeWhere =
   | 'map_load_gate'
   | 'vehicle_lock'
+  | 'model_import'
   | 'project_settings'
   | 'export_limits'
   | 'cloud_slots'

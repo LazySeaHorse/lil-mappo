@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/
 import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
+import { ModelImportButton } from './ModelImportButton';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { CAMERA_VIEW_TERMS } from '@/lib/terms';
@@ -93,6 +94,7 @@ export function MobileToolbarLayout({
             <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
             <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
             <ToolbarButton icon={<Video size={18} />} label={CAMERA_VIEW_TERMS.add} hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
+            <ModelImportButton iconSize={18} />
             <IconButton variant="secondary" size="sm" onClick={() => { setMobileMode('default'); setActiveDropdown(null); }}>
               <X size={16} />
             </IconButton>

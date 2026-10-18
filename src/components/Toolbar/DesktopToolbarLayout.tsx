@@ -16,6 +16,7 @@ import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
 import { HistoryButtons } from './HistoryButtons';
+import { ModelImportButton } from './ModelImportButton';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
 import { CAMERA_VIEW_TERMS } from '@/lib/terms';
 
@@ -144,6 +145,7 @@ export function DesktopToolbarLayout({
         <BoundaryAddDropdown isOpen={activeDropdown === 'boundary'} onOpenChange={(open) => setActiveDropdown(open ? 'boundary' : null)} />
         <AnnotationAddDropdown isOpen={activeDropdown === 'callout'} onOpenChange={(open) => setActiveDropdown(open ? 'callout' : null)} />
         <ToolbarButton icon={<Video size={16} />} label={CAMERA_VIEW_TERMS.add} hideLabel onClick={handleAddCameraKF} walkthroughTarget="camera-keyframe" />
+        <ModelImportButton />
       </div>
 
       <Divider />

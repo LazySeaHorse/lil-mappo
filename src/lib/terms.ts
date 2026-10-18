@@ -11,6 +11,7 @@ export const ITEM_TYPE_LABELS = {
   callout: 'Callout',
   boundary: 'Area',
   'camera-kf': 'Camera view',
+  model: '3D model',
 } as const;
 
 export type InspectorItemKind = keyof typeof ITEM_TYPE_LABELS;

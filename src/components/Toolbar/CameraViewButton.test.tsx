@@ -11,6 +11,7 @@ vi.mock('./RouteAddDropdown', () => ({ RouteAddDropdown: () => null }));
 vi.mock('./BoundaryAddDropdown', () => ({ BoundaryAddDropdown: () => null }));
 vi.mock('@/annotations/toolbar/AnnotationAddDropdown', () => ({ AnnotationAddDropdown: () => null }));
 vi.mock('@/components/AI/AiToolbarButton', () => ({ AiToolbarButton: () => null }));
+vi.mock('./ModelImportButton', () => ({ ModelImportButton: () => null }));
 vi.mock('./HistoryButtons', () => ({ HistoryButtons: () => null }));
 
 const props = {
