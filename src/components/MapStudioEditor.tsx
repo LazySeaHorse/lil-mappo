@@ -1,4 +1,5 @@
-import React, { lazy, Suspense, useRef, useState } from "react";
+import React, { lazy, useRef, useState } from "react";
+import { LazyBoundary } from "@/components/LazyBoundary";
 import type { MapRef } from "react-map-gl/mapbox";
 import Toolbar from "@/components/Toolbar/Toolbar";
 import MapViewport from "@/components/MapViewport/MapViewport";
@@ -238,9 +239,9 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         )}
 
         {exportOpenedRef.current && (
-          <Suspense fallback={null}>
+          <LazyBoundary>
             <ExportModal open={showExport} onClose={() => setShowExport(false)} />
-          </Suspense>
+          </LazyBoundary>
         )}
         <ProjectLibraryModal open={showLibrary} onClose={() => setShowLibrary(false)} />
 

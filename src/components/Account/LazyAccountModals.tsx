@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
+import { LazyBoundary } from "@/components/LazyBoundary";
 import { loadAccountSettingsModal, loadAuthModal, loadCreditsModal, loadRendersModal, loadUpgradeModal } from "@/lib/lazyModules";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -31,12 +32,12 @@ export function LazyAccountModals() {
   const rendersOpen = useOpenedOnce(useAuthStore((s) => s.showRendersModal));
 
   return (
-    <Suspense fallback={null}>
+    <LazyBoundary>
       {authOpen && <AuthModal />}
       {settingsOpen && <AccountSettingsModal />}
       {creditsOpen && <CreditsModal />}
       {upgradeOpen && <UpgradeModal />}
       {rendersOpen && <RendersModal />}
-    </Suspense>
+    </LazyBoundary>
   );
 }

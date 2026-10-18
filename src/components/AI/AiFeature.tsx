@@ -1,4 +1,5 @@
-import { lazy, Suspense, useRef } from 'react';
+import { lazy, useRef } from 'react';
+import { LazyBoundary } from "@/components/LazyBoundary";
 import { loadAiPanel } from '@/lib/lazyModules';
 import { useProjectStore } from '@/store/useProjectStore';
 import { AgentToolRegistrar } from './AgentToolRegistrar';
@@ -25,9 +26,9 @@ export function AiOverlays() {
   return (
     <>
       {openedRef.current && (
-        <Suspense fallback={null}>
+        <LazyBoundary>
           <AiPanel />
-        </Suspense>
+        </LazyBoundary>
       )}
       <AiStatusPill />
     </>
