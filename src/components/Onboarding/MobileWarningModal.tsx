@@ -20,7 +20,7 @@ export function MobileWarningModal({ open, onDismiss }: MobileWarningModalProps)
   return (
     <AlertDialog open={open}>
       <AlertDialogContent className={cn(pinDropContentClass, 'w-[calc(100vw-2rem)] sm:max-w-[420px]')}>
-        <PinDropHero mood="phone" spot="alcatraz" tag="You are here" />
+        <PinDropHero mood="phone" scene="mobile" />
         <PopupBody>
           <AlertDialogTitle className={popupTitleClass}>Phones are still experimental</AlertDialogTitle>
           <AlertDialogDescription className={popupTextClass}>

@@ -4,51 +4,43 @@ import { PinDropHero } from './pin-drop';
 import { mappoAspect, mappoTipX } from '@/components/Mappo/moods';
 
 describe('<PinDropHero />', () => {
-  it('drops Mappo in the given mood onto the map', () => {
-    const { container } = render(<PinDropHero mood="phone" />);
+  it('drops Mappo in the given mood onto a drawn scene, with no map imagery', () => {
+    const { container } = render(<PinDropHero mood="phone" scene="mobile" />);
     expect(container.querySelector('svg[data-mood="phone"]')).not.toBeNull();
-    expect(container.querySelectorAll('img')).toHaveLength(2);
+    expect(container.querySelector('[data-slot="pin-drop"]')?.getAttribute('data-scene')).toBe('mobile');
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it("lands the pin's tip on the middle of the hero, whatever the pose's frame", () => {
     const pin = (mood: 'camera' | 'wave') =>
-      render(<PinDropHero mood={mood} />).container.querySelector<HTMLElement>('[data-slot="pin-drop-pin"]');
+      render(<PinDropHero mood={mood} scene="tour" />).container.querySelector<HTMLElement>('[data-slot="pin-drop-pin"]');
     const width = (mood: 'camera' | 'wave') => 100 * mappoAspect(mood);
     expect(pin('camera')?.style.left).toBe('50%');
     expect(pin('camera')?.style.marginLeft).toBe(`${-mappoTipX('camera') * width('camera')}px`);
     expect(pin('wave')?.style.marginLeft).toBe(`${-mappoTipX('wave') * width('wave')}px`);
   });
 
-  it('moves the map so the spot sits under the pin', () => {
-    const map = (spot: 'alcatraz' | 'sausalito') =>
-      render(<PinDropHero mood="default" spot={spot} />).container.querySelector<HTMLElement>('[data-slot="pin-drop-map"]');
-    expect(map('alcatraz')?.style.getPropertyValue('--spot-x')).toBe('0.559');
-    expect(map('sausalito')?.style.getPropertyValue('--spot-x')).toBe('0.3438');
-  });
-
-  it('only draws the trip when asked', () => {
-    const route = (withRoute: boolean) =>
-      render(<PinDropHero mood="camera" route={withRoute} />).container.querySelector('[data-slot="pin-drop-route"]');
-    expect(route(false)).toBeNull();
-    expect(route(true)).not.toBeNull();
-  });
-
-  it('labels the place and credits the map data', () => {
-    render(<PinDropHero mood="camera" spot="sausalito" tag="Sausalito" />);
-    expect(screen.getByText('Sausalito')).toBeTruthy();
-    expect(screen.getByText('© Mapbox © OpenStreetMap')).toBeTruthy();
+  it("keeps the scene's landing spot under the tip when compact", () => {
+    const scene = (size: 'tall' | 'compact') =>
+      render(<PinDropHero mood="key" scene="upgrade" size={size} />).container.querySelector('[data-slot="pin-drop-scene"]');
+    expect(scene('tall')?.getAttribute('viewBox')).toBe('0 0 760 196');
+    // The tip is drawn at y 150 and lands 108px down a 132px hero.
+    expect(scene('compact')?.getAttribute('viewBox')).toBe('0 42 760 132');
   });
 
   it('uses a shorter hero and a smaller pin when compact', () => {
-    const { container } = render(<PinDropHero mood="key" size="compact" />);
-    const hero = container.querySelector<HTMLElement>('[data-slot="pin-drop"]');
-    const pin = container.querySelector<HTMLElement>('[data-slot="pin-drop-pin"]');
-    expect(hero?.style.height).toBe('132px');
-    expect(pin?.style.height).toBe('76px');
+    const { container } = render(<PinDropHero mood="key" scene="upgrade" size="compact" />);
+    expect(container.querySelector<HTMLElement>('[data-slot="pin-drop"]')?.style.height).toBe('132px');
+    expect(container.querySelector<HTMLElement>('[data-slot="pin-drop-pin"]')?.style.height).toBe('76px');
+  });
+
+  it('can label the scene', () => {
+    render(<PinDropHero mood="phone" scene="mobile" tag="You are here" />);
+    expect(screen.getByText('You are here')).toBeTruthy();
   });
 
   it('is decoration for assistive tech', () => {
-    const { container } = render(<PinDropHero mood="default" />);
+    const { container } = render(<PinDropHero mood="default" scene="library" />);
     expect(container.querySelector('[data-slot="pin-drop"]')?.getAttribute('aria-hidden')).toBe('true');
   });
 });

@@ -22,8 +22,8 @@ export function TourInvitationModal({ open, onStart, onDismiss }: TourInvitation
   return (
     <AlertDialog open={open}>
       <AlertDialogContent className={cn(pinDropContentClass, 'w-[calc(100vw-2rem)] sm:max-w-[420px]')}>
-        {/* Mappo lands at the end of a real trip: the kind of route the tour has you plan. */}
-        <PinDropHero mood="camera" spot="sausalito" tag="Sausalito" route />
+        {/* Shows where the tour starts (the Route button) and where it ends up (Export). */}
+        <PinDropHero mood="camera" scene="tour" />
         <PopupBody>
           <AlertDialogTitle className={popupTitleClass}>Make your first trip video</AlertDialogTitle>
           <AlertDialogDescription className={popupTextClass}>

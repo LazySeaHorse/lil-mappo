@@ -58,6 +58,14 @@
 
     --radius: 0.5rem;
 
+    /* Drawn maps (pin-drop scenes) */
+    --map-water: #bfe4f8;
+    --map-land: #f3f5f8;
+    --map-street: #e4e8ee;
+    --map-park: #d4ecd6;
+    --map-road: #ffffff;
+    --map-road-casing: #d5dbe3;
+
     /* MapStudio custom tokens */
     --toolbar-bg: 0 0% 100%;
     --toolbar-border: 214 20% 85%;
@@ -116,6 +124,13 @@
 
     --wish: 336 90% 68%;
     --wish-foreground: 240 10% 5%;
+
+    --map-water: #10233a;
+    --map-land: #1a1d24;
+    --map-street: #22262e;
+    --map-park: #1b2b25;
+    --map-road: #303744;
+    --map-road-casing: #101319;
 
     --toolbar-bg: 240 10% 5%;
     --toolbar-border: 240 4% 16%;
@@ -370,6 +385,9 @@
   100% { transform: none; }
 }
 @keyframes pin-drop-shadow { 0% { opacity: 0; transform: scale(0.2); } 60% { opacity: 1; transform: scale(1); } }
+/* A ring that points at the thing to click in a scene. */
+.pin-drop-pulse { transform-box: fill-box; transform-origin: center; animation: pin-drop-pulse 1.6s ease-out infinite; }
+@keyframes pin-drop-pulse { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(1.5); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .pin-drop-fall, .pin-drop-shadow { animation: none; }
+  .pin-drop-fall, .pin-drop-shadow, .pin-drop-pulse { animation: none; }
 }
