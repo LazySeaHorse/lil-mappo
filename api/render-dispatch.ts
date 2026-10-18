@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { adminClient } from './_lib/supabase.js';
 import crypto from 'crypto';
 import { calculateRenderCredits } from './_lib/render.js';
-import { isWanderer } from './_lib/entitlement.js';
+import { isWanderer, loadEntitlement } from './_lib/entitlement.js';
 import type { ExportResolution } from './_lib/render.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -25,11 +25,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Watermark entitlement is determined by the server. Never trust a client
   // flag here: the stored render config is later consumed by headless Chrome.
-  const { data: subscription, error: subscriptionError } = await supabase
-    .from('subscriptions')
-    .select('tier, status, renewal_date')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  // Subscription and Pro pass, read together.
+  const { data: subscription, error: subscriptionError } = await loadEntitlement(supabase, user.id);
 
   if (subscriptionError) {
     return res.status(500).json({ error: 'Could not verify render entitlement' });

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { adminClient } from "./_lib/supabase.js";
-import { isWanderer } from "./_lib/entitlement.js";
+import { isWanderer, loadEntitlement } from "./_lib/entitlement.js";
 
 /**
  * POST /api/track-map-load
@@ -38,12 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Invalid token" });
   }
 
-  // ── Skip tracking for Wanderer subscribers ────────────────────────────────
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("tier, status, renewal_date")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // ── Skip tracking for Wanderer subscribers and Pro pass holders ──────────
+  // On a read error `sub` is null, so the load is counted (fails closed).
+  const { data: sub } = await loadEntitlement(supabase, user.id);
 
   if (isWanderer(sub)) {
     return res.status(200).json({ allowed: true, monthly_total: 0, daily_total: 0 });
