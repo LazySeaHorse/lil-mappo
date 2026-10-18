@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import type { MappoMood, PoseMood } from './moods';
+import { mappoViewBox, type MappoMood, type PoseMood } from './moods';
 
 const INK = '#122d56';
 const BLUSH = '#f28b9b';
@@ -380,8 +380,6 @@ interface Pose {
   front?: () => React.ReactElement;
   /** Drawn before the pin, so the pin covers it. */
   behind?: () => React.ReactElement;
-  /** Wider frames for props that reach past the pin. */
-  viewBox?: string;
   /** Degrees to lean the pin and face, pivoting on the pin's tip. */
   lean?: number;
 }
@@ -399,7 +397,6 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: PhoneInHand,
-    viewBox: '351 287 690 678',
   },
   camera: {
     face: () => (
@@ -411,7 +408,6 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: CameraInHand,
-    viewBox: '351 287 760 678',
     lean: -4,
   },
   map: {
@@ -432,7 +428,6 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: WavingArm,
-    viewBox: '211 287 693 678',
     lean: 4,
   },
   cheer: {
@@ -446,7 +441,6 @@ const POSES: Record<PoseMood, Pose> = {
     ),
     behind: Confetti,
     front: CheeringArms,
-    viewBox: '271 237 713 728',
   },
   reel: {
     face: () => (
@@ -458,7 +452,6 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: ReelInHand,
-    viewBox: '351 287 720 678',
   },
   tangled: {
     face: () => (
@@ -480,7 +473,6 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: TicketInHand,
-    viewBox: '351 287 760 678',
   },
   balloon: {
     face: () => (
@@ -491,7 +483,6 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: HeartBalloon,
-    viewBox: '231 237 673 728',
   },
   peek: {
     face: () => (
@@ -527,7 +518,6 @@ const POSES: Record<PoseMood, Pose> = {
   },
 };
 
-const FRAME = '351 287 553 678';
 const isPose = (mood: MappoMood): mood is PoseMood => mood in POSES;
 
 /** Khaki safari hat perched on top of the pin, tilted a touch. Paid accounts only. */
@@ -548,7 +538,7 @@ const ExplorerCap = () => (
 export function Mappo({ mood = 'default', className, title, animated = false }: MappoProps) {
   const pose: Pose = isPose(mood)
     ? POSES[mood]
-    : { face: FeaturesFor[mood === 'explorer' ? 'blush' : mood], viewBox: mood === 'key' ? '351 287 760 678' : FRAME };
+    : { face: FeaturesFor[mood === 'explorer' ? 'blush' : mood] };
   const { face: Face, front: Front, behind: Behind } = pose;
   const pin = (
     <>
@@ -566,7 +556,7 @@ export function Mappo({ mood = 'default', className, title, animated = false }: 
   );
   return (
     <svg
-      viewBox={pose.viewBox ?? FRAME}
+      viewBox={mappoViewBox(mood)}
       xmlns="http://www.w3.org/2000/svg"
       className={cn(animated && 'mappo-animated', className)}
       style={{ overflow: 'visible' }}

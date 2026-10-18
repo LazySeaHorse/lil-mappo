@@ -41,6 +41,40 @@ export type PoseMood =
   /** Leans back with a sweat drop: about to delete something. */
   | 'nervous';
 
+/** The usual frame around the pin, in the logo mark's coordinates. */
+export const MAPPO_FRAME = '351 287 553 678';
+
+/** Where the pin's tip sits across the logo mark. */
+const TIP_X = 618;
+
+/** Wider frames for moods whose props reach past the pin. */
+const WIDE_FRAMES: Partial<Record<MappoMood, string>> = {
+  key: '351 287 760 678',
+  phone: '351 287 690 678',
+  camera: '351 287 760 678',
+  wave: '211 287 693 678',
+  cheer: '271 237 713 728',
+  reel: '351 287 720 678',
+  ticket: '351 287 760 678',
+  balloon: '231 237 673 728',
+};
+
+export function mappoViewBox(mood: MappoMood): string {
+  return WIDE_FRAMES[mood] ?? MAPPO_FRAME;
+}
+
+/** Width over height of the mood's frame. */
+export function mappoAspect(mood: MappoMood): number {
+  const [, , width, height] = mappoViewBox(mood).split(' ').map(Number);
+  return width / height;
+}
+
+/** Where the pin's tip sits across the mood's frame, from 0 at the left edge to 1 at the right. */
+export function mappoTipX(mood: MappoMood): number {
+  const [x, , width] = mappoViewBox(mood).split(' ').map(Number);
+  return (TIP_X - x) / width;
+}
+
 interface MappoAccount {
   signedIn: boolean;
   subscription: Subscription | null | undefined;

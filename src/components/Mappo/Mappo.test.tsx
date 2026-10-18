@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Mappo } from './Mappo';
-import { accountMood, authMood } from './moods';
+import { accountMood, authMood, mappoTipX } from './moods';
 import type { MappoMood } from './moods';
 import type { Subscription } from '@/lib/database.types';
 
@@ -53,6 +53,11 @@ describe('<Mappo />', () => {
     for (const mood of ['map', 'tangled', 'peek', 'peek-worried', 'nervous'] as MappoMood[]) {
       expect(viewBox(mood)).toBe('351 287 553 678');
     }
+  });
+
+  it('knows where the tip sits so a pin can land on a spot', () => {
+    expect(mappoTipX('default')).toBeCloseTo((618 - 351) / 553);
+    expect(mappoTipX('wave')).toBeCloseTo((618 - 211) / 693);
   });
 
   it('leans the pin for poses with a lean, pivoting on its tip', () => {

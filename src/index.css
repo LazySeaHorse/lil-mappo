@@ -358,3 +358,18 @@
 @media (prefers-reduced-motion: reduce) {
   .mappo-animated [data-part], .mappo-animated [data-part] rect { animation: none; }
 }
+
+/* PinDropHero (src/components/ui/pin-drop.tsx): Mappo drops onto the map and squashes on landing. */
+.pin-drop-fall { animation: pin-drop-fall 0.75s 0.15s cubic-bezier(0.3, 0, 0.4, 1) both; }
+.pin-drop-shadow { animation: pin-drop-shadow 0.75s 0.15s ease-out both; }
+@keyframes pin-drop-fall {
+  0% { transform: translateY(-160px); }
+  60% { transform: translateY(0) scale(1, 1); }
+  72% { transform: translateY(0) scale(1.06, 0.86); }
+  86% { transform: translateY(-10px) scale(1, 1.03); }
+  100% { transform: none; }
+}
+@keyframes pin-drop-shadow { 0% { opacity: 0; transform: scale(0.2); } 60% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .pin-drop-fall, .pin-drop-shadow { animation: none; }
+}

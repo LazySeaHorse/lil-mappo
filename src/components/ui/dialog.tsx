@@ -69,7 +69,8 @@ const DialogContent = React.forwardRef<
           {...props}
         >
           {children}
-          <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+          {/* A round chip so it stays readable over a pin-drop map as well as on plain popups. */}
+          <DialogPrimitive.Close data-slot="dialog-close" className="ring-offset-background focus:ring-ring absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-full bg-background/90 text-muted-foreground shadow-sm ring-1 ring-border/50 transition-colors hover:bg-background hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
             <XIcon />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
