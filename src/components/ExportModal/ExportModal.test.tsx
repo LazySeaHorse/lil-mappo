@@ -93,6 +93,28 @@ describe('ExportModal Sub-components', () => {
       vi.useRealTimers();
     });
 
+    it('turns into Get Wanderer when a Pro setting is picked, and opens the upgrade instead of exporting', () => {
+      const onExport = vi.fn();
+      const onUpgrade = vi.fn();
+      render(
+        <ExportModalFooter
+          {...base}
+          requiresSignIn
+          wandererReason="4K 2160p comes with the Wanderer plan."
+          onExport={onExport}
+          onUpgrade={onUpgrade}
+        />,
+      );
+      expect(screen.queryByRole('button', { name: /Export locally|Sign in/i })).toBeNull();
+      const getWanderer = screen.getByRole('button', { name: /Get Wanderer/ });
+      expect(document.getElementById(getWanderer.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+        '4K 2160p comes with the Wanderer plan.',
+      );
+      fireEvent.click(getWanderer);
+      expect(onUpgrade).toHaveBeenCalledTimes(1);
+      expect(onExport).not.toHaveBeenCalled();
+    });
+
     it('tells guests to sign in before they click, and still hands the click to onExport', () => {
       const onExport = vi.fn();
       render(<ExportModalFooter {...base} requiresSignIn onExport={onExport} />);
@@ -124,39 +146,29 @@ describe('ExportModal Sub-components', () => {
   });
 
   describe('ExportStatusAlerts', () => {
-    it('renders free plan limits and upgrade prompt for limited users', () => {
-      const onOpenUpgrade = vi.fn();
-
+    it('does not nag free users with a plan note; Pro picks turn the button into Get Wanderer instead', () => {
       render(
         <ExportStatusAlerts
-          limits={freeLimits}
           exportDuration={15}
           effectiveWidth={1280}
           effectiveHeight={720}
           totalFrames={450}
-          onOpenUpgrade={onOpenUpgrade}
         />
       );
 
-      expect(screen.getByText(/Free plan limit:/)).toBeDefined();
+      expect(screen.queryByText(/Free plan limit/)).toBeNull();
       expect(screen.getAllByText(/1280 × 720/).length).toBeGreaterThan(0);
       expect(screen.getByText(/450/)).toBeDefined();
-
-      const upgradeBtn = screen.getByText(/higher limits/);
-      fireEvent.click(upgradeBtn);
-      expect(onOpenUpgrade).toHaveBeenCalledTimes(1);
     });
 
     it('tells guests that exporting needs an account, and that it is free', () => {
       render(
         <ExportStatusAlerts
-          limits={freeLimits}
           requiresSignIn
           exportDuration={15}
           effectiveWidth={1280}
           effectiveHeight={720}
           totalFrames={450}
-          onOpenUpgrade={vi.fn()}
         />
       );
 
@@ -166,12 +178,10 @@ describe('ExportModal Sub-components', () => {
     it('does not show the sign-in note to signed-in users', () => {
       render(
         <ExportStatusAlerts
-          limits={freeLimits}
           exportDuration={15}
           effectiveWidth={1280}
           effectiveHeight={720}
           totalFrames={450}
-          onOpenUpgrade={vi.fn()}
         />
       );
 
@@ -181,12 +191,10 @@ describe('ExportModal Sub-components', () => {
     it('leaves progress, the tab warning and browser support to the button and header', () => {
       render(
         <ExportStatusAlerts
-          limits={proLimits}
           exportDuration={10}
           effectiveWidth={1920}
           effectiveHeight={1080}
           totalFrames={600}
-          onOpenUpgrade={vi.fn()}
         />
       );
 

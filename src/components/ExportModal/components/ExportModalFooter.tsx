@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Check, Clapperboard, Download, LogIn, TriangleAlert, X } from 'lucide-react';
+import { Check, Clapperboard, Crown, Download, LogIn, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
@@ -21,8 +21,11 @@ interface ExportModalFooterProps {
   fps: number;
   /** Guests: the button says so up front. Clicking it still goes through `onExport`, which opens sign-in. */
   requiresSignIn?: boolean;
+  /** Set when a Pro setting is picked: the button becomes Get Wanderer and says why. */
+  wandererReason?: string | null;
   onExport: () => void;
   onCancel: () => void;
+  onUpgrade?: () => void;
 }
 
 export function ExportModalFooter({
@@ -34,8 +37,10 @@ export function ExportModalFooter({
   height,
   fps,
   requiresSignIn = false,
+  wandererReason = null,
   onExport,
   onCancel,
+  onUpgrade,
 }: ExportModalFooterProps) {
   const completing = useCompleteHold(isExporting, progress);
   // While exporting, and for a moment after, Cloud render folds away and the Export button is the progress bar.
@@ -74,6 +79,8 @@ export function ExportModalFooter({
             label={completing ? 'complete' : phase}
             onCancel={isExporting ? onCancel : undefined}
           />
+        ) : wandererReason ? (
+          <GetWandererButton reason={wandererReason} onUpgrade={onUpgrade} />
         ) : (
           <ExportButton
             capability={localExportCapability}
@@ -154,6 +161,30 @@ function ExportButton({ capability, warning, requiresSignIn, exportedBefore, onE
       </Tooltip>
       <span id={warningId} className="sr-only">
         {warning}
+      </span>
+    </>
+  );
+}
+
+/** Stands in for Export while a Pro setting is picked. Explains which one in a tooltip and to screen readers. */
+function GetWandererButton({ reason, onUpgrade }: { reason: string; onUpgrade?: () => void }) {
+  const reasonId = useId();
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={onUpgrade}
+            aria-describedby={reasonId}
+            className="h-11 w-full min-w-0 gap-2 rounded-[10px] px-3 text-sm font-medium"
+          >
+            <Crown size={16} /> Get Wanderer
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[260px] text-pretty">{reason}</TooltipContent>
+      </Tooltip>
+      <span id={reasonId} className="sr-only">
+        {reason}
       </span>
     </>
   );

@@ -1,6 +1,6 @@
 import type { ExportLimits } from '@/lib/cloudAccess';
 import type { RenderConfig } from '@/types/render';
-import { resolveExportPlan } from './exportPlan';
+import { resolveExportPlan, wandererNeeds } from './exportPlan';
 
 const requestedConfig: RenderConfig = {
   resolution: [3840, 2160],
@@ -54,5 +54,23 @@ describe('resolveExportPlan', () => {
     expect(plan.renderConfig.fps).toBe(60);
     expect(plan.renderConfig.resolution).toEqual([3840, 2160]);
     expect(plan.endTime).toBe(45);
+  });
+});
+
+describe('wandererNeeds', () => {
+  const free: ExportLimits = { maxDuration: 30, maxResolution: '720p', maxFps: 30, limited: true };
+  const paid: ExportLimits = { maxDuration: 300, maxResolution: '2160p', maxFps: 60, limited: false };
+  const at = (exportResolution: RenderConfig['exportResolution'], fps: 30 | 60): RenderConfig => ({ ...requestedConfig, exportResolution, fps });
+
+  it('lists each picked setting that is past the free plan', () => {
+    expect(wandererNeeds(at('1080p', 30), { startTime: 0, endTime: 12 }, free)).toEqual(['resolution']);
+    expect(wandererNeeds(at('720p', 60), { startTime: 0, endTime: 12 }, free)).toEqual(['fps']);
+    expect(wandererNeeds(at('720p', 30), { startTime: 0, endTime: 45 }, free)).toEqual(['duration']);
+    expect(wandererNeeds(at('2160p', 60), { startTime: 0, endTime: 45 }, free)).toEqual(['resolution', 'fps', 'duration']);
+  });
+
+  it('needs nothing when the picks fit the plan', () => {
+    expect(wandererNeeds(at('720p', 30), { startTime: 0, endTime: 30 }, free)).toEqual([]);
+    expect(wandererNeeds(at('2160p', 60), { startTime: 0, endTime: 200 }, paid)).toEqual([]);
   });
 });

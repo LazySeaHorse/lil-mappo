@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -8,15 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { PinDropHero } from '@/components/ui/pin-drop';
 import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
 import { cn } from '@/lib/utils';
-import type { RenderConfig } from '@/types/render';
+import { getExportDimensions, type ExportResolution, type RenderConfig } from '@/types/render';
 import { getExportLimits, brandingFor } from '@/lib/cloudAccess';
-import { resolveExportPlan } from './exportPlan';
+import { clampResolution, resolveExportPlan, wandererNeeds } from './exportPlan';
 import { useLocalExportCapability } from './hooks/useLocalExportCapability';
 import { useVideoExportExecution } from './hooks/useVideoExportExecution';
 import { ExportSettingsForm } from './components/ExportSettingsForm';
 import { ExportStatusAlerts } from './components/ExportStatusAlerts';
 import { ExportModalFooter } from './components/ExportModalFooter';
-import { exportHeadline, exportMood } from './exportStatus';
+import { exportHeadline, exportMood, wandererReason } from './exportStatus';
 
 interface ExportModalProps {
   open: boolean;
@@ -65,13 +65,37 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     Math.min(duration, limits.maxDuration)
   );
 
+  // A Pro resolution picked here stays in the popup; the project only keeps resolutions the plan allows.
+  const [pickedResolution, setPickedResolution] = useState<ExportResolution | null>(null);
+  const requestedResolution = pickedResolution ?? clampResolution(exportResolution, limits);
+  const handleResolutionChange = (value: ExportResolution) => {
+    setPickedResolution(value);
+    if (clampResolution(value, limits) === value) setExportResolution(value);
+  };
+
+  // Each opening starts from settings the plan allows, so nobody opens the popup onto Get Wanderer.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpen.current) {
+      setPickedResolution(null);
+      setExportFps((value) => (value > limits.maxFps ? limits.maxFps : value));
+      setEndTime((value) => Math.min(value, duration, limits.maxDuration));
+    }
+    wasOpen.current = open;
+  }, [open, limits.maxFps, limits.maxDuration, duration]);
+
   const requestedRenderConfig: RenderConfig = {
     resolution,
     fps: exportFps,
     aspectRatio,
-    exportResolution,
+    exportResolution: requestedResolution,
     isVertical,
   };
+  const wanderer = wandererReason(
+    wandererNeeds(requestedRenderConfig, { startTime, endTime }, limits),
+    requestedResolution,
+    limits.maxDuration,
+  );
 
   const exportPlan = resolveExportPlan(
     requestedRenderConfig,
@@ -81,8 +105,10 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
 
   const { renderConfig: effectiveRenderConfig } = exportPlan;
   const [effectiveWidth, effectiveHeight] = effectiveRenderConfig.resolution;
-  const exportDuration = Math.max(0, exportPlan.endTime - exportPlan.startTime);
-  const totalFrames = Math.ceil(exportDuration * effectiveRenderConfig.fps);
+  // The stats row shows what was picked, Pro or not.
+  const [pickedWidth, pickedHeight] = getExportDimensions(requestedResolution, aspectRatio, isVertical);
+  const pickedDuration = Math.max(0, endTime - startTime);
+  const pickedFrames = Math.ceil(pickedDuration * exportFps);
 
   // Hook 1: Device / browser codec capability detection
   const localExportCapability = useLocalExportCapability(
@@ -117,6 +143,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     done,
     failed: !!error,
     unsupported: localExportCapability?.status === 'unsupported',
+    needsWanderer: !!wanderer,
   });
 
   return (
@@ -128,7 +155,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           <DialogTitle className={popupTitleClass}>Export</DialogTitle>
           {/* Changes in place (keep this tab open, export complete), so the popup keeps its height. */}
           <DialogDescription className={cn(popupTextClass, error && !isExporting && 'text-destructive')} aria-live="polite">
-            {exportHeadline({ isExporting, done, error })}
+            {exportHeadline({ isExporting, done, error, wanderer })}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,27 +163,27 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           <ExportSettingsForm
             aspectRatio={aspectRatio}
             isVertical={isVertical}
-            exportPlan={exportPlan}
+            resolution={requestedResolution}
+            fps={exportFps}
             limits={limits}
             startTime={startTime}
+            endTime={endTime}
             duration={duration}
             disabled={isFormDisabled}
             onAspectRatioChange={setAspectRatio}
             onOrientationChange={setIsVertical}
-            onResolutionChange={setExportResolution}
+            onResolutionChange={handleResolutionChange}
             onFpsChange={setExportFps}
             onStartTimeChange={setStartTime}
             onEndTimeChange={setEndTime}
           />
 
           <ExportStatusAlerts
-            limits={limits}
             requiresSignIn={isLimitedGuest}
-            exportDuration={exportDuration}
-            effectiveWidth={effectiveWidth}
-            effectiveHeight={effectiveHeight}
-            totalFrames={totalFrames}
-            onOpenUpgrade={() => openUpgradeModal('export_limits')}
+            exportDuration={pickedDuration}
+            effectiveWidth={pickedWidth}
+            effectiveHeight={pickedHeight}
+            totalFrames={pickedFrames}
           />
         </div>
 
@@ -169,8 +196,10 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           height={effectiveHeight}
           fps={effectiveRenderConfig.fps}
           requiresSignIn={isLimitedGuest}
+          wandererReason={wanderer}
           onExport={startExport}
           onCancel={cancelExport}
+          onUpgrade={() => openUpgradeModal('export_limits')}
         />
       </DialogContent>
     </Dialog>

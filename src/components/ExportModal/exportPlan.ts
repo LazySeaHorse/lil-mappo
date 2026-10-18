@@ -50,3 +50,27 @@ export function resolveExportPlan(
     endTime: Math.min(range.endTime, limits.maxDuration),
   };
 }
+
+export type WandererNeed = 'resolution' | 'fps' | 'duration';
+
+/** The picked settings that are past this plan's limits. Any at all turns the Export button into Get Wanderer. */
+export function wandererNeeds(
+  renderConfig: RenderConfig,
+  range: { startTime: number; endTime: number },
+  limits: ExportLimits,
+): WandererNeed[] {
+  const needs: WandererNeed[] = [];
+  if (RESOLUTION_ORDER.indexOf(renderConfig.exportResolution) > RESOLUTION_ORDER.indexOf(limits.maxResolution)) {
+    needs.push('resolution');
+  }
+  if (renderConfig.fps > limits.maxFps) needs.push('fps');
+  if (range.endTime > limits.maxDuration) needs.push('duration');
+  return needs;
+}
+
+/** The highest resolution the plan allows, at or below the picked one. */
+export function clampResolution(resolution: ExportResolution, limits: ExportLimits): ExportResolution {
+  return RESOLUTION_ORDER.indexOf(resolution) > RESOLUTION_ORDER.indexOf(limits.maxResolution)
+    ? limits.maxResolution
+    : resolution;
+}

@@ -1,20 +1,23 @@
 import React from 'react';
-import { Lock, Monitor, Smartphone } from 'lucide-react';
+import { Monitor, Smartphone } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ResolutionSelectItems, FpsSelectItems } from '@/components/ui/render-select-items';
+import { ProBadge } from '@/components/ui/pro-badge';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import type { ExportLimits } from '@/lib/cloudAccess';
-import type { ExportPlan } from '../exportPlan';
 
 interface ExportSettingsFormProps {
   aspectRatio: AspectRatio;
   isVertical: boolean;
-  exportPlan: ExportPlan;
+  /** What the user picked, which may be past the plan: Pro picks show their badge and turn Export into Get Wanderer. */
+  resolution: ExportResolution;
+  fps: 30 | 60;
   limits: ExportLimits;
   startTime: number;
+  endTime: number;
   duration: number;
   disabled: boolean;
   onAspectRatioChange: (v: AspectRatio) => void;
@@ -28,9 +31,11 @@ interface ExportSettingsFormProps {
 export function ExportSettingsForm({
   aspectRatio,
   isVertical,
-  exportPlan,
+  resolution,
+  fps,
   limits,
   startTime,
+  endTime,
   duration,
   disabled,
   onAspectRatioChange,
@@ -40,8 +45,6 @@ export function ExportSettingsForm({
   onStartTimeChange,
   onEndTimeChange,
 }: ExportSettingsFormProps) {
-  const { renderConfig: effectiveRenderConfig } = exportPlan;
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -78,16 +81,9 @@ export function ExportSettingsForm({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field
-          label={
-            <span className="flex items-center gap-1">
-              Resolution
-              {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
-            </span>
-          }
-        >
+        <Field label="Resolution">
           <Select
-            value={effectiveRenderConfig.exportResolution}
+            value={resolution}
             onValueChange={(v) => onResolutionChange(v as ExportResolution)}
             disabled={disabled}
           >
@@ -95,21 +91,14 @@ export function ExportSettingsForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <ResolutionSelectItems limits={limits} />
+              <ResolutionSelectItems limits={limits} lockedSelectable />
             </SelectContent>
           </Select>
         </Field>
 
-        <Field
-          label={
-            <span className="flex items-center gap-1">
-              Frame rate
-              {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
-            </span>
-          }
-        >
+        <Field label="Frame rate">
           <Select
-            value={effectiveRenderConfig.fps.toString()}
+            value={fps.toString()}
             onValueChange={(v) => onFpsChange(Number(v) as 30 | 60)}
             disabled={disabled}
           >
@@ -117,7 +106,7 @@ export function ExportSettingsForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <FpsSelectItems limits={limits} showUnit />
+              <FpsSelectItems limits={limits} showUnit lockedSelectable />
             </SelectContent>
           </Select>
         </Field>
@@ -128,7 +117,7 @@ export function ExportSettingsForm({
           <Input
             type="number"
             min={0}
-            max={exportPlan.endTime}
+            max={endTime}
             step={0.1}
             value={startTime}
             onChange={(e) => onStartTimeChange(Number(e.target.value))}
@@ -138,19 +127,19 @@ export function ExportSettingsForm({
         </Field>
         <Field
           label={
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               End time (s)
-              {limits.limited && <Lock size={10} className="text-muted-foreground/60" />}
+              {endTime > limits.maxDuration && <ProBadge />}
             </span>
           }
         >
           <Input
             type="number"
             min={startTime}
-            max={Math.min(duration, limits.maxDuration)}
+            max={duration}
             step={0.1}
-            value={exportPlan.endTime}
-            onChange={(e) => onEndTimeChange(Math.min(Number(e.target.value), limits.maxDuration))}
+            value={endTime}
+            onChange={(e) => onEndTimeChange(Math.min(Number(e.target.value), duration))}
             disabled={disabled}
             className="h-9 text-sm"
           />

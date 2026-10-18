@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportHeadline, exportMood, localExportWarning } from './exportStatus';
+import { exportHeadline, exportMood, localExportWarning, wandererReason } from './exportStatus';
 
 describe('localExportWarning', () => {
   it('says nothing when the browser can export, or while it is still being checked', () => {
@@ -20,7 +20,28 @@ describe('localExportWarning', () => {
   });
 });
 
+describe('wandererReason', () => {
+  it('names what was picked that needs Wanderer', () => {
+    expect(wandererReason(['resolution'], '2160p', 30)).toBe('4K 2160p comes with the Wanderer plan.');
+    expect(wandererReason(['fps'], '720p', 30)).toBe('60 FPS comes with the Wanderer plan.');
+    expect(wandererReason(['duration'], '720p', 30)).toBe('Exports past 30 seconds come with the Wanderer plan.');
+    expect(wandererReason(['resolution', 'fps', 'duration'], '1080p', 30)).toBe(
+      'FHD 1080p, 60 FPS and exports past 30 seconds come with the Wanderer plan.',
+    );
+  });
+
+  it('is null when nothing needs it', () => {
+    expect(wandererReason([], '720p', 30)).toBeNull();
+  });
+});
+
 describe('exportHeadline', () => {
+  it('says what needs Wanderer when a Pro setting is picked', () => {
+    expect(exportHeadline({ isExporting: false, done: false, wanderer: '60 FPS comes with the Wanderer plan.' })).toBe(
+      '60 FPS comes with the Wanderer plan.',
+    );
+  });
+
   it('asks the user to keep the tab open while exporting', () => {
     expect(exportHeadline({ isExporting: true, done: false })).toMatch(/Keep this tab open/);
   });
@@ -44,6 +65,10 @@ describe('exportMood', () => {
     expect(exportMood({ isExporting: false, done: false, failed: false, unsupported: false })).toBe('camera');
     expect(exportMood({ isExporting: true, done: false, failed: false, unsupported: false })).toBe('reel');
     expect(exportMood({ isExporting: false, done: true, failed: false, unsupported: false })).toBe('cheer');
+  });
+
+  it('holds up the key when a Pro setting is picked', () => {
+    expect(exportMood({ isExporting: false, done: false, failed: false, unsupported: false, needsWanderer: true })).toBe('key');
   });
 
   it('gets tangled in film when the export failed or cannot run here', () => {
