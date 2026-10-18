@@ -164,6 +164,8 @@ describe('clampVehicleScale', () => {
     expect(clampVehicleScale('dot', 8000)).toBe(10);
     expect(clampVehicleScale('car', 0.01)).toBe(0.2);
     expect(clampVehicleScale(undefined, 3)).toBe(3);
+    expect(clampVehicleScale('custom', 0.05)).toBe(0.05);
+    expect(clampVehicleScale('custom', 0.001)).toBe(0.01);
   });
 });
 
@@ -175,6 +177,27 @@ describe('markerSize', () => {
     expect(car.lengthM).toBeCloseTo(34.3);
     expect(car.reachM).toBeCloseTo(23.9);
     expect(markerSize(vehicle('plane', 1))!.lengthM).toBeCloseTo(3724);
+  });
+
+  it('measures a custom marker from its imported model bounds, sitting on the ground', () => {
+    const models = {
+      m1: {
+        id: 'm1', fileName: 'bus.glb', byteSize: 10, sha256: 'b'.repeat(64),
+        // 12 m nose to tail (z), origin in the middle of its 4 m height.
+        bounds: { min: [-1.5, -2, -4] as [number, number, number], max: [1, 2, 8] as [number, number, number] },
+      },
+    };
+    const custom = { enabled: true, type: 'custom' as const, modelId: 'm1', scale: 2 };
+    const size = markerSize(custom, models)!;
+    expect(size.lengthM).toBeCloseTo(24);
+    // Lifted to stand on the route: it reaches 1.5 m sideways, 4 m up and 8 m ahead of the point it rides.
+    expect(size.reachM).toBeCloseTo(2 * Math.hypot(1.5, 4, 8));
+  });
+
+  it('is null for a custom marker without a model', () => {
+    const custom = { enabled: true, type: 'custom' as const, modelId: 'gone', scale: 2 };
+    expect(markerSize(custom, {})).toBeNull();
+    expect(markerSize(custom)).toBeNull();
   });
 
   it('is null for the dot and for no marker', () => {

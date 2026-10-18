@@ -86,10 +86,12 @@ const patchSchema = z
   .partial();
 
 const TIMING = ['startTime', 'endTime'];
-const ALLOWED_KEYS: Record<'route' | 'boundary' | 'callout', string[]> = {
+const ALLOWED_KEYS: Record<'route' | 'boundary' | 'callout' | 'model', string[]> = {
   route: [...TIMING, 'easing', 'exitAnimation', 'name', 'vehicle', 'points', 'curved', 'sharpness', 'style'],
   boundary: [...TIMING, 'easing', 'exitAnimation', 'placeName', 'style'],
   callout: [...TIMING, 'content', 'location', 'styleId', 'anchor', 'altitude', 'offset', 'opacity', 'scale', 'sizeMode', 'transition', 'connector', 'settings', 'linkTitleToLocation'],
+  // Imported 3D models are placed in the editor; an agent can only retime them.
+  model: [...TIMING],
 };
 
 function assertKeysAllowed(kind: keyof typeof ALLOWED_KEYS, patch: Record<string, unknown>, id: string): void {
@@ -116,6 +118,7 @@ function itemLabel(item: TimelineItem): string {
     case 'boundary': return `boundary "${item.placeName}"`;
     case 'callout': return `callout "${item.content.title}"`;
     case 'camera': return 'camera track';
+    case 'model': return `3D model "${item.name}"`;
   }
 }
 
@@ -254,7 +257,7 @@ export const updateItem = defineTool({
     const item = requireEditable(id);
     const fields = Object.keys(patch);
     if (!fields.length) throw new ToolError('empty_patch', 'patch is empty; provide at least one field to change.');
-    const kind = item.kind as 'route' | 'boundary' | 'callout';
+    const kind = item.kind as 'route' | 'boundary' | 'callout' | 'model';
     assertKeysAllowed(kind, patch, id);
 
     // Async work first: geocode a callout's new location.
@@ -271,6 +274,7 @@ export const updateItem = defineTool({
       let updates: Partial<TimelineItem>;
       if (current.kind === 'route') updates = buildRouteUpdates(current, patch);
       else if (current.kind === 'boundary') updates = buildBoundaryUpdates(current, patch);
+      else if (current.kind === 'model') updates = {};
       else updates = buildCalloutUpdates(current, patch, place);
       if (patch.startTime !== undefined) (updates as { startTime: number }).startTime = start;
       if (patch.endTime !== undefined) (updates as { endTime: number }).endTime = end;

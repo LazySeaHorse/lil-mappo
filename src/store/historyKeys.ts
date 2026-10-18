@@ -27,6 +27,7 @@ export const TRACKED_PROJECT_KEYS = [
   'show3dFacades',
   'items',
   'itemOrder',
+  'models',
   'customMapStyleUrl',
   'customMapStyleLabel',
 ] as const satisfies readonly (keyof Project)[];

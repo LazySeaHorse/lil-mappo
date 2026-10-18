@@ -6,6 +6,7 @@ const KIND_LABEL: Record<TimelineItem['kind'], string> = {
   boundary: 'boundary',
   callout: 'callout',
   camera: 'camera',
+  model: '3D model',
 };
 
 function itemName(item: TimelineItem): string {
@@ -14,6 +15,7 @@ function itemName(item: TimelineItem): string {
     case 'boundary': return item.placeName || 'boundary';
     case 'callout': return item.content?.title || 'callout';
     case 'camera': return 'camera';
+    case 'model': return item.name || '3D model';
   }
 }
 
@@ -39,6 +41,7 @@ const SETTING_LABELS: Partial<Record<TrackedKey, string>> = {
   aspectRatio: 'Changed resolution',
   exportResolution: 'Changed resolution',
   isVertical: 'Changed resolution',
+  models: 'Changed 3D models',
 };
 
 function describeCameraChange(before: CameraItem, after: CameraItem): string {
@@ -87,8 +90,9 @@ export function describeChange(before: Partial<TrackedState>, after: Partial<Tra
   const b = before as TrackedState;
   const a = after as TrackedState;
   const itemsLabel = describeItemsChange(b, a);
+  // An imported model's metadata changes with the item that uses it; the item names the step.
   const changedSettings = TRACKED_PROJECT_KEYS.filter(
-    (k) => k !== 'items' && k !== 'itemOrder' && !Object.is(b[k], a[k]),
+    (k) => k !== 'items' && k !== 'itemOrder' && !(itemsLabel && k === 'models') && !Object.is(b[k], a[k]),
   );
   if (itemsLabel && changedSettings.length === 0) return itemsLabel;
   if (!itemsLabel && changedSettings.length > 0) {

@@ -180,6 +180,9 @@ export function boundsOfItems(itemIds: string[]): BBox {
       }
       const [x, y] = item.binding.lngLat;
       boxes.push([x, y, x, y]);
+    } else if (item.kind === 'model') {
+      const [x, y] = item.position;
+      boxes.push([x, y, x, y]);
     } else {
       throw new ToolError('cannot_frame_camera', 'The camera track has no map extent to frame.');
     }
