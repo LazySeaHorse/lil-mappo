@@ -55,7 +55,7 @@ export function ExportModalFooter({
   return (
     <div
       className={cn(
-        'grid px-6 pb-6 pt-2 transition-[grid-template-columns,column-gap] duration-500 ease-[cubic-bezier(0.65,0,0.35,1)] motion-reduce:transition-none',
+        'grid px-6 pb-6 pt-2 transition-[grid-template-columns,column-gap] duration-500 ease-in-out-cubic motion-reduce:transition-none',
         folded ? 'grid-cols-[0fr_1fr] gap-x-0' : 'grid-cols-[1fr_1fr] gap-x-3',
       )}
     >
@@ -65,7 +65,7 @@ export function ExportModalFooter({
         data-slot="export-cloud"
         aria-hidden={folded || undefined}
         className={cn(
-          'min-w-0 overflow-hidden transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.65,0,0.35,1)] motion-reduce:transition-none',
+          'min-w-0 overflow-hidden transition-[opacity,transform] duration-500 ease-in-out-cubic motion-reduce:transition-none',
           folded && 'pointer-events-none -translate-x-6 scale-95 opacity-0',
         )}
       >

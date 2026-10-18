@@ -91,6 +91,8 @@ export default {
       },
       fontSize: fontSizeScale,
       zIndex: zIndexScale,
+      // Tailwind 3 ships no aria-invalid variant; the primitives style invalid fields with it.
+      aria: { invalid: 'invalid="true"' },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -119,6 +121,7 @@ export default {
       },
       transitionTimingFunction: {
         spring: "cubic-bezier(0.16, 1, 0.3, 1)",
+        "in-out-cubic": "cubic-bezier(0.65, 0, 0.35, 1)",
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
