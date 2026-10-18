@@ -12,7 +12,34 @@ export type MappoMood =
   | 'worried'
   | 'explorer'
   /** Holds up a gold key, for notices about what an upgrade unlocks. Draws outside the usual frame, to the right. */
-  | 'key';
+  | 'key'
+  | PoseMood;
+
+/** Moods with arms and props, each made for one moment in the app. */
+export type PoseMood =
+  /** Squints at a phone that's too small: the mobile warning. */
+  | 'phone'
+  /** Winks with a wind-up film camera: the tour invite. */
+  | 'camera'
+  /** Reads an open paper map: new project, planning. */
+  | 'map'
+  /** Waves hello. */
+  | 'wave'
+  /** Arms up in confetti: an export finished. */
+  | 'cheer'
+  /** Holds up a film reel, tongue out: an export is running. */
+  | 'reel'
+  /** Wound up in film with dizzy eyes: an export failed. */
+  | 'tangled'
+  /** Holds out a boarding pass: sign in. */
+  | 'ticket'
+  /** Holds a heart balloon: votes and wishes. */
+  | 'balloon'
+  /** Grips an edge and looks up, for peeking over a card. */
+  | 'peek'
+  | 'peek-worried'
+  /** Leans back with a sweat drop: about to delete something. */
+  | 'nervous';
 
 interface MappoAccount {
   signedIn: boolean;

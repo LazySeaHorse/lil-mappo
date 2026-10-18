@@ -343,3 +343,18 @@
 @media (prefers-reduced-motion: reduce) {
   .route-preview-draw, .route-preview-navigation, .route-preview-comet { animation: none; }
 }
+
+/* Mappo's moving parts (see Mappo.tsx). Only move when the Mappo is `animated`. */
+.mappo-animated [data-part="arm"] { transform-box: view-box; transform-origin: 398px 664px; animation: mappo-wave 1.8s ease-in-out infinite; }
+.mappo-animated [data-part="reel"] { transform-box: fill-box; transform-origin: center; animation: mappo-spin 2.4s linear infinite; }
+.mappo-animated [data-part="balloon"] { animation: mappo-bob 2.6s ease-in-out infinite; }
+.mappo-animated [data-part="confetti"] rect { animation: mappo-twinkle 1.6s ease-in-out infinite; }
+.mappo-animated [data-part="confetti"] rect:nth-child(2n) { animation-delay: -0.8s; }
+.mappo-animated [data-part="confetti"] rect:nth-child(3n) { animation-delay: -0.4s; }
+@keyframes mappo-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 60% { transform: rotate(6deg); } }
+@keyframes mappo-spin { to { transform: rotate(360deg); } }
+@keyframes mappo-bob { 50% { transform: translateY(-14px); } }
+@keyframes mappo-twinkle { 50% { opacity: 0.35; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .mappo-animated [data-part], .mappo-animated [data-part] rect { animation: none; }
+}
