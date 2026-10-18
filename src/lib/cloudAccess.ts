@@ -7,13 +7,12 @@ import { BYOK_STORAGE_KEY, isAppOwnKey } from '@/config/mapbox';
 // ─── Tier helpers ─────────────────────────────────────────────────────────────
 
 /**
- * The paid-plan check: true if the user has an active (or still-in-cancelling-period)
- * Wanderer subscription. Use this rather than reading tier/status inline.
- *
- * The server keeps a copy of these rules in `api/_lib/entitlement.ts`
- * (`api/` cannot import `src/`); a parity test runs both against one table.
+ * The subscription half of the paid-plan check: an active (or
+ * still-in-cancelling-period) Wanderer subscription. Ignores the Pro pass.
+ * Use it only where a recurring subscription matters (current plan, manage
+ * billing, hiding the pass offer); every feature gate uses `isWanderer`.
  */
-export function isWanderer(subscription: Subscription | null | undefined): boolean {
+export function hasActiveSubscription(subscription: Subscription | null | undefined): boolean {
   if (!subscription || subscription.tier !== 'wanderer') return false;
   if (subscription.status === 'active') return true;
   if (subscription.status !== 'cancelling') return false;
@@ -24,6 +23,34 @@ export function isWanderer(subscription: Subscription | null | undefined): boole
   if (!subscription.renewal_date) return false;
   const today = new Date().toISOString().slice(0, 10);
   return subscription.renewal_date >= today;
+}
+
+/**
+ * When the user's Pro pass ends, or null if there is no pass or it has ended.
+ * Compared against the clock on every call, so a cached row never keeps a
+ * pass alive past its end.
+ */
+export function activePassEnd(
+  subscription: Subscription | null | undefined,
+  now = Date.now(),
+): Date | null {
+  const raw = subscription?.pass_expires_at;
+  if (!raw) return null;
+  const end = Date.parse(raw);
+  return Number.isFinite(end) && end > now ? new Date(end) : null;
+}
+
+/**
+ * The paid-plan check: true if the user has an active (or still-in-cancelling-period)
+ * Wanderer subscription, or an active Pro pass. Every paid gate goes through this
+ * (or the helpers below); do not read tier/status inline.
+ *
+ * The server keeps a copy of these rules in `api/_lib/entitlement.ts`
+ * (`api/` cannot import `src/`); a parity test runs both against one table.
+ * The SQL copy is `public.has_pro_access` (migration 023).
+ */
+export function isWanderer(subscription: Subscription | null | undefined): boolean {
+  return hasActiveSubscription(subscription) || activePassEnd(subscription) !== null;
 }
 
 /** Returns true if the user has no active subscription (free tier). */
