@@ -1,4 +1,4 @@
-import type { CameraKeyframe, RouteItem } from '@/store/types';
+import type { CameraKeyframe, ModelAsset, RouteItem } from '@/store/types';
 import { applyEasing } from './easings';
 import { clamp, lerp, liftBearing, poseFromFreeCam, wrapDegrees } from './cameraPose';
 import { getRoutePath } from './routePath';
@@ -226,10 +226,11 @@ function autoCamAt(
   progress: number,
   skipShots: RigSampleParams['skipShots'],
   ground: GroundModel | null,
+  models: Record<string, ModelAsset> | undefined,
 ): Plain | null {
   const config = route.autoCam!;
   const timing = { duration: route.endTime - route.startTime, easing: route.easing ?? 'easeInOutSine' };
-  const rig = getRig(coords, config, timing, ground, markerSize(route.calculation?.vehicle)?.reachM ?? 0);
+  const rig = getRig(coords, config, timing, ground, markerSize(route.calculation?.vehicle, models)?.reachM ?? 0);
   if (!rig) return null;
   return sampleRig(rig, config, { p: clamp(progress, 0, 1), skipShots });
 }
@@ -308,6 +309,8 @@ export function getCameraAtTime(
   routes?: RouteItem[],
   /** Terrain to plan auto-camera heights over; without it they follow the map's terrain. */
   ground: GroundModel | null = null,
+  /** The project's imported models, to size a custom route marker. */
+  models?: Record<string, ModelAsset>,
 ): CameraOutput | null {
   const autoCamRoutes = routes?.filter((r) => r.autoCam?.enabled) ?? [];
 
@@ -324,18 +327,18 @@ export function getCameraAtTime(
       const progress = blockDuration > 0 ? (time - blockStart) / blockDuration : 0;
       const prevKF = findLeadInKF(keyframes, activeRoute, autoCamRoutes);
       const nextKF = findLeadOutKF(keyframes, activeRoute, autoCamRoutes);
-      const autoCam = autoCamAt(activeRoute, coords, progress, blockSkipShots(activeRoute, prevKF, nextKF), ground);
+      const autoCam = autoCamAt(activeRoute, coords, progress, blockSkipShots(activeRoute, prevKF, nextKF), ground, models);
 
       if (autoCam) {
         // Exit blend: from the last stretch of the block through to the next manual KF
         if (nextKF && time > exitStart(activeRoute)) {
-          const exit = autoCamAt(activeRoute, coords, exitProgress(activeRoute), blockSkipShots(activeRoute, prevKF, nextKF), ground);
+          const exit = autoCamAt(activeRoute, coords, exitProgress(activeRoute), blockSkipShots(activeRoute, prevKF, nextKF), ground, models);
           return leadOutBlend(autoCam, exit ?? autoCam, nextKF, activeRoute, time);
         }
 
         // Entry blend: from the previous manual KF through the first stretch of the block
         if (prevKF && time < entryEnd(activeRoute)) {
-          const start = autoCamAt(activeRoute, coords, 0, blockSkipShots(activeRoute, prevKF, nextKF), ground);
+          const start = autoCamAt(activeRoute, coords, 0, blockSkipShots(activeRoute, prevKF, nextKF), ground, models);
           return leadInBlend(prevKF, autoCam, start ?? autoCam, activeRoute, time);
         }
 
@@ -353,7 +356,7 @@ export function getCameraAtTime(
     const prevKF = findLeadInKF(keyframes, upcoming, autoCamRoutes);
     if (prevKF && prevKF.time <= time) {
       const nextKF = findNextKFAfterBlock(keyframes, upcoming.endTime, autoCamRoutes);
-      const start = autoCamAt(upcoming, getRouteCoords(upcoming.id)!, 0, blockSkipShots(upcoming, prevKF, nextKF), ground);
+      const start = autoCamAt(upcoming, getRouteCoords(upcoming.id)!, 0, blockSkipShots(upcoming, prevKF, nextKF), ground, models);
       if (start) return leadInBlend(prevKF, start, start, upcoming, time);
     }
   }
@@ -367,8 +370,8 @@ export function getCameraAtTime(
     const nextKF = findLeadOutKF(keyframes, passed, autoCamRoutes);
     if (nextKF && time < nextKF.time) {
       const prevKF = findLeadInKF(keyframes, passed, autoCamRoutes);
-      const end = autoCamAt(passed, getRouteCoords(passed.id)!, 1, blockSkipShots(passed, prevKF, nextKF), ground);
-      const exit = autoCamAt(passed, getRouteCoords(passed.id)!, exitProgress(passed), blockSkipShots(passed, prevKF, nextKF), ground);
+      const end = autoCamAt(passed, getRouteCoords(passed.id)!, 1, blockSkipShots(passed, prevKF, nextKF), ground, models);
+      const exit = autoCamAt(passed, getRouteCoords(passed.id)!, exitProgress(passed), blockSkipShots(passed, prevKF, nextKF), ground, models);
       if (end) return leadOutBlend(end, exit ?? end, nextKF, passed, time);
     }
   }
@@ -386,7 +389,7 @@ export function getCameraAtTime(
     );
     const nextKF = activeKeyframes.find((kf) => kf.time > time);
     if (!nextKF && (!lastKF || lastKF.time < passed.endTime)) {
-      const held = autoCamAt(passed, getRouteCoords(passed.id)!, 1, undefined, ground);
+      const held = autoCamAt(passed, getRouteCoords(passed.id)!, 1, undefined, ground, models);
       if (held) return held;
     }
   }

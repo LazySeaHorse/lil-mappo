@@ -17,6 +17,21 @@ import { MODEL_BASE_SCALE, markerSize } from '@/config/vehicles';
 import carModelUrl from '@/assets/models/car.glb?url';
 import airplaneModelUrl from '@/assets/models/airplane.glb?url';
 import { routeTiming, type RouteTiming } from './routeTiming';
+import { modelExtent } from '@/models/modelGeometry';
+import type { ModelResolver } from './ModelCatalog';
+
+/** The route marker as drawn. */
+type DrawnMarker =
+  | { kind: 'dot'; radius: number }
+  | {
+    kind: 'model';
+    /** Mapbox model id: 'car', 'plane', or an imported model's. */
+    modelId: string;
+    scale: number;
+    /** Metres the model is raised so its lowest point sits on the route. */
+    lift: number;
+    size: { lengthM: number; reachM: number } | null;
+  };
 
 const DOT_BASE_RADIUS = 9;
 // Imported so Vite gives each model a content-hashed URL that browsers can cache until the file changes.
@@ -54,6 +69,8 @@ interface PaintCache {
   /** Last uploaded vehicle position and model rotation, as `a,b` keys. */
   vehiclePosition: string;
   vehicleRotation: string;
+  /** Last model-translation height written to the vehicle layer. */
+  vehicleLift: number;
   dashPattern: number[] | null;
 }
 
@@ -75,7 +92,7 @@ function createPaintCache(): PaintCache {
     glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false, glowTrim: '',
     cometColor: '', cometWidth: -1,
     lastAnimationType: '',
-    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleRotation: '',
+    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleRotation: '', vehicleLift: 0,
     dashPattern: null,
   };
 }
@@ -114,8 +131,14 @@ export class RouteRenderer {
   private readonly layers: LayerPropertyWriter<PaintCache>;
   private lastCometState = '';
   private disposed = false;
+  private marker: DrawnMarker | null = null;
 
-  constructor(private readonly map: MapboxMap, route: RouteItem) {
+  constructor(
+    private readonly map: MapboxMap,
+    route: RouteItem,
+    /** Finds imported models for a custom marker; without one, a custom marker is a dot. */
+    private readonly resolver?: ModelResolver,
+  ) {
     this.layers = new LayerPropertyWriter(map, createPaintCache);
     this.route = route;
     this.coordinates = extractLineCoords(route.geojson);
@@ -282,26 +305,49 @@ export class RouteRenderer {
     }
   }
 
+  /** What the marker is drawn as: a custom marker whose model file is missing falls back to the dot. */
+  private resolveMarker(vehicle: RouteVehicleConfig): DrawnMarker {
+    if (vehicle.type === 'custom') {
+      const resolved = this.resolver?.resolve(vehicle.modelId) ?? null;
+      if (!resolved) return { kind: 'dot', radius: DOT_BASE_RADIUS };
+      const s = vehicle.scale || 1;
+      const { lengthM, reachM, lift } = modelExtent(resolved.asset.bounds);
+      // Lifted so the model's lowest point rides on the route, whatever its origin.
+      return { kind: 'model', modelId: resolved.modelId, scale: s, lift: lift * s, size: { lengthM: lengthM * s, reachM: reachM * s } };
+    }
+    if (vehicle.type === 'dot') return { kind: 'dot', radius: DOT_BASE_RADIUS * vehicle.scale };
+    const type = vehicle.type;
+    if (!this.map.hasModel(type)) {
+      this.layers.mutate('addModel', type, () => this.map.addModel(type, MODELS[type]));
+    }
+    return { kind: 'model', modelId: type, scale: vehicle.scale * MODEL_BASE_SCALE[type], lift: 0, size: markerSize(vehicle) };
+  }
+
+  /** The imported models changed (relinked, released): look the custom marker's model up again. */
+  refreshModels(): void {
+    if (this.route.calculation?.vehicle?.type === 'custom') this.ensureVehicleResources();
+  }
+
   private ensureVehicleResources(): void {
     // The source and layer may be recreated below, starting from their initial position and rotation.
     this.layers.cache.vehiclePosition = '';
     this.layers.cache.vehicleRotation = '';
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled) {
+      this.marker = null;
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
       removeSourceIfPresent(this.map, this.ids.vehicleSource);
       return;
     }
 
-    const expectedType = vehicle.type === 'dot' ? 'circle' : 'model';
+    const marker = this.resolveMarker(vehicle);
+    this.marker = marker;
+    const expectedType = marker.kind === 'dot' ? 'circle' : 'model';
     if (this.map.getLayer(this.ids.vehicleLayer)?.type !== expectedType) {
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
       removeSourceIfPresent(this.map, this.ids.vehicleSource);
     }
 
-    if (vehicle.type !== 'dot' && !this.map.hasModel(vehicle.type)) {
-      this.layers.mutate('addModel', vehicle.type, () => this.map.addModel(vehicle.type, MODELS[vehicle.type]));
-    }
     if (!this.map.getSource(this.ids.vehicleSource)) {
       const initialCoord = this.coordinates[0] ?? [0, 0];
       this.map.addSource(this.ids.vehicleSource, {
@@ -309,39 +355,39 @@ export class RouteRenderer {
         data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [initialCoord[0], initialCoord[1]] } },
       });
     }
-    if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(vehicle);
+    if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(marker);
 
-    if (vehicle.type !== 'dot' && this.map.getLayoutProperty(this.ids.vehicleLayer, 'model-id') !== vehicle.type) {
-      const modelId = vehicle.type;
-      this.layers.mutate('setLayoutProperty:model-id', this.ids.vehicleLayer, () => {
-        this.map.setLayoutProperty(this.ids.vehicleLayer, 'model-id', modelId);
-      });
-    }
-
-    if (vehicle.type === 'dot') {
+    if (marker.kind === 'dot') {
       this.layers.mutate('setPaintProperty:vehicle-dot', this.ids.vehicleLayer, () => {
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', DOT_BASE_RADIUS * vehicle.scale);
+        this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', marker.radius);
         this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-color', this.route.style.color);
       });
-    } else {
-      this.layers.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
-        const s = vehicle.scale * MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'];
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [s, s, s]);
+      return;
+    }
+    if (this.map.getLayoutProperty(this.ids.vehicleLayer, 'model-id') !== marker.modelId) {
+      this.layers.mutate('setLayoutProperty:model-id', this.ids.vehicleLayer, () => {
+        this.map.setLayoutProperty(this.ids.vehicleLayer, 'model-id', marker.modelId);
       });
     }
+    this.layers.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
+      const s = marker.scale;
+      this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [s, s, s]);
+    });
+    this.layers.setPaint(this.ids.vehicleLayer, 'model-translation', [0, 0, marker.lift], 'vehicleLift', marker.lift);
   }
 
-  private addVehicleLayer(vehicle: RouteVehicleConfig): void {
+  private addVehicleLayer(marker: DrawnMarker): void {
     // A new layer starts visible at full opacity, whatever the one it replaces was set to.
     this.layers.cache.vehicleVisible = true;
     this.layers.cache.vehicleOpacity = -1;
-    if (vehicle.type === 'dot') {
+    this.layers.cache.vehicleLift = marker.kind === 'model' ? marker.lift : 0;
+    if (marker.kind === 'dot') {
       this.map.addLayer({
         id: this.ids.vehicleLayer,
         type: 'circle',
         source: this.ids.vehicleSource,
         paint: {
-          'circle-radius': DOT_BASE_RADIUS * vehicle.scale,
+          'circle-radius': marker.radius,
           'circle-color': this.route.style.color,
           'circle-stroke-color': '#FFFFFF',
           'circle-stroke-width': 2.5,
@@ -351,17 +397,16 @@ export class RouteRenderer {
       });
       return;
     }
-    const baseScale = MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'];
-    const s = vehicle.scale * baseScale;
+    const s = marker.scale;
     this.map.addLayer({
       id: this.ids.vehicleLayer,
       type: 'model',
       source: this.ids.vehicleSource,
-      layout: { 'model-id': vehicle.type },
+      layout: { 'model-id': marker.modelId },
       paint: {
         'model-scale': [s, s, s],
         'model-rotation': [0, 0, 0],
-        'model-translation': [0, 0, 0],
+        'model-translation': [0, 0, marker.lift],
         ...noPaintTransitions('model-opacity', 'model-rotation', 'model-scale', 'model-translation'),
       },
     });
@@ -381,8 +426,8 @@ export class RouteRenderer {
   }
 
   private renderVehicle(playheadTime: number, { progress, exitProgress, opacity }: RouteTiming): void {
-    const vehicle = this.route.calculation?.vehicle;
-    if (!vehicle?.enabled || this.coordinates.length < 2) return;
+    const marker = this.marker;
+    if (!marker || this.coordinates.length < 2) return;
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
       && !(this.route.style.animationType === 'comet' && progress === 0);
     this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
@@ -401,16 +446,16 @@ export class RouteRenderer {
       });
       this.layers.cache.vehiclePosition = position;
     }
-    const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
+    const opacityProperty = marker.kind === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 
-    const size = markerSize(vehicle);
+    const size = marker.kind === 'model' ? marker.size : null;
     if (size) {
       const facing = facingAlong(path, progress, size.lengthM);
       // To a hundredth of a degree, so gliding along a straight doesn't rewrite it every frame.
       const bearing = Math.round(facing.bearing * 100) / 100;
       const pitch = Math.round(facing.pitch * 100) / 100;
-      // model-translation stays at the [0, 0, 0] the layer is created with.
+      // model-translation stays where ensureVehicleResources set it (the custom marker's lift).
       this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing], 'vehicleRotation', `${pitch},${bearing}`);
     }
   }
