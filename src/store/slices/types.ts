@@ -4,6 +4,8 @@ import type {
   TimelineItem,
   CameraKeyframe,
   BoundaryItem,
+  ModelAsset,
+  ModelItem,
   WalkRouteCalculation,
 } from '../types';
 import type { FollowCameraResult } from '../followCamera';
@@ -84,6 +86,13 @@ export interface ItemsSlice {
   setFollowCamera: (routeId: string, on: boolean) => FollowCameraResult;
   reorderItems: (newOrder: string[]) => void;
   duplicateItem: (id: string) => void;
+  /**
+   * Adds an imported model's metadata (kept if it is already there) and, when given, a placed
+   * model item, in one step. The bytes go to the in-memory model registry, never here.
+   */
+  addModel: (asset: ModelAsset, item?: ModelItem) => void;
+  /** Points an imported model at a different file (a relink whose file differs). */
+  relinkModel: (assetId: string, file: Omit<ModelAsset, 'id'>) => void;
 }
 
 export interface CameraSlice {

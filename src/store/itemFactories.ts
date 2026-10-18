@@ -11,6 +11,8 @@ import type {
   CalloutItem,
   CameraKeyframe,
   EasingName,
+  ModelItem,
+  ModelTransition,
   RouteItem,
   RouteMode,
   RouteStyle,
@@ -321,5 +323,39 @@ export function createCameraKeyframe(input: CameraKeyframeInput): CameraKeyframe
     },
     easing: input.easing ?? 'easeInOutCubic',
     followRoute: null,
+  };
+}
+
+/** How a newly placed 3D model appears and leaves. */
+export const DEFAULT_MODEL_TRANSITION: ModelTransition = {
+  enter: 'fade',
+  exit: 'fade',
+  enterDuration: 0.5,
+  exitDuration: 0.5,
+};
+
+export interface ModelItemInput {
+  assetId: string;
+  name: string;
+  position: [number, number];
+  startTime: number;
+}
+
+/** A 3D model placed on the map, standing on the ground at its own size and facing north. */
+export function createModelItem(input: ModelItemInput): ModelItem {
+  return {
+    kind: 'model',
+    id: nanoid(),
+    name: input.name,
+    assetId: input.assetId,
+    position: input.position,
+    altitude: 0,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+    scale: 1,
+    startTime: input.startTime,
+    endTime: input.startTime + DEFAULT_ITEM_DURATION,
+    transition: { ...DEFAULT_MODEL_TRANSITION },
   };
 }
