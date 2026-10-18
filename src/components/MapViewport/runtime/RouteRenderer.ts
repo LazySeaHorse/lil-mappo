@@ -1,5 +1,5 @@
 import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
-import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
+import { extractLineCoords, facingAlong, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import { getRoutePath } from '@/engine/routePath';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
@@ -13,7 +13,7 @@ import {
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
-import { MODEL_BASE_SCALE } from '@/config/vehicles';
+import { MODEL_BASE_SCALE, markerSize } from '@/config/vehicles';
 import carModelUrl from '@/assets/models/car.glb?url';
 import airplaneModelUrl from '@/assets/models/airplane.glb?url';
 import { routeTiming, type RouteTiming } from './routeTiming';
@@ -404,14 +404,12 @@ export class RouteRenderer {
     const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
 
-    if (vehicle.type !== 'dot') {
-      // Face along the segment the vehicle is on; a zero-length one falls back to the first.
-      const [i] = path.locate(progress);
-      let from = path.coords[i];
-      let to = path.coords[i + 1];
-      if (from[0] === to[0] && from[1] === to[1]) [from, to] = path.coords;
-      const bearing = calculateBearing(from, to);
-      const pitch = calculatePitch(from, to);
+    const size = markerSize(vehicle);
+    if (size) {
+      const facing = facingAlong(path, progress, size.lengthM);
+      // To a hundredth of a degree, so gliding along a straight doesn't rewrite it every frame.
+      const bearing = Math.round(facing.bearing * 100) / 100;
+      const pitch = Math.round(facing.pitch * 100) / 100;
       // model-translation stays at the [0, 0, 0] the layer is created with.
       this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing], 'vehicleRotation', `${pitch},${bearing}`);
     }

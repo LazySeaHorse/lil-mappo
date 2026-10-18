@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { extractLineCoords, geojsonBounds, splitAtAntimeridian } from './geoUtils';
+import { extractLineCoords, facingAlong, geojsonBounds, splitAtAntimeridian } from './geoUtils';
+import { getRoutePath } from './routePath';
 
 const feature = (geometry: GeoJSON.Geometry): GeoJSON.Feature => ({ type: 'Feature', properties: {}, geometry });
 
@@ -66,5 +67,45 @@ describe('geojsonBounds', () => {
 
   it('returns null when there is nothing to bound', () => {
     expect(geojsonBounds({ type: 'FeatureCollection', features: [] })).toBeNull();
+  });
+});
+
+describe('facingAlong', () => {
+  // Due east for about 1.1 km, wiggling 1 m either side every 10 m, like a traced road.
+  const wiggly = getRoutePath(Array.from({ length: 111 }, (_, i) => [i * 0.00009, (i % 2 ? 1 : -1) * 0.000009]));
+  const frames = Array.from({ length: 101 }, (_, f) => 0.1 + (0.8 * f) / 100);
+  const off = (bearing: number) => Math.abs(bearing - 90);
+
+  it('faces along the road a marker is too small to see the bends of', () => {
+    const car = Math.max(...frames.map((u) => off(facingAlong(wiggly, u, 3.4).bearing)));
+    expect(car).toBeGreaterThan(5);
+  });
+
+  it('holds a big marker steady over bends shorter than itself', () => {
+    for (const u of frames) expect(off(facingAlong(wiggly, u, 340).bearing)).toBeLessThan(0.5);
+  });
+
+  it('turns a big marker through a corner over its own length', () => {
+    // A right angle from east to north, 2.2 km per leg.
+    const corner = getRoutePath([[0, 0], [0.02, 0], [0.02, 0.02]]);
+    const at = (u: number) => facingAlong(corner, u, 1000).bearing;
+    expect(at(0.2)).toBeCloseTo(90, 0);
+    expect(at(0.5)).toBeCloseTo(45, 0);
+    expect(at(0.8)).toBeCloseTo(0, 0);
+    // Half way between the corner and the marker's half length, it is part way round.
+    const part = at(0.5 - 250 / corner.lengthM);
+    expect(part).toBeGreaterThan(50);
+    expect(part).toBeLessThan(85);
+  });
+
+  it('tilts with the climb across its length', () => {
+    const climb = getRoutePath([[0, 0, 0], [0.009, 0, 100], [0.018, 0, 100]]);
+    expect(facingAlong(climb, 0.25, 10).pitch).toBeGreaterThan(4);
+    expect(facingAlong(climb, 0.75, 10).pitch).toBe(0);
+  });
+
+  it('faces a marker longer than the route along the whole of it', () => {
+    const short = getRoutePath([[0, 0], [0, 0.0001]]);
+    expect(facingAlong(short, 0.5, 5000).bearing).toBeCloseTo(0, 3);
   });
 });

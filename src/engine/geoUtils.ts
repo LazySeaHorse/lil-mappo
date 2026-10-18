@@ -2,6 +2,7 @@ import distance from '@turf/distance';
 import simplify from '@turf/simplify';
 import { point } from '@turf/helpers';
 import { bearingDeg, clamp, METERS_PER_DEGREE } from './geoMath';
+import type { RoutePath } from './routePath';
 
 
 /**
@@ -144,6 +145,20 @@ export function calculateBearing(start: number[], end: number[]): number {
   bearing = ((bearing % 360) + 360) % 360;
   if (bearing === 360 || Object.is(bearing, -0)) return 0;
   return bearing;
+}
+
+/**
+ * Which way a 3D marker `lengthM` long faces at route progress `u`: from the route under its tail
+ * to the route under its nose, the road's direction averaged over its length. Bends shorter than
+ * the marker cancel out, so a giant one turns smoothly where a small one turns at every vertex.
+ */
+export function facingAlong(path: RoutePath, u: number, lengthM: number): { bearing: number; pitch: number } {
+  const half = path.lengthM > 0 ? lengthM / 2 / path.lengthM : 0;
+  let from = path.pointAt(u - half);
+  let to = path.pointAt(u + half);
+  // A route with no length yet faces along its first segment.
+  if (from[0] === to[0] && from[1] === to[1]) [from, to] = path.coords;
+  return { bearing: calculateBearing(from, to), pitch: calculatePitch(from, to) };
 }
 
 /**
