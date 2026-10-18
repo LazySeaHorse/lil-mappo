@@ -409,6 +409,27 @@ function ConnectScene() {
   );
 }
 
+/** A finished trip video on the left, downloading as an MP4 on the right. */
+function ExportScene() {
+  return (
+    <g>
+      <g transform="rotate(-6 266 104)" style={lift}>
+        <Card x={220} y={70} w={92} h={60} r={7} />
+        <MiniMap x={225} y={75} w={82} h={50} />
+        <circle cx={266} cy={100} r={11} fill={C.bg} opacity={0.9} />
+        <path d="M262.5 94 l9 6 l-9 6Z" fill={C.primary} />
+      </g>
+      <g style={lift}>
+        <path d="M462 64 h34 l14 14 v58 a5 5 0 0 1 -5 5 h-43 a5 5 0 0 1 -5 -5 v-67 a5 5 0 0 1 5 -5Z" fill={C.bg} stroke={C.border} strokeWidth={1.4} />
+        <path d="M496 64 v14 h14" fill="none" stroke={C.border} strokeWidth={1.4} />
+        <rect x={466} y={118} width={36} height={14} rx={4} fill={C.primary} />
+        <text x={484} y={128.5} textAnchor="middle" fontSize={9} fontWeight={700} letterSpacing={0.6} fill="#fff" fontFamily="inherit">MP4</text>
+        <path d="M484 82 V104 M475 96 L484 105 L493 96" stroke={C.primary} strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </g>
+  );
+}
+
 const SCENES = {
   mobile: { center: 520, Scene: MobileScene },
   tour: { center: 330, Scene: TourScene },
@@ -423,6 +444,7 @@ const SCENES = {
   settings: { center: 1040, Scene: SettingsScene },
   signIn: { center: 820, Scene: SignInScene },
   connect: { center: 360, Scene: ConnectScene },
+  export: { center: 700, Scene: ExportScene },
 };
 
 export type PinDropSceneName = keyof typeof SCENES;

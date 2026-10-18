@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Clapperboard } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMapRuntime } from '@/hooks/useMapRuntime';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { PinDropHero } from '@/components/ui/pin-drop';
+import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
+import { cn } from '@/lib/utils';
 import type { RenderConfig } from '@/types/render';
 import { getExportLimits, brandingFor } from '@/lib/cloudAccess';
 import { resolveExportPlan } from './exportPlan';
@@ -14,6 +16,7 @@ import { useVideoExportExecution } from './hooks/useVideoExportExecution';
 import { ExportSettingsForm } from './components/ExportSettingsForm';
 import { ExportStatusAlerts } from './components/ExportStatusAlerts';
 import { ExportModalFooter } from './components/ExportModalFooter';
+import { exportHeadline, exportMood } from './exportStatus';
 
 interface ExportModalProps {
   open: boolean;
@@ -108,24 +111,28 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
   );
 
   const isFormDisabled = isExporting;
+  const done = !isExporting && progress === 100 && !error;
+  const mood = exportMood({
+    isExporting,
+    done,
+    failed: !!error,
+    unsupported: localExportCapability?.status === 'unsupported',
+  });
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-              <Clapperboard className="text-primary h-6 w-6" /> Export
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-1">
-              Set the video format and export range.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent className={cn(pinDropContentClass, 'sm:max-w-[540px] flex flex-col')}>
+        {/* Mappo holds the camera, spins a reel while exporting, cheers when it's saved, and gets tangled when it fails. */}
+        <PinDropHero mood={mood} scene="export" size="compact" />
+        <DialogHeader className="px-6 text-left">
+          <DialogTitle className={popupTitleClass}>Export</DialogTitle>
+          {/* Changes in place (keep this tab open, export complete), so the popup keeps its height. */}
+          <DialogDescription className={cn(popupTextClass, error && !isExporting && 'text-destructive')} aria-live="polite">
+            {exportHeadline({ isExporting, done, error })}
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="px-6 pt-4 pb-2 space-y-4 max-h-[60vh] overflow-y-auto">
           <ExportSettingsForm
             aspectRatio={aspectRatio}
             isVertical={isVertical}
@@ -145,27 +152,22 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           <ExportStatusAlerts
             limits={limits}
             requiresSignIn={isLimitedGuest}
-            isExporting={isExporting}
             exportDuration={exportDuration}
             effectiveWidth={effectiveWidth}
             effectiveHeight={effectiveHeight}
-            effectiveFps={effectiveRenderConfig.fps}
             totalFrames={totalFrames}
-            localExportCapability={localExportCapability}
-            phase={phase}
-            progress={progress}
-            error={error}
-            cloudSubmitted={false}
             onOpenUpgrade={() => openUpgradeModal('export_limits')}
           />
         </div>
 
-        {/* Footer */}
         <ExportModalFooter
           isExporting={isExporting}
-          cloudSubmitted={false}
           progress={progress}
+          phase={phase}
           localExportCapability={localExportCapability}
+          width={effectiveWidth}
+          height={effectiveHeight}
+          fps={effectiveRenderConfig.fps}
           requiresSignIn={isLimitedGuest}
           onExport={startExport}
           onCancel={cancelExport}

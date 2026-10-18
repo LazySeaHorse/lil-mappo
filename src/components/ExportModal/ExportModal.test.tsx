@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ExportModalFooter } from './components/ExportModalFooter';
 import { ExportStatusAlerts } from './components/ExportStatusAlerts';
 import type { ExportLimits } from '@/lib/cloudAccess';
+import type { LocalExportCapability } from '@/services/localExportCapability';
 
 describe('ExportModal Sub-components', () => {
   const freeLimits: ExportLimits = {
@@ -21,105 +22,104 @@ describe('ExportModal Sub-components', () => {
   };
 
   describe('ExportModalFooter', () => {
+    const ready = { status: 'ready', codec: 'avc1.640028' } as const;
+    const base = {
+      isExporting: false,
+      progress: 0,
+      phase: 'capture' as const,
+      localExportCapability: ready as LocalExportCapability,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      onExport: vi.fn(),
+      onCancel: vi.fn(),
+    };
+
     it('renders "Export locally" and responds to click when idle and ready', () => {
       const onExport = vi.fn();
-      const onCancel = vi.fn();
-
-      render(
-        <ExportModalFooter
-          isExporting={false}
-          cloudSubmitted={false}
-          progress={0}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          onExport={onExport}
-          onCancel={onCancel}
-        />
-      );
+      render(<ExportModalFooter {...base} onExport={onExport} />);
 
       const exportBtn = screen.getByRole('button', { name: /Export locally/i });
-      expect(exportBtn).toBeDefined();
       expect(exportBtn.hasAttribute('disabled')).toBe(false);
-
       fireEvent.click(exportBtn);
       expect(onExport).toHaveBeenCalledTimes(1);
     });
 
-    it('renders "Cancel" button during active export and responds to click', () => {
-      const onExport = vi.fn();
-      const onCancel = vi.fn();
-
-      render(
-        <ExportModalFooter
-          isExporting={true}
-          cloudSubmitted={false}
-          progress={45}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          onExport={onExport}
-          onCancel={onCancel}
-        />
-      );
-
-      const cancelBtn = screen.getByRole('button', { name: /Cancel/i });
-      expect(cancelBtn).toBeDefined();
-
-      fireEvent.click(cancelBtn);
-      expect(onCancel).toHaveBeenCalledTimes(1);
-    });
-
-    it('shows Cloud render as an enabled split control beside Export, with no "Not available yet" text', () => {
-      render(
-        <ExportModalFooter
-          isExporting={false}
-          cloudSubmitted={false}
-          progress={0}
-          localExportCapability={{ status: 'ready' } as never}
-          onExport={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
+    it('shows Cloud render as a split control beside Export, the same height, with no "Not available yet" text', () => {
+      render(<ExportModalFooter {...base} />);
       const cloud = screen.getByRole('button', { name: 'Cloud render, not built yet' });
       const exportBtn = screen.getByRole('button', { name: /Export locally/i });
       expect(cloud.hasAttribute('disabled')).toBe(false);
-      expect(cloud.parentElement).toBe(exportBtn.parentElement);
       expect(cloud.className).toContain('h-11');
       expect(exportBtn.className).toContain('h-11');
       expect(screen.queryByText(/Not available yet/)).toBeNull();
-      expect(screen.queryByRole('button', { name: /I'd like this/ })).toBeNull();
+    });
+
+    it('turns the Export button into the progress bar while exporting', () => {
+      render(<ExportModalFooter {...base} isExporting progress={65} />);
+      const bar = screen.getByRole('progressbar', { name: 'Export progress' });
+      expect(bar.getAttribute('aria-valuenow')).toBe('65');
+      expect(screen.getAllByText('Exporting frames').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('65%').length).toBeGreaterThan(0);
+      expect(screen.queryByRole('button', { name: /Export locally/i })).toBeNull();
+    });
+
+    it('says when it is still preparing map tiles', () => {
+      render(<ExportModalFooter {...base} isExporting phase="prewarm" progress={20} />);
+      expect(screen.getAllByText('Preparing map tiles').length).toBeGreaterThan(0);
+    });
+
+    it('folds Cloud render away while exporting so it cannot be reached', () => {
+      const { container } = render(<ExportModalFooter {...base} isExporting progress={10} />);
+      const cloud = container.querySelector<HTMLElement>('[data-slot="export-cloud"]');
+      expect(cloud?.getAttribute('aria-hidden')).toBe('true');
+      expect((cloud as HTMLElement & { inert?: boolean }).inert).toBe(true);
+    });
+
+    it('cancels from the end of the progress bar', () => {
+      const onCancel = vi.fn();
+      render(<ExportModalFooter {...base} isExporting progress={45} onCancel={onCancel} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel export' }));
+      expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows "Export complete" when an export finishes, then offers to export again', () => {
+      vi.useFakeTimers();
+      const { rerender } = render(<ExportModalFooter {...base} isExporting progress={90} />);
+      rerender(<ExportModalFooter {...base} isExporting={false} progress={100} />);
+      expect(screen.getAllByText('Export complete').length).toBeGreaterThan(0);
+      act(() => vi.advanceTimersByTime(2500));
+      expect(screen.getByRole('button', { name: /Export again/i })).toBeDefined();
+      vi.useRealTimers();
     });
 
     it('tells guests to sign in before they click, and still hands the click to onExport', () => {
       const onExport = vi.fn();
-      render(
-        <ExportModalFooter
-          isExporting={false}
-          cloudSubmitted={false}
-          progress={0}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          requiresSignIn
-          onExport={onExport}
-          onCancel={vi.fn()}
-        />
-      );
-
+      render(<ExportModalFooter {...base} requiresSignIn onExport={onExport} />);
       expect(screen.queryByRole('button', { name: /Export locally/i })).toBeNull();
       fireEvent.click(screen.getByRole('button', { name: 'Sign in to export' }));
       expect(onExport).toHaveBeenCalledTimes(1);
     });
 
-    it('disables export button when local export is unsupported', () => {
-      render(
-        <ExportModalFooter
-          isExporting={false}
-          cloudSubmitted={false}
-          progress={0}
-          localExportCapability={{ status: 'unsupported' }}
-          onExport={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
+    it('turns local export off with a warning that says why when the browser cannot make MP4 files', () => {
+      const { container } = render(<ExportModalFooter {...base} localExportCapability={{ status: 'unsupported' }} />);
       const exportBtn = screen.getByRole('button', { name: /Export locally/i });
       expect(exportBtn.hasAttribute('disabled')).toBe(true);
+      expect(container.querySelector('[data-slot="export-warning"]')).not.toBeNull();
+      expect(document.getElementById(exportBtn.getAttribute('aria-describedby') ?? '')?.textContent).toMatch(/can't make MP4 files/);
+    });
+
+    it('keeps local export on but warns when the browser doubts these settings', () => {
+      render(<ExportModalFooter {...base} width={3840} height={2160} fps={60} localExportCapability={{ status: 'limited' }} />);
+      const exportBtn = screen.getByRole('button', { name: /Export locally/i });
+      expect(exportBtn.hasAttribute('disabled')).toBe(false);
+      expect(document.getElementById(exportBtn.getAttribute('aria-describedby') ?? '')?.textContent).toContain('3840 × 2160, 60 FPS');
+    });
+
+    it('shows no warning when the browser can export', () => {
+      const { container } = render(<ExportModalFooter {...base} />);
+      expect(container.querySelector('[data-slot="export-warning"]')).toBeNull();
+      expect(screen.getByRole('button', { name: /Export locally/i }).hasAttribute('aria-describedby')).toBe(false);
     });
   });
 
@@ -130,17 +130,10 @@ describe('ExportModal Sub-components', () => {
       render(
         <ExportStatusAlerts
           limits={freeLimits}
-          isExporting={false}
           exportDuration={15}
           effectiveWidth={1280}
           effectiveHeight={720}
-          effectiveFps={30}
           totalFrames={450}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          phase="capture"
-          progress={0}
-          error={null}
-          cloudSubmitted={false}
           onOpenUpgrade={onOpenUpgrade}
         />
       );
@@ -159,17 +152,10 @@ describe('ExportModal Sub-components', () => {
         <ExportStatusAlerts
           limits={freeLimits}
           requiresSignIn
-          isExporting={false}
           exportDuration={15}
           effectiveWidth={1280}
           effectiveHeight={720}
-          effectiveFps={30}
           totalFrames={450}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          phase="capture"
-          progress={0}
-          error={null}
-          cloudSubmitted={false}
           onOpenUpgrade={vi.fn()}
         />
       );
@@ -181,17 +167,10 @@ describe('ExportModal Sub-components', () => {
       render(
         <ExportStatusAlerts
           limits={freeLimits}
-          isExporting={false}
           exportDuration={15}
           effectiveWidth={1280}
           effectiveHeight={720}
-          effectiveFps={30}
           totalFrames={450}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          phase="capture"
-          progress={0}
-          error={null}
-          cloudSubmitted={false}
           onOpenUpgrade={vi.fn()}
         />
       );
@@ -199,50 +178,22 @@ describe('ExportModal Sub-components', () => {
       expect(screen.queryByText(/You need an account/)).toBeNull();
     });
 
-    it('renders keep tab open warning and progress bar during export', () => {
+    it('leaves progress, the tab warning and browser support to the button and header', () => {
       render(
         <ExportStatusAlerts
           limits={proLimits}
-          isExporting={true}
           exportDuration={10}
           effectiveWidth={1920}
           effectiveHeight={1080}
-          effectiveFps={60}
           totalFrames={600}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          phase="capture"
-          progress={65}
-          error={null}
-          cloudSubmitted={false}
           onOpenUpgrade={vi.fn()}
         />
       );
 
-      expect(screen.getByText('Keep this tab open')).toBeDefined();
-      expect(screen.getByText('65%')).toBeDefined();
-      expect(screen.getByText('Exporting frames')).toBeDefined();
-    });
-
-    it('renders error alert when error message is passed', () => {
-      render(
-        <ExportStatusAlerts
-          limits={proLimits}
-          isExporting={false}
-          exportDuration={10}
-          effectiveWidth={1920}
-          effectiveHeight={1080}
-          effectiveFps={60}
-          totalFrames={600}
-          localExportCapability={{ status: 'ready', codec: 'avc1.640028' }}
-          phase="capture"
-          progress={0}
-          error="Out of WebCodecs memory"
-          cloudSubmitted={false}
-          onOpenUpgrade={vi.fn()}
-        />
-      );
-
-      expect(screen.getByText('Out of WebCodecs memory')).toBeDefined();
+      expect(screen.queryByText(/Keep this tab/)).toBeNull();
+      expect(screen.queryByText(/Exporting frames/)).toBeNull();
+      expect(screen.queryByText(/Local export is available/)).toBeNull();
+      expect(screen.queryByText(/Free plan limit/)).toBeNull();
     });
   });
 });
