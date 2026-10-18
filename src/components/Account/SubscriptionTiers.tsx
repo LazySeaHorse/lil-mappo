@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
+import { subscriptionTier } from "@/lib/proPass";
 import { type PlanSlug, PLAN_CONFIG, creditsToMinutesAt1080p } from "@/services/checkout";
 import { Coins, Layers, CloudUpload, Package, Timer } from "lucide-react";
 
@@ -158,7 +159,8 @@ export function SubscriptionTiers({
 }) {
   const startCheckout = useAuthStore((s) => s.startCheckout);
   const { data: subscription } = useSubscription();
-  const tierSlug = subscription?.tier ?? null;
+  // A Pro pass alone is not a current plan here.
+  const tierSlug = subscriptionTier(subscription);
 
   const handleCheckout = (plan: PlanSlug) => {
     if (onCheckout) {

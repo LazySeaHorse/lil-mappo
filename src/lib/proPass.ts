@@ -1,4 +1,4 @@
-import type { Subscription } from './database.types';
+import type { Subscription, SubscriptionTier } from './database.types';
 
 /**
  * Pro pass: a one-time purchase that unlocks everything Wanderer unlocks for a
@@ -36,6 +36,16 @@ export function withProPass(
     updated_at: passExpiresAt,
     pass_expires_at: passExpiresAt,
   };
+}
+
+/** The subscription tier, or null for a free user or a pass with no subscription. */
+export function subscriptionTier(subscription: Subscription | null | undefined): SubscriptionTier | null {
+  return subscription && subscription.status !== 'none' ? subscription.tier : null;
+}
+
+/** Coarse plan for analytics: the subscription tier, "pass" or "free". */
+export function analyticsPlan(subscription: Subscription | null | undefined): string {
+  return subscriptionTier(subscription) ?? (subscription ? 'pass' : 'free');
 }
 
 /** "Oct 21, 3:00 PM" in the viewer's time zone (a pass is short, so the time matters). */

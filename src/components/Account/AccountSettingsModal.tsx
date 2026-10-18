@@ -13,6 +13,8 @@ import { useShallow } from "zustand/react/shallow";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
 import { TIER_LABELS } from "@/lib/database.types";
+import { activePassEnd, hasActiveSubscription } from "@/lib/cloudAccess";
+import { formatPassEnd, subscriptionTier } from "@/lib/proPass";
 import {
   Key,
   Crown,
@@ -107,9 +109,12 @@ function AccountSettingsModalBody() {
     setTimeout(() => window.location.reload(), 400);
   };
 
-  const tierSlug = subscription?.tier ?? null;
+  // A Pro pass alone has no tier (see withProPass).
+  const tierSlug = subscriptionTier(subscription);
+  const hasSubscription = !!tierSlug;
   const tierLabel = tierSlug ? (TIER_LABELS[tierSlug] ?? tierSlug) : null;
-  const hasSubscription = !!subscription;
+  // A pass only matters while it is what keeps the user on Pro.
+  const passEnd = hasActiveSubscription(subscription) ? null : activePassEnd(subscription);
   const hasRecurring = !!subscription?.dodo_subscription_id;
   const renewalDate = subscription?.renewal_date
     ? new Date(subscription.renewal_date).toLocaleDateString("en-US", {
@@ -183,7 +188,7 @@ function AccountSettingsModalBody() {
 
         {/* ─── Subscription ─── */}
         <section>
-          <AccountSectionHeading icon={<Crown size={14} />} label="Subscription" />
+          <AccountSectionHeading icon={<Crown size={14} />} label="Plan" />
           {hasSubscription ? (
             <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -214,13 +219,35 @@ function AccountSettingsModalBody() {
                 </Button>
               </div>
             </div>
-          ) : (
+          ) : passEnd ? null : (
             <PremiumUpsellCard
               onClick={() => {
                 closeSettingsModal();
                 openUpgradeModal('account_settings');
               }}
             />
+          )}
+          {passEnd && (
+            <div className={`bg-secondary/30 rounded-xl p-4 ${hasSubscription ? "mt-3" : ""}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Pro pass</p>
+                  <p className="text-2xs text-muted-foreground">
+                    Ends {formatPassEnd(passEnd)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    closeSettingsModal();
+                    openUpgradeModal('account_settings');
+                  }}
+                >
+                  Upgrade
+                </Button>
+              </div>
+            </div>
           )}
         </section>
 
