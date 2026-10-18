@@ -31,8 +31,6 @@ import {
 import secureLocalStorage from "react-secure-storage";
 import { accountMood } from "@/components/Mappo/moods";
 import { PinDropHero } from "@/components/ui/pin-drop";
-import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
-import { cn } from "@/lib/utils";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -49,7 +47,7 @@ export function AccountSettingsModal() {
       open={showSettingsModal}
       onOpenChange={(open) => !open && closeSettingsModal()}
     >
-      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[720px]")}>
+      <DialogContent size="lg">
         {showSettingsModal && <AccountSettingsModalBody />}
       </DialogContent>
     </Dialog>
@@ -146,8 +144,8 @@ function AccountSettingsModalBody() {
     <div className="flex flex-col">
       <PinDropHero mood={accountMood({ signedIn: !!user, subscription })} scene="settings" size="compact" />
       <DialogHeader className="px-6 pb-2 text-left">
-        <DialogTitle className={popupTitleClass}>Settings</DialogTitle>
-        <DialogDescription className={popupTextClass}>
+        <DialogTitle>Settings</DialogTitle>
+        <DialogDescription>
           Manage your account and Mapbox access token.
         </DialogDescription>
       </DialogHeader>

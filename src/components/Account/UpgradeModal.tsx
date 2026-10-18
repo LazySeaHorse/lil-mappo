@@ -1,7 +1,5 @@
 import React from "react";
 import { PinDropHero } from "@/components/ui/pin-drop";
-import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
-import { cn } from "@/lib/utils";
 import {
   Check,
   Cloud,
@@ -89,11 +87,11 @@ export function UpgradeModal() {
       open={showUpgradeModal}
       onOpenChange={(open) => !open && closeUpgradeModal()}
     >
-      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[620px]")}>
+      <DialogContent size="lg">
         <PinDropHero mood="key" scene="upgrade" size="compact" />
         <DialogHeader className="px-6 pb-4 text-left">
-          <DialogTitle className={popupTitleClass}>Upgrade to Wanderer</DialogTitle>
-          <DialogDescription className={popupTextClass}>
+          <DialogTitle>Upgrade to Wanderer</DialogTitle>
+          <DialogDescription>
             Compare the Free plan with the Wanderer plan.
           </DialogDescription>
         </DialogHeader>

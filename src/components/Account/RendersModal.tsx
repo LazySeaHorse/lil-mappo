@@ -17,8 +17,6 @@ import {
   RotateCcw, Clock, CheckCircle2, AlertCircle, Hourglass
 } from 'lucide-react';
 import { PinDropHero } from '@/components/ui/pin-drop';
-import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
-import { cn } from '@/lib/utils';
 
 export function RendersModal() {
   const { showRendersModal, closeRendersModal } = useAuthStore(
@@ -30,11 +28,11 @@ export function RendersModal() {
 
   return (
     <Dialog open={showRendersModal} onOpenChange={(open) => !open && closeRendersModal()}>
-      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[540px]")}>
+      <DialogContent>
         <PinDropHero mood="reel" scene="renders" size="compact" />
         <DialogHeader className="px-6 pb-4 text-left">
-          <DialogTitle className={popupTitleClass}>Cloud renders</DialogTitle>
-          <DialogDescription className={popupTextClass}>
+          <DialogTitle>Cloud renders</DialogTitle>
+          <DialogDescription>
             View cloud-render status and download completed files.
           </DialogDescription>
         </DialogHeader>

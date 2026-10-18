@@ -8,8 +8,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
-import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
-import { cn } from '@/lib/utils';
 import type { LibraryProject } from '@/services/projectLibraryCoordinator';
 
 interface DeleteProjectDialogProps {
@@ -27,11 +25,11 @@ export function DeleteProjectDialog({
 }: DeleteProjectDialogProps) {
   return (
     <AlertDialog open={!!project} onOpenChange={(open) => !open && onCancel()}>
-      <AlertDialogContent className={cn(pinDropContentClass, 'w-[calc(100vw-2rem)] sm:max-w-[420px]')}>
+      <AlertDialogContent>
         <PinDropHero mood="nervous" scene="delete" />
         <PopupBody>
-          <AlertDialogTitle className={popupTitleClass}>Delete project</AlertDialogTitle>
-          <AlertDialogDescription className={popupTextClass}>
+          <AlertDialogTitle>Delete project</AlertDialogTitle>
+          <AlertDialogDescription>
             Delete <span className="ph-mask font-medium text-foreground">"{project?.name || 'Untitled project'}"</span>? You cannot undo this action.
           </AlertDialogDescription>
           <PopupActions>

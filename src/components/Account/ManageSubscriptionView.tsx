@@ -70,10 +70,10 @@ export function ManageSubscriptionView({
           <ChevronLeft size={18} />
         </button>
         <div>
-          <DialogTitle className="text-xl font-medium tracking-tight">
+          <DialogTitle>
             Manage plan
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-xs mt-0.5">
+          <DialogDescription>
             {tierLabel ?? "No active plan"}
           </DialogDescription>
         </div>

@@ -8,8 +8,6 @@ import {
   AlertDialogDescription, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
-import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
-import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAiAccess } from './useAiAccess';
 import { hasAiConsent, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
@@ -99,12 +97,12 @@ export function ConnectTab() {
       </Collapsible>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent className={cn(pinDropContentClass, 'w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto')}>
+        <AlertDialogContent size="md" className="max-h-[90vh] overflow-y-auto">
           <PinDropHero mood="inquisitive" scene="connect" size="compact" />
           <PopupBody>
-            <AlertDialogTitle className={popupTitleClass}>Let AI agents control this project?</AlertDialogTitle>
+            <AlertDialogTitle>Let AI agents control this project?</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm leading-relaxed text-muted-foreground [&_strong]:text-foreground [&_strong]:font-medium">
+              <div className="space-y-2 [&_strong]:text-foreground [&_strong]:font-medium">
                 <p>This is an experimental feature. An AI agent you connect will be able to change this project.</p>
                 <p><strong>To connect one</strong>, use Gemini in Chrome (with WebMCP enabled), or run the small lil-mappo bridge app on your computer to use Claude Code, Codex and other local agents.</p>
                 <p><strong>It can:</strong> add and edit routes, boundaries and callouts, edit the camera and project settings, and render preview frames.</p>

@@ -10,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from '@/components/ui/icon-button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PinDropHero } from '@/components/ui/pin-drop';
-import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
-import { cn } from '@/lib/utils';
 import { useProjectLibrary } from './useProjectLibrary';
 import { ProjectRow } from './components/ProjectRow';
 import { CloudSlotQuotaDialog } from './components/CloudSlotQuotaDialog';
@@ -50,11 +48,11 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className={cn(pinDropContentClass, 'sm:max-w-[540px] flex flex-col')}>
+        <DialogContent size="md" className="flex flex-col">
           <PinDropHero mood="wave" scene="library" size="compact" />
           <DialogHeader className="px-6 pb-4 text-left">
-            <DialogTitle className={popupTitleClass}>Projects</DialogTitle>
-            <DialogDescription className={popupTextClass}>Open, delete, and upload projects.</DialogDescription>
+            <DialogTitle>Projects</DialogTitle>
+            <DialogDescription>Open, delete, and upload projects.</DialogDescription>
           </DialogHeader>
 
           {/* Content */}

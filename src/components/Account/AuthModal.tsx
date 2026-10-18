@@ -13,8 +13,6 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
 import { PinDropHero } from "@/components/ui/pin-drop";
-import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
-import { cn } from "@/lib/utils";
 import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -96,15 +94,15 @@ export function AuthModal() {
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
-      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[540px]")}>
+      <DialogContent>
         {/* Mappo drops in once, then his face follows the form as it fills in. */}
         <PinDropHero mood={mood} scene="signIn" size="compact" />
         <div className="px-6 pb-4">
           <DialogHeader className="text-left">
-            <DialogTitle className={popupTitleClass}>
+            <DialogTitle>
               {confirmEmail ? "Check your email" : isSignup ? "Create account" : "Sign in"}
             </DialogTitle>
-            <DialogDescription className={popupTextClass}>
+            <DialogDescription>
               {confirmEmail ? (
                 <>
                   We sent a link to{" "}

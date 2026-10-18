@@ -4,7 +4,9 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
+import { type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
+import { popupSurfaceVariants, popupTextClass, popupTitleClass } from "./popup-variants";
 import { computeOriginTransform } from "@/lib/clickOrigin";
 
 const Dialog = DialogPrimitive.Root;
@@ -33,8 +35,8 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, style, ...props }, forwardedRef) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & VariantProps<typeof popupSurfaceVariants>
+>(({ className, children, style, size, ...props }, forwardedRef) => {
   const contentRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useLayoutEffect(() => {
@@ -59,7 +61,7 @@ const DialogContent = React.forwardRef<
           }}
           data-slot="dialog-content"
           className={cn(
-            "pointer-events-auto relative bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-90 data-[state=open]:zoom-in-90 grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-2xl border p-6 shadow-2xl duration-200 ease-spring sm:max-w-lg",
+            popupSurfaceVariants({ size }),
             className,
           )}
           style={{
@@ -116,7 +118,7 @@ const DialogTitle = React.forwardRef<
     ref={ref}
     data-slot="dialog-title"
     data-ph-unmask
-    className={cn("text-lg leading-none font-medium", className)}
+    className={cn(popupTitleClass, className)}
     {...props}
   />
 ));
@@ -130,7 +132,7 @@ const DialogDescription = React.forwardRef<
     ref={ref}
     data-slot="dialog-description"
     data-ph-unmask
-    className={cn("text-muted-foreground text-sm", className)}
+    className={cn(popupTextClass, className)}
     {...props}
   />
 ));

@@ -8,8 +8,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
-import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
-import { cn } from '@/lib/utils';
 import { FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
 import type { LibraryProject } from '@/services/projectLibraryCoordinator';
 
@@ -35,11 +33,11 @@ export function CloudSlotQuotaDialog({
 
   return (
     <AlertDialog open={!!pendingProject} onOpenChange={(open) => !open && onCancel()}>
-      <AlertDialogContent className={cn(pinDropContentClass, 'w-[calc(100vw-2rem)] sm:max-w-[420px]')}>
+      <AlertDialogContent>
         <PinDropHero mood="worried" scene="cloudSlots" />
         <PopupBody>
-          <AlertDialogTitle className={popupTitleClass}>Cloud project limit reached</AlertDialogTitle>
-          <AlertDialogDescription className={popupTextClass}>
+          <AlertDialogTitle>Cloud project limit reached</AlertDialogTitle>
+          <AlertDialogDescription>
             You reached the limit of {FREE_CLOUD_SAVE_LIMIT} cloud projects. Remove one cloud
             project to upload this project. The app keeps your local copy.
           </AlertDialogDescription>

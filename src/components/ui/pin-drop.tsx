@@ -25,7 +25,7 @@ interface PinDropHeroProps {
 
 /**
  * The top of a popup: a drawn map with a little scene on it, and Mappo dropping onto it as the pin,
- * squashing on landing. Put it first inside a popup's content, which takes `pinDropContentClass`.
+ * squashing on landing. Put it first inside a DialogContent or AlertDialogContent.
  */
 export function PinDropHero({ mood, scene, tag, size = 'tall', className }: PinDropHeroProps) {
   const { height, pinY, pin } = SIZES[size];

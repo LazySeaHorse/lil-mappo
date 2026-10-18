@@ -8,8 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PinDropHero } from "@/components/ui/pin-drop";
-import { pinDropContentClass, popupTextClass, popupTitleClass } from "@/components/ui/popup-variants";
-import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -43,11 +41,11 @@ export function CreditsModal() {
       open={showCreditsModal}
       onOpenChange={(open) => !open && closeCreditsModal()}
     >
-      <DialogContent className={cn(pinDropContentClass, "sm:max-w-[600px]")}>
+      <DialogContent size="lg">
         <PinDropHero mood="sparkle" scene="credits" size="compact" />
         <DialogHeader className="px-6 pb-2 text-left">
-          <DialogTitle className={popupTitleClass}>Plans and credits</DialogTitle>
-          <DialogDescription className={popupTextClass}>
+          <DialogTitle>Plans and credits</DialogTitle>
+          <DialogDescription>
             Manage plans and buy credits for cloud renders.
           </DialogDescription>
         </DialogHeader>

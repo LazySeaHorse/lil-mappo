@@ -6,7 +6,6 @@ import { useMapRuntime } from '@/hooks/useMapRuntime';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PinDropHero } from '@/components/ui/pin-drop';
-import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
 import { cn } from '@/lib/utils';
 import { getExportDimensions, type ExportResolution, type RenderConfig } from '@/types/render';
 import { getExportLimits, brandingFor } from '@/lib/cloudAccess';
@@ -148,13 +147,13 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className={cn(pinDropContentClass, 'sm:max-w-[540px] flex flex-col')}>
+      <DialogContent size="md" className="flex flex-col">
         {/* Mappo holds the camera, spins a reel while exporting, cheers when it's saved, and gets tangled when it fails. */}
         <PinDropHero mood={mood} scene="export" size="compact" />
         <DialogHeader className="px-6 text-left">
-          <DialogTitle className={popupTitleClass}>Export</DialogTitle>
+          <DialogTitle>Export</DialogTitle>
           {/* Changes in place (keep this tab open, export complete), so the popup keeps its height. */}
-          <DialogDescription className={cn(popupTextClass, error && !isExporting && 'text-destructive')} aria-live="polite">
+          <DialogDescription className={cn(error && !isExporting && 'text-destructive')} aria-live="polite">
             {exportHeadline({ isExporting, done, error, wanderer })}
           </DialogDescription>
         </DialogHeader>

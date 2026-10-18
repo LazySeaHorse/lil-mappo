@@ -16,8 +16,6 @@ import { AspectRatio, ExportResolution } from '@/types/render';
 import { Smartphone, Monitor } from 'lucide-react';
 import { Mappo } from '@/components/Mappo/Mappo';
 import { PinDropHero } from '@/components/ui/pin-drop';
-import { pinDropContentClass, popupTextClass, popupTitleClass } from '@/components/ui/popup-variants';
-import { cn } from '@/lib/utils';
 import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
 import { useFeatureVoted } from '@/hooks/useFeatureVotes';
 import { Label } from '@/components/ui/label';
@@ -75,11 +73,11 @@ export function NewProjectModal() {
 
   return (
     <Dialog open={showNewProjectModal} onOpenChange={setShowNewProjectModal}>
-      <DialogContent className={cn(pinDropContentClass, 'sm:max-w-[760px] flex flex-col h-[85vh]')}>
+      <DialogContent size="lg" className="flex flex-col h-[85vh]">
         <PinDropHero mood="map" scene="newProject" size="compact" />
         <DialogHeader className="px-6 pb-4 text-left border-b border-border/40 shrink-0">
-          <DialogTitle className={popupTitleClass}>New project</DialogTitle>
-          <DialogDescription className={popupTextClass}>
+          <DialogTitle>New project</DialogTitle>
+          <DialogDescription>
             Set the project name, video format, and frame rate.
           </DialogDescription>
         </DialogHeader>
