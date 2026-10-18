@@ -3,6 +3,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "sonner";
 import {
+  PASS_PLAN,
   PLAN_CONFIG,
   clearCheckoutReturnPlan,
   getCheckoutReturnPlan,
@@ -14,6 +15,7 @@ import { PaymentSuccessCelebration } from "./PaymentSuccessCelebration";
 interface CheckoutReturnState {
   plan: SubscriptionPlan | null;
   isTopup: boolean;
+  isPass: boolean;
 }
 
 function readCheckoutReturn(): CheckoutReturnState | null {
@@ -25,13 +27,14 @@ function readCheckoutReturn(): CheckoutReturnState | null {
   // our checkout=success query. Wanderer is the only purchasable subscription
   // in the current UI, so this also supports checkouts started before the plan
   // marker was introduced.
-  const plan = storedPlan && storedPlan !== "topup"
+  const isPass = storedPlan === PASS_PLAN;
+  const plan = storedPlan && storedPlan !== "topup" && !isPass
     ? storedPlan
     : params.get("subscription_id")
       ? "wanderer"
       : null;
 
-  return { plan, isTopup: storedPlan === "topup" };
+  return { plan, isTopup: storedPlan === "topup", isPass };
 }
 
 /**
@@ -69,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Strip Dodo's return fields, including the customer email, without navigation.
     params.delete("checkout");
     params.delete("subscription_id");
+    params.delete("payment_id");
     params.delete("status");
     params.delete("email");
     clearCheckoutReturnPlan();
@@ -90,7 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     invalidate();
     const delayed = setTimeout(invalidate, 3000);
 
-    if (!checkoutReturn.plan || checkoutReturn.isTopup) {
+    // Only the webhook grants a pass; this just refetches until it lands.
+    if (checkoutReturn.isPass) {
+      toast.success("Payment received. Your 3-day pass starts in a moment.", { duration: 6000 });
+    } else if (!checkoutReturn.plan || checkoutReturn.isTopup) {
       toast.success("Payment received.", { duration: 6000 });
     }
 

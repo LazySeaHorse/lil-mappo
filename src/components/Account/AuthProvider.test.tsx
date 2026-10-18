@@ -24,6 +24,7 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@/services/checkout', () => ({
+  PASS_PLAN: 'pass_3day',
   PLAN_CONFIG: {
     wanderer: { name: 'Wanderer' },
     cartographer: { name: 'Cartographer' },
@@ -33,7 +34,8 @@ vi.mock('@/services/checkout', () => ({
   getCheckoutReturnPlan: mocks.getCheckoutReturnPlan,
   isSuccessfulCheckoutReturn: (params: URLSearchParams) =>
     params.get('checkout') === 'success'
-    || (params.get('status') === 'active' && !!params.get('subscription_id')),
+    || (params.get('status') === 'active' && !!params.get('subscription_id'))
+    || (params.get('status') === 'succeeded' && !!params.get('payment_id')),
 }));
 
 describe('AuthProvider checkout return', () => {
@@ -90,5 +92,21 @@ describe('AuthProvider checkout return', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Payment received.', { duration: 6000 });
+  });
+
+  it('confirms a 3-day pass with a toast, refetches the plan and strips the payment id', async () => {
+    mocks.getCheckoutReturnPlan.mockReturnValue('pass_3day');
+    window.history.replaceState(null, '', '/?payment_id=pay_123&status=succeeded&email=buyer%40example.com');
+
+    render(
+      <AuthProvider>
+        <div>Map editor</div>
+      </AuthProvider>,
+    );
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Payment received. Your 3-day pass starts in a moment.', { duration: 6000 });
+    expect(window.location.search).toBe('');
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['subscription'] });
   });
 });
