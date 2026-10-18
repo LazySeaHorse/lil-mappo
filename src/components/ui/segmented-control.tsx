@@ -15,7 +15,8 @@ interface SegmentedControlOption<T extends string> {
 interface SegmentedControlProps<T extends string> {
   options: SegmentedControlOption<T>[];
   value: T;
-  onValueChange: (value: T) => void;
+  /** NoInfer: T comes from options/value, so a useState setter can be passed straight in. */
+  onValueChange: (value: NoInfer<T>) => void;
   /** Deprecated optional shape preserved for API compatibility, standardized to concentric geometry */
   shape?: "pill" | "rounded";
   className?: string;
