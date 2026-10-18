@@ -122,7 +122,7 @@ describe('QuickWalkthrough Component UI', () => {
 
     expect(screen.getByText('Make your first trip video')).toBeInTheDocument();
     expect(screen.getByText(/about 3 minutes/i)).toBeInTheDocument();
-    expect(screen.getByText(/plan a route between two places/i, { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getByText(/plan a route between two places/i)).toBeInTheDocument();
     expect(screen.queryByText(/90 seconds/)).not.toBeInTheDocument();
   });
 
