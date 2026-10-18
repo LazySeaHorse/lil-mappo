@@ -1,5 +1,4 @@
-import React, { lazy, useRef, useState } from "react";
-import { LazyBoundary } from "@/components/LazyBoundary";
+import React, { useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/mapbox";
 import Toolbar from "@/components/Toolbar/Toolbar";
 import MapViewport from "@/components/MapViewport/MapViewport";
@@ -30,7 +29,7 @@ import { isDarkMapStyle } from "@/config/mapbox";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
-import { loadExportModal } from "@/lib/lazyModules";
+import ExportModal from "@/components/ExportModal/ExportModal";
 import { LazyAccountModals } from "@/components/Account/LazyAccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
@@ -41,7 +40,6 @@ import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
 import type { RouteDeepLinkRequest } from "@/services/routeDeepLink";
 import type { Subscription } from "@/lib/database.types";
 
-const ExportModal = lazy(loadExportModal);
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
   // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
@@ -239,9 +237,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         )}
 
         {exportOpenedRef.current && (
-          <LazyBoundary>
-            <ExportModal open={showExport} onClose={() => setShowExport(false)} />
-          </LazyBoundary>
+          <ExportModal open={showExport} onClose={() => setShowExport(false)} />
         )}
         <ProjectLibraryModal open={showLibrary} onClose={() => setShowLibrary(false)} />
 

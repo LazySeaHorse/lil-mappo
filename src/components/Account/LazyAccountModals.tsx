@@ -1,15 +1,10 @@
-import { lazy, useEffect, useState } from "react";
-import { LazyBoundary } from "@/components/LazyBoundary";
-import { loadAccountSettingsModal, loadAuthModal, loadCreditsModal, loadRendersModal, loadUpgradeModal } from "@/lib/lazyModules";
+import { useEffect, useState } from "react";
+import { AuthModal } from "./AuthModal";
+import { AccountSettingsModal } from "./AccountSettingsModal";
+import { CreditsModal } from "./CreditsModal";
+import { UpgradeModal } from "./UpgradeModal";
+import { RendersModal } from "./RendersModal";
 import { useAuthStore } from "@/store/useAuthStore";
-
-const AuthModal = lazy(() => loadAuthModal().then((m) => ({ default: m.AuthModal })));
-const AccountSettingsModal = lazy(() =>
-  loadAccountSettingsModal().then((m) => ({ default: m.AccountSettingsModal })),
-);
-const CreditsModal = lazy(() => loadCreditsModal().then((m) => ({ default: m.CreditsModal })));
-const UpgradeModal = lazy(() => loadUpgradeModal().then((m) => ({ default: m.UpgradeModal })));
-const RendersModal = lazy(() => loadRendersModal().then((m) => ({ default: m.RendersModal })));
 
 /**
  * True from the first time `open` is seen true onwards. Modals mount lazily on first open,
@@ -23,7 +18,7 @@ function useOpenedOnce(open: boolean): boolean {
   return opened || open;
 }
 
-/** Account, billing and auth dialogs, loaded the first time one is opened. Renders nothing until then. */
+/** Account, billing and auth dialogs, mounted the first time one is opened. Renders nothing until then. */
 export function LazyAccountModals() {
   const authOpen = useOpenedOnce(useAuthStore((s) => s.showAuthModal));
   const settingsOpen = useOpenedOnce(useAuthStore((s) => s.showSettingsModal));
@@ -32,12 +27,12 @@ export function LazyAccountModals() {
   const rendersOpen = useOpenedOnce(useAuthStore((s) => s.showRendersModal));
 
   return (
-    <LazyBoundary>
+    <>
       {authOpen && <AuthModal />}
       {settingsOpen && <AccountSettingsModal />}
       {creditsOpen && <CreditsModal />}
       {upgradeOpen && <UpgradeModal />}
       {rendersOpen && <RendersModal />}
-    </LazyBoundary>
+    </>
   );
 }
