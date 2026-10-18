@@ -128,9 +128,9 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
               ) : null}
             </div>
             <Button
+              size="lg"
               onClick={onClose}
               variant="outline"
-              className="h-10 px-6 rounded-lg text-sm font-medium transition-all"
             >
               Close
             </Button>

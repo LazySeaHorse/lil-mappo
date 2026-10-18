@@ -143,10 +143,10 @@ function ImageField({ value, onChange }: { value?: string; onChange: (image: str
         <div className="flex items-center gap-2.5">
           <img src={value} alt="Callout image" className="h-14 w-14 rounded-md border border-border/50 object-cover" />
           <div className="flex flex-col gap-1.5">
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => inputRef.current?.click()} className="h-7 text-xs gap-1.5">
+            <Button type="button" variant="outline" size="xs" disabled={busy} onClick={() => inputRef.current?.click()}>
               <Replace size={13} /> Replace
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => onChange(undefined)} className="h-7 text-xs gap-1.5 text-muted-foreground">
+            <Button type="button" variant="subtle" size="xs" onClick={() => onChange(undefined)}>
               <Trash2 size={13} /> Remove
             </Button>
           </div>

@@ -192,7 +192,6 @@ export function ProjectSettings() {
               onClick={() => setAtmosphere({ fogColor: null })}
               variant="outline"
               size="sm"
-              className="px-3 h-8 text-xs font-medium transition-all"
               title="Reset to map style"
             >
               Reset
@@ -208,7 +207,7 @@ export function ProjectSettings() {
               onClick={() => setAllLabelsVisibility(true)}
               variant="outline"
               size="sm"
-              className="flex-1 text-xs h-8"
+              className="flex-1"
             >
               Enable all
             </Button>
@@ -216,7 +215,7 @@ export function ProjectSettings() {
               onClick={() => setAllLabelsVisibility(false)}
               variant="outline"
               size="sm"
-              className="flex-1 text-xs h-8"
+              className="flex-1"
             >
               Disable all
             </Button>

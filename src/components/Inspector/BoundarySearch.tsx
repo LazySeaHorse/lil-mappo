@@ -133,7 +133,7 @@ export function BoundarySearch({ initialValue, onSelect, autoFocus = false }: Bo
         <div className="border border-border/50 rounded-xl bg-background/50 backdrop-blur shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="p-2 border-b border-border/50 bg-secondary/20 flex items-center justify-between">
             <span className="text-xs font-medium text-foreground/80">Search results</span>
-            <Button variant="ghost" size="sm" onClick={() => setResults([])} className="h-5 text-2xs font-medium text-muted-foreground hover:text-foreground">Clear</Button>
+            <Button variant="subtle" size="xs" onClick={() => setResults([])}>Clear</Button>
           </div>
           <div className="ph-no-capture max-h-[160px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {results.map((r, i) => (

@@ -84,7 +84,7 @@ function MapLoadBlockedScreen({
             <h2 className="text-xl font-medium tracking-tight">Mappo is napping</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">Sign in to wake Mappo up. It is free.</p>
           </div>
-          <Button className="rounded-lg px-8 h-11 font-medium" onClick={onSignIn}>
+          <Button size="xl" onClick={onSignIn}>
             Sign in / Create account
           </Button>
         </>
@@ -100,7 +100,7 @@ function MapLoadBlockedScreen({
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-lg px-6 h-10 font-medium" onClick={onUpgrade}>
+            <Button size="lg" variant="outline" onClick={onUpgrade}>
               Upgrade
             </Button>
           </div>
@@ -117,7 +117,7 @@ function MapLoadBlockedScreen({
             </p>
           </div>
           <div className="flex gap-3">
-            <Button className="rounded-lg px-6 h-10 font-medium" onClick={onUpgrade}>
+            <Button size="lg" onClick={onUpgrade}>
               Upgrade
             </Button>
             <BYOKQuickEntry />
@@ -134,8 +134,8 @@ function MapLoadBlockedScreen({
             </p>
           </div>
           <Button
+            size="lg"
             variant="outline"
-            className="rounded-lg px-6 h-10 font-medium"
             onClick={() => window.location.reload()}
           >
             Retry
@@ -177,8 +177,8 @@ function BYOKQuickEntry() {
           className="h-10 rounded-lg bg-secondary/50 border border-border/50 text-xs font-mono px-3 w-56 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/40"
         />
         <Button
+          size="lg"
           variant="outline"
-          className="rounded-lg px-4 h-10 font-medium text-xs"
           onClick={handleSave}
           disabled={!token.trim() || saved}
         >

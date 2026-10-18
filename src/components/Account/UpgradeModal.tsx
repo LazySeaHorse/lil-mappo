@@ -160,7 +160,8 @@ export function UpgradeModal() {
 
           <div className="mt-5">
             <Button
-              className="w-full h-11 rounded-lg font-medium"
+              size="xl"
+              className="w-full"
               disabled={isCurrent}
               onClick={handleCheckout}
             >

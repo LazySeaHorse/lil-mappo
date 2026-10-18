@@ -96,10 +96,10 @@ export function ActivityTab() {
         )}
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-border/40 p-3 shrink-0">
-        <Button variant="secondary" size="sm" className="h-8 text-xs gap-1.5" disabled={!canUndoAi} onClick={() => undo()}>
+        <Button variant="secondary" size="sm" disabled={!canUndoAi} onClick={() => undo()}>
           <Undo2 size={13} /> Undo last AI change
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 text-xs" disabled={newestFirst.length === 0} onClick={() => agentEvents.clear()}>
+        <Button variant="ghost" size="sm" disabled={newestFirst.length === 0} onClick={() => agentEvents.clear()}>
           Clear feed
         </Button>
       </div>

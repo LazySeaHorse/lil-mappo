@@ -109,11 +109,10 @@ export const AnnotationAddDropdown = ({
   const footer = (
     <Button
       variant="default"
-      size="sm"
       onClick={handleAdd}
       disabled={lngLat[0] === 0}
       data-walkthrough="callout-action"
-      className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
+      className="w-full"
     >
       <Plus size={16} /> Create callout
     </Button>

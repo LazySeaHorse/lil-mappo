@@ -260,7 +260,7 @@ function AuthModalBody({
           Check your spam folder if the email does not arrive. Close this tab
           after you open the link.
         </p>
-        <Button variant="outline" size="sm" className="text-xs" onClick={handleReset}>
+        <Button variant="outline" size="sm" onClick={handleReset}>
           Use a different email
         </Button>
       </div>
@@ -274,18 +274,18 @@ function AuthModalBody({
       {/* OAuth buttons — greyed out until providers are configured */}
       <div className="grid grid-cols-2 gap-3">
         <Button
+          size="lg"
           variant="outline"
           disabled
-          className="h-10 text-sm font-medium gap-2 rounded-lg border-border/50 opacity-40 cursor-not-allowed"
           title="Not available yet"
         >
           <GoogleIcon />
           Google
         </Button>
         <Button
+          size="lg"
           variant="outline"
           disabled
-          className="h-10 text-sm font-medium gap-2 rounded-lg border-border/50 opacity-40 cursor-not-allowed"
           title="Not available yet"
         >
           <AppleIcon />
@@ -335,9 +335,9 @@ function AuthModalBody({
         </div>
 
         <Button
+          size="lg"
           type="submit"
           disabled={isSubmitting || !canSubmit}
-          className="h-10 rounded-lg text-sm font-medium transition-all"
         >
           {isSubmitting ? (
             <>

@@ -123,7 +123,7 @@ export const WalkPointList = ({
         type="button"
         variant={isAppending ? 'default' : 'outline'}
         size="sm"
-        className="w-full h-8 mt-1 text-xs gap-1.5"
+        className="w-full mt-1"
         onClick={onToggleAppend}
       >
         <Plus size={13} />

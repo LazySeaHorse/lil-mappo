@@ -35,11 +35,11 @@ export function DeleteProjectDialog({
             Delete <span className="ph-mask font-medium text-foreground">"{project?.name || 'Untitled project'}"</span>? You cannot undo this action.
           </AlertDialogDescription>
           <PopupActions>
-            <AlertDialogCancel className="mt-0 h-10 rounded-[10px] px-4">Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={onConfirm}
               disabled={isMutating}
-              className="h-10 rounded-[10px] px-4 bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>

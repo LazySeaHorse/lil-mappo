@@ -144,8 +144,9 @@ export function ManageSubscriptionView({
           <div>
             <AccountSectionHeading icon={<Sparkles size={14} />} label="Plans" />
             <Button
+              size="xl"
               variant="outline"
-              className="w-full rounded-lg gap-2 h-11 text-xs font-medium bg-secondary/20 hover:bg-secondary/40 border-border/40"
+              className="w-full"
               onClick={onOpenUpgrade}
             >
               <Crown size={14} className="text-primary" />
@@ -184,7 +185,6 @@ export function ManageSubscriptionView({
                   <Button
                     size="sm"
                     variant="destructive"
-                    className="text-xs h-8 rounded-lg px-4"
                     onClick={handleCancel}
                     disabled={cancelling}
                   >
@@ -200,7 +200,6 @@ export function ManageSubscriptionView({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-xs h-8 rounded-lg px-4"
                     onClick={() => setConfirmCancel(false)}
                     disabled={cancelling}
                   >
@@ -215,8 +214,8 @@ export function ManageSubscriptionView({
                 </p>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="text-xs h-8 rounded-lg px-3 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/5"
+                  variant="destructive-ghost"
+                  className="shrink-0"
                   onClick={() => setConfirmCancel(true)}
                 >
                   Cancel plan

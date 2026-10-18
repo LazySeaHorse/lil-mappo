@@ -29,7 +29,7 @@ export function FreeLimitNotice({ limits, onUpgrade }: FreeLimitNoticeProps) {
         </p>
       </div>
       <div className="border-t border-primary/15 p-3">
-        <Button onClick={onUpgrade} size="sm" className="h-[34px] w-full gap-1.5 rounded-lg text-xs font-medium">
+        <Button onClick={onUpgrade} className="w-full">
           <Crown size={13} aria-hidden="true" /> Unlock 4K and 60 FPS
         </Button>
       </div>

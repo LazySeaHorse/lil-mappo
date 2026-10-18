@@ -50,7 +50,6 @@ export const BoundaryAddDropdown = ({
       setBoundaryDetail: s.setBoundaryDetail,
     }))
   );
-  
   const frame = useFrameOnMap();
 
   React.useEffect(() => {
@@ -122,11 +121,10 @@ export const BoundaryAddDropdown = ({
   const footer = (
     <Button 
       variant="default"
-      size="sm" 
       onClick={handleAdd}
       disabled={!previewBoundary}
       data-walkthrough="boundary-action"
-      className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
+      className="w-full"
     >
       <Plus size={13} /> Insert boundary
     </Button>
@@ -156,7 +154,7 @@ export const BoundaryAddDropdown = ({
                 <Check size={14} className="text-primary shrink-0" />
                 <span className="text-xs font-medium truncate">{draftBoundaryName}</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={clearPreviewBoundary} className="h-6 text-2xs font-medium text-muted-foreground hover:text-foreground">Change</Button>
+              <Button variant="subtle" size="xs" onClick={clearPreviewBoundary}>Change</Button>
             </div>
           </div>
 
@@ -173,7 +171,6 @@ export const BoundaryAddDropdown = ({
                 value={previewBoundaryStyle!.strokeColor}
                 onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
               />
-              
               <Field label={BOUNDARY_TERMS.animation}>
                 <Select 
                   value={previewBoundaryStyle!.animationStyle}

@@ -103,9 +103,8 @@ export function AutoCamInspector({ item }: { item: RouteItem }) {
   const footer = (
     <Button
       variant="outline"
-      size="sm"
       onClick={handleDisable}
-      className="w-full h-9 rounded-lg flex items-center justify-center gap-2 text-xs font-medium bg-background/40 hover:bg-secondary/80 border-border/50 transition-all"
+      className="w-full"
     >
       <VideoOff size={13} /> Turn off {ROUTE_TERMS.followCamera}
     </Button>

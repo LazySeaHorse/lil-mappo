@@ -171,7 +171,7 @@ function AccountSettingsModalBody() {
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs h-8 rounded-lg px-3 shrink-0"
+                className="shrink-0"
                 onClick={() => {
                   closeSettingsModal();
                   openAuthModal();
@@ -210,7 +210,6 @@ function AccountSettingsModalBody() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-xs h-8 rounded-lg px-4"
                   onClick={() => setView("manage")}
                 >
                   Manage
@@ -260,9 +259,8 @@ function AccountSettingsModalBody() {
                 className={`h-9 rounded-lg bg-background/50 border-border/50 text-xs font-mono placeholder:text-muted-foreground/40 flex-1 ${tokenError ? "border-destructive" : ""}`}
               />
               <Button
-                size="sm"
                 variant={tokenSaved ? "default" : "outline"}
-                className="h-9 rounded-lg px-3 text-xs font-medium shrink-0 min-w-[64px] transition-all"
+                className="shrink-0 min-w-16"
                 onClick={handleSaveToken}
                 disabled={tokenSaved}
               >
@@ -284,9 +282,8 @@ function AccountSettingsModalBody() {
             )}
             {!!mapboxToken.trim() && !tokenSaved && !tokenError && (
               <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 text-destructive hover:text-destructive px-2"
+                variant="destructive-ghost"
+                size="xs"
                 onClick={handleClearToken}
               >
                 Remove token

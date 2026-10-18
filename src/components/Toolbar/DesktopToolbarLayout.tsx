@@ -3,7 +3,7 @@ import {
   Clapperboard, Video, EyeOff, Mountain, Building2,
   Layers2, Settings2, Loader2
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -100,16 +100,16 @@ function InlineLayerGroup({
 
 function DropdownToggle({ icon, label, active, onClick, loading, disabled }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; loading?: boolean; disabled?: boolean }) {
   return (
-    <Button
-      variant={active ? "secondary" : "ghost"}
-      size="sm"
-      onClick={(e) => { if (!disabled) { e.preventDefault(); e.stopPropagation(); onClick(); } }}
+    <Toggle
+      pressed={active}
+      onClick={(e) => e.stopPropagation()}
+      onPressedChange={() => !disabled && onClick()}
       disabled={disabled}
-      className={`h-9 flex flex-1 items-center justify-start gap-2 text-2xs font-medium px-2 rounded-lg transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/20' : disabled ? '' : 'text-muted-foreground'}`}
+      className="flex-1 justify-start"
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : icon}
       <span>{label}</span>
-    </Button>
+    </Toggle>
   );
 }
 

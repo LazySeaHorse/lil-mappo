@@ -112,8 +112,9 @@ function TierCard({
       </div>
 
       <Button
+        size="sm"
         variant={highlight && !comingSoon ? "default" : "secondary"}
-        className={`w-full h-8 text-xs rounded-lg font-medium ${highlight && !comingSoon ? "shadow-md" : ""}`}
+        className="w-full"
         disabled={isCurrent || comingSoon}
         onClick={handleClick}
       >

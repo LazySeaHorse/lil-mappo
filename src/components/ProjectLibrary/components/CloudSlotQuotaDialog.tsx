@@ -56,9 +56,9 @@ export function CloudSlotQuotaDialog({
                   </span>
                 </div>
                 <Button
-                  size="sm"
+                  size="xs"
                   variant="destructive"
-                  className="h-7 px-3 text-xs shrink-0 ml-3"
+                  className="shrink-0 ml-3"
                   onClick={() => onReplaceAndUpload(p)}
                   disabled={isMutating}
                 >
@@ -70,8 +70,8 @@ export function CloudSlotQuotaDialog({
           <PopupActions className="justify-between">
             {onUpgrade ? (
               <Button
-                variant="ghost"
-                className="h-10 rounded-[10px] px-3 text-primary hover:text-primary hover:bg-primary/10"
+                size="lg"
+                variant="link"
                 onClick={onUpgrade}
               >
                 Upgrade for unlimited projects
@@ -79,7 +79,7 @@ export function CloudSlotQuotaDialog({
             ) : (
               <span />
             )}
-            <AlertDialogCancel className="mt-0 h-10 rounded-[10px] px-4">Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
           </PopupActions>
         </PopupBody>
       </AlertDialogContent>

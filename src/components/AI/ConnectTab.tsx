@@ -114,9 +114,8 @@ export function ConnectTab() {
               </div>
             </AlertDialogDescription>
           <PopupActions>
-            <AlertDialogCancel className="mt-0 h-10 rounded-[10px] px-4">Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="h-10 rounded-[10px] px-4"
               onClick={() => {
                 if (!signedIn) return openAuthModal();
                 if (!allowed) return openUpgradeModal('ai');

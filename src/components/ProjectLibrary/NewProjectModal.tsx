@@ -50,7 +50,6 @@ export function NewProjectModal() {
   const showNewProjectModal = useProjectStore((s) => s.showNewProjectModal);
   const setShowNewProjectModal = useProjectStore((s) => s.setShowNewProjectModal);
   const loadFullProject = useProjectStore((s) => s.loadFullProject);
-  
   const [projectName, setProjectName] = useState("Untitled Project");
   const [fps, setFps] = useState<30 | 60>(30);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
@@ -87,13 +86,11 @@ export function NewProjectModal() {
 
         {/* Two column body */}
         <div className="flex-1 overflow-hidden flex flex-col sm:flex-row">
-          
           {/* Left Column: Settings */}
           <div className="w-full sm:w-[320px] bg-secondary/10 p-6 flex flex-col overflow-y-auto border-r border-border/40">
             <h3 className="text-xs font-medium text-foreground/80 mb-3">
               Project settings
             </h3>
-            
             <div className="space-y-4 flex-1">
               <div className="space-y-1.5">
                 <Label htmlFor="projectName" className="text-xs font-medium">Name</Label>
@@ -153,9 +150,9 @@ export function NewProjectModal() {
               </Field>
             </div>
 
-            <Button 
+            <Button size="xl" 
               onClick={() => handleCreate()} 
-              className="mt-6 w-full h-11 rounded-lg text-sm font-medium shadow-lg shadow-primary/20 transition-all"
+              className="mt-6 w-full"
             >
               Create project
             </Button>
@@ -166,7 +163,6 @@ export function NewProjectModal() {
             <h3 className="text-xs font-medium text-foreground/80 mb-3">
               Examples
             </h3>
-            
             <ExamplesPlaceholder />
           </div>
         </div>

@@ -41,9 +41,9 @@ export function RouteCameraSection({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             onClick={() => setSelectedAutoCamRouteId(item.id)}
-            className="h-7 shrink-0 px-3 text-xs"
+            className="shrink-0"
           >
             {FOLLOW_CAMERA_TERMS.editCamera}
           </Button>

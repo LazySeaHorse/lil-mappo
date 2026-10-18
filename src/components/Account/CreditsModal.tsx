@@ -94,7 +94,6 @@ function CreditsModalBody() {
         <Button
           variant="outline"
           size="sm"
-          className="rounded-lg text-xs px-4"
           onClick={() => refetch()}
         >
           <RefreshCcw size={13} className="mr-1.5" /> Retry Connection
@@ -227,7 +226,8 @@ function CreditsModalBody() {
                   </div>
                 </div>
                 <Button
-                  className="h-11 w-full sm:w-auto px-8 rounded-lg font-medium shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 opacity-50 cursor-not-allowed"
+                  size="xl"
+                  className="w-full sm:w-auto"
                   onClick={() => startCheckout("topup", purchaseAmount)}
                   disabled
                 >

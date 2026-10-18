@@ -55,7 +55,6 @@ export function SizeControls({ item, onChange }: SizeControlsProps) {
             type="button"
             variant="outline"
             size="sm"
-            className="text-xs"
             onClick={() => onChange({ referenceZoom: currentZoom() })}
           >
             Use current zoom

@@ -69,11 +69,11 @@ export function CameraKFInspector({ item }: { item: CameraItem }) {
       <div className="flex flex-col gap-2 pb-1">
         <p className="text-2xs leading-tight text-muted-foreground">{CAMERA_VIEW_TERMS.help}</p>
         <div className="grid grid-cols-2 gap-2">
-          <Button type="button" size="sm" onClick={saveCurrentView} className="h-9 text-xs">
+          <Button type="button" onClick={saveCurrentView}>
             <Crosshair size={14} aria-hidden="true" />
             {CAMERA_VIEW_TERMS.useCurrent}
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={goToView} className="h-9 text-xs">
+          <Button type="button" variant="outline" onClick={goToView}>
             <Eye size={14} aria-hidden="true" />
             {CAMERA_VIEW_TERMS.goTo}
           </Button>

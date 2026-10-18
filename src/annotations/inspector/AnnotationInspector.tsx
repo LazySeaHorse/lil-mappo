@@ -135,7 +135,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           type="button"
           onClick={() => setMoveModeActive(!isMoveModeActive)}
           variant={isMoveModeActive ? 'default' : 'outline'}
-          className="w-full h-9 rounded-lg text-xs font-medium flex items-center justify-center gap-2"
+          className="w-full"
         >
           {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
           <span>{isMoveModeActive ? CALLOUT_LOCATION_TERMS.doneDragging : CALLOUT_LOCATION_TERMS.dragOnMap}</span>

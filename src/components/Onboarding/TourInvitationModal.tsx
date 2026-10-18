@@ -32,10 +32,10 @@ export function TourInvitationModal({ open, onStart, onDismiss }: TourInvitation
             callout.
           </AlertDialogDescription>
           <PopupActions>
-            <AlertDialogCancel onClick={onDismiss} className="mt-0 h-10 rounded-[10px] px-4">
+            <AlertDialogCancel onClick={onDismiss}>
               Not now
             </AlertDialogCancel>
-            <AlertDialogAction onClick={onStart} className="h-10 rounded-[10px] px-4">
+            <AlertDialogAction onClick={onStart}>
               Start tour
             </AlertDialogAction>
           </PopupActions>

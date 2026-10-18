@@ -68,7 +68,8 @@ function RendersModalBody() {
             </p>
           </div>
           <Button
-            className="mt-2 rounded-lg h-10 px-8 font-medium shadow-lg shadow-primary/20 transition-all"
+            size="lg"
+            className="mt-2"
             onClick={() => { closeRendersModal(); openAuthModal(); }}
           >
             Sign in
@@ -81,7 +82,7 @@ function RendersModalBody() {
       ) : error ? (
         <div className="flex flex-col items-center gap-3 py-16">
           <p className="text-sm font-medium text-destructive">Cannot load renders.</p>
-          <Button variant="outline" size="sm" className="rounded-lg text-xs px-4" onClick={() => refetch()}>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCcw size={13} className="mr-1.5" /> Try again
           </Button>
         </div>
@@ -99,8 +100,7 @@ function RendersModalBody() {
             </span>
             <Button
               variant="secondary"
-              size="sm"
-              className="h-7 px-3 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 border border-border/50 text-foreground transition-colors"
+              size="xs"
               onClick={() => refetch()}
               disabled={isFetching}
             >
@@ -178,8 +178,6 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
       <div className="flex items-center gap-2 shrink-0 self-center">
         {job.status === 'done' && job.output_url && !isExpired && (
           <Button
-            size="sm"
-            className="h-9 px-4 rounded-lg gap-1.5 shadow-md hover:shadow-lg transition-all font-medium"
             asChild
           >
             <a href={job.output_url} download target="_blank" rel="noreferrer">
@@ -189,9 +187,7 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
         )}
         {(job.status === 'failed' || isExpired) && (
           <Button
-            size="sm"
             variant="outline"
-            className="h-9 px-3 rounded-lg gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             title="Re-render (costs credits)"
           >
             <RotateCcw size={14} /> Retry

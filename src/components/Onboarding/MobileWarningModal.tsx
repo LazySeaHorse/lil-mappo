@@ -28,7 +28,7 @@ export function MobileWarningModal({ open, onDismiss }: MobileWarningModalProps)
             well on a small screen. A laptop or desktop works best.
           </AlertDialogDescription>
           <PopupActions>
-            <AlertDialogAction onClick={onDismiss} className="h-10 w-full rounded-[10px] px-4 sm:w-auto">
+            <AlertDialogAction onClick={onDismiss} className="w-full sm:w-auto">
               Continue on this phone
             </AlertDialogAction>
           </PopupActions>

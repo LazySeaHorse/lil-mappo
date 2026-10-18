@@ -159,13 +159,14 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
                   aria-disabled (not `disabled`) so keyboard focus stays on the button while a vote is saved;
                   handleToggle ignores activation in that state. */}
               <Button
+                size="lg"
                 type="button"
-                variant={summary?.has_voted ? 'outline' : 'default'}
+                variant={summary?.has_voted ? 'wish' : 'default'}
                 aria-label="I'd like this"
                 aria-pressed={summary?.has_voted ?? false}
                 aria-disabled={!summary || setVote.isPending}
                 onClick={handleToggle}
-                className="h-10 rounded-lg gap-2 w-full sm:w-auto aria-pressed:border-wish/45 aria-pressed:bg-wish/10 aria-pressed:hover:bg-wish/15 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
+                className="w-full sm:w-auto"
               >
                 <Heart
                   size={16}
@@ -178,7 +179,7 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
           ) : (
             <>
               <p className="flex-1 text-sm text-muted-foreground">Votes help us decide what to build next.</p>
-              <Button type="button" onClick={handleSignIn} className="h-10 rounded-lg w-full sm:w-auto">
+              <Button size="lg" type="button" onClick={handleSignIn} className="w-full sm:w-auto">
                 Sign in to vote
               </Button>
             </>

@@ -239,9 +239,8 @@ export function CoachmarkOverlay({
               {showSkip && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="subtle"
                   size="sm"
-                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                   data-action="skip"
                   onClick={onSkip}
                   aria-label="Skip tour"
@@ -254,9 +253,8 @@ export function CoachmarkOverlay({
               {showPrimary && step.secondaryLabel && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="subtle"
                   size="sm"
-                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                   data-action="secondary"
                   onClick={onSecondary}
                 >
@@ -268,7 +266,6 @@ export function CoachmarkOverlay({
                 <Button
                   type="button"
                   size="sm"
-                  className="h-8 px-3 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-sm gap-1.5"
                   data-action="next"
                   onClick={onNext}
                   aria-label={nextLabel}

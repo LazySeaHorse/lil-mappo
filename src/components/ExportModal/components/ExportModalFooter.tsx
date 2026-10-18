@@ -124,10 +124,11 @@ function ExportButton({ capability, warning, requiresSignIn, exportedBefore, onE
 
   const button = (
     <Button
+      size="xl"
       onClick={onExport}
       disabled={disabled}
       aria-describedby={warning ? warningId : undefined}
-      className="h-11 w-full min-w-0 gap-2 rounded-[10px] px-3 text-sm font-medium"
+      className="w-full min-w-0 px-3"
     >
       {requiresSignIn ? (
         <>
@@ -174,9 +175,10 @@ function GetWandererButton({ reason, onUpgrade }: { reason: string; onUpgrade?: 
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
+            size="xl"
             onClick={onUpgrade}
             aria-describedby={reasonId}
-            className="h-11 w-full min-w-0 gap-2 rounded-[10px] px-3 text-sm font-medium"
+            className="w-full min-w-0 px-3"
           >
             <Crown size={16} /> Get Wanderer
           </Button>
