@@ -17,6 +17,9 @@ export interface UseAirportSearchReturn {
   results: Airport[];
   isOpen: boolean;
   loading: boolean;
+  /** The airport data failed to load (e.g. a stale tab after a deploy). Call `retry` to try again. */
+  error: boolean;
+  retry: () => void;
   selectAirport: (airport: Airport) => void;
   clear: () => void;
   open: () => void;
@@ -85,6 +88,7 @@ export function useAirportSearch(options: UseAirportSearchOptions = {}): UseAirp
   const [query, setQueryState] = useState(initialQuery);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   const [results, setResults] = useState<Airport[]>(() => {
     const coords = parseCoordinates(initialQuery);
@@ -125,7 +129,8 @@ export function useAirportSearch(options: UseAirportSearchOptions = {}): UseAirp
   useEffect(() => {
     let isCurrent = true;
     const isLoaded = searchAirportsSync('').length > 0;
-    if (isLoaded) {
+    // After a failure, wait for an explicit retry instead of refetching on every keystroke.
+    if (isLoaded || error) {
       return;
     }
 
@@ -138,13 +143,17 @@ export function useAirportSearch(options: UseAirportSearchOptions = {}): UseAirp
       })
       .catch((err) => {
         console.error('Failed to load airports database:', err);
-        if (isCurrent) setLoading(false);
+        if (!isCurrent) return;
+        setLoading(false);
+        setError(true);
       });
 
     return () => {
       isCurrent = false;
     };
-  }, [updateResults, query]);
+  }, [updateResults, query, error]);
+
+  const retry = useCallback(() => setError(false), []);
 
   const selectAirport = useCallback((airport: Airport) => {
     setQueryState(airport.name);
@@ -161,16 +170,7 @@ export function useAirportSearch(options: UseAirportSearchOptions = {}): UseAirp
 
   const open = useCallback(() => {
     setIsOpen(true);
-    const isLoaded = searchAirportsSync('').length > 0;
-    if (!isLoaded) {
-      setLoading(true);
-      void loadAirports().then(() => {
-        setLoading(false);
-        updateResults(query);
-      });
-    } else {
-      updateResults(query);
-    }
+    updateResults(query);
   }, [query, updateResults]);
 
   const close = useCallback(() => {
@@ -183,6 +183,8 @@ export function useAirportSearch(options: UseAirportSearchOptions = {}): UseAirp
     results,
     isOpen,
     loading,
+    error,
+    retry,
     selectAirport,
     clear,
     open,
