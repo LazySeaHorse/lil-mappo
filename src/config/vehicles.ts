@@ -15,9 +15,9 @@ export const MODEL_BASE_SCALE: Record<Exclude<VehicleType, 'dot'>, number> = {
 };
 
 /**
- * Size multiplier limits per marker type, for a log slider. A car is about 3.5 m long at 1x and a
- * plane about 2 km (after the 100x above), so the car tops out near a mid-sized city (~35 km) and
- * the plane near a large state (~100 km). The dot is a screen-space circle, so it stays small.
+ * Size multiplier limits per marker type, for a log slider. A car is about 3.4 m long at 1x and a
+ * plane about 3.7 km (after the 100x above), so the car tops out near a mid-sized city (~35 km) and
+ * the plane near a large state (~190 km). The dot is a screen-space circle, so it stays small.
  */
 export const VEHICLE_SCALE_RANGE: Record<VehicleType, { min: number; max: number }> = {
   dot: { min: 0.2, max: 10 },
@@ -31,26 +31,21 @@ export function clampVehicleScale(type: VehicleType | undefined, scale: number):
 }
 
 /**
- * The follow camera pulls back in step with an enlarged 3D marker so it fills the same share of the
- * frame. A marker below 1x keeps the default framing, and the dot is a fixed-size circle on screen.
+ * Each 3D model's size in metres as authored, before MODEL_BASE_SCALE: nose to tail, and how far its
+ * furthest corner reaches from the origin it rides the route on. Measured from the .glb files, which
+ * vehicles.test.ts reads to keep these in step.
  */
-export function followDistanceFactor(vehicle: RouteVehicleConfig | undefined): number {
-  if (!vehicle?.enabled || vehicle.type === 'dot') return 1;
-  return Math.max(1, vehicle.scale || 1);
-}
+export const MODEL_SIZE_M: Record<Exclude<VehicleType, 'dot'>, { length: number; reach: number }> = {
+  car: { length: 3.43, reach: 2.39 },
+  plane: { length: 37.24, reach: 32.75 },
+};
 
-const effectiveCams = new WeakMap<AutoCamConfig, Map<number, AutoCamConfig>>();
-
-/** The route's auto-camera as the rig should run it: follow distance widened for a large marker. Memoized so the rig cache keeps hitting. */
-export function effectiveAutoCam(route: Pick<RouteItem, 'autoCam' | 'calculation'>): AutoCamConfig {
-  const config = route.autoCam!;
-  const factor = followDistanceFactor(route.calculation?.vehicle);
-  if (factor === 1) return config;
-  let byFactor = effectiveCams.get(config);
-  if (!byFactor) effectiveCams.set(config, (byFactor = new Map()));
-  let scaled = byFactor.get(factor);
-  if (!scaled) byFactor.set(factor, (scaled = { ...config, distance: config.distance * factor }));
-  return scaled;
+/** The 3D marker as drawn, in metres; null for the dot, a fixed-size circle on screen, or no marker. */
+export function markerSize(vehicle: RouteVehicleConfig | undefined): { lengthM: number; reachM: number } | null {
+  if (!vehicle?.enabled || vehicle.type === 'dot') return null;
+  const s = (vehicle.scale || 1) * MODEL_BASE_SCALE[vehicle.type];
+  const { length, reach } = MODEL_SIZE_M[vehicle.type];
+  return { lengthM: length * s, reachM: reach * s };
 }
 
 /** How much larger the auto-camera follow framing is for a vehicle type. */

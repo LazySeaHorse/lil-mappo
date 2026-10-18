@@ -73,6 +73,10 @@ export interface CameraRig {
   ground: Float64Array | null;
   /** The route, which places the vehicle exactly as the renderer does. */
   route: RoutePath;
+  /** Average latitude of the route. */
+  lat: number;
+  /** How far the 3D marker reaches from the route, in metres; 0 for none. */
+  markerReachM: number;
   /** Overview shot framing the whole route. */
   overview: CameraPose;
 }
@@ -82,6 +86,40 @@ const MIN_SAMPLES = 64;
 const MAX_SAMPLES = 6000;
 /** Road this much longer than the straight line across the shot counts as fully winding. */
 const FULL_WINDING = 0.5;
+/** Pixels across that the navigation view's framing counts as its shot. */
+const NAVIGATION_VIEW_PX = 350;
+
+// ─── The marker ───────────────────────────────────────────────────────────────
+
+/**
+ * The tightest shot of a 3D marker, as a multiple of how far it reaches. Mapbox's 36.87° field of
+ * view spans about 0.67·range of height, so at 7.5 reaches the marker fills at most about 40% of it.
+ * It also keeps the camera well outside the marker, however the shot reacts and drifts (the
+ * clearance test in cameraRig.test.ts sweeps for the worst case).
+ */
+const SHOT_PER_MARKER_REACH = 7.5;
+
+/** Follow distance below which a 3D marker that reaches `markerReachM` would crowd the shot. */
+export function minFollowDistance(markerReachM: number): number {
+  return SHOT_PER_MARKER_REACH * markerReachM;
+}
+
+/** Closest the navigation view zooms in on a 3D marker: where its shot spans `minFollowDistance`. */
+function maxZoomFor(markerReachM: number, lat: number): number {
+  if (!(markerReachM > 0)) return 22;
+  return clamp(Math.log2((metersPerPixel(0, lat) * NAVIGATION_VIEW_PX) / minFollowDistance(markerReachM)), 0, 22);
+}
+
+/**
+ * The shot the rig plans and samples: pulled back to the tightest one that frames the marker, if
+ * the set one is tighter. A 1x car is well inside every setting; a giant one sets the distance.
+ */
+function framedForMarker(config: AutoCamConfig, markerReachM: number, lat: number): AutoCamConfig {
+  if (!(markerReachM > 0)) return config;
+  const distance = Math.max(config.distance, minFollowDistance(markerReachM));
+  const zoom = Math.min(config.zoom, maxZoomFor(markerReachM, lat));
+  return distance === config.distance && zoom === config.zoom ? config : { ...config, distance, zoom };
+}
 
 // ─── Smoothing ────────────────────────────────────────────────────────────────
 
@@ -196,10 +234,10 @@ function unwrapDegrees(values: ArrayLike<number>): Float64Array {
 /** How much ground the shot spans around its subject, in metres: what framing is relative to. */
 function viewScaleM(config: AutoCamConfig, lat: number): number {
   if (config.mode === 'cinematic') return Math.max(20, config.distance);
-  return Math.max(20, metersPerPixel(config.zoom, lat) * 350);
+  return Math.max(20, metersPerPixel(config.zoom, lat) * NAVIGATION_VIEW_PX);
 }
 
-function overviewPose(x: Float64Array, y: Float64Array, lat: number): CameraPose {
+function overviewPose(x: Float64Array, y: Float64Array, lat: number, minRange: number): CameraPose {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -216,23 +254,26 @@ function overviewPose(x: Float64Array, y: Float64Array, lat: number): CameraPose
   return {
     target: mercToLngLat((minX + maxX) / 2, (minY + maxY) / 2),
     // At Mapbox's default field of view the view spans about one range across.
-    range: Math.max(300, diagonal * 1.25),
+    range: Math.max(300, diagonal * 1.25, minRange),
     pitch: 50,
     bearing: Number.isFinite(travel) ? travel : 0,
   };
 }
 
+/** `markerReachM` is how far the 3D marker reaches from the route (see `markerSize`), or 0 for none. */
 export function buildRig(
   coords: number[][],
-  config: AutoCamConfig,
+  setConfig: AutoCamConfig,
   timing: RigTiming,
   ground: GroundModel | null = null,
+  markerReachM = 0,
 ): CameraRig | null {
   const route = getRoutePath(coords);
   const { x: routeX, y: routeY, lengthM } = route;
   if (routeX.length < 2 || !(lengthM > 0)) return null;
   const lat = route.coords.reduce((sum, c) => sum + c[1], 0) / routeX.length;
   const mpm = metersPerMerc(lat);
+  const config = framedForMarker(setConfig, markerReachM, lat);
 
   const duration = Number.isFinite(timing.duration) && timing.duration > 0 ? timing.duration : 1;
   const n = clamp(Math.round(duration * SAMPLES_PER_SECOND) + 1, MIN_SAMPLES, MAX_SAMPLES);
@@ -303,7 +344,9 @@ export function buildRig(
     peakSpeed: Math.max(1, peak),
     ground: null,
     route,
-    overview: overviewPose(routeX, routeY, lat),
+    lat,
+    markerReachM,
+    overview: overviewPose(routeX, routeY, lat, minFollowDistance(markerReachM)),
   };
   if (ground && config.mode === 'cinematic') rig.ground = planGround(rig, config, ground, lambdaFor(1 + 3 * smoothing, rate));
   return rig;
@@ -443,7 +486,8 @@ function withShots(rig: CameraRig, config: AutoCamConfig, params: RigSampleParam
   return out;
 }
 
-export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSampleParams): AutoCamOutput {
+export function sampleRig(rig: CameraRig, setConfig: AutoCamConfig, params: RigSampleParams): AutoCamOutput {
+  const config = framedForMarker(setConfig, rig.markerReachM, rig.lat);
   if (config.mode === 'cinematic') {
     const pose = withShots(rig, config, params, followPose(rig, config, params.p));
     const { position, lookAt } = poseToFreeCam(pose);
@@ -457,7 +501,7 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
   return {
     type: 'jumpTo',
     center: st.aim,
-    zoom: clamp(zoom, 0, 22),
+    zoom: clamp(zoom, 0, maxZoomFor(rig.markerReachM, rig.lat)),
     pitch: config.pitch,
     // Unwrapped, like the free camera's, so blends to and from it stay continuous.
     bearing: st.heading,
@@ -469,7 +513,13 @@ export function sampleRig(rig: CameraRig, config: AutoCamConfig, params: RigSamp
 const cache = new Map<string, CameraRig | null>();
 const CACHE_LIMIT = 8;
 
-function fingerprint(coords: number[][], config: AutoCamConfig, timing: RigTiming, ground: GroundModel | null): string {
+function fingerprint(
+  coords: number[][],
+  config: AutoCamConfig,
+  timing: RigTiming,
+  ground: GroundModel | null,
+  markerReachM: number,
+): string {
   // FNV-1a over the coordinate values: cheap next to rebuilding, and catches any edit.
   let h = 2166136261;
   for (const c of coords) {
@@ -483,7 +533,9 @@ function fingerprint(coords: number[][], config: AutoCamConfig, timing: RigTimin
   const shape = config.mode === 'cinematic' ? [config.distance] : [config.zoom, config.lookAhead];
   // Planning over terrain follows the whole framing, so it depends on the motion sliders too.
   const terrain = ground && config.mode === 'cinematic' ? [ground.key, config.pitch, config.dynamics, config.orbit] : [];
-  return [coords.length, h >>> 0, config.mode, config.smoothing, ...shape, timing.duration, timing.easing, ...terrain].join(':');
+  return [
+    coords.length, h >>> 0, config.mode, config.smoothing, ...shape, timing.duration, timing.easing, markerReachM, ...terrain,
+  ].join(':');
 }
 
 // Skips re-hashing every coordinate when called again with the same arrays/config objects.
@@ -491,6 +543,7 @@ interface KeyMemo {
   config: AutoCamConfig;
   timing: RigTiming;
   ground: GroundModel | null;
+  markerReachM: number;
   key: string;
 }
 const keyMemo = new WeakMap<number[][], KeyMemo>();
@@ -500,17 +553,18 @@ export function getRig(
   config: AutoCamConfig,
   timing: RigTiming,
   ground: GroundModel | null = null,
+  markerReachM = 0,
 ): CameraRig | null {
   const memo = keyMemo.get(coords);
   let key: string;
   if (
-    memo && memo.config === config && memo.ground === ground &&
+    memo && memo.config === config && memo.ground === ground && memo.markerReachM === markerReachM &&
     memo.timing.duration === timing.duration && memo.timing.easing === timing.easing
   ) {
     key = memo.key;
   } else {
-    key = fingerprint(coords, config, timing, ground);
-    keyMemo.set(coords, { config, timing, ground, key });
+    key = fingerprint(coords, config, timing, ground, markerReachM);
+    keyMemo.set(coords, { config, timing, ground, markerReachM, key });
   }
   if (cache.has(key)) {
     const hit = cache.get(key)!;
@@ -518,7 +572,7 @@ export function getRig(
     cache.set(key, hit);
     return hit;
   }
-  const rig = buildRig(coords, config, timing, ground);
+  const rig = buildRig(coords, config, timing, ground, markerReachM);
   cache.set(key, rig);
   if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
   return rig;

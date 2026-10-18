@@ -5,6 +5,7 @@ import { buildRig, sampleRig, smoothAbove, smoothWithin, vehicleAt, whittaker, t
 import { applyEasing } from './easings';
 import { getLineSegment } from './lineAnimation';
 import { lngLatToMerc, metersPerMerc } from './cameraPose';
+import { metersPerPixel } from './geoMath';
 import { getCameraAtTime } from './cameraInterpolation';
 import { blendedPose } from './cameraUtils';
 
@@ -212,6 +213,67 @@ describe('camera rig', () => {
   });
 });
 
+describe('camera rig with a 3D marker', () => {
+  // How far the marker reaches from the route; a car at 10x reaches about 24 m, at 1000x 2.4 km.
+  const giant = 2390;
+  const frames = Array.from({ length: 201 }, (_, f) => f / 200);
+  const rangeOf = (out: ReturnType<typeof sampleRig>) => {
+    if (out.type !== 'freeCam') throw new Error('expected a free camera');
+    return poseFromFreeCam(out.position, out.lookAt).range;
+  };
+  /** Straight-line metres from the camera to where the marker rides. */
+  const clearance = (rig: NonNullable<ReturnType<typeof buildRig>>, cfg: AutoCamConfig, timing: RigTiming, p: number) => {
+    const out = sampleRig(rig, cfg, { p });
+    if (out.type !== 'freeCam') throw new Error('expected a free camera');
+    const [cx, cy] = lngLatToMerc(out.position[0], out.position[1]);
+    const [vx, vy] = vehicleAt(rig, applyEasing(timing.easing, p));
+    return Math.hypot(Math.hypot(cx - vx, cy - vy) * metersPerMerc(out.lookAt[1]), out.position[2]);
+  };
+
+  it('keeps the set distance while the marker fits the shot', () => {
+    const plain = buildRig(corner, config, steady)!;
+    const car = buildRig(corner, config, steady, null, 24)!;
+    for (const p of [0, 0.3, 0.5, 1]) expect(sampleRig(car, config, { p })).toEqual(sampleRig(plain, config, { p }));
+  });
+
+  it('pulls back to frame a marker too big for the set distance', () => {
+    const rig = buildRig(corner, config, steady, null, giant)!;
+    // Dynamics can bring it in a little on a straight, never most of the way.
+    for (const p of frames) expect(rangeOf(sampleRig(rig, config, { p }))).toBeGreaterThan(0.8 * 7.5 * giant);
+  });
+
+  it('never brings the camera within reach of the marker', () => {
+    // Short and doubled-back routes with wide shots at both ends, low and high cameras that react
+    // hard and let the marker wander: clear of it by half its reach again, at the least.
+    const routes = [
+      [[0, 0], [0.004, 0], [0.004, 0.004]],
+      [[0, 0], [0.05, 0], [0.05, 0.001], [0, 0.001]],
+      [[0, 0], [0.0001, 0]],
+    ];
+    for (const route of routes) {
+      for (const easing of ['linear', 'easeInOutCubic'] as const) {
+        for (const pitch of [4, 60, 85]) {
+          for (const smoothing of [0, 1]) {
+            const timing: RigTiming = { duration: 2, easing };
+            const cfg = { ...config, distance: 100, pitch, dynamics: 1, smoothing, orbit: 1, intro: 1, outro: 1 };
+            const rig = buildRig(route, cfg, timing, null, giant)!;
+            for (const p of frames) expect(clearance(rig, cfg, timing, p)).toBeGreaterThan(1.5 * giant);
+          }
+        }
+      }
+    }
+  });
+
+  it('frames a giant marker in the navigation view too', () => {
+    const nav = { ...config, mode: 'navigation' as const, zoom: 16 };
+    const out = sampleRig(buildRig(corner, nav, steady, null, giant)!, nav, { p: 0.5 });
+    if (out.type !== 'jumpTo') throw new Error('expected a standard camera');
+    expect(metersPerPixel(out.zoom, 0) * 350).toBeGreaterThan(0.99 * 7.5 * giant);
+    const small = sampleRig(buildRig(corner, nav, steady, null, 2.4)!, nav, { p: 0.5 });
+    expect(small).toEqual(sampleRig(buildRig(corner, nav, steady)!, nav, { p: 0.5 }));
+  });
+});
+
 describe('camera rig over terrain', () => {
   // 20 km due east at 46°N, crossed in 10 s.
   const east = [[8, 46], [8.26, 46]];
@@ -271,6 +333,18 @@ describe('getCameraAtTime with an auto camera', () => {
     id, time, camera: { center: [0, 0], zoom, pitch: 0, bearing: 0, altitude: null }, easing: 'linear', followRoute: null,
   });
   const coords = () => corner;
+
+  it('follows a 10x car from the set distance, and pulls back only for a giant one', () => {
+    const withCar = (scale: number) =>
+      ({ ...route, calculation: { vehicle: { enabled: true, type: 'car', modelId: '', scale } } }) as unknown as RouteItem;
+    const range = (r: RouteItem) => {
+      const out = getCameraAtTime([], 15, coords, [r]);
+      if (out?.type !== 'freeCam') throw new Error('expected a free camera');
+      return poseFromFreeCam(out.position, out.lookAt).range;
+    };
+    expect(range(withCar(10))).toBeCloseTo(range(route), 6);
+    expect(range(withCar(1000))).toBeGreaterThan(10 * range(route));
+  });
 
   it('blends in from the previous keyframe and out to the next', () => {
     const kfs = [kf('a', 0), kf('b', 30)];

@@ -45,7 +45,7 @@ export const boundaryStylePatchSchema = z.strictObject(boundaryStyleShape).parti
 export const vehicleShape = {
   enabled: z.boolean().describe('Show a vehicle marker riding the route.'),
   type: z.enum(['dot', 'car', 'plane']).describe('dot = simple marker; car = 3D car; plane = 3D plane.'),
-  scale: z.number().min(0.1).max(10000).describe('Size multiplier, 1 = default. Clamped per type: dot 0.2-10, car 0.2-10000 (10000 is a ~35 km car), plane 0.2-50 (50 is a ~100 km plane).'),
+  scale: z.number().min(0.1).max(10000).describe('Size multiplier, 1 = default. Clamped per type: dot 0.2-10, car 0.2-10000 (10000 is a ~35 km car), plane 0.2-50 (50 is a ~190 km plane).'),
 };
 export const vehiclePatchSchema = z.strictObject(vehicleShape).partial();
 
