@@ -49,17 +49,17 @@ const WalkPointRow = ({ id, index, coords, isMoving, onToggleMove, onRemove }: W
         <IconButton
           variant={isMoving ? 'default' : 'outline'}
           size="xs"
-          className={`rounded-lg h-6 w-6 shrink-0 ${isMoving ? 'bg-primary text-primary-foreground' : ''}`}
+          className="shrink-0"
           onClick={onToggleMove}
           title="Move point on map"
         >
-          <Crosshair size={11} className={isMoving ? 'animate-pulse text-white' : 'text-muted-foreground'} />
+          <Crosshair size={11} className={isMoving ? 'animate-pulse' : 'text-muted-foreground'} />
         </IconButton>
       )}
       <IconButton
-        variant="ghost"
+        variant="destructive"
         size="xs"
-        className="h-6 w-6 rounded shrink-0 text-muted-foreground hover:text-destructive"
+        className="shrink-0"
         onClick={onRemove}
         title="Remove point"
       >

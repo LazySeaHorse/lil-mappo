@@ -25,13 +25,13 @@ export const SearchFieldActions = ({ hasText, loading, onClear, className = '' }
     {loading && <Loader2 size={13} aria-hidden="true" className="animate-spin text-primary opacity-70" />}
     {hasText ? (
       <IconButton
+        shape="circle"
         type="button"
         variant="ghost"
         size="xs"
         onClick={onClear}
         aria-label={SEARCH_TERMS.clear}
         title={SEARCH_TERMS.clear}
-        className="h-6 w-6 rounded-full"
       >
         <X size={12} />
       </IconButton>

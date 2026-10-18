@@ -6,9 +6,9 @@ import { SEARCH_TERMS } from '@/lib/terms';
 export const PickOnMapButton = ({ isPicking, onClick }: { isPicking: boolean; onClick: () => void }) => (
   <IconButton
     type="button"
-    variant="ghost"
+    variant={isPicking ? 'selected' : 'ghost'}
     size="sm"
-    className={`h-8 w-8 shrink-0 rounded-lg transition-all ${isPicking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
+    className="shrink-0"
     onClick={onClick}
     title={SEARCH_TERMS.pickOnMap}
     aria-label={SEARCH_TERMS.pickOnMap}

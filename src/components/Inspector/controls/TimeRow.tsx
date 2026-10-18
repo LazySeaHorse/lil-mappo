@@ -64,7 +64,7 @@ export function TimeRow({
             onClick={onUsePlayhead}
             aria-label={`${label}: ${TIMING_LABELS.usePlayhead}`}
             title={TIMING_LABELS.usePlayhead}
-            className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 rounded-md text-muted-foreground hover:text-primary"
+            className="absolute right-1 top-1/2 -translate-y-1/2"
           >
             <PlayheadIcon size={10} />
           </IconButton>

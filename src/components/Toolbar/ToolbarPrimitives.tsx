@@ -66,13 +66,13 @@ export function ToolbarToggle({
   if (hideLabel) {
     return (
       <IconButton
-        variant={active ? "toolbar-active" : "toolbar"}
+        variant={active ? 'selected' : 'toolbar'}
         size="sm"
+        aria-pressed={active}
         onClick={onClick}
         loading={loading}
         disabled={disabled}
         title={label}
-        className="shadow-none"
       >
         {icon}
       </IconButton>

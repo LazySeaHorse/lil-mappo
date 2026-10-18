@@ -13,8 +13,12 @@ const iconButtonVariants = cva(
           "text-muted-foreground hover:text-foreground hover:bg-accent/50",
         toolbar:
           "text-foreground hover:text-primary hover:bg-primary/5",
+        /** An open dropdown trigger in the toolbar. */
         "toolbar-active":
           "text-primary bg-primary/10 scale-110 shadow-lg",
+        /** A pressed toggle or an active mode, e.g. pick-on-map. */
+        selected:
+          "text-primary bg-primary/10 hover:bg-primary/15",
         default:
           "bg-primary text-primary-foreground hover:bg-primary/90",
         outline:
@@ -32,10 +36,15 @@ const iconButtonVariants = cva(
         default: "h-9 w-9 [&_svg:not([class*='size-'])]:size-[18px]",
         lg: "h-10 w-10 [&_svg:not([class*='size-'])]:size-5",
       },
+      shape: {
+        square: "",
+        circle: "rounded-full",
+      },
     },
     defaultVariants: {
       variant: "ghost",
       size: "sm",
+      shape: "square",
     },
   }
 );
@@ -48,12 +57,12 @@ interface IconButtonProps
 }
 
 const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ className, variant, size, loading, asChild = false, children, ...props }, ref) => {
+  ({ className, variant, size, shape, loading, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
         data-slot="icon-button"
-        className={cn(iconButtonVariants({ variant, size, className }))}
+        className={cn(iconButtonVariants({ variant, size, shape, className }))}
         ref={ref}
         {...props}
       >

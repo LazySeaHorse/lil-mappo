@@ -106,7 +106,6 @@ export function PanelWrapper({
         <IconButton
           variant="ghost"
           size="xs"
-          className="rounded-lg hover:bg-secondary/80 text-muted-foreground hover:text-foreground"
           aria-label="Close panel"
           onClick={() => setIsInspectorOpen(false)}
         >

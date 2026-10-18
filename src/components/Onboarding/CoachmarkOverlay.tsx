@@ -186,8 +186,9 @@ export function CoachmarkOverlay({
           {/* Header: Step Counter Badge & Close/Skip Button */}
           <div className="flex items-center justify-between gap-2">
             <Badge
-              variant="secondary"
-              className="font-mono-time text-2xs uppercase tracking-wider px-2 py-0.5 rounded-md bg-secondary/70 border border-border/40 text-muted-foreground font-medium"
+              size="sm"
+              variant="muted"
+              className="font-mono-time uppercase tracking-wider"
             >
               Step {stepIndex + 1} of {totalSteps}
             </Badge>
@@ -197,7 +198,6 @@ export function CoachmarkOverlay({
                 type="button"
                 variant="ghost"
                 size="xs"
-                className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
                 title="Skip tour"
                 aria-label="Skip tour"
                 data-action="skip"

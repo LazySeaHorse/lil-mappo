@@ -119,7 +119,7 @@ const TimelineTrackRow = React.memo(({
           <IconButton
             variant="ghost"
             size="xs"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 data-[enabled=false]:opacity-100 hover:text-primary transition-all"
+            className="opacity-0 group-hover:opacity-100 data-[enabled=false]:opacity-100 hover:text-primary"
             data-enabled={isCameraEnabled}
             title={isCameraEnabled ? 'Hide Camera' : 'Show Camera'}
             onClick={(event) => {
