@@ -135,6 +135,20 @@ describe('ProjectLibrary Sub-components', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('renders CloudSlotQuotaDialog as a portaled alert dialog that Escape dismisses', () => {
+    const onCancel = vi.fn();
+    const { container } = render(
+      <CloudSlotQuotaDialog pendingProject={baseProject} projects={[]} onCancel={onCancel} onReplaceAndUpload={vi.fn()} />
+    );
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Cloud project limit reached' });
+    // Portaled to body so it layers above the open Project Library dialog.
+    expect(container.contains(dialog)).toBe(false);
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
   it('offers an upgrade from CloudSlotQuotaDialog only when onUpgrade is given', () => {
     const onUpgrade = vi.fn();
     const props = { pendingProject: baseProject, projects: [], onCancel: vi.fn(), onReplaceAndUpload: vi.fn() };
