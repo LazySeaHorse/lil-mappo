@@ -3,6 +3,9 @@ import type { EasingName } from '@/store/types';
 export const formatPercent = (value: number) => `${Math.round(value * 100)} %`;
 export const formatDegrees = (value: number) => `${(value ?? 0).toFixed(1)}°`;
 export const formatMultiplier = (value: number) => `${value.toFixed(1)}x`;
+/** For a size that spans orders of magnitude: 0.25x, 2.5x, 120x, 8,400x. */
+export const formatWideMultiplier = (value: number) =>
+  `${value < 1 ? value.toFixed(2) : value < 10 ? value.toFixed(1) : Math.round(value).toLocaleString('en-US')}x`;
 export const formatDecimals = (decimals = 2) => (value: number) => value.toFixed(decimals);
 
 export const EASING_OPTIONS: { value: EasingName; label: string }[] = [

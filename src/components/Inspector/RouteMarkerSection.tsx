@@ -2,7 +2,8 @@ import { Car, Circle, Plane } from 'lucide-react';
 import type { RouteItem } from '@/store/types';
 import { SliderRow, SwitchRow, VisualCardSelect } from './InspectorShared';
 import { InspectorSection } from './InspectorSection';
-import { formatMultiplier } from './inspectorValues';
+import { formatWideMultiplier } from './inspectorValues';
+import { VEHICLE_SCALE_RANGE, clampVehicleScale } from '@/config/vehicles';
 
 type RouteVehicle = NonNullable<NonNullable<RouteItem['calculation']>['vehicle']>;
 
@@ -33,7 +34,7 @@ export function RouteMarkerSection({
                 { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
               ]}
               value={vehicle.type || 'dot'}
-              onChange={(type) => onChange({ type })}
+              onChange={(type) => onChange({ type, scale: clampVehicleScale(type, vehicle.scale || 1) })}
               onLockedSelect={onLockedSelect}
               columns={3}
             />
@@ -43,10 +44,11 @@ export function RouteMarkerSection({
             label="Size"
             value={vehicle.scale || 1}
             onChange={(scale) => onChange({ scale })}
-            min={0.2}
-            max={4}
-            step={0.1}
-            formatValue={formatMultiplier}
+            min={VEHICLE_SCALE_RANGE[vehicle.type || 'dot'].min}
+            max={VEHICLE_SCALE_RANGE[vehicle.type || 'dot'].max}
+            step={0.01}
+            logarithmic
+            formatValue={formatWideMultiplier}
           />
         </div>
       )}

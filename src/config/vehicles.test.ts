@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import distance from '@turf/distance';
 import { point } from '@turf/helpers';
 import type { RouteItem } from '@/store/types';
-import { autoCamForRoute, autoCamPresetPatch, defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, routeFitOf, vehicleChangePatch } from './vehicles';
+import { clampVehicleScale, autoCamForRoute, autoCamPresetPatch, defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, routeFitOf, vehicleChangePatch } from './vehicles';
 
 const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): RouteItem => ({
   kind: 'route',
@@ -152,5 +152,16 @@ describe('routeFitOf', () => {
     const b = [[1, 1], [2, 1]];
     const fit = routeFitOf({ geojson: line(a, b), startTime: 0, endTime: 1 });
     expect(fit.lengthM).toBeCloseTo(turfLength([...a, ...b]), 4);
+  });
+});
+
+describe('clampVehicleScale', () => {
+  it('limits each marker type to its own range', () => {
+    expect(clampVehicleScale('car', 8000)).toBe(8000);
+    expect(clampVehicleScale('car', 99999)).toBe(10000);
+    expect(clampVehicleScale('plane', 8000)).toBe(50);
+    expect(clampVehicleScale('dot', 8000)).toBe(10);
+    expect(clampVehicleScale('car', 0.01)).toBe(0.2);
+    expect(clampVehicleScale(undefined, 3)).toBe(3);
   });
 });

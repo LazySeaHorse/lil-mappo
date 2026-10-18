@@ -14,6 +14,22 @@ export const MODEL_BASE_SCALE: Record<Exclude<VehicleType, 'dot'>, number> = {
   plane: 100,
 };
 
+/**
+ * Size multiplier limits per marker type, for a log slider. A car is about 3.5 m long at 1x and a
+ * plane about 2 km (after the 100x above), so the car tops out near a mid-sized city (~35 km) and
+ * the plane near a large state (~100 km). The dot is a screen-space circle, so it stays small.
+ */
+export const VEHICLE_SCALE_RANGE: Record<VehicleType, { min: number; max: number }> = {
+  dot: { min: 0.2, max: 10 },
+  car: { min: 0.2, max: 10000 },
+  plane: { min: 0.2, max: 50 },
+};
+
+export function clampVehicleScale(type: VehicleType | undefined, scale: number): number {
+  const { min, max } = VEHICLE_SCALE_RANGE[type ?? 'dot'];
+  return Math.min(max, Math.max(min, scale));
+}
+
 /** How much larger the auto-camera follow framing is for a vehicle type. */
 export function autoCamScaleFor(type: VehicleType | undefined): number {
   return type === 'plane' ? MODEL_BASE_SCALE.plane : 1;

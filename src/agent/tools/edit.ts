@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 import { getStyle } from '@/annotations/registry';
 import { applyWalkPatch } from '@/engine/routeCurves';
-import { vehicleChangePatch } from '@/config/vehicles';
+import { clampVehicleScale, vehicleChangePatch } from '@/config/vehicles';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { switchCalloutStyle } from '@/store/itemFactories';
 import type {
@@ -161,6 +161,7 @@ function buildRouteUpdates(item: RouteItem, patch: Patch): Partial<RouteItem> {
     const calculation = updates.calculation ?? item.calculation;
     if (!calculation) throw new ToolError('invalid_patch', 'This imported route has no vehicle settings.');
     const vehicle = { ...(calculation.vehicle ?? { enabled: true, type: 'dot', modelId: '', scale: 1 }), ...patch.vehicle } as RouteVehicleConfig;
+    vehicle.scale = clampVehicleScale(vehicle.type, vehicle.scale);
     Object.assign(updates, vehicleChangePatch({ ...item, ...updates } as RouteItem, calculation, vehicle));
   }
   return updates;
