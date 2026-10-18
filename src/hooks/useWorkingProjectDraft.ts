@@ -13,7 +13,7 @@ export function useWorkingProjectDraft(): boolean {
 
     const flush = () => {
       void workingProjectDraftManager.flush().catch(() => {
-        // pagehide/auth flushes are best effort; the five-second loop retries.
+        // pagehide/unmount flushes are best effort; the five-second loop retries.
       });
     };
 
@@ -51,6 +51,9 @@ export function useWorkingProjectDraft(): boolean {
       active = false;
       unsubscribe?.();
       window.removeEventListener('pagehide', flush);
+      // Stopping drops the project getter, so capture the latest edits first. This is what
+      // preserves them when a crash unmounts the editor.
+      flush();
       workingProjectDraftManager.stop();
     };
   }, []);
