@@ -263,7 +263,7 @@ test("3. a route can be created and appears in the inspector and timeline", asyn
   await expect(page.getByRole("heading", { name: "Route", exact: true })).toBeVisible();
   const routeName = page.locator('input[placeholder="Route name"]');
   await expect(routeName).toHaveValue(/.+ (to|→) .+/);
-  await expect(page.getByText(await routeName.inputValue(), { exact: true })).toBeVisible();
+  await expect(page.getByTestId("timeline-viewport-content").getByText(await routeName.inputValue(), { exact: true })).toBeVisible();
   await expectInspectorFitsWidth(page);
 });
 
@@ -304,7 +304,7 @@ test("5. a boundary can be added and edited", async ({ page }) => {
   await expect(nameInput).toHaveValue("Testland");
   await expectInspectorFitsWidth(page);
   await nameInput.fill("Testland Updated");
-  await expect(page.getByText("Testland Updated", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("timeline-viewport-content").getByText("Testland Updated", { exact: true })).toBeVisible();
 });
 
 test("6. a project can be saved, reloaded, and reopened", async ({ page }) => {

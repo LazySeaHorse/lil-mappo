@@ -165,9 +165,11 @@ test.describe("5 Golden E2E Journeys", () => {
     await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
 
     // 4. Verify all items exist on Timeline
-    await expect(page.getByText(createdRouteName, { exact: true })).toBeVisible();
-    await expect(page.getByTestId("timeline-viewport-content").getByText(calloutTitle, { exact: true })).toBeVisible();
-    await expect(page.getByText("Testland", { exact: true })).toBeVisible();
+    // Scoped to the timeline: the selected item's name also shows in the map's "Showing … in full" pill.
+    const timeline = page.getByTestId("timeline-viewport-content");
+    await expect(timeline.getByText(createdRouteName, { exact: true })).toBeVisible();
+    await expect(timeline.getByText(calloutTitle, { exact: true })).toBeVisible();
+    await expect(timeline.getByText("Testland", { exact: true })).toBeVisible();
 
     // 5. Test Timeline Playback
     const playButton = page.getByTitle("Play / Pause (Space)");
