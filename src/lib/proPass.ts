@@ -38,11 +38,12 @@ export function withProPass(
   };
 }
 
-/** "Oct 21" (adds the year when it is not this year). */
-export function formatPassEnd(end: Date, now = new Date()): string {
-  return end.toLocaleDateString('en-US', {
+/** "Oct 21, 3:00 PM" in the viewer's time zone (a pass is short, so the time matters). */
+export function formatPassEnd(end: Date): string {
+  return end.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
-    ...(end.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }

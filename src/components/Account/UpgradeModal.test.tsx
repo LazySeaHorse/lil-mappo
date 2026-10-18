@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Subscription } from '@/lib/database.types';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -66,6 +66,61 @@ describe('UpgradeModal current plan', () => {
     renderWith(wanderer({ status: 'cancelling' }));
     expect(screen.getByRole('button', { name: /subscribe to wanderer/i })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /current plan/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('UpgradeModal 3-day pass', () => {
+  const startCheckout = vi.fn();
+
+  afterEach(() => {
+    subscriptionMock.current = null;
+    startCheckout.mockReset();
+    vi.useRealTimers();
+  });
+
+  function renderWith(subscription: Subscription | null) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-18T15:00:00Z'));
+    subscriptionMock.current = subscription;
+    useAuthStore.setState({ showUpgradeModal: true, startCheckout });
+    render(<UpgradeModal />);
+  }
+
+  /** What useSubscription returns for a pass with no subscription. */
+  function passOnly(end: string): Subscription {
+    return wanderer({ status: 'none', renewal_date: null, dodo_subscription_id: null, pass_expires_at: end });
+  }
+
+  it('offers the 3-day pass for $3 next to the subscription', () => {
+    renderWith(null);
+
+    expect(screen.getByText('3-day pass')).toBeInTheDocument();
+    expect(screen.getByText(/one payment of \$3/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /buy 3-day pass/i }));
+    expect(startCheckout).toHaveBeenCalledWith('pass_3day');
+  });
+
+  it('hides the pass from an active subscriber', () => {
+    renderWith(wanderer());
+
+    expect(screen.queryByText('3-day pass')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /3-day pass|add 3 days/i })).not.toBeInTheDocument();
+  });
+
+  it('shows when an active pass ends, lets the user add days, and still offers the subscription', () => {
+    renderWith(passOnly('2026-10-21T15:00:00Z'));
+
+    expect(screen.getByText(/Pro pass, ends Oct 21/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /subscribe to wanderer/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /add 3 days/i }));
+    expect(startCheckout).toHaveBeenCalledWith('pass_3day');
+  });
+
+  it('offers a new pass once the old one has ended', () => {
+    renderWith(passOnly('2026-10-18T14:59:59Z'));
+
+    expect(screen.queryByText(/Pro pass, ends/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /buy 3-day pass/i })).toBeEnabled();
   });
 });
 

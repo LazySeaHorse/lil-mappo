@@ -1,6 +1,7 @@
 import React from "react";
 import { PinDropHero } from "@/components/ui/pin-drop";
 import {
+  CalendarClock,
   Check,
   Cloud,
   Crown,
@@ -19,10 +20,16 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLAN_CONFIG } from "@/services/checkout";
+import { PASS_PLAN, PLAN_CONFIG } from "@/services/checkout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
-import { FREE_CLOUD_SAVE_LIMIT, FREE_LIMITS, isWanderer } from "@/lib/cloudAccess";
+import {
+  FREE_CLOUD_SAVE_LIMIT,
+  FREE_LIMITS,
+  activePassEnd,
+  hasActiveSubscription,
+} from "@/lib/cloudAccess";
+import { PRO_PASS_DAYS, PRO_PASS_PRICE, formatPassEnd } from "@/lib/proPass";
 
 const BENEFITS = [
   {
@@ -74,12 +81,20 @@ export function UpgradeModal() {
   const { data: subscription } = useSubscription();
   // A cancelled plan whose period has ended is not current, so the user can
   // subscribe again even if the expiry webhook has not removed the row yet.
-  const isCurrent = isWanderer(subscription);
+  // A Pro pass is not a subscription: pass holders can still subscribe.
+  const isCurrent = hasActiveSubscription(subscription);
+  const passEnd = activePassEnd(subscription);
 
   const handleCheckout = () => {
     if (isCurrent) return;
     closeUpgradeModal();
     void startCheckout("wanderer");
+  };
+
+  const handlePassCheckout = () => {
+    if (isCurrent) return;
+    closeUpgradeModal();
+    void startCheckout(PASS_PLAN);
   };
 
   return (
@@ -172,6 +187,33 @@ export function UpgradeModal() {
               </p>
             )}
           </div>
+
+          {!isCurrent && (
+            <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-secondary/10 px-4 py-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary/60 border border-border/30 shrink-0">
+                  <CalendarClock size={14} className="text-muted-foreground" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-foreground">{PRO_PASS_DAYS}-day pass</p>
+                  <p className="text-2xs text-muted-foreground leading-relaxed">
+                    {passEnd
+                      ? `Pro pass, ends ${formatPassEnd(passEnd)}`
+                      : `Everything in Wanderer for ${PRO_PASS_DAYS} days. One payment of $${PRO_PASS_PRICE}, no renewal.`}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={handlePassCheckout}
+                aria-label={passEnd ? `Add ${PRO_PASS_DAYS} days for $${PRO_PASS_PRICE}` : `Buy ${PRO_PASS_DAYS}-day pass for $${PRO_PASS_PRICE}`}
+              >
+                {passEnd ? `Add ${PRO_PASS_DAYS} days` : `$${PRO_PASS_PRICE}`}
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
