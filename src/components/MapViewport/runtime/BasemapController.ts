@@ -6,11 +6,9 @@ import type {
 import { useProjectStore } from '@/store/useProjectStore';
 import { LABEL_CATEGORIES, MAP_STYLES, isStandardBasemap, resolveFog } from '@/config/mapbox';
 import { track } from '@/lib/analytics';
-import { compositeHasBuildings, detectRuntimeCapabilities } from '../mapUtils';
+import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
-
-const BUILDINGS_LAYER_ID = '3d-buildings';
 
 /** Styles already reported this page load, so a retry loop cannot flood analytics. */
 const reportedStyleFailures = new Set<string>();
@@ -132,54 +130,22 @@ export class BasemapController {
     this.map.off('styleimagemissing', this.handleStyleImageMissing);
   }
 
+  /** 3D buildings are a Standard-only feature; classic styles have no toggle and draw none. */
   private reconcileBuildings(state: ProjectState): void {
-    if (isStandardBasemap(state.mapStyle)) {
-      const properties: Array<[string, unknown]> = [
-        ['lightPreset', state.lightPreset],
-        ['show3dObjects', state.buildingsEnabled],
-        ['show3dLandmarks', state.buildingsEnabled && state.show3dLandmarks],
-        ['show3dTrees', state.buildingsEnabled && state.show3dTrees],
-        ['show3dFacades', state.buildingsEnabled && state.show3dFacades],
-      ];
-      for (const [property, value] of properties) {
-        if (this.map.getConfigProperty('basemap', property) === value) continue;
-        mutateMap(this.map, { operation: `setConfigProperty:${property}`, phase: 'style-sync' }, () => {
-          this.map.setConfigProperty('basemap', property, value);
-        });
-      }
-      return;
-    }
-
-    // Classic styles: extruded from the `composite` source, when style load detected one
-    if (!state.detectedCapabilities?.buildings3d) return;
-    if (!this.map.getLayer(BUILDINGS_LAYER_ID)) this.addBuildingsLayer(state.buildingsEnabled);
-    const target = state.buildingsEnabled ? 'visible' : 'none';
-    if (this.map.getLayer(BUILDINGS_LAYER_ID) && this.map.getLayoutProperty(BUILDINGS_LAYER_ID, 'visibility') !== target) {
-      mutateMap(this.map, { operation: 'setLayoutProperty', phase: 'style-sync', resourceId: BUILDINGS_LAYER_ID }, () => {
-        this.map.setLayoutProperty(BUILDINGS_LAYER_ID, 'visibility', target);
+    if (!isStandardBasemap(state.mapStyle)) return;
+    const properties: Array<[string, unknown]> = [
+      ['lightPreset', state.lightPreset],
+      ['show3dObjects', state.buildingsEnabled],
+      ['show3dLandmarks', state.buildingsEnabled && state.show3dLandmarks],
+      ['show3dTrees', state.buildingsEnabled && state.show3dTrees],
+      ['show3dFacades', state.buildingsEnabled && state.show3dFacades],
+    ];
+    for (const [property, value] of properties) {
+      if (this.map.getConfigProperty('basemap', property) === value) continue;
+      mutateMap(this.map, { operation: `setConfigProperty:${property}`, phase: 'style-sync' }, () => {
+        this.map.setConfigProperty('basemap', property, value);
       });
     }
-  }
-
-  /** Inserted below the first symbol layer so labels stay on top of the extrusions. */
-  private addBuildingsLayer(visible: boolean): void {
-    const beforeId = this.getStyleScan().firstSymbolId;
-    mutateMap(this.map, { operation: 'addLayer', phase: 'style-sync', resourceId: BUILDINGS_LAYER_ID }, () => {
-      this.map.addLayer({
-        id: BUILDINGS_LAYER_ID,
-        source: 'composite',
-        'source-layer': 'building',
-        type: 'fill-extrusion',
-        minzoom: 14,
-        paint: {
-          'fill-extrusion-color': '#ddd',
-          'fill-extrusion-height': ['get', 'height'],
-          'fill-extrusion-base': ['get', 'min_height'],
-          'fill-extrusion-opacity': 0.8,
-        },
-        layout: { visibility: visible ? 'visible' : 'none' },
-      }, beforeId);
-    });
   }
 
   private reconcileLabels(state: ProjectState): void {
@@ -280,17 +246,6 @@ export class BasemapController {
     this.onStyleLoad?.();
   };
 
-  /** The composite source lists its layers after the style loads; offer 3D buildings once it has `building`. */
-  private refreshBuildingsCapability(): void {
-    const state = useProjectStore.getState();
-    const current = state.detectedCapabilities;
-    if (!current || isStandardBasemap(state.mapStyle)) return;
-    const buildings3d = compositeHasBuildings(this.map);
-    if (buildings3d === current.buildings3d) return;
-    state.setDetectedCapabilities({ ...current, buildings3d });
-    this.reconcile();
-  }
-
   private readonly handleStyleImageMissing = (event: { id: string }) => {
     if (this.disposed) return;
     void handleMissingStyleImage(this.map, event.id);
@@ -299,10 +254,6 @@ export class BasemapController {
   private readonly handleStyleImportData = () => this.reconcile();
 
   private readonly handleSourceData = (event: MapSourceDataEvent) => {
-    if (event.sourceId === 'composite' && event.sourceDataType === 'metadata') {
-      this.refreshBuildingsCapability();
-      return;
-    }
     if (event.sourceId !== 'mapbox-dem') return;
     this.schedule(() => this.updateTerrainLoading());
   };

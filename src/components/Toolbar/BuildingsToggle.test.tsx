@@ -49,16 +49,16 @@ beforeEach(() => {
 });
 
 describe('Buildings toggle', () => {
-  it('is enabled when the loaded style can draw 3D buildings', () => {
-    act(() => useProjectStore.setState({ mapStyle: 'streets', detectedCapabilities: { ...STANDARD_CAPABILITIES, buildings3d: true } }));
-    const toggles = renderToolbars('streets');
+  it('is enabled on Standard', () => {
+    act(() => useProjectStore.setState({ mapStyle: 'standard', detectedCapabilities: STANDARD_CAPABILITIES }));
+    const toggles = renderToolbars('standard');
     expect(toggles).toHaveLength(2);
     toggles.forEach((toggle) => expect(toggle).toBeEnabled());
   });
 
-  it('is disabled on a style without a buildings source, whatever its name', () => {
-    act(() => useProjectStore.setState({ mapStyle: 'vintage', detectedCapabilities: { ...STANDARD_CAPABILITIES, buildings3d: false } }));
-    renderToolbars('vintage').forEach((toggle) => expect(toggle).toBeDisabled());
+  it('is disabled on every classic style', () => {
+    act(() => useProjectStore.setState({ mapStyle: 'streets', detectedCapabilities: { ...STANDARD_CAPABILITIES, buildings3d: false } }));
+    renderToolbars('streets').forEach((toggle) => expect(toggle).toBeDisabled());
   });
 
   it('is disabled while the style is still loading and nothing is detected yet', () => {

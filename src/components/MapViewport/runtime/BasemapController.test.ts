@@ -151,135 +151,18 @@ describe('BasemapController', () => {
     store.setAllLabelsVisibility(true);
   });
 
-  describe('3d-buildings layer', () => {
-    const classicLayers = [
-      { id: 'land', type: 'background' },
-      { id: 'road', type: 'line' },
-      { id: 'road-label', type: 'symbol' },
-      { id: 'poi-label', type: 'symbol' },
-    ];
-
-    /** Makes addLayer/getLayer/getLayoutProperty behave like a real style for the buildings layer. */
-    function withCompositeStyle(double: ReturnType<typeof createMapDouble>, layers = classicLayers) {
-      const added = new Map<string, string>();
-      double.getStyle.mockReturnValue({ version: 8, sources: {}, layers } as never);
-      double.getSource.mockImplementation(((id: string) => (id === 'composite' ? { vectorLayerIds: ['road', 'building'] } : undefined)) as never);
-      double.addLayer.mockImplementation(((layer: { id: string; layout: { visibility: string } }) => {
-        added.set(layer.id, layer.layout.visibility);
-      }) as never);
-      double.getLayer.mockImplementation(((id: string) => (added.has(id) ? { id } : undefined)) as never);
-      double.getLayoutProperty.mockImplementation(((id: string) => added.get(id)) as never);
-      double.setLayoutProperty.mockImplementation(((id: string, _p: string, value: string) => {
-        added.set(id, value);
-      }) as never);
-      return added;
-    }
-
-    afterEach(() => {
-      const store = useProjectStore.getState();
-      store.setBuildingsEnabled(false);
-      store.setMapStyle('standard');
-    });
-
-    it('is added on style load below the first symbol layer and follows buildingsEnabled', () => {
-      const double = createMapDouble();
-      const added = withCompositeStyle(double);
-      const store = useProjectStore.getState();
-      store.setMapStyle('streets');
-      store.setBuildingsEnabled(true);
-      const controller = new BasemapController(double.map, vi.fn());
-      controller.mount();
-
-      expect(double.addLayer).toHaveBeenCalledTimes(1);
-      expect(double.addLayer).toHaveBeenCalledWith(
-        expect.objectContaining({ id: '3d-buildings', source: 'composite', 'source-layer': 'building', type: 'fill-extrusion', minzoom: 14 }),
-        'road-label',
-      );
-      expect(added.get('3d-buildings')).toBe('visible');
-
-      store.setBuildingsEnabled(false);
-      controller.reconcile();
-      expect(added.get('3d-buildings')).toBe('none');
-      expect(double.addLayer).toHaveBeenCalledTimes(1);
-
-      controller.dispose();
-    });
-
-    it('is re-added with the current visibility after a style swap', () => {
-      const double = createMapDouble();
-      const added = withCompositeStyle(double);
-      const store = useProjectStore.getState();
-      store.setMapStyle('streets');
-      store.setBuildingsEnabled(true);
-      const controller = new BasemapController(double.map, vi.fn());
-      controller.mount();
-
-      // Mapbox drops custom layers when the style is replaced
-      added.clear();
-      store.setMapStyle('light');
-      for (const listener of double.listeners.get('style.load')!) listener({});
-
-      expect(double.addLayer).toHaveBeenCalledTimes(2);
-      expect(added.get('3d-buildings')).toBe('visible');
-
-      controller.dispose();
-    });
-
-    it('is not added when the composite source has no building layer, and is added if its metadata says it does', () => {
-      const store = useProjectStore.getState();
-      store.setBuildingsEnabled(true);
-      store.setMapStyle('bubble');
-      const double = createMapDouble();
-      withCompositeStyle(double);
-      let vectorLayerIds: string[] | undefined = ['water', 'landcover'];
-      double.getSource.mockImplementation(((id: string) => (id === 'composite' ? { vectorLayerIds } : undefined)) as never);
-      const controller = new BasemapController(double.map, vi.fn());
-      controller.mount();
-      expect(double.addLayer).not.toHaveBeenCalled();
-      expect(useProjectStore.getState().detectedCapabilities?.buildings3d).toBe(false);
-
-      // satellite-streets draws no buildings, but its source lists the layer once the metadata loads
-      vectorLayerIds = ['place_label', 'building'];
-      for (const listener of double.listeners.get('sourcedata')!) listener({ sourceId: 'composite', sourceDataType: 'metadata' });
-      expect(useProjectStore.getState().detectedCapabilities?.buildings3d).toBe(true);
-      expect(double.addLayer).toHaveBeenCalledTimes(1);
-      controller.dispose();
-    });
-
-    it('is not added on Standard, or on classic styles without a composite source (satellite, community)', () => {
-      const store = useProjectStore.getState();
-      store.setBuildingsEnabled(true);
-      {
-        const double = createMapDouble();
-        withCompositeStyle(double);
-        store.setMapStyle('standard');
-        const controller = new BasemapController(double.map, vi.fn());
-        controller.mount();
-        expect(double.addLayer).not.toHaveBeenCalled();
-        controller.dispose();
-      }
-
-      for (const style of ['satellite', 'vintage'] as const) {
-        const double = createMapDouble();
-        withCompositeStyle(double);
-        double.getSource.mockReturnValue(undefined as never);
-        store.setMapStyle(style);
-        const controller = new BasemapController(double.map, vi.fn());
-        controller.mount();
-        expect(double.addLayer, style).not.toHaveBeenCalled();
-        expect(useProjectStore.getState().detectedCapabilities?.buildings3d, style).toBe(false);
-        controller.dispose();
-      }
-
-      const double = createMapDouble();
-      withCompositeStyle(double);
-      double.getSource.mockReturnValue(undefined as never);
-      store.setMapStyle('streets');
-      const controller = new BasemapController(double.map, vi.fn());
-      controller.mount();
-      expect(double.addLayer).not.toHaveBeenCalled();
-      controller.dispose();
-    });
+  it('adds no buildings layer on classic styles', () => {
+    const double = createMapDouble();
+    const store = useProjectStore.getState();
+    store.setBuildingsEnabled(true);
+    store.setMapStyle('streets');
+    const controller = new BasemapController(double.map, vi.fn());
+    controller.mount();
+    expect(double.addLayer).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().detectedCapabilities?.buildings3d).toBe(false);
+    controller.dispose();
+    store.setBuildingsEnabled(false);
+    store.setMapStyle('standard');
   });
 
   it('does not re-reconcile on idle or DEM sourcedata events', () => {
