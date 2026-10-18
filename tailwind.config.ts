@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
+import { fontSizeScale, zIndexScale } from "./src/lib/themeScales";
 
 export default {
   darkMode: ["class"],
@@ -85,14 +86,8 @@ export default {
           bg: "hsl(var(--selection-bg))",
         },
       },
-      // App-wide stacking layers, lowest first. Plain z-10/z-20 stay for local stacking inside a component.
-      zIndex: {
-        overlay: "50", // Radix dialogs, popovers, menus, tooltips
-        "tour-backdrop": "119",
-        tour: "120",
-        "tour-popover": "130", // popovers that stay usable beside the tour card
-        celebration: "200",
-      },
+      fontSize: fontSizeScale,
+      zIndex: zIndexScale,
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

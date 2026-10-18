@@ -1,5 +1,15 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+import { fontSizeScale, zIndexScale } from "./themeScales";
+
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [{ text: Object.keys(fontSizeScale) }],
+      z: [{ z: Object.keys(zIndexScale) }],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
