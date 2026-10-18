@@ -3,6 +3,7 @@ import { applyEasing } from './easings';
 import { clamp, lerp, liftBearing, poseFromFreeCam, wrapDegrees } from './cameraPose';
 import { getRoutePath } from './routePath';
 import { getRig, sampleRig, INTRO_FRACTION, OUTRO_FRACTION, type AutoCamOutput, type GroundModel, type RigSampleParams } from './cameraRig';
+import { effectiveAutoCam } from '@/config/vehicles';
 
 export interface CameraState {
   center: [number, number];
@@ -226,7 +227,7 @@ function autoCamAt(
   skipShots: RigSampleParams['skipShots'],
   ground: GroundModel | null,
 ): Plain | null {
-  const config = route.autoCam!;
+  const config = effectiveAutoCam(route);
   const timing = { duration: route.endTime - route.startTime, easing: route.easing ?? 'easeInOutSine' };
   const rig = getRig(coords, config, timing, ground);
   if (!rig) return null;

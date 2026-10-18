@@ -6,6 +6,7 @@ import { getCameraAtTime, type CameraOutput } from './cameraInterpolation';
 import type { GroundModel } from './cameraRig';
 import { demElevation, demVersion, loadDem, type Bounds } from '@/services/terrainDem';
 import { getEffectiveMapboxToken } from '@/config/mapbox';
+import { effectiveAutoCam } from '@/config/vehicles';
 import {
   blendPoses,
   poseFromFreeCam,
@@ -180,7 +181,7 @@ function autoCamBounds(route: RouteItem, coords: number[][]): Bounds {
     south = Math.min(south, lat);
     north = Math.max(north, lat);
   }
-  const config = route.autoCam!;
+  const config = effectiveAutoCam(route);
   // Dynamics can pull the camera back by a third or so beyond its set distance.
   const reachM = 1.5 * config.distance;
   const dLat = reachM / METERS_PER_DEGREE;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import distance from '@turf/distance';
 import { point } from '@turf/helpers';
 import type { RouteItem } from '@/store/types';
-import { clampVehicleScale, autoCamForRoute, autoCamPresetPatch, defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, routeFitOf, vehicleChangePatch } from './vehicles';
+import { clampVehicleScale, effectiveAutoCam, followDistanceFactor, autoCamForRoute, autoCamPresetPatch, defaultAutoCamFor, getAutoCamRanges, rescaleAutoCam, routeFitOf, vehicleChangePatch } from './vehicles';
 
 const route = (type: 'car' | 'plane' | 'dot', autoCam?: RouteItem['autoCam']): RouteItem => ({
   kind: 'route',
@@ -163,5 +163,29 @@ describe('clampVehicleScale', () => {
     expect(clampVehicleScale('dot', 8000)).toBe(10);
     expect(clampVehicleScale('car', 0.01)).toBe(0.2);
     expect(clampVehicleScale(undefined, 3)).toBe(3);
+  });
+});
+
+describe('follow camera and marker size', () => {
+  const cam = (type: 'car' | 'plane' | 'dot', scale: number, enabled = true): RouteItem => ({
+    ...route(type, defaultAutoCamFor(type)),
+    calculation: { mode: 'walk', points: [], curved: false, sharpness: 0, vehicle: { enabled, type, modelId: '', scale } },
+  } as RouteItem);
+
+  it('pulls back in step with an enlarged 3D marker only', () => {
+    expect(followDistanceFactor(cam('car', 40).calculation!.vehicle)).toBe(40);
+    expect(followDistanceFactor(cam('car', 0.5).calculation!.vehicle)).toBe(1);
+    expect(followDistanceFactor(cam('dot', 8).calculation!.vehicle)).toBe(1);
+    expect(followDistanceFactor(cam('car', 40, false).calculation!.vehicle)).toBe(1);
+  });
+
+  it('widens the follow distance and returns the same object for the same inputs', () => {
+    const r = cam('car', 40);
+    const widened = effectiveAutoCam(r);
+    expect(widened.distance).toBe(r.autoCam!.distance * 40);
+    expect(effectiveAutoCam(r)).toBe(widened);
+    expect(effectiveAutoCam(cam('car', 1))).toBeDefined();
+    const same = cam('car', 1);
+    expect(effectiveAutoCam(same)).toBe(same.autoCam);
   });
 });

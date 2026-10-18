@@ -30,6 +30,29 @@ export function clampVehicleScale(type: VehicleType | undefined, scale: number):
   return Math.min(max, Math.max(min, scale));
 }
 
+/**
+ * The follow camera pulls back in step with an enlarged 3D marker so it fills the same share of the
+ * frame. A marker below 1x keeps the default framing, and the dot is a fixed-size circle on screen.
+ */
+export function followDistanceFactor(vehicle: RouteVehicleConfig | undefined): number {
+  if (!vehicle?.enabled || vehicle.type === 'dot') return 1;
+  return Math.max(1, vehicle.scale || 1);
+}
+
+const effectiveCams = new WeakMap<AutoCamConfig, Map<number, AutoCamConfig>>();
+
+/** The route's auto-camera as the rig should run it: follow distance widened for a large marker. Memoized so the rig cache keeps hitting. */
+export function effectiveAutoCam(route: Pick<RouteItem, 'autoCam' | 'calculation'>): AutoCamConfig {
+  const config = route.autoCam!;
+  const factor = followDistanceFactor(route.calculation?.vehicle);
+  if (factor === 1) return config;
+  let byFactor = effectiveCams.get(config);
+  if (!byFactor) effectiveCams.set(config, (byFactor = new Map()));
+  let scaled = byFactor.get(factor);
+  if (!scaled) byFactor.set(factor, (scaled = { ...config, distance: config.distance * factor }));
+  return scaled;
+}
+
 /** How much larger the auto-camera follow framing is for a vehicle type. */
 export function autoCamScaleFor(type: VehicleType | undefined): number {
   return type === 'plane' ? MODEL_BASE_SCALE.plane : 1;
