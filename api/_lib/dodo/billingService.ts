@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DunningEventData, PaymentEventData, PlanConfig, ProvisionResult, SubEventData } from "./types.js";
+import type { DunningEventData, PassGrantResult, PaymentEventData, PlanConfig, ProvisionResult, SubEventData } from "./types.js";
+import { PASS_DAYS, PASS_PRICE_CENTS } from "./planCatalogue.js";
 
 /** ISO timestamp → YYYY-MM-DD date string for Postgres `date` columns. */
 export function toDateString(iso: string | null | undefined): string | null {
@@ -133,6 +134,65 @@ export class BillingService {
     }
 
     console.log("[dodo-webhook] Added", credits, "purchased credits to user", uid);
+  }
+
+  /**
+   * Grants (or extends) a Pro pass for a verified payment.succeeded event.
+   *
+   * The product comes from Dodo's own product_cart, never from our metadata;
+   * the user id comes from metadata that dodo-create-session set from the
+   * caller's verified JWT. A USD payment must cover the pass price, and any
+   * payment must be non-zero (so a 100% discount code cannot mint passes;
+   * adaptive pricing charges other currencies, which we cannot compare to the
+   * USD price). Everything else happens in grant_pro_pass (migration 023) in
+   * one transaction: the payment id is the idempotency key, so a replayed
+   * webhook cannot extend the pass twice, and stacking extends from
+   * max(now, current end).
+   *
+   * Returns null when the payment is not a pass or must not grant one.
+   * Throws on a database error so Dodo retries.
+   */
+  async grantProPass(payment: PaymentEventData, passProductId: string | undefined): Promise<PassGrantResult | null> {
+    const isPass = !!passProductId && !!payment.product_cart?.some((item) => item.product_id === passProductId);
+    if (!isPass) {
+      if (payment.metadata?.plan === "pass_3day") {
+        console.warn("[dodo-webhook] payment.succeeded: pass checkout without the pass product, not granted", payment.payment_id);
+      }
+      return null;
+    }
+
+    const uid = payment.metadata?.supabase_uid;
+    if (!uid) {
+      console.warn("[dodo-webhook] payment.succeeded (pass): missing supabase_uid", payment.payment_id);
+      return null;
+    }
+    if (payment.status && payment.status !== "succeeded") {
+      console.warn("[dodo-webhook] payment.succeeded (pass): unexpected status", payment.status, payment.payment_id);
+      return null;
+    }
+    const amount = Number(payment.total_amount ?? 0);
+    const paidEnough = payment.currency === "USD" ? amount >= PASS_PRICE_CENTS : amount > 0;
+    if (!paidEnough) {
+      console.error("[dodo-webhook] payment.succeeded (pass): amount too low, not granted", payment.payment_id, payment.currency, amount);
+      return null;
+    }
+
+    const { data, error } = await this.supabase.rpc("grant_pro_pass", {
+      p_user_id: uid,
+      p_payment_id: payment.payment_id,
+      p_days: PASS_DAYS,
+    });
+    if (error) {
+      console.error("[dodo-webhook] Failed to grant pro pass:", error);
+      throw new Error("DB error granting pass");
+    }
+
+    const row = (Array.isArray(data) ? data[0] : data) as { granted?: boolean; stacked?: boolean } | null;
+    const granted = !!row?.granted;
+    console.log(
+      "[dodo-webhook]", granted ? "Granted pro pass to user" : "Pass payment already processed for user", uid,
+    );
+    return { userId: uid, granted, stacked: granted && !!row?.stacked };
   }
 
   async renewSubscription(sub: SubEventData, plan?: PlanConfig): Promise<void> {

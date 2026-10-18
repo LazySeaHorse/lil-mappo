@@ -16,6 +16,13 @@ export interface SubEventData {
 export interface PaymentEventData {
   payment_id: string;
   metadata?: Record<string, string | undefined> | null;
+  /** Products bought in a one-time payment (set by Dodo, not by us). */
+  product_cart?: Array<{ product_id: string; quantity?: number }> | null;
+  /** Amount charged, in the currency's smallest unit (cents for USD). */
+  total_amount?: number;
+  currency?: string;
+  status?: string | null;
+  subscription_id?: string | null;
 }
 
 export interface DunningEventData {
@@ -33,7 +40,16 @@ export interface ProvisionResult {
   firstTime: boolean;
 }
 
+/** Result of a Pro pass grant. `granted` is false for a replayed payment. */
+export interface PassGrantResult {
+  userId: string;
+  granted: boolean;
+  /** True when the new pass extended one that was still active. */
+  stacked: boolean;
+}
+
 /** What a dispatched webhook did, for callers that report it (analytics). */
 export interface DispatchResult {
   provisioned?: ProvisionResult & { tier: string };
+  pass?: PassGrantResult;
 }
