@@ -235,11 +235,16 @@ test.describe("5 Golden E2E Journeys", () => {
     await expect(exportDialog).toBeVisible();
 
     // 2. Verify Free Plan constraints are enforced in UI
-    await expect(exportDialog.getByText(/Free plan limit:.*720p, 30 FPS, and 30 seconds/)).toBeVisible();
+    await expect(exportDialog.getByRole("button", { name: "Get Wanderer" })).toHaveCount(0);
     await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" })).toBeEnabled();
 
     // 3. Click Upgrade trigger
-    await exportDialog.getByRole("button", { name: /Use a paid plan/ }).click();
+    // Picking a Pro setting turns Export into Get Wanderer, which opens the upgrade.
+    await exportDialog.getByRole("combobox").filter({ hasText: "30 FPS" }).click();
+    await page.getByRole("option", { name: /60 FPS/ }).click();
+    const getWanderer = exportDialog.getByRole("button", { name: "Get Wanderer" });
+    await expect(getWanderer).toHaveAccessibleDescription("60 FPS comes with the Wanderer plan.");
+    await getWanderer.click();
     const upgradeDialog = page.getByRole("dialog", { name: "Upgrade to Wanderer" });
     await expect(upgradeDialog).toBeVisible();
     await expect(upgradeDialog.getByRole("button", { name: "Subscribe to Wanderer" })).toBeVisible();
