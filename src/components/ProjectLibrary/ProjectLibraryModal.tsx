@@ -112,12 +112,12 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
               </IconButton>
               {user && !autoSyncEnabled ? (
                 <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
-                  <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-amber-400' : 'text-primary/70'} />
+                  <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-warning' : 'text-primary/70'} />
                   <span>
                     {cloudSaveCount}/{FREE_CLOUD_SAVE_LIMIT} cloud projects used
                   </span>
                   {cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT && (
-                    <Lock size={10} className="text-amber-400" />
+                    <Lock size={10} className="text-warning" />
                   )}
                 </div>
               ) : !user ? (

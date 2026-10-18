@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
 import { type PlanSlug, PLAN_CONFIG, creditsToMinutesAt1080p } from "@/services/checkout";
@@ -132,14 +133,16 @@ function TierCard({
 
 function NomadBadge() {
   return (
-    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5 mb-2">
-      <Package size={14} className="text-amber-500 shrink-0 mt-0.5" />
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        You receive <span className="font-medium text-foreground">Nomad</span>{" "}
-        status when you buy credits. Select a monthly plan to receive recurring
-        credits and parallel renders.
-      </p>
-    </div>
+    <Alert variant="info" size="sm" className="mb-2">
+      <Package />
+      <AlertDescription>
+        <p>
+          You receive <span className="font-medium text-foreground">Nomad</span>{" "}
+          status when you buy credits. Select a monthly plan to receive recurring
+          credits and parallel renders.
+        </p>
+      </AlertDescription>
+    </Alert>
   );
 }
 

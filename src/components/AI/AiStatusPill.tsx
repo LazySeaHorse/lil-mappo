@@ -30,7 +30,7 @@ export function AiStatusPill() {
       <span
         data-testid="ai-status-dot"
         data-running={running}
-        className={`h-2 w-2 rounded-full bg-emerald-500 ${running ? 'agent-dot-active' : ''}`}
+        className={`h-2 w-2 rounded-full bg-success ${running ? 'agent-dot-active' : ''}`}
       />
       <span>AI connected</span>
       <span className="text-muted-foreground">{calls} {calls === 1 ? 'call' : 'calls'}</span>

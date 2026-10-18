@@ -56,6 +56,12 @@
     --wish: 336 78% 44%;
     --wish-foreground: 0 0% 100%;
 
+    /* Status tones for text, icons and soft tints. Text contrast >= 4.5:1 on --background. */
+    --success: 163 94% 24%;
+    --warning: 26 90% 37%;
+    /* Credits: the coin color. Same amber family as warning, but its own meaning. */
+    --credit: 26 90% 37%;
+
     --radius: 0.5rem;
 
     /* Drawn maps (pin-drop scenes) */
@@ -124,6 +130,10 @@
 
     --wish: 336 90% 68%;
     --wish-foreground: 240 10% 5%;
+
+    --success: 158 64% 52%;
+    --warning: 43 96% 56%;
+    --credit: 43 96% 56%;
 
     --map-water: #10233a;
     --map-land: #1a1d24;

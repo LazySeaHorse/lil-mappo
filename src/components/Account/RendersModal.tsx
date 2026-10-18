@@ -3,6 +3,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -158,9 +159,9 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
           <span className="text-foreground/80 font-medium">{job.credits_cost} credit{job.credits_cost !== 1 ? 's' : ''}</span>
 
           {expiresIn && (
-            <span className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md font-medium">
-              <Hourglass size={10} /> {expiresIn} left
-            </span>
+            <Badge variant="warning">
+              <Hourglass /> {expiresIn} left
+            </Badge>
           )}
           {isExpired && job.status === 'done' && (
             <span className="text-muted-foreground/60 line-through decoration-muted-foreground/30">Expired</span>
@@ -203,24 +204,24 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
 
 function StatusIcon({ status }: { status: RenderStatus }) {
   switch (status) {
-    case 'done': return <CheckCircle2 size={18} className="text-emerald-500" />;
+    case 'done': return <CheckCircle2 size={18} className="text-success" />;
     case 'failed': return <AlertCircle size={18} className="text-destructive" />;
-    case 'rendering': return <Loader2 size={18} className="animate-spin text-blue-500" />;
+    case 'rendering': return <Loader2 size={18} className="animate-spin text-primary" />;
     case 'queued': return <Hourglass size={18} className="text-muted-foreground" />;
   }
 }
 
 function StatusBadge({ status }: { status: RenderStatus }) {
-  const colors: Record<RenderStatus, string> = {
-    done: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-    failed: 'bg-destructive/15 text-destructive border-destructive/20',
-    rendering: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    queued: 'bg-secondary text-muted-foreground border-border/50',
-  };
+  const variants = {
+    done: 'success',
+    failed: 'danger',
+    rendering: 'info',
+    queued: 'muted',
+  } as const satisfies Record<RenderStatus, BadgeProps['variant']>;
   return (
-    <span className={`text-2xs font-medium uppercase tracking-widest px-2 py-0.5 rounded-md border shadow-sm ${colors[status]}`}>
+    <Badge size="sm" variant={variants[status]}>
       {STATUS_LABELS[status]}
-    </span>
+    </Badge>
   );
 }
 

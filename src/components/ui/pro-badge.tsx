@@ -1,17 +1,13 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Badge } from "./badge";
 
 /** The PRO feature badge used across the app. */
 function ProBadge({ className }: { className?: string }) {
   return (
-    <span
-      className={cn(
-        "text-micro bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase shrink-0",
-        className,
-      )}
-    >
+    <Badge variant="info" size="micro" className={className}>
       PRO
-    </span>
+    </Badge>
   );
 }
 

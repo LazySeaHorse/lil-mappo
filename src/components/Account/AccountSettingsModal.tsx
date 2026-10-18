@@ -194,7 +194,7 @@ function AccountSettingsModalBody() {
                     {tierLabel ?? "No plan"}
                   </p>
                   {(subscription?.status === "cancelled" || subscription?.status === "cancelling") && renewalDate ? (
-                    <p className="text-2xs text-amber-500">
+                    <p className="text-2xs text-warning">
                       {subscription.status === "cancelling" ? `Cancels ${renewalDate}` : `Access until ${renewalDate}`}
                     </p>
                   ) : renewalDate ? (

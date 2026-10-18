@@ -24,7 +24,7 @@ const iconButtonVariants = cva(
         destructive:
           "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
         zen:
-          "rounded-full shadow-2xl backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white border-none hover:scale-110 active:scale-95",
+          "rounded-full shadow-2xl backdrop-blur-xl bg-background/90 text-foreground border-none hover:scale-110 active:scale-95",
       },
       size: {
         xs: "h-6 w-6 [&_svg:not([class*='size-'])]:size-3.5",

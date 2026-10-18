@@ -18,7 +18,7 @@ export function CloudStatusBadge({ project }: CloudStatusBadgeProps) {
   if (project.syncState === 'pending-upload') {
     return (
       <span title="Changes pending cloud sync">
-        <CloudUpload size={12} className="text-amber-400 shrink-0" />
+        <CloudUpload size={12} className="text-warning shrink-0" />
       </span>
     );
   }

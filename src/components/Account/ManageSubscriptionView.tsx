@@ -4,6 +4,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { CreditBalanceBadges } from "./CreditBalanceBadges";
 import type { Subscription, CreditBalance } from "@/lib/database.types";
 import { useCancelSubscription } from "@/hooks/useCancelSubscription";
 import {
@@ -11,8 +14,6 @@ import {
   Loader2,
   ChevronLeft,
   Coins,
-  Zap,
-  Clock,
   AlertTriangle,
   Timer,
   Sparkles,
@@ -83,19 +84,13 @@ export function ManageSubscriptionView({
         <div className="bg-secondary/30 rounded-xl p-4 space-y-2.5">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-foreground/80">Status</p>
-            <span
-              className={`text-2xs font-medium px-2 py-0.5 rounded-full ${
-                isCancelled
-                  ? "bg-amber-500/10 text-amber-500"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-              }`}
-            >
+            <Badge size="sm" variant={isCancelled ? "warning" : "success"}>
               {subscription?.status === "cancelled"
                 ? "Cancelled"
                 : isCancelled
                 ? "Cancelling"
                 : "Active"}
-            </span>
+            </Badge>
           </div>
 
           {subscription?.tier && (
@@ -127,16 +122,7 @@ export function ManageSubscriptionView({
               <Timer size={11} /> About {creditsToMinutesAt1080p(totalCredits).toLocaleString()} minutes at 1080p
             </p>
             <div className="flex flex-wrap gap-2">
-              {(credits?.monthly_credits ?? 0) > 0 && (
-                <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <Clock size={10} /> {credits!.monthly_credits.toLocaleString()} monthly credits
-                </span>
-              )}
-              {(credits?.purchased_credits ?? 0) > 0 && (
-                <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <Zap size={10} /> {credits!.purchased_credits.toLocaleString()} purchased credits
-                </span>
-              )}
+              <CreditBalanceBadges credits={credits} />
               {totalCredits === 0 && (
                 <span className="text-xs text-muted-foreground">No credits</span>
               )}
@@ -242,14 +228,16 @@ export function ManageSubscriptionView({
 
         {/* Cancelled confirmation */}
         {isCancelled && renewalDate && (
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-2.5">
-            <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Your plan remains active until <span className="font-medium text-foreground">{renewalDate}</span>.
-              After this date, you cannot create cloud projects. Existing cloud
-              projects remain available.
-            </p>
-          </div>
+          <Alert variant="warning" size="sm">
+            <AlertTriangle />
+            <AlertDescription>
+              <p>
+                Your plan remains active until <span className="font-medium text-foreground">{renewalDate}</span>.
+                After this date, you cannot create cloud projects. Existing cloud
+                projects remain available.
+              </p>
+            </AlertDescription>
+          </Alert>
         )}
       </div>
     </div>

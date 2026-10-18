@@ -35,6 +35,9 @@ export default {
           DEFAULT: "hsl(var(--wish))",
           foreground: "hsl(var(--wish-foreground))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        credit: "hsl(var(--credit))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

@@ -16,10 +16,9 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
 import { useCredits } from "@/hooks/useCredits";
 import { SubscriptionTiers } from "./SubscriptionTiers";
+import { CreditBalanceBadges } from "./CreditBalanceBadges";
 import {
   Coins,
-  Zap,
-  Clock,
   Loader2,
   RefreshCcw,
   CreditCard,
@@ -141,18 +140,7 @@ function CreditsModalBody() {
                 </div>
               </div>
               <div className="flex flex-row sm:flex-col gap-1 items-center sm:items-end flex-wrap">
-                {credits?.monthly_credits !== undefined &&
-                  credits.monthly_credits > 0 && (
-                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                      <Clock size={10} /> {credits.monthly_credits} monthly credits
-                    </span>
-                  )}
-                {credits?.purchased_credits !== undefined &&
-                  credits.purchased_credits > 0 && (
-                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                      <Zap size={10} /> {credits.purchased_credits} purchased credits
-                    </span>
-                  )}
+                <CreditBalanceBadges credits={credits} />
               </div>
             </div>
           )}
@@ -222,8 +210,8 @@ function CreditsModalBody() {
 
               <div className="mt-8 bg-background/50 rounded-xl p-4 border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                    <Coins size={20} className="text-amber-500" />
+                  <div className="w-10 h-10 rounded-full bg-credit/10 flex items-center justify-center shrink-0">
+                    <Coins size={20} className="text-credit" />
                   </div>
                   <div>
                     <p className="text-sm font-medium">Credits received</p>
@@ -259,20 +247,11 @@ function CreditsModalBody() {
             {user && hasActiveSubscription && (
               <div className="bg-secondary/20 rounded-xl border border-border/30 p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Coins size={13} className="text-amber-500 shrink-0" />
+                  <Coins size={13} className="text-credit shrink-0" />
                   <span>Credits available</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {(credits?.monthly_credits ?? 0) > 0 && (
-                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
-                      <Clock size={10} /> {credits!.monthly_credits} monthly credits
-                    </span>
-                  )}
-                  {(credits?.purchased_credits ?? 0) > 0 && (
-                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
-                      <Zap size={10} /> {credits!.purchased_credits} purchased credits
-                    </span>
-                  )}
+                  <CreditBalanceBadges credits={credits} />
                 </div>
               </div>
             )}

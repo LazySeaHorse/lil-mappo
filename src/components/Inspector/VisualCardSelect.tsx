@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 export interface VisualCardOption<T extends string> {
   value: T;
@@ -69,9 +70,9 @@ export function VisualCardSelect<T extends string>({
             )}
             <span className="text-2xs font-medium leading-tight text-center w-full block whitespace-normal break-words">{opt.label}</span>
             {opt.badge && (
-              <span className="absolute top-1 right-1 text-micro bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase">
+              <Badge variant="info" size="micro" className="absolute top-1 right-1">
                 {opt.badge}
-              </span>
+              </Badge>
             )}
           </button>
         );

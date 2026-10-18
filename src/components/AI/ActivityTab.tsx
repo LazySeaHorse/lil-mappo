@@ -35,7 +35,7 @@ function selectCallTargets(call: AgentEvent): void {
 
 function StatusIcon({ phase }: { phase: AgentEvent['phase'] }) {
   if (phase === 'started') return <Loader2 size={14} className="animate-spin text-primary" aria-label="Running" />;
-  if (phase === 'succeeded') return <Check size={14} className="text-emerald-500" aria-label="Done" />;
+  if (phase === 'succeeded') return <Check size={14} className="text-success" aria-label="Done" />;
   return <AlertCircle size={14} className="text-destructive" aria-label="Failed" />;
 }
 

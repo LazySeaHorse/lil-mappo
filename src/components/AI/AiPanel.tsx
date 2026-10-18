@@ -1,6 +1,7 @@
 import { Sparkles, X } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { IconButton } from '@/components/ui/icon-button';
+import { Badge } from '@/components/ui/badge';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
@@ -14,9 +15,9 @@ import { useAiPanelStore, type AiPanelTab } from './useAiPanelStore';
 
 export function ExperimentalBadge() {
   return (
-    <span className="text-micro bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium tracking-wider uppercase shrink-0">
+    <Badge variant="warning" size="micro">
       Experimental
-    </span>
+    </Badge>
   );
 }
 

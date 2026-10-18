@@ -54,7 +54,7 @@ export function PanelWrapper({
       >
         <DrawerContent
           data-walkthrough="inspector-panel"
-          className="h-[96vh] max-h-none p-0 outline-none border-0 bg-white dark:bg-slate-950 rounded-t-2xl shadow-2xl pointer-events-auto"
+          className="h-[96vh] max-h-none p-0 outline-none border-0 bg-background rounded-t-2xl shadow-2xl pointer-events-auto"
         >
           <DrawerHeader className="px-6 pb-2 pt-6 border-b border-border/10 shrink-0 flex items-center gap-2">
             {icon && <span className="text-primary">{icon}</span>}
