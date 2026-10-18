@@ -5,11 +5,13 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/components/Account/AuthProvider";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { AnalyticsBridge } from "@/lib/analytics/AnalyticsBridge";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const App = () => (
+  <AppErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
     <TooltipProvider>
@@ -28,6 +30,7 @@ const App = () => (
     </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </AppErrorBoundary>
 );
 
 export default App;
