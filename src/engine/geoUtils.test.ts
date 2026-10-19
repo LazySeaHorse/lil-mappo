@@ -77,18 +77,18 @@ describe('facingAlong', () => {
   const off = (bearing: number) => Math.abs(bearing - 90);
 
   it('faces along the road a marker is too small to see the bends of', () => {
-    const car = Math.max(...frames.map((u) => off(facingAlong(wiggly, u, 3.4).bearing)));
+    const car = Math.max(...frames.map((u) => off(facingAlong(wiggly, u, 3.4))));
     expect(car).toBeGreaterThan(5);
   });
 
   it('holds a big marker steady over bends shorter than itself', () => {
-    for (const u of frames) expect(off(facingAlong(wiggly, u, 340).bearing)).toBeLessThan(0.5);
+    for (const u of frames) expect(off(facingAlong(wiggly, u, 340))).toBeLessThan(0.5);
   });
 
   it('turns a big marker through a corner over its own length', () => {
     // A right angle from east to north, 2.2 km per leg.
     const corner = getRoutePath([[0, 0], [0.02, 0], [0.02, 0.02]]);
-    const at = (u: number) => facingAlong(corner, u, 1000).bearing;
+    const at = (u: number) => facingAlong(corner, u, 1000);
     expect(at(0.2)).toBeCloseTo(90, 0);
     expect(at(0.5)).toBeCloseTo(45, 0);
     expect(at(0.8)).toBeCloseTo(0, 0);
@@ -98,14 +98,14 @@ describe('facingAlong', () => {
     expect(part).toBeLessThan(85);
   });
 
-  it('tilts with the climb across its length', () => {
+  it('ignores a route\'s altitude: the marker never climbs, so it must not tilt', () => {
     const climb = getRoutePath([[0, 0, 0], [0.009, 0, 100], [0.018, 0, 100]]);
-    expect(facingAlong(climb, 0.25, 10).pitch).toBeGreaterThan(4);
-    expect(facingAlong(climb, 0.75, 10).pitch).toBe(0);
+    const flat = getRoutePath([[0, 0], [0.009, 0], [0.018, 0]]);
+    for (const u of [0.1, 0.25, 0.5, 0.75, 0.9]) expect(facingAlong(climb, u, 10)).toBe(facingAlong(flat, u, 10));
   });
 
   it('faces a marker longer than the route along the whole of it', () => {
     const short = getRoutePath([[0, 0], [0, 0.0001]]);
-    expect(facingAlong(short, 0.5, 5000).bearing).toBeCloseTo(0, 3);
+    expect(facingAlong(short, 0.5, 5000)).toBeCloseTo(0, 3);
   });
 });

@@ -451,12 +451,10 @@ export class RouteRenderer {
 
     const size = marker.kind === 'model' ? marker.size : null;
     if (size) {
-      const facing = facingAlong(path, progress, size.lengthM);
       // To a hundredth of a degree, so gliding along a straight doesn't rewrite it every frame.
-      const bearing = Math.round(facing.bearing * 100) / 100;
-      const pitch = Math.round(facing.pitch * 100) / 100;
+      const bearing = Math.round(facingAlong(path, progress, size.lengthM) * 100) / 100;
       // model-translation stays where ensureVehicleResources set it (the custom marker's lift).
-      this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing], 'vehicleRotation', `${pitch},${bearing}`);
+      this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, 0, bearing], 'vehicleRotation', `${bearing}`);
     }
   }
 }

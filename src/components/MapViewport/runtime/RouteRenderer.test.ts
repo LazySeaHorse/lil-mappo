@@ -569,7 +569,7 @@ describe("RouteRenderer vehicle writes", () => {
     renderer.render(9);
     expect(source.setData).toHaveBeenCalledTimes(3);
     expect(paintCalls(double, "model-rotation")).toHaveLength(2);
-    expect(double.layers.get("vehicle-layer-veh")?.paint?.["model-rotation"]).toEqual([0, -0, expect.closeTo(90, 1)]);
+    expect(double.layers.get("vehicle-layer-veh")?.paint?.["model-rotation"]).toEqual([0, 0, expect.closeTo(90, 1)]);
   });
 
   it("sets the constant model translation once, when the layer is created", () => {

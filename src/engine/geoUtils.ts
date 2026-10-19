@@ -148,17 +148,22 @@ export function calculateBearing(start: number[], end: number[]): number {
 }
 
 /**
- * Which way a 3D marker `lengthM` long faces at route progress `u`: from the route under its tail
- * to the route under its nose, the road's direction averaged over its length. Bends shorter than
- * the marker cancel out, so a giant one turns smoothly where a small one turns at every vertex.
+ * Which way a 3D marker `lengthM` long faces at route progress `u`, as a compass bearing: from the
+ * route under its tail to the route under its nose, the road's direction averaged over its length.
+ * Bends shorter than the marker cancel out, so a giant one turns smoothly where a small one turns
+ * at every vertex.
+ *
+ * Only the bearing: a marker rides the ground at the route's latitude and longitude and never
+ * climbs with a route's altitude (an old flight saved with one), so tilting it by the climb would
+ * point its nose into the sky while it stays on the ground.
  */
-export function facingAlong(path: RoutePath, u: number, lengthM: number): { bearing: number; pitch: number } {
+export function facingAlong(path: RoutePath, u: number, lengthM: number): number {
   const half = path.lengthM > 0 ? lengthM / 2 / path.lengthM : 0;
   let from = path.pointAt(u - half);
   let to = path.pointAt(u + half);
   // A route with no length yet faces along its first segment.
   if (from[0] === to[0] && from[1] === to[1]) [from, to] = path.coords;
-  return { bearing: calculateBearing(from, to), pitch: calculatePitch(from, to) };
+  return calculateBearing(from, to);
 }
 
 /**
