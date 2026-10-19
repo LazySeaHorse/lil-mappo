@@ -1,6 +1,6 @@
 import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { BoundaryItem, CalloutItem, RouteItem } from '@/store/types';
+import type { BoundaryItem, CalloutItem, ModelItem, RouteItem } from '@/store/types';
 import {
   constrainEndTrim,
   constrainMove,
@@ -11,7 +11,7 @@ import {
 const MIN_TIMELINE_ITEM_DURATION = 0.2;
 
 interface TimelineItemBarProps {
-  item: RouteItem | BoundaryItem | CalloutItem;
+  item: RouteItem | BoundaryItem | CalloutItem | ModelItem;
   pixelsPerSecond: number;
   colorClass: string;
   isSelected: boolean;
