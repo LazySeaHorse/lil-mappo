@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { PinDropHero } from '@/components/ui/pin-drop';
 import { cn } from '@/lib/utils';
 import { getExportDimensions, type ExportResolution, type RenderConfig } from '@/types/render';
-import { getExportLimits, brandingFor } from '@/lib/cloudAccess';
-import { clampResolution, resolveExportPlan, wandererNeeds } from './exportPlan';
+import { getExportLimits, brandingFor, isWanderer } from '@/lib/cloudAccess';
+import { clampResolution, proContentNeeds, resolveExportPlan, wandererNeeds } from './exportPlan';
 import { useLocalExportCapability } from './hooks/useLocalExportCapability';
 import { useVideoExportExecution } from './hooks/useVideoExportExecution';
 import { ExportSettingsForm } from './components/ExportSettingsForm';
@@ -24,7 +24,7 @@ interface ExportModalProps {
 
 export default function ExportModal({ open, onClose }: ExportModalProps) {
   const {
-    fps, duration, name, isExporting,
+    fps, duration, name, isExporting, items,
     aspectRatio, exportResolution, isVertical, resolution,
     setAspectRatio, setExportResolution, setIsVertical,
   } = useProjectStore(
@@ -33,6 +33,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
       duration: s.duration,
       name: s.name,
       isExporting: s.isExporting,
+      items: s.items,
       aspectRatio: s.aspectRatio,
       exportResolution: s.exportResolution,
       isVertical: s.isVertical,
@@ -90,8 +91,14 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
     exportResolution: requestedResolution,
     isVertical,
   };
+  // Free plans can open, edit and preview Pro content; only the export asks for Wanderer. BYOK lifts the
+  // quality limits but not this, the same as in the editor.
+  const proContent = useMemo(
+    () => (isWanderer(subscription) ? [] : proContentNeeds(Object.values(items))),
+    [subscription, items],
+  );
   const wanderer = wandererReason(
-    wandererNeeds(requestedRenderConfig, { startTime, endTime }, limits),
+    wandererNeeds(requestedRenderConfig, { startTime, endTime }, limits, proContent),
     requestedResolution,
     limits.maxDuration,
   );

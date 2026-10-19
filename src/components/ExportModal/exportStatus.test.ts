@@ -30,6 +30,15 @@ describe('wandererReason', () => {
     );
   });
 
+  it('names the Pro content in the project', () => {
+    expect(wandererReason(['models'], '720p', 30)).toBe('Placed 3D models come with the Wanderer plan.');
+    expect(wandererReason(['vehicles'], '720p', 30)).toBe('Car and plane markers come with the Wanderer plan.');
+    expect(wandererReason(['modelMarkers'], '720p', 30)).toBe('Imported model markers come with the Wanderer plan.');
+    expect(wandererReason(['fps', 'models', 'vehicles'], '720p', 30)).toBe(
+      '60 FPS, placed 3D models and car and plane markers come with the Wanderer plan.',
+    );
+  });
+
   it('is null when nothing needs it', () => {
     expect(wandererReason([], '720p', 30)).toBeNull();
   });

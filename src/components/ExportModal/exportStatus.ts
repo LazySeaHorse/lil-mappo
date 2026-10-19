@@ -19,14 +19,21 @@ export function localExportWarning(
   return null;
 }
 
-/** What the picked Pro settings are, for the line under the title and the Get Wanderer button. Null when none. */
+const NEED_NAMES: Record<Exclude<WandererNeed, 'resolution' | 'duration'>, string> = {
+  fps: '60 FPS',
+  models: 'placed 3D models',
+  modelMarkers: 'imported model markers',
+  vehicles: 'car and plane markers',
+};
+
+/** What the picked Pro settings and the Pro content in the project are, for the line under the title and the Get Wanderer button. Null when none. */
 export function wandererReason(needs: WandererNeed[], resolution: ExportResolution, maxDuration: number): string | null {
   if (needs.length === 0) return null;
   const names = needs.map((need) =>
-    need === 'resolution' ? RESOLUTION_LABELS[resolution] : need === 'fps' ? '60 FPS' : `exports past ${maxDuration} seconds`,
+    need === 'resolution' ? RESOLUTION_LABELS[resolution] : need === 'duration' ? `exports past ${maxDuration} seconds` : NEED_NAMES[need],
   );
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  const plural = names.length > 1 || needs[0] === 'duration';
+  const plural = names.length > 1 || (needs[0] !== 'resolution' && needs[0] !== 'fps');
   return `${list.charAt(0).toUpperCase()}${list.slice(1)} ${plural ? 'come' : 'comes'} with the Wanderer plan.`;
 }
 

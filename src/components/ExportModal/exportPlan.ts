@@ -1,4 +1,5 @@
 import type { ExportLimits } from '@/lib/cloudAccess';
+import type { TimelineItem } from '@/store/types';
 import {
   getExportDimensions,
   type ExportResolution,
@@ -51,13 +52,39 @@ export function resolveExportPlan(
   };
 }
 
-export type WandererNeed = 'resolution' | 'fps' | 'duration';
+/** Project content that comes with Wanderer: placed models, imported model markers, car and plane markers. */
+export type ContentNeed = 'models' | 'modelMarkers' | 'vehicles';
+export type WandererNeed = 'resolution' | 'fps' | 'duration' | ContentNeed;
 
-/** The picked settings that are past this plan's limits. Any at all turns the Export button into Get Wanderer. */
+/**
+ * The Pro content in a project (the same things the editor marks PRO). Free plans can open, edit and
+ * preview it; only export asks for Wanderer. A marker that is switched off is not drawn, so it does not count.
+ */
+export function proContentNeeds(items: readonly TimelineItem[]): ContentNeed[] {
+  const needs = new Set<ContentNeed>();
+  for (const item of items) {
+    if (item.kind === 'model') {
+      needs.add('models');
+    } else if (item.kind === 'route') {
+      const vehicle = item.calculation?.vehicle;
+      if (!vehicle?.enabled) continue;
+      if (vehicle.type === 'custom') needs.add('modelMarkers');
+      else if (vehicle.type === 'car' || vehicle.type === 'plane') needs.add('vehicles');
+    }
+  }
+  return (['models', 'modelMarkers', 'vehicles'] as const).filter((need) => needs.has(need));
+}
+
+/**
+ * What the export asks Wanderer for: the picked settings that are past this plan's limits, then the Pro
+ * content in the project (`content`, from `proContentNeeds`; empty for a plan that has it). Any at all
+ * turns the Export button into Get Wanderer.
+ */
 export function wandererNeeds(
   renderConfig: RenderConfig,
   range: { startTime: number; endTime: number },
   limits: ExportLimits,
+  content: readonly ContentNeed[] = [],
 ): WandererNeed[] {
   const needs: WandererNeed[] = [];
   if (RESOLUTION_ORDER.indexOf(renderConfig.exportResolution) > RESOLUTION_ORDER.indexOf(limits.maxResolution)) {
@@ -65,7 +92,7 @@ export function wandererNeeds(
   }
   if (renderConfig.fps > limits.maxFps) needs.push('fps');
   if (range.endTime > limits.maxDuration) needs.push('duration');
-  return needs;
+  return [...needs, ...content];
 }
 
 /** The highest resolution the plan allows, at or below the picked one. */
