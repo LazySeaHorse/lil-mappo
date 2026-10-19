@@ -82,3 +82,10 @@ describe('formatRulerLabel', () => {
     expect(formatRulerLabel(seconds, step)).toBe(expected);
   });
 });
+
+describe('rulerSteps at frame-level zoom', () => {
+  it('labels tenths of a second once the timeline is zoomed far in', () => {
+    expect(rulerSteps(720).labelStep).toBe(0.1);
+    expect(rulerSteps(720).tickStep * 720).toBeGreaterThanOrEqual(6);
+  });
+});
