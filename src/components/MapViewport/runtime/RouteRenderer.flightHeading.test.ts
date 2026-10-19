@@ -16,6 +16,7 @@ import { RouteRenderer } from './RouteRenderer';
 
 function mapDouble() {
   const layers = new Map<string, { type: string; paint?: Record<string, unknown> }>();
+  const setData = vi.fn();
   const map = {
     layers,
     isStyleLoaded: vi.fn(() => true),
@@ -28,13 +29,13 @@ function mapDouble() {
       const layer = layers.get(id);
       if (layer) layer.paint = { ...layer.paint, [prop]: val };
     }),
-    getSource: vi.fn(() => ({ type: 'geojson', setData: vi.fn() })),
+    getSource: vi.fn(() => ({ type: 'geojson', setData })),
     addSource: vi.fn(),
     removeSource: vi.fn(),
     hasModel: vi.fn(() => true),
     addModel: vi.fn(),
   };
-  return { map: map as unknown as MapboxMap, layers };
+  return { map: map as unknown as MapboxMap, layers, setData };
 }
 
 function flight(geometry: GeoJSON.Geometry, scale: number): RouteItem {
@@ -54,11 +55,11 @@ function flight(geometry: GeoJSON.Geometry, scale: number): RouteItem {
 
 /** What the plane's model-rotation is at route progress `u`, as the renderer writes it. */
 function rotationAt(route: RouteItem, u: number): number[] {
-  const { map, layers } = mapDouble();
+  const { map, setData } = mapDouble();
   const renderer = new RouteRenderer(map, route);
   renderer.mount();
   renderer.render(u * 100);
-  const rotation = layers.get('vehicle-layer-f')?.paint?.['model-rotation'] as number[];
+  const rotation = (setData.mock.lastCall![0] as GeoJSON.Feature).properties?.rotation as number[];
   renderer.dispose();
   return rotation;
 }

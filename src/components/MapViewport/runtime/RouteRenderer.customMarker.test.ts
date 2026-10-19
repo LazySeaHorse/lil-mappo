@@ -31,7 +31,7 @@ function createMapDouble() {
     removeSource: vi.fn((id: string) => sources.delete(id)),
     ...mapbox.api,
   };
-  return { map: map as unknown as MapboxMap, layers, mapbox };
+  return { map: map as unknown as MapboxMap, layers, sources, mapbox };
 }
 
 const SHA = 'd'.repeat(64);
@@ -70,7 +70,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('RouteRenderer with a custom marker', () => {
   it('rides the imported model, standing on the route, at its size', () => {
     registerModelBytes(SHA, new ArrayBuffer(8));
-    const { map, layers, mapbox } = createMapDouble();
+    const { map, layers, sources, mapbox } = createMapDouble();
     const renderer = new RouteRenderer(map, route(custom), new ModelCatalog(map, () => ({ bus })));
     renderer.mount();
 
@@ -83,7 +83,8 @@ describe('RouteRenderer with a custom marker', () => {
     expect(layer.paint?.['model-translation']).toEqual([0, 0, 1]);
 
     renderer.render(5);
-    const rotation = layers.get('vehicle-layer-r1')!.paint?.['model-rotation'] as number[];
+    const sent = sources.get('vehicle-source-r1')!.setData.mock.lastCall![0] as GeoJSON.Feature;
+    const rotation = sent.properties?.rotation as number[];
     expect(rotation[2]).toBeCloseTo(90, 0); // heading east along the route
   });
 

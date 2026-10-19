@@ -550,26 +550,27 @@ describe("RouteRenderer vehicle writes", () => {
     renderer.mount();
     const source = double.sources.get("vehicle-source-veh")!;
 
+    const sent = () => source.setData.mock.calls.map(([d]) => (d as GeoJSON.Feature).properties?.rotation as number[]);
+
     renderer.render(2);
     expect(source.setData).toHaveBeenCalledTimes(1);
-    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
 
     // Paused: the same frame again writes nothing.
     renderer.render(2);
     renderer.render(2);
     expect(source.setData).toHaveBeenCalledTimes(1);
-    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
 
     // Moving along the same segment: new position, same heading.
     renderer.render(2.5);
     expect(source.setData).toHaveBeenCalledTimes(2);
-    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
+    expect(sent()[1]).toEqual(sent()[0]);
 
-    // Onto the next segment: it turns.
+    // Onto the next segment: it turns, in the same write as the move.
     renderer.render(9);
     expect(source.setData).toHaveBeenCalledTimes(3);
-    expect(paintCalls(double, "model-rotation")).toHaveLength(2);
-    expect(double.layers.get("vehicle-layer-veh")?.paint?.["model-rotation"]).toEqual([0, 0, expect.closeTo(90, 1)]);
+    expect(sent()[2]).toEqual([0, 0, expect.closeTo(90, 1)]);
+    // The heading is never a paint write: Mapbox only reads it from the data it builds the model from.
+    expect(paintCalls(double, "model-rotation")).toHaveLength(0);
   });
 
   it("sets the constant model translation once, when the layer is created", () => {
@@ -590,7 +591,6 @@ describe("RouteRenderer vehicle writes", () => {
     const source = double.sources.get("vehicle-source-veh")!;
     renderer.render(5);
     expect(source.setData).toHaveBeenCalledTimes(1);
-    expect(paintCalls(double, "model-rotation")).toHaveLength(1);
   });
 
   it("re-applies visibility and opacity to a recreated vehicle layer", () => {

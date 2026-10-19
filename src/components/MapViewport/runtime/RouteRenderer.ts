@@ -66,9 +66,8 @@ interface PaintCache {
   lastAnimationType: string;
   vehicleVisible: boolean;
   vehicleOpacity: number;
-  /** Last uploaded vehicle position and model rotation, as `a,b` keys. */
+  /** Last uploaded vehicle position and heading, as a `lng,lat,bearing` key. */
   vehiclePosition: string;
-  vehicleRotation: string;
   /** Last model-translation height written to the vehicle layer. */
   vehicleLift: number;
   dashPattern: number[] | null;
@@ -92,7 +91,7 @@ function createPaintCache(): PaintCache {
     glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false, glowTrim: '',
     cometColor: '', cometWidth: -1,
     lastAnimationType: '',
-    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleRotation: '', vehicleLift: 0,
+    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleLift: 0,
     dashPattern: null,
   };
 }
@@ -123,6 +122,9 @@ function routeLine(coords: number[][]): GeoJSON.FeatureCollection {
 function gradient(color: string): ExpressionSpecification {
   return ['interpolate', ['linear'], ['line-progress'], 0, 'transparent', 1, color];
 }
+
+/** A model marker faces the `rotation` its point carries; a point without one faces north. */
+const VEHICLE_ROTATION = ['coalesce', ['get', 'rotation'], ['literal', [0, 0, 0]]] as ExpressionSpecification;
 
 export class RouteRenderer {
   private route: RouteItem;
@@ -331,7 +333,6 @@ export class RouteRenderer {
   private ensureVehicleResources(): void {
     // The source and layer may be recreated below, starting from their initial position and rotation.
     this.layers.cache.vehiclePosition = '';
-    this.layers.cache.vehicleRotation = '';
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled) {
       this.marker = null;
@@ -405,7 +406,7 @@ export class RouteRenderer {
       layout: { 'model-id': marker.modelId },
       paint: {
         'model-scale': [s, s, s],
-        'model-rotation': [0, 0, 0],
+        'model-rotation': VEHICLE_ROTATION,
         'model-translation': [0, 0, marker.lift],
         ...noPaintTransitions('model-opacity', 'model-rotation', 'model-scale', 'model-translation'),
       },
@@ -437,24 +438,21 @@ export class RouteRenderer {
     const path = getRoutePath(this.coordinates);
     if (path.coords.length < 2) return;
     const [lng, lat] = path.pointAt(progress);
-    const position = `${lng},${lat}`;
+    const size = marker.kind === 'model' ? marker.size : null;
+    // To a hundredth of a degree, so gliding along a straight doesn't rewrite it every frame.
+    const bearing = size ? Math.round(facingAlong(path, progress, size.lengthM) * 100) / 100 : 0;
+    const position = `${lng},${lat},${bearing}`;
     if (this.layers.cache.vehiclePosition !== position) {
+      // The heading rides in the point's properties: Mapbox reads model-rotation when it builds the
+      // model from the data, so a paint write alone is not picked up until the camera moves.
       source.setData({
         type: 'Feature',
-        properties: {},
+        properties: { rotation: [0, 0, bearing] },
         geometry: { type: 'Point', coordinates: [lng, lat] },
       });
       this.layers.cache.vehiclePosition = position;
     }
     const opacityProperty = marker.kind === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
-
-    const size = marker.kind === 'model' ? marker.size : null;
-    if (size) {
-      // To a hundredth of a degree, so gliding along a straight doesn't rewrite it every frame.
-      const bearing = Math.round(facingAlong(path, progress, size.lengthM) * 100) / 100;
-      // model-translation stays where ensureVehicleResources set it (the custom marker's lift).
-      this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, 0, bearing], 'vehicleRotation', `${bearing}`);
-    }
   }
 }
