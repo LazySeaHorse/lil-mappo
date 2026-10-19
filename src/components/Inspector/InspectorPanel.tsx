@@ -7,6 +7,7 @@ import { BoundaryInspector } from "./BoundaryInspector";
 import { AnnotationInspector } from "@/annotations/inspector/AnnotationInspector";
 import { CameraKFInspector } from "./CameraKFInspector";
 import { AutoCamInspector } from "./AutoCamInspector";
+import { ModelInspector } from "./ModelInspector";
 
 export default function InspectorPanel() {
   const { selectedItemId, selectedAutoCamRouteId, items, isInspectorOpen } = useProjectStore(
@@ -36,6 +37,8 @@ export default function InspectorPanel() {
       return <AnnotationInspector item={item} />;
     case "camera":
       return <CameraKFInspector item={item} />;
+    case "model":
+      return <ModelInspector item={item} />;
     default:
       return <ProjectSettings />;
   }

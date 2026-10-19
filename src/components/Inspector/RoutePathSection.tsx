@@ -47,12 +47,12 @@ export function RoutePathSection({ item }: { item: RouteItem }) {
             type="button"
             onClick={() => void editor.apply()}
             disabled={loading}
-            className="h-9 flex-1 text-xs font-medium"
+            className="flex-1"
           >
             {loading && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
             {ROUTE_PATH_TERMS.apply}
           </Button>
-          <Button type="button" variant="outline" onClick={editor.reset} className="h-9 flex-1 text-xs font-medium">
+          <Button type="button" variant="outline" onClick={editor.reset} className="flex-1">
             {ROUTE_PATH_TERMS.cancel}
           </Button>
         </div>

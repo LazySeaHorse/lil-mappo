@@ -1,7 +1,9 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubscription } from "@/hooks/useSubscription";
+import { subscriptionTier } from "@/lib/proPass";
 import { type PlanSlug, PLAN_CONFIG, creditsToMinutesAt1080p } from "@/services/checkout";
 import { Coins, Layers, CloudUpload, Package, Timer } from "lucide-react";
 
@@ -57,7 +59,7 @@ function TierCard({
     >
       {comingSoon && (
         <div className="absolute -top-3 inset-x-0 flex justify-center">
-          <span className="bg-muted text-muted-foreground text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
+          <span className="bg-muted text-muted-foreground text-2xs font-medium uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
             Not available yet
           </span>
         </div>
@@ -77,7 +79,7 @@ function TierCard({
           <span className="text-xl font-medium">{price}</span>
         </div>
         {originalPrice && (
-          <p className="mt-0.5 text-[11px] font-medium text-primary">
+          <p className="mt-0.5 text-2xs font-medium text-primary">
             Limited-time discount
           </p>
         )}
@@ -111,8 +113,9 @@ function TierCard({
       </div>
 
       <Button
+        size="sm"
         variant={highlight && !comingSoon ? "default" : "secondary"}
-        className={`w-full h-8 text-xs rounded-lg font-medium ${highlight && !comingSoon ? "shadow-md" : ""}`}
+        className="w-full"
         disabled={isCurrent || comingSoon}
         onClick={handleClick}
       >
@@ -120,7 +123,7 @@ function TierCard({
       </Button>
 
       {!isCurrent && !comingSoon && (
-        <p className="text-[10px] text-muted-foreground text-center mt-2 leading-tight">
+        <p className="text-2xs text-muted-foreground text-center mt-2 leading-tight">
           Renews at {price} each month until you cancel. You can cancel anytime in Account Settings.
         </p>
       )}
@@ -132,14 +135,16 @@ function TierCard({
 
 function NomadBadge() {
   return (
-    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5 mb-2">
-      <Package size={14} className="text-amber-500 shrink-0 mt-0.5" />
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        You receive <span className="font-medium text-foreground">Nomad</span>{" "}
-        status when you buy credits. Select a monthly plan to receive recurring
-        credits and parallel renders.
-      </p>
-    </div>
+    <Alert variant="info" size="sm" className="mb-2">
+      <Package />
+      <AlertDescription>
+        <p>
+          You receive <span className="font-medium text-foreground">Nomad</span>{" "}
+          status when you buy credits. Select a monthly plan to receive recurring
+          credits and parallel renders.
+        </p>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -154,7 +159,8 @@ export function SubscriptionTiers({
 }) {
   const startCheckout = useAuthStore((s) => s.startCheckout);
   const { data: subscription } = useSubscription();
-  const tierSlug = subscription?.tier ?? null;
+  // A Pro pass alone is not a current plan here.
+  const tierSlug = subscriptionTier(subscription);
 
   const handleCheckout = (plan: PlanSlug) => {
     if (onCheckout) {

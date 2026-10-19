@@ -96,5 +96,17 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
       };
     case 'camera':
       return cameraSummary(item, opts.cameraEnabled ?? true);
+    case 'model':
+      return {
+        id: item.id,
+        kind: 'model',
+        name: item.name,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        lngLat: item.position,
+        ...(detail
+          ? { altitudeM: item.altitude, heading: item.heading, pitch: item.pitch, roll: item.roll, scale: item.scale, transition: item.transition }
+          : {}),
+      };
   }
 }

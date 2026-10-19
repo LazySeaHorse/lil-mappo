@@ -1,14 +1,17 @@
 import React, { useCallback } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, FileWarning } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { useProjectStore } from '@/store/useProjectStore';
 import type {
   BoundaryItem,
   CalloutItem,
   CameraItem,
+  ModelItem,
   RouteItem,
   TimelineItem,
 } from '@/store/types';
+import { useModelStatus } from '@/models/modelRegistry';
+import { MODEL_TERMS } from '@/models/modelTerms';
 import TimelineItemBar from './TimelineItemBar';
 import { timelineItemLabel } from './timelineItemLabel';
 
@@ -50,7 +53,9 @@ const TimelineTrackRow = React.memo(({
       ? 'bg-item-boundary'
       : item.kind === 'callout'
         ? 'bg-item-callout'
-        : 'bg-item-camera';
+        : item.kind === 'model'
+          ? 'bg-teal-500'
+          : 'bg-item-camera';
 
   const label = timelineItemLabel(item);
 
@@ -114,12 +119,13 @@ const TimelineTrackRow = React.memo(({
         <span className={`text-xs truncate font-medium flex-1 ${item.kind !== 'camera' ? 'ph-mask' : ''} ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
           {label}
         </span>
+        {item.kind === 'model' && <ModelFileMark assetId={item.assetId} />}
 
         {item.kind === 'camera' && (
           <IconButton
             variant="ghost"
             size="xs"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 data-[enabled=false]:opacity-100 hover:text-primary transition-all"
+            className="opacity-0 group-hover:opacity-100 data-[enabled=false]:opacity-100 hover:text-primary"
             data-enabled={isCameraEnabled}
             title={isCameraEnabled ? 'Hide Camera' : 'Show Camera'}
             onClick={(event) => {
@@ -150,7 +156,7 @@ const TimelineTrackRow = React.memo(({
           />
         ) : (
           <TimelineItemBar
-            item={item as RouteItem | BoundaryItem | CalloutItem}
+            item={item as RouteItem | BoundaryItem | CalloutItem | ModelItem}
             pixelsPerSecond={pixelsPerSecond}
             colorClass={colorClass}
             isSelected={isSelected}
@@ -161,6 +167,20 @@ const TimelineTrackRow = React.memo(({
     </div>
   );
 });
+
+/** A warning on a placed model's row while its file is missing, or an error when it failed to load. */
+function ModelFileMark({ assetId }: { assetId: string }) {
+  const asset = useProjectStore((s) => s.models[assetId]);
+  const status = useModelStatus(asset);
+  if (status === 'ready') return null;
+  const failed = status === 'failed';
+  const label = failed ? MODEL_TERMS.failedTitle : MODEL_TERMS.missingTitle;
+  return (
+    <span role="img" aria-label={label} title={label} className={`shrink-0 ${failed ? 'text-destructive' : 'text-amber-500'}`}>
+      {failed ? <AlertTriangle size={12} aria-hidden="true" /> : <FileWarning size={12} aria-hidden="true" />}
+    </span>
+  );
+}
 
 interface CameraTrackContentProps {
   item: CameraItem;

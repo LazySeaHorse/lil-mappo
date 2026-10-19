@@ -19,6 +19,7 @@ import {
   formatDecimals,
   formatDegrees,
   formatMultiplier,
+  formatWideMultiplier,
   formatPercent,
   normalizeEasing,
 } from './inspectorValues';
@@ -45,6 +46,7 @@ describe('InspectorShared Utilities & Formatters', () => {
 
     expect(formatMultiplier(1.5)).toBe('1.5x');
     expect(formatMultiplier(2)).toBe('2.0x');
+    expect([0.2, 2.54, 120.4, 8400].map(formatWideMultiplier)).toEqual(['0.20x', '2.5x', '120x', '8,400x']);
 
     const fmt3 = formatDecimals(3);
     expect(fmt3(3.14159)).toBe('3.142');

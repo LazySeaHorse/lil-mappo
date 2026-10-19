@@ -38,6 +38,7 @@ describe('project document persistence boundary', () => {
       'show3dFacades',
       'items',
       'itemOrder',
+      'models',
       'mapCenter',
     ]);
     expect(document.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
@@ -887,6 +888,7 @@ describe('createProject', () => {
       show3dFacades: true,
       items: { 'camera-track': { kind: 'camera', id: 'camera-track', keyframes: [] } },
       itemOrder: ['camera-track'],
+      models: {},
       mapCenter: [0, 0],
     });
     expect(createProject().id).not.toBe(project.id);

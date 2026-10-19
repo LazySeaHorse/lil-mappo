@@ -42,7 +42,7 @@ function response() {
 }
 
 /** Wires the user + admin clients; returns the rpc mock to inspect the stored render config. */
-function clients(subscription: Sub) {
+function clients(subscription: Sub, passExpiresAt: string | null = null, passError: unknown = null) {
   const userClient = {
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
   };
@@ -54,10 +54,13 @@ function clients(subscription: Sub) {
     return { data: null, error: null };
   });
   const admin = {
-    from: vi.fn(() => ({
+    from: vi.fn((table: string) => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          maybeSingle: vi.fn().mockResolvedValue({ data: subscription, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: table === "pro_passes" ? (passExpiresAt ? { expires_at: passExpiresAt } : null) : subscription,
+            error: table === "pro_passes" ? passError : null,
+          }),
         })),
       })),
     })),
@@ -69,8 +72,8 @@ function clients(subscription: Sub) {
   return rpc;
 }
 
-async function storedWatermark(subscription: Sub) {
-  const rpc = clients(subscription);
+async function storedWatermark(subscription: Sub, passExpiresAt: string | null = null, passError: unknown = null) {
+  const rpc = clients(subscription, passExpiresAt, passError);
   const res = response();
   await handler(request(), res);
   expect(res.statusCode).toBe(200);
@@ -123,5 +126,27 @@ describe("render-dispatch watermark entitlement", () => {
 
   it("watermarks a free user", async () => {
     expect(await storedWatermark(null)).toBe(true);
+  });
+
+  it("does not watermark a user with an active Pro pass", async () => {
+    expect(await storedWatermark(null, "2026-10-04T12:00:00Z")).toBe(false);
+  });
+
+  it("watermarks a user whose Pro pass has ended", async () => {
+    expect(await storedWatermark(null, "2026-10-01T11:59:59Z")).toBe(true);
+  });
+
+  it("keeps a subscriber unwatermarked when the pass read fails", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(
+      await storedWatermark({ tier: "wanderer", status: "active", renewal_date: "2026-11-01" }, null, { message: "down" }),
+    ).toBe(false);
+    error.mockRestore();
+  });
+
+  it("still watermarks a free user when the pass read fails", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await storedWatermark(null, null, { message: "down" })).toBe(true);
+    error.mockRestore();
   });
 });

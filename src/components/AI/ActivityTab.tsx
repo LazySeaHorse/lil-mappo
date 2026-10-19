@@ -35,7 +35,7 @@ function selectCallTargets(call: AgentEvent): void {
 
 function StatusIcon({ phase }: { phase: AgentEvent['phase'] }) {
   if (phase === 'started') return <Loader2 size={14} className="animate-spin text-primary" aria-label="Running" />;
-  if (phase === 'succeeded') return <Check size={14} className="text-emerald-500" aria-label="Done" />;
+  if (phase === 'succeeded') return <Check size={14} className="text-success" aria-label="Done" />;
   return <AlertCircle size={14} className="text-destructive" aria-label="Failed" />;
 }
 
@@ -74,10 +74,10 @@ export function ActivityTab() {
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-medium truncate">{title}</span>
                     {detail && (
-                      <span className={`block text-[11px] leading-snug ${call.phase === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>{detail}</span>
+                      <span className={`block text-2xs leading-snug ${call.phase === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>{detail}</span>
                     )}
                   </span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">{formatRelativeTime(call.at, now)}</span>
+                  <span className="shrink-0 text-2xs text-muted-foreground">{formatRelativeTime(call.at, now)}</span>
                 </>
               );
               return (
@@ -96,10 +96,10 @@ export function ActivityTab() {
         )}
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-border/40 p-3 shrink-0">
-        <Button variant="secondary" size="sm" className="h-8 text-xs gap-1.5" disabled={!canUndoAi} onClick={() => undo()}>
+        <Button variant="secondary" size="sm" disabled={!canUndoAi} onClick={() => undo()}>
           <Undo2 size={13} /> Undo last AI change
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 text-xs" disabled={newestFirst.length === 0} onClick={() => agentEvents.clear()}>
+        <Button variant="ghost" size="sm" disabled={newestFirst.length === 0} onClick={() => agentEvents.clear()}>
           Clear feed
         </Button>
       </div>

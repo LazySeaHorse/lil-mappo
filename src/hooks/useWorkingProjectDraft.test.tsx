@@ -63,6 +63,18 @@ describe('useWorkingProjectDraft', () => {
     expect(draftManager.flush).toHaveBeenCalledOnce();
   });
 
+  it('flushes the latest edits before stopping when the editor unmounts', async () => {
+    const { result, unmount } = renderHook(() => useWorkingProjectDraft());
+    await waitFor(() => expect(result.current).toBe(true));
+
+    unmount();
+
+    expect(draftManager.flush).toHaveBeenCalledOnce();
+    expect(draftManager.flush.mock.invocationCallOrder[0]).toBeLessThan(
+      draftManager.stop.mock.invocationCallOrder[0],
+    );
+  });
+
   it('opens the editor when draft storage is unavailable', async () => {
     draftManager.hydrate.mockRejectedValue(new Error('IndexedDB unavailable'));
 

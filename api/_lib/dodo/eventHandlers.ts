@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BillingService } from "./billingService.js";
+import { passProductId } from "./planCatalogue.js";
 import type { DispatchResult, DunningEventData, PaymentEventData, Plans, SubEventData, WebhookEvent } from "./types.js";
 
 function getBillingService(target: SupabaseClient | BillingService): BillingService {
@@ -24,9 +25,11 @@ export async function handleSubscriptionActive(
 export async function handlePaymentSucceeded(
   payment: PaymentEventData,
   clientOrService: SupabaseClient | BillingService
-): Promise<void> {
+): Promise<DispatchResult> {
   const service = getBillingService(clientOrService);
   await service.creditTopupPayment(payment);
+  const pass = await service.grantProPass(payment, passProductId());
+  return pass ? { pass } : {};
 }
 
 export async function handleSubscriptionRenewed(
@@ -81,8 +84,7 @@ export async function dispatchWebhookEvent(
     case "subscription.active":
       return handleSubscriptionActive(event.data as SubEventData, clientOrService, plans);
     case "payment.succeeded":
-      await handlePaymentSucceeded(event.data as PaymentEventData, clientOrService);
-      break;
+      return handlePaymentSucceeded(event.data as PaymentEventData, clientOrService);
     case "subscription.renewed":
       await handleSubscriptionRenewed(event.data as SubEventData, clientOrService, plans);
       break;

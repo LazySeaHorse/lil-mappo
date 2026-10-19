@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
+import { fontSizeScale, zIndexScale } from "./src/lib/themeScales";
 
 export default {
   darkMode: ["class"],
@@ -34,6 +35,9 @@ export default {
           DEFAULT: "hsl(var(--wish))",
           foreground: "hsl(var(--wish-foreground))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        credit: "hsl(var(--credit))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
@@ -85,6 +89,10 @@ export default {
           bg: "hsl(var(--selection-bg))",
         },
       },
+      fontSize: fontSizeScale,
+      zIndex: zIndexScale,
+      // Tailwind 3 ships no aria-invalid variant; the primitives style invalid fields with it.
+      aria: { invalid: 'invalid="true"' },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -113,6 +121,7 @@ export default {
       },
       transitionTimingFunction: {
         spring: "cubic-bezier(0.16, 1, 0.3, 1)",
+        "in-out-cubic": "cubic-bezier(0.65, 0, 0.35, 1)",
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",

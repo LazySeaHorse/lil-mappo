@@ -3,9 +3,10 @@ import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 import { extractLineCoords } from './geoUtils';
 import { getCameraAtTime, type CameraOutput } from './cameraInterpolation';
-import type { GroundModel } from './cameraRig';
+import { minFollowDistance, type GroundModel } from './cameraRig';
 import { demElevation, demVersion, loadDem, type Bounds } from '@/services/terrainDem';
 import { getEffectiveMapboxToken } from '@/config/mapbox';
+import { markerSize } from '@/config/vehicles';
 import {
   blendPoses,
   poseFromFreeCam,
@@ -168,7 +169,7 @@ function projectGround(): GroundModel | null {
 /** The camera the project's camera track shows at `time`, or null if it has none. */
 export function getProjectCameraAt(time: number): CameraOutput | null {
   const camera = useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem | undefined;
-  return getCameraAtTime(camera?.keyframes ?? [], time, getRouteCoords, getRoutes(), projectGround());
+  return getCameraAtTime(camera?.keyframes ?? [], time, getRouteCoords, getRoutes(), projectGround(), useProjectStore.getState().models);
 }
 
 /** Area an auto-camera route's shots can see the ground of: the route, plus the camera's reach. */
@@ -180,9 +181,9 @@ function autoCamBounds(route: RouteItem, coords: number[][]): Bounds {
     south = Math.min(south, lat);
     north = Math.max(north, lat);
   }
-  const config = route.autoCam!;
+  const distance = Math.max(route.autoCam!.distance, minFollowDistance(markerSize(route.calculation?.vehicle, useProjectStore.getState().models)?.reachM ?? 0));
   // Dynamics can pull the camera back by a third or so beyond its set distance.
-  const reachM = 1.5 * config.distance;
+  const reachM = 1.5 * distance;
   const dLat = reachM / METERS_PER_DEGREE;
   const dLng = dLat / Math.max(0.05, Math.cos(((south + north) / 2) * DEG));
   return [west - dLng, Math.max(-85, south - dLat), east + dLng, Math.min(85, north + dLat)];

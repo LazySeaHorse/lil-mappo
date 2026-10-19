@@ -4,10 +4,13 @@ import type {
   CameraKeyframe,
   EasingName,
   ExitAnimation,
+  ModelItem,
   RouteItem,
 } from '@/store/types';
 import type { TransitionConfig } from '@/annotations/types';
 import type { InspectorSectionKind } from '../inspectorSections';
+import { MODEL_ENTER_OPTIONS, MODEL_EXIT_OPTIONS } from '@/models/modelAnimation';
+import { MODEL_TERMS, MODEL_TRANSITION_LABELS } from '@/models/modelTerms';
 
 /**
  * The timing fields the inspector shows. A field that is missing is a field
@@ -32,10 +35,19 @@ export type TimingPatch = Partial<Omit<TimingModel, 'transition'>> & {
   transition?: Partial<TransitionConfig>;
 };
 
+/** The enter and exit animations a kind offers, with their words; callouts' when missing. */
+export interface TransitionChoices {
+  enter: readonly string[];
+  exit: readonly string[];
+  labels: Record<string, string>;
+  words: { enter: string; enterDuration: string; exit: string; exitDuration: string };
+}
+
 /** Maps one kind of item to and from the timing fields. */
 export interface TimingAdapter<T> {
   /** The inspector panel this adapter belongs to. */
-  panel: Extract<InspectorSectionKind, 'route' | 'boundary' | 'callout' | 'camera-kf'>;
+  panel: Extract<InspectorSectionKind, 'route' | 'boundary' | 'callout' | 'camera-kf' | 'model'>;
+  transitionChoices?: TransitionChoices;
   read: (item: T) => TimingModel;
   /** The store update for a change. It holds only the fields the change touches. */
   write: (item: T, patch: TimingPatch) => Partial<T>;
@@ -120,5 +132,26 @@ export const cameraViewTiming: TimingAdapter<CameraKeyframe> = {
   write: (_item, patch) => ({
     ...(patch.start !== undefined ? { time: Math.max(0, patch.start) } : {}),
     ...(patch.easing !== undefined ? { easing: patch.easing } : {}),
+  }),
+};
+
+/** Placed 3D models: when they show, and how they appear and disappear ('none' is instant). */
+export const modelTiming: TimingAdapter<ModelItem> = {
+  panel: 'model',
+  transitionChoices: {
+    enter: MODEL_ENTER_OPTIONS,
+    exit: MODEL_EXIT_OPTIONS,
+    labels: MODEL_TRANSITION_LABELS,
+    words: {
+      enter: MODEL_TERMS.enter,
+      enterDuration: MODEL_TERMS.enterDuration,
+      exit: MODEL_TERMS.exit,
+      exitDuration: MODEL_TERMS.exitDuration,
+    },
+  },
+  read: (item) => ({ ...readSpan(item), transition: item.transition }),
+  write: (item, patch) => ({
+    ...writeSpan(item, patch),
+    ...(patch.transition ? { transition: { ...item.transition, ...patch.transition } as ModelItem['transition'] } : {}),
   }),
 };

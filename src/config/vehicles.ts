@@ -1,18 +1,73 @@
-import type { AutoCamConfig, AutoCamPreset, EasingName, RouteItem, RouteVehicleConfig } from '@/store/types';
+import type { AutoCamConfig, AutoCamPreset, EasingName, ModelAsset, RouteItem, RouteVehicleConfig } from '@/store/types';
+import { modelExtent } from '@/models/modelGeometry';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { getRoutePath } from '@/engine/routePath';
 
 export type VehicleType = RouteVehicleConfig['type'];
 
+/** The built-in 3D markers. */
+export type BuiltInModelType = Exclude<VehicleType, 'dot' | 'custom'>;
+
 /**
  * Normalizes each 3D model's native size so that vehicle.scale = 1 looks
  * consistent across vehicle types. The plane model is tiny at the zooms
- * flights are viewed at, so it is drawn 100x larger.
+ * flights are viewed at, so it is drawn 100x larger. An imported model is
+ * drawn at the size it was made (1 unit = 1 m).
  */
 export const MODEL_BASE_SCALE: Record<Exclude<VehicleType, 'dot'>, number> = {
   car: 1,
   plane: 100,
+  custom: 1,
 };
+
+/**
+ * Size multiplier limits per marker type, for a log slider. A car is about 3.4 m long at 1x and a
+ * plane about 3.7 km (after the 100x above), so the car tops out near a mid-sized city (~35 km) and
+ * the plane near a large state (~190 km). The dot is a screen-space circle, so it stays small.
+ */
+export const VEHICLE_SCALE_RANGE: Record<VehicleType, { min: number; max: number }> = {
+  dot: { min: 0.2, max: 10 },
+  car: { min: 0.2, max: 10000 },
+  plane: { min: 0.2, max: 50 },
+  // An imported model can be made in any unit, from a toy in centimetres to a city block.
+  custom: { min: 0.01, max: 10000 },
+};
+
+export function clampVehicleScale(type: VehicleType | undefined, scale: number): number {
+  const { min, max } = VEHICLE_SCALE_RANGE[type ?? 'dot'];
+  return Math.min(max, Math.max(min, scale));
+}
+
+/**
+ * Each 3D model's size in metres as authored, before MODEL_BASE_SCALE: nose to tail, and how far its
+ * furthest corner reaches from the origin it rides the route on. Measured from the .glb files, which
+ * vehicles.test.ts reads to keep these in step.
+ */
+export const MODEL_SIZE_M: Record<BuiltInModelType, { length: number; reach: number }> = {
+  car: { length: 3.43, reach: 2.39 },
+  plane: { length: 37.24, reach: 32.75 },
+};
+
+/**
+ * The 3D marker as drawn, in metres; null for the dot, a fixed-size circle on screen, or no marker.
+ * A custom marker is measured from its imported model's bounds in `models` (null when it has none).
+ */
+export function markerSize(
+  vehicle: RouteVehicleConfig | undefined,
+  models?: Record<string, ModelAsset>,
+): { lengthM: number; reachM: number } | null {
+  if (!vehicle?.enabled || vehicle.type === 'dot') return null;
+  if (vehicle.type === 'custom') {
+    const asset = models?.[vehicle.modelId];
+    if (!asset) return null;
+    const { lengthM, reachM } = modelExtent(asset.bounds);
+    const s = vehicle.scale || 1;
+    return { lengthM: lengthM * s, reachM: reachM * s };
+  }
+  const s = (vehicle.scale || 1) * MODEL_BASE_SCALE[vehicle.type];
+  const { length, reach } = MODEL_SIZE_M[vehicle.type];
+  return { lengthM: length * s, reachM: reach * s };
+}
 
 /** How much larger the auto-camera follow framing is for a vehicle type. */
 export function autoCamScaleFor(type: VehicleType | undefined): number {

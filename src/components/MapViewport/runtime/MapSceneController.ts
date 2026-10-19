@@ -1,14 +1,17 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { BoundaryItem, RouteItem } from '@/store/types';
+import type { BoundaryItem, ModelItem, RouteItem } from '@/store/types';
 import type { MapSceneRuntime } from './MapSceneRuntime';
 import { waitForMapRender } from './MapSceneRuntime';
 import { BasemapController } from './BasemapController';
 import { BoundaryMaskRenderer } from './BoundaryMaskRenderer';
 import { BoundaryRenderer } from './BoundaryRenderer';
 import { RouteRenderer } from './RouteRenderer';
+import { ModelRenderer } from './ModelRenderer';
+import { ModelCatalog } from './ModelCatalog';
 import { isStyleReady } from './mapboxResources';
-import { previewableSelectionId, selectionPreviewTime } from '@/engine/selectionPreview';
+import { isSelectionPreview, previewableSelectionId, selectionPreviewTime } from '@/engine/selectionPreview';
+import { useModelRegistry } from '@/models/modelRegistry';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -72,6 +75,10 @@ export class MapSceneController implements MapSceneRuntime {
   private readonly basemap: BasemapController;
   private readonly routes = new Map<string, RouteRenderer>();
   private readonly boundaries = new Map<string, BoundaryRenderer>();
+  private readonly models = new Map<string, ModelRenderer>();
+  /** Imported 3D models in the Mapbox style (placed models and custom route markers). */
+  private readonly catalog: ModelCatalog;
+  private unsubscribeModels: (() => void) | undefined;
   /** Boundaries in item order (topmost first) that the shared mask is drawn from. */
   private maskBoundaries: BoundaryItem[] = [];
   private readonly mask: BoundaryMaskRenderer;
@@ -94,10 +101,14 @@ export class MapSceneController implements MapSceneRuntime {
   ) {
     this.basemap = new BasemapController(map, setStyleLoaded, this.rebuildAfterStyleLoad);
     this.mask = new BoundaryMaskRenderer(map);
+    this.catalog = new ModelCatalog(map, () => useProjectStore.getState().models);
   }
 
   mount(): void {
     this.unsubscribe = useProjectStore.subscribe(this.handleStoreChange);
+    // A relinked file arrives (or a released one goes) without a project change.
+    this.unsubscribeModels = useModelRegistry.subscribe(this.refreshModels);
+    this.catalog.attach();
     this.basemap.mount();
     this.sync();
   }
@@ -148,6 +159,11 @@ export class MapSceneController implements MapSceneRuntime {
     this.routes.forEach((renderer, id) => renderer.render(timeFor(id)));
     this.mask.render(this.maskBoundaries, timeFor);
     this.boundaries.forEach((renderer, id) => renderer.render(timeFor(id)));
+    // A selected model off the playhead is shown in full, like a callout, so it can be placed.
+    this.models.forEach((renderer, id) => {
+      const item = items[id];
+      renderer.render(time, { settled: !!item && item.kind === 'model' && isSelectionPreview(item, time, id === selectedId) });
+    });
     this.lastRenderedTime = time;
     this.lastRenderedSelection = selectedId;
     this.renderedRevision = this.sceneRevision;
@@ -161,6 +177,8 @@ export class MapSceneController implements MapSceneRuntime {
     if (this.disposed) return;
     this.disposed = true;
     this.unsubscribe?.();
+    this.unsubscribeModels?.();
+    this.catalog.detach();
     this.basemap.dispose();
     this.disposeRenderers();
   }
@@ -181,21 +199,25 @@ export class MapSceneController implements MapSceneRuntime {
     }
     const routes: RouteItem[] = [];
     const boundaries: BoundaryItem[] = [];
+    const models: ModelItem[] = [];
     for (const id of state.itemOrder) {
       const item = state.items[id];
       if (item?.kind === 'route') routes.push(item);
       if (item?.kind === 'boundary' && item.geojson) boundaries.push(item);
+      if (item?.kind === 'model') models.push(item);
     }
 
     this.maskBoundaries = boundaries;
 
-    syncRenderers(this.routes, routes, (renderer, route) => renderer.setRoute(route), (route) => new RouteRenderer(this.map, route));
+    syncRenderers(this.routes, routes, (renderer, route) => renderer.setRoute(route), (route) => new RouteRenderer(this.map, route, this.catalog));
     syncRenderers(
       this.boundaries,
       boundaries,
       (renderer, boundary) => renderer.setBoundary(boundary),
       (boundary) => new BoundaryRenderer(this.map, boundary, this.basemap.getFlagPlacement),
     );
+    syncRenderers(this.models, models, (renderer, model) => renderer.setItem(model), (model) => new ModelRenderer(this.map, model, this.catalog));
+    this.catalog.prune(state.items);
 
     this.sceneRevision += 1;
     this.sceneDirty = false;
@@ -204,6 +226,8 @@ export class MapSceneController implements MapSceneRuntime {
   private disposeRenderers(): void {
     this.routes.forEach((renderer) => renderer.dispose());
     this.boundaries.forEach((renderer) => renderer.dispose());
+    this.models.forEach((renderer) => renderer.dispose());
+    this.models.clear();
     this.mask.dispose();
     this.maskMounted = false;
     this.maskBoundaries = [];
@@ -214,6 +238,8 @@ export class MapSceneController implements MapSceneRuntime {
   private readonly rebuildAfterStyleLoad = () => {
     if (this.disposed) return;
     this.disposeRenderers();
+    // The new style has none of the imported models; they are added again as layers need them.
+    this.catalog.reset();
     this.lastItems = undefined;
     this.lastItemOrder = undefined;
     this.lastRenderedTime = Number.NaN;
@@ -224,11 +250,26 @@ export class MapSceneController implements MapSceneRuntime {
     this.renderLive(state);
   };
 
+  /** An imported model's file arrived or went, or its metadata changed: redraw what uses it. */
+  private readonly refreshModels = (): void => {
+    if (this.disposed || !isStyleReady(this.map)) {
+      this.sceneDirty = true;
+      return;
+    }
+    this.routes.forEach((renderer) => renderer.refreshModels());
+    this.models.forEach((renderer) => renderer.refresh());
+    const state = useProjectStore.getState();
+    this.catalog.prune(state.items);
+    this.sceneRevision += 1;
+    this.renderLive(state);
+  };
+
   private readonly handleStoreChange = (state: ProjectState, previous: ProjectState) => {
     if (this.disposed) return;
     const sceneChanged = state.items !== previous.items || state.itemOrder !== previous.itemOrder;
     if (basemapStateChanged(state, previous)) this.basemap.reconcile();
     if (sceneChanged) this.reconcileRenderers(state);
+    if (state.models !== previous.models) this.refreshModels();
     if (
       sceneChanged
       || state.playheadTime !== previous.playheadTime

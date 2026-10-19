@@ -9,6 +9,7 @@ import {
   createCameraKeyframe,
   createDefaultRouteStyle,
   createEndpointRouteItem,
+  createDefaultVehicle,
   createImportedRouteItem,
   createWalkRouteItem,
   defaultEndpointRouteName,
@@ -26,8 +27,30 @@ describe('itemFactories', () => {
     expect(flight.name).toBe('A → B');
     expect(flight.endTime).toBe(2 + DEFAULT_ITEM_DURATION);
     expect(flight.style.color).toBe('#f59e0b');
-    expect(flight.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' } });
+    expect(flight.calculation).toMatchObject({ mode: 'flight', vehicle: { enabled: true, type: 'dot' } });
     expect(defaultEndpointRouteName('car')).toBe('Start to End');
+  });
+
+  describe('createDefaultVehicle', () => {
+    it('starts every route with the dot unless the user has Pro', () => {
+      for (const mode of ['car', 'walk', 'flight'] as const) {
+        expect(createDefaultVehicle(mode).type).toBe('dot');
+        expect(createDefaultVehicle(mode, { pro: false }).type).toBe('dot');
+      }
+    });
+
+    it('gives a Pro user\'s flight the plane, and a Pro car or walk route the dot', () => {
+      expect(createDefaultVehicle('flight', { pro: true })).toEqual({ enabled: true, type: 'plane', modelId: '', scale: 1 });
+      expect(createDefaultVehicle('car', { pro: true }).type).toBe('dot');
+      expect(createDefaultVehicle('walk', { pro: true }).type).toBe('dot');
+    });
+
+    it('lets createEndpointRouteItem pass `pro` through', () => {
+      const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [1, 1]] };
+      const input = { mode: 'flight' as const, geojson: wrapGeometry(line), start: [0, 0] as [number, number], end: [1, 1] as [number, number], name: 'A', startTime: 0 };
+      expect(createEndpointRouteItem({ ...input, pro: true }).calculation?.vehicle?.type).toBe('plane');
+      expect(createEndpointRouteItem(input).calculation?.vehicle?.type).toBe('dot');
+    });
   });
 
   it('builds route styles without the retired trail fade keys', () => {

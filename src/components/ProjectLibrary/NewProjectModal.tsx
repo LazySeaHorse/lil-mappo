@@ -13,8 +13,9 @@ import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/store/useProjectStore';
 import { AspectRatio, ExportResolution } from '@/types/render';
-import { Plus, Smartphone, Monitor } from 'lucide-react';
+import { Smartphone, Monitor } from 'lucide-react';
 import { Mappo } from '@/components/Mappo/Mappo';
+import { PinDropHero } from '@/components/ui/pin-drop';
 import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
 import { useFeatureVoted } from '@/hooks/useFeatureVotes';
 import { Label } from '@/components/ui/label';
@@ -47,7 +48,6 @@ export function NewProjectModal() {
   const showNewProjectModal = useProjectStore((s) => s.showNewProjectModal);
   const setShowNewProjectModal = useProjectStore((s) => s.setShowNewProjectModal);
   const loadFullProject = useProjectStore((s) => s.loadFullProject);
-  
   const [projectName, setProjectName] = useState("Untitled Project");
   const [fps, setFps] = useState<30 | 60>(30);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
@@ -73,29 +73,22 @@ export function NewProjectModal() {
 
   return (
     <Dialog open={showNewProjectModal} onOpenChange={setShowNewProjectModal}>
-      <DialogContent className="sm:max-w-[760px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col h-[85vh]">
-        
-        {/* Header */}
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent border-b border-border/40 shrink-0">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-              <Plus className="text-primary h-6 w-6" /> New project
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-1">
-              Set the project name, video format, and frame rate.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent size="lg" className="flex flex-col h-[85vh]">
+        <PinDropHero mood="map" scene="newProject" size="compact" />
+        <DialogHeader className="px-6 pb-4 text-left border-b border-border/40 shrink-0">
+          <DialogTitle>New project</DialogTitle>
+          <DialogDescription>
+            Set the project name, video format, and frame rate.
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Two column body */}
         <div className="flex-1 overflow-hidden flex flex-col sm:flex-row">
-          
           {/* Left Column: Settings */}
           <div className="w-full sm:w-[320px] bg-secondary/10 p-6 flex flex-col overflow-y-auto border-r border-border/40">
             <h3 className="text-xs font-medium text-foreground/80 mb-3">
               Project settings
             </h3>
-            
             <div className="space-y-4 flex-1">
               <div className="space-y-1.5">
                 <Label htmlFor="projectName" className="text-xs font-medium">Name</Label>
@@ -155,9 +148,9 @@ export function NewProjectModal() {
               </Field>
             </div>
 
-            <Button 
+            <Button size="xl" 
               onClick={() => handleCreate()} 
-              className="mt-6 w-full h-11 rounded-lg text-sm font-medium shadow-lg shadow-primary/20 transition-all"
+              className="mt-6 w-full"
             >
               Create project
             </Button>
@@ -168,7 +161,6 @@ export function NewProjectModal() {
             <h3 className="text-xs font-medium text-foreground/80 mb-3">
               Examples
             </h3>
-            
             <ExamplesPlaceholder />
           </div>
         </div>

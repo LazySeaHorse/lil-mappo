@@ -3,7 +3,7 @@ import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import {
   type PlanSlug,
-  type SubscriptionPlan,
+  type PendingPlan,
   initiateDodoCheckout,
   storePendingPlan,
   getPendingPlan,
@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (plan === "topup") {
         storePendingTopup(quantity ?? 10);
       } else {
-        storePendingPlan(plan as SubscriptionPlan);
+        storePendingPlan(plan as PendingPlan);
       }
       openSignupModal();
       return;

@@ -1,5 +1,5 @@
 import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
-import { calculateBearing, calculatePitch, extractLineCoords, splitAtAntimeridian } from '@/engine/geoUtils';
+import { extractLineCoords, facingAlong, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import { getRoutePath } from '@/engine/routePath';
 import type { RouteItem, RouteVehicleConfig } from '@/store/types';
@@ -8,15 +8,31 @@ import {
   EMPTY_FC,
   geoJSONSource,
   getGeoJSONSource,
+  getModelSource,
   LayerPropertyWriter,
   noPaintTransitions,
   removeLayerIfPresent,
   removeSourceIfPresent,
 } from './mapboxResources';
-import { MODEL_BASE_SCALE } from '@/config/vehicles';
+import { MODEL_BASE_SCALE, markerSize } from '@/config/vehicles';
 import carModelUrl from '@/assets/models/car.glb?url';
 import airplaneModelUrl from '@/assets/models/airplane.glb?url';
 import { routeTiming, type RouteTiming } from './routeTiming';
+import { modelExtent } from '@/models/modelGeometry';
+import type { ModelResolver } from './ModelCatalog';
+
+/** The route marker as drawn. */
+type DrawnMarker =
+  | { kind: 'dot'; radius: number }
+  | {
+    kind: 'model';
+    /** Where the model's glTF is: a bundled asset or an imported model's in-memory object URL. */
+    url: string;
+    scale: number;
+    /** Metres the model is raised so its lowest point sits on the route. */
+    lift: number;
+    size: { lengthM: number; reachM: number } | null;
+  };
 
 const DOT_BASE_RADIUS = 9;
 // Imported so Vite gives each model a content-hashed URL that browsers can cache until the file changes.
@@ -51,9 +67,10 @@ interface PaintCache {
   lastAnimationType: string;
   vehicleVisible: boolean;
   vehicleOpacity: number;
-  /** Last uploaded vehicle position and model rotation, as `a,b` keys. */
+  /** Last uploaded vehicle position and heading, as a `lng,lat,bearing` key. */
   vehiclePosition: string;
-  vehicleRotation: string;
+  /** Last model-translation height written to the vehicle layer. */
+  vehicleLift: number;
   dashPattern: number[] | null;
 }
 
@@ -75,7 +92,7 @@ function createPaintCache(): PaintCache {
     glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false, glowTrim: '',
     cometColor: '', cometWidth: -1,
     lastAnimationType: '',
-    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleRotation: '',
+    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleLift: 0,
     dashPattern: null,
   };
 }
@@ -107,6 +124,26 @@ function gradient(color: string): ExpressionSpecification {
   return ['interpolate', ['linear'], ['line-progress'], 0, 'transparent', 1, color];
 }
 
+/** The one model in a route's model source. */
+const VEHICLE_MODEL = 'vehicle';
+
+/**
+ * A model marker is drawn from a Mapbox model source, never a GeoJSON one, and turned by the
+ * model's `orientation`, never by `model-rotation`.
+ *
+ * A model layer on a GeoJSON source bakes model-rotation into its tiles when they are built (each
+ * change reloads the source in the worker). On the globe (globe projection below zoom 6)
+ * mapbox-gl's drawVectorLayerModels decomposes that baked rotation with
+ * `getAxisAngle(rotation, quat)`, keeping the axis and dropping the angle, so the model is always
+ * drawn facing north. Zooming in past 6 switches the map to mercator, where the heading shows,
+ * until the camera goes back out. A model source is placed at draw time from the model's position
+ * and orientation (drawModels -> calculateModelMatrix) in either projection, and `setModels` moves
+ * and turns it in one write.
+ */
+function vehicleModel(url: string, position: [number, number], bearing: number) {
+  return { [VEHICLE_MODEL]: { uri: url, position, orientation: [0, 0, bearing] as [number, number, number] } };
+}
+
 export class RouteRenderer {
   private route: RouteItem;
   private coordinates: number[][];
@@ -114,8 +151,16 @@ export class RouteRenderer {
   private readonly layers: LayerPropertyWriter<PaintCache>;
   private lastCometState = '';
   private disposed = false;
+  private marker: DrawnMarker | null = null;
+  /** The model file the vehicle's model source was made with. */
+  private vehicleModelUrl = '';
 
-  constructor(private readonly map: MapboxMap, route: RouteItem) {
+  constructor(
+    private readonly map: MapboxMap,
+    route: RouteItem,
+    /** Finds imported models for a custom marker; without one, a custom marker is a dot. */
+    private readonly resolver?: ModelResolver,
+  ) {
     this.layers = new LayerPropertyWriter(map, createPaintCache);
     this.route = route;
     this.coordinates = extractLineCoords(route.geojson);
@@ -282,66 +327,84 @@ export class RouteRenderer {
     }
   }
 
+  /** What the marker is drawn as: a custom marker whose model file is missing falls back to the dot. */
+  private resolveMarker(vehicle: RouteVehicleConfig): DrawnMarker {
+    if (vehicle.type === 'custom') {
+      const resolved = this.resolver?.resolve(vehicle.modelId) ?? null;
+      if (!resolved) return { kind: 'dot', radius: DOT_BASE_RADIUS };
+      const s = vehicle.scale || 1;
+      const { lengthM, reachM, lift } = modelExtent(resolved.asset.bounds);
+      // Lifted so the model's lowest point rides on the route, whatever its origin.
+      return { kind: 'model', url: resolved.url, scale: s, lift: lift * s, size: { lengthM: lengthM * s, reachM: reachM * s } };
+    }
+    if (vehicle.type === 'dot') return { kind: 'dot', radius: DOT_BASE_RADIUS * vehicle.scale };
+    const type = vehicle.type;
+    return { kind: 'model', url: MODELS[type], scale: vehicle.scale * MODEL_BASE_SCALE[type], lift: 0, size: markerSize(vehicle) };
+  }
+
+  /** The imported models changed (relinked, released): look the custom marker's model up again. */
+  refreshModels(): void {
+    if (this.route.calculation?.vehicle?.type === 'custom') this.ensureVehicleResources();
+  }
+
   private ensureVehicleResources(): void {
     // The source and layer may be recreated below, starting from their initial position and rotation.
     this.layers.cache.vehiclePosition = '';
-    this.layers.cache.vehicleRotation = '';
     const vehicle = this.route.calculation?.vehicle;
     if (!vehicle?.enabled) {
+      this.marker = null;
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
       removeSourceIfPresent(this.map, this.ids.vehicleSource);
       return;
     }
 
-    const expectedType = vehicle.type === 'dot' ? 'circle' : 'model';
-    if (this.map.getLayer(this.ids.vehicleLayer)?.type !== expectedType) {
+    const marker = this.resolveMarker(vehicle);
+    this.marker = marker;
+    const expectedLayer = marker.kind === 'dot' ? 'circle' : 'model';
+    const expectedSource = marker.kind === 'dot' ? 'geojson' : 'model';
+    // A different model file gets a new source, so it never shows the old model in the meantime.
+    if (this.map.getLayer(this.ids.vehicleLayer)?.type !== expectedLayer
+      || this.map.getSource(this.ids.vehicleSource)?.type !== expectedSource
+      || (marker.kind === 'model' && marker.url !== this.vehicleModelUrl)) {
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
       removeSourceIfPresent(this.map, this.ids.vehicleSource);
     }
 
-    if (vehicle.type !== 'dot' && !this.map.hasModel(vehicle.type)) {
-      this.layers.mutate('addModel', vehicle.type, () => this.map.addModel(vehicle.type, MODELS[vehicle.type]));
-    }
     if (!this.map.getSource(this.ids.vehicleSource)) {
-      const initialCoord = this.coordinates[0] ?? [0, 0];
-      this.map.addSource(this.ids.vehicleSource, {
-        type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [initialCoord[0], initialCoord[1]] } },
-      });
+      const [lng, lat] = this.coordinates[0] ?? [0, 0];
+      this.vehicleModelUrl = marker.kind === 'model' ? marker.url : '';
+      this.map.addSource(this.ids.vehicleSource, marker.kind === 'dot'
+        ? { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lng, lat] } } }
+        : { type: 'model', models: vehicleModel(marker.url, [lng, lat], 0) });
     }
-    if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(vehicle);
+    if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(marker);
 
-    if (vehicle.type !== 'dot' && this.map.getLayoutProperty(this.ids.vehicleLayer, 'model-id') !== vehicle.type) {
-      const modelId = vehicle.type;
-      this.layers.mutate('setLayoutProperty:model-id', this.ids.vehicleLayer, () => {
-        this.map.setLayoutProperty(this.ids.vehicleLayer, 'model-id', modelId);
-      });
-    }
-
-    if (vehicle.type === 'dot') {
+    if (marker.kind === 'dot') {
       this.layers.mutate('setPaintProperty:vehicle-dot', this.ids.vehicleLayer, () => {
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', DOT_BASE_RADIUS * vehicle.scale);
+        this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', marker.radius);
         this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-color', this.route.style.color);
       });
-    } else {
-      this.layers.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
-        const s = vehicle.scale * MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'];
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [s, s, s]);
-      });
+      return;
     }
+    this.layers.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
+      const s = marker.scale;
+      this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [s, s, s]);
+    });
+    this.layers.setPaint(this.ids.vehicleLayer, 'model-translation', [0, 0, marker.lift], 'vehicleLift', marker.lift);
   }
 
-  private addVehicleLayer(vehicle: RouteVehicleConfig): void {
+  private addVehicleLayer(marker: DrawnMarker): void {
     // A new layer starts visible at full opacity, whatever the one it replaces was set to.
     this.layers.cache.vehicleVisible = true;
     this.layers.cache.vehicleOpacity = -1;
-    if (vehicle.type === 'dot') {
+    this.layers.cache.vehicleLift = marker.kind === 'model' ? marker.lift : 0;
+    if (marker.kind === 'dot') {
       this.map.addLayer({
         id: this.ids.vehicleLayer,
         type: 'circle',
         source: this.ids.vehicleSource,
         paint: {
-          'circle-radius': DOT_BASE_RADIUS * vehicle.scale,
+          'circle-radius': marker.radius,
           'circle-color': this.route.style.color,
           'circle-stroke-color': '#FFFFFF',
           'circle-stroke-width': 2.5,
@@ -351,18 +414,16 @@ export class RouteRenderer {
       });
       return;
     }
-    const baseScale = MODEL_BASE_SCALE[vehicle.type as 'car' | 'plane'];
-    const s = vehicle.scale * baseScale;
+    const s = marker.scale;
     this.map.addLayer({
       id: this.ids.vehicleLayer,
       type: 'model',
       source: this.ids.vehicleSource,
-      layout: { 'model-id': vehicle.type },
+      // No model-rotation: the heading is the model's orientation (see vehicleModel).
       paint: {
         'model-scale': [s, s, s],
-        'model-rotation': [0, 0, 0],
-        'model-translation': [0, 0, 0],
-        ...noPaintTransitions('model-opacity', 'model-rotation', 'model-scale', 'model-translation'),
+        'model-translation': [0, 0, marker.lift],
+        ...noPaintTransitions('model-opacity', 'model-scale', 'model-translation'),
       },
     });
   }
@@ -381,39 +442,38 @@ export class RouteRenderer {
   }
 
   private renderVehicle(playheadTime: number, { progress, exitProgress, opacity }: RouteTiming): void {
-    const vehicle = this.route.calculation?.vehicle;
-    if (!vehicle?.enabled || this.coordinates.length < 2) return;
+    const marker = this.marker;
+    if (!marker || this.coordinates.length < 2) return;
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
       && !(this.route.style.animationType === 'comet' && progress === 0);
     this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
-    const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
-    if (!visible || !source) return;
+    if (!visible) return;
 
     const path = getRoutePath(this.coordinates);
     if (path.coords.length < 2) return;
     const [lng, lat] = path.pointAt(progress);
-    const position = `${lng},${lat}`;
+    const size = marker.kind === 'model' ? marker.size : null;
+    // To a hundredth of a degree, so gliding along a straight doesn't rewrite it every frame.
+    const bearing = size ? Math.round(facingAlong(path, progress, size.lengthM) * 100) / 100 : 0;
+    const position = `${lng},${lat},${bearing}`;
     if (this.layers.cache.vehiclePosition !== position) {
-      source.setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'Point', coordinates: [lng, lat] },
-      });
-      this.layers.cache.vehiclePosition = position;
+      let sent = false;
+      if (marker.kind === 'model') {
+        // Position and heading in one write, applied when the model is next drawn (see vehicleModel).
+        const source = getModelSource(this.map, this.ids.vehicleSource);
+        sent = Boolean(source) && this.layers.mutate('setModels', this.ids.vehicleSource, () => {
+          source!.setModels(vehicleModel(marker.url, [lng, lat], bearing));
+          this.map.triggerRepaint();
+        });
+      } else {
+        const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
+        sent = Boolean(source) && this.layers.mutate('setData', this.ids.vehicleSource, () => {
+          source!.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lng, lat] } });
+        });
+      }
+      if (sent) this.layers.cache.vehiclePosition = position;
     }
-    const opacityProperty = vehicle.type === 'dot' ? 'circle-opacity' : 'model-opacity';
+    const opacityProperty = marker.kind === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);
-
-    if (vehicle.type !== 'dot') {
-      // Face along the segment the vehicle is on; a zero-length one falls back to the first.
-      const [i] = path.locate(progress);
-      let from = path.coords[i];
-      let to = path.coords[i + 1];
-      if (from[0] === to[0] && from[1] === to[1]) [from, to] = path.coords;
-      const bearing = calculateBearing(from, to);
-      const pitch = calculatePitch(from, to);
-      // model-translation stays at the [0, 0, 0] the layer is created with.
-      this.layers.setPaint(this.ids.vehicleLayer, 'model-rotation', [0, -pitch, bearing], 'vehicleRotation', `${pitch},${bearing}`);
-    }
   }
 }

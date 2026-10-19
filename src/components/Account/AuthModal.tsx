@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
-import { Mappo } from "@/components/Mappo/Mappo";
+import { PinDropHero } from "@/components/ui/pin-drop";
 import { authMood, type AuthFormPhase, type MappoMood } from "@/components/Mappo/moods";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -94,21 +94,15 @@ export function AuthModal() {
 
   return (
     <Dialog open={showAuthModal} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-          <DialogHeader>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <Mappo
-                key={mood}
-                mood={mood}
-                title="li'l Mappo"
-                className="h-16 w-auto animate-in zoom-in-95 duration-200"
-              />
-            </div>
-            <DialogTitle className="text-2xl font-medium tracking-tight text-center">
+      <DialogContent>
+        {/* Mappo drops in once, then his face follows the form as it fills in. */}
+        <PinDropHero mood={mood} scene="signIn" size="compact" />
+        <div className="px-6 pb-4">
+          <DialogHeader className="text-left">
+            <DialogTitle>
               {confirmEmail ? "Check your email" : isSignup ? "Create account" : "Sign in"}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm text-center mt-1">
+            <DialogDescription>
               {confirmEmail ? (
                 <>
                   We sent a link to{" "}
@@ -264,7 +258,7 @@ function AuthModalBody({
           Check your spam folder if the email does not arrive. Close this tab
           after you open the link.
         </p>
-        <Button variant="outline" size="sm" className="text-xs" onClick={handleReset}>
+        <Button variant="outline" size="sm" onClick={handleReset}>
           Use a different email
         </Button>
       </div>
@@ -278,18 +272,18 @@ function AuthModalBody({
       {/* OAuth buttons — greyed out until providers are configured */}
       <div className="grid grid-cols-2 gap-3">
         <Button
+          size="lg"
           variant="outline"
           disabled
-          className="h-10 text-sm font-medium gap-2 rounded-lg border-border/50 opacity-40 cursor-not-allowed"
           title="Not available yet"
         >
           <GoogleIcon />
           Google
         </Button>
         <Button
+          size="lg"
           variant="outline"
           disabled
-          className="h-10 text-sm font-medium gap-2 rounded-lg border-border/50 opacity-40 cursor-not-allowed"
           title="Not available yet"
         >
           <AppleIcon />
@@ -339,9 +333,9 @@ function AuthModalBody({
         </div>
 
         <Button
+          size="lg"
           type="submit"
           disabled={isSubmitting || !canSubmit}
-          className="h-10 rounded-lg text-sm font-medium transition-all"
         >
           {isSubmitting ? (
             <>
@@ -358,26 +352,26 @@ function AuthModalBody({
 
       {isSignup ? (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
-          <p className="text-[11px] text-muted-foreground/70">
+          <p className="text-2xs text-muted-foreground/70">
             Have an account?
           </p>
           <button
             type="button"
             onClick={onSwitchToSignin}
-            className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+            className="text-2xs text-primary hover:text-primary/80 font-medium transition-colors"
           >
             Sign in
           </button>
         </div>
       ) : (
         <div className="pt-2 border-t border-border/30 flex items-center justify-center gap-1.5">
-          <p className="text-[11px] text-muted-foreground/70">
+          <p className="text-2xs text-muted-foreground/70">
             Need an account?
           </p>
           <button
             type="button"
             onClick={onSwitchToSignup}
-            className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+            className="text-2xs text-primary hover:text-primary/80 font-medium transition-colors"
           >
             Create account
           </button>
@@ -385,7 +379,7 @@ function AuthModalBody({
       )}
 
       <div className="mt-2 text-center">
-        <p className="text-[10px] text-muted-foreground/50">
+        <p className="text-2xs text-muted-foreground/50">
           Need help? Email <a href="mailto:support@mail.lilmappo.tech" className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2">support@mail.lilmappo.tech</a>
         </p>
       </div>

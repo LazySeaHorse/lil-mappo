@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuthStore, type AuthUser } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useSubscription } from '@/hooks/useSubscription';
+import { analyticsPlan } from '@/lib/proPass';
 import { initialAuthCallbackType } from '@/lib/supabase';
 import * as client from './client';
 import { track } from './index';
@@ -53,7 +54,7 @@ function Bridge() {
   const location = useLocation();
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const subscription = useSubscription();
-  const plan = subscription.isSuccess ? (subscription.data?.tier ?? 'free') : undefined;
+  const plan = subscription.isSuccess ? analyticsPlan(subscription.data) : undefined;
 
   useEffect(() => {
     const initial = useAuthStore.getState().user;

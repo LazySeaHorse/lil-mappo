@@ -7,6 +7,7 @@ import { applyWalkPatch } from '@/engine/routeCurves';
 import { autoCamForRoute, defaultAutoCamFor } from '@/config/vehicles';
 import { canEnableFollowCamera } from '../followCamera';
 import { isRouteItem } from '../typeGuards';
+import { pruneModels } from '../modelAssets';
 
 export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set, get) => ({
   addItem: (item) =>
@@ -30,8 +31,11 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
           };
         }
       }
+      const items = updatedCam && updatedCam !== cam ? { ...rest, [CAMERA_TRACK_ID]: updatedCam } : rest;
       return {
-        items: updatedCam && updatedCam !== cam ? { ...rest, [CAMERA_TRACK_ID]: updatedCam } : rest,
+        items,
+        // An imported model nothing uses any more goes with its last item (undo brings both back).
+        models: pruneModels(items, s.models),
         itemOrder: s.itemOrder.filter((i) => i !== id),
         selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
         selectedAutoCamRouteId: s.selectedAutoCamRouteId === id ? null : s.selectedAutoCamRouteId,
@@ -44,9 +48,8 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
     set((s) => {
       const existing = s.items[id];
       if (!existing) return s;
-      return {
-        items: { ...s.items, [id]: { ...existing, ...updates } as TimelineItem },
-      };
+      const items = { ...s.items, [id]: { ...existing, ...updates } as TimelineItem };
+      return { items, models: pruneModels(items, s.models) };
     }),
 
   updateWalkRoute: (id, update) =>
@@ -93,6 +96,7 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
 
       if (newItem.kind === 'route') newItem.name = `${newItem.name} Copy`;
       if (newItem.kind === 'boundary') newItem.placeName = `${newItem.placeName} Copy`;
+      if (newItem.kind === 'model') newItem.name = `${newItem.name} Copy`;
       if (newItem.kind === 'callout') newItem.content = { ...newItem.content, title: `${newItem.content.title} Copy` };
 
       return {
@@ -102,4 +106,13 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
         isInspectorOpen: true,
       };
     }),
+
+  addModel: (asset, item) =>
+    set((s) => ({
+      models: s.models[asset.id] ? s.models : { ...s.models, [asset.id]: asset },
+      ...(item ? { items: { ...s.items, [item.id]: item }, itemOrder: [...s.itemOrder, item.id] } : {}),
+    })),
+
+  relinkModel: (assetId, file) =>
+    set((s) => (s.models[assetId] ? { models: { ...s.models, [assetId]: { ...file, id: assetId } } } : s)),
 });

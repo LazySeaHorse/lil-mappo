@@ -3,6 +3,7 @@ import type {
   GeoJSONSourceSpecification,
   LayoutSpecification,
   Map as MapboxMap,
+  ModelSource,
   PaintSpecification,
 } from 'mapbox-gl';
 import { clamp } from '@/engine/geoMath';
@@ -98,6 +99,12 @@ export function getGeoJSONSource(map: MapboxMap, sourceId: string): GeoJSONSourc
   const source = map.getSource(sourceId);
   if (!source || source.type !== 'geojson') return undefined;
   return source as GeoJSONSource;
+}
+
+export function getModelSource(map: MapboxMap, sourceId: string): ModelSource | undefined {
+  const source = map.getSource(sourceId);
+  if (!source || source.type !== 'model') return undefined;
+  return source as ModelSource;
 }
 
 export function removeLayerIfPresent(

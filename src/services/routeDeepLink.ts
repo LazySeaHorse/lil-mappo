@@ -10,6 +10,8 @@ import type { AutoCamPreset, Project } from '@/store/types';
 export interface RouteDeepLinkRequest {
   slug: string;
   autocam: AutoCamPreset;
+  /** The visitor has Pro: the flight starts with the plane marker. Otherwise (guest, free, plan not loaded) the dot. */
+  pro?: boolean;
 }
 
 export type RouteDeepLinkResult =
@@ -19,7 +21,8 @@ export type RouteDeepLinkResult =
 /**
  * Builds the project a deep link opens: one 3D flight route between two
  * airports with AutoCam enabled, made by the same factories as the Plan Route
- * dropdown so it matches a route created in the UI. Pure; touches no store.
+ * dropdown so it matches a route created in the UI (plane marker for Pro, dot otherwise; AutoCam is
+ * sized for whichever marker the route got). Pure; touches no store.
  */
 export function buildRouteDeepLinkProject(request: RouteDeepLinkRequest): RouteDeepLinkResult {
   const parsed = parseRouteSlug(request.slug);
@@ -49,10 +52,12 @@ export function buildRouteDeepLinkProject(request: RouteDeepLinkRequest): RouteD
     endName: to.name,
     name: defaultEndpointRouteName('flight', from.name, to.name),
     startTime: 0,
+    pro: request.pro,
   });
+  const markerType = route.calculation?.vehicle?.type;
   route.autoCam = {
-    ...defaultAutoCamFor('plane'),
-    ...autoCamPresetPatch(request.autocam, 'plane', routeFitOf(route)),
+    ...defaultAutoCamFor(markerType),
+    ...autoCamPresetPatch(request.autocam, markerType, routeFitOf(route)),
     enabled: true,
   };
 

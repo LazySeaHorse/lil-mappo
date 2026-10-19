@@ -16,3 +16,15 @@ export function buildPlanFromProduct(): Plans {
   }
   return map;
 }
+
+// ─── Pro pass ────────────────────────────────────────────────────────────────
+// A one-time product (not a subscription) that unlocks Wanderer for a few days.
+// Granted only by the payment.succeeded webhook (see BillingService.grantProPass).
+
+export const PASS_PLAN = "pass_3day";
+export const PASS_DAYS = 3;
+
+/** The Dodo product id of the pass, or undefined when it is not configured. */
+export function passProductId(): string | undefined {
+  return process.env.DODO_PRODUCT_PASS_3DAY || undefined;
+}

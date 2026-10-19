@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { PinDropHero } from '@/components/ui/pin-drop';
 import { useAuthStore } from '@/store/useAuthStore';
 import { track } from '@/lib/analytics';
 import { useFeatureVotes, useSetFeatureVote } from '@/hooks/useFeatureVotes';
@@ -98,15 +99,14 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 gap-0">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent border-b border-border/40">
-          <DialogHeader className="pr-6">
-            <DialogTitle className="text-xl font-medium tracking-tight">{feature.title}</DialogTitle>
-            <DialogDescription className="text-sm mt-1">Not built yet</DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent size="md" className="max-h-[90vh] overflow-y-auto">
+        <PinDropHero mood="balloon" scene="soon" size="compact" />
+        <DialogHeader className="px-6 text-left">
+          <DialogTitle>{feature.title}</DialogTitle>
+          <DialogDescription>Not built yet</DialogDescription>
+        </DialogHeader>
 
-        <div className="p-6 space-y-4" data-ph-unmask>
+        <div className="px-6 pt-4 pb-6 space-y-4" data-ph-unmask>
           <p className="text-sm text-foreground/90 leading-relaxed">{preview.intro}</p>
 
           {preview.sections.map((section) => (
@@ -157,13 +157,14 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
                   aria-disabled (not `disabled`) so keyboard focus stays on the button while a vote is saved;
                   handleToggle ignores activation in that state. */}
               <Button
+                size="lg"
                 type="button"
-                variant={summary?.has_voted ? 'outline' : 'default'}
+                variant={summary?.has_voted ? 'wish' : 'default'}
                 aria-label="I'd like this"
                 aria-pressed={summary?.has_voted ?? false}
                 aria-disabled={!summary || setVote.isPending}
                 onClick={handleToggle}
-                className="h-10 rounded-lg gap-2 w-full sm:w-auto aria-pressed:border-wish/45 aria-pressed:bg-wish/10 aria-pressed:hover:bg-wish/15 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
+                className="w-full sm:w-auto"
               >
                 <Heart
                   size={16}
@@ -176,7 +177,7 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
           ) : (
             <>
               <p className="flex-1 text-sm text-muted-foreground">Votes help us decide what to build next.</p>
-              <Button type="button" onClick={handleSignIn} className="h-10 rounded-lg w-full sm:w-auto">
+              <Button size="lg" type="button" onClick={handleSignIn} className="w-full sm:w-auto">
                 Sign in to vote
               </Button>
             </>

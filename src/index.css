@@ -56,7 +56,21 @@
     --wish: 336 78% 44%;
     --wish-foreground: 0 0% 100%;
 
+    /* Status tones for text, icons and soft tints. Text contrast >= 4.5:1 on --background. */
+    --success: 163 94% 24%;
+    --warning: 26 90% 37%;
+    /* Credits: the coin color. Same amber family as warning, but its own meaning. */
+    --credit: 26 90% 37%;
+
     --radius: 0.5rem;
+
+    /* Drawn maps (pin-drop scenes) */
+    --map-water: #bfe4f8;
+    --map-land: #f3f5f8;
+    --map-street: #e4e8ee;
+    --map-park: #d4ecd6;
+    --map-road: #ffffff;
+    --map-road-casing: #d5dbe3;
 
     /* MapStudio custom tokens */
     --toolbar-bg: 0 0% 100%;
@@ -116,6 +130,17 @@
 
     --wish: 336 90% 68%;
     --wish-foreground: 240 10% 5%;
+
+    --success: 158 64% 52%;
+    --warning: 43 96% 56%;
+    --credit: 43 96% 56%;
+
+    --map-water: #10233a;
+    --map-land: #1a1d24;
+    --map-street: #22262e;
+    --map-park: #1b2b25;
+    --map-road: #303744;
+    --map-road-casing: #101319;
 
     --toolbar-bg: 240 10% 5%;
     --toolbar-border: 240 4% 16%;
@@ -342,4 +367,37 @@
 
 @media (prefers-reduced-motion: reduce) {
   .route-preview-draw, .route-preview-navigation, .route-preview-comet { animation: none; }
+}
+
+/* Mappo's moving parts (see Mappo.tsx). Only move when the Mappo is `animated`. */
+.mappo-animated [data-part="arm"] { transform-box: view-box; transform-origin: 398px 664px; animation: mappo-wave 1.8s ease-in-out infinite; }
+.mappo-animated [data-part="reel"] { transform-box: fill-box; transform-origin: center; animation: mappo-spin 2.4s linear infinite; }
+.mappo-animated [data-part="balloon"] { animation: mappo-bob 2.6s ease-in-out infinite; }
+.mappo-animated [data-part="confetti"] rect { animation: mappo-twinkle 1.6s ease-in-out infinite; }
+.mappo-animated [data-part="confetti"] rect:nth-child(2n) { animation-delay: -0.8s; }
+.mappo-animated [data-part="confetti"] rect:nth-child(3n) { animation-delay: -0.4s; }
+@keyframes mappo-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 60% { transform: rotate(6deg); } }
+@keyframes mappo-spin { to { transform: rotate(360deg); } }
+@keyframes mappo-bob { 50% { transform: translateY(-14px); } }
+@keyframes mappo-twinkle { 50% { opacity: 0.35; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .mappo-animated [data-part], .mappo-animated [data-part] rect { animation: none; }
+}
+
+/* PinDropHero (src/components/ui/pin-drop.tsx): Mappo drops onto the map and squashes on landing. */
+.pin-drop-fall { animation: pin-drop-fall 0.75s 0.15s cubic-bezier(0.3, 0, 0.4, 1) both; }
+.pin-drop-shadow { animation: pin-drop-shadow 0.75s 0.15s ease-out both; }
+@keyframes pin-drop-fall {
+  0% { transform: translateY(-160px); }
+  60% { transform: translateY(0) scale(1, 1); }
+  72% { transform: translateY(0) scale(1.06, 0.86); }
+  86% { transform: translateY(-10px) scale(1, 1.03); }
+  100% { transform: none; }
+}
+@keyframes pin-drop-shadow { 0% { opacity: 0; transform: scale(0.2); } 60% { opacity: 1; transform: scale(1); } }
+/* A ring that points at the thing to click in a scene. */
+.pin-drop-pulse { transform-box: fill-box; transform-origin: center; animation: pin-drop-pulse 1.6s ease-out infinite; }
+@keyframes pin-drop-pulse { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(1.5); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .pin-drop-fall, .pin-drop-shadow, .pin-drop-pulse { animation: none; }
 }

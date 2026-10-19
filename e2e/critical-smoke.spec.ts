@@ -240,8 +240,8 @@ test("2a. quick walkthrough makes a first trip video through real actions", asyn
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.locator('[data-walkthrough="timeline-play"]')).not.toHaveClass(/text-primary/);
 
-  await expect(page.getByText("More things you can add")).toBeVisible();
-  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Your trip video is ready")).toBeVisible();
+  await page.getByRole("button", { name: "Go to Export" }).click();
 
   await expect(page.getByText("Export your video", { exact: true })).toBeVisible();
   await page.locator('[data-walkthrough="render"]').click();
@@ -263,7 +263,7 @@ test("3. a route can be created and appears in the inspector and timeline", asyn
   await expect(page.getByRole("heading", { name: "Route", exact: true })).toBeVisible();
   const routeName = page.locator('input[placeholder="Route name"]');
   await expect(routeName).toHaveValue(/.+ (to|→) .+/);
-  await expect(page.getByText(await routeName.inputValue(), { exact: true })).toBeVisible();
+  await expect(page.getByTestId("timeline-viewport-content").getByText(await routeName.inputValue(), { exact: true })).toBeVisible();
   await expectInspectorFitsWidth(page);
 });
 
@@ -304,7 +304,7 @@ test("5. a boundary can be added and edited", async ({ page }) => {
   await expect(nameInput).toHaveValue("Testland");
   await expectInspectorFitsWidth(page);
   await nameInput.fill("Testland Updated");
-  await expect(page.getByText("Testland Updated", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("timeline-viewport-content").getByText("Testland Updated", { exact: true })).toBeVisible();
 });
 
 test("6. a project can be saved, reloaded, and reopened", async ({ page }) => {
@@ -337,10 +337,15 @@ test("7. export reaches the correct free-plan and upgrade state", async ({ page 
   await page.getByTitle("Export").click();
   const exportDialog = page.getByRole("dialog", { name: "Export" });
   await expect(exportDialog).toBeVisible();
-  await expect(exportDialog.getByText(/Free plan limit:.*720p, 30 FPS, and 30 seconds/)).toBeVisible();
+  await expect(exportDialog.getByRole("button", { name: "Get Wanderer" })).toHaveCount(0);
   await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" })).toBeEnabled();
 
-  await exportDialog.getByRole("button", { name: /Use a paid plan/ }).click();
+  // Picking a Pro setting turns Export into Get Wanderer, which opens the upgrade.
+  await exportDialog.getByRole("combobox").filter({ hasText: "30 FPS" }).click();
+  await page.getByRole("option", { name: /60 FPS/ }).click();
+  const getWanderer = exportDialog.getByRole("button", { name: "Get Wanderer" });
+  await expect(getWanderer).toHaveAccessibleDescription("60 FPS comes with the Wanderer plan.");
+  await getWanderer.click();
   const upgradeDialog = page.getByRole("dialog", { name: "Upgrade to Wanderer" });
   await expect(upgradeDialog).toBeVisible();
   await expect(upgradeDialog.getByRole("button", { name: "Subscribe to Wanderer" })).toBeVisible();

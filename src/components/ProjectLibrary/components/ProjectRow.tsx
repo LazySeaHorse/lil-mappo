@@ -56,7 +56,6 @@ export function ProjectRow({
           onClick={onLoad}
           disabled={disabled}
           size="sm"
-          className="h-8 px-3 text-xs font-medium transition-all"
         >
           Load
         </Button>

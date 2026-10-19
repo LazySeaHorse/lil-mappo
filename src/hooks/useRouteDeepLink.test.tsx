@@ -6,6 +6,8 @@ import { createWalkRouteItem } from '@/store/itemFactories';
 import { createTransientState, useProjectStore } from '@/store/useProjectStore';
 import { clearHistory } from '@/store/history';
 import type { RouteItem } from '@/store/types';
+import { queryClient } from '@/lib/queryClient';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useRouteDeepLink } from './useRouteDeepLink';
 
 const library = vi.hoisted(() => ({ saveProjectToLibrary: vi.fn() }));
@@ -26,6 +28,8 @@ function resetStore(overrides = {}) {
 describe('useRouteDeepLink', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.setState({ user: null });
+    queryClient.clear();
     library.saveProjectToLibrary.mockResolvedValue({});
     resetStore();
   });
@@ -65,6 +69,24 @@ describe('useRouteDeepLink', () => {
     expect(onSettled).toHaveBeenCalledOnce();
     expect(toast.success).toHaveBeenCalledOnce();
     expect(library.saveProjectToLibrary).not.toHaveBeenCalled();
+  });
+
+  it('opens a free or guest visitor on the dot marker, and a Pro visitor on the plane', async () => {
+    const open = async () => {
+      resetStore();
+      const { result } = renderHook(() => useRouteDeepLink(request('jfk-to-lhr'), true, vi.fn()));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+      return routes()[0].calculation?.vehicle?.type;
+    };
+
+    expect(await open()).toBe('dot'); // guest
+
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    queryClient.setQueryData(['subscription', 'u1'], null);
+    expect(await open()).toBe('dot'); // free
+
+    queryClient.setQueryData(['subscription', 'u1'], { tier: 'wanderer', status: 'active', renewal_date: null });
+    expect(await open()).toBe('plane'); // Pro
   });
 
   it('applies only once even if it re-renders', async () => {

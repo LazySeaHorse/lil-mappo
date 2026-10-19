@@ -23,6 +23,7 @@ export type ProjectSource = 'blank' | 'import_file' | 'deep_link';
 export type UpgradeWhere =
   | 'map_load_gate'
   | 'vehicle_lock'
+  | 'model_import'
   | 'project_settings'
   | 'export_limits'
   | 'cloud_slots'
@@ -36,6 +37,9 @@ export type ImportErrorClass = 'parse' | 'empty' | 'other';
 export type ImportFormat = 'gpx' | 'kml' | 'geojson' | 'unknown';
 
 export type StorageKind = 'local' | 'cloud';
+
+/** Whether a crash was a stale-deploy chunk fetch or something unexpected. */
+export type CrashClass = 'chunk_load' | 'other';
 
 // ── Buckets (keep cardinality low and values non-identifying) ───────────────
 
@@ -102,6 +106,7 @@ export interface AnalyticsEventMap {
   upgrade_prompt_shown: { where: UpgradeWhere };
   checkout_started: { plan: string; resumed: boolean };
   map_style_load_failed: { style: string };
+  app_crashed: { error_class: CrashClass };
   route_import_failed: { format: ImportFormat; error_class: ImportErrorClass };
   project_opened: { storage: StorageKind };
   project_saved: { storage: StorageKind };

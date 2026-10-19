@@ -8,5 +8,6 @@ export function timelineItemLabel(item: TimelineItem): string {
     case 'route': return item.name;
     case 'boundary': return item.placeName || 'Boundary';
     case 'callout': return item.content.title || 'Callout';
+    case 'model': return item.name || '3D model';
   }
 }

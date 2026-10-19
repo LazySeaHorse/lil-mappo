@@ -36,14 +36,14 @@ export function RouteCameraSection({
           <Clapperboard size={14} className="shrink-0 text-primary" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-foreground">{summary.title}</p>
-            <p className="text-[11px] leading-tight text-muted-foreground">{summary.description}</p>
+            <p className="text-2xs leading-tight text-muted-foreground">{summary.description}</p>
           </div>
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             onClick={() => setSelectedAutoCamRouteId(item.id)}
-            className="h-7 shrink-0 px-3 text-xs"
+            className="shrink-0"
           >
             {FOLLOW_CAMERA_TERMS.editCamera}
           </Button>

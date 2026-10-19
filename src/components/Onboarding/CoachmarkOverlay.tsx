@@ -118,7 +118,7 @@ export function CoachmarkOverlay({
       {/* Spotlight cutout mask over entire screen */}
       {!step.hideOverlay && (
         <svg
-          className="fixed inset-0 w-full h-full pointer-events-none select-none z-[119]"
+          className="fixed inset-0 w-full h-full pointer-events-none select-none z-tour-backdrop"
           style={{ pointerEvents: 'none' }}
           aria-hidden="true"
         >
@@ -172,7 +172,7 @@ export function CoachmarkOverlay({
           ...floatingStyles,
           fontFamily: "'Outfit', sans-serif",
         }}
-        className={`z-[120] w-[calc(100vw-24px)] max-w-sm ${step.compact ? '' : 'sm:max-w-md'} rounded-2xl bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/20 overflow-hidden text-foreground select-none pointer-events-auto animate-in fade-in zoom-in-95 duration-200`}
+        className={`z-tour w-[calc(100vw-24px)] max-w-sm ${step.compact ? '' : 'sm:max-w-md'} rounded-2xl bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/20 overflow-hidden text-foreground select-none pointer-events-auto animate-in fade-in zoom-in-95 duration-200`}
       >
         {/* Top progress indicator bar */}
         <div className="h-1 w-full bg-secondary/60 relative overflow-hidden">
@@ -186,8 +186,9 @@ export function CoachmarkOverlay({
           {/* Header: Step Counter Badge & Close/Skip Button */}
           <div className="flex items-center justify-between gap-2">
             <Badge
-              variant="secondary"
-              className="font-mono-time text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-secondary/70 border border-border/40 text-muted-foreground font-medium"
+              size="sm"
+              variant="muted"
+              className="font-mono-time uppercase tracking-wider"
             >
               Step {stepIndex + 1} of {totalSteps}
             </Badge>
@@ -197,7 +198,6 @@ export function CoachmarkOverlay({
                 type="button"
                 variant="ghost"
                 size="xs"
-                className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
                 title="Skip tour"
                 aria-label="Skip tour"
                 data-action="skip"
@@ -224,12 +224,12 @@ export function CoachmarkOverlay({
           <div className="pt-2 mt-0.5 border-t border-border/30 flex items-center justify-between gap-2">
             <div>
               {!showPrimary ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/15">
+                <span className="inline-flex items-center gap-1.5 text-2xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/15">
                   <span className="size-1.5 rounded-full bg-primary animate-pulse" />
                   Action required
                 </span>
               ) : (
-                <span className="text-[11px] text-muted-foreground/75 font-mono-time">
+                <span className="text-2xs text-muted-foreground/75 font-mono-time">
                   {progressPercent}% completed
                 </span>
               )}
@@ -239,9 +239,8 @@ export function CoachmarkOverlay({
               {showSkip && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="subtle"
                   size="sm"
-                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                   data-action="skip"
                   onClick={onSkip}
                   aria-label="Skip tour"
@@ -254,9 +253,8 @@ export function CoachmarkOverlay({
               {showPrimary && step.secondaryLabel && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="subtle"
                   size="sm"
-                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                   data-action="secondary"
                   onClick={onSecondary}
                 >
@@ -268,7 +266,6 @@ export function CoachmarkOverlay({
                 <Button
                   type="button"
                   size="sm"
-                  className="h-8 px-3 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-sm gap-1.5"
                   data-action="next"
                   onClick={onNext}
                   aria-label={nextLabel}

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { cameraViewLockedReason } from '@/components/Onboarding/useWalkthroughStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
-import { loadFileImport } from '@/lib/lazyModules';
+import { importRouteFile } from '@/services/fileImport';
 import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
@@ -58,7 +58,6 @@ export function useToolbarActions() {
     if (!files) return;
     for (const file of Array.from(files)) {
       try {
-        const { importRouteFile } = await loadFileImport();
         const { name, geojson } = await importRouteFile(file);
         const playheadTime = useProjectStore.getState().playheadTime;
         const item = createImportedRouteItem({ name, geojson, startTime: playheadTime });

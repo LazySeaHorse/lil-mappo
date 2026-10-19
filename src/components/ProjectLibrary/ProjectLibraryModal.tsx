@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Library, Cloud, RefreshCw, CloudOff, Lock, FolderArchive,
+  Cloud, RefreshCw, CloudOff, Lock, FolderArchive,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -9,6 +9,7 @@ import { FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
 import { Button } from "@/components/ui/button";
 import { IconButton } from '@/components/ui/icon-button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { PinDropHero } from '@/components/ui/pin-drop';
 import { useProjectLibrary } from './useProjectLibrary';
 import { ProjectRow } from './components/ProjectRow';
 import { CloudSlotQuotaDialog } from './components/CloudSlotQuotaDialog';
@@ -47,18 +48,12 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-            <DialogHeader className="text-left">
-              <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-                <Library className="text-primary h-6 w-6" /> Projects
-              </DialogTitle>
-              <DialogDescription className="text-muted-foreground text-sm mt-1">
-                Open, delete, and upload projects.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
+        <DialogContent size="md" className="flex flex-col">
+          <PinDropHero mood="wave" scene="library" size="compact" />
+          <DialogHeader className="px-6 pb-4 text-left">
+            <DialogTitle>Projects</DialogTitle>
+            <DialogDescription>Open, delete, and upload projects.</DialogDescription>
+          </DialogHeader>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto px-6 pb-2 max-h-[60vh]">
@@ -114,26 +109,26 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
                 <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
               </IconButton>
               {user && !autoSyncEnabled ? (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-amber-400' : 'text-primary/70'} />
+                <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
+                  <Cloud size={12} className={cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT ? 'text-warning' : 'text-primary/70'} />
                   <span>
                     {cloudSaveCount}/{FREE_CLOUD_SAVE_LIMIT} cloud projects used
                   </span>
                   {cloudSaveCount >= FREE_CLOUD_SAVE_LIMIT && (
-                    <Lock size={10} className="text-amber-400" />
+                    <Lock size={10} className="text-warning" />
                   )}
                 </div>
               ) : !user ? (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                   <CloudOff size={12} />
                   Sign in to use cloud projects
                 </div>
               ) : null}
             </div>
             <Button
+              size="lg"
               onClick={onClose}
               variant="outline"
-              className="h-10 px-6 rounded-lg text-sm font-medium transition-all"
             >
               Close
             </Button>

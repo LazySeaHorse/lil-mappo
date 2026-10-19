@@ -13,6 +13,8 @@ import { useShallow } from "zustand/react/shallow";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
 import { TIER_LABELS } from "@/lib/database.types";
+import { activePassEnd, hasActiveSubscription } from "@/lib/cloudAccess";
+import { formatPassEnd, subscriptionTier } from "@/lib/proPass";
 import {
   Key,
   Crown,
@@ -29,6 +31,8 @@ import {
   AccountInfoRow,
 } from "./ManageSubscriptionView";
 import secureLocalStorage from "react-secure-storage";
+import { accountMood } from "@/components/Mappo/moods";
+import { PinDropHero } from "@/components/ui/pin-drop";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +49,7 @@ export function AccountSettingsModal() {
       open={showSettingsModal}
       onOpenChange={(open) => !open && closeSettingsModal()}
     >
-      <DialogContent className="sm:max-w-[720px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
+      <DialogContent size="lg">
         {showSettingsModal && <AccountSettingsModalBody />}
       </DialogContent>
     </Dialog>
@@ -105,9 +109,12 @@ function AccountSettingsModalBody() {
     setTimeout(() => window.location.reload(), 400);
   };
 
-  const tierSlug = subscription?.tier ?? null;
+  // A Pro pass alone has no tier (see withProPass).
+  const tierSlug = subscriptionTier(subscription);
+  const hasSubscription = !!tierSlug;
   const tierLabel = tierSlug ? (TIER_LABELS[tierSlug] ?? tierSlug) : null;
-  const hasSubscription = !!subscription;
+  // A pass only matters while it is what keeps the user on Pro.
+  const passEnd = hasActiveSubscription(subscription) ? null : activePassEnd(subscription);
   const hasRecurring = !!subscription?.dodo_subscription_id;
   const renewalDate = subscription?.renewal_date
     ? new Date(subscription.renewal_date).toLocaleDateString("en-US", {
@@ -140,16 +147,13 @@ function AccountSettingsModalBody() {
   // ── Main view ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col">
-      <div className="p-6 pb-2 bg-gradient-to-b from-secondary/30 to-transparent">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-            <User className="text-primary h-5 w-5" /> Settings
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm mt-1">
-            Manage your account and Mapbox access token.
-          </DialogDescription>
-        </DialogHeader>
-      </div>
+      <PinDropHero mood={accountMood({ signedIn: !!user, subscription })} scene="settings" size="compact" />
+      <DialogHeader className="px-6 pb-2 text-left">
+        <DialogTitle>Settings</DialogTitle>
+        <DialogDescription>
+          Manage your account and Mapbox access token.
+        </DialogDescription>
+      </DialogHeader>
 
       <div className="flex flex-col gap-8 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto">
         {/* ─── Account Info ─── */}
@@ -170,7 +174,7 @@ function AccountSettingsModalBody() {
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs h-8 rounded-lg px-3 shrink-0"
+                className="shrink-0"
                 onClick={() => {
                   closeSettingsModal();
                   openAuthModal();
@@ -184,7 +188,7 @@ function AccountSettingsModalBody() {
 
         {/* ─── Subscription ─── */}
         <section>
-          <AccountSectionHeading icon={<Crown size={14} />} label="Subscription" />
+          <AccountSectionHeading icon={<Crown size={14} />} label="Plan" />
           {hasSubscription ? (
             <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -193,15 +197,15 @@ function AccountSettingsModalBody() {
                     {tierLabel ?? "No plan"}
                   </p>
                   {(subscription?.status === "cancelled" || subscription?.status === "cancelling") && renewalDate ? (
-                    <p className="text-[11px] text-amber-500">
+                    <p className="text-2xs text-warning">
                       {subscription.status === "cancelling" ? `Cancels ${renewalDate}` : `Access until ${renewalDate}`}
                     </p>
                   ) : renewalDate ? (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       Renews {renewalDate}
                     </p>
                   ) : (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {hasSubscription ? "Credit pack" : "No active plan"}
                     </p>
                   )}
@@ -209,20 +213,41 @@ function AccountSettingsModalBody() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-xs h-8 rounded-lg px-4"
                   onClick={() => setView("manage")}
                 >
                   Manage
                 </Button>
               </div>
             </div>
-          ) : (
+          ) : passEnd ? null : (
             <PremiumUpsellCard
               onClick={() => {
                 closeSettingsModal();
                 openUpgradeModal('account_settings');
               }}
             />
+          )}
+          {passEnd && (
+            <div className={`bg-secondary/30 rounded-xl p-4 ${hasSubscription ? "mt-3" : ""}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Pro pass</p>
+                  <p className="text-2xs text-muted-foreground">
+                    Ends {formatPassEnd(passEnd)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    closeSettingsModal();
+                    openUpgradeModal('account_settings');
+                  }}
+                >
+                  Upgrade
+                </Button>
+              </div>
+            </div>
           )}
         </section>
 
@@ -233,7 +258,7 @@ function AccountSettingsModalBody() {
             label="Mapbox access token"
           />
           <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
+            <p className="text-2xs text-muted-foreground leading-relaxed">
               Add your Mapbox access token to remove export limits.
               The app stores the token locally on this device and{" "}
               <span className="font-medium text-foreground">does not send it to our servers</span>.{" "}
@@ -259,9 +284,8 @@ function AccountSettingsModalBody() {
                 className={`h-9 rounded-lg bg-background/50 border-border/50 text-xs font-mono placeholder:text-muted-foreground/40 flex-1 ${tokenError ? "border-destructive" : ""}`}
               />
               <Button
-                size="sm"
                 variant={tokenSaved ? "default" : "outline"}
-                className="h-9 rounded-lg px-3 text-xs font-medium shrink-0 min-w-[64px] transition-all"
+                className="shrink-0 min-w-16"
                 onClick={handleSaveToken}
                 disabled={tokenSaved}
               >
@@ -283,9 +307,8 @@ function AccountSettingsModalBody() {
             )}
             {!!mapboxToken.trim() && !tokenSaved && !tokenError && (
               <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 text-destructive hover:text-destructive px-2"
+                variant="destructive-ghost"
+                size="xs"
                 onClick={handleClearToken}
               >
                 Remove token

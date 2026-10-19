@@ -7,12 +7,4 @@
  */
 
 export const loadVideoExport = () => import('@/services/videoExport');
-export const loadFileImport = () => import('@/services/fileImport');
 export const loadAirportsData = () => import('@/data/airportsData');
-export const loadExportModal = () => import('@/components/ExportModal/ExportModal');
-export const loadAiPanel = () => import('@/components/AI/AiPanel');
-export const loadAuthModal = () => import('@/components/Account/AuthModal');
-export const loadAccountSettingsModal = () => import('@/components/Account/AccountSettingsModal');
-export const loadCreditsModal = () => import('@/components/Account/CreditsModal');
-export const loadUpgradeModal = () => import('@/components/Account/UpgradeModal');
-export const loadRendersModal = () => import('@/components/Account/RendersModal');

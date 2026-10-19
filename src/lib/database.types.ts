@@ -1,6 +1,7 @@
 /**
  * TypeScript types for li'l Mappo's Supabase tables.
- * Keep in sync with supabase/migrations/ (tables from 001, feature-vote RPCs from 022).
+ * Keep in sync with supabase/migrations/ (tables from 001, feature-vote RPCs from 022,
+ * Pro pass from 023).
  * Hand-written, not generated.
  */
 
@@ -19,7 +20,27 @@ export interface Subscription {
   parallel_renders: number;
   renewal_date: string | null;
   dodo_subscription_id: string | null;
-  status: "active" | "cancelling" | "cancelled" | "expired" | "on_hold" | "failed";
+  /**
+   * "none" is never stored: useSubscription uses it for a user who has a Pro
+   * pass but no subscription row (see `withProPass` in `src/lib/proPass.ts`).
+   */
+  status: "active" | "cancelling" | "cancelled" | "expired" | "on_hold" | "failed" | "none";
+  created_at: string;
+  updated_at: string;
+  /**
+   * End of the user's Pro pass (ISO timestamp), merged in by useSubscription
+   * from `pro_passes`. Not a column of `subscriptions`.
+   */
+  pass_expires_at?: string | null;
+}
+
+/**
+ * One row per user who has ever bought a Pro pass (migration 023). Read-only
+ * for the owner; only the Dodo webhook writes it, through grant_pro_pass().
+ */
+export interface ProPass {
+  user_id: string;
+  expires_at: string;
   created_at: string;
   updated_at: string;
 }

@@ -11,6 +11,8 @@ import type {
   CalloutItem,
   CameraKeyframe,
   EasingName,
+  ModelItem,
+  ModelTransition,
   RouteItem,
   RouteMode,
   RouteStyle,
@@ -68,8 +70,14 @@ export function createDefaultRouteStyle(preset: RouteStylePreset): RouteStyle {
   };
 }
 
-export function createDefaultVehicle(mode: RouteMode): RouteVehicleConfig {
-  return { enabled: true, type: mode === 'flight' ? 'plane' : 'dot', modelId: '', scale: 1 };
+export interface DefaultVehicleOptions {
+  /** The user has Pro (`isWanderer`). The plane is a Pro marker, so only Pro routes start with it. */
+  pro?: boolean;
+}
+
+/** The marker a new route starts with: the dot, except a Pro user's flight, which gets the plane. */
+export function createDefaultVehicle(mode: RouteMode, { pro = false }: DefaultVehicleOptions = {}): RouteVehicleConfig {
+  return { enabled: true, type: pro && mode === 'flight' ? 'plane' : 'dot', modelId: '', scale: 1 };
 }
 
 export function defaultEndpointRouteName(mode: 'car' | 'flight', startName?: string, endName?: string): string {
@@ -97,6 +105,8 @@ export interface EndpointRouteInput {
   startTime: number;
   endTime?: number;
   id?: string;
+  /** The user has Pro: a flight then starts with the plane marker instead of the dot. */
+  pro?: boolean;
 }
 
 /** A car or flight route from two endpoints, exactly as the Plan Route dropdown inserts it. */
@@ -115,7 +125,7 @@ export function createEndpointRouteItem(input: EndpointRouteInput): RouteItem {
       endPoint: input.end,
       startName: input.startName ?? '',
       endName: input.endName ?? '',
-      vehicle: createDefaultVehicle(input.mode),
+      vehicle: createDefaultVehicle(input.mode, { pro: input.pro }),
     },
     easing: 'easeInOutQuad',
     exitAnimation: 'none',
@@ -321,5 +331,39 @@ export function createCameraKeyframe(input: CameraKeyframeInput): CameraKeyframe
     },
     easing: input.easing ?? 'easeInOutCubic',
     followRoute: null,
+  };
+}
+
+/** How a newly placed 3D model appears and leaves. */
+export const DEFAULT_MODEL_TRANSITION: ModelTransition = {
+  enter: 'fade',
+  exit: 'fade',
+  enterDuration: 0.5,
+  exitDuration: 0.5,
+};
+
+export interface ModelItemInput {
+  assetId: string;
+  name: string;
+  position: [number, number];
+  startTime: number;
+}
+
+/** A 3D model placed on the map, standing on the ground at its own size and facing north. */
+export function createModelItem(input: ModelItemInput): ModelItem {
+  return {
+    kind: 'model',
+    id: nanoid(),
+    name: input.name,
+    assetId: input.assetId,
+    position: input.position,
+    altitude: 0,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+    scale: 1,
+    startTime: input.startTime,
+    endTime: input.startTime + DEFAULT_ITEM_DURATION,
+    transition: { ...DEFAULT_MODEL_TRANSITION },
   };
 }

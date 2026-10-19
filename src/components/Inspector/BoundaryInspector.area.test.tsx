@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoundaryInspector } from './BoundaryInspector';
 import { BOUNDARY_TERMS } from '@/lib/terms';
@@ -30,41 +30,25 @@ function setBoundary(style: Partial<BoundaryItem['style']> = {}, placeName = 'Pa
   return withStyle;
 }
 
-describe('area summary', () => {
+describe('area search', () => {
   beforeEach(() => useProjectStore.setState({ items: {}, itemOrder: [] }));
 
-  it('shows the chosen area and a Change button, with the search closed', () => {
+  it('shows the search field prefilled with the current area', () => {
     render(<BoundaryInspector item={setBoundary()} />);
-    expect(screen.getByText(`${BOUNDARY_TERMS.area}: Paris`)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: BOUNDARY_TERMS.change })).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(SEARCH)).toBeNull();
-  });
-
-  it('opens the area search when the user clicks Change', () => {
-    render(<BoundaryInspector item={setBoundary()} />);
-    fireEvent.click(screen.getByRole('button', { name: BOUNDARY_TERMS.change }));
     expect(screen.getByPlaceholderText(SEARCH)).toHaveValue('Paris');
   });
 
-  it('changes the area when the user picks a result, then folds the search', async () => {
-    render(<BoundaryInspector item={setBoundary()} />);
-    fireEvent.click(screen.getByRole('button', { name: BOUNDARY_TERMS.change }));
+  it('changes the area in place when the user picks a result', async () => {
+    const item = setBoundary({ strokeColor: '#123456' });
+    render(<BoundaryInspector item={item} />);
     const input = screen.getByPlaceholderText(SEARCH);
     fireEvent.change(input, { target: { value: 'Lyon' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     fireEvent.click(await screen.findByRole('button', { name: /Lyon/ }));
 
     expect(stored().placeName).toBe('Lyon');
-    await waitFor(() => expect(screen.queryByPlaceholderText(SEARCH)).toBeNull());
-  });
-
-  it('closes the search again without a change when the user clicks Cancel', () => {
-    const item = setBoundary();
-    render(<BoundaryInspector item={item} />);
-    fireEvent.click(screen.getByRole('button', { name: BOUNDARY_TERMS.change }));
-    fireEvent.click(screen.getByRole('button', { name: BOUNDARY_TERMS.cancel }));
-    expect(screen.queryByPlaceholderText(SEARCH)).toBeNull();
-    expect(stored()).toBe(item);
+    expect(stored().id).toBe('b1');
+    expect(stored().style.strokeColor).toBe('#123456');
   });
 
   it('does not add a second heading named Area', () => {

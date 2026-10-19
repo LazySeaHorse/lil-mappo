@@ -33,7 +33,7 @@ function WalkPointMarkers({
             className="group relative flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
             title={`Point ${index + 1} (drag to bend route)`}
           >
-            <div className={`w-5 h-5 rounded-full ${colorFor(index)} text-white font-bold text-[10px] flex items-center justify-center shadow-lg ring-2 ring-white hover:scale-125 transition-transform`}>
+            <div className={`w-5 h-5 rounded-full ${colorFor(index)} text-white font-bold text-2xs flex items-center justify-center shadow-lg ring-2 ring-white hover:scale-125 transition-transform`}>
               {index + 1}
             </div>
           </div>

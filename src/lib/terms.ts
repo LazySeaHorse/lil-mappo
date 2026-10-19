@@ -11,6 +11,7 @@ export const ITEM_TYPE_LABELS = {
   callout: 'Callout',
   boundary: 'Area',
   'camera-kf': 'Camera view',
+  model: '3D model',
 } as const;
 
 export type InspectorItemKind = keyof typeof ITEM_TYPE_LABELS;
@@ -36,11 +37,6 @@ export const BOUNDARY_TERMS = {
   fillColor: 'Fill color',
   fillOpacity: 'Fill opacity',
   animation: 'Animation',
-  /** The summary row at the top of the panel: "Area: Paris" and a button. */
-  area: 'Area',
-  unnamed: 'No name',
-  change: 'Change',
-  cancel: 'Cancel',
   /** How much of the outline the Trace animation lights up at one time. */
   highlightLength: 'Highlight length',
   highlightHint: 'How much of the outline lights up at one time.',

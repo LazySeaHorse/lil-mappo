@@ -44,7 +44,7 @@ export function PaymentSuccessCelebration({
 
   return (
     <div
-      className={`payment-success-overlay fixed inset-0 z-[200] isolate overflow-hidden bg-slate-950/70 text-slate-50 backdrop-blur-[2px] ${isExiting ? 'payment-success-overlay-exiting' : ''}`}
+      className={`payment-success-overlay fixed inset-0 z-celebration isolate overflow-hidden bg-slate-950/70 text-slate-50 backdrop-blur-[2px] ${isExiting ? 'payment-success-overlay-exiting' : ''}`}
       role="status"
       aria-live="polite"
       aria-labelledby="payment-success-title"

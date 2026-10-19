@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import DodoPayments from "dodopayments";
 import { createClient } from "@supabase/supabase-js";
+import { adminClient } from "./_lib/supabase.js";
+import { isWanderer } from "./_lib/entitlement.js";
+import { PASS_PLAN, passProductId } from "./_lib/dodo/planCatalogue.js";
 
 // ─── Product catalogue ────────────────────────────────────────────────────────
 // Product IDs differ between test_mode and live_mode, so they are read from
@@ -40,14 +43,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     cancelUrl?: string;
   };
 
-  const validPlans: PlanSlug[] = ["wanderer", "cartographer", "pioneer", "topup"];
-  if (!plan || !validPlans.includes(plan as PlanSlug)) {
+  const validPlans: string[] = ["wanderer", "cartographer", "pioneer", "topup", PASS_PLAN];
+  if (!plan || !validPlans.includes(plan)) {
     return res.status(400).json({ error: "Invalid plan" });
   }
+  const isPass = plan === PASS_PLAN;
 
-  let PRODUCT_IDS: Record<PlanSlug, string>;
+  // The pass product is configured on its own, so a missing pass product
+  // never breaks the subscription checkout (and vice versa).
+  let productId: string;
   try {
-    PRODUCT_IDS = getProductIds();
+    if (isPass) {
+      const id = passProductId();
+      if (!id) throw new Error("Missing env vars: DODO_PRODUCT_PASS_3DAY");
+      productId = id;
+    } else {
+      productId = getProductIds()[plan as PlanSlug];
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Server misconfiguration";
     console.error("[dodo-create-session]", message);
@@ -113,6 +125,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Invalid or expired session" });
   }
 
+  // A pass adds nothing to an active subscription; the UI hides it, and this
+  // stops a stale page from charging for it. Stacking passes is allowed.
+  if (isPass) {
+    const { data: subscription, error: subscriptionError } = await adminClient()
+      .from("subscriptions")
+      .select("tier, status, renewal_date")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (subscriptionError) {
+      console.error("[dodo-create-session] Could not read subscription:", subscriptionError.message);
+      return res.status(500).json({ error: "Checkout not available" });
+    }
+    if (isWanderer(subscription)) {
+      return res.status(409).json({ error: "You already have Wanderer." });
+    }
+  }
+
   // ── 3. Create the Dodo checkout session ───────────────────────────────────
 
   try {
@@ -124,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await dodo.checkoutSessions.create({
       product_cart: [
         {
-          product_id: PRODUCT_IDS[plan as PlanSlug],
+          product_id: productId,
           quantity: safeQuantity,
         },
       ],

@@ -39,7 +39,7 @@ const WalkPointRow = ({ id, index, coords, isMoving, onToggleMove, onRemove }: W
       >
         <GripVertical size={13} />
       </button>
-      <div className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+      <div className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold text-2xs flex items-center justify-center shrink-0">
         {index + 1}
       </div>
       <span className="text-xs font-mono text-foreground/80 flex-1 min-w-0 truncate">
@@ -49,17 +49,17 @@ const WalkPointRow = ({ id, index, coords, isMoving, onToggleMove, onRemove }: W
         <IconButton
           variant={isMoving ? 'default' : 'outline'}
           size="xs"
-          className={`rounded-lg h-6 w-6 shrink-0 ${isMoving ? 'bg-primary text-primary-foreground' : ''}`}
+          className="shrink-0"
           onClick={onToggleMove}
           title="Move point on map"
         >
-          <Crosshair size={11} className={isMoving ? 'animate-pulse text-white' : 'text-muted-foreground'} />
+          <Crosshair size={11} className={isMoving ? 'animate-pulse' : 'text-muted-foreground'} />
         </IconButton>
       )}
       <IconButton
-        variant="ghost"
+        variant="destructive"
         size="xs"
-        className="h-6 w-6 rounded shrink-0 text-muted-foreground hover:text-destructive"
+        className="shrink-0"
         onClick={onRemove}
         title="Remove point"
       >
@@ -123,7 +123,7 @@ export const WalkPointList = ({
         type="button"
         variant={isAppending ? 'default' : 'outline'}
         size="sm"
-        className="w-full h-8 mt-1 text-xs gap-1.5"
+        className="w-full mt-1"
         onClick={onToggleAppend}
       >
         <Plus size={13} />

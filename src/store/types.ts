@@ -47,7 +47,8 @@ export type RouteMode = 'car' | 'walk' | 'flight';
 
 export interface RouteVehicleConfig {
   enabled: boolean;
-  type: 'car' | 'plane' | 'dot';
+  /** 'custom' rides an imported model: `modelId` is its id in `Project.models`. */
+  type: 'car' | 'plane' | 'dot' | 'custom';
   modelId: string;
   scale: number;
 }
@@ -207,7 +208,56 @@ export interface CameraItem {
   keyframes: CameraKeyframe[];
 }
 
-export type TimelineItem = RouteItem | BoundaryItem | CalloutItem | CameraItem;
+/**
+ * An imported 3D model (.glb). The file itself never leaves the browser's memory: the project keeps
+ * only this metadata, so a reloaded project asks the user to pick the file again (relink).
+ */
+export interface ModelAsset {
+  id: string;
+  fileName: string;
+  byteSize: number;
+  /** SHA-256 of the file, lowercase hex. A relinked file is checked against it. */
+  sha256: string;
+  /** Bounding box in metres as authored (glTF: y up, facing +z), through every node's transform. */
+  bounds: { min: [number, number, number]; max: [number, number, number] };
+}
+
+export type ModelEnter = 'none' | 'fade' | 'scale-up' | 'rise';
+export type ModelExit = 'none' | 'fade' | 'scale-down' | 'sink';
+
+/** How a placed model appears and disappears; the same shape as a callout's `transition`. */
+export interface ModelTransition {
+  enter: ModelEnter;
+  exit: ModelExit;
+  enterDuration: number;
+  exitDuration: number;
+}
+
+/** An imported 3D model placed on the map. It does not move (no keyframes). */
+export interface ModelItem {
+  kind: 'model';
+  id: string;
+  name: string;
+  /** Key in `Project.models`. */
+  assetId: string;
+  /** [lng, lat]. */
+  position: [number, number];
+  /** Metres from the ground to the model's lowest point. */
+  altitude: number;
+  /** Degrees clockwise from north. */
+  heading: number;
+  /** Degrees, nose up. */
+  pitch: number;
+  /** Degrees, right side down. */
+  roll: number;
+  /** Multiplier on the model's own size (1 = as authored, in metres). */
+  scale: number;
+  startTime: number;
+  endTime: number;
+  transition: ModelTransition;
+}
+
+export type TimelineItem = RouteItem | BoundaryItem | CalloutItem | CameraItem | ModelItem;
 
 export interface Project {
   id: string;
@@ -234,6 +284,8 @@ export interface Project {
   show3dFacades: boolean;
   items: Record<string, TimelineItem>;
   itemOrder: string[];
+  /** Metadata of imported 3D models, by id. The bytes are kept in memory only (`src/models`). */
+  models: Record<string, ModelAsset>;
   mapCenter: [number, number];
   // Custom map styles (future feature accommodation)
   customMapStyleUrl?: string;

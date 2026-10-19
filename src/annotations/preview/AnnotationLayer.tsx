@@ -44,7 +44,7 @@ function AnnotationMoveHandle({ callout, lngLat }: { callout: CalloutItem; lngLa
           <path d="M20 5 L20 15 M20 25 L20 35 M5 20 L15 20 M25 20 L35 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
           <circle cx="20" cy="20" r="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2" />
         </svg>
-        <div className="absolute top-10 whitespace-nowrap bg-background/90 text-[10px] px-1.5 py-0.5 rounded border border-border shadow-sm font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-10 whitespace-nowrap bg-background/90 text-2xs px-1.5 py-0.5 rounded border border-border shadow-sm font-mono opacity-0 group-hover:opacity-100 transition-opacity">
           {lngLat[1].toFixed(5)}, {lngLat[0].toFixed(5)}
         </div>
       </div>

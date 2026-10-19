@@ -1,6 +1,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Mappo } from '@/components/Mappo/Mappo';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
 import { FREE_CLOUD_SAVE_LIMIT } from '@/lib/cloudAccess';
 import type { LibraryProject } from '@/services/projectLibraryCoordinator';
 
@@ -22,68 +29,58 @@ export function CloudSlotQuotaDialog({
   onUpgrade,
   onReplaceAndUpload,
 }: CloudSlotQuotaDialogProps) {
-  if (!pendingProject) return null;
-
   const cloudProjects = projects.filter((p) => p.cloud !== null);
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60">
-      <div className="bg-background border border-border rounded-2xl shadow-2xl w-[420px] overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <h3 className="text-sm font-medium">Cloud project limit reached</h3>
-          <p className="text-xs text-muted-foreground mt-1">
+    <AlertDialog open={!!pendingProject} onOpenChange={(open) => !open && onCancel()}>
+      <AlertDialogContent>
+        <PinDropHero mood="worried" scene="cloudSlots" />
+        <PopupBody>
+          <AlertDialogTitle>Cloud project limit reached</AlertDialogTitle>
+          <AlertDialogDescription>
             You reached the limit of {FREE_CLOUD_SAVE_LIMIT} cloud projects. Remove one cloud
             project to upload this project. The app keeps your local copy.
-          </p>
-        </div>
-        <div className="px-5 py-4 max-h-64 overflow-y-auto flex flex-col gap-2">
-          {cloudProjects.map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center justify-between p-3 border border-border rounded-xl hover:border-destructive/40 hover:bg-destructive/5 transition-all"
-            >
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium truncate">{p.name || 'Untitled'}</span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(p.updatedAt).toLocaleDateString()}
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="h-7 px-3 text-xs shrink-0 ml-3"
-                onClick={() => onReplaceAndUpload(p)}
-                disabled={isMutating}
+          </AlertDialogDescription>
+          <div className="mt-2 max-h-64 overflow-y-auto flex flex-col gap-2">
+            {cloudProjects.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between p-3 border border-border rounded-xl hover:border-destructive/40 hover:bg-destructive/5 transition-all"
               >
-                Remove and upload
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium truncate">{p.name || 'Untitled'}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(p.updatedAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <Button
+                  size="xs"
+                  variant="destructive"
+                  className="shrink-0 ml-3"
+                  onClick={() => onReplaceAndUpload(p)}
+                  disabled={isMutating}
+                >
+                  Remove and upload
+                </Button>
+              </div>
+            ))}
+          </div>
+          <PopupActions className="justify-between">
+            {onUpgrade ? (
+              <Button
+                size="lg"
+                variant="link"
+                onClick={onUpgrade}
+              >
+                Upgrade for unlimited projects
               </Button>
-            </div>
-          ))}
-        </div>
-        <div className="px-5 py-3 border-t border-border bg-secondary/20 flex items-center justify-between gap-2">
-          {onUpgrade ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs gap-1.5 text-primary hover:text-primary hover:bg-primary/10"
-              onClick={onUpgrade}
-            >
-              <Mappo mood="explorer" className="h-4 w-auto mt-1.5" />
-              Upgrade for unlimited projects
-            </Button>
-          ) : (
-            <span />
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs"
-            onClick={onCancel}
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </div>
+            ) : (
+              <span />
+            )}
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </PopupActions>
+        </PopupBody>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

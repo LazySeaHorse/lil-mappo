@@ -17,15 +17,13 @@ vi.mock('react-secure-storage', () => ({
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: null }) }));
 vi.mock('@/lib/analytics/reporters', () => ({ reportRouteAdded: vi.fn() }));
-vi.mock('@/lib/lazyModules', () => ({
-  loadFileImport: async () => ({
-    importRouteFile: async () => ({
-      name: 'Ride',
-      geojson: {
-        type: 'FeatureCollection',
-        features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[8, 46], [9, 47]] } }],
-      },
-    }),
+vi.mock('@/services/fileImport', () => ({
+  importRouteFile: async () => ({
+    name: 'Ride',
+    geojson: {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[8, 46], [9, 47]] } }],
+    },
   }),
 }));
 

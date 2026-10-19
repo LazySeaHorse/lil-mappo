@@ -3,10 +3,20 @@ import { calculateRenderCredits } from "@/types/render";
 // Types & constants
 // =============================================================================
 
-export type PlanSlug = "wanderer" | "cartographer" | "pioneer" | "topup";
+export type PlanSlug = "wanderer" | "cartographer" | "pioneer" | "topup" | "pass_3day";
 
 /** Plans that require a subscription (not one-time top-ups). */
 export type SubscriptionPlan = "wanderer" | "cartographer" | "pioneer";
+
+/** The one-time 3-day Pro pass (see `src/lib/proPass.ts`). */
+export const PASS_PLAN = "pass_3day" as const;
+
+/** Plans the checkout can resume after sign-in. */
+export type PendingPlan = SubscriptionPlan | typeof PASS_PLAN;
+
+function isPendingPlan(raw: unknown): raw is PendingPlan {
+  return raw === "wanderer" || raw === "cartographer" || raw === "pioneer" || raw === PASS_PLAN;
+}
 
 export const PLAN_CONFIG: Record<
   SubscriptionPlan,
@@ -64,15 +74,13 @@ import secureLocalStorage from "react-secure-storage";
 
 const PENDING_PLAN_KEY = "mappo_pending_plan";
 
-export function storePendingPlan(plan: SubscriptionPlan): void {
+export function storePendingPlan(plan: PendingPlan): void {
   secureLocalStorage.setItem(PENDING_PLAN_KEY, plan);
 }
 
-export function getPendingPlan(): SubscriptionPlan | null {
+export function getPendingPlan(): PendingPlan | null {
   const raw = secureLocalStorage.getItem(PENDING_PLAN_KEY);
-  return raw === "wanderer" || raw === "cartographer" || raw === "pioneer"
-    ? raw
-    : null;
+  return isPendingPlan(raw) ? raw : null;
 }
 
 export function clearPendingPlan(): void {
@@ -106,17 +114,21 @@ export function clearPendingTopup(): void {
 
 export function getCheckoutReturnPlan(): PlanSlug | null {
   const raw = secureLocalStorage.getItem(CHECKOUT_RETURN_PLAN_KEY);
-  return raw === "wanderer" || raw === "cartographer" || raw === "pioneer" || raw === "topup"
-    ? raw
-    : null;
+  return isPendingPlan(raw) || raw === "topup" ? raw : null;
 }
 
 export function clearCheckoutReturnPlan(): void {
   secureLocalStorage.removeItem(CHECKOUT_RETURN_PLAN_KEY);
 }
 
+/**
+ * Display only: the return URL never grants anything. Access comes from the
+ * webhook; the app just refetches the plan.
+ */
 export function isSuccessfulCheckoutReturn(params: URLSearchParams): boolean {
   if (params.get("checkout") === "success") return true;
+  // One-time payments (the 3-day pass) come back with payment_id + succeeded.
+  if (params.get("status") === "succeeded" && !!params.get("payment_id")) return true;
   return params.get("status") === "active" && !!params.get("subscription_id");
 }
 

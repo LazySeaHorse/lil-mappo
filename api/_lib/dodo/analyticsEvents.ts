@@ -38,7 +38,7 @@ export async function lookupSubscriptionOwner(
 }
 
 /**
- * Reports subscription lifecycle events to PostHog after the webhook handler
+ * Reports subscription lifecycle events and Pro pass purchases to PostHog after the webhook handler
  * succeeded. The uuid and timestamp come from the webhook headers so a
  * redelivered webhook cannot create a duplicate event. Never throws.
  */
@@ -56,7 +56,14 @@ export async function reportSubscriptionEvent(args: {
     let name: string | undefined;
     let userId: string | undefined;
     let tier: string | undefined;
-    if (event.type === "subscription.active") {
+    let properties: Record<string, unknown> | undefined;
+    if (event.type === "payment.succeeded") {
+      // Only a first grant is a purchase; a replayed payment grants nothing.
+      if (!result.pass?.granted) return;
+      name = "pass_purchased";
+      userId = result.pass.userId;
+      properties = { stacked: result.pass.stacked };
+    } else if (event.type === "subscription.active") {
       // A retried delivery re-runs provisioning; only the first one is a real new subscription.
       if (!result.provisioned?.firstTime) return;
       name = "subscription_started";
@@ -77,7 +84,7 @@ export async function reportSubscriptionEvent(args: {
     await captureServerEvent({
       distinctId: userId,
       event: name,
-      properties: tier ? { tier } : {},
+      properties: properties ?? (tier ? { tier } : {}),
       uuid: webhookId ? deterministicUuid(`${webhookId}:${name}`) : undefined,
       timestamp: Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000) : undefined,
     });

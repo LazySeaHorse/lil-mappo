@@ -22,11 +22,12 @@ vi.mock('react-secure-storage', () => ({
 
 vi.mock('@/lib/analytics/reporters', () => ({ reportRouteAdded: vi.fn() }));
 
+const plan = vi.hoisted(() => ({ subscription: null as unknown }));
 vi.mock('@/hooks/useSubscription', () => ({
-  useSubscription: () => ({
-    data: { tier: 'cartographer' },
-  }),
+  useSubscription: () => ({ data: plan.subscription }),
 }));
+
+const WANDERER = { tier: 'wanderer', status: 'active' };
 
 vi.mock('@/services/directions', () => ({
   getDirections: vi.fn().mockResolvedValue({
@@ -46,6 +47,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
   });
 
   beforeEach(() => {
+    plan.subscription = null;
     vi.mocked(reportRouteAdded).mockClear();
     useProjectStore.setState({
       items: {},
@@ -89,8 +91,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(screen.getByPlaceholderText(/Arrival airport or city/i)).toBeInTheDocument();
   });
 
-  it('selects airports and inserts a flight route with plane vehicle and flight styling', async () => {
-    const onOpenChange = vi.fn();
+  async function insertFlightRoute(onOpenChange = vi.fn()) {
     render(
       <RouteAddDropdown
         isOpen={true}
@@ -129,13 +130,17 @@ describe('RouteAddDropdown with Airport Picker', () => {
       fireEvent.click(insertBtn);
     });
 
-    // Check store items
-    const items = useProjectStore.getState().items;
-    const addedRoute = Object.values(items)[0] as RouteItem;
+  }
+
+  it('inserts a flight route with flight styling and the dot marker for a free user', async () => {
+    const onOpenChange = vi.fn();
+    await insertFlightRoute(onOpenChange);
+
+    const addedRoute = Object.values(useProjectStore.getState().items)[0] as RouteItem;
     expect(addedRoute).toBeDefined();
     expect(addedRoute.kind).toBe('route');
     expect(addedRoute.calculation?.mode).toBe('flight');
-    expect(addedRoute.calculation?.vehicle?.type).toBe('plane');
+    expect(addedRoute.calculation?.vehicle).toMatchObject({ enabled: true, type: 'dot' });
     expect(addedRoute.name).toContain('→');
     expect(addedRoute.calculation).toMatchObject({
       startName: 'London Heathrow Airport',
@@ -145,6 +150,14 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(addedRoute.style).not.toHaveProperty('glowColor');
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(reportRouteAdded).toHaveBeenCalledWith('flight', expect.any(Number));
+  });
+
+  it('starts a Pro user\'s flight route with the plane marker', async () => {
+    plan.subscription = WANDERER;
+    await insertFlightRoute();
+
+    const addedRoute = Object.values(useProjectStore.getState().items)[0] as RouteItem;
+    expect(addedRoute.calculation?.vehicle).toMatchObject({ enabled: true, type: 'plane' });
   });
 
   it('labels the two places in car and flight mode, with no coloured dots', () => {

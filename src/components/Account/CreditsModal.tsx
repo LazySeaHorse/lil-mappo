@@ -7,19 +7,18 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PinDropHero } from "@/components/ui/pin-drop";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
 import { useCredits } from "@/hooks/useCredits";
 import { SubscriptionTiers } from "./SubscriptionTiers";
+import { CreditBalanceBadges } from "./CreditBalanceBadges";
 import {
   Coins,
-  Zap,
-  Clock,
   Loader2,
   RefreshCcw,
-  Sparkles,
   CreditCard,
   Timer,
   Cloud,
@@ -42,17 +41,14 @@ export function CreditsModal() {
       open={showCreditsModal}
       onOpenChange={(open) => !open && closeCreditsModal()}
     >
-      <DialogContent className="sm:max-w-[600px] rounded-2xl bg-background/95 border-border/30 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-2">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-              <Sparkles className="text-primary h-5 w-5" /> Plans and credits
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm">
+      <DialogContent size="lg">
+        <PinDropHero mood="sparkle" scene="credits" size="compact" />
+        <DialogHeader className="px-6 pb-2 text-left">
+          <DialogTitle>Plans and credits</DialogTitle>
+          <DialogDescription>
             Manage plans and buy credits for cloud renders.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
         {showCreditsModal && <CreditsModalBody />}
       </DialogContent>
     </Dialog>
@@ -96,7 +92,6 @@ function CreditsModalBody() {
         <Button
           variant="outline"
           size="sm"
-          className="rounded-lg text-xs px-4"
           onClick={() => refetch()}
         >
           <RefreshCcw size={13} className="mr-1.5" /> Retry Connection
@@ -142,18 +137,7 @@ function CreditsModalBody() {
                 </div>
               </div>
               <div className="flex flex-row sm:flex-col gap-1 items-center sm:items-end flex-wrap">
-                {credits?.monthly_credits !== undefined &&
-                  credits.monthly_credits > 0 && (
-                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                      <Clock size={10} /> {credits.monthly_credits} monthly credits
-                    </span>
-                  )}
-                {credits?.purchased_credits !== undefined &&
-                  credits.purchased_credits > 0 && (
-                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                      <Zap size={10} /> {credits.purchased_credits} purchased credits
-                    </span>
-                  )}
+                <CreditBalanceBadges credits={credits} />
               </div>
             </div>
           )}
@@ -223,8 +207,8 @@ function CreditsModalBody() {
 
               <div className="mt-8 bg-background/50 rounded-xl p-4 border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                    <Coins size={20} className="text-amber-500" />
+                  <div className="w-10 h-10 rounded-full bg-credit/10 flex items-center justify-center shrink-0">
+                    <Coins size={20} className="text-credit" />
                   </div>
                   <div>
                     <p className="text-sm font-medium">Credits received</p>
@@ -234,13 +218,14 @@ function CreditsModalBody() {
                         credits
                       </span>
                     </p>
-                    <p className="text-[11px] font-medium text-primary flex items-center gap-1 mt-1">
+                    <p className="text-2xs font-medium text-primary flex items-center gap-1 mt-1">
                       <Timer size={11} /> About {minutesToGet.toLocaleString()} minutes at 1080p
                     </p>
                   </div>
                 </div>
                 <Button
-                  className="h-11 w-full sm:w-auto px-8 rounded-lg font-medium shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 opacity-50 cursor-not-allowed"
+                  size="xl"
+                  className="w-full sm:w-auto"
                   onClick={() => startCheckout("topup", purchaseAmount)}
                   disabled
                 >
@@ -250,7 +235,7 @@ function CreditsModalBody() {
               </div>
 
               {!user && (
-                <p className="text-[11px] text-muted-foreground/60 text-center mt-3">
+                <p className="text-2xs text-muted-foreground/60 text-center mt-3">
                   You'll create an account as part of the checkout flow.
                 </p>
               )}
@@ -260,20 +245,11 @@ function CreditsModalBody() {
             {user && hasActiveSubscription && (
               <div className="bg-secondary/20 rounded-xl border border-border/30 p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Coins size={13} className="text-amber-500 shrink-0" />
+                  <Coins size={13} className="text-credit shrink-0" />
                   <span>Credits available</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {(credits?.monthly_credits ?? 0) > 0 && (
-                    <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
-                      <Clock size={10} /> {credits!.monthly_credits} monthly credits
-                    </span>
-                  )}
-                  {(credits?.purchased_credits ?? 0) > 0 && (
-                    <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
-                      <Zap size={10} /> {credits!.purchased_credits} purchased credits
-                    </span>
-                  )}
+                  <CreditBalanceBadges credits={credits} />
                 </div>
               </div>
             )}
@@ -281,7 +257,7 @@ function CreditsModalBody() {
       </Tabs>
 
       <div className="mt-6 pt-4 border-t border-border/20 text-center">
-        <p className="text-[11px] text-muted-foreground/60">
+        <p className="text-2xs text-muted-foreground/60">
           For credit or plan support, email <a href="mailto:support@mail.lilmappo.tech" className="text-primary hover:underline font-medium">support@mail.lilmappo.tech</a>
         </p>
       </div>

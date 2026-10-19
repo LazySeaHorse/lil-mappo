@@ -1,6 +1,7 @@
 import React from "react";
-import { Mappo } from "@/components/Mappo/Mappo";
+import { PinDropHero } from "@/components/ui/pin-drop";
 import {
+  CalendarClock,
   Check,
   Cloud,
   Crown,
@@ -19,10 +20,16 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLAN_CONFIG } from "@/services/checkout";
+import { PASS_PLAN, PLAN_CONFIG } from "@/services/checkout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
-import { FREE_CLOUD_SAVE_LIMIT, FREE_LIMITS, isWanderer } from "@/lib/cloudAccess";
+import {
+  FREE_CLOUD_SAVE_LIMIT,
+  FREE_LIMITS,
+  activePassEnd,
+  hasActiveSubscription,
+} from "@/lib/cloudAccess";
+import { PRO_PASS_DAYS, PRO_PASS_PRICE, formatPassEnd } from "@/lib/proPass";
 
 const BENEFITS = [
   {
@@ -74,7 +81,9 @@ export function UpgradeModal() {
   const { data: subscription } = useSubscription();
   // A cancelled plan whose period has ended is not current, so the user can
   // subscribe again even if the expiry webhook has not removed the row yet.
-  const isCurrent = isWanderer(subscription);
+  // A Pro pass is not a subscription: pass holders can still subscribe.
+  const isCurrent = hasActiveSubscription(subscription);
+  const passEnd = activePassEnd(subscription);
 
   const handleCheckout = () => {
     if (isCurrent) return;
@@ -82,46 +91,29 @@ export function UpgradeModal() {
     void startCheckout("wanderer");
   };
 
+  const handlePassCheckout = () => {
+    if (isCurrent) return;
+    closeUpgradeModal();
+    void startCheckout(PASS_PLAN);
+  };
+
   return (
     <Dialog
       open={showUpgradeModal}
       onOpenChange={(open) => !open && closeUpgradeModal()}
     >
-      <DialogContent className="sm:max-w-[620px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2 pr-8">
-              <Mappo mood="explorer" className="h-8 w-auto mt-2 shrink-0" /> Upgrade to Wanderer
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-1">
-              Compare the Free plan with the Wanderer plan.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent size="lg">
+        <PinDropHero mood="key" scene="upgrade" size="compact" />
+        <DialogHeader className="px-6 pb-4 text-left">
+          <DialogTitle>Upgrade to Wanderer</DialogTitle>
+          <DialogDescription>
+            Compare the Free plan with the Wanderer plan.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="px-6 pb-6 max-h-[72vh] overflow-y-auto">
-          <div className="flex items-end justify-between gap-4 pb-5">
-            <p className="text-sm font-medium text-foreground">Wanderer</p>
-            <div className="flex items-baseline gap-1 shrink-0">
-              {PLAN_CONFIG.wanderer.originalPriceMonthly && (
-                <span className="text-lg text-muted-foreground line-through mr-1">
-                  ${PLAN_CONFIG.wanderer.originalPriceMonthly}
-                </span>
-              )}
-              <span className="text-3xl font-medium tracking-tight">
-                ${PLAN_CONFIG.wanderer.priceMonthly}
-              </span>
-              <span className="text-sm text-muted-foreground">/month</span>
-            </div>
-          </div>
-          {PLAN_CONFIG.wanderer.originalPriceMonthly && (
-            <p className="text-xs font-medium text-primary -mt-3 pb-4 text-right">
-              Limited-time discount
-            </p>
-          )}
-
           <div className="rounded-xl border border-border/50 overflow-hidden bg-secondary/10">
-            <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_120px_170px] items-center px-4 py-2.5 bg-secondary/30 border-b border-border/40 text-[11px] font-medium text-muted-foreground">
+            <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_120px_170px] items-center px-4 py-2.5 bg-secondary/30 border-b border-border/40 text-2xs font-medium text-muted-foreground">
               <span>Feature</span>
               <span>Free plan</span>
               <span className="text-primary">Wanderer plan</span>
@@ -140,14 +132,14 @@ export function UpgradeModal() {
                 </div>
 
                 <div className="text-xs text-muted-foreground">
-                  <span className="block sm:hidden text-[10px] font-medium text-muted-foreground/70 mb-0.5">
+                  <span className="block sm:hidden text-2xs font-medium text-muted-foreground/70 mb-0.5">
                     Free plan
                   </span>
                   {free}
                 </div>
 
                 <div className="text-xs font-medium text-foreground">
-                  <span className="block sm:hidden text-[10px] font-medium text-primary mb-0.5">
+                  <span className="block sm:hidden text-2xs font-medium text-primary mb-0.5">
                     Wanderer plan
                   </span>
                   <span className="inline-flex items-start gap-1.5">
@@ -160,18 +152,53 @@ export function UpgradeModal() {
           </div>
 
           <div className="mt-5">
-            <Button
-              className="w-full h-11 rounded-lg font-medium"
-              disabled={isCurrent}
-              onClick={handleCheckout}
-            >
-              <Crown size={15} />
-              {isCurrent ? "Current plan" : "Subscribe to Wanderer"}
-            </Button>
-            {!isCurrent && (
-              <p className="text-[11px] text-muted-foreground text-center mt-2.5 leading-relaxed">
-                Renews at ${PLAN_CONFIG.wanderer.priceMonthly} each month until you cancel. You can cancel anytime in Account Settings.
-              </p>
+            {isCurrent ? (
+              <Button size="xl" className="w-full" disabled>
+                <Crown size={15} />
+                Current plan
+              </Button>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    size="xl"
+                    className="w-full"
+                    onClick={handleCheckout}
+                    aria-label={`Subscribe to Wanderer, $${PLAN_CONFIG.wanderer.priceMonthly}/month`}
+                  >
+                    <Crown size={15} />
+                    {PLAN_CONFIG.wanderer.originalPriceMonthly && (
+                      <>
+                        <span className="line-through opacity-60">
+                          ${PLAN_CONFIG.wanderer.originalPriceMonthly}
+                        </span>{" "}
+                      </>
+                    )}
+                    ${PLAN_CONFIG.wanderer.priceMonthly}/month
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="xl"
+                    className="w-full"
+                    onClick={handlePassCheckout}
+                    aria-label={
+                      passEnd
+                        ? `Add ${PRO_PASS_DAYS} days for $${PRO_PASS_PRICE}`
+                        : `${PRO_PASS_DAYS}-day pass, $${PRO_PASS_PRICE} for ${PRO_PASS_DAYS} days`
+                    }
+                  >
+                    <CalendarClock size={15} />
+                    {passEnd
+                      ? `Add ${PRO_PASS_DAYS} days`
+                      : `$${PRO_PASS_PRICE} for ${PRO_PASS_DAYS} days`}
+                  </Button>
+                </div>
+                <p className="text-2xs text-muted-foreground text-center mt-2.5 leading-relaxed">
+                  {passEnd
+                    ? `Your pass ends ${formatPassEnd(passEnd)}. Monthly renews at $${PLAN_CONFIG.wanderer.priceMonthly} until you cancel in Account Settings. Adding a pass extends it by ${PRO_PASS_DAYS} days.`
+                    : `Monthly renews at $${PLAN_CONFIG.wanderer.priceMonthly} until you cancel in Account Settings. The pass is one payment of $${PRO_PASS_PRICE} for ${PRO_PASS_DAYS} days of everything in Wanderer, no renewal.`}
+                </p>
+              </>
             )}
           </div>
         </div>

@@ -1,12 +1,10 @@
-import { lazy, Suspense, useRef } from 'react';
-import { loadAiPanel } from '@/lib/lazyModules';
+import { useRef } from 'react';
+import { AiPanel } from './AiPanel';
 import { useProjectStore } from '@/store/useProjectStore';
 import { AgentToolRegistrar } from './AgentToolRegistrar';
 import { useAgentActionVisuals } from './useAgentActionVisuals';
 import { useAiPanelStore } from './useAiPanelStore';
 import { AiStatusPill } from './AiStatusPill';
-
-const AiPanel = lazy(() => loadAiPanel().then((m) => ({ default: m.AiPanel })));
 
 /** Non-visual AI plumbing: tool registration and live action visuals. Stays mounted in zen mode. */
 export function AiRuntime() {
@@ -25,9 +23,7 @@ export function AiOverlays() {
   return (
     <>
       {openedRef.current && (
-        <Suspense fallback={null}>
-          <AiPanel />
-        </Suspense>
+        <AiPanel />
       )}
       <AiStatusPill />
     </>

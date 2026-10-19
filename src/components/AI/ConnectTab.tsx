@@ -5,8 +5,9 @@ import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAiAccess } from './useAiAccess';
 import { hasAiConsent, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
@@ -56,7 +57,7 @@ export function ConnectTab() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <label htmlFor="ai-enable" className="text-xs font-medium">Allow AI agents to control this project</label>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Resets to off when you close the editor.</p>
+          <p className="text-2xs text-muted-foreground mt-0.5">Resets to off when you close the editor.</p>
         </div>
         <Switch id="ai-enable" checked={enabled} onCheckedChange={handleToggle} aria-label="Allow AI agents to control this project" />
       </div>
@@ -68,12 +69,12 @@ export function ConnectTab() {
       )}
 
       <AiStatusLine enabled={enabled} supported={supported} count={count} bridged={bridged} />
-      <p className="text-[11px] text-muted-foreground leading-relaxed">{BRIDGE_DOCS_HINT}</p>
+      <p className="text-2xs text-muted-foreground leading-relaxed">{BRIDGE_DOCS_HINT}</p>
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <label htmlFor="ai-follow" className="text-xs font-medium">Follow AI</label>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Move the map to what the agent changes.</p>
+          <p className="text-2xs text-muted-foreground mt-0.5">Move the map to what the agent changes.</p>
         </div>
         <Switch id="ai-follow" checked={followAi} onCheckedChange={setFollowAi} aria-label="Follow AI" />
       </div>
@@ -84,11 +85,11 @@ export function ConnectTab() {
           <ChevronDown size={14} className="transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <ul className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+          <ul className="mt-2 space-y-1 text-2xs text-muted-foreground">
             {tools.map((t) => (
               <li key={t.name} className="flex items-center justify-between gap-2">
                 <span>{t.title}</span>
-                {!t.annotations.readOnlyHint && <span className="text-[9px] uppercase tracking-wider opacity-70">edits</span>}
+                {!t.annotations.readOnlyHint && <span className="text-micro uppercase tracking-wider opacity-70">edits</span>}
               </li>
             ))}
           </ul>
@@ -96,11 +97,12 @@ export function ConnectTab() {
       </Collapsible>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent size="md" className="max-h-[90vh] overflow-y-auto">
+          <PinDropHero mood="inquisitive" scene="connect" size="compact" />
+          <PopupBody>
             <AlertDialogTitle>Let AI agents control this project?</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 [&_strong]:text-foreground [&_strong]:font-medium">
                 <p>This is an experimental feature. An AI agent you connect will be able to change this project.</p>
                 <p><strong>To connect one</strong>, use Gemini in Chrome (with WebMCP enabled), or run the small lil-mappo bridge app on your computer to use Claude Code, Codex and other local agents.</p>
                 <p><strong>It can:</strong> add and edit routes, boundaries and callouts, edit the camera and project settings, and render preview frames.</p>
@@ -109,8 +111,7 @@ export function ConnectTab() {
                 {!allowed && <p className="text-muted-foreground">{signedIn ? 'AI control is part of the Wanderer plan.' : 'Sign in with a Wanderer account to turn it on.'}</p>}
               </div>
             </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
+          <PopupActions>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -122,7 +123,8 @@ export function ConnectTab() {
             >
               {!signedIn ? 'Sign in' : !allowed ? 'See Wanderer plan' : 'Turn on'}
             </AlertDialogAction>
-          </AlertDialogFooter>
+          </PopupActions>
+          </PopupBody>
         </AlertDialogContent>
       </AlertDialog>
     </div>

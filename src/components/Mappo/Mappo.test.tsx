@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Mappo } from './Mappo';
-import { accountMood, authMood } from './moods';
+import { accountMood, authMood, mappoTipX } from './moods';
 import type { MappoMood } from './moods';
 import type { Subscription } from '@/lib/database.types';
 
@@ -24,8 +24,10 @@ describe('accountMood', () => {
 
 describe('<Mappo />', () => {
   const moods: MappoMood[] = ['default', 'sleepy', 'inquisitive', 'curious', 'happy', 'blush', 'sparkle', 'worried', 'explorer', 'key'];
+  const poses: MappoMood[] = ['phone', 'camera', 'map', 'wave', 'cheer', 'reel', 'tangled', 'ticket', 'balloon', 'peek', 'peek-worried', 'nervous'];
+  const viewBox = (mood: MappoMood) => render(<Mappo mood={mood} />).container.querySelector('svg')?.getAttribute('viewBox');
 
-  it.each(moods)('renders the %s mood', (mood) => {
+  it.each([...moods, ...poses])('renders the %s mood', (mood) => {
     const { container } = render(<Mappo mood={mood} />);
     expect(container.querySelector('svg')?.getAttribute('data-mood')).toBe(mood);
   });
@@ -36,9 +38,46 @@ describe('<Mappo />', () => {
   });
 
   it('widens the frame so the key held out to the right shows', () => {
-    const viewBox = (mood: MappoMood) => render(<Mappo mood={mood} />).container.querySelector('svg')?.getAttribute('viewBox');
     expect(viewBox('key')).toBe('351 287 760 678');
     expect(viewBox('blush')).toBe('351 287 553 678');
+  });
+
+  it.each(['phone', 'camera', 'wave', 'cheer', 'reel', 'ticket', 'balloon'] as MappoMood[])(
+    'widens the frame so the %s prop shows',
+    (mood) => {
+      expect(viewBox(mood)).not.toBe('351 287 553 678');
+    },
+  );
+
+  it('keeps the usual frame for poses that stay inside the pin', () => {
+    for (const mood of ['map', 'tangled', 'peek', 'peek-worried', 'nervous'] as MappoMood[]) {
+      expect(viewBox(mood)).toBe('351 287 553 678');
+    }
+  });
+
+  it('knows where the tip sits so a pin can land on a spot', () => {
+    expect(mappoTipX('default')).toBeCloseTo((618 - 351) / 553);
+    expect(mappoTipX('wave')).toBeCloseTo((618 - 211) / 693);
+  });
+
+  it('leans the pin for poses with a lean, pivoting on its tip', () => {
+    const lean = (mood: MappoMood) => render(<Mappo mood={mood} />).container.querySelector('svg > g[transform^="rotate("]');
+    expect(lean('nervous')?.getAttribute('transform')).toBe('rotate(-5 628 940)');
+    expect(lean('curious')).toBeNull();
+  });
+
+  it('gives the moving props their own parts so a page can animate them', () => {
+    const part = (mood: MappoMood, name: string) => render(<Mappo mood={mood} />).container.querySelector(`[data-part="${name}"]`);
+    expect(part('wave', 'arm')).not.toBeNull();
+    expect(part('reel', 'reel')).not.toBeNull();
+    expect(part('balloon', 'balloon')).not.toBeNull();
+    expect(part('cheer', 'confetti')).not.toBeNull();
+  });
+
+  it('only moves its parts when animated', () => {
+    const svg = (animated?: boolean) => render(<Mappo mood="reel" animated={animated} />).container.querySelector('svg');
+    expect(svg()?.classList.contains('mappo-animated')).toBe(false);
+    expect(svg(true)?.classList.contains('mappo-animated')).toBe(true);
   });
 
   it('is hidden from assistive tech unless titled', () => {

@@ -5,6 +5,8 @@ import { useMapPicker } from '@/hooks/useMapPicker';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { useGuestLock } from '@/hooks/useGuestLock';
+import { useSubscription } from '@/hooks/useSubscription';
+import { isWanderer } from '@/lib/cloudAccess';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { Button } from '@/components/ui/button';
 import {
@@ -89,6 +91,8 @@ export const RouteAddDropdown = ({
   const path = useEndpointRoutePath(undefined, PATH_MESSAGES);
   const frame = useFrameOnMap();
   const isGuest = useGuestLock();
+  const { data: subscription } = useSubscription();
+  const isPro = isWanderer(subscription);
 
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
@@ -212,6 +216,7 @@ export const RouteAddDropdown = ({
         endName,
         name: defaultEndpointRouteName(mode, startName, endName),
         startTime: useProjectStore.getState().playheadTime,
+        pro: isPro,
       }),
       extractLineCoords(previewRoute).length,
     );
@@ -263,10 +268,9 @@ export const RouteAddDropdown = ({
     primaryAction = (
       <Button
         variant={walkPoints.length >= 2 ? 'default' : 'secondary'}
-        size="sm"
         onClick={handleAddWalk}
         disabled={walkPoints.length < 2}
-        className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
+        className="w-full"
       >
         <Plus size={16} /> Insert walk path
       </Button>
@@ -275,11 +279,10 @@ export const RouteAddDropdown = ({
     primaryAction = (
       <Button
         variant="secondary"
-        size="sm"
         data-walkthrough="route-action"
         onClick={calculate}
         disabled={path.loading}
-        className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium bg-secondary/50 hover:bg-secondary border border-border/50 rounded-lg transition-all"
+        className="w-full"
       >
         {path.loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Preview path
       </Button>
@@ -288,10 +291,9 @@ export const RouteAddDropdown = ({
     primaryAction = (
       <Button
         variant="default"
-        size="sm"
         data-walkthrough="route-action"
         onClick={handleAddCarFlight}
-        className="w-full h-9 flex items-center justify-center gap-2 text-xs font-medium rounded-lg shadow-lg shadow-primary/10 transition-all"
+        className="w-full"
       >
         <Plus size={16} /> Insert route
       </Button>
@@ -302,10 +304,10 @@ export const RouteAddDropdown = ({
     <div className="space-y-2">
       {primaryAction}
       <Button
-        variant="ghost"
+        variant="subtle"
         size="sm"
         onClick={onImportClick}
-        className="w-full h-8 flex items-center justify-center gap-2 text-xs text-muted-foreground font-medium hover:text-foreground"
+        className="w-full"
       >
         {isGuest ? <Lock size={13} /> : <Upload size={13} />}
         {isGuest ? 'Sign in to import KML / GPX data' : 'Import KML / GPX data'}
@@ -396,9 +398,8 @@ export const RouteAddDropdown = ({
                 </div>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="xs"
                   onClick={() => setPreviewRoute(null)}
-                  className="h-6 text-[10px]"
                 >
                   Clear
                 </Button>

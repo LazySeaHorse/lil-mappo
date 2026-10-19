@@ -20,6 +20,7 @@ import { geoStats } from '../geo';
 import { resolveLocation } from '../geocode';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
+import { isProNow } from '@/lib/currentPlan';
 import { summarizeItem } from '../summaries';
 import {
   anchorSchema,
@@ -56,7 +57,7 @@ export const addRoute = defineTool({
   title: 'Add route',
   description:
     'Adds an animated route line to the timeline. mode "car": driving directions between `from` and `to` (Mapbox Directions; the result includes distance in meters and drive time in seconds). ' +
-    'mode "flight": great-circle arc between `from` and `to` with a plane marker. mode "walk": a hand-placed path through `points` (2+ [lng, lat]), or from/to if no points. ' +
+    'mode "flight": great-circle arc between `from` and `to` (dot marker; the plane for a Pro user). mode "walk": a hand-placed path through `points` (2+ [lng, lat]), or from/to if no points. ' +
     '`from`/`to` accept [lng, lat] or a place name (geocoded; see search_place). The line draws itself between startTime and endTime (seconds on the project timeline, default: playhead to +5s). ' +
     '`style` is a partial style (color, width, glow, dashPattern, animationType...). One undo step. Frame it with frame_items or add_camera_keyframe. Returns the new item id.',
   input: z.strictObject({
@@ -68,7 +69,7 @@ export const addRoute = defineTool({
     name: z.string().min(1).max(120).optional().describe('Timeline label. Default derived from the endpoints.'),
     ...timing,
     style: routeStylePatchSchema.optional().describe('Partial route style merged over the defaults.'),
-    vehicle: vehiclePatchSchema.optional().describe('Partial vehicle settings merged over the defaults (dot for car/walk, plane for flight).'),
+    vehicle: vehiclePatchSchema.optional().describe('Partial vehicle settings merged over the defaults (dot, except the plane for a flight when the user has Pro).'),
   }),
   readOnly: false,
   handler: async (input) => {
@@ -111,6 +112,7 @@ export const addRoute = defineTool({
         endName: to.name,
         name: input.name ?? defaultEndpointRouteName(mode, from.name, to.name),
         startTime: 0,
+        pro: isProNow(),
       });
     }
 

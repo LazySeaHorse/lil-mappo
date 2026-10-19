@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/mapbox";
 import Toolbar from "@/components/Toolbar/Toolbar";
 import MapViewport from "@/components/MapViewport/MapViewport";
@@ -29,18 +29,18 @@ import { isDarkMapStyle } from "@/config/mapbox";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { PANEL_MARGIN } from "@/constants/layout";
 import { IconButton } from "@/components/ui/icon-button";
-import { loadExportModal } from "@/lib/lazyModules";
-import { LazyAccountModals } from "@/components/Account/LazyAccountModals";
+import ExportModal from "@/components/ExportModal/ExportModal";
+import { AccountModals } from "@/components/Account/AccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
+import { useImportedModels } from "@/models/useImportedModels";
 import type { RouteDeepLinkRequest } from "@/services/routeDeepLink";
 import type { Subscription } from "@/lib/database.types";
 
-const ExportModal = lazy(loadExportModal);
 
 function useSonnerPosition({ isMobile }: { isMobile: boolean }): React.CSSProperties {
   // Toolbar is h-14 (56px). Desktop toolbar sits at PANEL_MARGIN from top; mobile at safe-area-inset-top.
@@ -129,6 +129,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   const deepLink = useRouteDeepLink(routeDeepLink, isWorkingDraftReady, onRouteDeepLinkSettled ?? (() => {}));
   usePlayback(mapRef);
   useHistoryShortcuts();
+  useImportedModels();
   const mapLoadGate = useMapLoadGate({
     deepLinkEntry: deepLink.isEntry,
     deepLinkPending: routeDeepLink !== null && !deepLink.ready,
@@ -238,15 +239,13 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         )}
 
         {exportOpenedRef.current && (
-          <Suspense fallback={null}>
-            <ExportModal open={showExport} onClose={() => setShowExport(false)} />
-          </Suspense>
+          <ExportModal open={showExport} onClose={() => setShowExport(false)} />
         )}
         <ProjectLibraryModal open={showLibrary} onClose={() => setShowLibrary(false)} />
 
         {/* Account Modals */}
         <NewProjectModal />
-        <LazyAccountModals />
+        <AccountModals />
         <QuickWalkthrough isMapReady={isMapReady} isMobile={isToolbarCollapsed} />
         </div>
       </MapRuntimeContext.Provider>

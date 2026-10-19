@@ -97,11 +97,12 @@ export const EndpointPlanner = ({
       )}
 
       <Button
+        size="lg"
         type="button"
         variant="outline"
         onClick={() => path.preview(calc)}
         disabled={path.loading}
-        className="w-full h-10 py-2.5 px-4 rounded-lg text-xs font-medium shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
+        className="w-full"
       >
         <Eye size={15} className="text-muted-foreground" />
         <span>{ROUTE_PATH_TERMS.preview}</span>

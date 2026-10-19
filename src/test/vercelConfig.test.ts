@@ -67,6 +67,10 @@ describe('Vercel Content-Security-Policy', () => {
     );
   });
 
+  it('lets Mapbox load imported 3D models from in-memory blob URLs', () => {
+    expect(parseDirectives(getContentSecurityPolicy()).get('connect-src')).toContain('blob:');
+  });
+
   it('keeps privileged document capabilities locked down', () => {
     const directives = parseDirectives(getContentSecurityPolicy());
 

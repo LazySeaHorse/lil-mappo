@@ -109,9 +109,9 @@ export function ColorPicker({
             type="button"
             onClick={() => onChange(preset)}
             className={cn(
-              "relative w-5 h-5 rounded-full shrink-0 border border-black/15 dark:border-white/20 shadow-xs transition-all hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+              "relative w-5 h-5 rounded-full shrink-0 border border-black/15 dark:border-white/20 shadow-sm transition-all hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
               isSelected &&
-                "ring-2 ring-primary ring-offset-1.5 ring-offset-background scale-105",
+                "ring-2 ring-primary ring-offset-2 ring-offset-background scale-105",
               swatchClassName
             )}
             style={{ backgroundColor: preset }}
@@ -128,7 +128,7 @@ export function ColorPicker({
           type="button"
           onClick={() => onChange(value)}
           className={cn(
-            "relative w-5 h-5 rounded-full shrink-0 border border-black/15 dark:border-white/20 shadow-xs ring-2 ring-primary ring-offset-1.5 ring-offset-background scale-105 transition-all hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+            "relative w-5 h-5 rounded-full shrink-0 border border-black/15 dark:border-white/20 shadow-sm ring-2 ring-primary ring-offset-2 ring-offset-background scale-105 transition-all hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
             swatchClassName
           )}
           style={{ backgroundColor: value }}
@@ -144,9 +144,9 @@ export function ColorPicker({
           <button
             type="button"
             className={cn(
-              "relative w-5 h-5 rounded-full shrink-0 border border-black/15 dark:border-white/20 shadow-xs hover:scale-110 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+              "relative w-5 h-5 rounded-full shrink-0 border border-black/15 dark:border-white/20 shadow-sm hover:scale-110 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
               isOpen &&
-                "ring-2 ring-primary ring-offset-1.5 ring-offset-background scale-105",
+                "ring-2 ring-primary ring-offset-2 ring-offset-background scale-105",
               swatchClassName
             )}
             style={{
@@ -158,17 +158,17 @@ export function ColorPicker({
           />
         </PopoverTrigger>
         <PopoverContent
-          className="w-56 p-3 rounded-xl border border-border/60 bg-popover shadow-xl z-50"
+          className="w-56 p-3 rounded-xl border border-border/60 bg-popover shadow-xl z-overlay"
           align="end"
           side="bottom"
           sideOffset={6}
         >
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Custom Color
               </span>
-              <span className="text-[11px] font-mono text-muted-foreground uppercase">
+              <span className="text-2xs font-mono text-muted-foreground uppercase">
                 {normalizeHex(value) || value}
               </span>
             </div>

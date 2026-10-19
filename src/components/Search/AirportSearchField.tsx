@@ -22,6 +22,7 @@ import {
   parseCoordinates,
   createCoordinateAirport,
 } from '@/hooks/useAirportSearch';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Airport } from '@/services/airports/types';
 
@@ -54,6 +55,8 @@ export const AirportSearchField = ({
     results,
     isOpen,
     loading,
+    error,
+    retry,
     selectAirport,
     clear,
     open,
@@ -85,7 +88,7 @@ export const AirportSearchField = ({
     }
   };
 
-  const hasContentToShow = results.length > 0 || loading || query.trim().length > 0;
+  const hasContentToShow = results.length > 0 || loading || error || query.trim().length > 0;
 
   return (
     <div
@@ -142,7 +145,7 @@ export const AirportSearchField = ({
                 e.preventDefault();
               }
             }}
-            className="z-[130] w-fit min-w-[280px] sm:min-w-[340px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            className="z-tour-popover w-fit min-w-[280px] sm:min-w-[340px] max-w-[480px] p-0 shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-2xl border border-border/50 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
           >
             <CommandList className="ph-no-capture flex flex-col p-1 max-h-[300px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {loading && (
@@ -151,7 +154,15 @@ export const AirportSearchField = ({
                   <span>Loading airports...</span>
                 </div>
               )}
-              {!loading && results.length === 0 && (
+              {error && (
+                <div className="flex items-center justify-center gap-2 py-4 px-3 text-xs text-muted-foreground">
+                  <span>Couldn't load airports.</span>
+                  <Button type="button" variant="link" size="inline" onClick={retry}>
+                    Retry
+                  </Button>
+                </div>
+              )}
+              {!loading && !error && results.length === 0 && (
                 <CommandEmpty className="py-4 px-3 text-center text-xs text-muted-foreground">
                   No airports found
                 </CommandEmpty>
@@ -172,18 +183,18 @@ export const AirportSearchField = ({
                       <span className="font-medium tracking-tight text-foreground/90 group-hover/airport:text-foreground truncate text-xs">
                         {airport.name}
                       </span>
-                      <span className="text-[11px] text-muted-foreground truncate">
+                      <span className="text-2xs text-muted-foreground truncate">
                         {airport.city ? `${airport.city}, ${airport.country}` : airport.country}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {airport.iata && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-primary/15 text-primary tracking-wider uppercase">
+                        <span className="px-1.5 py-0.5 text-2xs font-bold rounded bg-primary/15 text-primary tracking-wider uppercase">
                           {airport.iata}
                         </span>
                       )}
                       {airport.icao && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-secondary text-muted-foreground uppercase">
+                        <span className="px-1.5 py-0.5 text-2xs font-mono rounded bg-secondary text-muted-foreground uppercase">
                           {airport.icao}
                         </span>
                       )}

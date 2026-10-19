@@ -165,9 +165,11 @@ test.describe("5 Golden E2E Journeys", () => {
     await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
 
     // 4. Verify all items exist on Timeline
-    await expect(page.getByText(createdRouteName, { exact: true })).toBeVisible();
-    await expect(page.getByTestId("timeline-viewport-content").getByText(calloutTitle, { exact: true })).toBeVisible();
-    await expect(page.getByText("Testland", { exact: true })).toBeVisible();
+    // Scoped to the timeline: the selected item's name also shows in the map's "Showing … in full" pill.
+    const timeline = page.getByTestId("timeline-viewport-content");
+    await expect(timeline.getByText(createdRouteName, { exact: true })).toBeVisible();
+    await expect(timeline.getByText(calloutTitle, { exact: true })).toBeVisible();
+    await expect(timeline.getByText("Testland", { exact: true })).toBeVisible();
 
     // 5. Test Timeline Playback
     const playButton = page.getByTitle("Play / Pause (Space)");
@@ -233,11 +235,16 @@ test.describe("5 Golden E2E Journeys", () => {
     await expect(exportDialog).toBeVisible();
 
     // 2. Verify Free Plan constraints are enforced in UI
-    await expect(exportDialog.getByText(/Free plan limit:.*720p, 30 FPS, and 30 seconds/)).toBeVisible();
+    await expect(exportDialog.getByRole("button", { name: "Get Wanderer" })).toHaveCount(0);
     await expect(exportDialog.getByRole("button", { name: "Cloud render, not built yet" })).toBeEnabled();
 
     // 3. Click Upgrade trigger
-    await exportDialog.getByRole("button", { name: /Use a paid plan/ }).click();
+    // Picking a Pro setting turns Export into Get Wanderer, which opens the upgrade.
+    await exportDialog.getByRole("combobox").filter({ hasText: "30 FPS" }).click();
+    await page.getByRole("option", { name: /60 FPS/ }).click();
+    const getWanderer = exportDialog.getByRole("button", { name: "Get Wanderer" });
+    await expect(getWanderer).toHaveAccessibleDescription("60 FPS comes with the Wanderer plan.");
+    await getWanderer.click();
     const upgradeDialog = page.getByRole("dialog", { name: "Upgrade to Wanderer" });
     await expect(upgradeDialog).toBeVisible();
     await expect(upgradeDialog.getByRole("button", { name: "Subscribe to Wanderer" })).toBeVisible();
@@ -345,11 +352,12 @@ test.describe("5 Golden E2E Journeys", () => {
     // Toggle Map Style: Standard -> Dark -> Standard
     const styleCombobox = page.locator('[data-walkthrough="map-style"]');
     if (await styleCombobox.isVisible()) {
+      const styles = page.getByRole("radiogroup", { name: "Map style", exact: true });
       await styleCombobox.click();
-      await page.getByRole("option", { name: "Dark" }).click();
+      await styles.getByRole("radio", { name: /^Dark\b/ }).click();
       await page.waitForTimeout(300);
       await styleCombobox.click();
-      await page.getByRole("option", { name: "Standard" }).click();
+      await styles.getByRole("radio", { name: /^Standard\b/ }).click();
     }
 
     // Toggle 3D Terrain

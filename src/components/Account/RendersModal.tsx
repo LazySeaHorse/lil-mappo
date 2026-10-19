@@ -3,6 +3,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -13,8 +14,9 @@ import type { ExportResolution } from '@/types/render';
 import { RESOLUTION_LABELS } from '@/types/render';
 import {
   Clapperboard, RefreshCcw, LogIn, Loader2, Download,
-  RotateCcw, Clock, CheckCircle2, AlertCircle, Hourglass, PlayCircle
+  RotateCcw, Clock, CheckCircle2, AlertCircle, Hourglass
 } from 'lucide-react';
+import { PinDropHero } from '@/components/ui/pin-drop';
 
 export function RendersModal() {
   const { showRendersModal, closeRendersModal } = useAuthStore(
@@ -26,17 +28,14 @@ export function RendersModal() {
 
   return (
     <Dialog open={showRendersModal} onOpenChange={(open) => !open && closeRendersModal()}>
-      <DialogContent className="sm:max-w-[540px] rounded-2xl bg-background/95 border-border/40 shadow-2xl p-0 overflow-hidden">
-        <div className="p-6 pb-4 bg-gradient-to-b from-secondary/40 to-transparent">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-medium tracking-tight flex items-center gap-2">
-              <PlayCircle className="text-primary h-6 w-6" /> Cloud renders
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm mt-1">
-              View cloud-render status and download completed files.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent>
+        <PinDropHero mood="reel" scene="renders" size="compact" />
+        <DialogHeader className="px-6 pb-4 text-left">
+          <DialogTitle>Cloud renders</DialogTitle>
+          <DialogDescription>
+            View cloud-render status and download completed files.
+          </DialogDescription>
+        </DialogHeader>
         {showRendersModal && <RendersModalBody />}
       </DialogContent>
     </Dialog>
@@ -67,7 +66,8 @@ function RendersModalBody() {
             </p>
           </div>
           <Button
-            className="mt-2 rounded-lg h-10 px-8 font-medium shadow-lg shadow-primary/20 transition-all"
+            size="lg"
+            className="mt-2"
             onClick={() => { closeRendersModal(); openAuthModal(); }}
           >
             Sign in
@@ -80,7 +80,7 @@ function RendersModalBody() {
       ) : error ? (
         <div className="flex flex-col items-center gap-3 py-16">
           <p className="text-sm font-medium text-destructive">Cannot load renders.</p>
-          <Button variant="outline" size="sm" className="rounded-lg text-xs px-4" onClick={() => refetch()}>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCcw size={13} className="mr-1.5" /> Try again
           </Button>
         </div>
@@ -98,8 +98,7 @@ function RendersModalBody() {
             </span>
             <Button
               variant="secondary"
-              size="sm"
-              className="h-7 px-3 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 border border-border/50 text-foreground transition-colors"
+              size="xs"
               onClick={() => refetch()}
               disabled={isFetching}
             >
@@ -158,9 +157,9 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
           <span className="text-foreground/80 font-medium">{job.credits_cost} credit{job.credits_cost !== 1 ? 's' : ''}</span>
 
           {expiresIn && (
-            <span className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md font-medium">
-              <Hourglass size={10} /> {expiresIn} left
-            </span>
+            <Badge variant="warning">
+              <Hourglass /> {expiresIn} left
+            </Badge>
           )}
           {isExpired && job.status === 'done' && (
             <span className="text-muted-foreground/60 line-through decoration-muted-foreground/30">Expired</span>
@@ -168,7 +167,7 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
         </div>
 
         {job.error_message && (
-          <p className="text-[11px] font-medium text-destructive mt-2 truncate bg-destructive/10 px-2 py-1 rounded border border-destructive/20">
+          <p className="text-2xs font-medium text-destructive mt-2 truncate bg-destructive/10 px-2 py-1 rounded border border-destructive/20">
             {job.error_message}
           </p>
         )}
@@ -177,8 +176,6 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
       <div className="flex items-center gap-2 shrink-0 self-center">
         {job.status === 'done' && job.output_url && !isExpired && (
           <Button
-            size="sm"
-            className="h-9 px-4 rounded-lg gap-1.5 shadow-md hover:shadow-lg transition-all font-medium"
             asChild
           >
             <a href={job.output_url} download target="_blank" rel="noreferrer">
@@ -188,9 +185,7 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
         )}
         {(job.status === 'failed' || isExpired) && (
           <Button
-            size="sm"
             variant="outline"
-            className="h-9 px-3 rounded-lg gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             title="Re-render (costs credits)"
           >
             <RotateCcw size={14} /> Retry
@@ -203,24 +198,24 @@ function RenderJobRow({ job }: { job: RenderJobListItem }) {
 
 function StatusIcon({ status }: { status: RenderStatus }) {
   switch (status) {
-    case 'done': return <CheckCircle2 size={18} className="text-emerald-500" />;
+    case 'done': return <CheckCircle2 size={18} className="text-success" />;
     case 'failed': return <AlertCircle size={18} className="text-destructive" />;
-    case 'rendering': return <Loader2 size={18} className="animate-spin text-blue-500" />;
+    case 'rendering': return <Loader2 size={18} className="animate-spin text-primary" />;
     case 'queued': return <Hourglass size={18} className="text-muted-foreground" />;
   }
 }
 
 function StatusBadge({ status }: { status: RenderStatus }) {
-  const colors: Record<RenderStatus, string> = {
-    done: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-    failed: 'bg-destructive/15 text-destructive border-destructive/20',
-    rendering: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    queued: 'bg-secondary text-muted-foreground border-border/50',
-  };
+  const variants = {
+    done: 'success',
+    failed: 'danger',
+    rendering: 'info',
+    queued: 'muted',
+  } as const satisfies Record<RenderStatus, BadgeProps['variant']>;
   return (
-    <span className={`text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-md border shadow-sm ${colors[status]}`}>
+    <Badge size="sm" variant={variants[status]}>
       {STATUS_LABELS[status]}
-    </span>
+    </Badge>
   );
 }
 

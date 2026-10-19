@@ -10,6 +10,7 @@ vi.mock('react-secure-storage', () => ({
 vi.mock('./RouteAddDropdown', () => ({ RouteAddDropdown: () => null }));
 vi.mock('./BoundaryAddDropdown', () => ({ BoundaryAddDropdown: () => null }));
 vi.mock('@/annotations/toolbar/AnnotationAddDropdown', () => ({ AnnotationAddDropdown: () => null }));
+vi.mock('./ModelImportButton', () => ({ ModelImportButton: () => null }));
 vi.mock('./HistoryButtons', () => ({ HistoryButtons: () => null }));
 vi.mock('@/components/AI/AiToolbarButton', () => ({ AiToolbarButton: () => <button>AI</button> }));
 
