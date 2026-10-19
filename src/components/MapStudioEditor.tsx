@@ -37,6 +37,7 @@ import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
+import { useImportedModels } from "@/models/useImportedModels";
 import type { RouteDeepLinkRequest } from "@/services/routeDeepLink";
 import type { Subscription } from "@/lib/database.types";
 
@@ -128,6 +129,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   const deepLink = useRouteDeepLink(routeDeepLink, isWorkingDraftReady, onRouteDeepLinkSettled ?? (() => {}));
   usePlayback(mapRef);
   useHistoryShortcuts();
+  useImportedModels();
   const mapLoadGate = useMapLoadGate({
     deepLinkEntry: deepLink.isEntry,
     deepLinkPending: routeDeepLink !== null && !deepLink.ready,
