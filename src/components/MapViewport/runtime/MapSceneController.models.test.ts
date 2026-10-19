@@ -1,10 +1,10 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
-import { createProject } from '@/store/projectDocument';
+import { createProject, parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { createTransientState } from '@/store/useProjectStore';
 import { createModelItem } from '@/store/itemFactories';
-import type { ModelAsset } from '@/store/types';
+import type { ModelAsset, RouteItem } from '@/store/types';
 import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
 import { MapSceneController } from './MapSceneController';
 import { mapboxModelId } from './ModelCatalog';
@@ -127,6 +127,35 @@ describe('MapSceneController with imported models', () => {
       useProjectStore.getState().removeItem('m1');
       expect(double.layers.has('model-layer-m1')).toBe(false);
       expect(double.models.size).toBe(0);
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it('renders a cloud job (project_data, no model files) without the models and with dot markers', () => {
+    const route: RouteItem = {
+      kind: 'route', id: 'r1', name: 'Bus',
+      geojson: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[0, 0], [1, 1]] } }] },
+      startTime: 0, endTime: 5,
+      style: { color: '#123456', width: 4, glow: false, glowWidth: 12, dashPattern: null, animationType: 'draw', cometTrailLength: 0.2 },
+      easing: 'linear', exitAnimation: 'none',
+      calculation: { mode: 'car', startPoint: [0, 0], endPoint: [1, 1], startName: '', endName: '', vehicle: { enabled: true, type: 'custom', modelId: 'a1', scale: 2 } },
+    };
+    useProjectStore.setState((st) => ({ items: { ...createProject().items, ...st.items } }));
+    useProjectStore.getState().addItem(route);
+    // What the cloud renderer receives: the document, which has no bytes.
+    const projectData = JSON.parse(JSON.stringify(toProjectDocument(useProjectStore.getState())));
+    useProjectStore.getState().loadFullProject(parseProjectDocument(projectData));
+    useProjectStore.getState().setIsExporting(true);
+
+    const double = createMapDouble();
+    const controller = new MapSceneController(double.map, vi.fn());
+    try {
+      controller.mount();
+      for (let t = 0; t <= 6; t += 0.5) expect(() => controller.renderAt(t)).not.toThrow();
+      expect(double.layers.has('model-layer-m1')).toBe(false);
+      expect(double.layers.get('vehicle-layer-r1')?.type).toBe('circle');
+      expect(double.addModel).not.toHaveBeenCalled();
     } finally {
       controller.dispose();
     }
