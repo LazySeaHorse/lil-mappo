@@ -679,6 +679,18 @@ One goal: "Make your first trip video". Stages (`walkthroughState.ts`, a pure re
 - **UI Validation**: `BYOKQuickEntry` (in `MapLoadGate.tsx`) and `AccountSettingsModal` both call `isAppOwnKey()` before accepting pasted tokens, providing immediate feedback.
 - **UX**: Updating or clearing the key triggers a page reload to re-initialize the Mapbox instance with the new token.
 
+### 7.3a Imported 3D Models (`src/models/`)
+
+Pro users import a `.glb` (toolbar `ModelImportButton`, icon only, `data-walkthrough="import-model"`) and place it on the map, or ride it as a route marker (`vehicle.type: 'custom'`, `vehicle.modelId` = asset id).
+
+- **Never stored or uploaded.** The bytes live only in `modelRegistry.ts` (in memory, keyed by SHA-256, each an object URL Mapbox loads; `connect-src` allows `blob:` for that). The project keeps only `Project.models` (id, fileName, byteSize, sha256, bounds), a tracked/persisted key that defaults to `{}`. `modelRetention.ts` (installed by `useImportedModels` in `MapStudioEditor`) frees a file and revokes its URL once neither the project nor undo/redo can reach it.
+- **Missing and relink.** A reloaded project (draft, library, cloud, `.lilmap`) has metadata without bytes, so the model is missing: nothing on the map for a placed model, the dot for a custom marker, a warning on the timeline row, a toast on open, and `ModelRelinkPrompt` in the panels. The same file (hash match) just loads; a different file asks first, then `relinkModel` updates the metadata (Pro only, since it is a new model). Export and the headless cloud renderer simply skip missing models; nothing throws.
+- **Files.** `glb.ts` checks the name and the 50 MB cap before reading, then the GLB header, glTF 2.0, embedded resources and geometry, and measures the bounding box through node transforms (`ModelFileError.message` is the user-facing reason). `modelImport.ts` reads, hashes (crypto.subtle), registers and adds (`addModel(asset, item?)`, one undo step; the same file reuses its asset).
+- **Store.** Model items (`kind: 'model'`: position, altitude above ground, heading/pitch/roll, scale, `transition`) come from `createModelItem`. An asset nothing uses is pruned with its last item or marker in `removeItem`/`updateItem` (`store/modelAssets.ts`), so undo brings both back. No movement keyframes.
+- **Drawing.** `runtime/ModelRenderer.ts` (one Mapbox `model` layer per item) and the custom marker in `RouteRenderer` resolve models through `ModelCatalog` (adds/removes `user-model-<hash>` models). Models are lifted so their lowest point sits on the ground (`modelExtent.lift`). `markerSize(vehicle, models)` measures a custom marker from its bounds, so the follow-camera framing and turning work for any model (`getCameraAtTime` takes `models`).
+- **Animation.** Appear `none | fade | scale-up | rise`, disappear `none | fade | scale-down | sink`, with durations, in the Timing section (`modelTiming`, `transitionChoices`). `modelFrame` reuses the callout `computePhase`; a selected model off the playhead shows settled.
+- **Gate.** Only importing is Pro (`useModelImportAccess` -> `isWanderer`, upgrade `where: 'model_import'`). Projects with models open, play and export for everyone, and anyone can ride a model the project already has.
+
 ### 7.4 3D Vehicles, Flight Arcs & Airport Picker
 
 - **3D Vehicles**: Gated as PRO feature in Inspector (toggle + scale controls disabled for free users).
