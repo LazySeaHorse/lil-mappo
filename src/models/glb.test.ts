@@ -150,6 +150,88 @@ describe('parseGlb with hostile files', () => {
   });
 });
 
+describe('parseGlb refuses files Mapbox cannot load', () => {
+  const box = { nodes: [{ mesh: 0 }], min: [0, 0, 0] as [number, number, number], max: [1, 1, 1] as [number, number, number] };
+
+  const errorOf = (buffer: ArrayBuffer): ModelFileError | null => {
+    try {
+      parseGlb(buffer);
+      return null;
+    } catch (err) {
+      if (err instanceof ModelFileError) return err;
+      throw err;
+    }
+  };
+
+  /** A copy of `glb` with `extra` zero bytes appended and the header length updated. */
+  const grow = (glb: ArrayBuffer, extra: number, chunkLength?: { at: number; value: number }) => {
+    const out = new Uint8Array(glb.byteLength + extra);
+    out.set(new Uint8Array(glb));
+    const view = new DataView(out.buffer);
+    view.setUint32(8, out.byteLength, true);
+    if (chunkLength) view.setUint32(chunkLength.at, chunkLength.value, true);
+    return out.buffer;
+  };
+
+  it('refuses buffers and images stored as data: URIs', () => {
+    const dataBuffer = makeGlb({ ...box, extra: { buffers: [{ uri: 'data:application/octet-stream;base64,AAAA', byteLength: 3 }] } });
+    const dataImage = makeGlb({ ...box, images: [{ uri: 'data:image/png;base64,iVBORw0KGgo=' }] });
+    for (const glb of [dataBuffer, dataImage]) {
+      expect(errorOf(glb)?.code).toBe('unsupported');
+      expect(errorOf(glb)?.message).toMatch(/binary \.glb/i);
+    }
+  });
+
+  it('refuses a file whose total length is not a multiple of 4', () => {
+    expect(errorOf(grow(makeGlb(box), 2))?.code).toBe('layout');
+  });
+
+  it('refuses a JSON chunk whose length is not a multiple of 4', () => {
+    const json = new TextEncoder().encode(JSON.stringify({ asset: { version: '2.0' } }) + ' ');
+    const length = json.length % 4 === 0 ? json.length + 1 : json.length;
+    const bytes = new Uint8Array(20 + length + ((4 - ((20 + length) % 4)) % 4));
+    const view = new DataView(bytes.buffer);
+    view.setUint32(0, 0x46546c67, true);
+    view.setUint32(4, 2, true);
+    view.setUint32(8, bytes.length, true);
+    view.setUint32(12, length, true);
+    view.setUint32(16, 0x4e4f534a, true);
+    bytes.set(json.subarray(0, length), 20);
+    expect(errorOf(bytes.buffer)?.code).toBe('layout');
+  });
+
+  it('refuses a BIN chunk that is misaligned or runs past the end', () => {
+    const glb = makeGlb(box);
+    const binHeader = 20 + new DataView(glb).getUint32(12, true);
+    const binLength = new DataView(glb).getUint32(binHeader, true);
+    expect(errorOf(grow(glb, 4, { at: binHeader, value: binLength + 2 }))?.code).toBe('layout');
+    expect(errorOf(grow(glb, 0, { at: binHeader, value: binLength + 64 }))?.code).toBe('layout');
+  });
+
+  it('refuses a chunk after the JSON that is not the BIN chunk', () => {
+    const glb = makeGlb(box);
+    const binHeader = 20 + new DataView(glb).getUint32(12, true);
+    new DataView(glb).setUint32(binHeader + 4, 0x12345678, true);
+    expect(errorOf(glb)?.code).toBe('layout');
+  });
+
+  it('refuses required extensions the map cannot draw, and names them', () => {
+    const glb = makeGlb({ ...box, extra: { extensionsRequired: ['KHR_materials_variants', 'KHR_texture_basisu'] } });
+    expect(errorOf(glb)?.code).toBe('unsupported');
+    expect(errorOf(glb)?.message).toContain('KHR_texture_basisu');
+  });
+
+  it('accepts the compression extensions Mapbox decodes', () => {
+    const glb = makeGlb({ ...box, extra: { extensionsRequired: ['KHR_draco_mesh_compression', 'EXT_meshopt_compression'] } });
+    expect(errorOf(glb)).toBeNull();
+  });
+
+  it('refuses extensionsRequired that is not a list of names', () => {
+    expect(errorOf(makeGlb({ ...box, extra: { extensionsRequired: 'KHR_draco_mesh_compression' } }))?.code).toBe('parse');
+    expect(errorOf(makeGlb({ ...box, extra: { extensionsRequired: [3] } }))?.code).toBe('parse');
+  });
+});
+
 describe('readModelFile', () => {
   it('hashes and measures a picked file', async () => {
     const glb = makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [1, 2, 3] });

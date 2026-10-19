@@ -12,7 +12,7 @@ export const MAX_MODEL_NODES = 200_000;
 export const MAX_MODEL_DEPTH = 1_000;
 export const MAX_MODEL_PRIMITIVES = 1_000_000;
 
-export type ModelFileErrorCode = 'type' | 'size' | 'parse' | 'external' | 'empty' | 'complex';
+export type ModelFileErrorCode = 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex';
 
 /** A model file that cannot be used; `message` is short and safe to show to the user. */
 export class ModelFileError extends Error {
@@ -26,7 +26,9 @@ const MESSAGES: Record<ModelFileErrorCode, string> = {
   type: 'Pick a .glb file. Other 3D formats are not supported.',
   size: 'This model is over 50 MB. Pick a smaller .glb file.',
   parse: 'This file is not a valid .glb model.',
+  layout: 'This .glb is not laid out the way the format requires. Export it again from your 3D app.',
   external: 'This model needs other files next to it. Export it as one .glb with its textures inside.',
+  unsupported: 'This model keeps its data as text inside the file, which the map cannot load. Export it as a binary .glb.',
   empty: 'This model has no 3D shapes in it.',
   complex: 'This model is too complex to place on the map. Merge or simplify its parts, then export it again.',
 };
@@ -44,6 +46,14 @@ export function checkModelFile(file: { name: string; size: number }): void {
 
 const GLB_MAGIC = 0x46546c67; // 'glTF'
 const CHUNK_JSON = 0x4e4f534a;
+const CHUNK_BIN = 0x004e4942;
+
+/**
+ * Extensions a model may require that mapbox-gl 3.x decodes (`decodeGLTF` in its model loader handles
+ * these two). Mapbox ignores any other extension, so a model that requires one would draw wrong or
+ * not at all.
+ */
+const SUPPORTED_REQUIRED_EXTENSIONS: ReadonlySet<string> = new Set(['KHR_draco_mesh_compression', 'EXT_meshopt_compression']);
 
 type Mat4 = number[];
 
@@ -150,6 +160,25 @@ function readAccessor(raw: JsonObject): Accessor {
   return { min: numbers(raw.min, 3, true), max: numbers(raw.max, 3, true) };
 }
 
+/**
+ * Mapbox reads a .glb through 32-bit views and takes the chunk after the JSON as the binary data, so
+ * the layout the format requires is checked: every length a multiple of 4, chunks that end exactly
+ * at the end of the file, and the BIN chunk first after the JSON.
+ */
+function checkChunkLayout(view: DataView, jsonLength: number): void {
+  if (view.byteLength % 4 !== 0 || jsonLength % 4 !== 0) fail('layout');
+  let offset = 20 + jsonLength;
+  let first = true;
+  while (offset < view.byteLength) {
+    if (offset + 8 > view.byteLength) fail('layout');
+    const length = view.getUint32(offset, true);
+    if (length % 4 !== 0 || offset + 8 + length > view.byteLength) fail('layout');
+    if (first && view.getUint32(offset + 4, true) !== CHUNK_BIN) fail('layout');
+    first = false;
+    offset += 8 + length;
+  }
+}
+
 function readJsonChunk(buffer: ArrayBuffer): JsonObject {
   if (buffer.byteLength < 20) fail('parse');
   const view = new DataView(buffer);
@@ -159,6 +188,7 @@ function readJsonChunk(buffer: ArrayBuffer): JsonObject {
   if (view.getUint32(8, true) !== buffer.byteLength) fail('parse');
   const jsonLength = view.getUint32(12, true);
   if (view.getUint32(16, true) !== CHUNK_JSON || 20 + jsonLength > buffer.byteLength) fail('parse');
+  checkChunkLayout(view, jsonLength);
   let json: unknown;
   try {
     json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 20, jsonLength)));
@@ -167,8 +197,6 @@ function readJsonChunk(buffer: ArrayBuffer): JsonObject {
   }
   return isObject(json) ? json : fail('parse');
 }
-
-const isEmbedded = (uri: string | undefined) => uri === undefined || uri.startsWith('data:');
 
 /**
  * Reads a binary glTF 2.0 file's structure (not its pixels) and measures its bounding box in
@@ -180,8 +208,16 @@ export function parseGlb(buffer: ArrayBuffer): { bounds: ModelBounds } {
   const version = optionalString(isObject(gltf.asset) ? gltf.asset.version : undefined);
   if (!version?.startsWith('2')) fail('parse', 'This .glb uses an old glTF version. Export it as glTF 2.0.');
 
+  // Embedded data lives in the BIN chunk. Mapbox fetches any uri, and the app's CSP has no data:.
   const uris = [...objects(gltf.buffers), ...objects(gltf.images)].map((entry) => optionalString(entry.uri));
-  if (!uris.every(isEmbedded)) fail('external');
+  if (uris.some((uri) => uri !== undefined && !uri.startsWith('data:'))) fail('external');
+  if (uris.some((uri) => uri !== undefined)) fail('unsupported');
+
+  const required = list(gltf.extensionsRequired).map((name) => (typeof name === 'string' ? name : fail('parse')));
+  const unsupported = required.filter((name) => !SUPPORTED_REQUIRED_EXTENSIONS.has(name));
+  if (unsupported.length > 0) {
+    fail('unsupported', `This model needs ${unsupported.join(', ')}, which the map cannot draw. Export it without ${unsupported.length === 1 ? 'that extension' : 'those extensions'}.`);
+  }
 
   const rawNodes = list(gltf.nodes);
   if (rawNodes.length > MAX_MODEL_NODES) fail('complex');

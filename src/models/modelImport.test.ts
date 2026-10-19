@@ -7,7 +7,7 @@ import { makeGlb } from './testGlb';
 import { acceptRelink, importModel, readModelAsset, relinkModel } from './modelImport';
 import { clearModelRegistry, getLoadedModel, isModelReady, useModelRegistry } from './modelRegistry';
 import { installModelRetention, modelHashesInUse } from './modelRetention';
-import { ModelFileError } from './glb';
+import { ModelFileError, sha256Hex } from './glb';
 
 const glbFile = (name: string, max: [number, number, number] = [1, 2, 3]) =>
   new File([makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max })], name);
@@ -102,6 +102,14 @@ describe('a reloaded project', () => {
   it('refuses a relink file that is not a model', async () => {
     const { asset } = await savedAndReloaded();
     await expect(relinkModel(asset, new File(['x'], 'x.png'))).rejects.toBeInstanceOf(ModelFileError);
+  });
+
+  it('checks a relinked file like an import, even when its hash matches the project', async () => {
+    // A project saved before the import check could hold a file Mapbox cannot load.
+    const bytes = makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [1, 1, 1], images: [{ uri: 'data:image/png;base64,AAAA' }] });
+    const asset = { id: 'old', fileName: 'old.glb', byteSize: bytes.byteLength, sha256: await sha256Hex(bytes), bounds: { min: [0, 0, 0] as [number, number, number], max: [1, 1, 1] as [number, number, number] } };
+    await expect(relinkModel(asset, new File([bytes], 'old.glb'))).rejects.toMatchObject({ code: 'unsupported' });
+    expect(isModelReady(asset)).toBe(false);
   });
 });
 
