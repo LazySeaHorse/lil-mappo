@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { queryClient } from '@/lib/queryClient';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { undo, redo } from '@/store/history';
 import { agentEvents } from '../events';
@@ -44,6 +46,8 @@ function stubNetwork() {
 describe('add tools', () => {
   beforeEach(() => {
     resetAgentTestState();
+    useAuthStore.setState({ user: null });
+    queryClient.clear();
     stubNetwork();
   });
   afterEach(() => {
@@ -78,11 +82,24 @@ describe('add tools', () => {
     expect(routes()).toHaveLength(1);
   });
 
-  it('add_route flight from coordinates uses a great-circle arc and plane vehicle', async () => {
+  it('add_route flight gives a Pro user the plane, and a free user the dot', async () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    queryClient.setQueryData(['subscription', 'u1'], { tier: 'wanderer', status: 'active', renewal_date: null });
+    const pro = await runAgentTool('add_route', { mode: 'flight', from: [-9.14, 38.72], to: [2.35, 48.85] });
+    const proRoute = state().items[resultJson<{ created: { id: string } }>(pro).created.id];
+    expect(proRoute.kind === 'route' && proRoute.calculation?.vehicle?.type).toBe('plane');
+
+    queryClient.setQueryData(['subscription', 'u1'], null);
+    const free = await runAgentTool('add_route', { mode: 'flight', from: [-9.14, 38.72], to: [2.35, 48.85] });
+    const freeRoute = state().items[resultJson<{ created: { id: string } }>(free).created.id];
+    expect(freeRoute.kind === 'route' && freeRoute.calculation?.vehicle?.type).toBe('dot');
+  });
+
+  it('add_route flight from coordinates uses a great-circle arc and the dot for a guest', async () => {
     const result = await runAgentTool('add_route', { mode: 'flight', from: [-9.14, 38.72], to: [2.35, 48.85] });
     const { created } = resultJson<{ created: { id: string } }>(result);
     const route = state().items[created.id];
-    expect(route.kind === 'route' && route.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'plane' }, startName: '', endName: '' });
+    expect(route.kind === 'route' && route.calculation).toMatchObject({ mode: 'flight', vehicle: { type: 'dot' }, startName: '', endName: '' });
     expect(route.kind === 'route' && route.endTime).toBe(5);
     expect(route.kind === 'route' && route.exitAnimation).toBe('none');
     expect(steps()).toBe(1);

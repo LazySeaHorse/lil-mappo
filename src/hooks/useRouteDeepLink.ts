@@ -12,6 +12,7 @@ import {
 } from '@/services/routeDeepLink';
 import { toProjectDocument } from '@/store/projectDocument';
 import { useProjectStore } from '@/store/useProjectStore';
+import { isProNow } from '@/lib/currentPlan';
 import { track } from '@/lib/analytics';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { extractLineCoords } from '@/engine/geoUtils';
@@ -55,7 +56,7 @@ export function useRouteDeepLink(
     if (!req) return;
     let cancelled = false;
     loadAirports()
-      .then(() => buildRouteDeepLinkProject(req))
+      .then(() => buildRouteDeepLinkProject({ ...req, pro: isProNow() }))
       .catch((): RouteDeepLinkResult => ({
         ok: false,
         message: "Couldn't load the airport list. Starting a blank project instead.",

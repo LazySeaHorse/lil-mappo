@@ -46,8 +46,9 @@ function projectWith(...built: (ModelItem | RouteItem)[]) {
   });
 }
 
-const flightRoute = () =>
-  createEndpointRouteItem({ mode: 'flight', start: [0, 0], end: [1, 1], name: 'Flight', startTime: 0, geojson });
+// A new flight route starts with the dot unless the creator has Pro; `pro` builds one that carries the plane.
+const flightRoute = (pro = false) =>
+  createEndpointRouteItem({ mode: 'flight', start: [0, 0], end: [1, 1], name: 'Flight', startTime: 0, geojson, pro });
 
 const renderModal = () => act(async () => { render(<ExportModal open onClose={vi.fn()} />); });
 
@@ -83,8 +84,17 @@ describe('ExportModal with Pro project content', () => {
     expect(mocks.startExport).not.toHaveBeenCalled();
   });
 
-  it('asks a free user for Wanderer for a plane marker, the default on a flight route', async () => {
+  it('lets a free user export a new flight route, which starts with the dot', async () => {
     projectWith(flightRoute());
+    await renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: /Export locally/i }));
+    expect(mocks.startExport).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /Get Wanderer/i })).not.toBeInTheDocument();
+  });
+
+  it('asks a free user for Wanderer for a plane marker that was chosen', async () => {
+    projectWith(flightRoute(true));
     await renderModal();
 
     expect(screen.getByText('Car and plane markers come with the Wanderer plan.', { selector: 'p' })).toBeInTheDocument();
@@ -95,7 +105,7 @@ describe('ExportModal with Pro project content', () => {
     mocks.subscription = wanderer;
     projectWith(
       createModelItem({ assetId: 'a', name: 'Tower', position: [0, 0], startTime: 0 }),
-      flightRoute(),
+      flightRoute(true),
     );
     await renderModal();
 

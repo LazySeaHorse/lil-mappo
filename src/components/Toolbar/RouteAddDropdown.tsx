@@ -5,6 +5,8 @@ import { useMapPicker } from '@/hooks/useMapPicker';
 import { useEndpointRoutePath } from '@/hooks/useEndpointRoutePath';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { useGuestLock } from '@/hooks/useGuestLock';
+import { useSubscription } from '@/hooks/useSubscription';
+import { isWanderer } from '@/lib/cloudAccess';
 import { useWalkthroughStore } from '@/components/Onboarding/useWalkthroughStore';
 import { Button } from '@/components/ui/button';
 import {
@@ -89,6 +91,8 @@ export const RouteAddDropdown = ({
   const path = useEndpointRoutePath(undefined, PATH_MESSAGES);
   const frame = useFrameOnMap();
   const isGuest = useGuestLock();
+  const { data: subscription } = useSubscription();
+  const isPro = isWanderer(subscription);
 
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
@@ -212,6 +216,7 @@ export const RouteAddDropdown = ({
         endName,
         name: defaultEndpointRouteName(mode, startName, endName),
         startTime: useProjectStore.getState().playheadTime,
+        pro: isPro,
       }),
       extractLineCoords(previewRoute).length,
     );

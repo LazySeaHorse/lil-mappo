@@ -70,8 +70,14 @@ export function createDefaultRouteStyle(preset: RouteStylePreset): RouteStyle {
   };
 }
 
-export function createDefaultVehicle(mode: RouteMode): RouteVehicleConfig {
-  return { enabled: true, type: mode === 'flight' ? 'plane' : 'dot', modelId: '', scale: 1 };
+export interface DefaultVehicleOptions {
+  /** The user has Pro (`isWanderer`). The plane is a Pro marker, so only Pro routes start with it. */
+  pro?: boolean;
+}
+
+/** The marker a new route starts with: the dot, except a Pro user's flight, which gets the plane. */
+export function createDefaultVehicle(mode: RouteMode, { pro = false }: DefaultVehicleOptions = {}): RouteVehicleConfig {
+  return { enabled: true, type: pro && mode === 'flight' ? 'plane' : 'dot', modelId: '', scale: 1 };
 }
 
 export function defaultEndpointRouteName(mode: 'car' | 'flight', startName?: string, endName?: string): string {
@@ -99,6 +105,8 @@ export interface EndpointRouteInput {
   startTime: number;
   endTime?: number;
   id?: string;
+  /** The user has Pro: a flight then starts with the plane marker instead of the dot. */
+  pro?: boolean;
 }
 
 /** A car or flight route from two endpoints, exactly as the Plan Route dropdown inserts it. */
@@ -117,7 +125,7 @@ export function createEndpointRouteItem(input: EndpointRouteInput): RouteItem {
       endPoint: input.end,
       startName: input.startName ?? '',
       endName: input.endName ?? '',
-      vehicle: createDefaultVehicle(input.mode),
+      vehicle: createDefaultVehicle(input.mode, { pro: input.pro }),
     },
     easing: 'easeInOutQuad',
     exitAnimation: 'none',

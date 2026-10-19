@@ -20,6 +20,7 @@ import { geoStats } from '../geo';
 import { resolveLocation } from '../geocode';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
+import { isProNow } from '@/lib/currentPlan';
 import { summarizeItem } from '../summaries';
 import {
   anchorSchema,
@@ -68,7 +69,7 @@ export const addRoute = defineTool({
     name: z.string().min(1).max(120).optional().describe('Timeline label. Default derived from the endpoints.'),
     ...timing,
     style: routeStylePatchSchema.optional().describe('Partial route style merged over the defaults.'),
-    vehicle: vehiclePatchSchema.optional().describe('Partial vehicle settings merged over the defaults (dot for car/walk, plane for flight).'),
+    vehicle: vehiclePatchSchema.optional().describe('Partial vehicle settings merged over the defaults (dot, except the plane for a flight when the user has Pro).'),
   }),
   readOnly: false,
   handler: async (input) => {
@@ -111,6 +112,7 @@ export const addRoute = defineTool({
         endName: to.name,
         name: input.name ?? defaultEndpointRouteName(mode, from.name, to.name),
         startTime: 0,
+        pro: isProNow(),
       });
     }
 

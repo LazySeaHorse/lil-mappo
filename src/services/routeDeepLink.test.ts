@@ -9,8 +9,8 @@ import {
   isSameDeepLinkContent,
 } from './routeDeepLink';
 
-function build(slug: string, autocam: 'chase' | 'drone' | 'reveal' | 'topdown' = 'chase') {
-  const result = buildRouteDeepLinkProject({ slug, autocam });
+function build(slug: string, autocam: 'chase' | 'drone' | 'reveal' | 'topdown' = 'chase', pro?: boolean) {
+  const result = buildRouteDeepLinkProject({ slug, autocam, pro });
   if ('message' in result) throw new Error(result.message);
   return result;
 }
@@ -26,7 +26,7 @@ describe('buildRouteDeepLinkProject', () => {
   });
 
 
-  it('builds exactly one flight route with a plane marker and AutoCam enabled', () => {
+  it('builds exactly one flight route with a dot marker and AutoCam enabled', () => {
     const { project, fromCode, toCode } = build('jfk-to-lhr');
     const routes = routesOf(project);
 
@@ -39,6 +39,7 @@ describe('buildRouteDeepLinkProject', () => {
     const [route] = routes;
     expect(route.calculation?.mode).toBe('flight');
     expect(route.calculation?.vehicle).toEqual(createDefaultVehicle('flight'));
+    expect(route.calculation?.vehicle?.type).toBe('dot');
     expect(route.calculation).toMatchObject({
       startName: expect.stringMatching(/Kennedy/i),
       endName: expect.stringMatching(/Heathrow/i),
@@ -48,6 +49,16 @@ describe('buildRouteDeepLinkProject', () => {
     expect(route.startTime).toBe(0);
     expect(route.endTime).toBe(5);
     expect(route.geojson.features[0].geometry.type).toBe('LineString');
+  });
+
+  it('starts a free visitor\'s route with the dot and a Pro visitor\'s with the plane', () => {
+    const [free] = routesOf(build('jfk-to-lhr', 'chase', false).project);
+    const [pro] = routesOf(build('jfk-to-lhr', 'chase', true).project);
+    expect(free.calculation?.vehicle?.type).toBe('dot');
+    expect(pro.calculation?.vehicle).toEqual(createDefaultVehicle('flight', { pro: true }));
+    expect(pro.calculation?.vehicle?.type).toBe('plane');
+    // AutoCam is framed for the marker the route got.
+    expect(pro.autoCam!.distance).toBeGreaterThan(free.autoCam!.distance);
   });
 
   it('puts the departure and arrival airport coordinates at the ends of the arc', () => {
