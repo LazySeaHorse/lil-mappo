@@ -118,13 +118,10 @@ describe("Pro pass webhook grant", () => {
   });
 
   it.each([
-    ["another product", { product_cart: [{ product_id: "prod-topup", quantity: 1 }] }],
-    ["no product cart", { product_cart: null }],
-    ["less than the pass price", { total_amount: 150 }],
-    ["a free (100% discount) payment in another currency", { currency: "EUR", total_amount: 0 }],
+    ["another product", { product_cart: [{ product_id: "prod-topup", quantity: 1 }], metadata: { supabase_uid: "user-1" } }],
+    ["no product cart", { product_cart: null, metadata: { supabase_uid: "user-1" } }],
     ["a payment that did not succeed", { status: "failed" }],
-    ["no user id", { metadata: { plan: "pass_3day" } }],
-  ])("does not grant for %s", async (_label, overrides) => {
+  ])("quietly ignores %s", async (_label, overrides) => {
     const db = passDb();
 
     const result = await dispatchWebhookEvent(
@@ -137,16 +134,24 @@ describe("Pro pass webhook grant", () => {
     expect(result.pass).toBeUndefined();
   });
 
-  it("does not grant when the pass product is not configured", async () => {
-    delete process.env.DODO_PRODUCT_PASS_3DAY;
+  it.each([
+    ["the pass product is not configured", () => { delete process.env.DODO_PRODUCT_PASS_3DAY; }, {}],
+    ["the payment has no user id", () => {}, { metadata: { plan: "pass_3day" } }],
+    ["a pass checkout lacks the pass product", () => {}, { product_cart: [{ product_id: "prod-other", quantity: 1 }] }],
+  ])("throws, and marks nothing processed, when %s", async (_label, setup, overrides) => {
+    setup();
     const db = passDb();
 
-    await dispatchWebhookEvent({ type: "payment.succeeded", data: passPayment() }, db.client, PLANS);
+    await expect(
+      dispatchWebhookEvent({ type: "payment.succeeded", data: passPayment(overrides) }, db.client, PLANS),
+    ).rejects.toThrow();
 
+    // No grant and no idempotency row, so Dodo's retry is processed in full.
     expect(db.rpc).not.toHaveBeenCalled();
+    expect(db.from).not.toHaveBeenCalled();
   });
 
-  it("accepts the pass price in a local currency (adaptive pricing)", async () => {
+  it("grants whatever amount was paid: the session is ours, so the product alone decides", async () => {
     const db = passDb();
 
     await dispatchWebhookEvent(
@@ -154,8 +159,13 @@ describe("Pro pass webhook grant", () => {
       db.client,
       PLANS,
     );
+    await dispatchWebhookEvent(
+      { type: "payment.succeeded", data: passPayment({ payment_id: "pay_pass_2", total_amount: 0 }) },
+      db.client,
+      PLANS,
+    );
 
-    expect(db.rpc).toHaveBeenCalledTimes(1);
+    expect(db.rpc).toHaveBeenCalledTimes(2);
   });
 
   it("leaves subscription payments and top-ups alone", async () => {
@@ -231,6 +241,27 @@ describe("Pro pass webhook end to end", () => {
     sdkMocks.createClient.mockReturnValue(passDb({ granted: false, stacked: false }).client);
     await webhookHandler(request(), response());
     expect(sdkMocks.captureImmediate).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 for a pass it cannot grant, and 200 for a payment that is not a pass", async () => {
+    const db = passDb();
+    sdkMocks.createClient.mockReturnValue(db.client);
+    sdkMocks.unwrap.mockReturnValue({
+      type: "payment.succeeded",
+      data: passPayment({ metadata: { plan: "pass_3day" } }),
+    });
+    const failing = response();
+    await webhookHandler(request(), failing);
+    expect(failing.statusCode).toBe(500);
+
+    sdkMocks.unwrap.mockReturnValue({
+      type: "payment.succeeded",
+      data: { payment_id: "pay_other", product_cart: [{ product_id: "prod-topup", quantity: 1 }], metadata: { plan: "wanderer" } },
+    });
+    const other = response();
+    await webhookHandler(request(), other);
+    expect(other.statusCode).toBe(200);
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 
   it("answers 500 when the grant fails, so Dodo retries", async () => {

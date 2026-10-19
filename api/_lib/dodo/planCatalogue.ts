@@ -23,8 +23,6 @@ export function buildPlanFromProduct(): Plans {
 
 export const PASS_PLAN = "pass_3day";
 export const PASS_DAYS = 3;
-/** The pass price in USD cents. A USD payment below this never grants a pass. */
-export const PASS_PRICE_CENTS = 300;
 
 /** The Dodo product id of the pass, or undefined when it is not configured. */
 export function passProductId(): string | undefined {
