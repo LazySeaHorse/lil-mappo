@@ -164,7 +164,7 @@ export function UpgradeModal() {
                     size="xl"
                     className="w-full"
                     onClick={handleCheckout}
-                    aria-label={`Subscribe to Wanderer for $${PLAN_CONFIG.wanderer.priceMonthly} a month`}
+                    aria-label={`Subscribe to Wanderer, $${PLAN_CONFIG.wanderer.priceMonthly}/month`}
                   >
                     <Crown size={15} />
                     {PLAN_CONFIG.wanderer.originalPriceMonthly && (
@@ -184,7 +184,7 @@ export function UpgradeModal() {
                     aria-label={
                       passEnd
                         ? `Add ${PRO_PASS_DAYS} days for $${PRO_PASS_PRICE}`
-                        : `Buy a ${PRO_PASS_DAYS}-day pass for $${PRO_PASS_PRICE}`
+                        : `${PRO_PASS_DAYS}-day pass, $${PRO_PASS_PRICE} for ${PRO_PASS_DAYS} days`
                     }
                   >
                     <CalendarClock size={15} />

@@ -94,8 +94,8 @@ describe('UpgradeModal 3-day pass', () => {
   it('offers monthly and the 3-day pass as two buttons', () => {
     renderWith(null);
 
-    expect(screen.getByRole('button', { name: /subscribe to wanderer for \$7 a month/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Buy a 3-day pass for $3' })).toHaveTextContent('$3 for 3 days');
+    expect(screen.getByRole('button', { name: 'Subscribe to Wanderer, $7/month' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: '3-day pass, $3 for 3 days' })).toHaveTextContent('$3 for 3 days');
     expect(screen.getByText(/Monthly renews at \$7 until you cancel/)).toBeInTheDocument();
     expect(screen.getByText(/one payment of \$3 for 3 days/)).toBeInTheDocument();
   });
@@ -110,7 +110,7 @@ describe('UpgradeModal 3-day pass', () => {
   it('starts a pass checkout from the pass button', () => {
     renderWith(null);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Buy a 3-day pass for $3' }));
+    fireEvent.click(screen.getByRole('button', { name: '3-day pass, $3 for 3 days' }));
     expect(startCheckout).toHaveBeenCalledWith('pass_3day');
   });
 
@@ -135,7 +135,7 @@ describe('UpgradeModal 3-day pass', () => {
     renderWith(passOnly('2026-10-18T14:59:59Z'));
 
     expect(screen.queryByText(/Your pass ends/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Buy a 3-day pass for $3' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: '3-day pass, $3 for 3 days' })).toBeEnabled();
   });
 
   it('has no price block above the plan comparison', () => {
