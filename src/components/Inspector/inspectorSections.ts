@@ -32,6 +32,12 @@ export const INSPECTOR_SECTIONS = {
     { id: 'connector', title: 'Anchor line', defaultOpen: true },
     { id: 'timing', title: 'Timing', defaultOpen: true },
   ],
+  model: [
+    { id: 'location', title: 'Location', defaultOpen: true },
+    { id: 'rotation', title: 'Rotation', defaultOpen: true },
+    { id: 'size', title: 'Size', defaultOpen: true },
+    { id: 'timing', title: 'Timing', defaultOpen: true },
+  ],
   'camera-kf': [
     { id: 'exact', title: 'Exact values', defaultOpen: false },
     { id: 'timing', title: 'Timing', defaultOpen: true },
