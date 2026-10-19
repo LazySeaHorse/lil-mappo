@@ -130,9 +130,9 @@ const VEHICLE_MODEL = 'vehicle';
  * A model marker is drawn from a Mapbox model source, never a GeoJSON one, and turned by the
  * model's `orientation`, never by `model-rotation`.
  *
- * A model layer on a GeoJSON source bakes model-rotation into its tiles when they are built, so a
- * new heading reaches the drawn model only when a tile is rebuilt. Worse, on the globe (globe
- * projection below zoom 6) mapbox-gl's drawVectorLayerModels decomposes that baked rotation with
+ * A model layer on a GeoJSON source bakes model-rotation into its tiles when they are built (each
+ * change reloads the source in the worker). On the globe (globe projection below zoom 6)
+ * mapbox-gl's drawVectorLayerModels decomposes that baked rotation with
  * `getAxisAngle(rotation, quat)`, keeping the axis and dropping the angle, so the model is always
  * drawn facing north. Zooming in past 6 switches the map to mercator, where the heading shows,
  * until the camera goes back out. A model source is placed at draw time from the model's position

@@ -14,14 +14,16 @@ import {
  * "which way is this model drawn right now?" with Mapbox's own placement math (see mapboxModelMath).
  *
  * What it models, read from mapbox-gl's draw code:
- * - A model layer on a GeoJSON source draws from a tile bucket. The bucket bakes model-rotation per
- *   feature when it is built: on setData, or when the layer is added or a paint value switches
- *   between a constant and an expression. A constant paint write alone does not rebuild it. Only a
- *   camera move to a new tile would, which this double never does.
+ * - A model layer on a GeoJSON source draws from a tile bucket that bakes model-rotation,
+ *   model-scale and model-translation per feature when it is built (ModelBucket.evaluate). It is
+ *   rebuilt on setData, when the layer is added, on any changed layout value (Style._updateLayer
+ *   reloads the source), and on a changed paint value that is data-driven or one of those three
+ *   (ModelStyleLayer._handleOverridablePaintPropertyUpdate). The rebuild is immediate here; in
+ *   Mapbox it is a worker round trip. model-opacity is read at draw time.
  * - On the globe, that bucket's rotation goes through drawVectorLayerModels' decomposition, which
- *   drops the angle (see globeGeoJSONMatrix).
+ *   drops the angle (see globeGeoJSONMatrix); its scale and translation survive.
  * - A model layer on a model source is placed at draw time from the model's position and
- *   orientation plus the layer's current model-rotation, in either projection.
+ *   orientation plus the layer's current paint, in either projection (drawModels).
  */
 
 interface SourceRecord {
@@ -42,8 +44,24 @@ interface LayerRecord {
   layout?: Record<string, unknown>;
   paint: Record<string, unknown>;
   /** GeoJSON model layers: the bucket as last built, from the feature's properties and the paint then. */
-  bucket?: { properties: Record<string, unknown>; rotation: unknown; scale: unknown };
+  bucket?: { properties: Record<string, unknown>; rotation: unknown; scale: unknown; translation: unknown };
 }
+
+/** How Mapbox draws a model right now. */
+export interface DrawnModel {
+  /** The rotation-scale matrix Mapbox builds (rotationScaleYZFlipMatrix's output). */
+  matrix: number[];
+  /** Compass heading the matrix turns the model to. */
+  heading: number;
+  /** Metres east, north, up. */
+  translation: number[];
+  opacity: number;
+  /** Where the model stands, [lng, lat]. */
+  position: number[];
+}
+
+/** Paint values whose change makes Mapbox rebuild a model layer's buckets. */
+const MODEL_RELAYOUT_PAINT = new Set(['model-color', 'model-color-mix-intensity', 'model-rotation', 'model-scale', 'model-translation', 'model-emissive-strength']);
 
 export type Projection = 'globe' | 'mercator';
 
@@ -69,6 +87,7 @@ export function createModelLayerMap() {
         properties: featureProperties(source.data),
         rotation: layer.paint['model-rotation'],
         scale: layer.paint['model-scale'],
+        translation: layer.paint['model-translation'],
       };
     }
   };
@@ -108,14 +127,15 @@ export function createModelLayerMap() {
     getLayoutProperty: vi.fn((id: string, prop: string) => layers.get(id)?.layout?.[prop]),
     setLayoutProperty: vi.fn((id: string, prop: string, value: unknown) => {
       const layer = layers.get(id);
-      if (!layer) return;
+      if (!layer || JSON.stringify(layer.layout?.[prop]) === JSON.stringify(value)) return;
       layer.layout = { ...layer.layout, [prop]: value };
       rebuildBuckets(layer.source);
     }),
     setPaintProperty: vi.fn((id: string, prop: string, value: unknown) => {
       const layer = layers.get(id);
-      if (!layer) return;
-      const relayout = isExpression(layer.paint[prop]) !== isExpression(value);
+      if (!layer || JSON.stringify(layer.paint[prop]) === JSON.stringify(value)) return;
+      const relayout = isExpression(layer.paint[prop]) || isExpression(value)
+        || (layer.type === 'model' && MODEL_RELAYOUT_PAINT.has(prop));
       layer.paint[prop] = value;
       if (relayout) rebuildBuckets(layer.source);
     }),
@@ -124,29 +144,48 @@ export function createModelLayerMap() {
     triggerRepaint: vi.fn(),
   };
 
-  /**
-   * The compass heading Mapbox draws the model of `layerId` at, in `projection`; null when the layer
-   * draws no model.
-   */
-  function drawnHeading(layerId: string, projection: Projection): number | null {
+  /** How Mapbox draws the model of `layerId` in `projection`; null when the layer draws no model. */
+  function drawn(layerId: string, projection: Projection): DrawnModel | null {
     const layer = layers.get(layerId);
     if (!layer || layer.type !== 'model' || layer.layout?.visibility === 'none') return null;
     const source = sources.get(layer.source);
+    const opacityOf = (props: Record<string, unknown>) => evaluateModelPaint('model-opacity', layer.paint['model-opacity'], props) as unknown as number;
     if (source?.type === 'model') {
       const model = Object.values(source.models ?? {})[0];
       if (!model) return null;
       const props = model.featureProperties ?? {};
       const rotation = evaluateModelPaint('model-rotation', layer.paint['model-rotation'], props);
       const scale = evaluateModelPaint('model-scale', layer.paint['model-scale'], props);
-      return headingOf(modelSourceMatrix(model.orientation ?? [0, 0, 0], rotation, scale));
+      const matrix = modelSourceMatrix(model.orientation ?? [0, 0, 0], rotation, scale);
+      return {
+        matrix,
+        heading: headingOf(matrix),
+        translation: evaluateModelPaint('model-translation', layer.paint['model-translation'], props),
+        opacity: opacityOf(props),
+        position: model.position ?? [0, 0],
+      };
     }
     if (source?.type === 'geojson' && layer.bucket) {
       const { properties } = layer.bucket;
       const rotation = evaluateModelPaint('model-rotation', layer.bucket.rotation, properties);
       const scale = evaluateModelPaint('model-scale', layer.bucket.scale, properties);
-      return headingOf(projection === 'globe' ? globeGeoJSONMatrix(rotation, scale) : bucketInstanceMatrix(rotation, scale));
+      const matrix = projection === 'globe' ? globeGeoJSONMatrix(rotation, scale) : bucketInstanceMatrix(rotation, scale);
+      const data = source.data;
+      const feature = data?.type === 'FeatureCollection' ? data.features[0] : data;
+      return {
+        matrix,
+        heading: headingOf(matrix),
+        translation: evaluateModelPaint('model-translation', layer.bucket.translation, properties),
+        opacity: opacityOf(properties),
+        position: (feature?.geometry as GeoJSON.Point | undefined)?.coordinates ?? [0, 0],
+      };
     }
     return null;
+  }
+
+  /** The compass heading Mapbox draws the model of `layerId` at; null when it draws none. */
+  function drawnHeading(layerId: string, projection: Projection): number | null {
+    return drawn(layerId, projection)?.heading ?? null;
   }
 
   /** Mapbox's style validator's complaints about every source and layer added so far. */
@@ -155,5 +194,5 @@ export function createModelLayerMap() {
     return styleSpec.validate(style).map((e) => e.message);
   }
 
-  return { map: map as unknown as MapboxMap, double: map, sources, layers, drawnHeading, validate };
+  return { map: map as unknown as MapboxMap, double: map, sources, layers, drawn, drawnHeading, validate };
 }

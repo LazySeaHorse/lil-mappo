@@ -18,7 +18,7 @@ import { createModelLayerMap, type Projection } from './testMapboxModelLayer';
 /**
  * The plane must be DRAWN facing along its flight: not merely given a heading somewhere, but
  * given it in a way Mapbox's model draw path actually applies, in globe and mercator projection,
- * the moment the playhead lands, with no camera move to rebuild tiles afterwards.
+ * the moment the playhead lands, with no camera move afterwards.
  *
  * Earlier fixes wrote the heading as a paint value, then as a feature property; both passed
  * mock-map tests yet the plane still pointed the wrong way, because the mocks never asked how
@@ -153,10 +153,10 @@ describe.each(Object.entries(FIXTURES))('the plane on %s is drawn facing along t
   });
 
   it('never turns the plane through model-rotation (guard)', () => {
-    // A heading in model-rotation does not reach the drawn plane: on a GeoJSON source Mapbox bakes
-    // it into tile buckets (a paint write is only picked up when the camera rebuilds the tile, and
-    // on the globe it is dropped altogether), so the plane pointed the wrong way until the camera
-    // moved, then went wrong again. The heading must travel with the model's position instead.
+    // A heading in model-rotation does not reach the drawn plane on the globe: on a GeoJSON source
+    // Mapbox bakes it into tile buckets, and its globe draw path drops the angle, so the plane faced
+    // north until the camera zoomed in to mercator, then went wrong again on the way back out. The
+    // heading must travel with the model (its orientation in a model source) instead.
     const setup = createModelLayerMap();
     const renderer = new RouteRenderer(setup.map, route);
     renderer.mount();
