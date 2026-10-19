@@ -1,5 +1,6 @@
 import type { Map as MapboxMap } from "mapbox-gl";
 import airplaneModelUrl from '@/assets/models/airplane.glb?url';
+import carModelUrl from '@/assets/models/car.glb?url';
 import { describe, expect, it, vi } from "vitest";
 import type { RouteItem } from "@/store/types";
 import { RouteRenderer } from "./RouteRenderer";
@@ -7,7 +8,13 @@ import { getRoutePath } from "@/engine/routePath";
 
 function createMapDouble() {
   const layers = new Map<string, { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> }>();
-  const sources = new Map<string, { type: "geojson"; setData: ReturnType<typeof vi.fn> }>();
+  type Source = {
+    type: string;
+    spec: { models?: Record<string, { uri: string }> };
+    setData: ReturnType<typeof vi.fn>;
+    setModels: ReturnType<typeof vi.fn>;
+  };
+  const sources = new Map<string, Source>();
   const models = new Set<string>();
 
   const map = {
@@ -34,10 +41,11 @@ function createMapDouble() {
       }
     }),
     getSource: vi.fn((id: string) => sources.get(id)),
-    addSource: vi.fn((id: string) => sources.set(id, { type: "geojson", setData: vi.fn() })),
+    addSource: vi.fn((id: string, spec: Source["spec"] & { type: string }) => sources.set(id, { type: spec.type, spec, setData: vi.fn(), setModels: vi.fn() })),
     removeSource: vi.fn((id: string) => sources.delete(id)),
     hasModel: vi.fn((id: string) => models.has(id)),
     addModel: vi.fn((id: string) => models.add(id)),
+    triggerRepaint: vi.fn(),
   };
 
   return { map: map as unknown as MapboxMap, ...map };
@@ -95,11 +103,12 @@ describe("RouteRenderer vehicle 3D model positioning", () => {
 
     renderer.mount();
 
-    expect(double.addModel).toHaveBeenCalledWith("plane", airplaneModelUrl);
+    const vehicleSource = double.sources.get("vehicle-source-flight-route");
+    expect(vehicleSource?.type).toBe("model");
+    expect(vehicleSource?.spec.models?.vehicle.uri).toBe(airplaneModelUrl);
     const vehicleLayer = double.layers.get("vehicle-layer-flight-route");
     expect(vehicleLayer).toBeDefined();
     expect(vehicleLayer?.type).toBe("model");
-    expect(vehicleLayer?.layout?.["model-id"]).toBe("plane");
     expect(vehicleLayer?.paint?.["model-translation"]).toEqual([0, 0, 0]);
 
     // Render midway through flight
@@ -211,16 +220,18 @@ describe("RouteRenderer vehicle type switching", () => {
     ["car", "plane"],
     ["plane", "car"],
   ] as const)("renders the %s -> %s model after switching the vehicle type", (from, to) => {
+    const urls = { car: carModelUrl, plane: airplaneModelUrl };
+    const modelUrl = () => double.sources.get("vehicle-source-switch-route")?.spec.models?.vehicle.uri;
     const double = createMapDouble();
     const renderer = new RouteRenderer(double.map, routeWithVehicle(from));
     renderer.mount();
-    expect(double.layers.get("vehicle-layer-switch-route")?.layout?.["model-id"]).toBe(from);
+    expect(modelUrl()).toBe(urls[from]);
 
     renderer.setRoute(routeWithVehicle(to));
 
     const layer = double.layers.get("vehicle-layer-switch-route");
     expect(layer?.type).toBe("model");
-    expect(layer?.layout?.["model-id"]).toBe(to);
+    expect(modelUrl()).toBe(urls[to]);
   });
 
   it("recolors the dot vehicle when the route color changes", () => {
@@ -249,8 +260,10 @@ describe("RouteRenderer vehicle type switching", () => {
     const vehicle = double.layers.get("vehicle-layer-switch-route")?.paint;
     const props = type === "dot"
       ? ["circle-radius", "circle-color", "circle-opacity"]
-      : ["model-opacity", "model-rotation", "model-scale", "model-translation"];
+      : ["model-opacity", "model-scale", "model-translation"];
     for (const prop of props) expect(vehicle?.[`${prop}-transition`], prop).toEqual(none);
+    // The heading is the model's orientation, never model-rotation (RouteRenderer.drawnHeading.test.ts).
+    expect(vehicle?.["model-rotation"]).toBeUndefined();
   });
 });
 
@@ -550,26 +563,27 @@ describe("RouteRenderer vehicle writes", () => {
     renderer.mount();
     const source = double.sources.get("vehicle-source-veh")!;
 
-    const sent = () => source.setData.mock.calls.map(([d]) => (d as GeoJSON.Feature).properties?.rotation as number[]);
+    const sent = () => source.setModels.mock.calls.map(([m]) => (m as Record<string, { orientation: number[] }>).vehicle.orientation);
 
     renderer.render(2);
-    expect(source.setData).toHaveBeenCalledTimes(1);
+    expect(source.setModels).toHaveBeenCalledTimes(1);
 
     // Paused: the same frame again writes nothing.
     renderer.render(2);
     renderer.render(2);
-    expect(source.setData).toHaveBeenCalledTimes(1);
+    expect(source.setModels).toHaveBeenCalledTimes(1);
 
     // Moving along the same segment: new position, same heading.
     renderer.render(2.5);
-    expect(source.setData).toHaveBeenCalledTimes(2);
+    expect(source.setModels).toHaveBeenCalledTimes(2);
     expect(sent()[1]).toEqual(sent()[0]);
 
     // Onto the next segment: it turns, in the same write as the move.
     renderer.render(9);
-    expect(source.setData).toHaveBeenCalledTimes(3);
+    expect(source.setModels).toHaveBeenCalledTimes(3);
     expect(sent()[2]).toEqual([0, 0, expect.closeTo(90, 1)]);
-    // The heading is never a paint write: Mapbox only reads it from the data it builds the model from.
+    expect(double.triggerRepaint).toHaveBeenCalledTimes(3);
+    // The heading is never a paint write (RouteRenderer.drawnHeading.test.ts says why).
     expect(paintCalls(double, "model-rotation")).toHaveLength(0);
   });
 
@@ -590,7 +604,7 @@ describe("RouteRenderer vehicle writes", () => {
     renderer.setRoute(route("car"));
     const source = double.sources.get("vehicle-source-veh")!;
     renderer.render(5);
-    expect(source.setData).toHaveBeenCalledTimes(1);
+    expect(source.setModels).toHaveBeenCalledTimes(1);
   });
 
   it("re-applies visibility and opacity to a recreated vehicle layer", () => {
@@ -621,6 +635,6 @@ describe("RouteRenderer vehicle writes", () => {
     double.sources.clear();
     renderer.mount();
     renderer.render(5);
-    expect(double.sources.get("vehicle-source-veh")!.setData).toHaveBeenCalledTimes(1);
+    expect(double.sources.get("vehicle-source-veh")!.setModels).toHaveBeenCalledTimes(1);
   });
 });

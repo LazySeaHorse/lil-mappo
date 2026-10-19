@@ -1,42 +1,18 @@
-import type { Map as MapboxMap } from 'mapbox-gl';
 import greatCircle from '@turf/great-circle';
 import { point } from '@turf/helpers';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { calculateBearing, extractLineCoords } from '@/engine/geoUtils';
 import { getRoutePath } from '@/engine/routePath';
 import { calculateFlightArc } from '@/services/flightPath';
 import type { RouteItem } from '@/store/types';
 import { RouteRenderer } from './RouteRenderer';
+import { createModelLayerMap } from './testMapboxModelLayer';
 
 /**
  * A plane on a flight route must face the way the drawn route is going, whatever the route's
  * length, how close it is to either end, how large the marker is, and however an older project
  * stored the flight (altitude on each vertex, split at the antimeridian).
  */
-
-function mapDouble() {
-  const layers = new Map<string, { type: string; paint?: Record<string, unknown> }>();
-  const setData = vi.fn();
-  const map = {
-    layers,
-    isStyleLoaded: vi.fn(() => true),
-    getLayer: vi.fn((id: string) => layers.get(id)),
-    addLayer: vi.fn((layer: { id: string; type: string; paint?: Record<string, unknown> }) => { layers.set(layer.id, layer); }),
-    removeLayer: vi.fn((id: string) => layers.delete(id)),
-    getLayoutProperty: vi.fn(),
-    setLayoutProperty: vi.fn(),
-    setPaintProperty: vi.fn((id: string, prop: string, val: unknown) => {
-      const layer = layers.get(id);
-      if (layer) layer.paint = { ...layer.paint, [prop]: val };
-    }),
-    getSource: vi.fn(() => ({ type: 'geojson', setData })),
-    addSource: vi.fn(),
-    removeSource: vi.fn(),
-    hasModel: vi.fn(() => true),
-    addModel: vi.fn(),
-  };
-  return { map: map as unknown as MapboxMap, layers, setData };
-}
 
 function flight(geometry: GeoJSON.Geometry, scale: number): RouteItem {
   return {
@@ -53,15 +29,21 @@ function flight(geometry: GeoJSON.Geometry, scale: number): RouteItem {
   } as unknown as RouteItem;
 }
 
-/** What the plane's model-rotation is at route progress `u`, as the renderer writes it. */
+/**
+ * The plane's rotation (roll, pitch, heading) at route progress `u`: the orientation the renderer
+ * gives its model, checked to be the heading Mapbox's own math draws on the globe.
+ */
 function rotationAt(route: RouteItem, u: number): number[] {
-  const { map, setData } = mapDouble();
-  const renderer = new RouteRenderer(map, route);
+  const setup = createModelLayerMap();
+  const renderer = new RouteRenderer(setup.map, route);
   renderer.mount();
   renderer.render(u * 100);
-  const rotation = (setData.mock.lastCall![0] as GeoJSON.Feature).properties?.rotation as number[];
+  const models = setup.sources.get(`vehicle-source-${route.id}`)?.models;
+  const orientation = models?.vehicle.orientation as number[];
+  const drawn = setup.drawnHeading(`vehicle-layer-${route.id}`, 'globe')!;
+  expect(apart(drawn, orientation[2])).toBeLessThan(1e-6);
   renderer.dispose();
-  return rotation;
+  return orientation;
 }
 
 /** The route's own direction at `u`: the bearing across 40 m of it. */

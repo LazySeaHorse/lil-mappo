@@ -32,7 +32,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('ModelCatalog', () => {
   it('adds a model to the style once, however often it is looked up while it loads', () => {
     const { mapbox, catalog } = setup();
-    for (let i = 0; i < 5; i++) expect(catalog.resolve('a1')).toEqual({ modelId: MODEL_ID, asset });
+    for (let i = 0; i < 5; i++) expect(catalog.resolve('a1')).toEqual({ modelId: MODEL_ID, url: 'blob:tower', asset });
     expect(mapbox.api.addModel).toHaveBeenCalledTimes(1);
     mapbox.finishLoads();
     catalog.resolve('a1');

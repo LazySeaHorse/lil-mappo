@@ -7,6 +7,8 @@ import { mutateMap } from './mapboxResources';
 export interface ResolvedModel {
   /** Id of the model in the Mapbox style. */
   modelId: string;
+  /** The model file's in-memory object URL, for a model source that loads it itself. */
+  url: string;
   asset: ModelAsset;
 }
 
@@ -88,7 +90,7 @@ export class ModelCatalog implements ModelResolver {
         unused: false,
       });
     }
-    return { modelId, asset };
+    return { modelId, url: loaded.url, asset };
   }
 
   /**

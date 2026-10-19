@@ -103,7 +103,9 @@ describe.each(Object.entries(FIXTURES))('the plane on %s is drawn facing along t
       // Pause: the same frame rendered again changes nothing.
       const t = timeAt(route, 0.3);
       renderer.render(t);
+      const writes = setup.double.setPaintProperty.mock.calls.length + (setup.double.triggerRepaint.mock.calls.length);
       renderer.render(t);
+      expect(setup.double.setPaintProperty.mock.calls.length + setup.double.triggerRepaint.mock.calls.length).toBe(writes);
       expectFacingRoute(setup, route, t, projection);
       // Play through.
       for (let k = 0; k <= 40; k++) {

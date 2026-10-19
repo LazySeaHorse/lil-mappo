@@ -1,4 +1,4 @@
-import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
+import type { ExpressionSpecification, Map as MapboxMap, ModelSource } from 'mapbox-gl';
 import { extractLineCoords, facingAlong, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import { getRoutePath } from '@/engine/routePath';
@@ -25,8 +25,8 @@ type DrawnMarker =
   | { kind: 'dot'; radius: number }
   | {
     kind: 'model';
-    /** Mapbox model id: 'car', 'plane', or an imported model's. */
-    modelId: string;
+    /** Where the model's glTF is: a bundled asset or an imported model's in-memory object URL. */
+    url: string;
     scale: number;
     /** Metres the model is raised so its lowest point sits on the route. */
     lift: number;
@@ -123,8 +123,30 @@ function gradient(color: string): ExpressionSpecification {
   return ['interpolate', ['linear'], ['line-progress'], 0, 'transparent', 1, color];
 }
 
-/** A model marker faces the `rotation` its point carries; a point without one faces north. */
-const VEHICLE_ROTATION = ['coalesce', ['get', 'rotation'], ['literal', [0, 0, 0]]] as ExpressionSpecification;
+/** The one model in a route's model source. */
+const VEHICLE_MODEL = 'vehicle';
+
+/**
+ * A model marker is drawn from a Mapbox model source, never a GeoJSON one, and turned by the
+ * model's `orientation`, never by `model-rotation`.
+ *
+ * A model layer on a GeoJSON source bakes model-rotation into its tiles when they are built, so a
+ * new heading reaches the drawn model only when a tile is rebuilt. Worse, on the globe (globe
+ * projection below zoom 6) mapbox-gl's drawVectorLayerModels decomposes that baked rotation with
+ * `getAxisAngle(rotation, quat)`, keeping the axis and dropping the angle, so the model is always
+ * drawn facing north. Zooming in past 6 switches the map to mercator, where the heading shows,
+ * until the camera goes back out. A model source is placed at draw time from the model's position
+ * and orientation (drawModels -> calculateModelMatrix) in either projection, and `setModels` moves
+ * and turns it in one write.
+ */
+function vehicleModel(url: string, position: [number, number], bearing: number) {
+  return { [VEHICLE_MODEL]: { uri: url, position, orientation: [0, 0, bearing] as [number, number, number] } };
+}
+
+function getModelSource(map: MapboxMap, sourceId: string): ModelSource | undefined {
+  const source = map.getSource(sourceId);
+  return source?.type === 'model' ? source as ModelSource : undefined;
+}
 
 export class RouteRenderer {
   private route: RouteItem;
@@ -134,6 +156,8 @@ export class RouteRenderer {
   private lastCometState = '';
   private disposed = false;
   private marker: DrawnMarker | null = null;
+  /** The model file the vehicle's model source was made with. */
+  private vehicleModelUrl = '';
 
   constructor(
     private readonly map: MapboxMap,
@@ -315,14 +339,11 @@ export class RouteRenderer {
       const s = vehicle.scale || 1;
       const { lengthM, reachM, lift } = modelExtent(resolved.asset.bounds);
       // Lifted so the model's lowest point rides on the route, whatever its origin.
-      return { kind: 'model', modelId: resolved.modelId, scale: s, lift: lift * s, size: { lengthM: lengthM * s, reachM: reachM * s } };
+      return { kind: 'model', url: resolved.url, scale: s, lift: lift * s, size: { lengthM: lengthM * s, reachM: reachM * s } };
     }
     if (vehicle.type === 'dot') return { kind: 'dot', radius: DOT_BASE_RADIUS * vehicle.scale };
     const type = vehicle.type;
-    if (!this.map.hasModel(type)) {
-      this.layers.mutate('addModel', type, () => this.map.addModel(type, MODELS[type]));
-    }
-    return { kind: 'model', modelId: type, scale: vehicle.scale * MODEL_BASE_SCALE[type], lift: 0, size: markerSize(vehicle) };
+    return { kind: 'model', url: MODELS[type], scale: vehicle.scale * MODEL_BASE_SCALE[type], lift: 0, size: markerSize(vehicle) };
   }
 
   /** The imported models changed (relinked, released): look the custom marker's model up again. */
@@ -343,18 +364,22 @@ export class RouteRenderer {
 
     const marker = this.resolveMarker(vehicle);
     this.marker = marker;
-    const expectedType = marker.kind === 'dot' ? 'circle' : 'model';
-    if (this.map.getLayer(this.ids.vehicleLayer)?.type !== expectedType) {
+    const expectedLayer = marker.kind === 'dot' ? 'circle' : 'model';
+    const expectedSource = marker.kind === 'dot' ? 'geojson' : 'model';
+    // A different model file gets a new source, so it never shows the old model in the meantime.
+    if (this.map.getLayer(this.ids.vehicleLayer)?.type !== expectedLayer
+      || this.map.getSource(this.ids.vehicleSource)?.type !== expectedSource
+      || (marker.kind === 'model' && marker.url !== this.vehicleModelUrl)) {
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
       removeSourceIfPresent(this.map, this.ids.vehicleSource);
     }
 
     if (!this.map.getSource(this.ids.vehicleSource)) {
-      const initialCoord = this.coordinates[0] ?? [0, 0];
-      this.map.addSource(this.ids.vehicleSource, {
-        type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [initialCoord[0], initialCoord[1]] } },
-      });
+      const [lng, lat] = this.coordinates[0] ?? [0, 0];
+      this.vehicleModelUrl = marker.kind === 'model' ? marker.url : '';
+      this.map.addSource(this.ids.vehicleSource, marker.kind === 'dot'
+        ? { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lng, lat] } } }
+        : { type: 'model', models: vehicleModel(marker.url, [lng, lat], 0) });
     }
     if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(marker);
 
@@ -364,11 +389,6 @@ export class RouteRenderer {
         this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-color', this.route.style.color);
       });
       return;
-    }
-    if (this.map.getLayoutProperty(this.ids.vehicleLayer, 'model-id') !== marker.modelId) {
-      this.layers.mutate('setLayoutProperty:model-id', this.ids.vehicleLayer, () => {
-        this.map.setLayoutProperty(this.ids.vehicleLayer, 'model-id', marker.modelId);
-      });
     }
     this.layers.mutate('setPaintProperty:model-scale', this.ids.vehicleLayer, () => {
       const s = marker.scale;
@@ -403,12 +423,11 @@ export class RouteRenderer {
       id: this.ids.vehicleLayer,
       type: 'model',
       source: this.ids.vehicleSource,
-      layout: { 'model-id': marker.modelId },
+      // No model-rotation: the heading is the model's orientation (see vehicleModel).
       paint: {
         'model-scale': [s, s, s],
-        'model-rotation': VEHICLE_ROTATION,
         'model-translation': [0, 0, marker.lift],
-        ...noPaintTransitions('model-opacity', 'model-rotation', 'model-scale', 'model-translation'),
+        ...noPaintTransitions('model-opacity', 'model-scale', 'model-translation'),
       },
     });
   }
@@ -432,8 +451,7 @@ export class RouteRenderer {
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
       && !(this.route.style.animationType === 'comet' && progress === 0);
     this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);
-    const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
-    if (!visible || !source) return;
+    if (!visible) return;
 
     const path = getRoutePath(this.coordinates);
     if (path.coords.length < 2) return;
@@ -443,14 +461,21 @@ export class RouteRenderer {
     const bearing = size ? Math.round(facingAlong(path, progress, size.lengthM) * 100) / 100 : 0;
     const position = `${lng},${lat},${bearing}`;
     if (this.layers.cache.vehiclePosition !== position) {
-      // The heading rides in the point's properties: Mapbox reads model-rotation when it builds the
-      // model from the data, so a paint write alone is not picked up until the camera moves.
-      source.setData({
-        type: 'Feature',
-        properties: { rotation: [0, 0, bearing] },
-        geometry: { type: 'Point', coordinates: [lng, lat] },
-      });
-      this.layers.cache.vehiclePosition = position;
+      let sent = false;
+      if (marker.kind === 'model') {
+        // Position and heading in one write, applied when the model is next drawn (see vehicleModel).
+        const source = getModelSource(this.map, this.ids.vehicleSource);
+        sent = Boolean(source) && this.layers.mutate('setModels', this.ids.vehicleSource, () => {
+          source!.setModels(vehicleModel(marker.url, [lng, lat], bearing));
+          this.map.triggerRepaint();
+        });
+      } else {
+        const source = getGeoJSONSource(this.map, this.ids.vehicleSource);
+        sent = Boolean(source) && this.layers.mutate('setData', this.ids.vehicleSource, () => {
+          source!.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lng, lat] } });
+        });
+      }
+      if (sent) this.layers.cache.vehiclePosition = position;
     }
     const opacityProperty = marker.kind === 'dot' ? 'circle-opacity' : 'model-opacity';
     this.layers.setPaint(this.ids.vehicleLayer, opacityProperty, opacity, 'vehicleOpacity', opacity);

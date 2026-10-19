@@ -121,6 +121,7 @@ export function createModelLayerMap() {
     }),
     hasModel: vi.fn(() => true),
     addModel: vi.fn(),
+    triggerRepaint: vi.fn(),
   };
 
   /**
