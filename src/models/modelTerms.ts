@@ -18,6 +18,12 @@ export const MODEL_TERMS = {
   missingOnLoad: (count: number) =>
     count === 1 ? 'A 3D model in this project needs its file again.' : `${count} 3D models in this project need their files again.`,
   show: 'Show',
+  /** Mapbox could not load the model's file. */
+  failedTitle: 'Model could not be loaded',
+  failedBody: (fileName: string) => `The map could not draw ${fileName}. Export it again from your 3D app as a .glb, then pick it here.`,
+  pickOther: 'Pick another file',
+  sameFileFailed: 'This is the same file the map could not load. Pick a different export.',
+  loadFailed: (fileName: string) => `The map could not load ${fileName}.`,
   file: 'File',
   location: 'Search for a place or enter coordinates',
   dragHint: 'Drag to move the model',

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Eye, EyeOff, FileWarning } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, FileWarning } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { useProjectStore } from '@/store/useProjectStore';
 import type {
@@ -10,7 +10,7 @@ import type {
   RouteItem,
   TimelineItem,
 } from '@/store/types';
-import { useModelRegistry } from '@/models/modelRegistry';
+import { useModelStatus } from '@/models/modelRegistry';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import TimelineItemBar from './TimelineItemBar';
 import { timelineItemLabel } from './timelineItemLabel';
@@ -119,7 +119,7 @@ const TimelineTrackRow = React.memo(({
         <span className={`text-xs truncate font-medium flex-1 ${item.kind !== 'camera' ? 'ph-mask' : ''} ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
           {label}
         </span>
-        {item.kind === 'model' && <MissingModelMark assetId={item.assetId} />}
+        {item.kind === 'model' && <ModelFileMark assetId={item.assetId} />}
 
         {item.kind === 'camera' && (
           <IconButton
@@ -168,14 +168,16 @@ const TimelineTrackRow = React.memo(({
   );
 });
 
-/** A warning on a placed model's row while its file is missing. */
-function MissingModelMark({ assetId }: { assetId: string }) {
-  const sha = useProjectStore((s) => s.models[assetId]?.sha256);
-  const missing = useModelRegistry((s) => !sha || !s.loaded[sha]);
-  if (!missing) return null;
+/** A warning on a placed model's row while its file is missing, or an error when it failed to load. */
+function ModelFileMark({ assetId }: { assetId: string }) {
+  const asset = useProjectStore((s) => s.models[assetId]);
+  const status = useModelStatus(asset);
+  if (status === 'ready') return null;
+  const failed = status === 'failed';
+  const label = failed ? MODEL_TERMS.failedTitle : MODEL_TERMS.missingTitle;
   return (
-    <span role="img" aria-label={MODEL_TERMS.missingTitle} title={MODEL_TERMS.missingTitle} className="shrink-0 text-amber-500">
-      <FileWarning size={12} aria-hidden="true" />
+    <span role="img" aria-label={label} title={label} className={`shrink-0 ${failed ? 'text-destructive' : 'text-amber-500'}`}>
+      {failed ? <AlertTriangle size={12} aria-hidden="true" /> : <FileWarning size={12} aria-hidden="true" />}
     </span>
   );
 }

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTransientState, useProjectStore } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
 import { createModelItem } from '@/store/itemFactories';
-import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
+import { clearModelRegistry, markModelFailed, registerModelBytes } from '@/models/modelRegistry';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import TimelineTrackRow from './TimelineTrackRow';
 
@@ -32,6 +32,17 @@ describe('a placed model on the timeline', () => {
     expect(screen.getAllByText('Tower').length).toBeGreaterThan(0);
     expect(screen.getByRole('img', { name: MODEL_TERMS.missingTitle })).toBeInTheDocument();
     act(() => { registerModelBytes(SHA, new ArrayBuffer(4)); });
+    expect(screen.queryByRole('img', { name: MODEL_TERMS.missingTitle })).not.toBeInTheDocument();
+  });
+
+  it('marks the row when the map could not load the model file', () => {
+    registerModelBytes(SHA, new ArrayBuffer(4));
+    render(
+      <TimelineTrackRow item={item} pixelsPerSecond={20} isSelected={false} selectedKeyframeId={null} onSelectItem={vi.fn()} onSelectKeyframe={vi.fn()} />,
+    );
+    expect(screen.queryByRole('img', { name: MODEL_TERMS.failedTitle })).not.toBeInTheDocument();
+    act(() => { markModelFailed(SHA); });
+    expect(screen.getByRole('img', { name: MODEL_TERMS.failedTitle })).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: MODEL_TERMS.missingTitle })).not.toBeInTheDocument();
   });
 });

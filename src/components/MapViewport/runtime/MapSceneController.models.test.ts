@@ -5,7 +5,7 @@ import { createProject, parseProjectDocument, toProjectDocument } from '@/store/
 import { createTransientState } from '@/store/useProjectStore';
 import { createModelItem } from '@/store/itemFactories';
 import type { ModelAsset, RouteItem } from '@/store/types';
-import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
+import { clearModelRegistry, modelStatus, registerModelBytes } from '@/models/modelRegistry';
 import { MapSceneController } from './MapSceneController';
 import { mapboxModelId } from './ModelCatalog';
 import { createMapboxModels } from './testMapboxModels';
@@ -126,6 +126,22 @@ describe('MapSceneController with imported models', () => {
       // Removed while its load was pending: it leaves the style as soon as the load lands.
       double.mapbox.finishLoads();
       expect(double.mapbox.inStyle().size).toBe(0);
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it('stops drawing a model Mapbox could not load, and marks its file failed', () => {
+    registerModelBytes(SHA, new ArrayBuffer(8));
+    const double = createMapDouble();
+    const controller = new MapSceneController(double.map, vi.fn());
+    try {
+      controller.mount();
+      expect(double.layers.get('model-layer-m1')?.type).toBe('model');
+      double.mapbox.failLoad(mapboxModelId(SHA));
+      expect(modelStatus(asset)).toBe('failed');
+      expect(double.layers.has('model-layer-m1')).toBe(false);
+      expect(() => controller.renderAt(3)).not.toThrow();
     } finally {
       controller.dispose();
     }

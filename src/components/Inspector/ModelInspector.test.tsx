@@ -6,7 +6,7 @@ import { createTransientState, useProjectStore } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
 import { createModelItem } from '@/store/itemFactories';
 import type { ModelAsset, ModelItem } from '@/store/types';
-import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
+import { clearModelRegistry, markModelFailed, registerModelBytes } from '@/models/modelRegistry';
 import { sha256Hex } from '@/models/glb';
 import { makeGlb } from '@/models/testGlb';
 import { MODEL_TERMS } from '@/models/modelTerms';
@@ -102,5 +102,22 @@ describe('ModelInspector', () => {
     render(<InspectorPanel />);
     pick(new ArrayBuffer(4), 'tower.png');
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Pick a .glb file. Other 3D formats are not supported.'));
+  });
+
+  it('shows an error when the map could not load the model, and takes another file (Pro)', async () => {
+    subscription = { tier: 'wanderer', status: 'active' };
+    registerModelBytes(asset.sha256, glb);
+    markModelFailed(asset.sha256);
+    render(<InspectorPanel />);
+    expect(screen.getByText(MODEL_TERMS.failedTitle)).toBeInTheDocument();
+    expect(screen.getByText(MODEL_TERMS.failedBody('tower.glb'))).toBeInTheDocument();
+    expect(screen.queryByText(MODEL_TERMS.missingTitle)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: MODEL_TERMS.pickOther }));
+    pick(otherGlb, 'other.glb');
+    await screen.findByText(MODEL_TERMS.mismatch('tower.glb'));
+    fireEvent.click(screen.getByRole('button', { name: MODEL_TERMS.useAnyway }));
+    await waitFor(() => expect(screen.queryByText(MODEL_TERMS.failedTitle)).not.toBeInTheDocument());
+    expect(useProjectStore.getState().models.a1.fileName).toBe('other.glb');
   });
 });

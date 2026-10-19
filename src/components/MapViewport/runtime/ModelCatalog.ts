@@ -1,6 +1,7 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import type { ModelAsset, TimelineItem } from '@/store/types';
-import { getLoadedModel } from '@/models/modelRegistry';
+import { drawnModelId } from '@/store/modelAssets';
+import { getLoadedModel, markModelFailed } from '@/models/modelRegistry';
 import { mutateMap } from './mapboxResources';
 
 export interface ResolvedModel {
@@ -19,9 +20,20 @@ export function mapboxModelId(sha256: string): string {
   return `user-model-${sha256.slice(0, 16)}`;
 }
 
+/**
+ * The model id in Mapbox's load failure, which it reports only as a map 'error' whose message is
+ * "Could not load model <id> from <url>" (ModelManager in mapbox-gl 3.x). Re-check this when
+ * upgrading mapbox-gl.
+ */
+export function failedModelId(error: unknown): string | null {
+  const message = error instanceof Error ? error.message : '';
+  return /^Could not load model (user-model-[0-9a-f]+) from /.exec(message)?.[1] ?? null;
+}
+
 /** A model this catalog added to the style, and where its load stands. */
 interface CatalogEntry {
-  state: 'loading' | 'ready';
+  sha256: string;
+  state: 'loading' | 'ready' | 'failed';
   /** Nothing uses it any more: it is removed as soon as its load lands. */
   unused: boolean;
 }
@@ -34,7 +46,9 @@ interface CatalogEntry {
  * Mapbox loads a model asynchronously: `hasModel` is false until the load lands, and `removeModel`
  * refuses a model that has not landed, which then lands in the style anyway. So the catalog keeps
  * its own record of what it added (it never adds a model twice) and removes a model dropped while
- * loading once its load lands (`styledata`). Call `attach` once the map exists and `detach` on dispose.
+ * loading once its load lands (`styledata`). A load that fails marks the file failed in the model
+ * registry, so the editor says so and nothing draws it. Call `attach` once the map exists and
+ * `detach` on dispose.
  */
 export class ModelCatalog implements ModelResolver {
   private readonly entries = new Map<string, CatalogEntry>();
@@ -46,18 +60,21 @@ export class ModelCatalog implements ModelResolver {
 
   attach(): void {
     this.map.on('styledata', this.handleStyleData);
+    this.map.on('error', this.handleError);
   }
 
   detach(): void {
     this.map.off('styledata', this.handleStyleData);
+    this.map.off('error', this.handleError);
   }
 
   resolve(assetId: string): ResolvedModel | null {
     const asset = this.getModels()[assetId];
     const loaded = getLoadedModel(asset?.sha256);
-    if (!asset || !loaded) return null;
+    if (!asset || !loaded || loaded.failed) return null;
     const modelId = mapboxModelId(asset.sha256);
     const entry = this.entries.get(modelId);
+    if (entry?.state === 'failed') return null;
     if (entry) {
       entry.unused = false;
     } else {
@@ -65,7 +82,11 @@ export class ModelCatalog implements ModelResolver {
         this.map.addModel(modelId, loaded.url);
       });
       if (!ok) return null;
-      this.entries.set(modelId, { state: this.map.hasModel(modelId) ? 'ready' : 'loading', unused: false });
+      this.entries.set(modelId, {
+        sha256: asset.sha256,
+        state: this.map.hasModel(modelId) ? 'ready' : 'loading',
+        unused: false,
+      });
     }
     return { modelId, asset };
   }
@@ -78,13 +99,10 @@ export class ModelCatalog implements ModelResolver {
     const models = this.getModels();
     const inUse = new Set<string>();
     for (const item of Object.values(items)) {
-      const assetId = item.kind === 'model'
-        ? item.assetId
-        : item.kind === 'route' && item.calculation?.vehicle?.enabled && item.calculation.vehicle.type === 'custom'
-          ? item.calculation.vehicle.modelId
-          : null;
+      const assetId = drawnModelId(item);
       const asset = assetId ? models[assetId] : undefined;
-      if (asset && getLoadedModel(asset.sha256)) inUse.add(mapboxModelId(asset.sha256));
+      const loaded = getLoadedModel(asset?.sha256);
+      if (asset && loaded && !loaded.failed) inUse.add(mapboxModelId(asset.sha256));
     }
     for (const [modelId, entry] of [...this.entries]) {
       if (!inUse.has(modelId)) this.release(modelId, entry);
@@ -103,6 +121,8 @@ export class ModelCatalog implements ModelResolver {
       return;
     }
     this.entries.delete(modelId);
+    // A failed load holds no model, and Mapbox's removeModel refuses one that never loaded.
+    if (entry.state === 'failed') return;
     mutateMap(this.map, { operation: 'removeModel', phase: 'cleanup', resourceId: modelId }, () => {
       this.map.removeModel(modelId);
     });
@@ -115,5 +135,14 @@ export class ModelCatalog implements ModelResolver {
       entry.state = 'ready';
       if (entry.unused) this.release(modelId, entry);
     }
+  };
+
+  private readonly handleError = (event: { error?: unknown } | undefined): void => {
+    const modelId = failedModelId(event?.error);
+    const entry = modelId ? this.entries.get(modelId) : undefined;
+    if (!modelId || !entry || entry.state !== 'loading') return;
+    entry.state = 'failed';
+    if (entry.unused) this.entries.delete(modelId);
+    markModelFailed(entry.sha256);
   };
 }

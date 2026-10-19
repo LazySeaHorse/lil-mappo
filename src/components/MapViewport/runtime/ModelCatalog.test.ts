@@ -2,7 +2,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createModelItem } from '@/store/itemFactories';
 import type { ModelAsset, TimelineItem } from '@/store/types';
-import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
+import { clearModelRegistry, modelStatus, registerModelBytes } from '@/models/modelRegistry';
 import { ModelCatalog, mapboxModelId } from './ModelCatalog';
 import { createMapboxModels } from './testMapboxModels';
 
@@ -97,5 +97,35 @@ describe('ModelCatalog', () => {
     const { mapbox, catalog } = setup();
     catalog.detach();
     expect([...mapbox.listeners.values()].every((group) => group.size === 0)).toBe(true);
+  });
+
+  it('marks a model whose load fails as failed, and resolves it to nothing from then on', () => {
+    const { mapbox, catalog } = setup();
+    catalog.resolve('a1');
+    mapbox.failLoad(MODEL_ID);
+    expect(modelStatus(asset)).toBe('failed');
+    expect(catalog.resolve('a1')).toBeNull();
+    expect(mapbox.api.addModel).toHaveBeenCalledTimes(1);
+  });
+
+  it('forgets a failed model on prune without asking Mapbox to remove what it never loaded', () => {
+    const { mapbox, catalog } = setup();
+    const errors = vi.fn();
+    mapbox.api.on('error', errors);
+    catalog.resolve('a1');
+    mapbox.failLoad(MODEL_ID);
+    errors.mockClear();
+    catalog.prune({});
+    expect(mapbox.api.removeModel).not.toHaveBeenCalled();
+    expect(errors).not.toHaveBeenCalled();
+  });
+
+  it('ignores map errors that are not about its own models', () => {
+    const { mapbox, catalog } = setup();
+    catalog.resolve('a1');
+    mapbox.fire('error', { error: new Error('Could not load model car from https://example.com/car.glb') });
+    mapbox.fire('error', { error: new Error('Tile failed') });
+    mapbox.fire('error', {});
+    expect(modelStatus(asset)).toBe('ready');
   });
 });
