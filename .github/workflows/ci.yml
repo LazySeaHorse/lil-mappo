@@ -41,6 +41,31 @@ jobs:
       - name: Verify build
         run: npm run build:dev
 
+  database:
+    name: Database Tests (pgTAP)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Same CLI version as the `supabase` devDependency in package-lock.json.
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+
+      # Applies supabase/migrations and supabase/seed.sql. Only Postgres, Auth
+      # (its schema migrations), PostgREST and Kong are needed for the tests.
+      - name: Start local Supabase
+        run: supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Run pgTAP tests
+        run: supabase test db
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
+
   e2e:
     name: Playwright E2E Tests
     runs-on: ubuntu-latest
