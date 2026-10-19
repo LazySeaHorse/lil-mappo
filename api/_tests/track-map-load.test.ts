@@ -30,7 +30,7 @@ function response() {
   return res as unknown as VercelResponse & typeof res;
 }
 
-function admin(subscription: unknown, pass: unknown) {
+function admin(subscription: unknown, pass: unknown, passError: unknown = null) {
   const rpc = vi.fn().mockResolvedValue({
     data: [{ allowed: true, reason: null, monthly_total: 1, daily_total: 1 }],
     error: null,
@@ -42,7 +42,7 @@ function admin(subscription: unknown, pass: unknown) {
         eq: vi.fn(() => ({
           maybeSingle: vi.fn().mockResolvedValue({
             data: table === "pro_passes" ? pass : subscription,
-            error: null,
+            error: table === "pro_passes" ? passError : null,
           }),
         })),
       })),
@@ -90,5 +90,15 @@ describe("track-map-load quota", () => {
     await handler(request(), response());
 
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("does not count loads for an active subscriber when the pass read fails", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const rpc = admin({ tier: "wanderer", status: "active", renewal_date: "2026-11-01" }, null, { message: "down" });
+
+    await handler(request(), response());
+
+    expect(rpc).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });

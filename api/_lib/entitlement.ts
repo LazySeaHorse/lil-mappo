@@ -55,8 +55,10 @@ export function withProPass(
 
 /**
  * Reads what `isWanderer` needs for one user (subscription + Pro pass, in
- * parallel) with a service-role client. On a database error, `data` is null
- * and the caller decides whether to fail closed.
+ * parallel) with a service-role client. When the subscription cannot be read,
+ * `data` is null and the caller decides whether to fail closed. A pass that
+ * cannot be read is logged and treated as no pass, so a good subscription is
+ * never discarded (the client's `useSubscription` does the same).
  */
 export async function loadEntitlement(
   supabase: SupabaseClient,
@@ -66,8 +68,8 @@ export async function loadEntitlement(
     supabase.from("subscriptions").select("tier, status, renewal_date").eq("user_id", userId).maybeSingle(),
     supabase.from("pro_passes").select("expires_at").eq("user_id", userId).maybeSingle(),
   ]);
-  const error = sub.error ?? pass.error ?? null;
-  if (error) return { data: null, error };
-  const passEnd = (pass.data as { expires_at?: string } | null)?.expires_at ?? null;
+  if (sub.error) return { data: null, error: sub.error };
+  if (pass.error) console.error("[entitlement] Pro pass read failed, treating as no pass:", pass.error);
+  const passEnd = pass.error ? null : (pass.data as { expires_at?: string } | null)?.expires_at ?? null;
   return { data: withProPass(sub.data as SubscriptionEntitlement ?? null, passEnd), error: null };
 }

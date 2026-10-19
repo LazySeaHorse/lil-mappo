@@ -135,9 +135,31 @@ describe("loadEntitlement", () => {
     expect(client.from).toHaveBeenCalledWith("pro_passes");
   });
 
-  it("reports a database error instead of guessing", async () => {
-    const { data, error } = await loadEntitlement(db(null, null, { pass: { message: "down" } }), "user-1");
+  it("reports an error when the subscription cannot be read", async () => {
+    const { data, error } = await loadEntitlement(
+      db(null, { expires_at: "2026-10-21T12:00:00Z" }, { sub: { message: "down" } }),
+      "user-1",
+    );
     expect(error).toEqual({ message: "down" });
     expect(data).toBeNull();
+  });
+
+  it("keeps a good subscription when only the pass cannot be read", async () => {
+    const sub = { tier: "wanderer", status: "active", renewal_date: "2026-11-01" };
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { data, error } = await loadEntitlement(db(sub, null, { pass: { message: "down" } }), "user-1");
+    expect(error).toBeNull();
+    expect(data).toEqual({ ...sub, pass_expires_at: null });
+    expect(isWanderer(data)).toBe(true);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("has no entitlement when neither a subscription nor a readable pass exists", async () => {
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { data, error } = await loadEntitlement(db(null, null, { pass: { message: "down" } }), "user-1");
+    expect(error).toBeNull();
+    expect(data).toBeNull();
+    warn.mockRestore();
   });
 });
