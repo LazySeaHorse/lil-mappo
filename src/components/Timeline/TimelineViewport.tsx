@@ -3,7 +3,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { TimelineItem } from '@/store/types';
 import TimelineTrackRow, { type AutoCamBlock } from './TimelineTrackRow';
-import { formatTimelineTime } from './timelineTime';
+import { formatRulerLabel, formatTimelineTime, rulerSteps } from './timelineTime';
 import { PlayheadIcon } from './PlayheadIcon';
 
 const RULER_HEIGHT = 40;
@@ -165,12 +165,15 @@ export default function TimelineViewport({
 }
 
 function TimelineRuler({ duration, pixelsPerSecond }: { duration: number; pixelsPerSecond: number }) {
+  const { labelStep, tickStep } = rulerSteps(pixelsPerSecond);
+
   return (
     <svg width="100%" height={RULER_HEIGHT} className="absolute left-0 top-0 pointer-events-none">
-      {Array.from({ length: Math.ceil(duration / 0.5) + 1 }, (_, index) => {
-        const time = index * 0.5;
+      {Array.from({ length: Math.ceil(duration / tickStep) + 1 }, (_, index) => {
+        const time = index * tickStep;
         const x = time * pixelsPerSecond;
-        const isMajor = time % 1 === 0;
+        const labelIndex = time / labelStep;
+        const isMajor = Math.abs(labelIndex - Math.round(labelIndex)) < 1e-6;
 
         return (
           <g key={index}>
@@ -185,7 +188,7 @@ function TimelineRuler({ duration, pixelsPerSecond }: { duration: number; pixels
             />
             {isMajor && (
               <text x={x + 3} y={14} fontSize={10} className="fill-muted-foreground opacity-80 font-mono-time">
-                {Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}
+                {formatRulerLabel(time, labelStep)}
               </text>
             )}
           </g>
