@@ -139,7 +139,8 @@ describe('TimelinePanel', () => {
       expect(pastEnd).toHaveAttribute('x', '600');
       // 1000px panel minus the 160px track labels reaches 840px.
       expect(Number(pastEnd.getAttribute('width'))).toBeGreaterThanOrEqual(240);
-      expect(screen.getByTestId('timeline-ruler').querySelectorAll('text').length).toBeGreaterThan(10);
+      // Labels every 2 s at 60 px/s, so the ruler is still labelled past the 10 s end.
+      expect(screen.getByTestId('timeline-ruler')).toHaveTextContent('0:12');
     } finally {
       width.mockRestore();
     }

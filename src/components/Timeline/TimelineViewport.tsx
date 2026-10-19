@@ -1,4 +1,4 @@
-import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction, type WheelEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction, type WheelEvent } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { TimelineItem } from '@/store/types';
@@ -52,6 +52,21 @@ export default function TimelineViewport({
 
   const isScrubbingRef = useRef(false);
 
+  // The ruler runs to the panel's edge, not just to the project's end.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [panelWidth, setPanelWidth] = useState(0);
+  useEffect(() => {
+    const panel = contentRef.current?.closest<HTMLElement>('[data-slot="scroll-area"]');
+    if (!panel) return;
+    const measure = () => setPanelWidth(panel.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
+  const rulerDuration = Math.max(duration, (panelWidth - TRACK_LABEL_WIDTH) / pixelsPerSecond);
+
   const handleRulerPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsPlaying(false);
@@ -99,9 +114,10 @@ export default function TimelineViewport({
   return (
     <ScrollArea className="flex-1 w-full relative group min-h-0">
       <div
+        ref={contentRef}
         data-testid="timeline-viewport-content"
         className="flex flex-col relative min-w-max pb-4"
-        style={{ width: duration * pixelsPerSecond + TRACK_LABEL_WIDTH + 20 }}
+        style={{ width: rulerDuration * pixelsPerSecond + TRACK_LABEL_WIDTH + 20 }}
         onWheel={handleWheel}
       >
         <div className="h-10 border-b border-border/50 relative shrink-0 bg-background/60 sticky top-0 z-30 backdrop-blur-md flex items-end">
@@ -123,7 +139,7 @@ export default function TimelineViewport({
             onPointerCancel={handleRulerPointerUp}
             onLostPointerCapture={handleRulerLostPointerCapture}
           >
-            <TimelineRuler duration={duration} pixelsPerSecond={pixelsPerSecond} />
+            <TimelineRuler duration={duration} rulerDuration={rulerDuration} pixelsPerSecond={pixelsPerSecond} />
             <div
               ref={rulerDiamondRef}
               data-testid="timeline-ruler-playhead"
@@ -164,19 +180,27 @@ export default function TimelineViewport({
   );
 }
 
-function TimelineRuler({ duration, pixelsPerSecond }: { duration: number; pixelsPerSecond: number }) {
+function TimelineRuler({ duration, rulerDuration, pixelsPerSecond }: { duration: number; rulerDuration: number; pixelsPerSecond: number }) {
   const { labelStep, tickStep } = rulerSteps(pixelsPerSecond);
 
   return (
     <svg width="100%" height={RULER_HEIGHT} className="absolute left-0 top-0 pointer-events-none">
-      {Array.from({ length: Math.ceil(duration / tickStep) + 1 }, (_, index) => {
+      <rect
+        data-testid="timeline-ruler-past-end"
+        x={duration * pixelsPerSecond}
+        y={0}
+        width={Math.max(0, (rulerDuration - duration) * pixelsPerSecond + 20)}
+        height={RULER_HEIGHT}
+        className="fill-muted-foreground opacity-15"
+      />
+      {Array.from({ length: Math.ceil(rulerDuration / tickStep) + 1 }, (_, index) => {
         const time = index * tickStep;
         const x = time * pixelsPerSecond;
         const labelIndex = time / labelStep;
         const isMajor = Math.abs(labelIndex - Math.round(labelIndex)) < 1e-6;
 
         return (
-          <g key={index}>
+          <g key={index} className={time > duration + 1e-6 ? 'opacity-50' : undefined}>
             <line
               x1={x}
               y1={isMajor ? 18 : 28}
