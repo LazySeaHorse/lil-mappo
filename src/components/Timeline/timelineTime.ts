@@ -23,10 +23,10 @@ export function parseTimelineTime(text: string): number | null {
 }
 
 // Round label intervals in seconds, so labels stay on times people read at a glance.
-const RULER_LABEL_STEPS = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600];
+const RULER_LABEL_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600];
 // How many ticks one label step holds, so every label sits on a tick.
 const RULER_DIVISIONS: Record<number, number> = {
-  0.5: 5, 1: 2, 2: 2, 5: 5, 10: 5, 15: 3, 30: 3, 60: 6, 120: 4, 300: 5, 600: 5, 1800: 3, 3600: 6,
+  0.1: 2, 0.2: 2, 0.5: 5, 1: 2, 2: 2, 5: 5, 10: 5, 15: 3, 30: 3, 60: 6, 120: 4, 300: 5, 600: 5, 1800: 3, 3600: 6,
 };
 const RULER_MIN_LABEL_GAP = 64;
 const RULER_MIN_TICK_GAP = 6;

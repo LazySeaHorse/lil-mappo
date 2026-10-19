@@ -4,7 +4,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { TimelineItem } from '@/store/types';
 import TimelineTrackRow, { type AutoCamBlock } from './TimelineTrackRow';
 import { formatRulerLabel, formatTimelineTime, rulerSteps } from './timelineTime';
-import { wheelZoomFactor, zoomBy } from './timelineZoom';
+import { wheelZoomFactor, zoomBy, type ZoomBounds } from './timelineZoom';
 import { PlayheadIcon } from './PlayheadIcon';
 
 const RULER_HEIGHT = 40;
@@ -25,6 +25,7 @@ interface TimelineViewportProps {
   setPlayheadTime: (time: number) => void;
   timeDisplayRef: RefObject<HTMLSpanElement>;
   trackLineRef: RefObject<HTMLDivElement>;
+  zoomBounds: ZoomBounds;
   onSelectItem: (itemId: string) => void;
   onSelectAutoCam: (routeId: string) => void;
   onSelectKeyframe: (keyframeId: string | null) => void;
@@ -45,6 +46,7 @@ export default function TimelineViewport({
   setPlayheadTime,
   timeDisplayRef,
   trackLineRef,
+  zoomBounds,
   onSelectItem,
   onSelectAutoCam,
   onSelectKeyframe,
@@ -109,8 +111,8 @@ export default function TimelineViewport({
     if (!event.ctrlKey && !event.metaKey) return;
 
     event.preventDefault();
-    setPixelsPerSecond((value) => zoomBy(value, wheelZoomFactor(event.deltaY)));
-  }, [setPixelsPerSecond]);
+    setPixelsPerSecond((value) => zoomBy(value, wheelZoomFactor(event.deltaY), zoomBounds));
+  }, [setPixelsPerSecond, zoomBounds]);
 
   return (
     <ScrollArea className="flex-1 w-full relative group min-h-0">

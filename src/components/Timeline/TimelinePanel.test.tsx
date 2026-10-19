@@ -193,14 +193,31 @@ describe('TimelinePanel', () => {
   });
 
   it('fits the timeline to the available panel width', () => {
-    renderTimeline();
-    const panel = screen.getByTestId('timeline-panel');
-    Object.defineProperty(panel, 'offsetWidth', { configurable: true, value: 1184 });
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1184);
+    try {
+      renderTimeline();
+      act(() => useProjectStore.getState().setPlayheadTime(2));
+      fireEvent.click(screen.getByTitle('Zoom In'));
+      fireEvent.click(screen.getByTitle('Fit to Timeline'));
 
-    act(() => useProjectStore.getState().setPlayheadTime(2));
-    fireEvent.click(screen.getByTitle('Fit to Timeline'));
+      // 10 s into the 1184px panel less 184px of label column and padding.
+      expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '200px' });
+    } finally {
+      width.mockRestore();
+    }
+  });
 
-    expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '200px' });
+  it('cannot zoom out past the whole project fitting the panel', () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1184);
+    try {
+      renderTimeline();
+      act(() => useProjectStore.getState().setPlayheadTime(2));
+      for (let i = 0; i < 6; i += 1) fireEvent.click(screen.getByTitle('Zoom Out'));
+
+      expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '200px' });
+    } finally {
+      width.mockRestore();
+    }
   });
 
   it('supports transport shortcuts and protects the camera track from deletion', () => {
