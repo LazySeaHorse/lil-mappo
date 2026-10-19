@@ -28,6 +28,11 @@ describe('NewProjectModal plan limits', () => {
     render(<NewProjectModal />);
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
     expect(screen.getByRole('option', { name: /4K/ }).getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByRole('option', { name: /1080p/ }).getAttribute('aria-disabled')).toBeNull();
+    expect(screen.getByRole('option', { name: /720p/ }).getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('starts a free project at the highest resolution the plan allows', () => {
+    render(<NewProjectModal />);
+    expect(screen.getByRole('combobox')).toHaveTextContent('720p');
   });
 });
