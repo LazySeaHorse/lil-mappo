@@ -108,6 +108,7 @@ export class MapSceneController implements MapSceneRuntime {
     this.unsubscribe = useProjectStore.subscribe(this.handleStoreChange);
     // A relinked file arrives (or a released one goes) without a project change.
     this.unsubscribeModels = useModelRegistry.subscribe(this.refreshModels);
+    this.catalog.attach();
     this.basemap.mount();
     this.sync();
   }
@@ -177,6 +178,7 @@ export class MapSceneController implements MapSceneRuntime {
     this.disposed = true;
     this.unsubscribe?.();
     this.unsubscribeModels?.();
+    this.catalog.detach();
     this.basemap.dispose();
     this.disposeRenderers();
   }

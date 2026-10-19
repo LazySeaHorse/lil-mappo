@@ -4,13 +4,14 @@ import type { ModelAsset, RouteItem, RouteVehicleConfig } from '@/store/types';
 import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
 import { ModelCatalog, mapboxModelId } from './ModelCatalog';
 import { RouteRenderer } from './RouteRenderer';
+import { createMapboxModels } from './testMapboxModels';
 
 type Layer = { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> };
 
 function createMapDouble() {
   const layers = new Map<string, Layer>();
   const sources = new Map<string, { type: 'geojson'; setData: ReturnType<typeof vi.fn> }>();
-  const models = new Map<string, string>();
+  const mapbox = createMapboxModels();
   const map = {
     isStyleLoaded: vi.fn(() => true),
     getLayer: vi.fn((id: string) => layers.get(id)),
@@ -28,11 +29,9 @@ function createMapDouble() {
     getSource: vi.fn((id: string) => sources.get(id)),
     addSource: vi.fn((id: string) => sources.set(id, { type: 'geojson', setData: vi.fn() })),
     removeSource: vi.fn((id: string) => sources.delete(id)),
-    hasModel: vi.fn((id: string) => models.has(id)),
-    addModel: vi.fn((id: string, url: string) => models.set(id, url)),
-    removeModel: vi.fn((id: string) => models.delete(id)),
+    ...mapbox.api,
   };
-  return { map: map as unknown as MapboxMap, layers, models };
+  return { map: map as unknown as MapboxMap, layers, mapbox };
 }
 
 const SHA = 'd'.repeat(64);
@@ -71,14 +70,14 @@ afterEach(() => vi.unstubAllGlobals());
 describe('RouteRenderer with a custom marker', () => {
   it('rides the imported model, standing on the route, at its size', () => {
     registerModelBytes(SHA, new ArrayBuffer(8));
-    const { map, layers, models } = createMapDouble();
+    const { map, layers, mapbox } = createMapDouble();
     const renderer = new RouteRenderer(map, route(custom), new ModelCatalog(map, () => ({ bus })));
     renderer.mount();
 
     const layer = layers.get('vehicle-layer-r1')!;
     expect(layer.type).toBe('model');
     expect(layer.layout?.['model-id']).toBe(mapboxModelId(SHA));
-    expect(models.get(mapboxModelId(SHA))).toBe('blob:bus');
+    expect(mapbox.requested.get(mapboxModelId(SHA))).toBe('blob:bus');
     expect(layer.paint?.['model-scale']).toEqual([2, 2, 2]);
     // Lifted by the 0.5 m it reaches below its origin, at 2x.
     expect(layer.paint?.['model-translation']).toEqual([0, 0, 1]);
@@ -89,12 +88,12 @@ describe('RouteRenderer with a custom marker', () => {
   });
 
   it('falls back to the dot while the model file is missing (reloaded project, cloud render)', () => {
-    const { map, layers, models } = createMapDouble();
+    const { map, layers, mapbox } = createMapDouble();
     const renderer = new RouteRenderer(map, route(custom), new ModelCatalog(map, () => ({ bus })));
     renderer.mount();
     expect(() => renderer.render(5)).not.toThrow();
     expect(layers.get('vehicle-layer-r1')!.type).toBe('circle');
-    expect(models.size).toBe(0);
+    expect(mapbox.requested.size).toBe(0);
   });
 
   it('falls back to the dot when the project has no such model at all', () => {

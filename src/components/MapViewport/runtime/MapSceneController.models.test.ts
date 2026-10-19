@@ -8,12 +8,13 @@ import type { ModelAsset, RouteItem } from '@/store/types';
 import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
 import { MapSceneController } from './MapSceneController';
 import { mapboxModelId } from './ModelCatalog';
+import { createMapboxModels } from './testMapboxModels';
 
 function createMapDouble() {
   const layers = new Map<string, { id: string; type: string; source?: string; layout?: Record<string, unknown> }>();
-  const models = new Map<string, string>();
+  const mapbox = createMapboxModels();
   const sources = new Map<string, { type: 'geojson'; setData: ReturnType<typeof vi.fn> }>();
-  const listeners = new Map<string, Set<(event: unknown) => void>>();
+  const listeners = mapbox.listeners;
   const control = () => ({ enable: vi.fn(), disable: vi.fn() });
   const state = useProjectStore.getState();
   let styleLoaded = true;
@@ -22,13 +23,9 @@ function createMapDouble() {
     layers,
     sources,
     listeners,
-    models,
-    on: vi.fn((name: string, listener: (event: unknown) => void) => {
-      const group = listeners.get(name) ?? new Set();
-      group.add(listener);
-      listeners.set(name, group);
-    }),
-    off: vi.fn((name: string, listener: (event: unknown) => void) => listeners.get(name)?.delete(listener)),
+    mapbox,
+    on: mapbox.api.on,
+    off: mapbox.api.off,
     once: vi.fn(),
     loaded: vi.fn(() => true),
     isStyleLoaded: vi.fn(() => styleLoaded),
@@ -60,9 +57,9 @@ function createMapDouble() {
     getFog: vi.fn(),
     setFog: vi.fn(),
     isSourceLoaded: vi.fn(() => false),
-    hasModel: vi.fn((id: string) => models.has(id)),
-    addModel: vi.fn((id: string, url: string) => models.set(id, url)),
-    removeModel: vi.fn((id: string) => models.delete(id)),
+    hasModel: mapbox.api.hasModel,
+    addModel: mapbox.api.addModel,
+    removeModel: mapbox.api.removeModel,
     dragPan: control(),
     dragRotate: control(),
     scrollZoom: control(),
@@ -107,7 +104,7 @@ describe('MapSceneController with imported models', () => {
 
       registerModelBytes(SHA, new ArrayBuffer(8));
       expect(double.layers.get('model-layer-m1')?.type).toBe('model');
-      expect(double.models.get(mapboxModelId(SHA))).toBe('blob:tower');
+      expect(double.mapbox.requested.get(mapboxModelId(SHA))).toBe('blob:tower');
     } finally {
       controller.dispose();
     }
@@ -126,7 +123,9 @@ describe('MapSceneController with imported models', () => {
 
       useProjectStore.getState().removeItem('m1');
       expect(double.layers.has('model-layer-m1')).toBe(false);
-      expect(double.models.size).toBe(0);
+      // Removed while its load was pending: it leaves the style as soon as the load lands.
+      double.mapbox.finishLoads();
+      expect(double.mapbox.inStyle().size).toBe(0);
     } finally {
       controller.dispose();
     }

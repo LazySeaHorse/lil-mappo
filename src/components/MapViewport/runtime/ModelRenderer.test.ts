@@ -5,13 +5,14 @@ import type { ModelAsset, ModelItem } from '@/store/types';
 import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
 import { ModelCatalog, mapboxModelId } from './ModelCatalog';
 import { ModelRenderer } from './ModelRenderer';
+import { createMapboxModels } from './testMapboxModels';
 
 type Layer = { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> };
 
 function createMapDouble() {
   const layers = new Map<string, Layer>();
   const sources = new Map<string, { type: 'geojson'; setData: ReturnType<typeof vi.fn> }>();
-  const models = new Map<string, string>();
+  const mapbox = createMapboxModels();
   const map = {
     isStyleLoaded: vi.fn(() => true),
     getLayer: vi.fn((id: string) => layers.get(id)),
@@ -29,11 +30,9 @@ function createMapDouble() {
     getSource: vi.fn((id: string) => sources.get(id)),
     addSource: vi.fn((id: string) => sources.set(id, { type: 'geojson', setData: vi.fn() })),
     removeSource: vi.fn((id: string) => sources.delete(id)),
-    hasModel: vi.fn((id: string) => models.has(id)),
-    addModel: vi.fn((id: string, url: string) => models.set(id, url)),
-    removeModel: vi.fn((id: string) => models.delete(id)),
+    ...mapbox.api,
   };
-  return { map: map as unknown as MapboxMap, layers, sources, models, double: map };
+  return { map: map as unknown as MapboxMap, layers, sources, mapbox, double: map };
 }
 
 const SHA = 'c'.repeat(64);
@@ -67,20 +66,20 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('ModelRenderer', () => {
   it('draws nothing while the model file is missing, and the model once it is relinked', () => {
-    const { map, layers, models } = createMapDouble();
+    const { map, layers, mapbox } = createMapDouble();
     const catalog = new ModelCatalog(map, () => ({ a1: asset }));
     const renderer = new ModelRenderer(map, placed(), catalog);
     renderer.mount();
     renderer.render(15);
     expect(layers.size).toBe(0);
-    expect(models.size).toBe(0);
+    expect(mapbox.requested.size).toBe(0);
 
     registerModelBytes(SHA, new ArrayBuffer(8));
     renderer.refresh();
     const layer = layers.get('model-layer-m1')!;
     expect(layer.type).toBe('model');
     expect(layer.layout?.['model-id']).toBe(mapboxModelId(SHA));
-    expect(models.get(mapboxModelId(SHA))).toBe('blob:tower');
+    expect(mapbox.requested.get(mapboxModelId(SHA))).toBe('blob:tower');
   });
 
   it('places, turns, sizes and lifts the model so it stands at its altitude', () => {
@@ -139,17 +138,19 @@ describe('ModelRenderer', () => {
 
   it('removes its layer and source, and the catalog drops models nothing uses', () => {
     registerModelBytes(SHA, new ArrayBuffer(8));
-    const { map, layers, sources, models } = createMapDouble();
+    const { map, layers, sources, mapbox } = createMapDouble();
     const catalog = new ModelCatalog(map, () => ({ a1: asset }));
+    catalog.attach();
     const renderer = new ModelRenderer(map, placed(), catalog);
     renderer.mount();
+    mapbox.finishLoads();
     catalog.prune({ m1: placed() });
-    expect(models.size).toBe(1);
+    expect(mapbox.inStyle().size).toBe(1);
 
     renderer.dispose();
     catalog.prune({});
     expect(layers.size).toBe(0);
     expect(sources.size).toBe(0);
-    expect(models.size).toBe(0);
+    expect(mapbox.inStyle().size).toBe(0);
   });
 });
