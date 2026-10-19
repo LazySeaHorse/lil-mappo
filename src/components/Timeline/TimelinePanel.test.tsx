@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import TimelinePanel from './TimelinePanel';
+import { wheelZoomFactor } from './timelineZoom';
 import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 
@@ -186,7 +187,9 @@ describe('TimelinePanel', () => {
       ctrlKey: true,
       deltaY: -20,
     });
-    expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '170px' });
+    // 75 px/s zoomed in by the wheel's factor, with the playhead at 2 s.
+    const left = parseFloat(screen.getByTestId('timeline-ruler-playhead').style.left);
+    expect(left).toBeCloseTo(2 * 75 * wheelZoomFactor(-20), 1);
   });
 
   it('fits the timeline to the available panel width', () => {

@@ -8,6 +8,7 @@ import type { AutoCamBlock } from './TimelineTrackRow';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useTimelineKeyboardShortcuts } from './useTimelineKeyboardShortcuts';
 import { useTimelinePlayheadSync } from './useTimelinePlayheadSync';
+import { clampZoom } from './timelineZoom';
 import {
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
@@ -129,7 +130,7 @@ export default function TimelinePanel() {
     if (!containerRef.current || duration <= 0) return;
     // Available width = panel width minus label column minus scrollbar padding
     const availableWidth = containerRef.current.offsetWidth - 160 - 24;
-    setPixelsPerSecond(Math.max(10, Math.min(300, availableWidth / duration)));
+    setPixelsPerSecond(clampZoom(availableWidth / duration));
   }, [duration]);
 
   useTimelineKeyboardShortcuts({

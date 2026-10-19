@@ -4,6 +4,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { TimelineItem } from '@/store/types';
 import TimelineTrackRow, { type AutoCamBlock } from './TimelineTrackRow';
 import { formatRulerLabel, formatTimelineTime, rulerSteps } from './timelineTime';
+import { wheelZoomFactor, zoomBy } from './timelineZoom';
 import { PlayheadIcon } from './PlayheadIcon';
 
 const RULER_HEIGHT = 40;
@@ -108,7 +109,7 @@ export default function TimelineViewport({
     if (!event.ctrlKey && !event.metaKey) return;
 
     event.preventDefault();
-    setPixelsPerSecond((value) => Math.max(10, Math.min(300, value - event.deltaY * 0.5)));
+    setPixelsPerSecond((value) => zoomBy(value, wheelZoomFactor(event.deltaY)));
   }, [setPixelsPerSecond]);
 
   return (
