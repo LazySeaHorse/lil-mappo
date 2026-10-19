@@ -21,3 +21,33 @@ export function parseTimelineTime(text: string): number | null {
   if (clock) return Number(clock[1]) * 60 + Number(clock[2]);
   return null;
 }
+
+// Round label intervals in seconds, so labels stay on times people read at a glance.
+const RULER_LABEL_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600];
+// How many ticks one label step holds, so every label sits on a tick.
+const RULER_DIVISIONS: Record<number, number> = {
+  0.1: 2, 0.2: 2, 0.5: 5, 1: 2, 2: 2, 5: 5, 10: 5, 15: 3, 30: 3, 60: 6, 120: 4, 300: 5, 600: 5, 1800: 3, 3600: 6,
+};
+const RULER_MIN_LABEL_GAP = 64;
+const RULER_MIN_TICK_GAP = 6;
+
+/**
+ * The ruler's label and tick spacing in seconds for a zoom: the smallest round
+ * label step that keeps labels a readable distance apart, so zooming out drops
+ * labels instead of piling them up.
+ */
+export function rulerSteps(pixelsPerSecond: number): { labelStep: number; tickStep: number } {
+  const labelStep =
+    RULER_LABEL_STEPS.find((step) => step * pixelsPerSecond >= RULER_MIN_LABEL_GAP) ??
+    RULER_LABEL_STEPS[RULER_LABEL_STEPS.length - 1];
+  const tickStep = labelStep / RULER_DIVISIONS[labelStep];
+  return { labelStep, tickStep: tickStep * pixelsPerSecond >= RULER_MIN_TICK_GAP ? tickStep : labelStep };
+}
+
+/** "m:ss" for a ruler label, with tenths when the labels are closer than a second. */
+export function formatRulerLabel(seconds: number, labelStep: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds - minutes * 60;
+  const text = labelStep < 1 ? rest.toFixed(1).padStart(4, '0') : Math.round(rest).toString().padStart(2, '0');
+  return `${minutes}:${text}`;
+}

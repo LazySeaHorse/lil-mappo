@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { Slider } from '@/components/ui/slider';
+import { ZOOM_BUTTON_FACTOR, type ZoomBounds, ZOOM_SLIDER_MAX, sliderToZoom, zoomBy, zoomToSlider } from './timelineZoom';
 import { useProjectStore } from '@/store/useProjectStore';
 import { formatTimelineTime } from './timelineTime';
 import { VideoLengthControl } from './VideoLengthControl';
@@ -26,6 +27,7 @@ interface TimelineHeaderProps {
   setPixelsPerSecond: Dispatch<SetStateAction<number>>;
   setPlayheadTime: (time: number) => void;
   timeDisplayRef: RefObject<HTMLSpanElement>;
+  zoomBounds: ZoomBounds;
   onFitToTimeline: () => void;
 }
 
@@ -39,6 +41,7 @@ export default function TimelineHeader({
   setPixelsPerSecond,
   setPlayheadTime,
   timeDisplayRef,
+  zoomBounds,
   onFitToTimeline,
 }: TimelineHeaderProps) {
   const transport = (
@@ -76,18 +79,18 @@ export default function TimelineHeader({
         <IconButton
           variant="ghost"
           size="xs"
-          onClick={() => setPixelsPerSecond((value) => Math.max(10, value - 15))}
+          onClick={() => setPixelsPerSecond((value) => zoomBy(value, 1 / ZOOM_BUTTON_FACTOR, zoomBounds))}
           title="Zoom Out"
         >
           <Minus />
         </IconButton>
         <div className="w-20 px-1">
           <Slider
-            min={10}
-            max={300}
+            min={0}
+            max={ZOOM_SLIDER_MAX}
             step={1}
-            value={[pixelsPerSecond]}
-            onValueChange={([value]) => setPixelsPerSecond(value)}
+            value={[zoomToSlider(pixelsPerSecond, zoomBounds) * ZOOM_SLIDER_MAX]}
+            onValueChange={([value]) => setPixelsPerSecond(sliderToZoom(value / ZOOM_SLIDER_MAX, zoomBounds))}
             className="cursor-pointer"
             title={`Zoom: ${Math.round(pixelsPerSecond)}px/s`}
           />
@@ -95,7 +98,7 @@ export default function TimelineHeader({
         <IconButton
           variant="ghost"
           size="xs"
-          onClick={() => setPixelsPerSecond((value) => Math.min(300, value + 15))}
+          onClick={() => setPixelsPerSecond((value) => zoomBy(value, ZOOM_BUTTON_FACTOR, zoomBounds))}
           title="Zoom In"
         >
           <Plus />

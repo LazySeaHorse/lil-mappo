@@ -8,6 +8,7 @@ import type { AutoCamBlock } from './TimelineTrackRow';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useTimelineKeyboardShortcuts } from './useTimelineKeyboardShortcuts';
 import { useTimelinePlayheadSync } from './useTimelinePlayheadSync';
+import { clampZoom, fitZoom, zoomBounds as getZoomBounds } from './timelineZoom';
 import {
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
@@ -21,6 +22,7 @@ export default function TimelinePanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(PIXELS_PER_SECOND_DEFAULT);
   const [isResizing, setIsResizing] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(0);
 
   const {
     duration, setPlayheadTime, items, itemOrder,
@@ -125,12 +127,27 @@ export default function TimelinePanel() {
     }
   }, [setTimelineHeight]);
 
-  const handleFitToTimeline = useCallback(() => {
-    if (!containerRef.current || duration <= 0) return;
-    // Available width = panel width minus label column minus scrollbar padding
-    const availableWidth = containerRef.current.offsetWidth - 160 - 24;
-    setPixelsPerSecond(Math.max(10, Math.min(300, availableWidth / duration)));
-  }, [duration]);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const measure = () => setPanelWidth(container.offsetWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  // Zoomed all the way out is the whole project fitting the panel.
+  const zoomBounds = useMemo(
+    () => getZoomBounds(fitZoom(panelWidth, duration), fps),
+    [panelWidth, duration, fps],
+  );
+  useEffect(() => {
+    setPixelsPerSecond((value) => clampZoom(value, zoomBounds));
+  }, [zoomBounds]);
+
+  const handleFitToTimeline = useCallback(() => setPixelsPerSecond(zoomBounds.min), [zoomBounds]);
 
   useTimelineKeyboardShortcuts({
     duration,
@@ -192,6 +209,7 @@ export default function TimelinePanel() {
         setPixelsPerSecond={setPixelsPerSecond}
         setPlayheadTime={setPlayheadTime}
         timeDisplayRef={timeDisplayRef}
+        zoomBounds={zoomBounds}
         onFitToTimeline={handleFitToTimeline}
       />
 
@@ -210,6 +228,7 @@ export default function TimelinePanel() {
         setPlayheadTime={setPlayheadTime}
         timeDisplayRef={timeDisplayRef}
         trackLineRef={trackLineRef}
+        zoomBounds={zoomBounds}
         onSelectItem={selectItem}
         onSelectAutoCam={handleSelectAutoCam}
         onSelectKeyframe={selectKeyframe}

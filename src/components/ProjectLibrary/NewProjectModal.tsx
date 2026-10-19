@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -22,6 +22,10 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { createProject } from '@/store/projectDocument';
 import { track } from '@/lib/analytics';
+import { useSubscription } from '@/hooks/useSubscription';
+import { getExportLimits } from '@/lib/cloudAccess';
+import { clampResolution } from '@/components/ExportModal/exportPlan';
+import { ResolutionSelectItems } from '@/components/ui/render-select-items';
 
 /** Examples are not built yet: sleepy Mappo, perks up (curious) once the signed-in user has asked for them. */
 export function ExamplesPlaceholder() {
@@ -51,8 +55,13 @@ export function NewProjectModal() {
   const [projectName, setProjectName] = useState("Untitled Project");
   const [fps, setFps] = useState<30 | 60>(30);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
-  const [exportResolution, setExportResolution] = useState<ExportResolution>("1080p");
+  const [pickedResolution, setExportResolution] = useState<ExportResolution>("1080p");
   const [isVertical, setIsVertical] = useState(false);
+
+  const { data: subscription } = useSubscription();
+  const limits = getExportLimits(subscription);
+  // The default 1080p is above the free plan, and the plan can change while the panel is open.
+  const exportResolution = clampResolution(pickedResolution, limits);
 
   const close = () => setShowNewProjectModal(false);
 
@@ -129,18 +138,17 @@ export function NewProjectModal() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="480p">480p SD</SelectItem>
-                    <SelectItem value="720p">720p HD</SelectItem>
-                    <SelectItem value="1080p">1080p FHD</SelectItem>
-                    <SelectItem value="1440p">1440p QHD</SelectItem>
-                    <SelectItem value="2160p">4K UHD</SelectItem>
+                    <ResolutionSelectItems limits={limits} />
                   </SelectContent>
                 </Select>
               </Field>
 
               <Field label="Frame rate (FPS)">
                 <SegmentedControl
-                  options={[{ value: '30', label: '30 FPS' }, { value: '60', label: '60 FPS' }]}
+                  options={[
+                    { value: '30', label: '30 FPS' },
+                    { value: '60', label: '60 FPS', disabled: limits.maxFps < 60, title: limits.maxFps < 60 ? '60 FPS requires a paid plan' : undefined },
+                  ]}
                   value={fps.toString()}
                   onValueChange={(v) => setFps(Number(v) as 30 | 60)}
                   className="h-9 w-full"
