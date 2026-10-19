@@ -49,6 +49,24 @@ describe('importing a model', () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
   });
 
+  it('gives one asset to the same file imported twice at once', async () => {
+    const [a, b] = await Promise.all([
+      importModel(glbFile('a.glb'), { position: [0, 0], startTime: 0 }),
+      importModel(glbFile('copy.glb'), { position: [1, 1], startTime: 0 }),
+    ]);
+    expect(b.assetId).toBe(a.assetId);
+    expect(Object.keys(useProjectStore.getState().models)).toHaveLength(1);
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives one asset to the same file read twice before either is added', async () => {
+    const [a, b] = await Promise.all([readModelAsset(glbFile('a.glb')), readModelAsset(glbFile('copy.glb'))]);
+    expect(b.id).toBe(a.id);
+    useProjectStore.getState().addModel(a);
+    useProjectStore.getState().addModel(b);
+    expect(Object.keys(useProjectStore.getState().models)).toHaveLength(1);
+  });
+
   it('adds nothing for a file that is not a model', async () => {
     await expect(importModel(new File(['nope'], 'tower.obj'), { position: [0, 0], startTime: 0 })).rejects.toBeInstanceOf(ModelFileError);
     await expect(importModel(new File(['not a glb at all, just text'], 'tower.glb'), { position: [0, 0], startTime: 0 })).rejects.toBeInstanceOf(ModelFileError);

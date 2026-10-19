@@ -11,20 +11,36 @@ export function modelNameFromFile(fileName: string): string {
 }
 
 /**
+ * Assets handed out by `readModelAsset` that the project does not hold yet, by file hash. A caller
+ * adds its asset a moment after the read, so a second read of the same bytes in that gap would
+ * otherwise get a different id. Settled entries are dropped on the next read.
+ */
+const pendingAssets = new Map<string, ModelAsset>();
+
+/**
  * Reads a picked .glb, keeps its bytes in memory and returns its metadata. The project already
- * holding the same file keeps its asset (and id). Throws ModelFileError for a file it cannot use.
+ * holding the same file, or another import of it still on its way in, keeps its asset (and id).
+ * Throws ModelFileError for a file it cannot use.
  */
 export async function readModelAsset(file: File): Promise<ModelAsset> {
   const read = await readModelFile(file);
   registerModelBytes(read.sha256, read.bytes);
-  const existing = Object.values(useProjectStore.getState().models).find((a) => a.sha256 === read.sha256);
-  return existing ?? {
+  // Nothing awaits from here to the return, so concurrent reads of one file settle on one asset.
+  const inProject = Object.values(useProjectStore.getState().models);
+  for (const [sha, asset] of pendingAssets) {
+    if (inProject.some((a) => a.id === asset.id)) pendingAssets.delete(sha);
+  }
+  const existing = inProject.find((a) => a.sha256 === read.sha256) ?? pendingAssets.get(read.sha256);
+  if (existing) return existing;
+  const asset: ModelAsset = {
     id: nanoid(),
     fileName: read.fileName,
     byteSize: read.byteSize,
     sha256: read.sha256,
     bounds: read.bounds,
   };
+  pendingAssets.set(read.sha256, asset);
+  return asset;
 }
 
 /** Imports a .glb and places it on the map as a new model item (one undo step). */
