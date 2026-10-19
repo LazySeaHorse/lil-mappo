@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { queryClient } from "@/lib/queryClient";
+import { activePassEnd, hasActiveSubscription } from "@/lib/cloudAccess";
+import type { Subscription } from "@/lib/database.types";
 import { toast } from "sonner";
 import {
   PASS_PLAN,
@@ -16,6 +18,53 @@ interface CheckoutReturnState {
   plan: SubscriptionPlan | null;
   isTopup: boolean;
   isPass: boolean;
+}
+
+/** Seconds between refetches while the webhook has not landed yet (about 47 s in all). */
+const POLL_DELAYS_S = [1, 2, 4, 8, 16, 16];
+/** A top-up has nothing to wait for in the plan, so it gets one late refetch. */
+const TOPUP_POLL_DELAYS_S = [3];
+const PASS_TOAST_ID = "checkout-pass";
+
+const invalidateAccount = () => {
+  queryClient.invalidateQueries({ queryKey: ["subscription"] });
+  queryClient.invalidateQueries({ queryKey: ["credit_balance"] });
+};
+
+const cachedPlans = () =>
+  queryClient.getQueriesData<Subscription | null>({ queryKey: ["subscription"] }).map(([, plan]) => plan);
+
+/** The latest pass end in the cached plan, or 0 when there is none. */
+const cachedPassEnd = () =>
+  Math.max(0, ...cachedPlans().map((plan) => activePassEnd(plan)?.getTime() ?? 0));
+
+/**
+ * Refetches the account after a payment, waiting longer each time (the Dodo webhook that grants
+ * the plan lands a moment after the return), until `isDone`. Calls `onTimeout` if it never does.
+ * Returns a function that stops it.
+ */
+function pollAccount(
+  delaysS: number[],
+  isDone: (() => boolean) | null,
+  onDone: () => void,
+  onTimeout: () => void,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const attempt = (index: number) => {
+    timer = setTimeout(() => {
+      invalidateAccount();
+      if (isDone?.()) {
+        onDone();
+      } else if (index + 1 < delaysS.length) {
+        attempt(index + 1);
+      } else if (isDone) {
+        onTimeout();
+      }
+    }, delaysS[index] * 1000);
+  };
+  invalidateAccount();
+  attempt(0);
+  return () => clearTimeout(timer);
 }
 
 function readCheckoutReturn(): CheckoutReturnState | null {
@@ -63,8 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Checkout return handler ────────────────────────────────────────────────
-  // Detect the return once and refresh subscription + credit data immediately
-  // without requiring another page reload.
+  // Detect the return once and refresh subscription + credit data without
+  // requiring another page reload.
   useEffect(() => {
     if (!checkoutReturn) return;
     const params = new URLSearchParams(window.location.search);
@@ -83,25 +132,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.location.hash;
     window.history.replaceState(null, "", newUrl);
 
-    // The webhook fires asynchronously, so the subscription row might arrive
-    // within a few seconds. Invalidate immediately and once more after a short
-    // delay to catch any slight webhook latency.
-    const invalidate = () => {
-      queryClient.invalidateQueries({ queryKey: ["subscription"] });
-      queryClient.invalidateQueries({ queryKey: ["credit_balance"] });
-    };
-
-    invalidate();
-    const delayed = setTimeout(invalidate, 3000);
-
-    // Only the webhook grants a pass; this just refetches until it lands.
+    // The webhook fires asynchronously, so the plan can arrive some seconds
+    // after the return. Refetch with growing gaps until it shows up. Only the
+    // webhook grants anything; this just looks.
+    const stillProcessing = "Still processing, it'll appear shortly. Refresh in a minute.";
     if (checkoutReturn.isPass) {
-      toast.success("Payment received. Your 3-day pass starts in a moment.", { duration: 6000 });
-    } else if (!checkoutReturn.plan || checkoutReturn.isTopup) {
-      toast.success("Payment received.", { duration: 6000 });
+      const passEndBefore = cachedPassEnd();
+      toast.loading("Activating your pass…", { id: PASS_TOAST_ID });
+      return pollAccount(
+        POLL_DELAYS_S,
+        () => cachedPassEnd() > passEndBefore,
+        () => toast.success("Your 3-day pass is active.", { id: PASS_TOAST_ID, duration: 6000 }),
+        () => toast.info(stillProcessing, { id: PASS_TOAST_ID, duration: 10_000 }),
+      );
     }
-
-    return () => clearTimeout(delayed);
+    if (checkoutReturn.plan && !checkoutReturn.isTopup) {
+      // The celebration covers the good news; only a plan that never lands needs a word.
+      return pollAccount(
+        POLL_DELAYS_S,
+        () => cachedPlans().some((plan) => hasActiveSubscription(plan)),
+        () => {},
+        () => toast.info(stillProcessing, { duration: 10_000 }),
+      );
+    }
+    toast.success("Payment received.", { duration: 6000 });
+    return pollAccount(TOPUP_POLL_DELAYS_S, null, () => {}, () => {});
   }, [checkoutReturn]);
 
   const planName = checkoutReturn?.plan
