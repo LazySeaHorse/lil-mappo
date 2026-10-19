@@ -76,7 +76,10 @@ export function retainModels(keep: ReadonlySet<string>): void {
   });
 }
 
-/** Frees every model file (tests, sign-out). */
+/**
+ * Frees every model file (tests). Sign-out does not call it: it leaves the open project in place,
+ * and `installModelRetention` frees files once the project can no longer reach them.
+ */
 export function clearModelRegistry(): void {
   retainModels(new Set());
 }
