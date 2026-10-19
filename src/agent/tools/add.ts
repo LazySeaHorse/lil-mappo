@@ -57,7 +57,7 @@ export const addRoute = defineTool({
   title: 'Add route',
   description:
     'Adds an animated route line to the timeline. mode "car": driving directions between `from` and `to` (Mapbox Directions; the result includes distance in meters and drive time in seconds). ' +
-    'mode "flight": great-circle arc between `from` and `to` with a plane marker. mode "walk": a hand-placed path through `points` (2+ [lng, lat]), or from/to if no points. ' +
+    'mode "flight": great-circle arc between `from` and `to` (dot marker; the plane for a Pro user). mode "walk": a hand-placed path through `points` (2+ [lng, lat]), or from/to if no points. ' +
     '`from`/`to` accept [lng, lat] or a place name (geocoded; see search_place). The line draws itself between startTime and endTime (seconds on the project timeline, default: playhead to +5s). ' +
     '`style` is a partial style (color, width, glow, dashPattern, animationType...). One undo step. Frame it with frame_items or add_camera_keyframe. Returns the new item id.',
   input: z.strictObject({
