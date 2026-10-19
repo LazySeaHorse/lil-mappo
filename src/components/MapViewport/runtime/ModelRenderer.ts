@@ -3,7 +3,7 @@ import type { ModelItem } from '@/store/types';
 import { modelFrame } from '@/models/modelAnimation';
 import { modelExtent } from '@/models/modelGeometry';
 import {
-  getGeoJSONSource,
+  getModelSource,
   LayerPropertyWriter,
   mutateMap,
   noPaintTransitions,
@@ -16,23 +16,38 @@ interface PaintCache {
   visible: boolean;
   opacity: number;
   scale: string;
-  rotation: string;
   translation: string;
-  modelId: string;
 }
 
 const createPaintCache = (): PaintCache => ({
-  visible: true, opacity: -1, scale: '', rotation: '', translation: '', modelId: '',
+  visible: true, opacity: -1, scale: '', translation: '',
 });
 
-/** Draws one placed 3D model with a Mapbox model layer, so lighting, terrain and export match the route markers. */
+/** The one model in a placed model's model source. */
+const MODEL = 'model';
+
+/**
+ * Draws one placed 3D model with a Mapbox model layer, so lighting, terrain and export match the
+ * route markers.
+ *
+ * The layer draws from a Mapbox model source, never a GeoJSON one, and the model is turned by its
+ * `orientation` ([roll, -pitch, heading]), never by `model-rotation`: on a GeoJSON source Mapbox
+ * bakes model-rotation into tile buckets, and its globe draw path (drawVectorLayerModels) keeps
+ * only the axis of that rotation, so a model was drawn facing north and upright whenever the map
+ * was zoomed out to the globe. A model source is placed at draw time from the model's position
+ * and orientation and the layer's model-scale, model-translation and model-opacity (drawModels ->
+ * calculateModelMatrix), in either projection. See RouteRenderer's vehicleModel.
+ */
 export class ModelRenderer {
   private item: ModelItem;
   private resolved: ResolvedModel | null = null;
   private readonly sourceId: string;
   private readonly layerId: string;
   private readonly layers: LayerPropertyWriter<PaintCache>;
-  private lastPosition = '';
+  /** The model file the source was made with. */
+  private modelUrl = '';
+  /** Last position and orientation sent to the source. */
+  private lastPlacement = '';
   private disposed = false;
 
   constructor(
@@ -49,7 +64,7 @@ export class ModelRenderer {
   mount(): void {
     this.disposed = false;
     this.layers.reset();
-    this.lastPosition = '';
+    this.lastPlacement = '';
     this.ensureResources();
   }
 
@@ -58,7 +73,7 @@ export class ModelRenderer {
     const assetChanged = item.assetId !== this.item.assetId;
     this.item = item;
     if (assetChanged) this.ensureResources();
-    else this.uploadPosition();
+    else this.place();
   }
 
   /** The model's file or metadata changed (relinked, released): look it up again. */
@@ -73,17 +88,15 @@ export class ModelRenderer {
     this.layers.setLayout(this.layerId, 'visibility', visible ? 'visible' : 'none', 'visible', visible);
     if (!visible) return;
 
-    const { altitude, heading, pitch, roll } = this.item;
     const s = this.item.scale * frame.scale;
     const z = s * frame.height;
     const lift = modelExtent(this.resolved.asset.bounds).lift;
     const scale = [s, s, z];
-    const rotation = [roll, -pitch, heading];
-    const translation = [0, 0, altitude + lift * z];
+    const translation = [0, 0, this.item.altitude + lift * z];
     this.layers.setPaint(this.layerId, 'model-opacity', frame.opacity, 'opacity', frame.opacity);
     this.layers.setPaint(this.layerId, 'model-scale', scale, 'scale', scale.join());
-    this.layers.setPaint(this.layerId, 'model-rotation', rotation, 'rotation', rotation.join());
     this.layers.setPaint(this.layerId, 'model-translation', translation, 'translation', translation.join());
+    this.place();
   }
 
   dispose(): void {
@@ -100,14 +113,21 @@ export class ModelRenderer {
       removeLayerIfPresent(this.map, this.layerId);
       removeSourceIfPresent(this.map, this.sourceId);
       this.layers.reset();
-      this.lastPosition = '';
+      this.lastPlacement = '';
       return;
     }
-    if (!this.map.getSource(this.sourceId)) {
-      this.lastPosition = '';
-      this.map.addSource(this.sourceId, { type: 'geojson', data: this.pointData() });
+    const { url } = this.resolved;
+    // A source left from an older version (GeoJSON) or another file is replaced.
+    if (this.map.getSource(this.sourceId) && (!getModelSource(this.map, this.sourceId) || url !== this.modelUrl)) {
+      removeLayerIfPresent(this.map, this.layerId);
+      removeSourceIfPresent(this.map, this.sourceId);
     }
-    const { modelId } = this.resolved;
+    if (!this.map.getSource(this.sourceId)) {
+      this.modelUrl = url;
+      const models = this.models();
+      this.map.addSource(this.sourceId, { type: 'model', models });
+      this.lastPlacement = JSON.stringify(models);
+    }
     if (!this.map.getLayer(this.layerId)) {
       this.layers.reset();
       mutateMap(this.map, { operation: 'addLayer', phase: 'setup', resourceId: this.layerId }, () => {
@@ -115,32 +135,40 @@ export class ModelRenderer {
           id: this.layerId,
           type: 'model',
           source: this.sourceId,
-          layout: { 'model-id': modelId },
+          // No model-rotation: the model's orientation turns it (see the class comment).
           paint: {
             'model-opacity': 1,
             'model-scale': [1, 1, 1],
-            'model-rotation': [0, 0, 0],
             'model-translation': [0, 0, 0],
-            ...noPaintTransitions('model-opacity', 'model-rotation', 'model-scale', 'model-translation'),
+            ...noPaintTransitions('model-opacity', 'model-scale', 'model-translation'),
           },
         });
       });
-      this.layers.cache.modelId = modelId;
     }
-    this.layers.setLayout(this.layerId, 'model-id', modelId, 'modelId', modelId);
-    this.uploadPosition();
+    this.place();
   }
 
-  private pointData(): GeoJSON.Feature {
-    return { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [...this.item.position] } };
+  private models() {
+    const { position, heading, pitch, roll } = this.item;
+    return {
+      [MODEL]: {
+        uri: this.modelUrl,
+        position: [position[0], position[1]] as [number, number],
+        orientation: [roll, -pitch, heading] as [number, number, number],
+      },
+    };
   }
 
-  private uploadPosition(): void {
-    const key = this.item.position.join();
-    if (key === this.lastPosition) return;
-    const source = getGeoJSONSource(this.map, this.sourceId);
+  /** Moves and turns the model in one write, drawn on the next frame. */
+  private place(): void {
+    const models = this.models();
+    const key = JSON.stringify(models);
+    if (key === this.lastPlacement) return;
+    const source = getModelSource(this.map, this.sourceId);
     if (!source) return;
-    source.setData(this.pointData());
-    this.lastPosition = key;
+    if (mutateMap(this.map, { operation: 'setModels', phase: 'update', resourceId: this.sourceId }, () => {
+      source.setModels(models);
+      this.map.triggerRepaint();
+    })) this.lastPlacement = key;
   }
 }

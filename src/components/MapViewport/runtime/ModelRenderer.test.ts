@@ -1,4 +1,3 @@
-import type { Map as MapboxMap } from 'mapbox-gl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createModelItem } from '@/store/itemFactories';
 import type { ModelAsset, ModelItem } from '@/store/types';
@@ -6,33 +5,13 @@ import { clearModelRegistry, registerModelBytes } from '@/models/modelRegistry';
 import { ModelCatalog, mapboxModelId } from './ModelCatalog';
 import { ModelRenderer } from './ModelRenderer';
 import { createMapboxModels } from './testMapboxModels';
-
-type Layer = { id: string; type: string; source?: string; layout?: Record<string, unknown>; paint?: Record<string, unknown> };
+import { createModelLayerMap } from './testMapboxModelLayer';
 
 function createMapDouble() {
-  const layers = new Map<string, Layer>();
-  const sources = new Map<string, { type: 'geojson'; setData: ReturnType<typeof vi.fn> }>();
+  const setup = createModelLayerMap();
   const mapbox = createMapboxModels();
-  const map = {
-    isStyleLoaded: vi.fn(() => true),
-    getLayer: vi.fn((id: string) => layers.get(id)),
-    addLayer: vi.fn((layer: Layer) => layers.set(layer.id, layer)),
-    removeLayer: vi.fn((id: string) => layers.delete(id)),
-    getLayoutProperty: vi.fn((id: string, prop: string) => layers.get(id)?.layout?.[prop]),
-    setLayoutProperty: vi.fn((id: string, prop: string, val: unknown) => {
-      const l = layers.get(id);
-      if (l) l.layout = { ...(l.layout || {}), [prop]: val };
-    }),
-    setPaintProperty: vi.fn((id: string, prop: string, val: unknown) => {
-      const l = layers.get(id);
-      if (l) l.paint = { ...(l.paint || {}), [prop]: val };
-    }),
-    getSource: vi.fn((id: string) => sources.get(id)),
-    addSource: vi.fn((id: string) => sources.set(id, { type: 'geojson', setData: vi.fn() })),
-    removeSource: vi.fn((id: string) => sources.delete(id)),
-    ...mapbox.api,
-  };
-  return { map: map as unknown as MapboxMap, layers, sources, mapbox, double: map };
+  Object.assign(setup.double, mapbox.api);
+  return { ...setup, mapbox };
 }
 
 const SHA = 'c'.repeat(64);
@@ -66,7 +45,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('ModelRenderer', () => {
   it('draws nothing while the model file is missing, and the model once it is relinked', () => {
-    const { map, layers, mapbox } = createMapDouble();
+    const { map, layers, sources, mapbox } = createMapDouble();
     const catalog = new ModelCatalog(map, () => ({ a1: asset }));
     const renderer = new ModelRenderer(map, placed(), catalog);
     renderer.mount();
@@ -78,20 +57,25 @@ describe('ModelRenderer', () => {
     renderer.refresh();
     const layer = layers.get('model-layer-m1')!;
     expect(layer.type).toBe('model');
-    expect(layer.layout?.['model-id']).toBe(mapboxModelId(SHA));
+    // Drawn from a model source that loads the file itself; the catalog keeps it in the style too.
+    expect(sources.get('model-source-m1')!.models?.model.uri).toBe('blob:tower');
     expect(mapbox.requested.get(mapboxModelId(SHA))).toBe('blob:tower');
   });
 
   it('places, turns, sizes and lifts the model so it stands at its altitude', () => {
     registerModelBytes(SHA, new ArrayBuffer(8));
-    const { map, layers } = createMapDouble();
+    const { map, layers, sources } = createMapDouble();
     const renderer = new ModelRenderer(map, placed(), new ModelCatalog(map, () => ({ a1: asset })));
     renderer.mount();
     renderer.render(15);
     const paint = layers.get('model-layer-m1')!.paint!;
+    const model = sources.get('model-source-m1')!.models!.model;
     expect(layers.get('model-layer-m1')!.layout?.visibility).not.toBe('none');
     expect(paint['model-scale']).toEqual([3, 3, 3]);
-    expect(paint['model-rotation']).toEqual([0, -10, 30]);
+    // Turned by its orientation [roll, -pitch, heading], never model-rotation (ModelRenderer.drawn.test.ts).
+    expect(model.orientation).toEqual([0, -10, 30]);
+    expect(paint['model-rotation']).toBeUndefined();
+    expect(model.position).toEqual([2.29, 48.86]);
     // 5 m up, plus its 2 m below the origin at 3x.
     expect(paint['model-translation']).toEqual([0, 0, 11]);
     expect(paint['model-opacity']).toBe(1);
@@ -125,14 +109,14 @@ describe('ModelRenderer', () => {
     expect(layers.get('model-layer-m1')!.layout?.visibility).toBe('visible');
   });
 
-  it('moves the point when the model is moved', () => {
+  it('moves the model when it is moved', () => {
     registerModelBytes(SHA, new ArrayBuffer(8));
     const { map, sources } = createMapDouble();
     const renderer = new ModelRenderer(map, placed(), new ModelCatalog(map, () => ({ a1: asset })));
     renderer.mount();
     renderer.setItem(placed({ position: [3, 40] }));
-    expect(sources.get('model-source-m1')!.setData).toHaveBeenLastCalledWith(
-      expect.objectContaining({ geometry: { type: 'Point', coordinates: [3, 40] } }),
+    expect(sources.get('model-source-m1')!.setModels).toHaveBeenLastCalledWith(
+      { model: expect.objectContaining({ position: [3, 40], orientation: [0, -10, 30] }) },
     );
   });
 

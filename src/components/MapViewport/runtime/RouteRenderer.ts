@@ -1,4 +1,4 @@
-import type { ExpressionSpecification, Map as MapboxMap, ModelSource } from 'mapbox-gl';
+import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
 import { extractLineCoords, facingAlong, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import { getRoutePath } from '@/engine/routePath';
@@ -8,6 +8,7 @@ import {
   EMPTY_FC,
   geoJSONSource,
   getGeoJSONSource,
+  getModelSource,
   LayerPropertyWriter,
   noPaintTransitions,
   removeLayerIfPresent,
@@ -141,11 +142,6 @@ const VEHICLE_MODEL = 'vehicle';
  */
 function vehicleModel(url: string, position: [number, number], bearing: number) {
   return { [VEHICLE_MODEL]: { uri: url, position, orientation: [0, 0, bearing] as [number, number, number] } };
-}
-
-function getModelSource(map: MapboxMap, sourceId: string): ModelSource | undefined {
-  const source = map.getSource(sourceId);
-  return source?.type === 'model' ? source as ModelSource : undefined;
 }
 
 export class RouteRenderer {
