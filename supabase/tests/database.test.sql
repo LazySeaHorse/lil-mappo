@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(17);
+SELECT plan(18);
 
 SELECT has_table('public', 'subscriptions', 'subscriptions table exists');
 SELECT has_table('public', 'credit_balance', 'credit balance table exists');
@@ -97,13 +97,24 @@ SELECT is(
   'too_large',
   'Wanderer is rejected above 5 MB'
 );
+
+-- Browsers save through upsert_cloud_project only (migration 017 dropped the
+-- INSERT policy). The 5 MB CHECK constraint (migration 021) is the ceiling for
+-- the one direct write left to them: updating their own row.
 SELECT throws_ok(
   $$INSERT INTO public.cloud_projects (id, user_id, name, data)
-    VALUES ('direct-huge', '00000000-0000-4000-8000-000000000002', 'Direct',
-            jsonb_build_object('payload', repeat('x', 6 * 1024 * 1024)))$$,
+    VALUES ('direct-insert', '00000000-0000-4000-8000-000000000002', 'Direct', '{}'::jsonb)$$,
+  '42501',
+  NULL,
+  'a direct insert is refused; saves go through upsert_cloud_project'
+);
+SELECT throws_ok(
+  $$UPDATE public.cloud_projects
+       SET data = jsonb_build_object('payload', repeat('x', 6 * 1024 * 1024))
+     WHERE id = 'wanderer-big'$$,
   '23514',
   NULL,
-  'direct insert above 5 MB violates the table constraint'
+  'a direct update above 5 MB violates the table constraint'
 );
 
 SELECT * FROM finish();
