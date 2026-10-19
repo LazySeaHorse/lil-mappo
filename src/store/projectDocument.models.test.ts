@@ -119,4 +119,29 @@ describe('model items in the project document', () => {
   it('rejects asset metadata with a malformed hash', () => {
     expect(() => parseProjectDocument(baseDocument({ models: { [asset.id]: { ...asset, sha256: 'nope' } } }))).toThrow();
   });
+
+  it('clamps a model item size into the size slider range, as other out-of-range numbers are', () => {
+    const load = (scale: unknown) => parseProjectDocument(baseDocument({
+      models: { 'asset-1': asset },
+      items: { [CAMERA_TRACK_ID]: { kind: 'camera', id: CAMERA_TRACK_ID, keyframes: [] }, 'model-1': { ...modelItem, scale } },
+    })).items['model-1'] as ModelItem;
+    expect(load(1e9).scale).toBe(10000);
+    expect(load(0).scale).toBe(0.01);
+    expect(load(-3).scale).toBe(0.01);
+    expect(load('huge').scale).toBe(1);
+    expect(load(2).scale).toBe(2);
+  });
+
+  it('keeps model bounds within 1,000 km of the origin and in order', () => {
+    const project = parseProjectDocument(baseDocument({
+      models: { 'asset-1': { ...asset, bounds: { min: [-1.7e308, 5, 0], max: [1.7e308, -5, 2] } } },
+    }));
+    expect(project.models['asset-1'].bounds).toEqual({ min: [-1e6, -5, 0], max: [1e6, 5, 2] });
+  });
+
+  it('loads valid model metadata unchanged', () => {
+    const project = parseProjectDocument(baseDocument({ models: { 'asset-1': asset } }));
+    expect(project.models['asset-1']).toEqual(asset);
+  });
 });
+

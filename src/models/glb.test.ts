@@ -75,6 +75,11 @@ describe('parseGlb', () => {
     expect(() => parseGlb(glb)).toThrow(/version/i);
   });
 
+  it('refuses a model over 1,000 km across, which a project could not keep', () => {
+    const glb = makeGlb({ nodes: [{ mesh: 0, scale: [1000, 1000, 1000] }], min: [0, 0, 0], max: [2000, 1, 1] });
+    expect(() => parseGlb(glb)).toThrow(/1,000 km/);
+  });
+
   it('refuses a model with no geometry', () => {
     const glb = makeGlb({ nodes: [{}], min: [0, 0, 0], max: [1, 1, 1] });
     expect(() => parseGlb(glb)).toThrow(/no 3D shapes/i);

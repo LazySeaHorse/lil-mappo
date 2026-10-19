@@ -1,4 +1,4 @@
-import type { ModelBounds } from './modelGeometry';
+import { MAX_MODEL_EXTENT_M, type ModelBounds } from './modelGeometry';
 
 /** Largest model file a user can import. */
 export const MAX_MODEL_BYTES = 50 * 1024 * 1024;
@@ -12,7 +12,8 @@ export const MAX_MODEL_NODES = 200_000;
 export const MAX_MODEL_DEPTH = 1_000;
 export const MAX_MODEL_PRIMITIVES = 1_000_000;
 
-export type ModelFileErrorCode = 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex';
+export type ModelFileErrorCode =
+  | 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex' | 'extent';
 
 /** A model file that cannot be used; `message` is short and safe to show to the user. */
 export class ModelFileError extends Error {
@@ -30,6 +31,7 @@ const MESSAGES: Record<ModelFileErrorCode, string> = {
   external: 'This model needs other files next to it. Export it as one .glb with its textures inside.',
   unsupported: 'This model keeps its data as text inside the file, which the map cannot load. Export it as a binary .glb.',
   empty: 'This model has no 3D shapes in it.',
+  extent: 'This model is over 1,000 km across. Export it in metres (or scale it down), then import it again.',
   complex: 'This model is too complex to place on the map. Merge or simplify its parts, then export it again.',
 };
 
@@ -270,6 +272,9 @@ export function parseGlb(buffer: ArrayBuffer): { bounds: ModelBounds } {
 
   if (![...min, ...max].every(Number.isFinite)) fail('empty');
   if (max[0] - min[0] <= 0 && max[1] - min[1] <= 0 && max[2] - min[2] <= 0) fail('empty');
+  if ([...min, ...max].some((value) => Math.abs(value) > MAX_MODEL_EXTENT_M)) {
+    fail('extent');
+  }
   return {
     bounds: {
       min: min as [number, number, number],

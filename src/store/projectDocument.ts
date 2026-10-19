@@ -12,6 +12,8 @@ import {
 import type { Project } from './types';
 import { PERSISTED_PROJECT_KEYS } from './historyKeys';
 import { MAP_STYLES } from '@/config/mapbox';
+import { VEHICLE_SCALE_RANGE } from '@/config/vehicles';
+import { MAX_MODEL_EXTENT_M } from '@/models/modelGeometry';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
 import { createCalloutStyleDefaults } from './itemFactories';
@@ -167,14 +169,33 @@ const cameraItemSchema = z.object({
 
 const vector3Schema = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
 
+const clampExtent = (value: number) => Math.min(MAX_MODEL_EXTENT_M, Math.max(-MAX_MODEL_EXTENT_M, value));
+
+/**
+ * A model's bounding box. Like other out-of-range numbers, values past MAX_MODEL_EXTENT_M are
+ * clamped (an import never produces them), and each axis is put in min/max order.
+ */
+const modelBoundsSchema = z.object({ min: vector3Schema, max: vector3Schema }).transform(({ min, max }) => {
+  const axis = (i: 0 | 1 | 2) => [clampExtent(Math.min(min[i], max[i])), clampExtent(Math.max(min[i], max[i]))];
+  const [east, up, ahead] = [axis(0), axis(1), axis(2)];
+  return {
+    min: [east[0], up[0], ahead[0]] as [number, number, number],
+    max: [east[1], up[1], ahead[1]] as [number, number, number],
+  };
+});
+
 /** Metadata only: unknown keys (bytes, urls) are stripped, so a model file can never reach a save. */
 const modelAssetSchema = z.object({
   id: z.string().min(1),
   fileName: z.string(),
   byteSize: z.number().int().nonnegative(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
-  bounds: z.object({ min: vector3Schema, max: vector3Schema }),
+  bounds: modelBoundsSchema,
 });
+
+/** A placed model's size: clamped into the size slider's range; anything but a number is 1x. */
+const modelScaleSchema = z.number().finite().catch(1).transform((scale) =>
+  Math.min(VEHICLE_SCALE_RANGE.custom.max, Math.max(VEHICLE_SCALE_RANGE.custom.min, scale)));
 
 const modelItemSchema = z.object({
   kind: z.literal('model'),
@@ -186,7 +207,7 @@ const modelItemSchema = z.object({
   heading: z.number().finite().default(0),
   pitch: z.number().finite().default(0),
   roll: z.number().finite().default(0),
-  scale: z.number().finite().positive().default(1),
+  scale: modelScaleSchema,
   startTime: z.number(),
   endTime: z.number(),
   transition: z.object({
