@@ -30,7 +30,8 @@ export const MODEL_TERMS = {
   roll: 'Roll',
   size: 'Size',
   sizeHint: '1x is the size the model was made at.',
-  height: (meters: string) => `${meters} tall`,
+  /** The model's height as drawn, read-only under the size slider. */
+  heightLabel: 'Height',
   enter: 'Appear',
   enterDuration: 'Appear duration',
   exit: 'Disappear',
