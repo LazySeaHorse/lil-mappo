@@ -130,6 +130,21 @@ describe('TimelinePanel', () => {
     expect(screen.getByTestId('timeline-item-second')).not.toHaveClass('ring-primary');
   });
 
+  it('keeps the ruler running to the panel edge and greys out the time after the project ends', () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000);
+    try {
+      renderTimeline();
+      const pastEnd = screen.getByTestId('timeline-ruler-past-end');
+      // 10 s at 60 px/s.
+      expect(pastEnd).toHaveAttribute('x', '600');
+      // 1000px panel minus the 160px track labels reaches 840px.
+      expect(Number(pastEnd.getAttribute('width'))).toBeGreaterThanOrEqual(240);
+      expect(screen.getByTestId('timeline-ruler').querySelectorAll('text').length).toBeGreaterThan(10);
+    } finally {
+      width.mockRestore();
+    }
+  });
+
   it('scrubs to the pointer time and clears scrubbing on release', () => {
     renderTimeline();
     const ruler = screen.getByTestId('timeline-ruler');
