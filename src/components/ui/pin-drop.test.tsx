@@ -34,6 +34,13 @@ describe('<PinDropHero />', () => {
     expect(container.querySelector<HTMLElement>('[data-slot="pin-drop-pin"]')?.style.height).toBe('76px');
   });
 
+  it('has a drawn scene for the 3D model popup', () => {
+    const { container } = render(<PinDropHero mood="cube" scene="model" />);
+    expect(container.querySelector('[data-slot="pin-drop"]')?.getAttribute('data-scene')).toBe('model');
+    expect(container.querySelector('svg[data-mood="cube"]')).not.toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
   it('can label the scene', () => {
     render(<PinDropHero mood="phone" scene="mobile" tag="You are here" />);
     expect(screen.getByText('You are here')).toBeTruthy();
