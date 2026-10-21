@@ -1,3 +1,4 @@
+import { loadModelConvert } from '@/lib/lazyModules';
 import { MAX_MODEL_EXTENT_M, type ModelBounds } from './modelGeometry';
 
 /** Largest model file a user can import. */
@@ -310,7 +311,7 @@ async function normaliseGlb(buffer: ArrayBuffer): Promise<ArrayBuffer> {
     && required.every((name) => typeof name === 'string' && (CONVERTED_REQUIRED_EXTENSIONS.has(name) || name === 'EXT_meshopt_compression'));
   if (!convertible) return buffer;
   try {
-    return await (await import('./modelConvert')).convertGlb(buffer);
+    return await (await loadModelConvert()).convertGlb(buffer);
   } catch {
     return fail('parse', 'This model could not be converted for the map. Export it again without compression.');
   }
