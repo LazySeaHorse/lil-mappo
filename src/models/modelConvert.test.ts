@@ -82,6 +82,33 @@ describe('readModelFile with quantized or WebP models', () => {
     expect(() => parseGlb(read.bytes)).not.toThrow();
   });
 
+  it('writes each vertex attribute tightly packed, as the map reads positions without a stride', async () => {
+    const bin = new Uint8Array(36);
+    new Int16Array(bin.buffer, 0, 6).set([-32767, -32767, -32767, 32767, 32767, 32767]);
+    new Float32Array(bin.buffer, 12, 6).set([0, 1, 0, 0, 1, 0]);
+    const glb = glbFromJson(
+      {
+        asset: { version: '2.0' },
+        extensionsUsed: ['KHR_mesh_quantization'],
+        extensionsRequired: ['KHR_mesh_quantization'],
+        scene: 0,
+        scenes: [{ nodes: [0] }],
+        nodes: [{ mesh: 0 }],
+        meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 } }] }],
+        accessors: [
+          { bufferView: 0, componentType: 5122, normalized: true, count: 2, type: 'VEC3', min: [-32767, -32767, -32767], max: [32767, 32767, 32767] },
+          { bufferView: 1, componentType: 5126, count: 2, type: 'VEC3' },
+        ],
+        bufferViews: [{ buffer: 0, byteLength: 12 }, { buffer: 0, byteOffset: 12, byteLength: 24 }],
+        buffers: [{ byteLength: 36 }],
+      },
+      bin,
+    );
+    const json = jsonOf((await readModelFile(fileOf(glb))).bytes);
+    const views = json.bufferViews as { byteStride?: number }[];
+    expect(views.every((view) => view.byteStride === undefined)).toBe(true);
+  });
+
   it('keeps the original file hash and size, not the converted ones', async () => {
     const original = quantizedGlb();
     const read = await readModelFile(fileOf(original));
