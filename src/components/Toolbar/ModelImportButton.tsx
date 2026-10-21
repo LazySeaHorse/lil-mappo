@@ -4,37 +4,51 @@ import { toast } from 'sonner';
 import { ProBadge } from '@/components/ui/pro-badge';
 import type { ModelAsset } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
+import { useMapPicker } from '@/hooks/useMapPicker';
 import { useProjectStore } from '@/store/useProjectStore';
+import { placeLabel } from '@/engine/routeMode';
 import { ModelFileError } from '@/models/glb';
-import { importModel, placeModel } from '@/models/modelImport';
+import { placeModel, readModelAsset, startingModelScale } from '@/models/modelImport';
 import { ModelPickerDialog } from '@/models/ModelPickerDialog';
+import { ModelPlaceStep, ModelReadingStep, type ModelPlacement } from '@/models/ModelPlaceStep';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { useModelImportAccess } from '@/models/useModelAccess';
 import { ToolbarButton } from './ToolbarPrimitives';
 
-/** Toolbar button that opens the 3D model popup; an upload there is placed at the middle of the map (Pro). */
+/**
+ * Toolbar button that opens the 3D model popup (Pro). A model picked or uploaded there is placed
+ * from the popup's next step: the middle of the map or a picked point, at its starting size.
+ */
 export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
   const [open, setOpen] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [placement, setPlacement] = useState<ModelPlacement | null>(null);
   const mapRef = useMapRef();
   const { canImport, askToUpgrade } = useModelImportAccess();
+
+  const patchPlacement = (patch: Partial<ModelPlacement>) => setPlacement((current) => current && { ...current, ...patch });
+
+  const picker = useMapPicker('model-new', {
+    prompt: '3D model',
+    enabled: open && placement !== null,
+    onPick: (result) => patchPlacement({ position: result.lngLat, place: placeLabel(result.name, result.lngLat) }),
+  });
 
   const handleClick = () => {
     if (!canImport) askToUpgrade();
     else setOpen(true);
   };
 
-  /** The middle of the map at the playhead: where a new model goes. */
-  const placement = () => {
-    const state = useProjectStore.getState();
-    const center = mapRef.current?.getMap?.()?.getCenter();
-    const position: [number, number] = center ? [center.lng, center.lat] : state.mapCenter;
-    return { position, startTime: state.playheadTime };
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setPlacement(null);
   };
 
-  const handlePick = (asset: ModelAsset) => {
-    const item = placeModel(asset, placement());
-    useProjectStore.getState().selectItem(item.id);
-    toast.success(MODEL_TERMS.imported(item.name));
+  /** The model's next step starts at the middle of the map and its starting size. */
+  const choose = (asset: ModelAsset) => {
+    const center = mapRef.current?.getMap?.()?.getCenter();
+    const position: [number, number] = center ? [center.lng, center.lat] : useProjectStore.getState().mapCenter;
+    setPlacement({ asset, position, place: '', scale: startingModelScale(asset.bounds) });
   };
 
   const handleFile = async (file: File) => {
@@ -42,18 +56,48 @@ export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
       askToUpgrade();
       return;
     }
+    setReading(true);
     try {
-      const item = await importModel(file, placement());
-      useProjectStore.getState().selectItem(item.id);
-      toast.success(MODEL_TERMS.imported(item.name));
+      choose(await readModelAsset(file));
     } catch (err) {
       toast.error(err instanceof ModelFileError ? err.message : MODEL_TERMS.importFailed);
+    } finally {
+      setReading(false);
     }
+  };
+
+  const handleAdd = () => {
+    if (!placement) return;
+    const { asset, position, scale } = placement;
+    const item = placeModel(asset, { position, scale, startTime: useProjectStore.getState().playheadTime });
+    useProjectStore.getState().selectItem(item.id);
+    toast.success(MODEL_TERMS.imported(item.name));
+    handleOpenChange(false);
   };
 
   return (
     <>
-      <ModelPickerDialog open={open} onOpenChange={setOpen} onFile={handleFile} onPickModel={handlePick} />
+      {/* The popup steps aside while a point is picked on the map, and comes back with it. */}
+      <ModelPickerDialog
+        open={open && !picker.isPicking}
+        onOpenChange={handleOpenChange}
+        onFile={handleFile}
+        onPickModel={choose}
+        keepOpen
+      >
+        {reading ? (
+          <ModelReadingStep />
+        ) : placement ? (
+          <ModelPlaceStep
+            placement={placement}
+            onChange={patchPlacement}
+            isPicking={picker.isPicking}
+            onStartPick={picker.toggle}
+            onBack={() => setPlacement(null)}
+            onAdd={handleAdd}
+          />
+        ) : undefined}
+      </ModelPickerDialog>
       <ToolbarButton
         icon={
           <span className="relative inline-flex">

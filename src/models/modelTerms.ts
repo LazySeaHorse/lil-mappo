@@ -67,6 +67,14 @@ export const MODEL_TERMS = {
   urlLoading: 'Loading',
   urlAdded: 'Added',
   urlSkipped: (count: number) => `${count} more ${count === 1 ? 'link was' : 'links were'} left out. Add up to ${MAX_MODEL_URLS} at a time.`,
+  /** The popup's second step, after a model is picked or uploaded: where it goes and how big. */
+  placeTitle: 'Place your model',
+  reading: 'Reading the model',
+  position: 'Position',
+  positionCenter: 'Middle of the map',
+  inspectorNote: 'Height above ground, heading, tilt, timing and the rest are in the inspector panel once it is added.',
+  back: 'Back',
+  add: 'Add to map',
   /** Route marker: the imported model card and picker. */
   customMarker: 'Custom',
   chooseModel: 'Model',
@@ -82,6 +90,10 @@ export const MODEL_TRANSITION_LABELS: Record<ModelEnter | ModelExit, string> = {
   rise: 'Rise from ground',
   sink: 'Sink into ground',
 };
+
+/** A length in metres for people: one decimal under 10 m, whole metres, then km. */
+export const formatMeters = (meters: number) =>
+  meters >= 1000 ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km` : `${meters >= 10 ? Math.round(meters) : meters.toFixed(1)} m`;
 
 /** A model file's size for people: KB under a megabyte, MB above. */
 export const formatBytes = (bytes: number) =>

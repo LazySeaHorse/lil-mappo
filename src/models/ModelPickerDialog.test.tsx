@@ -73,6 +73,20 @@ describe('ModelPickerDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it('stays open after a pick when asked to, and shows the next step in place of the list', () => {
+    const bus = asset('a', 'bus.glb');
+    useProjectStore.setState({ models: { a: bus } });
+    const onOpenChange = vi.fn();
+    const onPickModel = vi.fn();
+    const { rerender } = render(<ModelPickerDialog open onOpenChange={onOpenChange} onFile={vi.fn()} onPickModel={onPickModel} keepOpen />);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /bus\.glb/ }));
+    expect(onPickModel).toHaveBeenCalledWith(bus);
+    expect(onOpenChange).not.toHaveBeenCalled();
+    rerender(<ModelPickerDialog open onOpenChange={onOpenChange} onFile={vi.fn()} onPickModel={onPickModel} keepOpen><p>Next step</p></ModelPickerDialog>);
+    expect(within(screen.getByRole('dialog')).getByText('Next step')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: MODEL_TERMS.listTitle })).not.toBeInTheDocument();
+  });
+
   it('says which models still need their file', () => {
     const bus = asset('a', 'bus.glb');
     useProjectStore.setState({ models: { a: bus } });
