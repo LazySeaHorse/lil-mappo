@@ -113,6 +113,30 @@ describe('readModelFile with quantized or WebP models', () => {
     }
   });
 
+  it('gives a mesh without indices a list of them, as the map reads every triangle through one', async () => {
+    const bin = new Uint8Array(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]).buffer);
+    const glb = glbFromJson(
+      {
+        asset: { version: '2.0' },
+        scene: 0,
+        scenes: [{ nodes: [0] }],
+        nodes: [{ mesh: 0 }],
+        meshes: [{ primitives: [{ attributes: { POSITION: 0 }, mode: 4 }] }],
+        accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [0, 0, 0], max: [1, 1, 0] }],
+        bufferViews: [{ buffer: 0, byteLength: 36 }],
+        buffers: [{ byteLength: 36 }],
+      },
+      bin,
+    );
+    const read = await readModelFile(fileOf(glb));
+    const json = jsonOf(read.bytes);
+    const primitive = (json.meshes as { primitives: { indices?: number }[] }[])[0].primitives[0];
+    expect(primitive.indices).toBeDefined();
+    expect((json.accessors as { count: number }[])[primitive.indices!].count).toBe(3);
+    expect(read.sha256).toBe(await sha256Hex(glb));
+    expect(read.bounds).toEqual({ min: [0, 0, 0], max: [1, 1, 0] });
+  });
+
   it('keeps the original file hash and size, not the converted ones', async () => {
     const original = quantizedGlb();
     const read = await readModelFile(fileOf(original));
