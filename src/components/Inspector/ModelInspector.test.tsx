@@ -71,6 +71,24 @@ describe('ModelInspector', () => {
     expect(useProjectStore.getState().models.a1).toEqual(asset);
   });
 
+  it('offers to load a model from its link again, and says the link did not work', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(glb.slice(0)));
+    vi.stubGlobal('fetch', fetchMock);
+    useProjectStore.setState({ models: { a1: { ...asset, sourceUrl: 'https://cdn.test/tower.glb' } } });
+    render(<InspectorPanel />);
+    expect(screen.getByText(MODEL_TERMS.missingFromUrl('tower.glb'))).toBeInTheDocument();
+    // The file picker stays as the way out when the link is gone.
+    expect(screen.getByRole('button', { name: MODEL_TERMS.relink })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: MODEL_TERMS.retryUrl }));
+    await waitFor(() => expect(screen.queryByText(MODEL_TERMS.missingTitle)).not.toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith('https://cdn.test/tower.glb');
+  });
+
+  it('shows no link button for a model that came from a file', () => {
+    render(<InspectorPanel />);
+    expect(screen.queryByRole('button', { name: MODEL_TERMS.retryUrl })).not.toBeInTheDocument();
+  });
+
   it('warns about a different file and uses it after the OK (Pro)', async () => {
     subscription = { tier: 'wanderer', status: 'active' };
     render(<InspectorPanel />);

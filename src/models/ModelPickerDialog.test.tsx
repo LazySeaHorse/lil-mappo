@@ -45,6 +45,8 @@ describe('ModelPickerDialog', () => {
     expect(MODEL_TERMS.popupFacts.join(' ')).toMatch(/50 MB/);
     expect(MODEL_TERMS.popupFacts.join(' ')).toMatch(/never uploaded/);
     expect(MODEL_TERMS.popupFacts.join(' ')).toMatch(/after a reload/i);
+    // A model added from a link loads itself again.
+    expect(MODEL_TERMS.popupFacts.join(' ')).toMatch(/unless .*link/i);
   });
 
   it('still offers the file picker', () => {

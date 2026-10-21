@@ -3,7 +3,7 @@ import { createTransientState, useProjectStore } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
 import { MAX_MODEL_BYTES, ModelFileError } from './glb';
 import { clearModelRegistry, isModelReady } from './modelRegistry';
-import { MAX_MODEL_URLS, addModelFromUrl, fetchModelFile, parseModelUrls } from './modelUrl';
+import { MAX_MODEL_URLS, addModelFromUrl, fetchModelFile, parseModelUrls, relinkModelFromUrl } from './modelUrl';
 import { makeGlb } from './testGlb';
 
 const glb = () => makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [1, 2, 3] });
@@ -120,9 +120,53 @@ describe('addModelFromUrl', () => {
     expect(isModelReady(asset)).toBe(true);
   });
 
+  it('remembers the link on the model', async () => {
+    fetchMock.mockResolvedValue(reply(glb()));
+    const asset = await addModelFromUrl('https://cdn.test/bus.glb');
+    expect(asset.sourceUrl).toBe('https://cdn.test/bus.glb');
+    expect(useProjectStore.getState().models[asset.id].sourceUrl).toBe('https://cdn.test/bus.glb');
+  });
+
   it('adds nothing for a download that is not a usable model', async () => {
     fetchMock.mockResolvedValue(reply(makeGlb({ nodes: [], min: [0, 0, 0], max: [1, 1, 1] })));
     await expect(addModelFromUrl('https://cdn.test/empty.glb')).rejects.toBeInstanceOf(ModelFileError);
     expect(useProjectStore.getState().models).toEqual({});
+  });
+});
+
+describe('relinkModelFromUrl', () => {
+  const linked = async () => {
+    fetchMock.mockResolvedValue(reply(glb()));
+    const asset = await addModelFromUrl('https://cdn.test/bus.glb');
+    clearModelRegistry();
+    return asset;
+  };
+
+  it('loads the model again from its link when the file is the one the project was made with', async () => {
+    const asset = await linked();
+    expect(isModelReady(asset)).toBe(false);
+    fetchMock.mockResolvedValue(reply(glb()));
+    expect(await relinkModelFromUrl(asset)).toEqual({ status: 'linked' });
+    expect(isModelReady(asset)).toBe(true);
+  });
+
+  it('does not use a file that changed since, and hands it over for the user to decide', async () => {
+    const asset = await linked();
+    fetchMock.mockResolvedValue(reply(makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [9, 9, 9] })));
+    const result = await relinkModelFromUrl(asset);
+    expect(result.status).toBe('mismatch');
+    expect(isModelReady(asset)).toBe(false);
+  });
+
+  it('fails like any download when the link no longer works', async () => {
+    const asset = await linked();
+    fetchMock.mockResolvedValue(reply('gone', { status: 404 }));
+    await expect(relinkModelFromUrl(asset)).rejects.toMatchObject({ code: 'http' });
+    expect(isModelReady(asset)).toBe(false);
+  });
+
+  it('has nothing to load for a model that came from a file', async () => {
+    await expect(relinkModelFromUrl({ id: 'a', fileName: 'a.glb', byteSize: 1, sha256: '1'.repeat(64), bounds: { min: [0, 0, 0], max: [1, 1, 1] } }))
+      .rejects.toBeInstanceOf(ModelFileError);
   });
 });
