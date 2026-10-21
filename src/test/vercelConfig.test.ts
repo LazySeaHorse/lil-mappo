@@ -71,6 +71,10 @@ describe('Vercel Content-Security-Policy', () => {
     expect(parseDirectives(getContentSecurityPolicy()).get('connect-src')).toContain('blob:');
   });
 
+  it('lets pasted model links be fetched from any https host', () => {
+    expect(parseDirectives(getContentSecurityPolicy()).get('connect-src')).toContain('https:');
+  });
+
   it('keeps privileged document capabilities locked down', () => {
     const directives = parseDirectives(getContentSecurityPolicy());
 
