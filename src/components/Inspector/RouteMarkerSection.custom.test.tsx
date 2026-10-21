@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Subscription } from '@/lib/database.types';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -64,8 +64,10 @@ describe('custom route marker', () => {
   it('imports a .glb as the marker in one undo step (Pro)', async () => {
     subscription = { tier: 'wanderer', status: 'active' };
     stop = setup(withVehicle(dotMarker));
-    const click = vi.spyOn(screen.getByTestId('marker-model-input'), 'click');
     fireEvent.click(customCard());
+    const popup = screen.getByRole('dialog');
+    const click = vi.spyOn(screen.getByTestId('marker-model-input'), 'click');
+    fireEvent.click(within(popup).getByRole('button', { name: MODEL_TERMS.upload }));
     expect(click).toHaveBeenCalled();
 
     const file = new File([makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [2, 2, 6] })], 'bus.glb');
@@ -83,6 +85,7 @@ describe('custom route marker', () => {
     stop = setup(withVehicle(dotMarker));
     fireEvent.click(customCard());
     expect(openUpgradeModal).toHaveBeenCalledWith('model_import');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(route().calculation?.vehicle?.type).toBe('dot');
   });
 
@@ -90,6 +93,13 @@ describe('custom route marker', () => {
     stop = setup(withVehicle(dotMarker), { bus: asset });
     fireEvent.click(customCard());
     expect(route().calculation?.vehicle).toMatchObject({ type: 'custom', modelId: 'bus' });
+  });
+
+  it('opens the popup from the import button once a model is the marker', () => {
+    subscription = { tier: 'wanderer', status: 'active' };
+    stop = setup(withVehicle({ enabled: true, type: 'custom', modelId: 'bus', scale: 1 }), { bus: asset });
+    fireEvent.click(screen.getByRole('button', { name: MODEL_TERMS.importForMarker }));
+    expect(within(screen.getByRole('dialog')).getByText(MODEL_TERMS.popupTitle)).toBeInTheDocument();
   });
 
   it('asks for a missing marker file and says what shows meanwhile', () => {
