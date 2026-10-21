@@ -1,5 +1,5 @@
 import type { ModelEnter, ModelExit } from '@/store/types';
-import { MAX_MODEL_BYTES } from './glb';
+import { MAX_MODEL_BYTES, MAX_MODEL_URLS } from './glb';
 
 /** Words for imported 3D models, shared by the toolbar, the model panel and the route marker. */
 export const MODEL_TERMS = {
@@ -57,6 +57,13 @@ export const MODEL_TERMS = {
   /** The popup's list of models the project already has. */
   listTitle: 'In this project',
   needsFile: 'Needs its file',
+  /** Pasting links to .glb files. */
+  urlLabel: 'Or paste .glb links',
+  urlPlaceholder: 'https://example.com/model.glb',
+  urlAdd: 'Add links',
+  urlLoading: 'Loading',
+  urlAdded: 'Added',
+  urlSkipped: (count: number) => `${count} more ${count === 1 ? 'link was' : 'links were'} left out. Add up to ${MAX_MODEL_URLS} at a time.`,
   /** Route marker: the imported model card and picker. */
   customMarker: 'Custom',
   chooseModel: 'Model',

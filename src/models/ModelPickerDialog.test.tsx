@@ -98,8 +98,7 @@ describe('ModelPickerDialog URLs', () => {
       return init?.mode === 'no-cors' ? Promise.resolve(new Response(null)) : Promise.reject(new TypeError('Failed to fetch'));
     });
     const { popup } = setup();
-    paste(popup, 'https://cdn.test/good.glb
-https://nocors.test/blocked.glb');
+    paste(popup, 'https://cdn.test/good.glb\nhttps://nocors.test/blocked.glb');
     const rows = () => within(popup).getAllByTestId('model-url-row');
     expect(rows()).toHaveLength(2);
     expect(rows()[0]).toHaveAttribute('data-status', 'loading');

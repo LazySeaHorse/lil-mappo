@@ -1,11 +1,14 @@
-import { useRef } from 'react';
-import { Box, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { AlertTriangle, Box, Check, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { ModelAsset } from '@/store/types';
+import { ModelFileError } from './glb';
 import { ModelFileInput } from './ModelFileInput';
+import { addModelFromUrl, parseModelUrls } from './modelUrl';
 import { useModelStatus } from './modelRegistry';
 import { MODEL_TERMS, formatBytes } from './modelTerms';
 
@@ -42,10 +45,59 @@ function ModelRow({ asset, onPick }: { asset: ModelAsset; onPick: () => void }) 
   );
 }
 
-/** The popup the 3D model buttons open: explains the rules, lists the models the project has, and uploads a .glb file. */
+/** One pasted link and how loading it went. */
+interface UrlRow {
+  key: number;
+  url: string;
+  status: 'loading' | 'added' | 'error';
+  message?: string;
+}
+
+function UrlStatusRow({ row }: { row: UrlRow }) {
+  const Icon = row.status === 'loading' ? Loader2 : row.status === 'added' ? Check : AlertTriangle;
+  return (
+    <li data-testid="model-url-row" data-status={row.status} className="flex items-start gap-2 text-xs">
+      <Icon
+        size={14}
+        aria-hidden="true"
+        className={`mt-px shrink-0 ${row.status === 'loading' ? 'animate-spin text-muted-foreground' : row.status === 'added' ? 'text-emerald-600' : 'text-destructive'}`}
+      />
+      <span className="flex min-w-0 flex-col">
+        <span className="ph-mask truncate text-foreground">{row.url}</span>
+        <span className={row.status === 'error' ? 'text-destructive' : 'text-muted-foreground'}>
+          {row.status === 'loading' ? MODEL_TERMS.urlLoading : row.status === 'added' ? MODEL_TERMS.urlAdded : row.message}
+        </span>
+      </span>
+    </li>
+  );
+}
+
+/** The popup the 3D model buttons open: explains the rules, lists the models the project has, and adds one from a file or pasted links. */
 export function ModelPickerDialog({ open, onOpenChange, onFile, onPickModel, testId }: ModelPickerDialogProps) {
+  const [text, setText] = useState('');
+  const [rows, setRows] = useState<UrlRow[]>([]);
+  const [skipped, setSkipped] = useState(0);
+  const nextKey = useRef(0);
   const models = Object.values(useProjectStore((s) => s.models));
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const patchRow = (key: number, patch: Partial<UrlRow>) =>
+    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+
+  const addUrls = () => {
+    const { urls, skipped: left } = parseModelUrls(text);
+    if (urls.length === 0) return;
+    const added = urls.map((url): UrlRow => ({ key: nextKey.current++, url, status: 'loading' }));
+    setRows((current) => [...current, ...added]);
+    setSkipped(left);
+    setText('');
+    for (const { key, url } of added) {
+      addModelFromUrl(url).then(
+        () => patchRow(key, { status: 'added' }),
+        (err) => patchRow(key, { status: 'error', message: err instanceof ModelFileError ? err.message : MODEL_TERMS.importFailed }),
+      );
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,7 +131,25 @@ export function ModelPickerDialog({ open, onOpenChange, onFile, onPickModel, tes
               ))}
             </ul>
           )}
+          <label className="mt-2 text-xs font-medium text-muted-foreground" htmlFor="model-urls">{MODEL_TERMS.urlLabel}</label>
+          <Textarea
+            id="model-urls"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={MODEL_TERMS.urlPlaceholder}
+            rows={2}
+            className="ph-mask"
+          />
+          {rows.length > 0 && (
+            <ul className="flex max-h-40 flex-col gap-2 overflow-y-auto">
+              {rows.map((row) => <UrlStatusRow key={row.key} row={row} />)}
+            </ul>
+          )}
+          {skipped > 0 && <p className="text-xs text-muted-foreground">{MODEL_TERMS.urlSkipped(skipped)}</p>}
           <PopupActions>
+            <Button type="button" variant="outline" disabled={parseModelUrls(text).urls.length === 0} onClick={addUrls}>
+              {MODEL_TERMS.urlAdd}
+            </Button>
             <Button type="button" onClick={() => inputRef.current?.click()}>
               <Upload size={14} aria-hidden="true" /> {MODEL_TERMS.upload}
             </Button>

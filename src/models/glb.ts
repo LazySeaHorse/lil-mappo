@@ -2,6 +2,8 @@ import { MAX_MODEL_EXTENT_M, type ModelBounds } from './modelGeometry';
 
 /** Largest model file a user can import. */
 export const MAX_MODEL_BYTES = 50 * 1024 * 1024;
+/** How many links one paste loads; the rest are left out. */
+export const MAX_MODEL_URLS = 10;
 
 /**
  * Most nodes a model may have, how deeply they may nest, and how many mesh primitives are measured
@@ -13,7 +15,9 @@ export const MAX_MODEL_DEPTH = 1_000;
 export const MAX_MODEL_PRIMITIVES = 1_000_000;
 
 export type ModelFileErrorCode =
-  | 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex' | 'extent';
+  | 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex' | 'extent'
+  /** Models loaded from a web address: not a usable address, blocked by its host, unreachable, an error answer, or not a .glb. */
+  | 'url' | 'cors' | 'unreachable' | 'http' | 'notglb';
 
 /** A model file that cannot be used; `message` is short and safe to show to the user. */
 export class ModelFileError extends Error {
@@ -23,7 +27,7 @@ export class ModelFileError extends Error {
   }
 }
 
-const MESSAGES: Record<ModelFileErrorCode, string> = {
+export const MODEL_FILE_MESSAGES: Record<ModelFileErrorCode, string> = {
   type: 'Pick a .glb file. Other 3D formats are not supported.',
   size: 'This model is over 50 MB. Pick a smaller .glb file.',
   parse: 'This file is not a valid .glb model.',
@@ -32,10 +36,15 @@ const MESSAGES: Record<ModelFileErrorCode, string> = {
   unsupported: 'This model keeps its data as text inside the file, which the map cannot load. Export it as a binary .glb.',
   empty: 'This model has no 3D shapes in it.',
   extent: 'This model is over 1,000 km across. Export it in metres (or scale it down), then import it again.',
+  url: 'That is not a web address. Use one that starts with https://.',
+  cors: "That host doesn't allow loading from other sites. Download the file and upload it instead.",
+  unreachable: 'Could not reach that address. Check the link and your connection.',
+  http: 'That address answered with an error.',
+  notglb: 'That address is not a .glb file.',
   complex: 'This model is too complex to place on the map. Merge or simplify its parts, then export it again.',
 };
 
-const fail = (code: ModelFileErrorCode, message = MESSAGES[code]): never => {
+const fail = (code: ModelFileErrorCode, message = MODEL_FILE_MESSAGES[code]): never => {
   throw new ModelFileError(code, message);
 };
 
