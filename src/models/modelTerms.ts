@@ -42,6 +42,9 @@ export const MODEL_TERMS = {
   enterDuration: 'Appear duration',
   exit: 'Disappear',
   exitDuration: 'Disappear duration',
+  /** The popup the toolbar and route marker buttons open. */
+  popupTitle: '3D models',
+  upload: 'Upload .glb',
   /** Route marker: the imported model card and picker. */
   customMarker: 'Custom',
   chooseModel: 'Model',

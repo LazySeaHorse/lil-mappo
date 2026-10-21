@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { Box } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProBadge } from '@/components/ui/pro-badge';
@@ -6,20 +6,20 @@ import { useMapRef } from '@/hooks/useMapRef';
 import { useProjectStore } from '@/store/useProjectStore';
 import { ModelFileError } from '@/models/glb';
 import { importModel } from '@/models/modelImport';
-import { ModelFileInput } from '@/models/ModelFileInput';
+import { ModelPickerDialog } from '@/models/ModelPickerDialog';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { useModelImportAccess } from '@/models/useModelAccess';
 import { ToolbarButton } from './ToolbarPrimitives';
 
-/** Toolbar button that imports a .glb and places it at the middle of the map (Pro). */
+/** Toolbar button that opens the 3D model popup; an upload there is placed at the middle of the map (Pro). */
 export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
   const mapRef = useMapRef();
   const { canImport, askToUpgrade } = useModelImportAccess();
 
   const handleClick = () => {
     if (!canImport) askToUpgrade();
-    else inputRef.current?.click();
+    else setOpen(true);
   };
 
   const handleFile = async (file: File) => {
@@ -41,7 +41,7 @@ export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
 
   return (
     <>
-      <ModelFileInput ref={inputRef} onFile={handleFile} />
+      <ModelPickerDialog open={open} onOpenChange={setOpen} onFile={handleFile} />
       <ToolbarButton
         icon={
           <span className="relative inline-flex">

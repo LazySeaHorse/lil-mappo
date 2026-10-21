@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { Box, Car, Circle, Plane, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RouteItem } from '@/store/types';
@@ -12,7 +12,7 @@ import { ModelRelinkPrompt } from './ModelRelinkPrompt';
 import { VEHICLE_SCALE_RANGE, clampVehicleScale } from '@/config/vehicles';
 import { ModelFileError } from '@/models/glb';
 import { readModelAsset } from '@/models/modelImport';
-import { ModelFileInput } from '@/models/ModelFileInput';
+import { ModelPickerDialog } from '@/models/ModelPickerDialog';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { useModelImportAccess } from '@/models/useModelAccess';
 
@@ -31,7 +31,7 @@ export function RouteMarkerSection({
   onLockedSelect: () => void;
 }) {
   const models = useProjectStore((s) => s.models);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const { canImport, askToUpgrade } = useModelImportAccess();
   const imported = Object.values(models);
   const customAsset = vehicle?.type === 'custom' ? models[vehicle.modelId] : undefined;
@@ -39,7 +39,7 @@ export function RouteMarkerSection({
   const rideModel = (modelId: string) =>
     onChange({ type: 'custom', modelId, scale: clampVehicleScale('custom', vehicle?.scale || 1) });
 
-  const pickFile = () => (canImport ? inputRef.current?.click() : askToUpgrade());
+  const pickFile = () => (canImport ? setPickerOpen(true) : askToUpgrade());
 
   const importForMarker = async (file: File) => {
     if (!canImport) {
@@ -75,7 +75,7 @@ export function RouteMarkerSection({
 
   return (
     <InspectorSection kind="route" id="marker">
-      <ModelFileInput ref={inputRef} onFile={importForMarker} testId="marker-model-input" />
+      <ModelPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onFile={importForMarker} testId="marker-model-input" />
       <SwitchRow label="Route marker" checked={vehicle?.enabled || false} onChange={(enabled) => onChange({ enabled })} />
 
       {vehicle?.enabled && (
