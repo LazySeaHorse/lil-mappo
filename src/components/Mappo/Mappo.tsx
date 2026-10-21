@@ -294,6 +294,19 @@ const HeartBalloon = () => (
   </>
 );
 
+/** A little isometric cube held up, for importing a 3D model. The cube is its own part so a page can bob it. */
+const CubeInHand = () => (
+  <>
+    <Arm d="M874 660 Q930 650 944 604" />
+    <g data-part="cube" transform="rotate(-8 1000 520)">
+      <path d="M1000 596 L936 560 V484 L1000 520Z" fill="#2c4f86" strokeWidth={10} {...outline} />
+      <path d="M1000 596 L1064 560 V484 L1000 520Z" fill={BLUE} strokeWidth={10} {...outline} />
+      <path d="M1000 448 L1064 484 L1000 520 L936 484Z" fill={CREAM} strokeWidth={10} {...outline} />
+    </g>
+    <Fist x={940} y={594} />
+  </>
+);
+
 /** Two fists gripping an edge, for peeking over the top of a card. */
 const GripFists = () => (
   <>
@@ -483,6 +496,16 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: HeartBalloon,
+  },
+  cube: {
+    face: () => (
+      <>
+        <LookEyes dx={14} dy={-6} />
+        <Blush />
+        <SmallSmile />
+      </>
+    ),
+    front: CubeInHand,
   },
   peek: {
     face: () => (

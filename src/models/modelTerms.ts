@@ -1,4 +1,5 @@
 import type { ModelEnter, ModelExit } from '@/store/types';
+import { MAX_MODEL_BYTES } from './glb';
 
 /** Words for imported 3D models, shared by the toolbar, the model panel and the route marker. */
 export const MODEL_TERMS = {
@@ -45,6 +46,14 @@ export const MODEL_TERMS = {
   /** The popup the toolbar and route marker buttons open. */
   popupTitle: '3D models',
   upload: 'Upload .glb',
+  popupIntro: 'Drop your own 3D model onto the map.',
+  /** What to know before picking a file. */
+  popupFacts: [
+    `Only .glb files, up to ${MAX_MODEL_BYTES / (1024 * 1024)} MB.`,
+    'Your file stays in your browser and is never uploaded.',
+    'After a reload, pick the file again.',
+  ],
+  popupTag: '3D model',
   /** Route marker: the imported model card and picker. */
   customMarker: 'Custom',
   chooseModel: 'Model',
