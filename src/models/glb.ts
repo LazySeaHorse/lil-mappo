@@ -307,10 +307,15 @@ export function parseGlb(buffer: ArrayBuffer): { bounds: ModelBounds } {
  * cannot handle (so the usual checks refuse it), comes back as it was.
  */
 async function normaliseGlb(buffer: ArrayBuffer): Promise<ArrayBuffer> {
-  const required = list(readJsonChunk(buffer).extensionsRequired);
-  const convertible = required.some((name) => typeof name === 'string' && CONVERTED_REQUIRED_EXTENSIONS.has(name))
-    && required.every((name) => typeof name === 'string' && (CONVERTED_REQUIRED_EXTENSIONS.has(name) || name === 'EXT_meshopt_compression'));
-  if (!convertible) return buffer;
+  const gltf = readJsonChunk(buffer);
+  const required = list(gltf.extensionsRequired);
+  const handled = required.every((name) => typeof name === 'string' && (CONVERTED_REQUIRED_EXTENSIONS.has(name) || name === 'EXT_meshopt_compression'));
+  const needsExtensionsRemoved = required.some((name) => typeof name === 'string' && CONVERTED_REQUIRED_EXTENSIONS.has(name));
+  // Mapbox reads every triangle through an index list, so a mesh without one gets one.
+  const needsIndices = objects(gltf.meshes).some((mesh) => objects(mesh.primitives).some((primitive) => primitive.indices === undefined));
+  if (!handled || !(needsExtensionsRemoved || needsIndices)) return buffer;
+  // A file the checks can read is checked as it is, so the rewrite cannot hide what they refuse.
+  if (!needsExtensionsRemoved) parseGlb(buffer);
   try {
     return await (await loadModelConvert()).convertGlb(buffer);
   } catch {
