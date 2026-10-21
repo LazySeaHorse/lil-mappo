@@ -67,6 +67,13 @@ const CHUNK_BIN = 0x004e4942;
  */
 const SUPPORTED_REQUIRED_EXTENSIONS: ReadonlySet<string> = new Set(['KHR_draco_mesh_compression', 'EXT_meshopt_compression']);
 
+/**
+ * Extensions a model may require that are rewritten away at import (`convertGlb`): quantized vertex
+ * data and WebP textures, which mapbox would draw wrong or without textures. A model may only need
+ * these and the supported ones to be converted; anything else is refused as before.
+ */
+const CONVERTED_REQUIRED_EXTENSIONS: ReadonlySet<string> = new Set(['KHR_mesh_quantization', 'EXT_texture_webp']);
+
 type Mat4 = number[];
 
 const IDENTITY: Mat4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -293,6 +300,22 @@ export function parseGlb(buffer: ArrayBuffer): { bounds: ModelBounds } {
   };
 }
 
+/**
+ * A model that needs `convertGlb` comes back as plain bytes; any other model, or one the converter
+ * cannot handle (so the usual checks refuse it), comes back as it was.
+ */
+async function normaliseGlb(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const required = list(readJsonChunk(buffer).extensionsRequired);
+  const convertible = required.some((name) => typeof name === 'string' && CONVERTED_REQUIRED_EXTENSIONS.has(name))
+    && required.every((name) => typeof name === 'string' && (CONVERTED_REQUIRED_EXTENSIONS.has(name) || name === 'EXT_meshopt_compression'));
+  if (!convertible) return buffer;
+  try {
+    return await (await import('./modelConvert')).convertGlb(buffer);
+  } catch {
+    return fail('parse', 'This model could not be converted for the map. Export it again without compression.');
+  }
+}
+
 /** SHA-256 of the bytes, lowercase hex. */
 export async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', buffer);
@@ -326,6 +349,10 @@ export async function readModelFile(file: File): Promise<ReadModel> {
   } catch {
     return fail('parse', 'This file could not be read.');
   }
-  const { bounds } = parseGlb(bytes);
-  return { bytes, fileName: file.name, byteSize: bytes.byteLength, sha256: await sha256Hex(bytes), bounds };
+  // The hash and size stay the file's own (a relink or link reload compares against them); the
+  // converted bytes are what the map loads, converted again on every load.
+  const sha256 = await sha256Hex(bytes);
+  const plain = await normaliseGlb(bytes);
+  const { bounds } = parseGlb(plain);
+  return { bytes: plain, fileName: file.name, byteSize: bytes.byteLength, sha256, bounds };
 }
