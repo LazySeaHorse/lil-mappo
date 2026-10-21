@@ -102,6 +102,16 @@ describe('custom route marker', () => {
     expect(within(screen.getByRole('dialog')).getByText(MODEL_TERMS.popupTitle)).toBeInTheDocument();
   });
 
+  it('sets the marker from the popup list', () => {
+    subscription = { tier: 'wanderer', status: 'active' };
+    const tram: ModelAsset = { ...asset, id: 'tram', fileName: 'tram.glb' };
+    stop = setup(withVehicle({ enabled: true, type: 'custom', modelId: 'bus', scale: 1 }), { bus: asset, tram });
+    fireEvent.click(screen.getByRole('button', { name: MODEL_TERMS.importForMarker }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /tram\.glb/ }));
+    expect(route().calculation?.vehicle).toMatchObject({ type: 'custom', modelId: 'tram' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('asks for a missing marker file and says what shows meanwhile', () => {
     stop = setup(withVehicle({ enabled: true, type: 'custom', modelId: 'bus', scale: 1 }), { bus: asset });
     expect(screen.getByText(MODEL_TERMS.missingTitle)).toBeInTheDocument();

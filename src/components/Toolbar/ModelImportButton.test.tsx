@@ -79,4 +79,18 @@ describe('ModelImportButton', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Pick a .glb file. Other 3D formats are not supported.'));
     expect(Object.keys(useProjectStore.getState().models)).toHaveLength(0);
   });
+
+  it("places a model the project already has at the map center, from the popup's list", () => {
+    subscription = { tier: 'wanderer', status: 'active' };
+    useProjectStore.setState({
+      models: { m1: { id: 'm1', fileName: 'Tower.glb', byteSize: 1, sha256: '3'.repeat(64), bounds: { min: [0, 0, 0], max: [1, 1, 1] } } },
+    });
+    render(<ModelImportButton />);
+    const popup = openPopup();
+    fireEvent.click(within(popup).getByRole('button', { name: /Tower\.glb/ }));
+    const state = useProjectStore.getState();
+    expect(state.items[state.selectedItemId!]).toMatchObject({ kind: 'model', assetId: 'm1', name: 'Tower', position: [2.35, 48.85], startTime: 4 });
+    expect(Object.keys(state.models)).toEqual(['m1']);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });
