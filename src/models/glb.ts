@@ -176,8 +176,9 @@ interface Accessor {
   max?: number[];
 }
 
+/** Bounds have one number per component, so only a position's (read for the size) need three. */
 function readAccessor(raw: JsonObject): Accessor {
-  return { min: numbers(raw.min, 3, true), max: numbers(raw.max, 3, true) };
+  return { min: numbers(raw.min, 1, true), max: numbers(raw.max, 1, true) };
 }
 
 /**
@@ -273,7 +274,7 @@ export function parseGlb(buffer: ArrayBuffer): { bounds: ModelBounds } {
     if (primitives > MAX_MODEL_PRIMITIVES) fail('complex');
     for (const position of positions) {
       const accessor = accessors[position];
-      if (!accessor?.min || !accessor.max) return fail('parse');
+      if (!accessor?.min || !accessor.max || accessor.min.length < 3 || accessor.max.length < 3) return fail('parse');
       for (let corner = 0; corner < 8; corner++) {
         const x = corner & 1 ? accessor.max[0] : accessor.min[0];
         const y = corner & 2 ? accessor.max[1] : accessor.min[1];
