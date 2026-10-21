@@ -9,7 +9,10 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
-import { createBoundaryItem } from '@/store/itemFactories';
+import { createBoundaryItem, createCalloutItem } from '@/store/itemFactories';
+import { labelPoint } from '@/engine/labelPoint';
+import { beginGesture, endGesture, withHistoryLabel } from '@/store/history';
+import { SwitchRow } from '@/components/Inspector/controls/SwitchRow';
 import { shortPlaceName, type NominatimResult } from '@/services/nominatim';
 import { parseBoundaryAnimationStyle } from '@/store/domainValues';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
@@ -51,6 +54,8 @@ export const BoundaryAddDropdown = ({
     }))
   );
   const frame = useFrameOnMap();
+  // Whether a Map Label with the place name is created along with the boundary.
+  const [nameLabel, setNameLabel] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -83,11 +88,33 @@ export const BoundaryAddDropdown = ({
       placeName: draftBoundaryName,
       geojson: applyBoundaryDetail(previewBoundary, boundaryDetail),
       startTime: useProjectStore.getState().playheadTime,
-      style: previewBoundaryStyle,
+      // Only a country has a flag to fill with (the flag code is set from a country result alone).
+      style: previewBoundaryStyle.flagCode ? previewBoundaryStyle : { ...previewBoundaryStyle, fillMode: 'color' },
     });
     const id = item.id;
 
-    addItem(item);
+    // The label is an ordinary callout at the area's visual centre, timed like the boundary.
+    const centre = nameLabel ? labelPoint(item.geojson) : null;
+    const label = centre
+      ? createCalloutItem({
+          styleId: 'map-label',
+          content: { title: draftBoundaryName },
+          lngLat: centre,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          linkTitleToLocation: false,
+        })
+      : null;
+
+    withHistoryLabel(label ? `Added boundary and label ${draftBoundaryName}` : 'Added boundary', () => {
+      beginGesture();
+      try {
+        addItem(item);
+        if (label) addItem(label);
+      } finally {
+        endGesture();
+      }
+    });
     selectItem(id);
     clearPreviewBoundary();
     onOpenChange(false);
@@ -156,6 +183,29 @@ export const BoundaryAddDropdown = ({
               </div>
               <Button variant="subtle" size="xs" onClick={clearPreviewBoundary}>Change</Button>
             </div>
+          </div>
+
+          <div className="px-1">
+            {previewBoundaryStyle!.flagCode && (
+              <SwitchRow
+                label="Flag"
+                sublabel="Fill with the country's flag"
+                checked={previewBoundaryStyle!.fillMode === 'flag'}
+                onChange={(v) => setPreviewBoundaryStyle({ fillMode: v ? 'flag' : 'color' })}
+              />
+            )}
+            <SwitchRow
+              label="Dim surroundings"
+              sublabel="Darken the map outside this area"
+              checked={previewBoundaryStyle!.maskOutside}
+              onChange={(v) => setPreviewBoundaryStyle({ maskOutside: v })}
+            />
+            <SwitchRow
+              label="Name label"
+              sublabel="Add a label with the place name"
+              checked={nameLabel}
+              onChange={setNameLabel}
+            />
           </div>
 
           <div>

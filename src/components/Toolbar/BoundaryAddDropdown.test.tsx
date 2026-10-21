@@ -7,6 +7,8 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { syntheticIsland } from '@/test/syntheticGeometry';
 import type { BoundaryItem } from '@/store/types';
+import { undo } from '@/store/history';
+import '@/annotations/styles';
 import { MapRefContext } from '@/hooks/useMapRef';
 import type { MapRef } from 'react-map-gl/mapbox';
 
@@ -18,7 +20,10 @@ vi.mock('react-secure-storage', () => ({
 
 vi.mock('../Inspector/BoundarySearch', () => ({
   BoundarySearch: ({ onSelect }: { onSelect: (r: unknown) => void }) => (
-    <button onClick={() => onSelect({ display_name: 'Isola, Italia', type: 'island', geojson: island, countryCode: 'it' })}>pick-result</button>
+    <>
+      <button onClick={() => onSelect({ display_name: 'Isola, Italia', type: 'island', geojson: island, countryCode: 'it' })}>pick-result</button>
+      <button onClick={() => onSelect({ display_name: 'Citta, Italia', type: 'city', geojson: island, countryCode: null })}>pick-city</button>
+    </>
   ),
 }));
 
@@ -77,6 +82,37 @@ describe('BoundaryAddDropdown detail levels', () => {
     open();
     fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
     expect(added().style).toMatchObject({ flagCode: 'it', fillMode: 'color' });
+  });
+
+  const toggle = (label: string) => {
+    fireEvent.click(screen.getByText(label).parentElement!.parentElement!.querySelector('[role="switch"]')!);
+  };
+
+  it('creates the boundary with a flag fill and dimmed surroundings from the switches', () => {
+    open();
+    toggle('Flag');
+    toggle('Dim surroundings');
+    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
+    expect(added().style).toMatchObject({ fillMode: 'flag', flagCode: 'it', maskOutside: true });
+  });
+
+  it('adds a Map Label at the visual centre in the same undo step when Name label is on', () => {
+    open();
+    toggle('Name label');
+    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
+    const callout = Object.values(useProjectStore.getState().items).find((i) => i.kind === 'callout');
+    expect(callout).toMatchObject({ styleId: 'map-label', content: { title: 'Isola' }, startTime: added().startTime, endTime: added().endTime });
+    undo();
+    expect(Object.values(useProjectStore.getState().items).filter((i) => i.kind !== 'camera')).toHaveLength(0);
+  });
+
+  it('adds no label by default, and offers Flag only for a country', () => {
+    open();
+    expect(screen.getByText('Flag')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
+    expect(Object.values(useProjectStore.getState().items).some((i) => i.kind === 'callout')).toBe(false);
+    fireEvent.click(screen.getByText('pick-city'));
+    expect(screen.queryByText('Flag')).not.toBeInTheDocument();
   });
 
   it('remembers the last choice for the session', () => {
