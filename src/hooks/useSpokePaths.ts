@@ -26,6 +26,8 @@ const keyOf = (mode: string, start: [number, number], end: [number, number]) => 
 export function useSpokePaths({ mode, side, hub, hubName, spokes }: SpokePathInput, enabled: boolean) {
   const [results, setResults] = useState<Record<string, SpokePath>>({});
   const requested = useRef(new Set<string>());
+  /** Keys whose request ended, with a path or an error. */
+  const settled = useRef(new Set<string>());
 
   const jobs = useMemo(
     () => placedSpokes(spokes, hub).map((spoke) => {
@@ -38,25 +40,32 @@ export function useSpokePaths({ mode, side, hub, hubName, spokes }: SpokePathInp
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
+    const started: string[] = [];
+    const { current: pending } = requested;
+    const { current: done } = settled;
     for (const job of jobs) {
       if (requested.current.has(job.key)) continue;
       requested.current.add(job.key);
+      started.push(job.key);
       setResults((r) => ({ ...r, [job.key]: { status: 'loading' } }));
       void (async () => {
         try {
           const { geojson } = await computeEndpointGeometry(mode, job.start, job.end, controller.signal);
-          if (!controller.signal.aborted) setResults((r) => ({ ...r, [job.key]: { status: 'ready', geojson } }));
+          if (controller.signal.aborted) return;
+          settled.current.add(job.key);
+          setResults((r) => ({ ...r, [job.key]: { status: 'ready', geojson } }));
         } catch {
-          if (controller.signal.aborted) {
-            requested.current.delete(job.key);
-            return;
-          }
+          if (controller.signal.aborted) return;
+          settled.current.add(job.key);
           setResults((r) => ({ ...r, [job.key]: { status: 'error' } }));
         }
       })();
     }
     // Paths still in flight when the inputs change are dropped; the next run asks for them again.
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      for (const key of started) if (!done.has(key)) pending.delete(key);
+    };
   }, [jobs, mode, enabled]);
 
   /** The state of each placed spoke, by spoke id. */

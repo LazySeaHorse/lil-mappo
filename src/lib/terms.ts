@@ -90,6 +90,28 @@ export const PLACE_FIELD_TERMS = {
   arrival: 'Arrival',
 } as const;
 
+/** Words of the hub and spoke planner: one side of a route becomes a list of places. */
+export const HUB_SPOKE_TERMS = {
+  addPlaces: 'Make this a list of places',
+  addPlace: 'Add place',
+  addFromMap: 'Add from map',
+  removePlace: 'Remove place',
+  starts: 'Starts',
+  ends: 'Ends',
+  notFound: 'No place found. Fix it or remove it.',
+  noRoute: 'No route found. Fix it or remove it.',
+  timing: 'Timing',
+  together: 'Together',
+  sequence: 'One after another',
+  staggered: 'Staggered',
+  gap: 'Gap',
+  /** Shown when a paste held more places than a list can take. */
+  tooMany: (max: number, dropped: number) => `A list holds ${max} places. ${dropped} left out.`,
+  createNone: 'Add places to create routes',
+  create: (count: number) => `Create ${count} ${count === 1 ? 'route' : 'routes'}`,
+  created: (count: number) => `${count} ${count === 1 ? 'route' : 'routes'} added`,
+} as const;
+
 /** Words of the search fields. */
 export const SEARCH_TERMS = {
   /** The button that lets the user click a place on the map. */

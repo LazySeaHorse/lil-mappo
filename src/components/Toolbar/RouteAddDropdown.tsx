@@ -15,12 +15,14 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
+import { nanoid } from 'nanoid';
 import type { RouteItem, RouteMode } from '@/store/types';
 import { createEndpointRouteItem, createWalkRouteItem, defaultEndpointRouteName } from '@/store/itemFactories';
+import { HubSpokeList, SpokeTimingControls } from './HubSpokeList';
 import { SearchField } from '../Search/SearchField';
 import { AirportSearchField } from '../Search/AirportSearchField';
 import { LabelledField } from '../Search/LabelledField';
-import { PLACE_FIELD_TERMS } from '@/lib/terms';
+import { HUB_SPOKE_TERMS, PLACE_FIELD_TERMS } from '@/lib/terms';
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
@@ -31,6 +33,12 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { createWalkCalculation } from '@/engine/routeCurves';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { isPlacedPoint } from '@/engine/routeMode';
+import {
+  DEFAULT_SPOKE_GAP, emptySpoke, placedSpokes, spokeEndpoints,
+  type Spoke, type SpokeSide, type SpokeTiming,
+} from '@/engine/hubSpoke';
+import { useSpokePaths } from '@/hooks/useSpokePaths';
+import { createHubRoutes } from '@/services/hubRoutes';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
 import { WalkPointList } from '../Inspector/WalkPointList';
 import { SwitchRow } from '../Inspector/InspectorShared';
@@ -71,12 +79,13 @@ export const RouteAddDropdown = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const { addItem, selectItem, previewRoute, setPreviewRoute, setDraftWalk } = useProjectStore(
+  const { addItem, selectItem, previewRoute, setPreviewRoute, setPreviewSpokes, setDraftWalk } = useProjectStore(
     useShallow(s => ({
       addItem: s.addItem,
       selectItem: s.selectItem,
       previewRoute: s.previewRoute,
       setPreviewRoute: s.setPreviewRoute,
+      setPreviewSpokes: s.setPreviewSpokes,
       setDraftWalk: s.setDraftWalk,
     }))
   );
@@ -94,6 +103,12 @@ export const RouteAddDropdown = ({
   const { data: subscription } = useSubscription();
   const isPro = isWanderer(subscription);
 
+  // Hub and spoke: one side is a list of places, and the other side is the hub they share.
+  const [hubSide, setHubSide] = useState<SpokeSide | null>(null);
+  const [spokes, setSpokes] = useState<Spoke[]>([]);
+  const [timing, setTiming] = useState<SpokeTiming>('staggered');
+  const [gap, setGap] = useState(DEFAULT_SPOKE_GAP);
+
   // Walk state — flat sequential list of points
   const [walkPoints, setWalkPoints] = useState<[number, number][]>([]);
   const [walkCurved, setWalkCurved] = useState(true);
@@ -103,6 +118,32 @@ export const RouteAddDropdown = ({
     if (isOpen) useWalkthroughStore.getState().recordRouteEndpoints(isPlacedPoint(start), isPlacedPoint(end));
   }, [isOpen, start, end]);
 
+  const isHub = hubSide !== null && mode !== 'walk';
+  const hub = hubSide === 'start' ? end : start;
+  const hubName = hubSide === 'start' ? endName : startName;
+  const spokePaths = useSpokePaths(
+    { mode: mode === 'flight' ? 'flight' : 'car', side: hubSide ?? 'end', hub, hubName, spokes },
+    isHub && isOpen,
+  );
+  const readySpokes = isHub
+    ? placedSpokes(spokes, hub).filter((s) => spokePaths[s.id]?.status === 'ready')
+    : [];
+  const placedCount = isHub ? placedSpokes(spokes, hub).length : 0;
+  const spokesLoading = Object.values(spokePaths).some((p) => p.status === 'loading');
+
+  // Live preview: a line for every spoke whose path is ready.
+  useEffect(() => {
+    setPreviewSpokes(
+      isOpen
+        ? readySpokes.flatMap((s) => {
+            const path = spokePaths[s.id];
+            return path?.status === 'ready' ? [{ id: s.id, geojson: path.geojson }] : [];
+          })
+        : [],
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, spokePaths]);
+
   /** Drops any path request in flight and the preview drawn from the old inputs. */
   const discardPath = () => {
     path.cancel();
@@ -111,6 +152,8 @@ export const RouteAddDropdown = ({
 
   const resetAll = () => {
     discardPath();
+    setHubSide(null);
+    setSpokes([]);
     setStart([0, 0]);
     setStartName('');
     setEnd([0, 0]);
@@ -154,6 +197,8 @@ export const RouteAddDropdown = ({
     return () => {
       const store = useProjectStore.getState();
       store.setDraftWalk(null);
+      store.setPreviewSpokes([]);
+      store.setPreviewSpokeFocus(null);
       if (store.previewRoute) store.setPreviewRoute(null);
     };
   }, []);
@@ -222,6 +267,50 @@ export const RouteAddDropdown = ({
     );
   };
 
+  /** Turns a side into a list. The place it has now is the first row, and a blank row follows. */
+  const startHub = (side: SpokeSide) => {
+    discardPath();
+    const [point, name] = side === 'start' ? [start, startName] : [end, endName];
+    setSpokes([{ id: nanoid(), point, name }, emptySpoke(nanoid())]);
+    setHubSide(side);
+  };
+
+  /** A list down to one row is a plain route again: the row goes back into its field. */
+  const collapseHub = (last: Spoke) => {
+    if (hubSide === 'start') handleStartChange(last.point, last.name);
+    else handleEndChange(last.point, last.name);
+    setHubSide(null);
+    setSpokes([]);
+  };
+
+  /** Adds a route for each spoke whose path is ready. Spokes that failed stay in the list to fix. */
+  const handleCreateHub = () => {
+    if (!hubSide || mode === 'walk' || readySpokes.length === 0) return;
+    const inputs = readySpokes.map((spoke) => {
+      const path = spokePaths[spoke.id];
+      return {
+        mode,
+        ...spokeEndpoints(hubSide, hub, hubName, spoke),
+        geojson: (path as { geojson: GeoJSON.FeatureCollection }).geojson,
+      };
+    });
+    const items = createHubRoutes(inputs, { timing, gap, startTime: useProjectStore.getState().playheadTime, pro: isPro });
+    selectItem(items[0].id);
+    frame.frameGeometry({ type: 'FeatureCollection', features: items.flatMap((i) => i.geojson.features) });
+    for (const item of items) reportRouteAdded(mode, extractLineCoords(item.geojson).length);
+
+    const left = spokes.filter((s) => !readySpokes.includes(s) && (isPlacedPoint(s.point) || s.notFound));
+    if (left.length === 0) {
+      resetAll();
+      onOpenChange(false);
+      return;
+    }
+    toast.warning(`${HUB_SPOKE_TERMS.created(items.length)}. ${left.length} could not be routed.`);
+    setPreviewSpokes([]);
+    if (left.length >= 2) setSpokes(left);
+    else collapseHub(left[0]);
+  };
+
   // Walk — append-only, insert straight into timeline
   const handleAddWalk = () => {
     if (walkPoints.length < 2) {
@@ -264,7 +353,20 @@ export const RouteAddDropdown = ({
   );
 
   let primaryAction: React.ReactNode;
-  if (mode === 'walk') {
+  if (isHub) {
+    primaryAction = (
+      <Button
+        variant={readySpokes.length > 0 ? 'default' : 'secondary'}
+        data-walkthrough="route-action"
+        onClick={handleCreateHub}
+        disabled={readySpokes.length === 0 || spokesLoading}
+        className="w-full"
+      >
+        {spokesLoading ? <Loader2 size={13} className="animate-spin" /> : <Plus size={16} />}
+        {readySpokes.length > 0 ? HUB_SPOKE_TERMS.create(readySpokes.length) : HUB_SPOKE_TERMS.createNone}
+      </Button>
+    );
+  } else if (mode === 'walk') {
     primaryAction = (
       <Button
         variant={walkPoints.length >= 2 ? 'default' : 'secondary'}
@@ -318,6 +420,55 @@ export const RouteAddDropdown = ({
   const EndpointField = mode === 'flight' ? AirportSearchField : SearchField;
   const fieldCopy = mode === 'flight' ? ENDPOINT_FIELD_COPY.flight : ENDPOINT_FIELD_COPY.car;
 
+  /** A side of the route: its place field with the "+" that makes it a list, or the list itself. */
+  const renderSide = (side: SpokeSide) => {
+    if (hubSide === side) {
+      return (
+        <HubSpokeList
+          side={side}
+          mode={mode === 'flight' ? 'flight' : 'car'}
+          spokes={spokes}
+          paths={spokePaths}
+          isOpen={isOpen}
+          onChange={(update) => setSpokes(update)}
+          onCollapse={collapseHub}
+        />
+      );
+    }
+    const isStart = side === 'start';
+    const label = isStart
+      ? (mode === 'flight' ? PLACE_FIELD_TERMS.departure : PLACE_FIELD_TERMS.start)
+      : (mode === 'flight' ? PLACE_FIELD_TERMS.arrival : PLACE_FIELD_TERMS.end);
+    return (
+      <LabelledField label={label}>
+        <div className="flex items-center gap-1">
+          <div className="flex-1 min-w-0">
+            <EndpointField
+              {...(isStart ? fieldCopy.start : fieldCopy.end)}
+              value={isStart ? start : end}
+              name={isStart ? startName : endName}
+              onSelect={isStart ? handleStartChange : handleEndChange}
+              isPicking={isStart ? isPickingStart : isPickingEnd}
+              onStartPick={isStart ? handleTogglePickStart : handleTogglePickEnd}
+            />
+          </div>
+          {hubSide === null && (
+            <IconButton
+              type="button"
+              size="xs"
+              variant="ghost"
+              onClick={() => startHub(side)}
+              title={HUB_SPOKE_TERMS.addPlaces}
+              aria-label={`${HUB_SPOKE_TERMS.addPlaces}: ${label}`}
+            >
+              <Plus size={13} />
+            </IconButton>
+          )}
+        </div>
+      </LabelledField>
+    );
+  };
+
   return (
     <ToolbarDropdownPanel
       open={isOpen}
@@ -359,28 +510,13 @@ export const RouteAddDropdown = ({
         /* Car / flight — start + end */
         <div className="space-y-4" data-walkthrough="route-places">
           <SectionLabel>{mode === 'flight' ? 'Airport route' : 'Route points'}</SectionLabel>
-          <LabelledField label={mode === 'flight' ? PLACE_FIELD_TERMS.departure : PLACE_FIELD_TERMS.start}>
-            <EndpointField
-              {...fieldCopy.start}
-              value={start}
-              name={startName}
-              onSelect={handleStartChange}
-              isPicking={isPickingStart}
-              onStartPick={handleTogglePickStart}
-            />
-          </LabelledField>
-          <LabelledField label={mode === 'flight' ? PLACE_FIELD_TERMS.arrival : PLACE_FIELD_TERMS.end}>
-            <EndpointField
-              {...fieldCopy.end}
-              value={end}
-              name={endName}
-              onSelect={handleEndChange}
-              isPicking={isPickingEnd}
-              onStartPick={handleTogglePickEnd}
-            />
-          </LabelledField>
+          {renderSide('start')}
+          {renderSide('end')}
+          {isHub && placedCount >= 2 && (
+            <SpokeTimingControls timing={timing} gap={gap} onTimingChange={setTiming} onGapChange={setGap} />
+          )}
 
-          {!previewRoute && !isPlacedPoint(start) && !isPlacedPoint(end) && (
+          {!isHub && !previewRoute && !isPlacedPoint(start) && !isPlacedPoint(end) && (
             <EmptyState
               variant="dropdown"
               icon={Compass}

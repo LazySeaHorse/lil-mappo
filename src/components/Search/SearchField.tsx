@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { SearchFieldActions } from './SearchFieldActions';
 import { PickOnMapButton } from './PickOnMapButton';
+import { pasteListHandler } from './pasteList';
 import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
 import { cn } from '@/lib/utils';
 import { SEARCH_TERMS } from '@/lib/terms';
@@ -25,6 +26,8 @@ interface SearchFieldProps {
   placeholder?: string;
   /** Also accept typed coordinates such as "-74.006, 40.712" (they select a point with no place name). */
   parseCoordinates?: boolean;
+  /** In a list of places: called with pasted text that holds several places. */
+  onPasteList?: (text: string) => void;
 }
 
 export const SearchField = ({
@@ -36,6 +39,7 @@ export const SearchField = ({
   className = "",
   placeholder,
   parseCoordinates = false,
+  onPasteList,
 }: SearchFieldProps) => {
   // Wrap the prop callback to ensure name is always provided
   const onSelectWithName = (lngLat: [number, number], name?: string) => {
@@ -89,6 +93,7 @@ export const SearchField = ({
                   setQuery(e.target.value);
                   // Suggestions will be cleared naturally on the next performSearch
                 }}
+                onPaste={pasteListHandler(onPasteList)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

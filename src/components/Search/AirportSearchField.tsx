@@ -15,6 +15,7 @@ import {
   PopoverAnchor,
 } from '@/components/ui/popover';
 import { PickOnMapButton } from './PickOnMapButton';
+import { pasteListHandler } from './pasteList';
 import { SearchFieldActions } from './SearchFieldActions';
 import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
 import {
@@ -35,6 +36,8 @@ export interface AirportSearchFieldProps {
   onStartPick?: () => void;
   className?: string;
   placeholder?: string;
+  /** In a list of places: called with pasted text that holds several places. */
+  onPasteList?: (text: string) => void;
 }
 
 export const AirportSearchField = ({
@@ -46,6 +49,7 @@ export const AirportSearchField = ({
   onStartPick = () => {},
   className = "",
   placeholder,
+  onPasteList,
 }: AirportSearchFieldProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -121,6 +125,7 @@ export const AirportSearchField = ({
                   onClick={() => {
                     if (!isPicking) open();
                   }}
+                  onPaste={pasteListHandler(onPasteList)}
                   onKeyDown={handleKeyDown}
                   disabled={isPicking}
                   className={cn(

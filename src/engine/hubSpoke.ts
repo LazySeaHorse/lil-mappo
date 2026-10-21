@@ -21,6 +21,8 @@ export interface Spoke {
   id: string;
   point: [number, number];
   name: string;
+  /** Set on a pasted entry that no place was found for; `name` then holds the text. */
+  notFound?: boolean;
 }
 
 export const emptySpoke = (id: string): Spoke => ({ id, point: UNSET_POINT, name: '' });
