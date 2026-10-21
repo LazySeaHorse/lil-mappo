@@ -75,7 +75,7 @@ export function RouteMarkerSection({
 
   return (
     <InspectorSection kind="route" id="marker">
-      <ModelPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onFile={importForMarker} testId="marker-model-input" />
+      <ModelPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onFile={importForMarker} onPickModel={(asset) => rideModel(asset.id)} testId="marker-model-input" />
       <SwitchRow label="Route marker" checked={vehicle?.enabled || false} onChange={(enabled) => onChange({ enabled })} />
 
       {vehicle?.enabled && (

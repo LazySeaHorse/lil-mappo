@@ -54,6 +54,9 @@ export const MODEL_TERMS = {
     'After a reload, pick the file again.',
   ],
   popupTag: '3D model',
+  /** The popup's list of models the project already has. */
+  listTitle: 'In this project',
+  needsFile: 'Needs its file',
   /** Route marker: the imported model card and picker. */
   customMarker: 'Custom',
   chooseModel: 'Model',
@@ -69,3 +72,7 @@ export const MODEL_TRANSITION_LABELS: Record<ModelEnter | ModelExit, string> = {
   rise: 'Rise from ground',
   sink: 'Sink into ground',
 };
+
+/** A model file's size for people: KB under a megabyte, MB above. */
+export const formatBytes = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;

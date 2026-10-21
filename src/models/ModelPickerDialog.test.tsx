@@ -59,7 +59,7 @@ describe('ModelPickerDialog', () => {
     const { popup, onPickModel, onOpenChange } = setup();
     const list = within(popup).getByRole('list', { name: MODEL_TERMS.listTitle });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(list).getByText('2.4 MB', { exact: false })).toBeInTheDocument();
+    expect(within(list).getAllByText(/2\.4 MB/)).toHaveLength(2);
     fireEvent.click(within(list).getByRole('button', { name: /bus\.glb/ }));
     expect(onPickModel).toHaveBeenCalledWith(bus);
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -69,6 +69,6 @@ describe('ModelPickerDialog', () => {
     const bus = asset('a', 'bus.glb');
     useProjectStore.setState({ models: { a: bus } });
     const { popup } = setup();
-    expect(within(popup).getByText(MODEL_TERMS.needsFile)).toBeInTheDocument();
+    expect(within(popup).getByText(new RegExp(MODEL_TERMS.needsFile))).toBeInTheDocument();
   });
 });

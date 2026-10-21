@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Box } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProBadge } from '@/components/ui/pro-badge';
+import type { ModelAsset } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
 import { useProjectStore } from '@/store/useProjectStore';
 import { ModelFileError } from '@/models/glb';
-import { importModel } from '@/models/modelImport';
+import { importModel, placeModel } from '@/models/modelImport';
 import { ModelPickerDialog } from '@/models/ModelPickerDialog';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { useModelImportAccess } from '@/models/useModelAccess';
@@ -22,16 +23,27 @@ export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
     else setOpen(true);
   };
 
+  /** The middle of the map at the playhead: where a new model goes. */
+  const placement = () => {
+    const state = useProjectStore.getState();
+    const center = mapRef.current?.getMap?.()?.getCenter();
+    const position: [number, number] = center ? [center.lng, center.lat] : state.mapCenter;
+    return { position, startTime: state.playheadTime };
+  };
+
+  const handlePick = (asset: ModelAsset) => {
+    const item = placeModel(asset, placement());
+    useProjectStore.getState().selectItem(item.id);
+    toast.success(MODEL_TERMS.imported(item.name));
+  };
+
   const handleFile = async (file: File) => {
     if (!canImport) {
       askToUpgrade();
       return;
     }
-    const state = useProjectStore.getState();
-    const center = mapRef.current?.getMap?.()?.getCenter();
-    const position: [number, number] = center ? [center.lng, center.lat] : state.mapCenter;
     try {
-      const item = await importModel(file, { position, startTime: state.playheadTime });
+      const item = await importModel(file, placement());
       useProjectStore.getState().selectItem(item.id);
       toast.success(MODEL_TERMS.imported(item.name));
     } catch (err) {
@@ -41,7 +53,7 @@ export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
 
   return (
     <>
-      <ModelPickerDialog open={open} onOpenChange={setOpen} onFile={handleFile} />
+      <ModelPickerDialog open={open} onOpenChange={setOpen} onFile={handleFile} onPickModel={handlePick} />
       <ToolbarButton
         icon={
           <span className="relative inline-flex">

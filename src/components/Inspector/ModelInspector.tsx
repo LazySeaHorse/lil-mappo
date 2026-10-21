@@ -3,7 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { ModelItem } from '@/store/types';
 import { placeLabel } from '@/engine/routeMode';
 import { modelExtent } from '@/models/modelGeometry';
-import { MODEL_TERMS } from '@/models/modelTerms';
+import { MODEL_TERMS, formatBytes } from '@/models/modelTerms';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { SearchField } from '@/components/Search/SearchField';
 import { PanelWrapper } from './InspectorLayout';
@@ -19,9 +19,6 @@ import { TimingSection } from './timing/TimingSection';
 import { modelTiming } from './timing/timingAdapters';
 import { ModelRelinkPrompt } from './ModelRelinkPrompt';
 import { VEHICLE_SCALE_RANGE } from '@/config/vehicles';
-
-const formatBytes = (bytes: number) =>
-  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 const formatMeters = (meters: number) =>
   meters >= 1000 ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km` : `${meters >= 10 ? Math.round(meters) : meters.toFixed(1)} m`;

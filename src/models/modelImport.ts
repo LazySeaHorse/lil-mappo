@@ -43,15 +43,19 @@ export async function readModelAsset(file: File): Promise<ModelAsset> {
   return asset;
 }
 
+/** Places a model the project already holds on the map as a new model item (one undo step). */
+export function placeModel(asset: ModelAsset, place: { position: [number, number]; startTime: number }): ModelItem {
+  const item = createModelItem({ assetId: asset.id, name: modelNameFromFile(asset.fileName), ...place });
+  useProjectStore.getState().addModel(asset, item);
+  return item;
+}
+
 /** Imports a .glb and places it on the map as a new model item (one undo step). */
 export async function importModel(
   file: File,
   place: { position: [number, number]; startTime: number },
 ): Promise<ModelItem> {
-  const asset = await readModelAsset(file);
-  const item = createModelItem({ assetId: asset.id, name: modelNameFromFile(file.name), ...place });
-  useProjectStore.getState().addModel(asset, item);
-  return item;
+  return placeModel(await readModelAsset(file), place);
 }
 
 export type RelinkResult =
