@@ -93,7 +93,15 @@ describe('BoundaryAddDropdown detail levels', () => {
     toggle('Flag');
     toggle('Dim surroundings');
     fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
-    expect(added().style).toMatchObject({ fillMode: 'flag', flagCode: 'it', maskOutside: true });
+    expect(added().style).toMatchObject({ fillMode: 'flag', flagCode: 'it', fillOpacity: 1, maskOutside: true, maskOpacity: 0.7 });
+  });
+
+  it('puts the fill opacity back when Flag is turned off again', () => {
+    open();
+    toggle('Flag');
+    toggle('Flag');
+    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
+    expect(added().style).toMatchObject({ fillMode: 'color', fillOpacity: 0.1 });
   });
 
   it('adds a Map Label at the visual centre in the same undo step when Name label is on', () => {

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
-import { createBoundaryItem, createCalloutItem } from '@/store/itemFactories';
+import { createBoundaryItem, createCalloutItem, DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
 import { labelPoint } from '@/engine/labelPoint';
 import { beginGesture, endGesture, withHistoryLabel } from '@/store/history';
 import { SwitchRow } from '@/components/Inspector/controls/SwitchRow';
@@ -25,6 +25,10 @@ import { PanelHeader } from '@/components/ui/panel-header';
 import { SectionLabel, Field } from '@/components/ui/field';
 import { ColorRow } from '@/components/Inspector/controls/ColorRow';
 import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
+
+// A flag reads best fully opaque; the Dim switch uses a lighter mask than the inspector default.
+const FLAG_FILL_OPACITY = 1;
+const DIM_MASK_OPACITY = 0.7;
 
 export const BoundaryAddDropdown = ({ 
   isOpen, 
@@ -191,14 +195,17 @@ export const BoundaryAddDropdown = ({
                 label="Flag"
                 sublabel="Fill with the country's flag"
                 checked={previewBoundaryStyle!.fillMode === 'flag'}
-                onChange={(v) => setPreviewBoundaryStyle({ fillMode: v ? 'flag' : 'color' })}
+                onChange={(v) => setPreviewBoundaryStyle({
+                  fillMode: v ? 'flag' : 'color',
+                  fillOpacity: v ? FLAG_FILL_OPACITY : DEFAULT_BOUNDARY_STYLE.fillOpacity,
+                })}
               />
             )}
             <SwitchRow
               label="Dim surroundings"
               sublabel="Darken the map outside this area"
               checked={previewBoundaryStyle!.maskOutside}
-              onChange={(v) => setPreviewBoundaryStyle({ maskOutside: v })}
+              onChange={(v) => setPreviewBoundaryStyle(v ? { maskOutside: true, maskOpacity: DIM_MASK_OPACITY } : { maskOutside: false })}
             />
             <SwitchRow
               label="Name label"
