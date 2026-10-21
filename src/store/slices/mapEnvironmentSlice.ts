@@ -25,6 +25,8 @@ export function createTransientState(): TransientProjectState {
     showNewProjectModal: false,
     activePicker: null,
     previewRoute: null,
+    previewSpokes: [],
+    previewSpokeFocus: null,
     draftWalk: null,
     routeDraft: null,
     previewBoundary: null,

@@ -59,6 +59,8 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
   startPicking: (session) => set({ activePicker: session }),
   stopPicking: () => set({ activePicker: null }),
   setPreviewRoute: (v) => set({ previewRoute: v }),
+  setPreviewSpokes: (v) => set({ previewSpokes: v }),
+  setPreviewSpokeFocus: (id) => set({ previewSpokeFocus: id }),
   setDraftWalk: (v) => set({ draftWalk: v }),
 
   startRouteDraft: (routeId) => {

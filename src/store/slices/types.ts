@@ -57,6 +57,10 @@ export interface TransientProjectState {
   // Transient picking state (not persisted)
   activePicker: PickSession | null;
   previewRoute: GeoJSON.FeatureCollection | null;
+  /** The paths of a hub and spoke plan in the Plan Route dropdown, one per spoke, drawn until inserted. */
+  previewSpokes: { id: string; geojson: GeoJSON.FeatureCollection }[];
+  /** The spoke whose preview line is highlighted (its row is hovered). */
+  previewSpokeFocus: string | null;
   /** Walk being built in the Plan Route dropdown; drawn live on the map until inserted. */
   draftWalk: WalkRouteCalculation | null;
   /** The path editor of the selected route (not persisted, not in undo history). */
@@ -154,6 +158,8 @@ export interface EditorUiSlice {
   startPicking: (session: PickSession) => void;
   stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
+  setPreviewSpokes: (v: { id: string; geojson: GeoJSON.FeatureCollection }[]) => void;
+  setPreviewSpokeFocus: (id: string | null) => void;
   setDraftWalk: (v: WalkRouteCalculation | null) => void;
   /** Opens a draft that starts as a copy of the route's saved path settings. */
   startRouteDraft: (routeId: string) => void;
