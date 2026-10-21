@@ -11,6 +11,9 @@ export const MODEL_TERMS = {
   missingTitle: 'Model file missing',
   missingBody: (fileName: string) => `3D models stay on this device and are not saved. Pick ${fileName} again to show it.`,
   relink: 'Relink model',
+  /** A model that came from a link, when the link did not give it back on reload. */
+  missingFromUrl: (fileName: string) => `Could not load ${fileName} from its link. Try again, or pick the file.`,
+  retryUrl: 'Load from link again',
   relinked: 'Model relinked.',
   mismatch: (fileName: string) => `This is a different file from ${fileName}. Use it anyway?`,
   useAnyway: 'Use this file',
@@ -51,7 +54,7 @@ export const MODEL_TERMS = {
   popupFacts: [
     `Only .glb files, up to ${MAX_MODEL_BYTES / (1024 * 1024)} MB.`,
     'Your file stays in your browser and is never uploaded.',
-    'After a reload, pick the file again.',
+    'After a reload, pick the file again, unless you added it from a link.',
   ],
   popupTag: '3D model',
   /** The popup's list of models the project already has. */

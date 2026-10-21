@@ -18,11 +18,11 @@ export function modelNameFromFile(fileName: string): string {
 const pendingAssets = new Map<string, ModelAsset>();
 
 /**
- * Reads a picked .glb, keeps its bytes in memory and returns its metadata. The project already
+ * Reads a picked or downloaded .glb (`sourceUrl` is the link it came from), keeps its bytes in memory and returns its metadata. The project already
  * holding the same file, or another import of it still on its way in, keeps its asset (and id).
  * Throws ModelFileError for a file it cannot use.
  */
-export async function readModelAsset(file: File): Promise<ModelAsset> {
+export async function readModelAsset(file: File, sourceUrl?: string): Promise<ModelAsset> {
   const read = await readModelFile(file);
   registerModelBytes(read.sha256, read.bytes);
   // Nothing awaits from here to the return, so concurrent reads of one file settle on one asset.
@@ -37,6 +37,7 @@ export async function readModelAsset(file: File): Promise<ModelAsset> {
     fileName: read.fileName,
     byteSize: read.byteSize,
     sha256: read.sha256,
+    ...(sourceUrl ? { sourceUrl } : {}),
     bounds: read.bounds,
   };
   pendingAssets.set(read.sha256, asset);

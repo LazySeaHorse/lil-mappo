@@ -1,7 +1,7 @@
 import { useProjectStore } from '@/store/useProjectStore';
 import type { ModelAsset } from '@/store/types';
 import { MAX_MODEL_BYTES, MAX_MODEL_URLS, MODEL_FILE_MESSAGES, ModelFileError, type ModelFileErrorCode } from './glb';
-import { readModelAsset } from './modelImport';
+import { readModelAsset, relinkModel, type RelinkResult } from './modelImport';
 
 export { MAX_MODEL_URLS };
 
@@ -122,7 +122,13 @@ export async function fetchModelFile(address: string): Promise<File> {
 
 /** Downloads a .glb from a link, checks it like an upload and adds it to the project's models. */
 export async function addModelFromUrl(address: string): Promise<ModelAsset> {
-  const asset = await readModelAsset(await fetchModelFile(address));
+  const asset = await readModelAsset(await fetchModelFile(address), address);
   useProjectStore.getState().addModel(asset);
   return asset;
+}
+
+/** Loads a model's file again from the link it came from; like a relink, a changed file is not used until the user agrees. */
+export async function relinkModelFromUrl(asset: ModelAsset): Promise<RelinkResult> {
+  if (!asset.sourceUrl) throw fail('url');
+  return relinkModel(asset, await fetchModelFile(asset.sourceUrl));
 }

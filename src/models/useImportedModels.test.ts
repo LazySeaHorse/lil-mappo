@@ -103,7 +103,8 @@ describe('useImportedModels', () => {
       fetchMock.mockImplementation((url: string) =>
         Promise.resolve(url.includes('good') ? new Response(bytes.slice(0)) : new Response('gone', { status: 404 })));
       const { unmount } = renderHook(() => useImportedModels());
-      await openWith(await linked('good'), await linked('bad'), { ...asset, id: 'plain' });
+      // A different file than the good one, so the good download cannot stand in for it.
+      await openWith(await linked('good'), { ...(await linked('bad')), sha256: '2'.repeat(64) }, { ...asset, id: 'plain' });
       await waitFor(() => expect(toast.warning).toHaveBeenCalledWith(MODEL_TERMS.missingOnLoad(2), expect.anything()));
       unmount();
     });

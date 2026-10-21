@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import type { ModelAsset } from '@/store/types';
 import { ModelFileError, type ReadModel } from '@/models/glb';
-import { acceptRelink, relinkModel } from '@/models/modelImport';
+import { acceptRelink, relinkModel, type RelinkResult } from '@/models/modelImport';
+import { relinkModelFromUrl } from '@/models/modelUrl';
 import { useModelStatus } from '@/models/modelRegistry';
 import { ModelFileInput } from '@/models/ModelFileInput';
 import { MODEL_TERMS } from '@/models/modelTerms';
@@ -26,22 +27,28 @@ export function ModelRelinkPrompt({ asset, note }: { asset: ModelAsset; note?: s
   const failed = status === 'failed';
   const Icon = failed ? AlertTriangle : FileWarning;
 
-  const handleFile = async (file: File) => {
+  const handleResult = (result: RelinkResult) => {
+    if (result.status === 'linked' && failed) {
+      // The same bytes the map already could not load.
+      toast.error(MODEL_TERMS.sameFileFailed);
+    } else if (result.status === 'linked') {
+      setDifferent(null);
+      toast.success(MODEL_TERMS.relinked);
+    } else {
+      setDifferent(result.file);
+    }
+  };
+
+  const attempt = async (relink: () => Promise<RelinkResult>) => {
     try {
-      const result = await relinkModel(asset, file);
-      if (result.status === 'linked' && failed) {
-        // The same bytes the map already could not load.
-        toast.error(MODEL_TERMS.sameFileFailed);
-      } else if (result.status === 'linked') {
-        setDifferent(null);
-        toast.success(MODEL_TERMS.relinked);
-      } else {
-        setDifferent(result.file);
-      }
+      handleResult(await relink());
     } catch (err) {
       toast.error(err instanceof ModelFileError ? err.message : MODEL_TERMS.importFailed);
     }
   };
+
+  const handleFile = (file: File) => attempt(() => relinkModel(asset, file));
+  const retryUrl = () => attempt(() => relinkModelFromUrl(asset));
 
   const useDifferent = () => {
     if (!different) return;
@@ -65,7 +72,7 @@ export function ModelRelinkPrompt({ asset, note }: { asset: ModelAsset; note?: s
         <div className="flex min-w-0 flex-col gap-1">
           <p className="font-medium text-foreground">{failed ? MODEL_TERMS.failedTitle : MODEL_TERMS.missingTitle}</p>
           <p className="text-muted-foreground">
-            <span className="ph-mask">{failed ? MODEL_TERMS.failedBody(asset.fileName) : MODEL_TERMS.missingBody(asset.fileName)}</span>
+            <span className="ph-mask">{failed ? MODEL_TERMS.failedBody(asset.fileName) : asset.sourceUrl ? MODEL_TERMS.missingFromUrl(asset.fileName) : MODEL_TERMS.missingBody(asset.fileName)}</span>
             {note ? ` ${note}` : ''}
           </p>
         </div>
@@ -79,9 +86,14 @@ export function ModelRelinkPrompt({ asset, note }: { asset: ModelAsset; note?: s
           </div>
         </div>
       ) : (
-        <Button size="sm" variant="outline" className="w-full" onClick={() => inputRef.current?.click()}>
-          {failed ? MODEL_TERMS.pickOther : MODEL_TERMS.relink}
-        </Button>
+        <div className="flex flex-col gap-2">
+          {asset.sourceUrl && !failed && (
+            <Button size="sm" className="w-full" onClick={retryUrl}>{MODEL_TERMS.retryUrl}</Button>
+          )}
+          <Button size="sm" variant="outline" className="w-full" onClick={() => inputRef.current?.click()}>
+            {failed ? MODEL_TERMS.pickOther : MODEL_TERMS.relink}
+          </Button>
+        </div>
       )}
     </div>
   );

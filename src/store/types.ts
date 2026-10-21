@@ -218,6 +218,8 @@ export interface ModelAsset {
   byteSize: number;
   /** SHA-256 of the file, lowercase hex. A relinked file is checked against it. */
   sha256: string;
+  /** The web link the file was loaded from. A reloaded project fetches it again instead of asking for the file. */
+  sourceUrl?: string;
   /** Bounding box in metres as authored (glTF: y up, facing +z), through every node's transform. */
   bounds: { min: [number, number, number]; max: [number, number, number] };
 }
