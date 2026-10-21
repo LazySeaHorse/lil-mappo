@@ -106,7 +106,11 @@ describe('readModelFile with quantized or WebP models', () => {
     );
     const json = jsonOf((await readModelFile(fileOf(glb))).bytes);
     const views = json.bufferViews as { byteStride?: number }[];
-    expect(views.every((view) => view.byteStride === undefined)).toBe(true);
+    const accessors = json.accessors as { bufferView: number; componentType: number; type: string }[];
+    for (const accessor of accessors.filter((a) => a.type === 'VEC3')) {
+      expect(accessor.componentType).toBe(5126);
+      expect(views[accessor.bufferView].byteStride ?? 12).toBe(12);
+    }
   });
 
   it('keeps the original file hash and size, not the converted ones', async () => {

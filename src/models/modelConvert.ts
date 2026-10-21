@@ -1,4 +1,4 @@
-import { WebIO } from '@gltf-transform/core';
+import { VertexLayout, WebIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dequantize } from '@gltf-transform/functions';
 import { MeshoptDecoder } from 'meshoptimizer';
@@ -8,11 +8,15 @@ import { webpToPng } from './modelImage';
  * Rewrites a .glb as a plain one the map draws right: meshopt decoded, quantized positions, normals
  * and texture coordinates turned back into floats (mapbox copies them without un-normalizing, so a
  * quantized model comes out thousands of times too big), and WebP textures re-encoded as PNG
- * (mapbox ignores EXT_texture_webp). Loaded only when a file needs it, as it pulls in glTF-Transform.
+ * (mapbox ignores EXT_texture_webp). Attributes are written one per buffer view, as mapbox copies
+ * positions without honouring a stride. Loaded only when a file needs it, as it pulls in glTF-Transform.
  */
 export async function convertGlb(bytes: ArrayBuffer): Promise<ArrayBuffer> {
   await MeshoptDecoder.ready;
-  const io = new WebIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+  const io = new WebIO()
+    .setVertexLayout(VertexLayout.SEPARATE)
+    .registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
   const document = await io.readBinary(new Uint8Array(bytes));
   await document.transform(dequantize());
   for (const texture of document.getRoot().listTextures()) {
