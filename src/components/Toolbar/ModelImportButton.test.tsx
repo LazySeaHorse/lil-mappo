@@ -18,6 +18,9 @@ vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: subs
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
+// The preview's three.js renderer needs WebGL, which jsdom lacks; ModelPreview.test.tsx covers it.
+vi.mock('@/models/modelPreview', () => ({ startModelPreview: vi.fn(() => Promise.resolve({ dispose: () => {} })) }));
+
 const openUpgradeModal = vi.fn();
 
 beforeEach(() => {
@@ -77,6 +80,7 @@ describe('ModelImportButton', () => {
     // Nothing is on the map until Add.
     expect(Object.values(useProjectStore.getState().items).some((i) => i.kind === 'model')).toBe(false);
     expect(within(popup).getByText('Lighthouse.glb')).toBeInTheDocument();
+    expect(within(popup).getByRole('img', { name: MODEL_TERMS.previewLabel('Lighthouse.glb') })).toBeInTheDocument();
     expect(within(popup).getByTestId('model-place-position')).toHaveTextContent(MODEL_TERMS.positionCenter);
     expect(within(popup).getByText(MODEL_TERMS.inspectorNote)).toBeInTheDocument();
     // Over 100 m tall, it starts at its own size.

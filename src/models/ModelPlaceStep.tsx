@@ -11,6 +11,7 @@ import { VEHICLE_SCALE_RANGE } from '@/config/vehicles';
 import type { ModelAsset } from '@/store/types';
 import { modelExtent } from './modelGeometry';
 import { startingModelScale } from './modelImport';
+import { ModelPreview } from './ModelPreview';
 import { MODEL_TERMS, formatMeters } from './modelTerms';
 
 /** A model chosen in the popup and not on the map yet: where it goes and how big. */
@@ -39,6 +40,7 @@ export function ModelPlaceStep({ placement, onChange, isPicking, onStartPick, on
     <PopupBody>
       <DialogTitle>{MODEL_TERMS.placeTitle}</DialogTitle>
       <DialogDescription className="ph-mask truncate">{asset.fileName}</DialogDescription>
+      <ModelPreview asset={asset} />
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border/40 p-2 px-3">
         <span className="flex min-w-0 flex-col gap-0.5">
           <RowLabel label={MODEL_TERMS.position} />

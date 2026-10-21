@@ -70,6 +70,7 @@ export const MODEL_TERMS = {
   /** The popup's second step, after a model is picked or uploaded: where it goes and how big. */
   placeTitle: 'Place your model',
   reading: 'Reading the model',
+  previewLabel: (fileName: string) => `Preview of ${fileName}`,
   position: 'Position',
   positionCenter: 'Middle of the map',
   inspectorNote: 'Height above ground, heading, tilt, timing and the rest are in the inspector panel once it is added.',

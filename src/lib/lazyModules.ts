@@ -9,3 +9,4 @@
 export const loadVideoExport = () => import('@/services/videoExport');
 export const loadAirportsData = () => import('@/data/airportsData');
 export const loadModelConvert = () => import('@/models/modelConvert');
+export const loadModelPreview = () => import('@/models/modelPreview');
