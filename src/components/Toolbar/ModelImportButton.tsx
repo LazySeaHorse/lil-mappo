@@ -5,10 +5,12 @@ import { ProBadge } from '@/components/ui/pro-badge';
 import type { ModelAsset } from '@/store/types';
 import { useMapRef } from '@/hooks/useMapRef';
 import { useMapPicker } from '@/hooks/useMapPicker';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { useProjectStore } from '@/store/useProjectStore';
 import { placeLabel } from '@/engine/routeMode';
 import { ModelFileError } from '@/models/glb';
 import { placeModel, readModelAsset, startingModelScale } from '@/models/modelImport';
+import { modelExtent } from '@/models/modelGeometry';
 import { ModelPickerDialog } from '@/models/ModelPickerDialog';
 import { ModelPlaceStep, ModelReadingStep, type ModelPlacement } from '@/models/ModelPlaceStep';
 import { MODEL_TERMS } from '@/models/modelTerms';
@@ -24,6 +26,7 @@ export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
   const [reading, setReading] = useState(false);
   const [placement, setPlacement] = useState<ModelPlacement | null>(null);
   const mapRef = useMapRef();
+  const frame = useFrameOnMap();
   const { canImport, askToUpgrade } = useModelImportAccess();
 
   const patchPlacement = (patch: Partial<ModelPlacement>) => setPlacement((current) => current && { ...current, ...patch });
@@ -73,6 +76,8 @@ export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
     useProjectStore.getState().selectItem(item.id);
     toast.success(MODEL_TERMS.imported(item.name));
     handleOpenChange(false);
+    // Brought into view at the size it was added at, so a small model is not a speck.
+    frame.frameModel(position, modelExtent(asset.bounds).reachM * scale);
   };
 
   return (

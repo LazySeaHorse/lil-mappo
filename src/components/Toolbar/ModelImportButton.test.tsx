@@ -9,6 +9,8 @@ import { makeGlb } from '@/models/testGlb';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { SEARCH_TERMS } from '@/lib/terms';
 import { clearHistory, undo } from '@/store/history';
+import type { MapRef } from 'react-map-gl/mapbox';
+import { MapRefContext } from '@/hooks/useMapRef';
 import { ModelImportButton } from './ModelImportButton';
 
 let subscription: Partial<Subscription> | null = null;
@@ -98,6 +100,26 @@ describe('ModelImportButton', () => {
     fireEvent.click(within(popup).getByRole('button', { name: MODEL_TERMS.add }));
     const state = useProjectStore.getState();
     expect(state.items[state.selectedItemId!]).toMatchObject({ kind: 'model', scale: 50 });
+  });
+
+  it('brings the added model into view, zoomed in to the 100 m a small one starts at', async () => {
+    subscription = { tier: 'wanderer', status: 'active' };
+    const easeTo = vi.fn();
+    const map = {
+      getCenter: () => ({ lng: 2.35, lat: 48.85 }),
+      getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+      getZoom: () => 4,
+      easeTo,
+    };
+    const mapRef = { current: { getMap: () => map } } as unknown as React.MutableRefObject<MapRef | null>;
+    render(<MapRefContext.Provider value={mapRef}><ModelImportButton /></MapRefContext.Provider>);
+    openPopup();
+    fireEvent.change(fileInput(), { target: { files: [new File([makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [1, 4, 1] })], 'Bike.glb')] } });
+    const popup = await placeStep();
+    fireEvent.click(within(popup).getByRole('button', { name: MODEL_TERMS.add }));
+    expect(easeTo).toHaveBeenCalledTimes(1);
+    expect(easeTo.mock.calls[0][0].center).toEqual([2.35, 48.85]);
+    expect(easeTo.mock.calls[0][0].zoom).toBeGreaterThan(15);
   });
 
   it('steps aside while a point is picked on the map, and adds the model there', async () => {

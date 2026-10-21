@@ -116,6 +116,37 @@ export function framePoint(map: MapboxMap, point: FramePoint, layout: FrameLayou
   return true;
 }
 
+/** Earth's circumference at the equator in metres, as mapbox measures it. */
+const EARTH_CIRCUMFERENCE_M = 2 * Math.PI * 6378137;
+/** Share of the free area's shorter side a framed 3D model takes. */
+const MODEL_FRAME_SHARE = 0.35;
+/** Closest a framed 3D model brings the map, short of mapbox's limit. */
+const MODEL_MAX_ZOOM = 20;
+
+/** The zoom at which `meters` cover `pixels` on screen at latitude `lat` (mapbox's 512 px tiles). */
+export function zoomForMeters(meters: number, pixels: number, lat: number): number {
+  return Math.log2((EARTH_CIRCUMFERENCE_M * Math.cos((lat * Math.PI) / 180) * pixels) / (512 * meters));
+}
+
+/**
+ * Eases the map to a 3D model standing at `point`, zoomed so its size (`sizeM`, metres as drawn)
+ * takes about a third of the free area: in for a small model, out for a big one.
+ */
+export function frameModel(map: MapboxMap, point: FramePoint, sizeM: number, layout: FrameLayout): boolean {
+  if (!canMoveCamera() || !(sizeM > 0)) return false;
+  const padding = currentPadding(map, layout);
+  const { width, height } = map.getContainer().getBoundingClientRect();
+  const free = Math.max(1, Math.min(width - padding.left - padding.right, height - padding.top - padding.bottom));
+  const zoom = zoomForMeters(sizeM, free * MODEL_FRAME_SHARE, point[1]);
+  map.easeTo({
+    center: point,
+    zoom: Math.min(MODEL_MAX_ZOOM, Math.max(0, zoom)),
+    offset: [(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2],
+    duration: frameDuration(),
+  });
+  return true;
+}
+
 /** Frames any GeoJSON: a lone point eases, everything else fits. False if there is nothing to frame. */
 export function frameGeometry(map: MapboxMap, geojson: GeoJSON.GeoJSON, layout: FrameLayout, options: FrameOptions = {}): boolean {
   const bounds = geojsonBounds(geojson);

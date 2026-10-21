@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useMapRef } from '@/hooks/useMapRef';
 import { useResponsive } from '@/hooks/useResponsive';
-import { frameGeometry, framePoint, type FramePoint } from '@/engine/mapFraming';
+import { frameGeometry, frameModel, framePoint, type FramePoint } from '@/engine/mapFraming';
 
 /**
  * Moves the map to show something that was just added or changed, clear of the
@@ -22,6 +22,10 @@ export function useFrameOnMap() {
       framePoint: (point: FramePoint) => {
         const map = mapRef.current?.getMap?.();
         if (map) framePoint(map, point, layout);
+      },
+      frameModel: (point: FramePoint, sizeM: number) => {
+        const map = mapRef.current?.getMap?.();
+        if (map) frameModel(map, point, sizeM, layout);
       },
     };
   }, [mapRef, isMobile, isTablet]);

@@ -3,7 +3,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP } from '@/constants/layout';
 import { useProjectStore } from '@/store/useProjectStore';
 import { beginGesture, endGesture } from '@/store/history';
-import { canMoveCamera, frameBox, moveToCamera, frameGeometry, framePadding, framePoint, withMinimumSpan } from './mapFraming';
+import { canMoveCamera, frameBox, moveToCamera, frameGeometry, frameModel, framePadding, framePoint, withMinimumSpan, zoomForMeters } from './mapFraming';
 
 const desktop = { isMobile: false, isTablet: false };
 
@@ -84,6 +84,34 @@ describe('frameBox', () => {
     useProjectStore.setState({ isPlaying: true });
     expect(frameBox(api, [0, 0, 10, 10], desktop)).toBe(false);
     expect(map.fitBounds).not.toHaveBeenCalled();
+  });
+});
+
+describe('frameModel', () => {
+  it('measures zoom from metres on screen, a level per halving', () => {
+    // At zoom 0 the 512 px world is one equator wide.
+    expect(zoomForMeters(2 * Math.PI * 6378137, 512, 0)).toBeCloseTo(0);
+    expect(zoomForMeters(100, 200, 45) - zoomForMeters(200, 200, 45)).toBeCloseTo(1);
+  });
+
+  it('zooms in on a small model and out for a big one, centred in the free area', () => {
+    const { map, api } = fakeMap({ zoom: 3 });
+    expect(frameModel(api, [2.35, 48.85], 100, desktop)).toBe(true);
+    const near = map.easeTo.mock.calls[0][0];
+    expect(near.center).toEqual([2.35, 48.85]);
+    expect(near.zoom).toBeGreaterThan(15);
+    expect(near.zoom).toBeLessThan(18);
+    frameModel(api, [2.35, 48.85], 5000, desktop);
+    expect(map.easeTo.mock.calls[1][0].zoom).toBeCloseTo(near.zoom - Math.log2(50));
+  });
+
+  it('stays below the closest zoom for a tiny model, and leaves the camera alone while playing', () => {
+    const { map, api } = fakeMap();
+    frameModel(api, [0, 0], 0.01, desktop);
+    expect(map.easeTo.mock.calls[0][0].zoom).toBe(20);
+    useProjectStore.setState({ isPlaying: true });
+    expect(frameModel(api, [0, 0], 100, desktop)).toBe(false);
+    expect(map.easeTo).toHaveBeenCalledTimes(1);
   });
 });
 
