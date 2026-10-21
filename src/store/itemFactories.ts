@@ -347,9 +347,11 @@ export interface ModelItemInput {
   name: string;
   position: [number, number];
   startTime: number;
+  /** Multiplier on the model's own size; 1 when left out. */
+  scale?: number;
 }
 
-/** A 3D model placed on the map, standing on the ground at its own size and facing north. */
+/** A 3D model placed on the map, standing on the ground and facing north, at its own size unless `scale` says otherwise. */
 export function createModelItem(input: ModelItemInput): ModelItem {
   return {
     kind: 'model',
@@ -361,7 +363,7 @@ export function createModelItem(input: ModelItemInput): ModelItem {
     heading: 0,
     pitch: 0,
     roll: 0,
-    scale: 1,
+    scale: input.scale ?? 1,
     startTime: input.startTime,
     endTime: input.startTime + DEFAULT_ITEM_DURATION,
     transition: { ...DEFAULT_MODEL_TRANSITION },

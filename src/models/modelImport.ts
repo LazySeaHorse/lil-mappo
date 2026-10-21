@@ -2,7 +2,9 @@ import { nanoid } from 'nanoid';
 import { useProjectStore } from '@/store/useProjectStore';
 import { createModelItem } from '@/store/itemFactories';
 import type { ModelAsset, ModelItem } from '@/store/types';
+import { clampVehicleScale } from '@/config/vehicles';
 import { readModelFile, type ReadModel } from './glb';
+import { modelExtent, type ModelBounds } from './modelGeometry';
 import { registerModelBytes } from './modelRegistry';
 
 /** The name a model goes by on the timeline: its file name without `.glb`. */
@@ -44,9 +46,28 @@ export async function readModelAsset(file: File, sourceUrl?: string): Promise<Mo
   return asset;
 }
 
-/** Places a model the project already holds on the map as a new model item (one undo step). */
-export function placeModel(asset: ModelAsset, place: { position: [number, number]; startTime: number }): ModelItem {
-  const item = createModelItem({ assetId: asset.id, name: modelNameFromFile(asset.fileName), ...place });
+/** Height a model under it starts at when placed, so a small one is not a speck on the map. */
+export const MIN_START_HEIGHT_M = 100;
+
+/**
+ * The size a newly placed model starts at: its own (1x), or for one under 100 m tall the multiplier
+ * that makes it 100 m (a 2 m drone starts at 50x). 1x keeps meaning the size it was made at.
+ */
+export function startingModelScale(bounds: ModelBounds): number {
+  const { heightM } = modelExtent(bounds);
+  if (!(heightM > 0) || heightM >= MIN_START_HEIGHT_M) return 1;
+  return clampVehicleScale('custom', MIN_START_HEIGHT_M / heightM);
+}
+
+/**
+ * Places a model the project already holds on the map as a new model item (one undo step), at
+ * `scale`, or the starting size when left out.
+ */
+export function placeModel(
+  asset: ModelAsset,
+  { scale = startingModelScale(asset.bounds), ...place }: { position: [number, number]; startTime: number; scale?: number },
+): ModelItem {
+  const item = createModelItem({ assetId: asset.id, name: modelNameFromFile(asset.fileName), scale, ...place });
   useProjectStore.getState().addModel(asset, item);
   return item;
 }

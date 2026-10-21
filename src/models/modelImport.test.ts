@@ -4,7 +4,7 @@ import { createProject } from '@/store/projectDocument';
 import { clearHistory, undo } from '@/store/history';
 import type { ModelItem } from '@/store/types';
 import { makeGlb } from './testGlb';
-import { acceptRelink, importModel, readModelAsset, relinkModel } from './modelImport';
+import { acceptRelink, importModel, placeModel, readModelAsset, relinkModel, startingModelScale } from './modelImport';
 import { clearModelRegistry, getLoadedModel, isModelReady, useModelRegistry } from './modelRegistry';
 import { installModelRetention, modelHashesInUse } from './modelRetention';
 import { ModelFileError, sha256Hex } from './glb';
@@ -72,6 +72,25 @@ describe('importing a model', () => {
     await expect(importModel(new File(['not a glb at all, just text'], 'tower.glb'), { position: [0, 0], startTime: 0 })).rejects.toBeInstanceOf(ModelFileError);
     expect(useProjectStore.getState().models).toEqual({});
     expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('starts a model under 100 m tall at the size that makes it 100 m, and a taller one at its own size', async () => {
+    // glTF is y up: the height is the middle number.
+    const drone = await importModel(glbFile('drone.glb', [1, 2, 1]), { position: [0, 0], startTime: 0 });
+    expect(drone.scale).toBe(50);
+    const tower = await importModel(glbFile('tower.glb', [10, 300, 10]), { position: [0, 0], startTime: 0 });
+    expect(tower.scale).toBe(1);
+  });
+
+  it('places a model at the size it is given', async () => {
+    const asset = await readModelAsset(glbFile('drone.glb', [1, 2, 1]));
+    expect(placeModel(asset, { position: [0, 0], startTime: 0, scale: 3 }).scale).toBe(3);
+  });
+
+  it('keeps the starting size within the size range, and leaves a flat model at its own size', () => {
+    expect(startingModelScale({ min: [0, 0, 0], max: [1, 0.001, 1] })).toBe(10000);
+    expect(startingModelScale({ min: [0, 0, 0], max: [5, 0, 5] })).toBe(1);
+    expect(startingModelScale({ min: [0, -40, 0], max: [1, 60, 1] })).toBe(1);
   });
 
   it('reads a model for a route marker without placing it', async () => {
