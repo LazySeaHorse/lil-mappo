@@ -75,6 +75,16 @@ describe('fetchModelFile', () => {
     expect((await failure('https://nowhere.test/a.glb')).code).toBe('unreachable');
   });
 
+  it("blames the page's own security policy, not the host, when the browser reports a policy violation", async () => {
+    fetchMock.mockImplementation(() => {
+      document.dispatchEvent(new Event('securitypolicyviolation'));
+      return Promise.reject(new TypeError('Failed to fetch'));
+    });
+    const error = await failure('https://blocked.test/a.glb');
+    expect(error.code).toBe('blocked');
+    expect(error.message).not.toContain('Check the link');
+  });
+
   it('reports an error answer from the host', async () => {
     fetchMock.mockResolvedValue(reply('nope', { status: 404 }));
     const error = await failure('https://cdn.test/a.glb');

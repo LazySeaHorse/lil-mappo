@@ -94,10 +94,18 @@ async function readLimited(response: Response): Promise<ArrayBuffer> {
 export async function fetchModelFile(address: string): Promise<File> {
   const url = parseWebAddress(address);
   let response: Response;
+  // A page policy that refuses the address fires this event; the failed fetch itself looks like any network error.
+  let blockedByPolicy = false;
+  const onViolation = () => {
+    blockedByPolicy = true;
+  };
+  globalThis.document?.addEventListener('securitypolicyviolation', onViolation);
   try {
     response = await fetch(url.href);
   } catch {
-    throw await explainFailedFetch(url.href);
+    throw blockedByPolicy ? fail('blocked') : await explainFailedFetch(url.href);
+  } finally {
+    globalThis.document?.removeEventListener('securitypolicyviolation', onViolation);
   }
   if (!response.ok) {
     void response.body?.cancel();

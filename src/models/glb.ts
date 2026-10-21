@@ -17,7 +17,7 @@ export const MAX_MODEL_PRIMITIVES = 1_000_000;
 export type ModelFileErrorCode =
   | 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex' | 'extent'
   /** Models loaded from a web address: not a usable address, blocked by its host, unreachable, an error answer, or not a .glb. */
-  | 'url' | 'cors' | 'unreachable' | 'http' | 'notglb';
+  | 'url' | 'cors' | 'blocked' | 'unreachable' | 'http' | 'notglb';
 
 /** A model file that cannot be used; `message` is short and safe to show to the user. */
 export class ModelFileError extends Error {
@@ -38,6 +38,7 @@ export const MODEL_FILE_MESSAGES: Record<ModelFileErrorCode, string> = {
   extent: 'This model is over 1,000 km across. Export it in metres (or scale it down), then import it again.',
   url: 'That is not a web address. Use one that starts with https://.',
   cors: "That host doesn't allow loading from other sites. Download the file and upload it instead.",
+  blocked: 'This site blocked loading from that address. Download the file and upload it instead.',
   unreachable: 'Could not reach that address. Check the link and your connection.',
   http: 'That address answered with an error.',
   notglb: 'That address is not a .glb file.',
