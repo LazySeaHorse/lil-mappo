@@ -6,6 +6,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { frameDuration } from '@/engine/mapFraming';
 import { fitCard, fitFrame, fitView, moveToFitView } from '@/engine/viewFit';
 import { NO_FIT_VIEW, setViewFit } from '@/engine/viewOffset';
+import { visibleTimelineHeight } from '@/constants/layout';
 
 /** The panels' corner radius (rounded-2xl). */
 const CARD_RADIUS = 16;
@@ -23,7 +24,12 @@ export function FitModeLayer({ mapReady }: { mapReady: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const { isFitMode, hideUI, resolution, timelineHeight } = useProjectStore(
-    useShallow((s) => ({ isFitMode: s.isFitMode, hideUI: s.hideUI, resolution: s.resolution, timelineHeight: s.timelineHeight })),
+    useShallow((s) => ({
+      isFitMode: s.isFitMode,
+      hideUI: s.hideUI,
+      resolution: s.resolution,
+      timelineHeight: visibleTimelineHeight(s.timelineHeight, s.itemOrder.length),
+    })),
   );
   const { isMobile, isTablet, isToolbarCollapsed } = useResponsive();
   // Phones and the narrow layouts have no Fit button, and zen mode hides the panels the frame sits between.
