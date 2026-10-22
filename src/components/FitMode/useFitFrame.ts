@@ -19,6 +19,14 @@ export interface FitFrameState {
   mapHeight: number;
 }
 
+/**
+ * Whether fit mode is on. Phones and the narrow layouts have no Fit button, and zen mode hides the
+ * panels the frame sits between, so either turns it off. Shared by the frame and the app's theme.
+ */
+export function isFitModeOn(isFitMode: boolean, hideUI: boolean, isToolbarCollapsed: boolean): boolean {
+  return isFitMode && !hideUI && !isToolbarCollapsed;
+}
+
 export const FULL_SCREEN: Readonly<FitFrameState> = { active: false, frame: null, scale: 1, mapWidth: 0, mapHeight: 0 };
 
 /**
@@ -77,8 +85,7 @@ export function useFitFrame(ref: RefObject<HTMLElement | null>): FitFrameState {
     return () => observer.disconnect();
   }, [ref]);
 
-  // Phones and the narrow layouts have no Fit button, and zen mode hides the panels the frame sits between.
-  const on = isFitMode && !hideUI && !isToolbarCollapsed;
+  const on = isFitModeOn(isFitMode, hideUI, isToolbarCollapsed);
   const aspect = resolution[0] / resolution[1];
   return useMemo(
     () => fitFrameState(on, size, aspect, { isMobile, isTablet }, timelineHeight),

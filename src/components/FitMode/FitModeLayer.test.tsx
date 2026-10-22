@@ -3,13 +3,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
 import { fitFrame } from '@/engine/viewFit';
 import { FitModeMap } from './FitModeMap';
-import { fitFrameState, fitMapStyle, FULL_SCREEN } from './useFitFrame';
+import { fitFrameState, fitMapStyle, FULL_SCREEN, isFitModeOn } from './useFitFrame';
 
 const desktop = { isMobile: false, isTablet: false };
 const editor = { width: 1600, height: 900 };
 
 beforeEach(() => {
   useProjectStore.setState({ isFitMode: false, hideUI: false, timelineHeight: 200, isCapturingViewport: false, resolution: [1920, 1080] });
+});
+
+describe('isFitModeOn', () => {
+  it('is on only with fit mode chosen, the UI shown and the full toolbar', () => {
+    expect(isFitModeOn(true, false, false)).toBe(true);
+    expect(isFitModeOn(false, false, false)).toBe(false);
+    // Hide UI and the narrow layouts turn it off, so the theme goes back to the map style's.
+    expect(isFitModeOn(true, true, false)).toBe(false);
+    expect(isFitModeOn(true, false, true)).toBe(false);
+  });
 });
 
 describe('fitFrameState', () => {

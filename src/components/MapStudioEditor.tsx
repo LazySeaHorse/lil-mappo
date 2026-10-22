@@ -34,6 +34,7 @@ import { AccountModals } from "@/components/Account/AccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
 import { FitModeMap } from "@/components/FitMode/FitModeMap";
+import { isFitModeOn } from "@/components/FitMode/useFitFrame";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
@@ -165,10 +166,13 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   const setHideUI = useProjectStore((s) => s.setHideUI);
   const isPlaying = useProjectStore((s) => s.isPlaying);
   const setIsPlaying = useProjectStore((s) => s.setIsPlaying);
+  const isFitMode = useProjectStore((s) => s.isFitMode);
+  const fitOn = isFitModeOn(isFitMode, hideUI, isToolbarCollapsed);
+  // Dark theme with a dark map style, and always in fit mode, whose frame sits on black.
   useEffect(() => {
-    const isDark = isDarkMapStyle(mapStyle, lightPreset);
+    const isDark = fitOn || isDarkMapStyle(mapStyle, lightPreset);
     document.documentElement.classList.toggle("dark", isDark);
-  }, [mapStyle, lightPreset]);
+  }, [fitOn, mapStyle, lightPreset]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("hide-ui-active", hideUI);
