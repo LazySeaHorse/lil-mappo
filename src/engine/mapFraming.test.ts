@@ -79,6 +79,12 @@ describe('frameBox', () => {
     }));
   });
 
+  it('does not leave the panel padding on the camera', () => {
+    const { map, api } = fakeMap();
+    frameBox(api, [0, 0, 10, 10], desktop);
+    expect(map.fitBounds.mock.calls[0][1]).toMatchObject({ retainPadding: false });
+  });
+
   it('does not move while playing', () => {
     const { map, api } = fakeMap();
     useProjectStore.setState({ isPlaying: true });

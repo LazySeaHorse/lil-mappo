@@ -89,6 +89,8 @@ export function frameBox(map: MapboxMap, box: FrameBox, layout: FrameLayout, opt
   const [w, s, e, n] = withMinimumSpan(box);
   map.fitBounds([[w, s], [e, n]], {
     padding: currentPadding(map, layout),
+    // The padding only places the fit; kept on the camera it would shift every later view.
+    retainPadding: false,
     maxZoom: options.maxZoom ?? DEFAULT_MAX_ZOOM,
     duration: frameDuration(),
   });
