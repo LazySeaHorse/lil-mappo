@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { MapRefContext } from '@/hooks/useMapRef';
@@ -104,6 +104,8 @@ describe('FitModeLayer', () => {
     expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(16 / 9);
     expect(frame.style.boxShadow).toContain('rgba(0, 0, 0, 0.32)');
     expect(screen.getByTestId('fit-reticle')).toBeInTheDocument();
+    const marks = within(frame).getByTestId('system-overlays');
+    expect([...marks.querySelectorAll('[data-overlay]')].map((el) => el.getAttribute('data-overlay'))).toEqual(['mapbox-logo', 'attribution']);
     expect(map.easeTo).toHaveBeenCalledTimes(1);
     expect(map.easeTo.mock.calls[0][0].zoom).toBeLessThan(10);
 

@@ -7,18 +7,22 @@ import { frameDuration } from '@/engine/mapFraming';
 import { fitCard, fitFrame, fitView, moveToFitView } from '@/engine/viewFit';
 import { NO_FIT_VIEW, setViewFit } from '@/engine/viewOffset';
 import { visibleTimelineHeight } from '@/constants/layout';
+import { SystemOverlays, resolveSystemOverlays } from '@/overlays';
 
 /** The panels' corner radius (rounded-2xl). */
 const CARD_RADIUS = 16;
 /** Share of black over the map outside the card, and over the card outside the video frame. */
 const OUTSIDE_DIM = 0.6;
 const CARD_DIM = 0.32;
+/** Mapbox's marks; the frame is still the editor, so the li'l Mappo one stays off even on free. */
+const FIT_OVERLAYS = resolveSystemOverlays({ mode: 'fit', branding: 'free' });
 
 /**
  * Fit mode: a preview of the exported video's frame in the free space between the panels. The
  * map is never resized; it is zoomed out and padded so the full-screen framing sits in the frame
  * (see viewFit). Everything outside the frame is dimmed, and a crosshair marks its centre.
  */
+
 export function FitModeLayer({ mapReady }: { mapReady: boolean }) {
   const mapRef = useMapRef();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -102,6 +106,10 @@ export function FitModeLayer({ mapReady }: { mapReady: boolean }) {
               transition: `box-shadow ${ease}`,
             }}
           >
+            {/* Mapbox's logo and attribution, where the video puts them. */}
+            <div className="absolute inset-0" style={{ opacity: shown ? 1 : 0, transition: `opacity ${ease}` }}>
+              <SystemOverlays layers={FIT_OVERLAYS} />
+            </div>
             <div
               data-testid="fit-reticle"
               className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2"

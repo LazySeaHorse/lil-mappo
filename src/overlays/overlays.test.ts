@@ -4,13 +4,18 @@ import { drawOverlays } from './drawOverlays';
 import { OVERLAY_LAYOUT as L, overlayScale } from './layout';
 import type { OverlayImages } from './assets';
 
-const ids = (mode: 'editor' | 'present' | 'export', branding: 'free' | 'paid') =>
+const ids = (mode: 'editor' | 'fit' | 'present' | 'export', branding: 'free' | 'paid') =>
   resolveSystemOverlays({ mode, branding }).map((l) => l.id);
 
 describe('resolveSystemOverlays', () => {
   it('has no overlays in the editor', () => {
     expect(ids('editor', 'free')).toEqual([]);
     expect(ids('editor', 'paid')).toEqual([]);
+  });
+
+  it('fit: mapbox credit only, without the brand even on free', () => {
+    expect(ids('fit', 'free')).toEqual(['mapbox-logo', 'attribution']);
+    expect(ids('fit', 'paid')).toEqual(['mapbox-logo', 'attribution']);
   });
 
   it.each(['present', 'export'] as const)('%s: mapbox credit for all, brand only for free', (mode) => {
