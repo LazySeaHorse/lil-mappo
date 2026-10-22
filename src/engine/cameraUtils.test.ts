@@ -4,6 +4,7 @@ import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
 import type { CameraItem, CameraKeyframe } from '@/store/types';
 import { applyCamera, hasMapCenter, syncMapToProject } from './cameraUtils';
+import { NO_FIT_VIEW, setViewFit } from './viewOffset';
 
 const keyframe = (time: number, zoom: number): CameraKeyframe => ({
   id: `kf-${time}`,
@@ -31,6 +32,17 @@ describe('syncMapToProject', () => {
     setKeyframes([keyframe(0, 4), keyframe(10, 8)]);
     syncMapToProject(map as unknown as mapboxgl.Map, 5);
     expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ center: [10, 20], zoom: 6 }));
+  });
+
+  it('adds fit mode\'s zoom-out to the camera it shows', () => {
+    setKeyframes([keyframe(0, 4), keyframe(10, 8)]);
+    setViewFit({ offset: -1, padding: NO_FIT_VIEW.padding });
+    try {
+      syncMapToProject(map as unknown as mapboxgl.Map, 5);
+    } finally {
+      setViewFit(NO_FIT_VIEW);
+    }
+    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ center: [10, 20], zoom: 5 }));
   });
 
   it('falls back to the saved map centre without keyframes', () => {

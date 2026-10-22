@@ -3,6 +3,7 @@ import type { TimelineItem } from '@/store/types';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { drawOverlays, type OverlayLayer } from '@/overlays';
 import { useProjectStore } from '@/store/useProjectStore';
+import { getViewOffset, NO_FIT_VIEW, toProjectZoom } from '@/engine/viewOffset';
 
 /**
  * Draws the current map frame (map canvas + callouts + overlays) onto compCtx.
@@ -32,9 +33,10 @@ export function compositeFrame(
 
 /**
  * Temporarily lends the map viewport to a capture operation. Container styles
- * and the exact free-camera state are restored after the operation, including
+ * the exact free-camera state and fit mode's padding are restored after the operation, including
  * when capture fails or is cancelled. Marks the store meanwhile, so the editor's
- * own overlays stay out of the way of the resized map.
+ * own overlays stay out of the way of the resized map. Fit mode's padding is cleared meanwhile:
+ * captures frame the whole map at the zoom full screen shows, with or without fit mode.
  */
 export async function withTemporaryMapViewport<T>(
   map: MapboxMap,
@@ -45,6 +47,7 @@ export async function withTemporaryMapViewport<T>(
   const mapContainer = map.getContainer() as HTMLElement;
   const originalInlineStyles = mapContainer.style.cssText;
   const originalCamera = map.getFreeCameraOptions();
+  const originalPadding = getViewOffset() !== 0 ? map.getPadding() : null;
 
   useProjectStore.setState({ isCapturingViewport: true });
   mapContainer.style.position = 'fixed';
@@ -53,6 +56,7 @@ export async function withTemporaryMapViewport<T>(
   mapContainer.style.left = '0';
   mapContainer.style.top = '0';
   mapContainer.style.zIndex = '-100';
+  if (originalPadding) map.jumpTo({ padding: NO_FIT_VIEW.padding, zoom: toProjectZoom(map.getZoom()) });
   map.resize();
 
   try {
@@ -60,6 +64,7 @@ export async function withTemporaryMapViewport<T>(
   } finally {
     mapContainer.style.cssText = originalInlineStyles;
     map.resize();
+    if (originalPadding) map.jumpTo({ padding: originalPadding });
     map.setFreeCameraOptions(originalCamera);
     useProjectStore.setState({ isCapturingViewport: false });
   }

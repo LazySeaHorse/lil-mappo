@@ -61,6 +61,7 @@ vi.mock('@/engine/cameraUtils', () => ({
 }));
 
 import { useProjectStore } from '@/store/useProjectStore';
+import { NO_FIT_VIEW, setViewFit } from '@/engine/viewOffset';
 import { runExport } from './videoExport';
 
 const encoders: FakeEncoder[] = [];
@@ -165,6 +166,20 @@ describe('runExport', () => {
     expect(mux.outputs[0].finalize).toHaveBeenCalled();
     expect(target.discard).not.toHaveBeenCalled();
     expect(useProjectStore.getState().playheadTime).toBe(0.25);
+  });
+
+  it('is unaffected by fit mode: the zoom offset still comes from the full container width', async () => {
+    const { ref } = installRuntime();
+    setViewFit({ offset: -1, padding: { top: 0, bottom: 100, left: 0, right: 372 } });
+    try {
+      await runExport(ref, options());
+    } finally {
+      setViewFit(NO_FIT_VIEW);
+    }
+    expect(log).toContain('camera:0:1');
+    expect(compositeFrame).toHaveBeenLastCalledWith(
+      expect.anything(), expect.anything(), 1280, 720, expect.anything(), expect.anything(), 1, ['overlay'], 1,
+    );
   });
 
   it('refuses without a map runtime, before starting an encoder', async () => {

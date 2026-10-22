@@ -4,6 +4,7 @@ import { isGestureActive } from '@/store/history';
 import { PANEL_GAP, PANEL_MARGIN, rightReserved } from '@/constants/layout';
 import { geojsonBounds } from '@/engine/geoUtils';
 import type { MapCameraView } from '@/engine/readMapCamera';
+import { getViewOffset, getViewPadding, toProjectZoom, toViewZoom } from '@/engine/viewOffset';
 
 /** [west, south, east, north] */
 export type FrameBox = [number, number, number, number];
@@ -77,10 +78,30 @@ export function frameDuration(): number {
   }
 }
 
+/** Inset that keeps content off the edge of the fit frame, as the panel margin does in full screen. */
+const FIT_INSET = 24;
+
+/**
+ * The free area to frame things in: between the panels, or in fit mode inside the frame, which
+ * is where the map's own padding already puts the centre.
+ */
 function currentPadding(map: MapboxMap, layout: FrameLayout): PaddingOptions {
   const { width, height } = map.getContainer().getBoundingClientRect();
+  if (getViewOffset() !== 0) {
+    const fit = getViewPadding();
+    return { top: fit.top + FIT_INSET, bottom: fit.bottom + FIT_INSET, left: fit.left + FIT_INSET, right: fit.right + FIT_INSET };
+  }
   const { isInspectorOpen, timelineHeight } = useProjectStore.getState();
   return framePadding({ width, height }, layout, { isInspectorOpen, timelineHeight });
+}
+
+/**
+ * The easeTo offset that moves the map's centre to the middle of the free area. The offset is
+ * measured from the padded centre the map already holds, which is the frame's in fit mode.
+ */
+function freeAreaOffset(map: MapboxMap, padding: PaddingOptions): [number, number] {
+  const held = map.getPadding?.() ?? { top: 0, bottom: 0, left: 0, right: 0 };
+  return [(padding.left - padding.right - (held.left - held.right)) / 2, (padding.top - padding.bottom - (held.top - held.bottom)) / 2];
 }
 
 /** Fits the map to a box with room for the panels. Returns false when the camera must not move. */
@@ -110,9 +131,9 @@ export function framePoint(map: MapboxMap, point: FramePoint, layout: FrameLayou
   if (inside) return false;
   map.easeTo({
     center: point,
-    zoom: Math.max(map.getZoom(), options.minPointZoom ?? DEFAULT_MIN_POINT_ZOOM),
+    zoom: toViewZoom(Math.max(toProjectZoom(map.getZoom()), options.minPointZoom ?? DEFAULT_MIN_POINT_ZOOM)),
     // An offset, not `padding`: easeTo keeps padding on the camera, which would shift every later view.
-    offset: [(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2],
+    offset: freeAreaOffset(map, padding),
     duration: frameDuration(),
   });
   return true;
@@ -143,7 +164,7 @@ export function frameModel(map: MapboxMap, point: FramePoint, sizeM: number, lay
   map.easeTo({
     center: point,
     zoom: Math.min(MODEL_MAX_ZOOM, Math.max(0, zoom)),
-    offset: [(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2],
+    offset: freeAreaOffset(map, padding),
     duration: frameDuration(),
   });
   return true;
@@ -160,14 +181,15 @@ export function frameGeometry(map: MapboxMap, geojson: GeoJSON.GeoJSON, layout: 
 
 /**
  * Eases the map to a stored camera view, such as a camera view in the timeline.
- * The view fills the whole map, as it does in the video, so there is no panel offset.
+ * The view fills the whole map, as it does in the video, so there is no panel offset; in fit mode
+ * it fills the frame, which is where the map's padding puts the centre.
  * Returns false when the camera must not move.
  */
 export function moveToCamera(map: MapboxMap, view: MapCameraView): boolean {
   if (!canMoveCamera()) return false;
   map.easeTo({
     center: view.center,
-    zoom: view.zoom,
+    zoom: toViewZoom(view.zoom),
     pitch: view.pitch,
     bearing: view.bearing,
     duration: frameDuration(),

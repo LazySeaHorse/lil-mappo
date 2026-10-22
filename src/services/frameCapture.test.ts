@@ -24,6 +24,7 @@ vi.mock('@/overlays', async (orig) => ({
 import { resolveSystemOverlays } from '@/overlays';
 import { canvasToBlob, stepToTime, withFrameCapturer } from './frameCapture';
 import { useProjectStore } from '@/store/useProjectStore';
+import { NO_FIT_VIEW, setViewFit } from '@/engine/viewOffset';
 
 const fakeMap = {
   getContainer: () => ({ getBoundingClientRect: () => ({ width: 640 }) }),
@@ -51,6 +52,19 @@ describe('withFrameCapturer', () => {
     expect(withTemporaryMapViewport).toHaveBeenCalledWith(fakeMap, 1280, 720, expect.any(Function));
     expect(waitForMapIdle).toHaveBeenCalled();
     expect(compositeFrame).toHaveBeenCalledWith(fakeMap, expect.anything(), 1280, 720, expect.anything(), expect.anything(), 4, overlays, 1);
+  });
+
+  it('reports the full-screen zoom and offset in fit mode, so the capture is unaffected by it', async () => {
+    // The map shows zoom 3 zoomed out by one for the frame: full screen is zoom 4.
+    setViewFit({ offset: -1, padding: NO_FIT_VIEW.padding });
+    try {
+      await withFrameCapturer(fakeMap, { width: 1280, height: 720, overlays }, async (c) => {
+        expect(c.zoomOffset).toBe(1);
+        expect(c.previewZoom).toBe(4);
+      });
+    } finally {
+      setViewFit(NO_FIT_VIEW);
+    }
   });
 
   it('rejects when canvas conversion fails', async () => {

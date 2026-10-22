@@ -2,6 +2,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import { withTemporaryMapViewport } from './mapCapture';
 import { useProjectStore } from '@/store/useProjectStore';
+import { NO_FIT_VIEW, setViewFit } from '@/engine/viewOffset';
 
 function createMapDouble() {
   const container = document.createElement('div');
@@ -60,5 +61,33 @@ describe('withTemporaryMapViewport', () => {
     expect(double.container.style.cssText).toBe(double.originalStyles);
     expect(double.resize).toHaveBeenCalledTimes(2);
     expect(double.setFreeCameraOptions).toHaveBeenCalledWith(double.camera);
+  });
+
+  it('clears fit mode\'s padding and zoom-out while capturing, then puts them back', async () => {
+    const double = createMapDouble();
+    const padding = { top: 0, bottom: 100, left: 0, right: 372 };
+    let zoom = 8;
+    const jumpTo = vi.fn((o: { zoom?: number }) => { if (o.zoom !== undefined) zoom = o.zoom; });
+    Object.assign(double.map, { getPadding: () => padding, getZoom: () => zoom, jumpTo });
+    setViewFit({ offset: -1, padding });
+    try {
+      await withTemporaryMapViewport(double.map, 1280, 720, async () => {
+        expect(jumpTo).toHaveBeenCalledWith({ padding: NO_FIT_VIEW.padding, zoom: 9 });
+        return null;
+      });
+    } finally {
+      setViewFit(NO_FIT_VIEW);
+    }
+    expect(jumpTo).toHaveBeenLastCalledWith({ padding });
+    // The exact camera, zoom included, comes back through the free camera.
+    expect(double.setFreeCameraOptions).toHaveBeenCalledWith(double.camera);
+  });
+
+  it('leaves the padding alone outside fit mode', async () => {
+    const double = createMapDouble();
+    const jumpTo = vi.fn();
+    Object.assign(double.map, { getPadding: () => NO_FIT_VIEW.padding, jumpTo });
+    await withTemporaryMapViewport(double.map, 1280, 720, async () => null);
+    expect(jumpTo).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ import {
 } from './cameraPose';
 import { DEG, METERS_PER_DEGREE } from './geoMath';
 import { isPlacedPoint } from './routeMode';
+import { getViewOffset } from './viewOffset';
 
 type PlainCamera = Exclude<CameraOutput, { type: 'blend' }>;
 
@@ -221,6 +222,6 @@ export function syncMapToProject(map: mapboxgl.Map, time: number): void {
   const { isCameraEnabled, mapCenter } = useProjectStore.getState();
   if (!isCameraEnabled) return;
   const cam = getProjectCameraAt(time);
-  if (cam) applyCamera(map, cam);
+  if (cam) applyCamera(map, cam, getViewOffset());
   else if (hasMapCenter(mapCenter)) map.jumpTo({ center: mapCenter });
 }

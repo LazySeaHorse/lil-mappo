@@ -17,6 +17,7 @@ import { loadCalloutAssets } from '@/annotations/draw';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { isRepaintPending } from '@/components/MapViewport/runtime/mapboxResources';
 import { previewableSelectionId } from '@/engine/selectionPreview';
+import { getViewOffset } from '@/engine/viewOffset';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -142,6 +143,8 @@ export class AnnotationOverlay {
       ? state.itemOrder.filter((id) => id !== state.selectedItemId)
       : state.itemOrder;
     compositeAnnotations(this.map, ctx, state.items, drawn, state.playheadTime, {
+      // Fit mode shows the map zoomed out, so callouts shrink with it, as they do in the video.
+      zoomOffset: getViewOffset(),
       selectedId: previewableSelectionId(state),
     });
   };

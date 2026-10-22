@@ -3,6 +3,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP } from '@/constants/layout';
 import { useProjectStore } from '@/store/useProjectStore';
 import { beginGesture, endGesture } from '@/store/history';
+import { NO_FIT_VIEW, setViewFit } from './viewOffset';
 import { canMoveCamera, frameBox, moveToCamera, frameGeometry, frameModel, framePadding, framePoint, withMinimumSpan, zoomForMeters } from './mapFraming';
 
 const desktop = { isMobile: false, isTablet: false };
@@ -21,7 +22,10 @@ function fakeMap({ width = 1200, height = 800, zoom = 5, projected = { x: 600, y
 beforeEach(() => {
   useProjectStore.setState({ isPlaying: false, isScrubbing: false, isExporting: false, isInspectorOpen: false, timelineHeight: 200 });
 });
-afterEach(() => endGesture());
+afterEach(() => {
+  endGesture();
+  setViewFit(NO_FIT_VIEW);
+});
 
 describe('framePadding', () => {
   it('clears the toolbar on top and the timeline below', () => {
@@ -194,5 +198,32 @@ describe('moveToCamera', () => {
     beginGesture();
     expect(moveToCamera(api, view)).toBe(false);
     expect(map.easeTo).not.toHaveBeenCalled();
+  });
+});
+
+describe('in fit mode', () => {
+  const fit = { offset: -1, padding: { top: 0, bottom: 100, left: 0, right: 372 } };
+
+  it('shows a stored camera view at its zoom plus the offset', () => {
+    setViewFit(fit);
+    const { map, api } = fakeMap();
+    moveToCamera(api, { center: [1, 2], zoom: 10, pitch: 0, bearing: 0 });
+    expect(map.easeTo.mock.calls[0][0]).toMatchObject({ center: [1, 2], zoom: 9 });
+  });
+
+  it('frames inside the frame: the map padding is the free area, so the centre needs no shift', () => {
+    setViewFit(fit);
+    const { map, api } = fakeMap();
+    Object.assign(map, { getPadding: () => fit.padding });
+    frameModel(api, [0, 0], 100, desktop);
+    expect(map.easeTo.mock.calls[0][0].offset).toEqual([0, 0]);
+  });
+
+  it('keeps a point framed at the project minimum zoom, shown with the offset', () => {
+    setViewFit(fit);
+    const { map, api } = fakeMap({ zoom: 3, projected: { x: -50, y: -50 } });
+    framePoint(api, [0, 0], desktop);
+    // Project zoom 3 - (-1) = 4 is below the minimum of 12, so it frames at 12 shown at 11.
+    expect(map.easeTo.mock.calls[0][0].zoom).toBe(11);
   });
 });
