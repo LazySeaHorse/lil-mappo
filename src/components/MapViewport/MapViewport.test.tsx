@@ -1,8 +1,9 @@
-import { render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { CalloutItem } from '@/store/types';
+import type { CalloutItem, RouteItem } from '@/store/types';
 import MapViewport from './MapViewport';
+import { selectionPreviewPillState } from './previewPillState';
 
 const mapGlRenders = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 
@@ -73,5 +74,15 @@ describe('MapViewport', () => {
     onClick({ lngLat: { lng: 7, lat: 8 } });
     if (placed) expect(updateItem).not.toHaveBeenCalled();
     else expect(updateItem).toHaveBeenCalledWith('c1', { binding: { kind: 'geographic', lngLat: [7, 8], altitude: 0 } });
+  });
+
+  it('leaves the selection preview pill to the editor, so fit mode does not scale it with the map', () => {
+    const route = { kind: 'route', id: 'r', name: 'Coast road', startTime: 2, endTime: 6 } as RouteItem;
+    useProjectStore.setState({ duration: 10, items: { r: route }, itemOrder: ['r'] });
+    mountViewport();
+    act(() => useProjectStore.getState().selectItem('r'));
+    // The pill would show for this selection, but not from inside the map's (scaled) wrapper.
+    expect(selectionPreviewPillState(useProjectStore.getState())).not.toBeNull();
+    expect(screen.queryByTestId('selection-preview-pill')).toBeNull();
   });
 });
