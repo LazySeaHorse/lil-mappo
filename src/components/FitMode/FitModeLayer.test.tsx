@@ -81,7 +81,12 @@ describe('FitModeLayer', () => {
   it('shows no scrim or move in full screen', () => {
     const { map, api } = fakeMap();
     renderLayer(api);
-    expect(screen.getByTestId('fit-mode-layer').style.opacity).toBe('0');
+    expect(screen.getByTestId('fit-mode-layer').dataset.active).toBe('false');
+    // Full screen: the card is the whole map, square and with no dim.
+    const card = screen.getByTestId('fit-card');
+    expect(card.style.borderRadius).toMatch(/^0(px)?$/);
+    expect(card.style.width).toBe('1600px');
+    expect(card.style.boxShadow).toContain('rgba(0, 0, 0, 0)');
     expect(map.easeTo).not.toHaveBeenCalled();
   });
 
@@ -90,15 +95,20 @@ describe('FitModeLayer', () => {
     renderLayer(api);
     act(() => useProjectStore.setState({ isFitMode: true }));
     const layer = screen.getByTestId('fit-mode-layer');
-    expect(layer.style.opacity).toBe('1');
+    expect(layer.dataset.active).toBe('true');
+    const card = screen.getByTestId('fit-card');
+    expect(card.style.borderRadius).toBe('16px');
+    expect(card.style.left).toBe('16px');
+    expect(card.style.boxShadow).toContain('rgba(0, 0, 0, 0.6)');
     const frame = screen.getByTestId('fit-frame');
     expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(16 / 9);
+    expect(frame.style.boxShadow).toContain('rgba(0, 0, 0, 0.32)');
     expect(screen.getByTestId('fit-reticle')).toBeInTheDocument();
     expect(map.easeTo).toHaveBeenCalledTimes(1);
     expect(map.easeTo.mock.calls[0][0].zoom).toBeLessThan(10);
 
     act(() => useProjectStore.setState({ hideUI: true }));
-    expect(layer.style.opacity).toBe('0');
+    expect(layer.dataset.active).toBe('false');
     expect(getViewOffset()).toBe(0);
   });
 });

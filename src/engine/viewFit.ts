@@ -11,23 +11,34 @@ export interface FitFrame {
 }
 
 /**
- * The largest rectangle with the video's aspect ratio in the free space between the panels. It is
- * always sized as if the inspector is open, so the frame does not jump when the inspector toggles.
+ * The free area between the panels, as the fit card: the toolbar on top, the timeline below, the
+ * inspector on the right and the screen edge on the left. Always sized as if the inspector is
+ * open, so the card does not jump when the inspector toggles.
  */
+export function fitCard(
+  container: { width: number; height: number },
+  layout: FrameLayout,
+  timelineHeight: number,
+): FitFrame | null {
+  if (!(container.width > 0) || !(container.height > 0)) return null;
+  const pad = framePadding(container, layout, { isInspectorOpen: true, timelineHeight });
+  const width = container.width - pad.left - pad.right;
+  const height = container.height - pad.top - pad.bottom;
+  return width > 0 && height > 0 ? { x: pad.left, y: pad.top, width, height } : null;
+}
+
+/** The largest rectangle with the video's aspect ratio, centred in the card. */
 export function fitFrame(
   container: { width: number; height: number },
   aspect: number,
   layout: FrameLayout,
   timelineHeight: number,
 ): FitFrame | null {
-  if (!(container.width > 0) || !(container.height > 0) || !(aspect > 0) || !Number.isFinite(aspect)) return null;
-  const pad = framePadding(container, layout, { isInspectorOpen: true, timelineHeight });
-  const freeW = container.width - pad.left - pad.right;
-  const freeH = container.height - pad.top - pad.bottom;
-  if (freeW <= 0 || freeH <= 0) return null;
-  const width = Math.min(freeW, freeH * aspect);
+  const card = fitCard(container, layout, timelineHeight);
+  if (!card || !(aspect > 0) || !Number.isFinite(aspect)) return null;
+  const width = Math.min(card.width, card.height * aspect);
   const height = width / aspect;
-  return { x: pad.left + (freeW - width) / 2, y: pad.top + (freeH - height) / 2, width, height };
+  return { x: card.x + (card.width - width) / 2, y: card.y + (card.height - height) / 2, width, height };
 }
 
 /**

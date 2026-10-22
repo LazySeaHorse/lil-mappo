@@ -1,12 +1,29 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP } from '@/constants/layout';
-import { fitFrame, fitView } from './viewFit';
+import { fitCard, fitFrame, fitView } from './viewFit';
 import { getViewOffset, getViewPadding, NO_FIT_VIEW, setViewFit, toProjectZoom, toViewZoom } from './viewOffset';
 
 const desktop = { isMobile: false, isTablet: false };
 const container = { width: 1600, height: 900 };
 
 afterEach(() => setViewFit(NO_FIT_VIEW));
+
+describe('fitCard', () => {
+  it('is the whole free area between the panels, with the inspector reserved', () => {
+    const card = fitCard(container, desktop, 200)!;
+    expect(card.x).toBe(PANEL_MARGIN);
+    expect(card.y).toBe(PANEL_MARGIN + 56 + PANEL_GAP);
+    expect(card.x + card.width).toBe(container.width - RIGHT_RESERVED_DESKTOP);
+    expect(card.y + card.height).toBe(container.height - (200 + PANEL_MARGIN + PANEL_GAP));
+  });
+
+  it('has the same centre as the frame, which is the map centre', () => {
+    const card = fitCard(container, desktop, 200)!;
+    const frame = fitFrame(container, 16 / 9, desktop, 200)!;
+    expect(frame.x + frame.width / 2).toBeCloseTo(card.x + card.width / 2);
+    expect(frame.y + frame.height / 2).toBeCloseTo(card.y + card.height / 2);
+  });
+});
 
 describe('fitFrame', () => {
   it('is the largest rectangle with the video aspect ratio in the space between the panels', () => {
