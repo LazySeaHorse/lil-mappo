@@ -29,6 +29,7 @@ function overlayStateChanged(state: ProjectState, previous: ProjectState): boole
     || state.isMoveModeActive !== previous.isMoveModeActive
     || state.isExporting !== previous.isExporting
     || state.isPlaying !== previous.isPlaying
+    || state.hideUI !== previous.hideUI
     || state.isCapturingViewport !== previous.isCapturingViewport;
 }
 

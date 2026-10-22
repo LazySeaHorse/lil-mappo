@@ -130,7 +130,7 @@ export class MapSceneController implements MapSceneRuntime {
     this.renderScene(time, null);
   };
 
-  /** Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead, except while playing. */
+  /** Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead, except while playing or with the UI hidden. */
   private renderLive(state: ProjectState): void {
     this.renderScene(state.playheadTime, previewableSelectionId(state), state.items);
   }
@@ -276,6 +276,7 @@ export class MapSceneController implements MapSceneRuntime {
       || state.selectedItemId !== previous.selectedItemId
       || state.isExporting !== previous.isExporting
       || state.isPlaying !== previous.isPlaying
+      || state.hideUI !== previous.hideUI
     ) this.renderLive(state);
   };
 }
