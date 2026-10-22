@@ -253,6 +253,7 @@ describe('MapSceneController', () => {
         playheadTime,
         selectedItemId: null,
         isExporting: false,
+        hideUI: false,
       });
       const double = createMapDouble();
       const controller = new MapSceneController(double.map, vi.fn());
@@ -266,6 +267,7 @@ describe('MapSceneController', () => {
           selectedItemId: previous.selectedItemId,
           isExporting: previous.isExporting,
           isPlaying: previous.isPlaying,
+          hideUI: previous.hideUI,
         });
       };
       return { double, controller, restore };
@@ -297,6 +299,22 @@ describe('MapSceneController', () => {
         expect(lastTrim(double)).toEqual([0, 1]);
 
         useProjectStore.getState().setIsPlaying(false);
+        expect(lastTrim(double)).toEqual(FULL);
+      } finally {
+        restore();
+      }
+    });
+
+    it('shows the real animation with the UI hidden, and goes back to the preview when it is shown', () => {
+      const { double, restore } = setup(0);
+      try {
+        useProjectStore.getState().selectItem(route.id);
+        expect(lastTrim(double)).toEqual(FULL);
+
+        useProjectStore.getState().setHideUI(true);
+        expect(lastTrim(double)).toEqual([0, 1]);
+
+        useProjectStore.getState().setHideUI(false);
         expect(lastTrim(double)).toEqual(FULL);
       } finally {
         restore();

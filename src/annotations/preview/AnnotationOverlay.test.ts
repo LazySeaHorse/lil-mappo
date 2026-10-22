@@ -135,6 +135,7 @@ function setStore(callouts: CalloutItem[], extra: Partial<ReturnType<typeof useP
     isMoveModeActive: false,
     isExporting: false,
     isPlaying: false,
+    hideUI: false,
     ...extra,
   });
 }
@@ -329,6 +330,22 @@ describe('AnnotationOverlay', () => {
     fire('render');
     const texts = drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
     expect(texts).toEqual(['Harbour']);
+  });
+
+  it('shows the selected callout as the video does with the UI hidden, and settles it again when shown', () => {
+    setStore([makeCallout()], { playheadTime: 50, selectedItemId: 'c1' });
+    const { ctx } = mount();
+    frames.flush();
+    const texts = () => drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
+    expect(texts()).toEqual(['Harbour']);
+
+    useProjectStore.setState({ hideUI: true });
+    frames.flush();
+    expect(texts()).toEqual([]);
+
+    useProjectStore.setState({ hideUI: false });
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
   });
 
   it('leaves the selected callout to its drag handle in move mode', () => {
