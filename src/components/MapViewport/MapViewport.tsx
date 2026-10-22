@@ -16,7 +16,6 @@ import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
 import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
 import { DraftWalkLayer } from './DraftWalkLayer';
 import { ModelDragHandle } from './ModelDragHandle';
-import { SelectionPreviewPill } from './SelectionPreviewPill';
 import { handleEscapeKey } from './escapeDeselect';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
@@ -185,7 +184,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         <DraftWalkMarkers />
         <ModelDragHandle />
       </MapGL>
-      <SelectionPreviewPill />
     </div>
   );
 }

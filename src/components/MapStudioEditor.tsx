@@ -34,6 +34,7 @@ import { AccountModals } from "@/components/Account/AccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
 import { FitModeMap } from "@/components/FitMode/FitModeMap";
+import { SelectionPreviewPill } from "@/components/MapViewport/SelectionPreviewPill";
 import { isFitModeOn } from "@/components/FitMode/useFitFrame";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
@@ -206,6 +207,10 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
             />
           </MapLoadGate>
         </FitModeMap>
+
+        {/* Outside the map's wrapper, so fit mode's scale leaves it at full size, and before the
+            floating UI so the panels stay above it while Hide UI, which fades them, keeps it. */}
+        {mapLoadGate.ready && !mapLoadGate.blocked && <SelectionPreviewPill />}
 
         {/* Floating UI Layer */}
         <div
