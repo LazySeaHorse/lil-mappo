@@ -17,7 +17,7 @@ import {
 } from './shared';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { track } from '@/lib/analytics';
-import { withMinimumSpan } from '@/engine/mapFraming';
+import { mapContainerSize, withMinimumSpan } from '@/engine/mapFraming';
 
 const KEYFRAME_TIME_EPSILON = 1e-3;
 
@@ -223,8 +223,9 @@ export const frameItems = defineTool({
     const pad = padding ?? 60;
 
     // The export is width-matched to the editor viewport but has the project's
-    // aspect ratio. Extra vertical padding makes the fit valid for that frame.
-    const rect = map.getContainer().getBoundingClientRect();
+    // aspect ratio. Extra vertical padding makes the fit valid for that frame. Fit mode already
+    // shapes the map like the video, so there is none.
+    const rect = mapContainerSize(map);
     const exportHeight = rect.width / (resolution[0] / resolution[1]);
     const extraV = Math.min(Math.max(0, (rect.height - exportHeight) / 2), rect.height * 0.35);
     const cam = map.cameraForBounds(

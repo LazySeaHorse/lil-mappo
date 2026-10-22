@@ -13,7 +13,7 @@ vi.mock('react-secure-storage', () => ({
 const easeTo = vi.fn();
 let projected = { x: 5000, y: 400 };
 const map = {
-  getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+  getContainer: () => ({ clientWidth: 1200, clientHeight: 800, getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
   getZoom: () => 4,
   project: () => projected,
   fitBounds: vi.fn(),

@@ -3,7 +3,6 @@ import type { TimelineItem } from '@/store/types';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { drawOverlays, type OverlayLayer } from '@/overlays';
 import { useProjectStore } from '@/store/useProjectStore';
-import { getViewOffset, NO_FIT_VIEW, toProjectZoom } from '@/engine/viewOffset';
 
 /**
  * Draws the current map frame (map canvas + callouts + overlays) onto compCtx.
@@ -32,11 +31,27 @@ export function compositeFrame(
 }
 
 /**
+ * Clears CSS transforms set on the map's ancestors, such as fit mode's scale, and returns what
+ * puts them back. Under a transform the map would measure its size through that scale, which can
+ * round the canvas a pixel off, and `position: fixed` would follow the transformed element.
+ */
+function clearAncestorTransforms(el: HTMLElement): () => void {
+  const cleared: [HTMLElement, string][] = [];
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (node.style.transform) {
+      cleared.push([node, node.style.transform]);
+      node.style.transform = 'none';
+    }
+  }
+  return () => cleared.forEach(([node, transform]) => { node.style.transform = transform; });
+}
+
+/**
  * Temporarily lends the map viewport to a capture operation. Container styles
- * the exact free-camera state and fit mode's padding are restored after the operation, including
+ * and the exact free-camera state are restored after the operation, including
  * when capture fails or is cancelled. Marks the store meanwhile, so the editor's
- * own overlays stay out of the way of the resized map. Fit mode's padding is cleared meanwhile:
- * captures frame the whole map at the zoom full screen shows, with or without fit mode.
+ * own overlays stay out of the way of the resized map. Fit mode's scale is lifted meanwhile,
+ * so a capture is the same with fit mode on or off.
  */
 export async function withTemporaryMapViewport<T>(
   map: MapboxMap,
@@ -47,24 +62,23 @@ export async function withTemporaryMapViewport<T>(
   const mapContainer = map.getContainer() as HTMLElement;
   const originalInlineStyles = mapContainer.style.cssText;
   const originalCamera = map.getFreeCameraOptions();
-  const originalPadding = getViewOffset() !== 0 ? map.getPadding() : null;
 
   useProjectStore.setState({ isCapturingViewport: true });
+  const restoreTransforms = clearAncestorTransforms(mapContainer);
   mapContainer.style.position = 'fixed';
   mapContainer.style.width = `${width}px`;
   mapContainer.style.height = `${height}px`;
   mapContainer.style.left = '0';
   mapContainer.style.top = '0';
   mapContainer.style.zIndex = '-100';
-  if (originalPadding) map.jumpTo({ padding: NO_FIT_VIEW.padding, zoom: toProjectZoom(map.getZoom()) });
   map.resize();
 
   try {
     return await fn();
   } finally {
     mapContainer.style.cssText = originalInlineStyles;
+    restoreTransforms();
     map.resize();
-    if (originalPadding) map.jumpTo({ padding: originalPadding });
     map.setFreeCameraOptions(originalCamera);
     useProjectStore.setState({ isCapturingViewport: false });
   }

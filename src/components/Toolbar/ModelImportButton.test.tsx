@@ -111,7 +111,7 @@ describe('ModelImportButton', () => {
     const easeTo = vi.fn();
     const map = {
       getCenter: () => ({ lng: 2.35, lat: 48.85 }),
-      getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+      getContainer: () => ({ clientWidth: 1200, clientHeight: 800, getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
       getZoom: () => 4,
       easeTo,
     };

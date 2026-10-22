@@ -18,7 +18,7 @@ function installMap() {
       getMap: () => ({
         fitBounds,
         easeTo,
-        getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+        getContainer: () => ({ clientWidth: 1200, clientHeight: 800, getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
       }),
     },
   } as never);

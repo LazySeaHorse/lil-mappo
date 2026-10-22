@@ -13,7 +13,6 @@ import {
   wrapGeometry,
 } from '@/store/itemFactories';
 import { runAgentTool } from '../runner';
-import { NO_FIT_VIEW, setViewFit } from '@/engine/viewOffset';
 import { historyPast, resetAgentTestState, resultJson } from '../testHelpers';
 
 registerTestStyles();
@@ -180,18 +179,6 @@ describe('update_item', () => {
       await runAgentTool('update_item', { id: callout.id, patch: { altitude: 20 } });
       expect(state().items[callout.id]).toMatchObject({ locationName: 'Old Pier' });
     });
-  });
-
-  it('bases map sizing on the project zoom in fit mode, without its zoom-out', async () => {
-    const { callout } = seed();
-    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 13.5 }) } } as never);
-    setViewFit({ offset: -1, padding: NO_FIT_VIEW.padding });
-    try {
-      await runAgentTool('update_item', { id: callout.id, patch: { sizeMode: 'map' } });
-    } finally {
-      setViewFit(NO_FIT_VIEW);
-    }
-    expect(state().items[callout.id]).toMatchObject({ sizeMode: 'map', referenceZoom: 14.5 });
   });
 
   it('resizes callouts, and bases map sizing on the zoom the user is looking at', async () => {

@@ -33,7 +33,7 @@ import ExportModal from "@/components/ExportModal/ExportModal";
 import { AccountModals } from "@/components/Account/AccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
-import { FitModeLayer } from "@/components/FitMode/FitModeLayer";
+import { FitModeMap } from "@/components/FitMode/FitModeMap";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
@@ -188,7 +188,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         <Sonner style={sonnerStyle as React.CSSProperties} />
         <div className="h-dvh w-screen relative overflow-hidden bg-background">
         {/* Map Background Layer — wrapped in gate to prevent loads over quota */}
-        <div className="absolute inset-0 z-0">
+        <FitModeMap>
           <MapLoadGate gate={mapLoadGate}>
             <MapViewport
               mapRef={mapRef}
@@ -201,9 +201,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
               mapboxToken={mapLoadGate.mapboxToken}
             />
           </MapLoadGate>
-        </div>
-
-        <FitModeLayer mapReady={isMapReady} />
+        </FitModeMap>
 
         {/* Floating UI Layer */}
         <div

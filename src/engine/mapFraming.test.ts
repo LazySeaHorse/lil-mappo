@@ -3,14 +3,14 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP } from '@/constants/layout';
 import { useProjectStore } from '@/store/useProjectStore';
 import { beginGesture, endGesture } from '@/store/history';
-import { NO_FIT_VIEW, setViewFit } from './viewOffset';
 import { canMoveCamera, frameBox, moveToCamera, frameGeometry, frameModel, framePadding, framePoint, withMinimumSpan, zoomForMeters } from './mapFraming';
 
 const desktop = { isMobile: false, isTablet: false };
 
-function fakeMap({ width = 1200, height = 800, zoom = 5, projected = { x: 600, y: 400 } } = {}) {
+/** `scale` is how much smaller the container is shown than its layout size: fit mode's CSS scale. */
+function fakeMap({ width = 1200, height = 800, zoom = 5, projected = { x: 600, y: 400 }, scale = 1 } = {}) {
   const map = {
-    getContainer: () => ({ getBoundingClientRect: () => ({ width, height }) }),
+    getContainer: () => ({ clientWidth: width, clientHeight: height, getBoundingClientRect: () => ({ width: width * scale, height: height * scale }) }),
     getZoom: () => zoom,
     project: vi.fn(() => projected),
     fitBounds: vi.fn(),
@@ -22,10 +22,7 @@ function fakeMap({ width = 1200, height = 800, zoom = 5, projected = { x: 600, y
 beforeEach(() => {
   useProjectStore.setState({ isPlaying: false, isScrubbing: false, isExporting: false, isInspectorOpen: false, timelineHeight: 200 });
 });
-afterEach(() => {
-  endGesture();
-  setViewFit(NO_FIT_VIEW);
-});
+afterEach(() => endGesture());
 
 describe('framePadding', () => {
   it('clears the toolbar on top and the timeline below', () => {
@@ -202,28 +199,26 @@ describe('moveToCamera', () => {
 });
 
 describe('in fit mode', () => {
-  const fit = { offset: -1, padding: { top: 0, bottom: 100, left: 0, right: 372 } };
+  // The container keeps the editor's width, shaped like the video and shown at half size in the frame.
+  const fit = { width: 1600, height: 900, scale: 0.5 };
 
-  it('shows a stored camera view at its zoom plus the offset', () => {
-    setViewFit(fit);
-    const { map, api } = fakeMap();
-    moveToCamera(api, { center: [1, 2], zoom: 10, pitch: 0, bearing: 0 });
-    expect(map.easeTo.mock.calls[0][0]).toMatchObject({ center: [1, 2], zoom: 9 });
+  it('frames in the whole map, which is the video, with a small inset instead of the panels', () => {
+    const { map, api } = fakeMap(fit);
+    frameBox(api, [0, 0, 10, 10], desktop);
+    // 24 screen pixels, which are 48 of the map's own at half size.
+    expect(map.fitBounds.mock.calls[0][1].padding).toEqual({ top: 48, bottom: 48, left: 48, right: 48 });
   });
 
-  it('frames inside the frame: the map padding is the free area, so the centre needs no shift', () => {
-    setViewFit(fit);
-    const { map, api } = fakeMap();
-    Object.assign(map, { getPadding: () => fit.padding });
+  it('centres a model on the map centre, which is the frame centre', () => {
+    const { map, api } = fakeMap(fit);
     frameModel(api, [0, 0], 100, desktop);
     expect(map.easeTo.mock.calls[0][0].offset).toEqual([0, 0]);
   });
 
-  it('keeps a point framed at the project minimum zoom, shown with the offset', () => {
-    setViewFit(fit);
-    const { map, api } = fakeMap({ zoom: 3, projected: { x: -50, y: -50 } });
-    framePoint(api, [0, 0], desktop);
-    // Project zoom 3 - (-1) = 4 is below the minimum of 12, so it frames at 12 shown at 11.
-    expect(map.easeTo.mock.calls[0][0].zoom).toBe(11);
+  it('measures whether a point is in view in the map\'s own pixels, not the scaled ones', () => {
+    // 1000 px across is off the scaled 800 px box but inside the 1600 px map.
+    const { map, api } = fakeMap({ ...fit, projected: { x: 1000, y: 450 } });
+    expect(framePoint(api, [0, 0], desktop)).toBe(false);
+    expect(map.easeTo).not.toHaveBeenCalled();
   });
 });

@@ -7,7 +7,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
 import { useAiPanelStore } from './useAiPanelStore';
-import { toViewZoom } from '@/engine/viewOffset';
 
 /**
  * Deterministic "the AI just did something" feedback, driven only by agent
@@ -108,7 +107,7 @@ function followOnMap(job: VisualJob, layout: FrameLayout): void {
       if (!kf) return;
       map.easeTo({
         center: kf.camera.center as [number, number],
-        zoom: toViewZoom(kf.camera.zoom),
+        zoom: kf.camera.zoom,
         pitch: kf.camera.pitch,
         bearing: kf.camera.bearing,
         duration: frameDuration(),

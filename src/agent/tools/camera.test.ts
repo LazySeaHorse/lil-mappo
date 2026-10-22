@@ -80,7 +80,7 @@ describe('frame_items', () => {
 
   function mockMap(rect = { width: 1000, height: 800 }) {
     const cameraForBounds = vi.fn(() => ({ center: { lng: 10, lat: 20 }, zoom: 6.5, bearing: 0, pitch: 0 }));
-    const map = { cameraForBounds, getContainer: () => ({ getBoundingClientRect: () => rect }) };
+    const map = { cameraForBounds, getContainer: () => ({ clientWidth: rect.width, clientHeight: rect.height }) };
     setAgentMapRef({ current: { getMap: () => map } } as never);
     return cameraForBounds;
   }
@@ -115,6 +115,15 @@ describe('frame_items', () => {
     expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: frame 3 items at 5s' });
     const done = agentEvents.getLog().at(-1)!;
     expect(done.affectedItemIds).toEqual([CAMERA_TRACK_ID, route.id, boundary.id, callout.id]);
+  });
+
+  it('adds no vertical padding when the map already has the video\'s shape, as in fit mode', async () => {
+    const cameraForBounds = mockMap({ width: 1600, height: 900 });
+    const callout = createCalloutItem({ styleId: 'leader-line', content: { title: 'c' }, lngLat: [6, 3], startTime: 0 })!;
+    state().addItem(callout);
+    await runAgentTool('frame_items', { itemIds: [callout.id], time: 5, padding: 50 });
+    const opts = (cameraForBounds.mock.calls[0] as unknown as [unknown, { padding: Record<string, number> }])[1];
+    expect(opts.padding).toMatchObject({ top: 50, bottom: 50, left: 50, right: 50 });
   });
 
   it('replaces a keyframe at the same time and expands single points to a minimum span', async () => {

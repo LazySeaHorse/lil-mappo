@@ -1,116 +1,97 @@
 import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Map as MapboxMap } from 'mapbox-gl';
-import { MapRefContext } from '@/hooks/useMapRef';
 import { useProjectStore } from '@/store/useProjectStore';
-import { getViewOffset, NO_FIT_VIEW, setViewFit } from '@/engine/viewOffset';
-import { moveToFitView } from '@/engine/viewFit';
-import { FitModeLayer } from './FitModeLayer';
+import { fitFrame } from '@/engine/viewFit';
+import { FitModeMap } from './FitModeMap';
+import { fitFrameState, fitMapStyle, FULL_SCREEN } from './useFitFrame';
 
-function fakeMap(zoom = 10) {
-  const map = { getZoom: vi.fn(() => zoom), easeTo: vi.fn() };
-  return { map, api: map as unknown as MapboxMap };
-}
+const desktop = { isMobile: false, isTablet: false };
+const editor = { width: 1600, height: 900 };
 
 beforeEach(() => {
-  useProjectStore.setState({ isPlaying: false, isScrubbing: false, isExporting: false, isFitMode: false, hideUI: false, timelineHeight: 200 });
+  useProjectStore.setState({ isFitMode: false, hideUI: false, timelineHeight: 200, isCapturingViewport: false, resolution: [1920, 1080] });
 });
-afterEach(() => setViewFit(NO_FIT_VIEW));
 
-describe('moveToFitView', () => {
-  const view = { offset: -1, padding: { top: 0, bottom: 100, left: 0, right: 372 } };
-
-  it('eases zoom and padding together into fit mode, and records the offset at once', () => {
-    const { map, api } = fakeMap(10);
-    moveToFitView(api, view);
-    expect(map.easeTo).toHaveBeenCalledTimes(1);
-    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 9, padding: view.padding }));
-    expect(map.easeTo.mock.calls[0][0].duration).toBeGreaterThan(0);
-    expect(getViewOffset()).toBe(-1);
+describe('fitFrameState', () => {
+  it('keeps the map at the editor width, shaped like the video and scaled into the frame', () => {
+    const fit = fitFrameState(true, editor, 9 / 16, desktop, 200);
+    const frame = fitFrame(editor, 9 / 16, desktop, 200)!;
+    expect(fit).toMatchObject({ active: true, frame, mapWidth: 1600, mapHeight: 1600 / (9 / 16) });
+    expect(fit.scale).toBeCloseTo(frame.width / 1600);
+    // Scaled, the map's height is the frame's: the frame shows the whole video.
+    expect(fit.mapHeight * fit.scale).toBeCloseTo(frame.height);
   });
 
-  it('eases back out by the same amount', () => {
-    const { map, api } = fakeMap(10);
-    moveToFitView(api, view);
-    map.getZoom.mockReturnValue(9);
-    moveToFitView(api, NO_FIT_VIEW);
-    expect(map.easeTo.mock.calls[1][0]).toMatchObject({ zoom: 10, padding: NO_FIT_VIEW.padding });
-    expect(getViewOffset()).toBe(0);
-  });
-
-  it('jumps for a change within fit mode, such as a resize, and does nothing for no change', () => {
-    const { map, api } = fakeMap(9);
-    moveToFitView(api, view);
-    map.easeTo.mockClear();
-    moveToFitView(api, view);
-    expect(map.easeTo).not.toHaveBeenCalled();
-    moveToFitView(api, { ...view, offset: -1.2 });
-    expect(map.easeTo.mock.calls[0][0]).toMatchObject({ duration: 0 });
-    expect(map.easeTo.mock.calls[0][0].zoom).toBeCloseTo(8.8);
-  });
-
-  it('does not animate while the project plays', () => {
-    useProjectStore.setState({ isPlaying: true });
-    const { map, api } = fakeMap();
-    moveToFitView(api, view);
-    expect(map.easeTo.mock.calls[0][0].duration).toBe(0);
+  it('is full screen when off, unmeasured or without room', () => {
+    expect(fitFrameState(false, editor, 16 / 9, desktop, 200)).toBe(FULL_SCREEN);
+    expect(fitFrameState(true, null, 16 / 9, desktop, 200)).toBe(FULL_SCREEN);
+    expect(fitFrameState(true, { width: 0, height: 0 }, 16 / 9, desktop, 200)).toBe(FULL_SCREEN);
   });
 });
 
-describe('FitModeLayer', () => {
+describe('fitMapStyle', () => {
+  it('scales the map from its corner into the frame, and lifts the scale for captures', () => {
+    const fit = fitFrameState(true, editor, 16 / 9, desktop, 200);
+    const { frame, scale } = fit;
+    expect(fitMapStyle(fit, false)).toEqual({
+      width: 1600,
+      height: 900,
+      transformOrigin: '0 0',
+      transform: `translate(${frame!.x}px, ${frame!.y}px) scale(${scale})`,
+    });
+    expect(fitMapStyle(fit, true)).toMatchObject({ width: 1600, height: 900, transform: 'none' });
+    expect(fitMapStyle(FULL_SCREEN, false)).toBeUndefined();
+  });
+});
+
+describe('FitModeMap', () => {
   class FakeResizeObserver {
     constructor(private cb: () => void) {}
     observe() { this.cb(); }
     disconnect() {}
   }
 
-  const renderLayer = (map: MapboxMap) => {
+  const renderMap = () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 1600 });
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: 900 });
     window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as never;
-    return render(
-      <MapRefContext.Provider value={{ current: { getMap: () => map } as never }}>
-        <FitModeLayer mapReady />
-      </MapRefContext.Provider>,
-    );
+    return render(<FitModeMap><div data-testid="the-map" /></FitModeMap>);
   };
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it('shows no scrim or move in full screen', () => {
-    const { map, api } = fakeMap();
-    renderLayer(api);
+  it('leaves the map full size, with no frame, in full screen', () => {
+    renderMap();
     expect(screen.getByTestId('fit-mode-layer').dataset.active).toBe('false');
-    // Full screen: the card is the whole map, square and with no dim.
-    const card = screen.getByTestId('fit-card');
-    expect(card.style.borderRadius).toMatch(/^0(px)?$/);
-    expect(card.style.width).toBe('1600px');
-    expect(card.style.boxShadow).toContain('rgba(0, 0, 0, 0)');
-    expect(map.easeTo).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('fit-frame')).toBeNull();
+    expect(screen.getByTestId('fit-map').style.transform).toBe('');
+    expect(screen.getByTestId('map-stage').className).not.toContain('bg-black');
+    expect(within(screen.getByTestId('fit-map')).getByTestId('the-map')).toBeInTheDocument();
   });
 
-  it('shows the frame with a reticle and moves the map when turned on, and undoes it for zen mode', () => {
-    const { map, api } = fakeMap(10);
-    renderLayer(api);
+  it('scales the map into the frame on black, marks the frame, and goes back for zen mode', () => {
+    renderMap();
     act(() => useProjectStore.setState({ isFitMode: true }));
-    const layer = screen.getByTestId('fit-mode-layer');
-    expect(layer.dataset.active).toBe('true');
-    const card = screen.getByTestId('fit-card');
-    expect(card.style.borderRadius).toBe('16px');
-    expect(card.style.left).toBe('16px');
-    expect(card.style.boxShadow).toContain('rgba(0, 0, 0, 0.6)');
+    expect(screen.getByTestId('fit-mode-layer').dataset.active).toBe('true');
+    const wrapper = screen.getByTestId('fit-map');
+    expect(wrapper.style.width).toBe('1600px');
+    expect(wrapper.style.height).toBe('900px');
+    expect(wrapper.style.transform).toMatch(/^translate\(.+\) scale\(0\.\d+\)$/);
+    expect(screen.getByTestId('map-stage').className).toContain('bg-black');
+
     const frame = screen.getByTestId('fit-frame');
     expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(16 / 9);
-    expect(frame.style.boxShadow).toContain('rgba(0, 0, 0, 0.32)');
-    expect(screen.getByTestId('fit-reticle')).toBeInTheDocument();
+    expect(within(frame).getByTestId('fit-reticle')).toBeInTheDocument();
     const marks = within(frame).getByTestId('system-overlays');
     expect([...marks.querySelectorAll('[data-overlay]')].map((el) => el.getAttribute('data-overlay'))).toEqual(['mapbox-logo', 'attribution']);
-    expect(map.easeTo).toHaveBeenCalledTimes(1);
-    expect(map.easeTo.mock.calls[0][0].zoom).toBeLessThan(10);
+
+    act(() => useProjectStore.setState({ isCapturingViewport: true }));
+    expect(wrapper.style.transform).toBe('none');
+    act(() => useProjectStore.setState({ isCapturingViewport: false }));
 
     act(() => useProjectStore.setState({ hideUI: true }));
-    expect(layer.dataset.active).toBe('false');
-    expect(getViewOffset()).toBe(0);
+    expect(screen.getByTestId('fit-mode-layer').dataset.active).toBe('false');
+    expect(wrapper.style.transform).toBe('');
   });
 });

@@ -1,7 +1,7 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyCamera, getProjectCameraAt } from '@/engine/cameraUtils';
-import { toProjectZoom } from '@/engine/viewOffset';
+import { mapContainerSize } from '@/engine/mapFraming';
 import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { preloadOverlayAssets, type OverlayLayer } from '@/overlays';
@@ -47,7 +47,7 @@ export interface FrameCapturer {
    * matches what the user designed at preview size.
    */
   zoomOffset: number;
-  /** Zoom of the map before it was resized (as full screen, with fit mode's zoom-out taken off). */
+  /** Zoom of the map before it was resized. */
   previewZoom: number;
   /**
    * Waits for the map to settle, then composites the map canvas and callouts
@@ -68,9 +68,8 @@ export async function withFrameCapturer<T>(
   run: (capturer: FrameCapturer) => Promise<T>,
 ): Promise<T> {
   await preloadOverlayAssets();
-  const previewWidth = map.getContainer().getBoundingClientRect().width;
-  // The zoom full screen shows, not fit mode's zoomed-out one.
-  const previewZoom = toProjectZoom(map.getZoom());
+  const previewWidth = mapContainerSize(map).width;
+  const previewZoom = map.getZoom();
   const zoomOffset = Math.log2(width / previewWidth);
 
   return withTemporaryMapViewport(map, width, height, () =>

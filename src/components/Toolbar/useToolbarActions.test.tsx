@@ -29,7 +29,7 @@ vi.mock('@/services/fileImport', () => ({
 
 const fitBounds = vi.fn();
 const map = {
-  getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+  getContainer: () => ({ clientWidth: 1200, clientHeight: 800, getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
   getZoom: () => 5,
   getCenter: () => ({ lng: 8.5, lat: 47.3 }),
   getPitch: () => 30,

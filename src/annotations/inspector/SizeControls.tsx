@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { SliderRow, SwitchRow } from '@/components/Inspector/InspectorShared';
 import { useMapRef } from '@/hooks/useMapRef';
 import { DEFAULT_VIEW_ZOOM } from '@/annotations/migration';
-import { toProjectZoom } from '@/engine/viewOffset';
 import type { CalloutItem } from '@/store/types';
 import {
   SIZE_SLIDER_MAX,
@@ -28,10 +27,7 @@ interface SizeControlsProps {
 
 export function SizeControls({ item, onChange }: SizeControlsProps) {
   const mapRef = useMapRef();
-  const currentZoom = () => {
-    const map = mapRef.current?.getMap?.();
-    return map ? toProjectZoom(map.getZoom()) : DEFAULT_VIEW_ZOOM;
-  };
+  const currentZoom = () => mapRef.current?.getMap?.().getZoom() ?? DEFAULT_VIEW_ZOOM;
   const scalesWithMap = item.sizeMode === 'map';
 
   return (
