@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { Input } from '@/components/ui/input';
 import { MapPin } from 'lucide-react';
@@ -11,9 +11,11 @@ import {
 import { SearchFieldActions } from './SearchFieldActions';
 import { PickOnMapButton } from './PickOnMapButton';
 import { pasteListHandler } from './pasteList';
-import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
+import { SEARCH_BARE_INPUT_CLASS, SEARCH_BOX_CLASS, SEARCH_INPUT_CLASS } from './searchFieldStyles';
+import { AddPlacePill } from './PlacePills';
+import { isPlacedPoint } from '@/engine/routeMode';
 import { cn } from '@/lib/utils';
-import { SEARCH_TERMS } from '@/lib/terms';
+import { HUB_SPOKE_TERMS, SEARCH_TERMS } from '@/lib/terms';
 
 interface SearchFieldProps {
   label: string;
@@ -28,10 +30,15 @@ interface SearchFieldProps {
   parseCoordinates?: boolean;
   /** In a list of places: called with pasted text that holds several places. */
   onPasteList?: (text: string) => void;
+  /** Shows a "+" pill in the box once a place is chosen; it makes this field a list of places. */
+  onMakeList?: () => void;
+  /** In a list of places: the pills before the text input. A chosen place becomes a pill, so the text empties. */
+  chips?: ReactNode;
 }
 
 export const SearchField = ({
   label,
+  value,
   name,
   onSelect: onSelectProp,
   isPicking,
@@ -40,10 +47,13 @@ export const SearchField = ({
   placeholder,
   parseCoordinates = false,
   onPasteList,
+  onMakeList,
+  chips,
 }: SearchFieldProps) => {
   // Wrap the prop callback to ensure name is always provided
   const onSelectWithName = (lngLat: [number, number], name?: string) => {
     onSelectProp(lngLat, name || '');
+    if (chips && isPlacedPoint(lngLat)) setQuery('');
   };
 
   const { query, setQuery, suggestions, isOpen, loading, performSearch, handleSelect, handleClose, clear } = useLocationSearch({
@@ -53,6 +63,7 @@ export const SearchField = ({
 
   // The text the user last searched with Enter. The hint under the field is for text not searched yet.
   const [searched, setSearched] = useState('');
+  const showMakeList = !!onMakeList && !chips && !!value && isPlacedPoint(value);
   const showEnterHint = !isPicking && !loading && query.trim() !== '' && query !== name && query !== searched;
 
   // Sync internal query when name prop changes
@@ -86,26 +97,42 @@ export const SearchField = ({
         <PopoverAnchor asChild>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Input
-                placeholder={isPicking ? "Click on map..." : (placeholder || label)}
-                value={isPicking ? "" : query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  // Suggestions will be cleared naturally on the next performSearch
-                }}
-                onPaste={pasteListHandler(onPasteList)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    setSearched(query);
-                    performSearch(query);
-                  }
-                }}
-                disabled={isPicking}
-                className={cn('h-8', SEARCH_INPUT_CLASS, isPicking && 'placeholder:text-primary animate-pulse')}
-              />
+              {(() => {
+                const input = (
+                  <Input
+                    placeholder={isPicking ? "Click on map..." : (placeholder || label)}
+                    value={isPicking ? "" : query}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      // Suggestions will be cleared naturally on the next performSearch
+                    }}
+                    onPaste={pasteListHandler(onPasteList)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setSearched(query);
+                        performSearch(query);
+                      }
+                    }}
+                    disabled={isPicking}
+                    className={cn(
+                      'h-8',
+                      SEARCH_INPUT_CLASS,
+                      chips && SEARCH_BARE_INPUT_CLASS,
+                      showMakeList && 'pr-[4.75rem]',
+                      isPicking && 'placeholder:text-primary animate-pulse',
+                    )}
+                  />
+                );
+                return chips ? (
+                  <div className={SEARCH_BOX_CLASS} data-place-box>{chips}{input}</div>
+                ) : input;
+              })()}
               {!isPicking && (
                 <SearchFieldActions hasText={query !== ''} loading={loading} onClear={clear} />
+              )}
+              {onMakeList && showMakeList && !isPicking && (
+                <AddPlacePill label={HUB_SPOKE_TERMS.addPlaces} onClick={onMakeList} className="absolute right-8 top-1/2 -translate-y-1/2" />
               )}
             </div>
             <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />

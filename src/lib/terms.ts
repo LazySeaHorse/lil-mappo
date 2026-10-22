@@ -92,12 +92,11 @@ export const PLACE_FIELD_TERMS = {
 
 /** Words of the hub and spoke planner: one side of a route becomes a list of places. */
 export const HUB_SPOKE_TERMS = {
-  addPlaces: 'Make this a list of places',
-  addPlace: 'Add place',
-  addFromMap: 'Add from map',
+  addPlaces: 'Add more places',
+  addPlace: 'Add another place',
   removePlace: 'Remove place',
-  starts: 'Starts',
-  ends: 'Ends',
+  starts: 'Starts (one route each)',
+  ends: 'Ends (one route each)',
   notFound: 'No place found. Fix it or remove it.',
   noRoute: 'No route found. Fix it or remove it.',
   timing: 'Timing',

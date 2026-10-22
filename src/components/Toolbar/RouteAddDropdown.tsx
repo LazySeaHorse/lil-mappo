@@ -267,11 +267,11 @@ export const RouteAddDropdown = ({
     );
   };
 
-  /** Turns a side into a list. The place it has now is the first row, and a blank row follows. */
+  /** Turns a side into a list. The place it has now is the first pill; the text box takes the next. */
   const startHub = (side: SpokeSide) => {
     discardPath();
     const [point, name] = side === 'start' ? [start, startName] : [end, endName];
-    setSpokes([{ id: nanoid(), point, name }, emptySpoke(nanoid())]);
+    setSpokes([{ id: nanoid(), point, name }]);
     setHubSide(side);
   };
 
@@ -420,7 +420,7 @@ export const RouteAddDropdown = ({
   const EndpointField = mode === 'flight' ? AirportSearchField : SearchField;
   const fieldCopy = mode === 'flight' ? ENDPOINT_FIELD_COPY.flight : ENDPOINT_FIELD_COPY.car;
 
-  /** A side of the route: its place field with the "+" that makes it a list, or the list itself. */
+  /** A side of the route: its place field, with the "+" pill inside that makes it a list, or the list itself. */
   const renderSide = (side: SpokeSide) => {
     if (hubSide === side) {
       return (
@@ -441,30 +441,15 @@ export const RouteAddDropdown = ({
       : (mode === 'flight' ? PLACE_FIELD_TERMS.arrival : PLACE_FIELD_TERMS.end);
     return (
       <LabelledField label={label}>
-        <div className="flex items-center gap-1">
-          <div className="flex-1 min-w-0">
-            <EndpointField
-              {...(isStart ? fieldCopy.start : fieldCopy.end)}
-              value={isStart ? start : end}
-              name={isStart ? startName : endName}
-              onSelect={isStart ? handleStartChange : handleEndChange}
-              isPicking={isStart ? isPickingStart : isPickingEnd}
-              onStartPick={isStart ? handleTogglePickStart : handleTogglePickEnd}
-            />
-          </div>
-          {hubSide === null && (
-            <IconButton
-              type="button"
-              size="xs"
-              variant="ghost"
-              onClick={() => startHub(side)}
-              title={HUB_SPOKE_TERMS.addPlaces}
-              aria-label={`${HUB_SPOKE_TERMS.addPlaces}: ${label}`}
-            >
-              <Plus size={13} />
-            </IconButton>
-          )}
-        </div>
+        <EndpointField
+          {...(isStart ? fieldCopy.start : fieldCopy.end)}
+          value={isStart ? start : end}
+          name={isStart ? startName : endName}
+          onSelect={isStart ? handleStartChange : handleEndChange}
+          isPicking={isStart ? isPickingStart : isPickingEnd}
+          onStartPick={isStart ? handleTogglePickStart : handleTogglePickEnd}
+          onMakeList={hubSide === null ? () => startHub(side) : undefined}
+        />
       </LabelledField>
     );
   };

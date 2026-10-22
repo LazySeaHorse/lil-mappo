@@ -33,15 +33,17 @@ const pick = (index: number, lngLat: [number, number], name: string) => {
   });
 };
 
-/** Hub London (the Start field) and three spokes on the End side. */
+/** The "+" pill of the n-th field with a place: 0 is the Start field, 1 the End field. */
+const makeList = (index: number) => fireEvent.click(screen.getAllByRole('button', { name: 'Add more places' })[index]);
+
+/** Hub London (the Start field) and three spokes on the End side, each a pill. */
 const fanOut = async () => {
   renderPanel();
   pick(0, [-0.1, 51.5], 'London');
-  fireEvent.click(screen.getByRole('button', { name: /list of places: End/i }));
   pick(1, [2.3, 48.8], 'Paris');
-  pick(2, [13.4, 52.5], 'Berlin');
-  act(() => { fireEvent.click(screen.getByRole('button', { name: 'Add place' })); });
-  pick(3, [12.5, 41.9], 'Rome');
+  makeList(1);
+  pick(1, [13.4, 52.5], 'Berlin');
+  pick(1, [12.5, 41.9], 'Rome');
 };
 
 describe('RouteAddDropdown hub and spoke', () => {
@@ -58,23 +60,45 @@ describe('RouteAddDropdown hub and spoke', () => {
     clearHistory();
   });
 
-  it('turns a side into a list with a plus, and hides the plus of the other side', () => {
+  it('offers the plus pill only on a field with a place, and hides the other one once a list starts', () => {
     renderPanel();
-    expect(screen.getAllByRole('button', { name: /list of places/i })).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: /list of places: End/i }));
+    expect(screen.queryByRole('button', { name: 'Add more places' })).toBeNull();
+    pick(0, [-0.1, 51.5], 'London');
+    pick(1, [2.3, 48.8], 'Paris');
+    expect(screen.getAllByRole('button', { name: 'Add more places' })).toHaveLength(2);
+    makeList(1);
     expect(screen.getByTestId('hub-spoke-list')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /list of places/i })).toBeNull();
-    expect(screen.getAllByRole('button', { name: 'Remove place' })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Add more places' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /^Remove place/ })).toHaveLength(1);
+    expect(screen.getByText('Paris')).toBeInTheDocument();
   });
 
-  it('goes back to the plain planner when the list is down to one row, keeping that place', () => {
+  it('adds a place as a pill and empties the text box', () => {
     renderPanel();
     pick(1, [2.3, 48.8], 'Paris');
-    fireEvent.click(screen.getByRole('button', { name: /list of places: End/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Remove place' })[1]);
+    makeList(0);
+    pick(1, [13.4, 52.5], 'Berlin, Germany');
+    expect(screen.getByText('Berlin')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Add address or coordinates')).toHaveValue('');
+  });
+
+  it('goes back to the plain planner when the list is down to one place, keeping that place', () => {
+    renderPanel();
+    pick(1, [2.3, 48.8], 'Paris');
+    makeList(0);
+    pick(1, [13.4, 52.5], 'Berlin');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove place: Berlin' }));
     expect(screen.queryByTestId('hub-spoke-list')).toBeNull();
     expect(screen.getByPlaceholderText('End location...')).toHaveValue('Paris');
-    expect(screen.getAllByRole('button', { name: /list of places/i })).toHaveLength(2);
+  });
+
+  it('goes back to an empty field when the only pill is removed', () => {
+    renderPanel();
+    pick(1, [2.3, 48.8], 'Paris');
+    makeList(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove place: Paris' }));
+    expect(screen.queryByTestId('hub-spoke-list')).toBeNull();
+    expect(screen.getByPlaceholderText('End location...')).toHaveValue('');
   });
 
   it('creates one route per spoke as one undo step, staggered from the playhead, and selects the first', async () => {
@@ -106,10 +130,10 @@ describe('RouteAddDropdown hub and spoke', () => {
 
   it('converges on the hub when the start side is the list', async () => {
     renderPanel();
-    pick(1, [-0.1, 51.5], 'London');
-    fireEvent.click(screen.getByRole('button', { name: /list of places: Start/i }));
     pick(0, [2.3, 48.8], 'Paris');
-    pick(1, [13.4, 52.5], 'Berlin');
+    pick(1, [-0.1, 51.5], 'London');
+    makeList(0);
+    pick(0, [13.4, 52.5], 'Berlin');
     const create = await screen.findByRole('button', { name: 'Create 2 routes' });
     await waitFor(() => expect(create).toBeEnabled());
     act(() => { fireEvent.click(create); });
@@ -119,45 +143,46 @@ describe('RouteAddDropdown hub and spoke', () => {
   it('shows the timing controls only with two places', () => {
     renderPanel();
     pick(0, [-0.1, 51.5], 'London');
-    fireEvent.click(screen.getByRole('button', { name: /list of places: End/i }));
     pick(1, [2.3, 48.8], 'Paris');
+    makeList(1);
     expect(screen.queryByText('Staggered')).toBeNull();
-    pick(2, [13.4, 52.5], 'Berlin');
+    pick(1, [13.4, 52.5], 'Berlin');
     expect(screen.getByText('Staggered')).toBeInTheDocument();
   });
 
   it('marks a spoke that cannot be routed and still creates the others', async () => {
     renderPanel();
     pick(0, [-0.1, 51.5], 'London');
-    fireEvent.click(screen.getByRole('button', { name: /list of places: End/i }));
+    pick(1, [2.3, 48.8], 'Paris');
     const { getDirections } = await import('@/services/directions');
     vi.mocked(getDirections).mockImplementation(async (start, end) => {
       if (end[0] === 13.4) throw new Error('NoRoute');
       return { geometry: { type: 'LineString', coordinates: [start, end] } } as never;
     });
-    pick(1, [2.3, 48.8], 'Paris');
-    pick(2, [13.4, 52.5], 'Berlin');
+    makeList(1);
+    pick(1, [13.4, 52.5], 'Berlin');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('No route found');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Berlin: No route found');
     const create = await screen.findByRole('button', { name: 'Create 1 route' });
     act(() => { fireEvent.click(create); });
     expect(routes().map((r) => r.name)).toEqual(['London to Paris']);
   });
 
-  it('splits pasted places into rows, resolving airport codes, and says when extras are dropped', async () => {
+  it('splits pasted places into pills, resolving airport codes, and says when extras are dropped', async () => {
     renderPanel();
     fireEvent.click(screen.getByRole('radio', { name: /flight/i }));
     pick(0, [-0.1, 51.5], 'London');
-    fireEvent.click(screen.getByRole('button', { name: /list of places: Arrival/i }));
+    pick(1, [2.3, 48.8], 'Paris Orly');
+    makeList(1);
 
-    const rows = screen.getAllByPlaceholderText(/Airport or city/i);
+    const box = screen.getByPlaceholderText(/^Add airport or city/i);
     const text = ['JFK', 'CDG', 'nowhere-xyz-123', ...Array.from({ length: 20 }, () => 'LHR')].join('\n');
     await act(async () => {
-      fireEvent.paste(rows[1], { clipboardData: { getData: () => text } });
+      fireEvent.paste(box, { clipboardData: { getData: () => text } });
     });
 
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Remove place' })).toHaveLength(20));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Remove place/ })).toHaveLength(20));
     expect(toast.warning).toHaveBeenCalledWith('A list holds 20 places. 4 left out.');
-    expect(screen.getByText('No place found. Fix it or remove it.')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('nowhere-xyz-123: No place found. Fix it or remove it.');
   });
 });
