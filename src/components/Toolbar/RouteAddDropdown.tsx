@@ -450,6 +450,9 @@ export const RouteAddDropdown = ({
           onStartPick={isStart ? handleTogglePickStart : handleTogglePickEnd}
           onMakeList={hubSide === null ? () => startHub(side) : undefined}
         />
+        {isHub && (
+          <p className="mt-1 px-1 text-2xs text-muted-foreground">{HUB_SPOKE_TERMS.hubHint(isStart ? 'start' : 'end')}</p>
+        )}
       </LabelledField>
     );
   };
@@ -497,6 +500,9 @@ export const RouteAddDropdown = ({
           <SectionLabel>{mode === 'flight' ? 'Airport route' : 'Route points'}</SectionLabel>
           {renderSide('start')}
           {renderSide('end')}
+          {isHub && placedCount >= 1 && (
+            <p className="px-1 text-xs font-medium text-foreground/80">{HUB_SPOKE_TERMS.summary(placedCount)}</p>
+          )}
           {isHub && placedCount >= 2 && (
             <SpokeTimingControls timing={timing} gap={gap} onTimingChange={setTiming} onGapChange={setGap} />
           )}

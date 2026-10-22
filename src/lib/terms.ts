@@ -99,13 +99,17 @@ export const HUB_SPOKE_TERMS = {
   ends: 'Ends (one route each)',
   notFound: 'No place found. Fix it or remove it.',
   noRoute: 'No route found. Fix it or remove it.',
-  timing: 'Timing',
-  together: 'Together',
-  sequence: 'One after another',
+  timing: 'When routes play',
+  together: 'All at once',
+  sequence: 'Back to back',
   staggered: 'Staggered',
   gap: 'Gap',
   /** Shown when a paste held more places than a list can take. */
   tooMany: (max: number, dropped: number) => `A list holds ${max} places. ${dropped} left out.`,
+  /** Under the hub: it is shared by every route of the list. */
+  hubHint: (side: 'start' | 'end') => `All routes ${side} here`,
+  /** Above the timing: how many routes the places make. */
+  summary: (count: number) => `${count} ${count === 1 ? 'place' : 'places'} → ${count} ${count === 1 ? 'route' : 'routes'}`,
   createNone: 'Add places to create routes',
   create: (count: number) => `Create ${count} ${count === 1 ? 'route' : 'routes'}`,
   created: (count: number) => `${count} ${count === 1 ? 'route' : 'routes'} added`,

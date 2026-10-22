@@ -121,7 +121,7 @@ describe('RouteAddDropdown hub and spoke', () => {
 
   it('places the routes together or one after another when asked', async () => {
     await fanOut();
-    fireEvent.click(screen.getByRole('radio', { name: 'One after another' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Back to back' }));
     const create = await screen.findByRole('button', { name: 'Create 3 routes' });
     await waitFor(() => expect(create).toBeEnabled());
     act(() => { fireEvent.click(create); });
@@ -148,6 +148,8 @@ describe('RouteAddDropdown hub and spoke', () => {
     expect(screen.queryByText('Staggered')).toBeNull();
     pick(1, [13.4, 52.5], 'Berlin');
     expect(screen.getByText('Staggered')).toBeInTheDocument();
+    expect(screen.getByText('2 places → 2 routes')).toBeInTheDocument();
+    expect(screen.getByText('All routes start here')).toBeInTheDocument();
   });
 
   it('marks a spoke that cannot be routed and still creates the others', async () => {
