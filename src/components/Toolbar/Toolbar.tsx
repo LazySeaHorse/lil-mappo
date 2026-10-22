@@ -50,7 +50,7 @@ export default function Toolbar({
     isPlaying, mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading,
-    setHideUI, isInspectorOpen, isScrubbing,
+    setHideUI, isFitMode, setFitMode, isInspectorOpen, isScrubbing,
   } = useProjectStore(
     useShallow(s => ({
       isPlaying: s.isPlaying, mapStyle: s.mapStyle, setMapStyle: s.setMapStyle,
@@ -58,6 +58,7 @@ export default function Toolbar({
       buildingsEnabled: s.buildingsEnabled, setBuildingsEnabled: s.setBuildingsEnabled,
       terrainLoading: s.terrainLoading,
       setHideUI: s.setHideUI,
+      isFitMode: s.isFitMode, setFitMode: s.setFitMode,
       isInspectorOpen: s.isInspectorOpen, isScrubbing: s.isScrubbing,
     }))
   );
@@ -124,6 +125,8 @@ export default function Toolbar({
           onExport={onExport}
           onImportClick={() => actions.pickRouteFile(routeInputRef.current)}
           onHideUI={() => setHideUI(true)}
+          isFitMode={isFitMode}
+          onToggleFit={() => setFitMode(!isFitMode)}
           onProjectSettings={() => openProjectSettings({ scrollTo: 'map' })}
           renderAvatarMenu={renderAvatarMenu}
           handleAddCameraKF={actions.handleAddCameraKF}

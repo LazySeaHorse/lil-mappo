@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Clapperboard, Video, EyeOff, Mountain, Building2,
+  Clapperboard, Video, EyeOff, Frame, Mountain, Building2,
   Layers2, Settings2, Loader2
 } from 'lucide-react';
 import { Toggle } from '@/components/ui/toggle';
@@ -28,6 +28,8 @@ interface DesktopToolbarLayoutProps {
   onExport: () => void;
   onImportClick: () => void;
   onHideUI: () => void;
+  isFitMode: boolean;
+  onToggleFit: () => void;
   onProjectSettings: () => void;
   renderAvatarMenu: () => React.ReactNode;
   handleAddCameraKF: () => void;
@@ -117,7 +119,7 @@ function DropdownToggle({ icon, label, active, onClick, loading, disabled }: { i
 export function DesktopToolbarLayout({
   isTablet, activeDropdown, setActiveDropdown,
   isPlaying, onExport,
-  onImportClick, onHideUI, onProjectSettings,
+  onImportClick, onHideUI, isFitMode, onToggleFit, onProjectSettings,
   renderAvatarMenu, handleAddCameraKF,
   mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
@@ -161,6 +163,9 @@ export function DesktopToolbarLayout({
       <AiToolbarButton />
       <ToolbarButton icon={<Clapperboard size={16} />} label="Export" hideLabel onClick={onExport} walkthroughTarget="render" />
       <Divider className="hidden sm:block" />
+      <div className="hidden sm:block">
+        <ToolbarToggle icon={<Frame size={16} />} label="Fit to video frame" hideLabel active={isFitMode} onClick={onToggleFit} />
+      </div>
       <div className="hidden sm:block">
         <ToolbarButton icon={<EyeOff size={16} />} label="Hide UI" hideLabel onClick={onHideUI} />
       </div>

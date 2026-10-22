@@ -47,6 +47,7 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
 
   setMoveModeActive: (v) => set({ isMoveModeActive: v }),
   setHideUI: (v) => set({ hideUI: v }),
+  setFitMode: (v) => set({ isFitMode: v }),
   setIsExporting: (v) => set({ isExporting: v }),
   setShowNewProjectModal: (v) => set({ showNewProjectModal: v }),
   setIsInspectorOpen: (v) => set({ isInspectorOpen: v }),

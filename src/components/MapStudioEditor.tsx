@@ -33,6 +33,7 @@ import ExportModal from "@/components/ExportModal/ExportModal";
 import { AccountModals } from "@/components/Account/AccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
+import { FitModeLayer } from "@/components/FitMode/FitModeLayer";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
@@ -201,6 +202,8 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
             />
           </MapLoadGate>
         </div>
+
+        <FitModeLayer mapReady={isMapReady} />
 
         {/* Floating UI Layer */}
         <div

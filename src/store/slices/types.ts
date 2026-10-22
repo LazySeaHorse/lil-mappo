@@ -50,6 +50,8 @@ export interface TransientProjectState {
   // Transient UI modes (not persisted)
   isMoveModeActive: boolean;
   hideUI: boolean;
+  /** Preview of the video's frame inside the free space between the panels. View only, never saved. */
+  isFitMode: boolean;
   isExporting: boolean;
   /** The map is temporarily resized to render a capture (export, snapshot, agent frames). */
   isCapturingViewport: boolean;
@@ -150,6 +152,7 @@ export interface EditorUiSlice {
   setSelectedAutoCamRouteId: (id: string | null) => void;
   setMoveModeActive: (v: boolean) => void;
   setHideUI: (v: boolean) => void;
+  setFitMode: (v: boolean) => void;
   setIsExporting: (v: boolean) => void;
   setShowNewProjectModal: (v: boolean) => void;
   setIsInspectorOpen: (v: boolean) => void;
