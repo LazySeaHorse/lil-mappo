@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CalloutItem, RouteItem } from '@/store/types';
 import MapViewport from './MapViewport';
@@ -14,7 +14,48 @@ vi.mock('react-map-gl/mapbox', () => ({
   },
 }));
 
+vi.mock('./runtime/MapSceneController', () => ({
+  MapSceneController: class {
+    mount() {}
+    dispose() {}
+  },
+}));
+
+vi.mock('@/engine/cameraUtils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/engine/cameraUtils')>()),
+  syncMapToProject: vi.fn(),
+}));
+
 const initialStore = useProjectStore.getState();
+
+/** A ResizeObserver stub whose callbacks the test fires by hand (jsdom has none). */
+class FakeResizeObserver {
+  static instances: FakeResizeObserver[] = [];
+  observed: Element[] = [];
+  disconnected = false;
+  constructor(private callback: ResizeObserverCallback) {
+    FakeResizeObserver.instances.push(this);
+  }
+  observe(el: Element) { this.observed.push(el); }
+  unobserve() {}
+  disconnect() { this.disconnected = true; }
+  fire() { this.callback([], this as unknown as ResizeObserver); }
+}
+
+/** Mounts the viewport with a mocked map and runs the map's onLoad, as react-map-gl would. */
+function mountLoadedViewport() {
+  const container = document.createElement('div');
+  const map = {
+    getContainer: () => container,
+    resize: vi.fn(),
+    triggerRepaint: vi.fn(),
+  };
+  const mapRef = { current: { getMap: () => map } } as unknown as Parameters<typeof MapViewport>[0]['mapRef'];
+  const view = render(<MapViewport mapRef={mapRef} runtimeRef={{ current: null }} mapboxToken="pk.test" />);
+  act(() => (mapGlRenders[0]?.onLoad as () => void)());
+  const observer = FakeResizeObserver.instances.find((o) => o.observed.includes(container));
+  return { view, map, container, observer };
+}
 
 function mountViewport() {
   return render(<MapViewport mapRef={{ current: null }} runtimeRef={{ current: null }} mapboxToken="pk.test" />);
@@ -84,5 +125,35 @@ describe('MapViewport', () => {
     // The pill would show for this selection, but not from inside the map's (scaled) wrapper.
     expect(selectionPreviewPillState(useProjectStore.getState())).not.toBeNull();
     expect(screen.queryByTestId('selection-preview-pill')).toBeNull();
+  });
+
+  describe('map container resizes', () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    beforeEach(() => {
+      FakeResizeObserver.instances = [];
+      globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
+    });
+    afterEach(() => {
+      globalThis.ResizeObserver = originalResizeObserver;
+    });
+
+    // Mapbox only resizes its canvas on window events, so fit mode, orientation and aspect changes
+    // (which resize the container, not the window) left it drawing at its old size.
+    it('resizes and repaints the map when its container changes size', () => {
+      const { map, observer } = mountLoadedViewport();
+      expect(observer).toBeDefined();
+      map.resize.mockClear();
+      map.triggerRepaint.mockClear();
+      observer!.fire();
+      expect(map.resize).toHaveBeenCalledTimes(1);
+      expect(map.triggerRepaint).toHaveBeenCalled();
+    });
+
+    it('stops observing the container when the viewport unmounts', () => {
+      const { view, observer } = mountLoadedViewport();
+      expect(observer).toBeDefined();
+      view.unmount();
+      expect(observer!.disconnected).toBe(true);
+    });
   });
 });
