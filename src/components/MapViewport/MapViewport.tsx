@@ -108,6 +108,23 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     };
   }, [mapReady, mapRef, runtimeRef]);
 
+  // Mapbox only resizes its canvas on window events, so a container size change on its own (fit
+  // mode, project orientation, aspect ratio) would leave it drawing at the old size. resize() reads
+  // the layout size through fit mode's CSS scale and clears the canvas, so a frame is requested.
+  // Viewport capture sizes the map itself and resizes again after restoring it, so skip meanwhile.
+  useEffect(() => {
+    if (!mapReady) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const observer = new ResizeObserver(() => {
+      if (useProjectStore.getState().isCapturingViewport) return;
+      map.resize();
+      map.triggerRepaint();
+    });
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [mapReady, mapRef]);
+
   // Start close to where syncMapToProject will put the map, to avoid a visible jump.
   const initialViewState = useMemo(() => {
     const { playheadTime, mapCenter } = useProjectStore.getState();

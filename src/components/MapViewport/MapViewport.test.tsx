@@ -149,6 +149,18 @@ describe('MapViewport', () => {
       expect(map.triggerRepaint).toHaveBeenCalled();
     });
 
+    it('leaves the map size to viewport capture while it runs, and resizes again once it is over', () => {
+      const { map, observer } = mountLoadedViewport();
+      expect(observer).toBeDefined();
+      map.resize.mockClear();
+      useProjectStore.setState({ isCapturingViewport: true });
+      observer!.fire();
+      expect(map.resize).not.toHaveBeenCalled();
+      useProjectStore.setState({ isCapturingViewport: false });
+      observer!.fire();
+      expect(map.resize).toHaveBeenCalledTimes(1);
+    });
+
     it('stops observing the container when the viewport unmounts', () => {
       const { view, observer } = mountLoadedViewport();
       expect(observer).toBeDefined();
