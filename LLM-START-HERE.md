@@ -335,6 +335,14 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Key Lesson**: Webhook handlers must fail loudly on DB errors so the payment provider retries. Silently succeeding masks data corruption.
 
+### 6.4c New Tables: Grants + RLS + Policies Together (Migration 024)
+
+**Problem**: From 2026-10-30 Supabase no longer grants SELECT/INSERT/UPDATE/DELETE on new `public` tables (or USAGE/SELECT on new sequences) to `anon`, `authenticated` and `service_role` by default. Existing tables keep their grants, but a table created without explicit grants is invisible to the Data API: every call fails with error 42501 (permission denied).
+
+**Solution** (Migration 024): Made the grants explicit for the older tables (`subscriptions`, `credit_balance`, `render_jobs`, `cloud_projects`), with only the privileges the code uses. Migrations 020, 022 and 023 already did this. Tested in `supabase/tests/table_grants.test.sql`.
+
+**Rule**: Every migration that creates a `public` table must include, as one unit: explicit `GRANT`s to each role that uses it (browser → `authenticated`, `api/` → `service_role`, `anon` only for a real signed-out read; plus `USAGE, SELECT` on any sequence a role inserts through), `ENABLE ROW LEVEL SECURITY`, and its policies. Migration 023 (`pro_passes`) is the template.
+
 ### 6.5 Cloud Rendering Pipeline
 
 **⚠️ STATUS: Temporarily disabled in the UI.** The pipeline is fully implemented and functional but produces poor quality output because headless Chromium on Modal falls back to SwiftShader (CPU software rasterizer) instead of using the GPU. GPU acceleration requires NVIDIA's rendering stack (OpenGL/Vulkan ICD) which is not available in Modal's standard CUDA containers. Re-enable once this is resolved.
