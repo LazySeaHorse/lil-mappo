@@ -548,6 +548,8 @@ A one-time $3 Dodo product (`DODO_PRODUCT_PASS_3DAY`) that unlocks every Wandere
 
 **Key Lesson**: SECURITY DEFINER functions must explicitly validate caller identity (don't rely on RLS). Always use advisory locks for critical counters. Fail closed on errors in security-critical paths.
 
+**Rule** (Migration 026): to lock a function down, revoke from `PUBLIC, anon, authenticated` explicitly (`REVOKE ALL ON FUNCTION ... FROM PUBLIC, anon, authenticated`), then grant only the roles that call it. Supabase grants EXECUTE on new `public` functions to `anon` and `authenticated` directly, so `REVOKE ... FROM PUBLIC` alone left `track_map_load(uuid)` and the signup hook `check_email_domain_before_signup(jsonb)` callable with the anon key until 026 revoked them (tested in `supabase/tests/function_grants.test.sql`).
+
 ### 6.12a Map Load Quota: One Database Call (Migration 025)
 
 **Problem**: A signed-in free user's page load went browser → Vercel (`/api/track-map-load`) → four Supabase calls (`auth.getUser`, subscription, Pro pass, `track_map_load`) before the map could load.
