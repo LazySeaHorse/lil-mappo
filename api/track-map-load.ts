@@ -13,6 +13,11 @@ import { isWanderer, loadEntitlement } from "./_lib/entitlement.js";
  * Returns:
  *   { allowed: true,  monthly_total: number, daily_total: number }
  *   { allowed: false, reason: "daily_throttled" | "monthly_exhausted" }
+ *
+ * Kept for the rollout of migration 025: current clients call the
+ * `track_my_map_load` RPC directly and only come here when that function is
+ * missing (PGRST202); cached older builds still call this. Remove once 025 is
+ * applied everywhere and old clients have aged out.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
