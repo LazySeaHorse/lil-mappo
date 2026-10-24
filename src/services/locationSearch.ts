@@ -1,4 +1,9 @@
-import type { SearchBoxSuggestionResponse } from '@mapbox/search-js-core';
+import type {
+  SearchBoxFeatureSuggestion,
+  SearchBoxRetrieveResponse,
+  SearchBoxSuggestion,
+  SearchBoxSuggestionResponse,
+} from '@mapbox/search-js-core';
 
 type LngLat = [number, number];
 /** [west, south, east, north] */
@@ -57,6 +62,33 @@ export async function suggestForView(
     if (inView.suggestions?.length) return inView;
   }
   return session.suggest(term, { proximity: center });
+}
+
+interface RetrieveSession extends SuggestSession {
+  retrieve(suggestion: SearchBoxSuggestion): Promise<Pick<SearchBoxRetrieveResponse, 'features'>>;
+}
+
+/**
+ * The place a suggestion stands for, or null when there is none. A brand
+ * ("Starbucks") is suggested inside the visible bounds even with no store there,
+ * and Mapbox then retrieves nothing. So when a search with bounds retrieves
+ * nothing, this searches the suggestion's name once more without them and takes
+ * the store nearest the center. The brand's id changes between searches, so the
+ * match is by type and name.
+ */
+export async function retrieveForView(
+  session: RetrieveSession,
+  suggestion: SearchBoxSuggestion,
+  { center, bbox }: SearchView,
+): Promise<SearchBoxFeatureSuggestion | null> {
+  const { features } = await session.retrieve(suggestion);
+  if (features[0] || !bbox) return features[0] ?? null;
+  const again = await session.suggest(suggestion.name, { proximity: center });
+  const same = again.suggestions?.find(
+    (s) => s.feature_type === suggestion.feature_type && s.name === suggestion.name,
+  );
+  if (!same) return null;
+  return (await session.retrieve(same)).features[0] ?? null;
 }
 
 /** Nominatim `viewbox` value (left,top,right,bottom) for a search box. */

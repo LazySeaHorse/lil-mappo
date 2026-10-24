@@ -123,6 +123,8 @@ export const SEARCH_TERMS = {
   clear: 'Clear search',
   /** Shows under a Mapbox place field after the user types. Every search costs money, so it starts on Enter only. */
   enterHint: 'Press Enter to search.',
+  /** A chosen result with no place behind it, such as a brand with no stores. */
+  notFound: (name: string) => `No place found for ${name}. Try a more specific search.`,
 } as const;
 
 /** Words of Follow camera in the route panel and in its own panel. */
