@@ -9,6 +9,7 @@ import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useMapPicker } from '@/hooks/useMapPicker';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import type { CalloutItem } from '@/store/types';
 import { MapPin } from 'lucide-react';
 import { SearchField } from '@/components/Search/SearchField';
@@ -70,6 +71,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
     },
   });
 
+  const frame = useFrameOnMap();
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates);
   const updateSettings = (changes: Record<string, unknown>) => {
     u({ settings: { ...item.settings, ...changes } });
@@ -118,7 +120,9 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
             // Clearing the field reports the unset point; a callout always keeps a place.
             if (!isPlacedPoint(coords)) return;
             u(movePatch(item, coords, name));
-            toast.success(CALLOUT_LOCATION_TERMS.updated);
+            // A searched place may be off screen: bring the moved callout into view.
+            const moved = useProjectStore.getState().items[item.id];
+            if (moved?.kind === 'callout') frame.frameCallout(moved);
           }}
           parseCoordinates
           isPicking={isPicking}

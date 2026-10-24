@@ -149,6 +149,39 @@ export function framePoint(map: MapboxMap, point: FramePoint, layout: FrameLayou
   return true;
 }
 
+/** Pixels around a point on the map, relative to where the point shows: [minX, minY] is the top left. */
+export interface PixelBox {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/**
+ * Pans the map, at its zoom, so all of `box` (pixels around `point`, such as a callout drawn
+ * above its ground point) shows in the free area. A box already inside does not move it; a box
+ * larger than the free area is centred in it.
+ */
+export function framePixelBox(map: MapboxMap, point: FramePoint, box: PixelBox, layout: FrameLayout): boolean {
+  if (!canMoveCamera()) return false;
+  const padding = currentPadding(map, layout);
+  const { width, height } = mapContainerSize(map);
+  const { x, y } = map.project(point);
+  const inside = x + box.minX >= padding.left && x + box.maxX <= width - padding.right
+    && y + box.minY >= padding.top && y + box.maxY <= height - padding.bottom;
+  if (inside) return false;
+  // The point goes where the middle of the box lands in the middle of the free area.
+  map.easeTo({
+    center: point,
+    offset: [
+      (padding.left - padding.right) / 2 - (box.minX + box.maxX) / 2,
+      (padding.top - padding.bottom) / 2 - (box.minY + box.maxY) / 2,
+    ],
+    duration: frameDuration(),
+  });
+  return true;
+}
+
 /** Earth's circumference at the equator in metres, as mapbox measures it. */
 const EARTH_CIRCUMFERENCE_M = 2 * Math.PI * 6378137;
 /** Share of the free area's shorter side a framed 3D model takes. */

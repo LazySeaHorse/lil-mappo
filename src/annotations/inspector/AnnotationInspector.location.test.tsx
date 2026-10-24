@@ -13,7 +13,12 @@ vi.mock('./stylePreview', async (importOriginal) => ({
   getStylePreview: vi.fn().mockResolvedValue(null),
 }));
 
-const { suggest, retrieve } = vi.hoisted(() => ({ suggest: vi.fn(), retrieve: vi.fn() }));
+const { suggest, retrieve, frameCallout, toastSuccess } = vi.hoisted(() => ({
+  suggest: vi.fn(), retrieve: vi.fn(), frameCallout: vi.fn(), toastSuccess: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFrameOnMap', () => ({ useFrameOnMap: () => ({ frameCallout }) }));
+vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: toastSuccess, error: vi.fn() }) }));
 
 vi.mock('@mapbox/search-js-core', () => ({
   SearchBoxCore: class {},
@@ -36,6 +41,8 @@ describe('callout location field', () => {
   beforeEach(() => {
     suggest.mockReset();
     retrieve.mockReset();
+    frameCallout.mockReset();
+    toastSuccess.mockReset();
   });
 
   it('shows the place name the callout was created with', () => {
@@ -60,6 +67,28 @@ describe('callout location field', () => {
 
     await waitFor(() => expect(stored().locationName).toBe('Times Square'));
     expect(stored().binding).toMatchObject({ lngLat: [-73.9855, 40.758] });
+  });
+
+  it('brings the moved callout into view after a search, with no toast', async () => {
+    suggest.mockResolvedValue({ suggestions: [{ mapbox_id: 'a', name: 'Times Square' }] });
+    retrieve.mockResolvedValue({ features: [{ geometry: { coordinates: [-73.9855, 40.758] }, properties: { name: 'Times Square' } }] });
+    render(<AnnotationInspector item={setCallout('')} />);
+
+    const input = screen.getByPlaceholderText(LOCATION_FIELD);
+    fireEvent.change(input, { target: { value: 'Times Square' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.click(await screen.findByText('Times Square'));
+
+    await waitFor(() => expect(frameCallout).toHaveBeenCalledTimes(1));
+    expect(frameCallout).toHaveBeenCalledWith(stored());
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('leaves the map alone when the callout is picked on the map, where the user is already looking', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '3.00000, 4.00000' }); });
+    expect(frameCallout).not.toHaveBeenCalled();
   });
 
   it('keeps the place, the height and the exact position in one Location section', async () => {

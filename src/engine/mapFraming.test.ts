@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP } from '@/constants/layout';
+import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP, visibleTimelineHeight } from '@/constants/layout';
 import { useProjectStore } from '@/store/useProjectStore';
 import { beginGesture, endGesture } from '@/store/history';
-import { canMoveCamera, frameBox, moveToCamera, frameGeometry, frameModel, framePadding, framePoint, withMinimumSpan, zoomForMeters } from './mapFraming';
+import { canMoveCamera, frameBox, moveToCamera, frameGeometry, frameModel, framePadding, framePixelBox, framePoint, withMinimumSpan, zoomForMeters } from './mapFraming';
 
 const desktop = { isMobile: false, isTablet: false };
 
@@ -146,6 +146,42 @@ describe('framePoint', () => {
     const { map, api } = fakeMap({ projected: { x: 5000, y: 400 } });
     framePoint(api, [1, 2], desktop);
     expect(map.easeTo.mock.calls[0][0]).not.toHaveProperty('padding');
+  });
+});
+
+describe('framePixelBox', () => {
+  // A callout 100 px wide that stands 200 px tall above its ground point.
+  const callout = { minX: -50, minY: -200, maxX: 50, maxY: 0 };
+
+  it('stays put when all of the box is inside the free area', () => {
+    const { map, api } = fakeMap({ projected: { x: 600, y: 500 } });
+    expect(framePixelBox(api, [1, 2], callout, desktop)).toBe(false);
+    expect(map.easeTo).not.toHaveBeenCalled();
+  });
+
+  it('pans, keeping the zoom, so a box cut off under the toolbar shows in full in the middle of the free area', () => {
+    // The ground point is in view, but the top of the callout is under the toolbar.
+    const { map, api } = fakeMap({ zoom: 7, projected: { x: 600, y: 150 } });
+    expect(framePixelBox(api, [1, 2], callout, desktop)).toBe(true);
+
+    const { timelineHeight, itemOrder } = useProjectStore.getState();
+    const padding = framePadding({ width: 1200, height: 800 }, desktop, {
+      isInspectorOpen: false,
+      timelineHeight: visibleTimelineHeight(timelineHeight, itemOrder.length),
+    });
+    const move = map.easeTo.mock.calls[0][0];
+    expect(move.center).toEqual([1, 2]);
+    expect(move).not.toHaveProperty('zoom');
+    expect(move).not.toHaveProperty('padding');
+    // The box's middle is 100 px above the point, so the point sits 100 px below the free area's middle.
+    expect(move.offset).toEqual([(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2 + 100]);
+  });
+
+  it('does not move while playing', () => {
+    useProjectStore.setState({ isPlaying: true });
+    const { map, api } = fakeMap({ projected: { x: 5000, y: 400 } });
+    expect(framePixelBox(api, [1, 2], callout, desktop)).toBe(false);
+    expect(map.easeTo).not.toHaveBeenCalled();
   });
 });
 

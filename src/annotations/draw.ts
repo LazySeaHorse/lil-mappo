@@ -290,6 +290,16 @@ export function getFrameBounds(frame: AnnotationFrame): FrameBounds {
   };
 }
 
+/**
+ * The pixels a callout covers once fully shown, around its ground point, as the editor
+ * draws it at `viewZoom`. Null when it is not drawn (unplaced, unknown style, or sized
+ * with the map and too small to see).
+ */
+export function settledCalloutBounds(callout: CalloutItem, viewZoom: number): FrameBounds | null {
+  const frame = prepareAnnotationFrame(callout, callout.startTime, { viewZoom, settled: true });
+  return frame ? getFrameBounds(frame) : null;
+}
+
 function applyDash(ctx: CanvasRenderingContext2D, style: ConnectorConfig['style'], pixelScale: number): void {
   if (style === 'dashed') ctx.setLineDash([4 * pixelScale, 2 * pixelScale]);
   else if (style === 'dotted') ctx.setLineDash([2 * pixelScale, 2 * pixelScale]);

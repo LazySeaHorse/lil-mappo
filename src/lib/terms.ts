@@ -214,7 +214,6 @@ export const CALLOUT_LOCATION_TERMS = {
   heightAboveMap: 'Height above map',
   heightHint: 'Lifts the callout above its point on the map.',
   linkTitle: 'Use place name as title',
-  updated: 'Callout location updated.',
 } as const;
 
 /** Words for the length of the whole video. */

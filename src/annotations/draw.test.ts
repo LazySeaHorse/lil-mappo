@@ -7,6 +7,7 @@ import {
   loadAnnotationAssets,
   loadCalloutAssets,
   prepareAnnotationFrame,
+  settledCalloutBounds,
   MAX_ALTITUDE_PX,
 } from './draw';
 import { clearTextWidthCache } from './scene/textMetrics';
@@ -374,6 +375,25 @@ describe('getFrameBounds', () => {
     )!);
     expect(slide.minY).toBeLessThan(auto.minY);
     expect(slide.maxY).toBeGreaterThan(auto.maxY);
+  });
+});
+
+describe('settledCalloutBounds', () => {
+  it('is the box of the fully shown callout, whatever the playhead', () => {
+    // At its start a fading callout is not drawn yet, but its whole box still counts.
+    const callout = makeCallout({ startTime: 3 });
+    expect(settledCalloutBounds(callout, 12)).toEqual(getFrameBounds(prepareAnnotationFrame(callout, 5)!));
+  });
+
+  it('is null for a callout that is not drawn', () => {
+    expect(settledCalloutBounds(makeCallout({ binding: { kind: 'geographic', lngLat: [0, 0], altitude: 0 } }), 12)).toBeNull();
+  });
+
+  it('follows the zoom for a callout sized with the map', () => {
+    const callout = makeCallout({ styleId: TEST_FLAT_STYLE_ID, sizeMode: 'map', referenceZoom: 12 });
+    const near = settledCalloutBounds(callout, 13)!;
+    const far = settledCalloutBounds(callout, 12)!;
+    expect(near.maxX - near.minX).toBeGreaterThan(far.maxX - far.minX);
   });
 });
 
