@@ -286,6 +286,26 @@ export function switchCalloutStyle(item: CalloutItem, newStyleId: string): Parti
   return patch;
 }
 
+/**
+ * The patch that moves a callout to a point. A name says which place it is; no
+ * name (typed or edited coordinates, a pick with no place) clears the old one,
+ * so the stored name never describes another place. A title that follows the
+ * place name follows a real name; with no name it keeps its text and stops
+ * following.
+ */
+export function moveCalloutPatch(item: CalloutItem, lngLat: [number, number], name: string): Partial<CalloutItem> {
+  const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
+  const patch: Partial<CalloutItem> = {
+    binding: { kind: 'geographic', lngLat, altitude },
+    locationName: name,
+  };
+  if (item.linkTitleToLocation) {
+    if (name) patch.content = { ...item.content, title: name };
+    else patch.linkTitleToLocation = false;
+  }
+  return patch;
+}
+
 /** Returns null when the style is not registered. */
 export function createCalloutItem(input: CalloutInput): CalloutItem | null {
   const style = getStyle(input.styleId);

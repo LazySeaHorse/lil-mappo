@@ -345,7 +345,7 @@ export function getWalkthroughStepConfig(
         hideOverlay: true,
         compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Search for a place and choose a result, or click the pin button and then the map. The callout is added there.',
+        renderContent: () => 'Search for a place and choose a result, or click the pin button and then the map. Then click Add callout.',
       };
 
     case 'project-settings':

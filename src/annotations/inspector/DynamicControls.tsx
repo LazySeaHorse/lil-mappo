@@ -16,6 +16,7 @@ import {
 import { Disclosure } from '@/components/Inspector/controls/Disclosure';
 import { ACCENT_TERMS } from '@/lib/terms';
 import { MAP_FONTS } from '@/constants/fonts';
+import { accentControls, accentSettings } from '@/annotations/accent';
 
 interface DynamicControlsProps {
   controls: ControlDefinition[];
@@ -26,16 +27,13 @@ interface DynamicControlsProps {
 
 type ColorControl = Extract<ControlDefinition, { type: 'color' }>;
 
-const isAccent = (control: ControlDefinition): control is ColorControl =>
-  control.type === 'color' && control.role === 'accent';
-
 /**
  * The controls of a style. Accent colors collapse into one "Accent color" row
  * that sets them all (it shows the first one's value). The style's other
  * colors then sit behind "Customize colors", closed by default.
  */
 export function DynamicControls({ controls, settings, onUpdate }: DynamicControlsProps) {
-  const accents = controls.filter(isAccent);
+  const accents = accentControls(controls);
   const colors = controls.filter((c): c is ColorControl => c.type === 'color' && c.role !== 'accent');
   // Without an accent every color shows as before.
   const foldColors = accents.length > 0;
@@ -128,7 +126,7 @@ export function DynamicControls({ controls, settings, onUpdate }: DynamicControl
         <ColorRow
           label={ACCENT_TERMS.accent}
           value={(settings[accents[0].key] as string) || '#000000'}
-          onChange={(v) => onUpdate(Object.fromEntries(accents.map((c) => [c.key, v])))}
+          onChange={(v) => onUpdate(accentSettings(accents, v))}
         />
       )}
       {plain.map(renderControl)}

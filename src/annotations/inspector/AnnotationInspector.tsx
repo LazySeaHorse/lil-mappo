@@ -27,7 +27,7 @@ import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
 import { TimingSection } from '@/components/Inspector/timing/TimingSection';
 import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
-import { switchCalloutStyle } from '@/store/itemFactories';
+import { moveCalloutPatch, switchCalloutStyle } from '@/store/itemFactories';
 import { isPlacedPoint, placeLabel } from '@/engine/routeMode';
 import { CALLOUT_LOCATION_TERMS, STYLE_TERMS } from '@/lib/terms';
 import { undo } from '@/store/history';
@@ -35,26 +35,6 @@ import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
 import { SizeControls } from './SizeControls';
-
-/**
- * The patch that moves a callout to a point. A name says which place it is; no
- * name (typed or edited coordinates, a pick with no place) clears the old one,
- * so the stored name never describes another place. A title that follows the
- * place name follows a real name; with no name it keeps its text and stops
- * following.
- */
-function movePatch(item: CalloutItem, lngLat: [number, number], name: string): Partial<CalloutItem> {
-  const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
-  const patch: Partial<CalloutItem> = {
-    binding: { kind: 'geographic', lngLat, altitude },
-    locationName: name,
-  };
-  if (item.linkTitleToLocation) {
-    if (name) patch.content = { ...item.content, title: name };
-    else patch.linkTitleToLocation = false;
-  }
-  return patch;
-}
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
@@ -67,7 +47,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       const current = useProjectStore.getState().items[item.id];
       if (current?.kind !== 'callout') return;
       // A map click names no place: its label is only the coordinates.
-      updateItem(item.id, movePatch(current, result.lngLat, ''));
+      updateItem(item.id, moveCalloutPatch(current, result.lngLat, ''));
     },
   });
 
@@ -119,7 +99,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           onSelect={(coords, name) => {
             // Clearing the field reports the unset point; a callout always keeps a place.
             if (!isPlacedPoint(coords)) return;
-            u(movePatch(item, coords, name));
+            u(moveCalloutPatch(item, coords, name));
             // A searched place may be off screen: bring the moved callout into view.
             const moved = useProjectStore.getState().items[item.id];
             if (moved?.kind === 'callout') frame.frameCallout(moved);
@@ -150,7 +130,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
         <Disclosure label={CALLOUT_LOCATION_TERMS.exactPosition}>
           <CoordinatesRows
             lngLat={lngLat as [number, number]}
-            onChange={(coords) => u(movePatch(item, coords, ''))}
+            onChange={(coords) => u(moveCalloutPatch(item, coords, ''))}
           />
         </Disclosure>
       </InspectorSection>

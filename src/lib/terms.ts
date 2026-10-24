@@ -204,17 +204,19 @@ export const ACCENT_TERMS = {
   customize: 'Customize colors',
 } as const;
 
-/** Words of the Add Callout panel. Choosing a place adds the callout; the panel stays open to rename it. */
+/** Words of the Add Callout panel. Choosing a place previews the callout; Add puts it on the timeline. */
 export const CALLOUT_ADD_TERMS = {
   search: 'Search for a place',
   /** Under the search. A search can land near the spot, not on it (a brand finds its nearest store). */
   approximate: 'Search results can be approximate. For an exact spot, pick it on the map.',
   /** The title of a callout added at a point with no place name. */
   defaultTitle: 'New Callout',
-  /** Label of the field that renames the callout just added. */
+  /** Label of the field that renames the callout in the panel. */
   title: 'Title',
   titlePlaceholder: 'Callout title',
-  styleNote: 'You can set the style and colors in the inspector.',
+  /** The footer button that adds the previewed callout to the timeline. */
+  add: 'Add callout',
+  moreNote: 'More options are in the inspector once it is added.',
 } as const;
 
 /** Words of the Add Boundary panel. */
