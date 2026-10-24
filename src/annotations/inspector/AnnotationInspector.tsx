@@ -29,7 +29,7 @@ import { TimingSection } from '@/components/Inspector/timing/TimingSection';
 import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
 import { switchCalloutStyle } from '@/store/itemFactories';
-import { placeLabel } from '@/engine/routeMode';
+import { isPlacedPoint, placeLabel } from '@/engine/routeMode';
 import { CALLOUT_LOCATION_TERMS, STYLE_TERMS } from '@/lib/terms';
 import { undo } from '@/store/history';
 import { DynamicControls } from './DynamicControls';
@@ -122,6 +122,8 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           value={lngLat as [number, number]}
           name={placeLabel(item.locationName, lngLat as [number, number])}
           onSelect={(coords, name) => {
+            // Clearing the field reports the unset point; a callout always keeps a place.
+            if (!isPlacedPoint(coords)) return;
             u(movePatch(item, coords, name));
             toast.success(CALLOUT_LOCATION_TERMS.updated);
           }}

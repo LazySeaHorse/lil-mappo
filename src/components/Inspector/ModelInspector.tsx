@@ -1,7 +1,7 @@
 import { Box } from 'lucide-react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { ModelItem } from '@/store/types';
-import { placeLabel } from '@/engine/routeMode';
+import { isPlacedPoint, placeLabel } from '@/engine/routeMode';
 import { modelExtent } from '@/models/modelGeometry';
 import { MODEL_TERMS, formatBytes, formatMeters } from '@/models/modelTerms';
 import { useMapPicker } from '@/hooks/useMapPicker';
@@ -63,7 +63,8 @@ export function ModelInspector({ item }: { item: ModelItem }) {
           label={MODEL_TERMS.location}
           value={item.position}
           name={placeLabel('', item.position)}
-          onSelect={(position) => u({ position })}
+          // Clearing the field reports the unset point; a model always keeps a place.
+          onSelect={(position) => { if (isPlacedPoint(position)) u({ position }); }}
           parseCoordinates
           isPicking={isPicking}
           onStartPick={togglePick}
