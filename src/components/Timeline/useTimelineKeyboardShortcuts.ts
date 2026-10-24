@@ -36,9 +36,16 @@ export function useTimelineKeyboardShortcuts({
           setIsPlaying(!isPlaying);
           break;
         case 'Delete':
-        case 'Backspace':
-          if (selectedItemId && selectedItemId !== CAMERA_TRACK_ID) removeItem(selectedItemId);
+        case 'Backspace': {
+          // A keyframe is selected along with the camera track, which itself is never deleted.
+          const { selectedKeyframeId, removeCameraKeyframe } = useProjectStore.getState();
+          if (selectedItemId === CAMERA_TRACK_ID) {
+            if (selectedKeyframeId) removeCameraKeyframe(selectedKeyframeId);
+          } else if (selectedItemId) {
+            removeItem(selectedItemId);
+          }
           break;
+        }
         case 'BracketLeft':
           setPlayheadTime(0);
           break;
