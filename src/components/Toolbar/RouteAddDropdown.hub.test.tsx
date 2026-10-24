@@ -115,6 +115,7 @@ describe('RouteAddDropdown hub and spoke', () => {
     expect(added.map((r) => r.startTime)).toEqual([3, 4, 5]);
     expect(added.every((r) => r.calculation?.mode === 'car')).toBe(true);
     expect(useProjectStore.getState().selectedItemId).toBe(added[0].id);
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: added.map((r) => r.id) });
     expect(getHistoryEntries().past.map((e) => e.label)).toEqual(['Created 3 routes']);
     expect(useProjectStore.getState().previewSpokes).toEqual([]);
   });

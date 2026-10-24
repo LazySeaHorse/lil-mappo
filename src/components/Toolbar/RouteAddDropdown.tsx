@@ -242,6 +242,7 @@ export const RouteAddDropdown = ({
   const insertItem = (item: RouteItem, pointCount: number) => {
     addItem(item);
     selectItem(item.id);
+    useProjectStore.getState().playAppearPreview([item.id]);
     // After selecting: the inspector opens with the item and takes room on the right.
     frame.frameGeometry(item.geojson);
     reportRouteAdded(mode, pointCount);
@@ -296,6 +297,8 @@ export const RouteAddDropdown = ({
     });
     const items = createHubRoutes(inputs, { timing, gap, startTime: useProjectStore.getState().playheadTime, pro: isPro });
     selectItem(items[0].id);
+    // All the spokes play, each at its own start.
+    useProjectStore.getState().playAppearPreview(items.map((item) => item.id));
     frame.frameGeometry({ type: 'FeatureCollection', features: items.flatMap((i) => i.geojson.features) });
     for (const item of items) reportRouteAdded(mode, extractLineCoords(item.geojson).length);
 

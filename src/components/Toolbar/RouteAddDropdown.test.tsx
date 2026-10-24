@@ -150,6 +150,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(addedRoute.style).not.toHaveProperty('glowColor');
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(reportRouteAdded).toHaveBeenCalledWith('flight', expect.any(Number));
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [addedRoute.id], selectedItemId: addedRoute.id });
   });
 
   it('starts a Pro user\'s flight route with the plane marker', async () => {
@@ -248,6 +249,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect((added.geojson.features[0].geometry as GeoJSON.LineString).coordinates.length).toBeGreaterThan(3);
     expect(getDirections).not.toHaveBeenCalled();
     expect(reportRouteAdded).toHaveBeenLastCalledWith('walk', 3);
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added.id] });
   });
 });
 
