@@ -125,6 +125,14 @@ describe('ModelImportButton', () => {
       await press();
       expect(useModelRegistry.getState().loaded[sha]).toBeDefined();
     });
+
+    it('frees the file once the user goes back without adding the model', async () => {
+      const popup = await upload();
+      const sha = Object.keys(useModelRegistry.getState().loaded)[0];
+      fireEvent.click(within(popup).getByRole('button', { name: MODEL_TERMS.back }));
+      await act(async () => {});
+      expect(useModelRegistry.getState().loaded[sha]).toBeUndefined();
+    });
   });
 
   it('starts a small model at 100 m tall, and adds it at the size it is left at', async () => {

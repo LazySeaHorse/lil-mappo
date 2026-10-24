@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProBadge } from '@/components/ui/pro-badge';
@@ -15,6 +15,7 @@ import { ModelPickerDialog } from '@/models/ModelPickerDialog';
 import { ModelPlaceStep, ModelReadingStep, type ModelPlacement } from '@/models/ModelPlaceStep';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { useModelImportAccess } from '@/models/useModelAccess';
+import { holdModelFile } from '@/models/modelRetention';
 import { ToolbarButton } from './ToolbarPrimitives';
 
 /**
@@ -30,6 +31,10 @@ export function ModelImportButton({ iconSize = 16 }: { iconSize?: number }) {
   const { canImport, askToUpgrade } = useModelImportAccess();
 
   const patchPlacement = (patch: Partial<ModelPlacement>) => setPlacement((current) => current && { ...current, ...patch });
+
+  // A model chosen here joins the project only on Add: keep its file meanwhile, for the preview and the Add.
+  const chosenSha = placement?.asset.sha256;
+  useEffect(() => (chosenSha ? holdModelFile(chosenSha) : undefined), [chosenSha]);
 
   const picker = useMapPicker('model-new', {
     prompt: '3D model',
