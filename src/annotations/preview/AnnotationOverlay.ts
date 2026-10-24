@@ -26,7 +26,6 @@ function overlayStateChanged(state: ProjectState, previous: ProjectState): boole
     || state.items !== previous.items
     || state.itemOrder !== previous.itemOrder
     || state.selectedItemId !== previous.selectedItemId
-    || state.isMoveModeActive !== previous.isMoveModeActive
     || state.isExporting !== previous.isExporting
     || state.isPlaying !== previous.isPlaying
     || state.hideUI !== previous.hideUI
@@ -138,11 +137,7 @@ export class AnnotationOverlay {
     if (state.isExporting) return;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // While positioning, the callout is replaced by its drag handle.
-    const drawn = state.isMoveModeActive
-      ? state.itemOrder.filter((id) => id !== state.selectedItemId)
-      : state.itemOrder;
-    compositeAnnotations(this.map, ctx, state.items, drawn, state.playheadTime, {
+    compositeAnnotations(this.map, ctx, state.items, state.itemOrder, state.playheadTime, {
       selectedId: previewableSelectionId(state),
     });
   };

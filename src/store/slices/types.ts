@@ -49,7 +49,6 @@ export interface TransientProjectState {
   selectedKeyframeId: string | null;
   selectedAutoCamRouteId: string | null;
   // Transient UI modes (not persisted)
-  isMoveModeActive: boolean;
   hideUI: boolean;
   /** Preview of the video's frame inside the free space between the panels. View only, never saved. */
   isFitMode: boolean;
@@ -151,7 +150,6 @@ export interface EditorUiSlice {
   selectItem: (id: string | null) => void;
   selectKeyframe: (id: string | null) => void;
   setSelectedAutoCamRouteId: (id: string | null) => void;
-  setMoveModeActive: (v: boolean) => void;
   setHideUI: (v: boolean) => void;
   setFitMode: (v: boolean) => void;
   setIsExporting: (v: boolean) => void;

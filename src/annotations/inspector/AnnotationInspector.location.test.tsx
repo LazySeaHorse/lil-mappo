@@ -67,7 +67,7 @@ describe('callout location field', () => {
     const location = screen.getByRole('region', { name: 'Location' });
     expect(within(location).getByPlaceholderText(LOCATION_FIELD)).toHaveValue('Central Park');
     expect(within(location).getByTitle('Pick on the map')).toBeInTheDocument();
-    expect(within(location).getByText(CALLOUT_LOCATION_TERMS.dragOnMap)).toBeInTheDocument();
+    expect(within(location).queryByText('Drag point on map')).toBeNull();
     expect(within(location).queryByText(CALLOUT_LOCATION_TERMS.heightHint)).toBeNull();
     expect(await readInfoTips(location)).toEqual([CALLOUT_LOCATION_TERMS.heightHint]);
     expect(within(location).getByText(CALLOUT_LOCATION_TERMS.heightAboveMap)).toBeInTheDocument();

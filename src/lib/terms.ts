@@ -213,9 +213,6 @@ export const CALLOUT_LOCATION_TERMS = {
   /** How far the callout floats above its point on the map. */
   heightAboveMap: 'Height above map',
   heightHint: 'Lifts the callout above its point on the map.',
-  /** Turns on the handle that moves the point with the mouse. */
-  dragOnMap: 'Drag point on map',
-  doneDragging: 'Done',
   linkTitle: 'Use place name as title',
   updated: 'Callout location updated.',
 } as const;

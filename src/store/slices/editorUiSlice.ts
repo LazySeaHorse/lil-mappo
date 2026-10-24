@@ -45,7 +45,6 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
   },
   setSelectedAutoCamRouteId: (id) => set({ selectedAutoCamRouteId: id }),
 
-  setMoveModeActive: (v) => set({ isMoveModeActive: v }),
   setHideUI: (v) => set({ hideUI: v }),
   setFitMode: (v) => set({ isFitMode: v }),
   setIsExporting: (v) => set({ isExporting: v }),

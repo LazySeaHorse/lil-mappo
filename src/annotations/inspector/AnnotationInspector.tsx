@@ -8,11 +8,9 @@
 import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
-import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import type { CalloutItem } from '@/store/types';
-import { Button } from "@/components/ui/button";
-import { Check, Crosshair, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { SearchField } from '@/components/Search/SearchField';
 import {
   SliderRow,
@@ -58,13 +56,7 @@ function movePatch(item: CalloutItem, lngLat: [number, number], name: string): P
 }
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
-  const { updateItem, isMoveModeActive, setMoveModeActive } = useProjectStore(
-    useShallow(s => ({
-      updateItem: s.updateItem,
-      isMoveModeActive: s.isMoveModeActive,
-      setMoveModeActive: s.setMoveModeActive,
-    }))
-  );
+  const updateItem = useProjectStore((s) => s.updateItem);
 
   const { isPicking, toggle: handleTogglePick } = useMapPicker(`callout-${item.id}`, {
     ownerId: item.id,
@@ -133,16 +125,6 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           onStartPick={handleTogglePick}
           className="px-0"
         />
-
-        <Button
-          type="button"
-          onClick={() => setMoveModeActive(!isMoveModeActive)}
-          variant={isMoveModeActive ? 'default' : 'outline'}
-          className="w-full"
-        >
-          {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
-          <span>{isMoveModeActive ? CALLOUT_LOCATION_TERMS.doneDragging : CALLOUT_LOCATION_TERMS.dragOnMap}</span>
-        </Button>
 
         {supportsAltitude && (
           <SliderRow
