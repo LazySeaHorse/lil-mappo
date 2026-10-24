@@ -322,7 +322,7 @@ export function getWalkthroughStepConfig(
         hideOverlay: true,
         compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Search for a place and choose a result. Its boundary is added there.',
+        renderContent: () => 'Search for a place and choose a result, then click Add boundary.',
       };
 
     case 'callout':

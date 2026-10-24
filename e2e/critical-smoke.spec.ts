@@ -297,9 +297,9 @@ test("5. a boundary can be added and edited", async ({ page }) => {
   const search = page.getByPlaceholder("Search for a place or region");
   await search.fill("Testland");
   await search.press("Enter");
-  // Choosing a result adds the boundary; then close the panel.
+  // Choosing a result previews the boundary; Add boundary puts it on the timeline and closes the panel.
   await page.getByRole("button", { name: /Testland/ }).click();
-  await page.keyboard.press("Escape");
+  await page.getByRole("menu").getByRole("button", { name: "Add boundary" }).click();
 
   await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
   const nameInput = page.locator('input[placeholder="Boundary name"]');

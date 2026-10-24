@@ -5,7 +5,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { syntheticIsland } from '@/test/syntheticGeometry';
 import type { BoundaryItem, CalloutItem } from '@/store/types';
-import { undo } from '@/store/history';
+import { clearHistory, getHistoryEntries, undo } from '@/store/history';
 import { BOUNDARY_ADD_TERMS } from '@/lib/terms';
 import '@/annotations/styles';
 import { MapRefContext } from '@/hooks/useMapRef';
@@ -28,14 +28,19 @@ vi.mock('../Inspector/BoundarySearch', () => ({
 
 const boundaries = () => Object.values(useProjectStore.getState().items).filter((i): i is BoundaryItem => i.kind === 'boundary');
 const labels = () => Object.values(useProjectStore.getState().items).filter((i): i is CalloutItem => i.kind === 'callout');
-const added = () => boundaries().at(-1)!;
+/** The boundary the panel previews, and its label, before they are added. */
+const staged = () => useProjectStore.getState().stagedItems.find((i): i is BoundaryItem => i.kind === 'boundary')!;
+const stagedLabels = () => useProjectStore.getState().stagedItems.filter((i): i is CalloutItem => i.kind === 'callout');
 const onOpenChange = vi.fn();
 
 function open() {
-  render(<BoundaryAddDropdown isOpen onOpenChange={onOpenChange} />);
+  const panel = (isOpen: boolean) => <BoundaryAddDropdown isOpen={isOpen} onOpenChange={onOpenChange} />;
+  const { rerender } = render(panel(true));
+  return { close: () => rerender(panel(false)) };
 }
 
 const choose = (button = 'pick-result') => act(() => { fireEvent.click(screen.getByText(button)); });
+const add = () => fireEvent.click(screen.getByRole('button', { name: BOUNDARY_ADD_TERMS.add }));
 
 const toggle = (label: string) => {
   fireEvent.click(screen.getByText(label).parentElement!.parentElement!.querySelector('[role="switch"]')!);
@@ -44,21 +49,45 @@ const toggle = (label: string) => {
 describe('BoundaryAddDropdown', () => {
   beforeEach(() => {
     onOpenChange.mockClear();
-    useProjectStore.setState({ items: {}, itemOrder: [], selectedItemId: null, playheadTime: 0, appearPreview: null });
+    useProjectStore.setState({ items: {}, itemOrder: [], stagedItems: [], selectedItemId: null, playheadTime: 0, appearPreview: null });
     useProjectStore.getState().setBoundaryDetail('standard');
+    clearHistory();
   });
 
-  it('adds the boundary as soon as a result is chosen, selects it, plays its entrance and stays open', () => {
+  it('previews the boundary when a result is chosen, plays its entrance, and does not add it yet', () => {
     open();
     expect(screen.getByText(BOUNDARY_ADD_TERMS.empty)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: BOUNDARY_ADD_TERMS.add })).toBeDisabled();
     choose();
 
-    expect(boundaries()).toHaveLength(1);
-    expect(added()).toMatchObject({ placeName: 'Isola', geojson: applyBoundaryDetail(island, 'standard') });
-    expect(useProjectStore.getState().selectedItemId).toBe(added().id);
-    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added().id] });
+    expect(staged()).toMatchObject({ placeName: 'Isola', geojson: applyBoundaryDetail(island, 'standard') });
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [staged().id] });
+    expect(boundaries()).toHaveLength(0);
+    expect(useProjectStore.getState().selectedItemId).toBeNull();
+    expect(getHistoryEntries().past).toHaveLength(0);
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    expect(screen.queryByRole('button', { name: /insert boundary/i })).toBeNull();
+  });
+
+  it('adds the previewed boundary to the timeline at the playhead, selects it and closes, as one undo step', () => {
+    open();
+    choose();
+    const { id } = staged();
+    act(() => { useProjectStore.setState({ playheadTime: 4 }); });
+    add();
+
+    expect(boundaries()).toEqual([expect.objectContaining({ id, placeName: 'Isola', startTime: 4 })]);
+    expect(useProjectStore.getState().stagedItems).toEqual([]);
+    expect(useProjectStore.getState().selectedItemId).toBe(id);
+    expect(getHistoryEntries().past).toHaveLength(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('drops the preview when the panel closes', () => {
+    const { close } = open();
+    choose();
+    close();
+    expect(useProjectStore.getState().stagedItems).toEqual([]);
+    expect(boundaries()).toHaveLength(0);
   });
 
   it('shows Detailed / Standard / Light with Standard selected by default and the helper text', () => {
@@ -70,32 +99,33 @@ describe('BoundaryAddDropdown', () => {
     expect(screen.getByText(/can't be changed once this panel is closed/i)).toBeInTheDocument();
   });
 
-  it('changes the detail of the boundary just added, plays it again, and remembers the level for the session', () => {
+  it('changes the detail of the preview, plays it again, and remembers the level for the session', () => {
     open();
     choose();
     useProjectStore.setState({ appearPreview: null });
 
     fireEvent.click(screen.getByRole('radio', { name: /light/i }));
-    expect(added().geojson).toEqual(applyBoundaryDetail(island, 'light'));
-    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added().id] });
+    expect(staged().geojson).toEqual(applyBoundaryDetail(island, 'light'));
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [staged().id] });
 
     fireEvent.click(screen.getByRole('radio', { name: /detailed/i }));
-    expect(added().geojson).toEqual(applyBoundaryDetail(island, 'detailed'));
+    expect(staged().geojson).toEqual(applyBoundaryDetail(island, 'detailed'));
     expect(useProjectStore.getState().boundaryDetail).toBe('detailed');
   });
 
   it('prefills the flag code from the chosen result and leaves the fill mode alone', () => {
     open();
     choose();
-    expect(added().style).toMatchObject({ flagCode: 'it', fillMode: 'color' });
+    expect(staged().style).toMatchObject({ flagCode: 'it', fillMode: 'color' });
   });
 
-  it('fills the boundary just added with its flag and dims its surroundings from the switches', () => {
+  it('fills the preview with its flag and dims its surroundings from the switches', () => {
     open();
     choose();
     toggle('Flag');
     toggle('Dim surroundings');
-    expect(added().style).toMatchObject({ fillMode: 'flag', flagCode: 'it', fillOpacity: 1, maskOutside: true, maskOpacity: 0.7 });
+    expect(staged().style).toMatchObject({ fillMode: 'flag', flagCode: 'it', fillOpacity: 1, maskOutside: true, maskOpacity: 0.7 });
+    expect(getHistoryEntries().past).toHaveLength(0);
   });
 
   it('puts the fill opacity back when Flag is turned off again', () => {
@@ -103,66 +133,61 @@ describe('BoundaryAddDropdown', () => {
     choose();
     toggle('Flag');
     toggle('Flag');
-    expect(added().style).toMatchObject({ fillMode: 'color', fillOpacity: 0.1 });
+    expect(staged().style).toMatchObject({ fillMode: 'color', fillOpacity: 0.1 });
   });
 
-  it('adds a Map Label at the visual centre, timed like the boundary, that plays with it, and takes it away again', () => {
+  it('previews a Map Label at the visual centre, timed like the boundary, that plays with it, and takes it away again', () => {
     open();
     choose();
     toggle('Name label');
 
-    expect(labels()).toHaveLength(1);
-    const [label] = labels();
-    expect(label).toMatchObject({ styleId: 'map-label', content: { title: 'Isola' }, startTime: added().startTime, endTime: added().endTime });
-    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added().id, label.id] });
+    expect(stagedLabels()).toHaveLength(1);
+    const [label] = stagedLabels();
+    expect(label).toMatchObject({ styleId: 'map-label', content: { title: 'Isola' }, startTime: staged().startTime, endTime: staged().endTime });
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [staged().id, label.id] });
 
     toggle('Name label');
+    expect(stagedLabels()).toHaveLength(0);
+  });
+
+  it('adds the label with the boundary, in the same undo step', () => {
+    open();
+    choose();
+    toggle('Name label');
+    act(() => { useProjectStore.setState({ playheadTime: 3 }); });
+    add();
+
+    expect(boundaries()).toHaveLength(1);
+    expect(labels()).toEqual([expect.objectContaining({ startTime: 3, endTime: boundaries()[0].endTime })]);
+    act(() => { undo(); });
+    expect(boundaries()).toHaveLength(0);
     expect(labels()).toHaveLength(0);
   });
 
-  it('adds the label with the next boundary, in the same undo step', () => {
-    open();
-    choose();
-    toggle('Name label');
-    choose();
-
-    expect(boundaries()).toHaveLength(2);
-    expect(labels()).toHaveLength(2);
-    expect(useProjectStore.getState().appearPreview?.itemIds).toHaveLength(2);
-    act(() => { undo(); });
-    expect(boundaries()).toHaveLength(1);
-    expect(labels()).toHaveLength(1);
-  });
-
-  it('adds another boundary for the next result, with the same options', () => {
+  it('replaces the preview with the next result, keeping the options and the label', () => {
     open();
     choose();
     toggle('Flag');
     toggle('Dim surroundings');
+    toggle('Name label');
+    const first = staged().id;
     choose();
 
-    expect(boundaries()).toHaveLength(2);
-    expect(added().style).toMatchObject({ fillMode: 'flag', maskOutside: true });
+    expect(staged().id).not.toBe(first);
+    expect(useProjectStore.getState().stagedItems).toHaveLength(2);
+    expect(staged().style).toMatchObject({ fillMode: 'flag', maskOutside: true });
   });
 
   it('adds no label by default, and offers Flag only for a country', () => {
     open();
     choose();
     expect(screen.getByText('Flag')).toBeInTheDocument();
-    expect(labels()).toHaveLength(0);
+    expect(stagedLabels()).toHaveLength(0);
 
     toggle('Flag');
     choose('pick-city');
-    expect(added().style).toMatchObject({ flagCode: null, fillMode: 'color', fillOpacity: 0.1 });
+    expect(staged().style).toMatchObject({ flagCode: null, fillMode: 'color', fillOpacity: 0.1 });
     expect(screen.queryByText('Flag')).not.toBeInTheDocument();
-  });
-
-  it('goes back to the empty panel when the boundary is undone', () => {
-    open();
-    choose();
-    act(() => { undo(); });
-    expect(boundaries()).toHaveLength(0);
-    expect(screen.getByText(BOUNDARY_ADD_TERMS.empty)).toBeInTheDocument();
   });
 });
 

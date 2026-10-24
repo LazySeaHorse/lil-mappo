@@ -221,9 +221,11 @@ export const CALLOUT_ADD_TERMS = {
 
 /** Words of the Add Boundary panel. */
 export const BOUNDARY_ADD_TERMS = {
-  empty: 'Search for a country, city or region. Its boundary is added as soon as you choose a result.',
-  /** Above the name of the boundary just added. */
-  added: 'Added',
+  empty: 'Search for a country, city or region to preview its boundary.',
+  /** Above the name of the boundary previewed. */
+  preview: 'Preview',
+  /** The footer button that adds the previewed boundary to the timeline. */
+  add: 'Add boundary',
 } as const;
 
 /** Words of the Location section of a callout. */
