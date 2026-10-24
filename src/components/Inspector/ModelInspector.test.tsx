@@ -138,4 +138,12 @@ describe('ModelInspector', () => {
     await waitFor(() => expect(screen.queryByText(MODEL_TERMS.failedTitle)).not.toBeInTheDocument());
     expect(useProjectStore.getState().models.a1.fileName).toBe('other.glb');
   });
+
+  it('only empties the place field when the user clears it, and keeps the model where it is', () => {
+    render(<InspectorPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+
+    expect(screen.getByPlaceholderText(MODEL_TERMS.location)).toHaveValue('');
+    expect((useProjectStore.getState().items.m1 as ModelItem).position).toEqual([2.35, 48.85]);
+  });
 });

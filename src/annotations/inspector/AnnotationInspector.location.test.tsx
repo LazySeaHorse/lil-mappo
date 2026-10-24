@@ -140,6 +140,16 @@ describe('callout location field', () => {
     expect(stored().linkTitleToLocation).toBe(true);
   });
 
+  it('only empties the place field when the user clears it, and keeps the callout where it is', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+
+    expect(screen.getByPlaceholderText(LOCATION_FIELD)).toHaveValue('');
+    expect(stored().binding).toMatchObject({ lngLat: [-73.96542, 40.78243] });
+    expect(stored().locationName).toBe('Central Park');
+    expect(stored().content.title).toBe('Park');
+  });
+
   it('puts the title switch and the text fields in their own Text section', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     const text = screen.getByRole('region', { name: 'Text' });
