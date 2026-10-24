@@ -2,11 +2,14 @@ import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MapRef } from 'react-map-gl/mapbox';
+import type { SearchBoxSuggestion } from '@mapbox/search-js-core';
 import { useProjectStore } from '@/store/useProjectStore';
 import { MapRefContext } from '@/hooks/useMapRef';
 import { useLocationSearch } from './useLocationSearch';
 
-const { suggest, retrieve } = vi.hoisted(() => ({ suggest: vi.fn(), retrieve: vi.fn() }));
+const { suggest, retrieve, toastError } = vi.hoisted(() => ({ suggest: vi.fn(), retrieve: vi.fn(), toastError: vi.fn() }));
+
+vi.mock('sonner', () => ({ toast: { error: toastError } }));
 
 vi.mock('@mapbox/search-js-core', () => ({
   SearchBoxCore: class {},
@@ -30,6 +33,8 @@ function withMap(map: unknown) {
 
 beforeEach(() => {
   suggest.mockReset();
+  retrieve.mockReset();
+  toastError.mockReset();
   useProjectStore.setState({ mapCenter: [-112.07, 33.45] });
 });
 
@@ -80,5 +85,49 @@ describe('useLocationSearch', () => {
     await act(() => result.current.performSearch('Nowhere'));
 
     expect(suggest).toHaveBeenCalledWith('Nowhere', { proximity: undefined });
+  });
+
+  describe('selecting a brand', () => {
+    const brandInView = { mapbox_id: 'brand-1', name: 'Starbucks', feature_type: 'brand' } as SearchBoxSuggestion;
+    const store = {
+      geometry: { coordinates: [-111.25, 47.49] },
+      properties: { name: 'Starbucks' },
+    };
+
+    it('picks the nearest store when the brand has none in view', async () => {
+      const onSelect = vi.fn();
+      // Mapbox suggests the brand inside the bounds but retrieves no store there,
+      // and gives the brand a new id in a search without the bounds.
+      retrieve
+        .mockResolvedValueOnce({ features: [] })
+        .mockResolvedValueOnce({ features: [store] });
+      suggest.mockResolvedValueOnce({
+        suggestions: [
+          { mapbox_id: 'poi-1', name: 'Starbucks', feature_type: 'poi' },
+          { mapbox_id: 'brand-2', name: 'Starbucks', feature_type: 'brand' },
+        ],
+      });
+      const { result } = renderHook(() => useLocationSearch({ onSelect }), { wrapper: withMap(liveMap) });
+
+      await act(() => result.current.handleSelect(brandInView));
+
+      expect(suggest).toHaveBeenCalledTimes(1);
+      expect(suggest).toHaveBeenCalledWith('Starbucks', { proximity: [-73.97, 40.78] });
+      expect(retrieve).toHaveBeenLastCalledWith(expect.objectContaining({ mapbox_id: 'brand-2' }));
+      expect(onSelect).toHaveBeenCalledWith([-111.25, 47.49], 'Starbucks');
+      expect(toastError).not.toHaveBeenCalled();
+    });
+
+    it('says so when the brand has no store anywhere', async () => {
+      const onSelect = vi.fn();
+      retrieve.mockResolvedValue({ features: [] });
+      suggest.mockResolvedValueOnce({ suggestions: [{ mapbox_id: 'brand-2', name: 'Starbucks', feature_type: 'brand' }] });
+      const { result } = renderHook(() => useLocationSearch({ onSelect }), { wrapper: withMap(liveMap) });
+
+      await act(() => result.current.handleSelect(brandInView));
+
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(toastError).toHaveBeenCalledWith(expect.stringContaining('Starbucks'));
+    });
   });
 });
