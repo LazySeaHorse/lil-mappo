@@ -132,6 +132,17 @@ describe('callout location field', () => {
     expect(stored().linkTitleToLocation).toBe(false);
   });
 
+  it('treats a point picked on the map as unnamed, so its coordinates never become the title', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
+    // What the map gives for a click: the coordinates as a label.
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '3.00000, 4.00000' }); });
+    expect(stored().binding).toMatchObject({ lngLat: [3, 4] });
+    expect(stored().locationName).toBe('');
+    expect(stored().content.title).toBe('Park');
+    expect(stored().linkTitleToLocation).toBe(false);
+  });
+
   it('still follows the place name with the title when it has one', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
