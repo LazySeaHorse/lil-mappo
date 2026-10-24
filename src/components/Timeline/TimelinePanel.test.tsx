@@ -238,6 +238,30 @@ describe('TimelinePanel', () => {
     expect(useProjectStore.getState().items.selected).toBeUndefined();
   });
 
+  it('deletes the selected camera keyframe, and keeps the camera track', () => {
+    renderTimeline(route('selected', 1, 3));
+    act(() => {
+      useProjectStore.getState().addCameraKeyframe({
+        id: 'keyframe',
+        time: 5,
+        camera: { center: [0, 0], zoom: 1, pitch: 0, bearing: 0, altitude: null },
+        easing: 'linear',
+        followRoute: null,
+      });
+    });
+
+    const keyframe = screen.getByTestId('timeline-keyframe-keyframe');
+    fireEvent.pointerDown(keyframe, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerUp(keyframe, { pointerId: 1 });
+    expect(useProjectStore.getState().selectedKeyframeId).toBe('keyframe');
+
+    fireEvent.keyDown(window, { code: 'Delete' });
+    const cameraItem = useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem;
+    expect(cameraItem).toBeDefined();
+    expect(cameraItem.keyframes).toEqual([]);
+    expect(useProjectStore.getState().items.selected).toBeDefined();
+  });
+
   it('selects an auto-camera route from its camera-track overlay', () => {
     renderTimeline(route('automatic', 2, 5, true));
 
