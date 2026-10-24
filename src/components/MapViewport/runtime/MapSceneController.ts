@@ -11,7 +11,8 @@ import { ModelRenderer } from './ModelRenderer';
 import { ModelCatalog } from './ModelCatalog';
 import { isStyleReady } from './mapboxResources';
 import { isSelectionPreview, previewableSelectionId, selectionPreviewTime } from '@/engine/selectionPreview';
-import { activeAppearPreview, type AppearPreviewFrame } from '@/engine/appearPreview';
+import { activeAppearPreview, entranceEnd, type AppearPreviewFrame } from '@/engine/appearPreview';
+import { sceneItems, type SceneItems } from '@/engine/stagedItems';
 import { useModelRegistry } from '@/models/modelRegistry';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
@@ -137,11 +138,12 @@ export class MapSceneController implements MapSceneRuntime {
 
   /**
    * Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead, except
-   * while playing or with the UI hidden, and items just added play their entrance (see `activeAppearPreview`).
+   * while playing or with the UI hidden, items just added play their entrance (see `activeAppearPreview`),
+   * and staged items (see `sceneItems`) are drawn finished.
    */
   private renderLive(state: ProjectState): void {
     const preview = activeAppearPreview(state, performance.now());
-    this.renderScene(state.playheadTime, previewableSelectionId(state), state.items, preview);
+    this.renderScene(state.playheadTime, previewableSelectionId(state), sceneItems(state), preview);
     if (preview && !preview.done && this.drawsAny(preview.itemIds)) this.schedulePreviewFrame();
   }
 
@@ -162,7 +164,7 @@ export class MapSceneController implements MapSceneRuntime {
   private renderScene = (
     time: number,
     selectedId: string | null,
-    items: ProjectState['items'] = useProjectStore.getState().items,
+    { items, staged }: SceneItems = sceneItems(useProjectStore.getState()),
     preview: AppearPreviewFrame | null = null,
   ): void => {
     if (this.disposed) return;
@@ -182,7 +184,8 @@ export class MapSceneController implements MapSceneRuntime {
     const timeFor = (id: string) => {
       if (preview?.itemIds.has(id)) return preview.time;
       const item = items[id];
-      return item && item.kind !== 'camera' ? selectionPreviewTime(item, time, id === selectedId) : time;
+      if (!item || item.kind === 'camera') return time;
+      return staged.has(id) ? entranceEnd(item) : selectionPreviewTime(item, time, id === selectedId);
     };
     this.routes.forEach((renderer, id) => renderer.render(timeFor(id)));
     this.mask.render(this.maskBoundaries, timeFor);
@@ -190,7 +193,7 @@ export class MapSceneController implements MapSceneRuntime {
     // A selected model off the playhead is shown in full, like a callout, so it can be placed.
     this.models.forEach((renderer, id) => {
       const item = items[id];
-      renderer.render(time, { settled: !!item && item.kind === 'model' && isSelectionPreview(item, time, id === selectedId) });
+      renderer.render(time, { settled: staged.has(id) || (!!item && item.kind === 'model' && isSelectionPreview(item, time, id === selectedId)) });
     });
     this.lastRenderedTime = time;
     this.lastRenderedSelection = selectedId;
@@ -218,9 +221,10 @@ export class MapSceneController implements MapSceneRuntime {
       this.sceneDirty = true;
       return;
     }
-    if (!force && !this.sceneDirty && state.items === this.lastItems && state.itemOrder === this.lastItemOrder) return;
-    this.lastItems = state.items;
-    this.lastItemOrder = state.itemOrder;
+    const scene = sceneItems(state);
+    if (!force && !this.sceneDirty && scene.items === this.lastItems && scene.itemOrder === this.lastItemOrder) return;
+    this.lastItems = scene.items;
+    this.lastItemOrder = scene.itemOrder;
 
     // Mounted before any route/boundary layer: it goes on top of the basemap, and those are added above it
     if (!this.maskMounted) {
@@ -230,8 +234,8 @@ export class MapSceneController implements MapSceneRuntime {
     const routes: RouteItem[] = [];
     const boundaries: BoundaryItem[] = [];
     const models: ModelItem[] = [];
-    for (const id of state.itemOrder) {
-      const item = state.items[id];
+    for (const id of scene.itemOrder) {
+      const item = scene.items[id];
       if (item?.kind === 'route') routes.push(item);
       if (item?.kind === 'boundary' && item.geojson) boundaries.push(item);
       if (item?.kind === 'model') models.push(item);
@@ -247,7 +251,7 @@ export class MapSceneController implements MapSceneRuntime {
       (boundary) => new BoundaryRenderer(this.map, boundary, this.basemap.getFlagPlacement),
     );
     syncRenderers(this.models, models, (renderer, model) => renderer.setItem(model), (model) => new ModelRenderer(this.map, model, this.catalog));
-    this.catalog.prune(state.items);
+    this.catalog.prune(scene.items);
 
     this.sceneRevision += 1;
     this.sceneDirty = false;
@@ -289,14 +293,16 @@ export class MapSceneController implements MapSceneRuntime {
     this.routes.forEach((renderer) => renderer.refreshModels());
     this.models.forEach((renderer) => renderer.refresh());
     const state = useProjectStore.getState();
-    this.catalog.prune(state.items);
+    this.catalog.prune(sceneItems(state).items);
     this.sceneRevision += 1;
     this.renderLive(state);
   };
 
   private readonly handleStoreChange = (state: ProjectState, previous: ProjectState) => {
     if (this.disposed) return;
-    const sceneChanged = state.items !== previous.items || state.itemOrder !== previous.itemOrder;
+    const scene = sceneItems(state);
+    const previousScene = sceneItems(previous);
+    const sceneChanged = scene.items !== previousScene.items || scene.itemOrder !== previousScene.itemOrder;
     if (basemapStateChanged(state, previous)) this.basemap.reconcile();
     if (sceneChanged) this.reconcileRenderers(state);
     if (state.models !== previous.models) this.refreshModels();

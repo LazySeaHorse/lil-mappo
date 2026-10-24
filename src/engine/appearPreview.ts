@@ -1,4 +1,5 @@
 import type { TimelineItem } from '@/store/types';
+import { sceneItems, type StagedItem } from './stagedItems';
 
 /**
  * An appear preview plays the entrance of items just added, sped up and a few times
@@ -37,11 +38,14 @@ export interface AppearPreviewFrame {
 type PreviewState = {
   appearPreview: AppearPreview | null;
   items: Record<string, TimelineItem>;
+  itemOrder: string[];
   selectedItemId: string | null;
   playheadTime: number;
   isPlaying: boolean;
   isExporting: boolean;
   hideUI: boolean;
+  isCapturingViewport: boolean;
+  stagedItems: readonly StagedItem[];
 };
 
 type TimedItem = Exclude<TimelineItem, { kind: 'camera' }>;
@@ -63,15 +67,16 @@ export function appearPreviewProgress(elapsedMs: number): { progress: number; do
 /**
  * The appear preview the live editor draws at `now`, or null when there is none. Items
  * that start later than others (spokes of a hub) keep their stagger: the preview plays
- * the whole span from the first start to the last entrance end.
+ * the whole span from the first start to the last entrance end. Staged items play too.
  */
 export function activeAppearPreview(state: PreviewState, now: number): AppearPreviewFrame | null {
   const preview = state.appearPreview;
   if (!preview || state.isPlaying || state.isExporting || state.hideUI) return null;
   if (state.selectedItemId !== preview.selectedItemId || state.playheadTime !== preview.playheadTime) return null;
 
+  const { items: drawn } = sceneItems(state);
   const items = preview.itemIds
-    .map((id) => state.items[id])
+    .map((id) => drawn[id])
     .filter((item): item is TimedItem => !!item && item.kind !== 'camera');
   if (items.length === 0) return null;
   const from = Math.min(...items.map((item) => item.startTime));

@@ -11,6 +11,7 @@ import type {
 import type { FollowCameraResult } from '../followCamera';
 import type { BoundaryDetailId } from '@/engine/boundaryDetail';
 import type { AppearPreview } from '@/engine/appearPreview';
+import type { StagedItem } from '@/engine/stagedItems';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution } from '@/types/render';
@@ -72,10 +73,14 @@ export interface TransientProjectState {
   boundaryDetail: BoundaryDetailId;
   /** The entrance of items just added, played a few times over (see `activeAppearPreview`). */
   appearPreview: AppearPreview | null;
+  /** What an Add panel shows before it is added: drawn on the map, not in the project (see `sceneItems`). */
+  stagedItems: StagedItem[];
 }
 
 export interface ItemsSlice {
   addItem: (item: TimelineItem) => void;
+  /** Adds the staged items to the project at the playhead, in one step, and clears them. Returns what was added. */
+  addStagedItems: () => StagedItem[];
   removeItem: (id: string) => void;
   updateItem: (id: string, updates: Partial<TimelineItem>) => void;
   /**
@@ -171,6 +176,8 @@ export interface EditorUiSlice {
   setBoundaryDetail: (id: BoundaryDetailId) => void;
   /** Plays the entrance of items just added, a few times over, with the selection and playhead as they are now. */
   playAppearPreview: (itemIds: readonly string[]) => void;
+  /** Replaces the staged items; an empty list clears them. */
+  stageItems: (items: StagedItem[]) => void;
 }
 
 export type ProjectStore = Project &

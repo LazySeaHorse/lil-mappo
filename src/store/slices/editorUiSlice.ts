@@ -80,4 +80,5 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
     const startedAt = prefersReducedMotion() ? -Infinity : performance.now();
     set({ appearPreview: { itemIds, startedAt, selectedItemId, playheadTime } });
   },
+  stageItems: (items) => set({ stagedItems: items }),
 });

@@ -136,6 +136,7 @@ function setStore(callouts: CalloutItem[], extra: Partial<ReturnType<typeof useP
     isExporting: false,
     isPlaying: false,
     hideUI: false,
+    stagedItems: [],
     ...extra,
   });
 }
@@ -339,6 +340,18 @@ describe('AnnotationOverlay', () => {
     frames.flush();
     expect(texts()).toEqual(['Harbour']);
     expect(frames.pending()).toBe(0);
+  });
+
+  it('draws a staged callout settled with the project ones, and not with the UI hidden', () => {
+    setStore([makeCallout()], { playheadTime: 5, stagedItems: [makeCallout({ id: 'staged', content: { title: 'Draft' }, startTime: 50, endTime: 60 })] });
+    const { ctx } = mount();
+    frames.flush();
+    const texts = () => drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
+    expect(texts()).toEqual(['Harbour', 'Draft']);
+
+    useProjectStore.setState({ hideUI: true });
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
   });
 
   it('plays the selected callout as animated while playing, and settles it again once stopped', () => {

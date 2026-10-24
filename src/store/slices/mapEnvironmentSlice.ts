@@ -31,6 +31,7 @@ export function createTransientState(): TransientProjectState {
     routeDraft: null,
     boundaryDetail: DEFAULT_BOUNDARY_DETAIL,
     appearPreview: null,
+    stagedItems: [],
   };
 }
 

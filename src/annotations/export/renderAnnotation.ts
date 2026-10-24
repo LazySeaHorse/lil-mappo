@@ -25,6 +25,8 @@ export interface CompositeView {
   selectedId?: string | null;
   /** Callouts just added, drawn at the preview's time in place of the playhead. Exports leave this unset. */
   preview?: AppearPreviewFrame | null;
+  /** Staged callouts (see `sceneItems`), drawn settled outside a preview. Exports leave this unset. */
+  staged?: ReadonlySet<string>;
 }
 
 /** Render all annotations for a frame onto the compositing canvas. */
@@ -34,7 +36,7 @@ export function compositeAnnotations(
   items: Record<string, TimelineItem>,
   itemOrder: string[],
   playheadTime: number,
-  { zoomOffset = 0, selectedId = null, preview = null }: CompositeView = {},
+  { zoomOffset = 0, selectedId = null, preview = null, staged }: CompositeView = {},
 ): void {
   // The zoom the editor shows, whatever size the map was rendered at.
   const viewZoom = map.getZoom() - zoomOffset;
@@ -49,7 +51,7 @@ export function compositeAnnotations(
     const time = previewing ? preview!.time : playheadTime;
     const settled = previewing
       ? time >= entranceEnd(callout)
-      : isSelectionPreview(callout, playheadTime, callout.id === selectedId);
+      : !!staged?.has(callout.id) || isSelectionPreview(callout, playheadTime, callout.id === selectedId);
     const frame = prepareAnnotationFrame(callout, time, { viewZoom, pixelScale, settled });
     if (!frame || frame.opacity <= 0 || callout.binding.kind !== 'geographic') continue;
 

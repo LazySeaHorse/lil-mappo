@@ -39,8 +39,8 @@ describe('activeAppearPreview', () => {
   const items: Record<string, TimelineItem> = { [boundary.id]: boundary, [later.id]: later };
   const preview: AppearPreview = { itemIds: [boundary.id], startedAt: 1000, selectedItemId: boundary.id, playheadTime: 2 };
   const state = {
-    appearPreview: preview, items, selectedItemId: boundary.id, playheadTime: 2,
-    isPlaying: false, isExporting: false, hideUI: false,
+    appearPreview: preview, items, itemOrder: [boundary.id, later.id], selectedItemId: boundary.id, playheadTime: 2,
+    isPlaying: false, isExporting: false, hideUI: false, isCapturingViewport: false, stagedItems: [],
   };
 
   it('draws its items through their entrance on its own clock', () => {
@@ -59,6 +59,11 @@ describe('activeAppearPreview', () => {
     expect(activeAppearPreview({ ...state, isPlaying: true }, at)).toBeNull();
     expect(activeAppearPreview({ ...state, isExporting: true }, at)).toBeNull();
     expect(activeAppearPreview({ ...state, hideUI: true }, at)).toBeNull();
+  });
+
+  it('plays staged items, which are not in the project', () => {
+    const staged = { ...state, items: {}, itemOrder: [], stagedItems: [boundary] };
+    expect(activeAppearPreview(staged, 1000 + playMs / 2)).toEqual({ itemIds: new Set([boundary.id]), time: 4, done: false });
   });
 
   it('ends when its items are gone (undone)', () => {

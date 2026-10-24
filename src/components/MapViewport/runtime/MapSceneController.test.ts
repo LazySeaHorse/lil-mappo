@@ -447,6 +447,55 @@ describe('MapSceneController', () => {
       }
     });
   });
+
+  describe('staged items', () => {
+    const lastTrim = (double: ReturnType<typeof createMapDouble>) =>
+      double.setPaintProperty.mock.calls.filter(([id, prop]) => id === 'route-layer-scene-route' && prop === 'line-trim-offset').at(-1)?.[2];
+
+    const setup = () => {
+      useProjectStore.setState({
+        items: {}, itemOrder: [], stagedItems: [], playheadTime: 0, selectedItemId: null,
+        isPlaying: false, isExporting: false, isCapturingViewport: false, hideUI: false, appearPreview: null,
+      });
+      const double = createMapDouble();
+      const controller = new MapSceneController(double.map, vi.fn());
+      controller.mount();
+      const restore = () => {
+        controller.dispose();
+        useProjectStore.setState({ stagedItems: [], isExporting: false, hideUI: false });
+      };
+      return { double, controller, restore };
+    };
+
+    it('draws a staged item finished, wherever the playhead is, and removes it when unstaged', () => {
+      const { double, restore } = setup();
+      try {
+        useProjectStore.getState().stageItems([{ ...route, startTime: 2, endTime: 6 }]);
+        expect(double.layers.has('route-layer-scene-route')).toBe(true);
+        expect(lastTrim(double)).toEqual([0, 0]);
+
+        useProjectStore.getState().stageItems([]);
+        expect(double.layers.has('route-layer-scene-route')).toBe(false);
+      } finally {
+        restore();
+      }
+    });
+
+    it('leaves staged items out of exports and of the view with the UI hidden', () => {
+      const { double, restore } = setup();
+      try {
+        useProjectStore.getState().stageItems([route]);
+        useProjectStore.setState({ isExporting: true });
+        expect(double.layers.has('route-layer-scene-route')).toBe(false);
+        useProjectStore.setState({ isExporting: false, hideUI: true });
+        expect(double.layers.has('route-layer-scene-route')).toBe(false);
+        useProjectStore.setState({ hideUI: false });
+        expect(double.layers.has('route-layer-scene-route')).toBe(true);
+      } finally {
+        restore();
+      }
+    });
+  });
 });
 
 describe('MapSceneController basemap reconcile', () => {
