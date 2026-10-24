@@ -62,7 +62,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     const activePicker = s.activePicker;
 
     if (activePicker) {
-      const target = resolveClickTarget(e, activePicker.prompt || 'Point');
+      const target = resolveClickTarget(e);
       activePicker.onPick(target);
       s.stopPicking();
       const label = activePicker.prompt || 'Point';
@@ -180,7 +180,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         onRotateEnd={() => onMapGesture?.('orbit')}
         onPitchEnd={() => onMapGesture?.('orbit')}
         onZoomEnd={() => onMapGesture?.('zoom')}
-        interactiveLayerIds={["search-results-circles"]}
         preserveDrawingBuffer={true}
       >
         {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}

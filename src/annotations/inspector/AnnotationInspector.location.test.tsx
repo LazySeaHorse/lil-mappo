@@ -62,18 +62,6 @@ describe('callout location field', () => {
     expect(stored().binding).toMatchObject({ lngLat: [-73.9855, 40.758] });
   });
 
-  it('stores the name of a place picked on the map, and clears it when the pick has none', () => {
-    render(<AnnotationInspector item={setCallout('Central Park')} />);
-    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [1, 2], name: 'Pier 17' }); });
-    expect(stored().locationName).toBe('Pier 17');
-
-    act(() => { useProjectStore.getState().stopPicking(); });
-    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
-    expect(stored().locationName).toBe('');
-  });
-
   it('keeps the place, the height and the exact position in one Location section', async () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     const location = screen.getByRole('region', { name: 'Location' });
@@ -124,14 +112,6 @@ describe('callout location field', () => {
     expect(suggest).not.toHaveBeenCalled();
   });
 
-  it('keeps the title when a map pick has no place name', () => {
-    render(<AnnotationInspector item={setCallout('Central Park')} />);
-    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
-    expect(stored().content.title).toBe('Park');
-    expect(stored().linkTitleToLocation).toBe(false);
-  });
-
   it('treats a point picked on the map as unnamed, so its coordinates never become the title', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
@@ -143,11 +123,16 @@ describe('callout location field', () => {
     expect(stored().linkTitleToLocation).toBe(false);
   });
 
-  it('still follows the place name with the title when it has one', () => {
+  it('still follows the place name with the title when it has one', async () => {
+    suggest.mockResolvedValue({ suggestions: [{ mapbox_id: 'a', name: 'Pier 17' }] });
+    retrieve.mockResolvedValue({ features: [{ geometry: { coordinates: [1, 2] }, properties: { name: 'Pier 17' } }] });
     render(<AnnotationInspector item={setCallout('Central Park')} />);
-    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [1, 2], name: 'Pier 17' }); });
-    expect(stored().content.title).toBe('Pier 17');
+    const input = screen.getByPlaceholderText(LOCATION_FIELD);
+    fireEvent.change(input, { target: { value: 'Pier 17' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.click(await screen.findByText('Pier 17'));
+
+    await waitFor(() => expect(stored().content.title).toBe('Pier 17'));
     expect(stored().linkTitleToLocation).toBe(true);
   });
 

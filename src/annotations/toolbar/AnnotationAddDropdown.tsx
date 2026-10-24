@@ -44,10 +44,11 @@ export const AnnotationAddDropdown = ({
   const { isPicking, toggle: handleTogglePick } = useMapPicker('callout-new', {
     prompt: 'Callout',
     enabled: isOpen,
+    // A map click names no place: its label is only the coordinates.
     onPick: (result) => {
       setLngLat(result.lngLat);
-      setLocationName(result.name);
-      if (linkTitle) setTitle(result.name);
+      setLocationName('');
+      setLinkTitle(false);
     },
   });
 

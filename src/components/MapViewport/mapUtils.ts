@@ -1,17 +1,9 @@
 import { LABEL_CATEGORIES, STANDARD_CAPABILITIES, getStandardLabelGroups, isStandardBasemap, type MapStyleCapabilities } from '@/config/mapbox';
-import { shortPlaceName } from '@/services/nominatim';
 import type { PickResult } from '@/store/slices/types';
 import type { Map as MapboxMap } from 'mapbox-gl';
 
-interface ClickFeature {
-  layer?: { id: string };
-  geometry: GeoJSON.Geometry;
-  properties?: Record<string, unknown> | null;
-}
-
 interface ClickTargetEvent {
   lngLat: { lng: number; lat: number };
-  features?: readonly ClickFeature[];
 }
 
 /**
@@ -40,24 +32,8 @@ export function detectRuntimeCapabilities(map: MapboxMap, mapStyle: string): Map
   };
 }
 
-/**
- * Resolves a map click to either a search result feature or raw coordinates.
- */
-export function resolveClickTarget(e: ClickTargetEvent, fallbackName = 'Point'): PickResult {
-  const searchFeature = e.features?.find((feature) => feature.layer?.id === 'search-results-circles');
-  if (searchFeature?.geometry.type === 'Point') {
-    const [longitude, latitude] = searchFeature.geometry.coordinates;
-    const rawName = searchFeature.properties?.name;
-    const name = typeof rawName === 'string' ? shortPlaceName(rawName) : fallbackName;
-
-    if (typeof longitude === 'number' && typeof latitude === 'number') {
-      return {
-        lngLat: [longitude, latitude],
-        name,
-      };
-    }
-  }
-
+/** A map click as a picked point, labelled with its coordinates (a click names no place). */
+export function resolveClickTarget(e: ClickTargetEvent): PickResult {
   const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
   return { lngLat, name: `${lngLat[0].toFixed(5)}, ${lngLat[1].toFixed(5)}` };
 }

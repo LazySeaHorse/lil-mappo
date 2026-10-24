@@ -51,26 +51,9 @@ describe('Map Point Picking Architecture', () => {
         lngLat: { lng: -73.98513, lat: 40.748817 },
       };
 
-      const result = resolveClickTarget(clickEvent, 'Start point');
+      const result = resolveClickTarget(clickEvent);
       expect(result.lngLat).toEqual([-73.98513, 40.748817]);
       expect(result.name).toBe('-73.98513, 40.74882');
-    });
-
-    it('resolves feature coordinates and name from search results', () => {
-      const clickEvent = {
-        lngLat: { lng: 0, lat: 0 },
-        features: [
-          {
-            layer: { id: 'search-results-circles' },
-            geometry: { type: 'Point' as const, coordinates: [2.3522, 48.8566] },
-            properties: { name: 'Paris, France' },
-          },
-        ],
-      };
-
-      const result = resolveClickTarget(clickEvent, 'Destination');
-      expect(result.lngLat).toEqual([2.3522, 48.8566]);
-      expect(result.name).toBe('Paris');
     });
   });
 
@@ -200,13 +183,13 @@ describe('Map Point Picking Architecture', () => {
 
       // Trigger pick result
       act(() => {
-        session?.onPick({ lngLat: [4.9, 52.37], name: 'Amsterdam' });
+        session?.onPick({ lngLat: [4.9, 52.37], name: '4.90000, 52.37000' });
       });
 
-      // Check item was updated in store
+      // Check item was updated in store; a click names no place, so the title stays
       const updated = useProjectStore.getState().items['callout-1'] as CalloutItem;
       expect((updated.binding as { lngLat: [number, number] }).lngLat).toEqual([4.9, 52.37]);
-      expect(updated.content.title).toBe('Amsterdam');
+      expect(updated.content.title).toBe('Original Title');
 
       act(() => {
         unmount();

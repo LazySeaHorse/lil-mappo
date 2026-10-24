@@ -73,7 +73,8 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       // Read the latest item: it may have been edited since picking started.
       const current = useProjectStore.getState().items[item.id];
       if (current?.kind !== 'callout') return;
-      updateItem(item.id, movePatch(current, result.lngLat, result.name));
+      // A map click names no place: its label is only the coordinates.
+      updateItem(item.id, movePatch(current, result.lngLat, ''));
     },
   });
 
