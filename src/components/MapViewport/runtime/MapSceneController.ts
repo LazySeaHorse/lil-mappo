@@ -11,6 +11,7 @@ import { ModelRenderer } from './ModelRenderer';
 import { ModelCatalog } from './ModelCatalog';
 import { isStyleReady } from './mapboxResources';
 import { isSelectionPreview, previewableSelectionId, selectionPreviewTime } from '@/engine/selectionPreview';
+import { activeAppearPreview, type AppearPreviewFrame } from '@/engine/appearPreview';
 import { useModelRegistry } from '@/models/modelRegistry';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
@@ -91,6 +92,10 @@ export class MapSceneController implements MapSceneRuntime {
   private lastRenderedTime = Number.NaN;
   /** Selection the last live render used, so selecting an item redraws even at the same playhead time. */
   private lastRenderedSelection: string | null = null;
+  /** The appear preview the last render drew (its items and time), '' for none. */
+  private lastRenderedPreview = '';
+  /** The animation frame of the next appear preview render, if any. */
+  private previewFrame: number | undefined;
   /** A store update arrived while Mapbox was replacing its style. */
   private sceneDirty = true;
   private disposed = false;
@@ -130,15 +135,35 @@ export class MapSceneController implements MapSceneRuntime {
     this.renderScene(time, null);
   };
 
-  /** Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead, except while playing or with the UI hidden. */
+  /**
+   * Draws the scene for the live editor: the selected item is shown fully drawn when off the playhead, except
+   * while playing or with the UI hidden, and items just added play their entrance (see `activeAppearPreview`).
+   */
   private renderLive(state: ProjectState): void {
-    this.renderScene(state.playheadTime, previewableSelectionId(state), state.items);
+    const preview = activeAppearPreview(state, performance.now());
+    this.renderScene(state.playheadTime, previewableSelectionId(state), state.items, preview);
+    if (preview && !preview.done && this.drawsAny(preview.itemIds)) this.schedulePreviewFrame();
+  }
+
+  /** Whether the scene draws any of these items (callouts are drawn by the annotation overlay). */
+  private drawsAny(ids: ReadonlySet<string>): boolean {
+    for (const id of ids) if (this.routes.has(id) || this.boundaries.has(id)) return true;
+    return false;
+  }
+
+  private schedulePreviewFrame(): void {
+    if (this.previewFrame !== undefined) return;
+    this.previewFrame = requestAnimationFrame(() => {
+      this.previewFrame = undefined;
+      if (!this.disposed) this.renderLive(useProjectStore.getState());
+    });
   }
 
   private renderScene = (
     time: number,
     selectedId: string | null,
     items: ProjectState['items'] = useProjectStore.getState().items,
+    preview: AppearPreviewFrame | null = null,
   ): void => {
     if (this.disposed) return;
     // A style replacement removes every custom source and layer. Defer all
@@ -147,12 +172,15 @@ export class MapSceneController implements MapSceneRuntime {
       this.sceneDirty = true;
       return;
     }
+    const previewKey = preview ? `${[...preview.itemIds].join()}@${preview.time}` : '';
     if (
       time === this.lastRenderedTime
       && selectedId === this.lastRenderedSelection
+      && previewKey === this.lastRenderedPreview
       && this.renderedRevision === this.sceneRevision
     ) return;
     const timeFor = (id: string) => {
+      if (preview?.itemIds.has(id)) return preview.time;
       const item = items[id];
       return item && item.kind !== 'camera' ? selectionPreviewTime(item, time, id === selectedId) : time;
     };
@@ -166,6 +194,7 @@ export class MapSceneController implements MapSceneRuntime {
     });
     this.lastRenderedTime = time;
     this.lastRenderedSelection = selectedId;
+    this.lastRenderedPreview = previewKey;
     this.renderedRevision = this.sceneRevision;
   };
 
@@ -176,6 +205,7 @@ export class MapSceneController implements MapSceneRuntime {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    if (this.previewFrame !== undefined) cancelAnimationFrame(this.previewFrame);
     this.unsubscribe?.();
     this.unsubscribeModels?.();
     this.catalog.detach();
@@ -277,6 +307,7 @@ export class MapSceneController implements MapSceneRuntime {
       || state.isExporting !== previous.isExporting
       || state.isPlaying !== previous.isPlaying
       || state.hideUI !== previous.hideUI
+      || state.appearPreview !== previous.appearPreview
     ) this.renderLive(state);
   };
 }

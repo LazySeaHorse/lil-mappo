@@ -59,9 +59,10 @@ export const AnnotationAddDropdown = ({
       toast.error('Invalid style selected');
       return;
     }
-    const { addItem, selectItem } = useProjectStore.getState();
+    const { addItem, selectItem, playAppearPreview } = useProjectStore.getState();
     addItem(item);
     selectItem(item.id);
+    playAppearPreview([item.id]);
     setAddedId(item.id);
     frame.frameCallout(item);
   };

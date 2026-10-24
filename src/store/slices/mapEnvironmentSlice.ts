@@ -33,6 +33,7 @@ export function createTransientState(): TransientProjectState {
     previewBoundaryStyle: null,
     draftBoundaryName: '',
     boundaryDetail: DEFAULT_BOUNDARY_DETAIL,
+    appearPreview: null,
   };
 }
 

@@ -17,6 +17,7 @@ import { loadCalloutAssets } from '@/annotations/draw';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { isRepaintPending } from '@/components/MapViewport/runtime/mapboxResources';
 import { previewableSelectionId } from '@/engine/selectionPreview';
+import { activeAppearPreview } from '@/engine/appearPreview';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -29,7 +30,8 @@ function overlayStateChanged(state: ProjectState, previous: ProjectState): boole
     || state.isExporting !== previous.isExporting
     || state.isPlaying !== previous.isPlaying
     || state.hideUI !== previous.hideUI
-    || state.isCapturingViewport !== previous.isCapturingViewport;
+    || state.isCapturingViewport !== previous.isCapturingViewport
+    || state.appearPreview !== previous.appearPreview;
 }
 
 export class AnnotationOverlay {
@@ -137,8 +139,12 @@ export class AnnotationOverlay {
     if (state.isExporting) return;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const preview = activeAppearPreview(state, performance.now());
     compositeAnnotations(this.map, ctx, state.items, state.itemOrder, state.playheadTime, {
       selectedId: previewableSelectionId(state),
+      preview,
     });
+    // Callouts just added animate on their own clock: draw again next frame until they have played out.
+    if (preview && !preview.done && [...preview.itemIds].some((id) => state.items[id]?.kind === 'callout')) this.scheduleDraw();
   };
 }

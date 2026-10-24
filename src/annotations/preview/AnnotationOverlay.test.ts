@@ -6,6 +6,7 @@ import { AnnotationOverlay } from './AnnotationOverlay';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { loadCalloutAssets } from '@/annotations/draw';
 import { useProjectStore } from '@/store/useProjectStore';
+import { APPEAR_PREVIEW_TIMING } from '@/engine/appearPreview';
 import type { CalloutItem } from '@/store/types';
 
 vi.mock('@/annotations/draw', async (importOriginal) => ({
@@ -317,6 +318,27 @@ describe('AnnotationOverlay', () => {
     fire('render');
     const texts = drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
     expect(texts).toEqual(['Harbour']);
+  });
+
+  it('plays the entrance of a callout just added on its own clock, frame by frame, until it has played out', () => {
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    setStore([makeCallout()], { playheadTime: 0, selectedItemId: 'c1' });
+    useProjectStore.getState().playAppearPreview(['c1']);
+    const { ctx } = mount();
+    const texts = () => drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
+
+    frames.flush();
+    expect(texts()).toEqual([]); // the start of the fade in
+    now = APPEAR_PREVIEW_TIMING.playMs / 2;
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
+    expect(frames.pending()).toBe(1);
+
+    now = 60_000;
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
+    expect(frames.pending()).toBe(0);
   });
 
   it('plays the selected callout as animated while playing, and settles it again once stopped', () => {

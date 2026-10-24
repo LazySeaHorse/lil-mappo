@@ -68,7 +68,7 @@ describe('AnnotationAddDropdown', () => {
     projected = { x: 5000, y: 400 };
     useProjectStore.setState({
       items: {}, itemOrder: [], selectedItemId: null, activePicker: null, playheadTime: 0,
-      isPlaying: false, isExporting: false, isScrubbing: false,
+      isPlaying: false, isExporting: false, isScrubbing: false, appearPreview: null,
     });
   });
 
@@ -104,6 +104,13 @@ describe('AnnotationAddDropdown', () => {
     pickOnMap([2.35, 48.85]);
     expect(callouts()).toHaveLength(1);
     expect(easeTo).not.toHaveBeenCalled();
+  });
+
+  it('plays the entrance of the new callout', () => {
+    renderDropdown();
+    pickOnMap([2.35, 48.85]);
+    const [callout] = callouts();
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [callout.id], selectedItemId: callout.id });
   });
 
   it('adds an unnamed callout as soon as a point is picked on the map', () => {

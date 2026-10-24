@@ -10,7 +10,12 @@ function subscribe(onChange: () => void) {
   return () => query?.removeEventListener?.('change', onChange);
 }
 
+/** Whether the user asks the system for less motion, read once. */
+export function prefersReducedMotion(): boolean {
+  return mediaQuery()?.matches ?? false;
+}
+
 /** True while the user asks the system for less motion. Looping decorations show a still frame then. */
 export function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(subscribe, () => mediaQuery()?.matches ?? false, () => false);
+  return useSyncExternalStore(subscribe, prefersReducedMotion, () => false);
 }

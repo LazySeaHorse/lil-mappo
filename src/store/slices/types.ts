@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import type { FollowCameraResult } from '../followCamera';
 import type { BoundaryDetailId } from '@/engine/boundaryDetail';
+import type { AppearPreview } from '@/engine/appearPreview';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution } from '@/types/render';
@@ -72,6 +73,8 @@ export interface TransientProjectState {
   draftBoundaryName: string;
   /** Detail level for the next boundary added; remembered for the session only. */
   boundaryDetail: BoundaryDetailId;
+  /** The entrance of items just added, played a few times over (see `activeAppearPreview`). */
+  appearPreview: AppearPreview | null;
 }
 
 export interface ItemsSlice {
@@ -172,6 +175,8 @@ export interface EditorUiSlice {
   setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
   clearPreviewBoundary: () => void;
   setBoundaryDetail: (id: BoundaryDetailId) => void;
+  /** Plays the entrance of items just added, a few times over, with the selection and playhead as they are now. */
+  playAppearPreview: (itemIds: readonly string[]) => void;
 }
 
 export type ProjectStore = Project &

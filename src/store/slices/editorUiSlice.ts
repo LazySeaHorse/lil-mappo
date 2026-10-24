@@ -4,6 +4,7 @@ import { writeTimelineHeight } from '../timelineHeightPreference';
 import { CAMERA_TRACK_ID } from '../projectDocument';
 import { DEFAULT_BOUNDARY_STYLE } from '../itemFactories';
 import { savedCalculation } from '@/engine/routeDraft';
+import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSlice> = (
   set,
@@ -88,6 +89,13 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
     })),
 
   setBoundaryDetail: (id) => set({ boundaryDetail: id }),
+
+  playAppearPreview: (itemIds) => {
+    const { selectedItemId, playheadTime } = get();
+    // With less motion asked for, it starts finished.
+    const startedAt = prefersReducedMotion() ? -Infinity : performance.now();
+    set({ appearPreview: { itemIds, startedAt, selectedItemId, playheadTime } });
+  },
 
   clearPreviewBoundary: () =>
     set({
