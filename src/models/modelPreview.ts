@@ -14,6 +14,7 @@ import {
   type Texture,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 /** One turn of the preview's turntable, in milliseconds. */
 const TURN_MS = 12_000;
@@ -38,15 +39,19 @@ function disposeTree(root: Group): void {
 
 /**
  * Draws a .glb on `canvas`, turning slowly (still when the user asks for reduced motion), seen
- * from the front and a little above, the whole model in view. `url` is the object URL of the bytes
- * the map loads. Loaded only when the 3D model popup shows a model, as it pulls in three.js.
+ * from the front and a little above, the whole model in view. The user can take the camera: drag
+ * to turn it round the model, scroll or pinch to zoom, right-drag or two fingers to pan; the model
+ * then stops turning. `url` is the object URL of the bytes the map loads. Loaded only when the 3D
+ * model popup shows a model, as it pulls in three.js.
  */
 export async function startModelPreview(canvas: HTMLCanvasElement, url: string): Promise<ModelPreview> {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
   let frame = 0;
   let model: Group | null = null;
+  let controls: OrbitControls | null = null;
   const dispose = () => {
     cancelAnimationFrame(frame);
+    controls?.dispose();
     if (model) disposeTree(model);
     renderer.dispose();
     // Gives the context back now: the browser keeps only a few, and drops the oldest (the map's) past that.
@@ -102,8 +107,10 @@ export async function startModelPreview(canvas: HTMLCanvasElement, url: string):
       const depth = offset.dot(toCamera);
       distance = Math.max(distance, depth + Math.abs(offset.dot(right)) / tanH, depth + Math.abs(offset.dot(up)) / tanV);
     }
-    camera.position.copy(target).addScaledVector(toCamera, distance || radius * 3);
+    const fitted = distance || radius * 3;
+    camera.position.copy(target).addScaledVector(toCamera, fitted);
     camera.lookAt(target);
+    if (controls) controls.maxDistance = fitted * 4;
   };
 
   const resize = () => {
@@ -115,15 +122,25 @@ export async function startModelPreview(canvas: HTMLCanvasElement, url: string):
     camera.updateProjectionMatrix();
     fit();
   };
+  const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  // Also keeps right-clicks on the canvas from opening the browser menu.
+  controls = new OrbitControls(camera, canvas);
+  controls.target.copy(target);
+  controls.enableDamping = !still;
+  controls.minDistance = radius * 0.1;
   fit();
 
-  const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  // The model stops turning once the user takes the camera, so it stays where they put it.
+  let turning = !still;
+  controls.addEventListener('start', () => { turning = false; });
+
   const start = performance.now();
   const draw = () => {
     resize();
-    if (!still) turntable.rotation.y = ((performance.now() - start) / TURN_MS) * Math.PI * 2;
+    if (turning) turntable.rotation.y = ((performance.now() - start) / TURN_MS) * Math.PI * 2;
+    controls?.update();
     renderer.render(scene, camera);
-    if (!still) frame = requestAnimationFrame(draw);
+    frame = requestAnimationFrame(draw);
   };
   draw();
   return { dispose };
