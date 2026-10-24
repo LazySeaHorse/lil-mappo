@@ -4,11 +4,12 @@ import type { Subscription } from '@/lib/database.types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { createTransientState, useProjectStore } from '@/store/useProjectStore';
 import { createProject } from '@/store/projectDocument';
-import { clearModelRegistry } from '@/models/modelRegistry';
+import { clearModelRegistry, useModelRegistry } from '@/models/modelRegistry';
+import { installModelRetention } from '@/models/modelRetention';
 import { makeGlb } from '@/models/testGlb';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { SEARCH_TERMS } from '@/lib/terms';
-import { clearHistory, undo } from '@/store/history';
+import { beginGesture, clearHistory, endGesture, undo } from '@/store/history';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';
 import { ModelImportButton } from './ModelImportButton';
@@ -91,6 +92,39 @@ describe('ModelImportButton', () => {
     expect(state.items[state.selectedItemId!]).toMatchObject({ kind: 'model', name: 'Lighthouse', position: [2.35, 48.85], startTime: 4, scale: 1 });
     expect(toast.success).toHaveBeenCalledWith(MODEL_TERMS.imported('Lighthouse'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  describe('with the app freeing model files the project does not use', () => {
+    let uninstall: () => void;
+    beforeEach(() => { uninstall = installModelRetention(); });
+    afterEach(() => uninstall());
+
+    const upload = async () => {
+      subscription = { tier: 'wanderer', status: 'active' };
+      render(<ModelImportButton />);
+      openPopup();
+      const file = new File([makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [1, 200, 1] })], 'Lighthouse.glb');
+      fireEvent.change(fileInput(), { target: { files: [file] } });
+      return placeStep();
+    };
+    /** A press and release anywhere, which pauses and resumes the undo history. */
+    const press = async () => {
+      act(() => beginGesture());
+      act(() => endGesture());
+      await act(async () => {});
+    };
+
+    it('keeps the file of a model chosen but not added yet, so its preview stays and Add places a loaded model', async () => {
+      const popup = await upload();
+      const sha = Object.keys(useModelRegistry.getState().loaded)[0];
+      await press();
+
+      expect(useModelRegistry.getState().loaded[sha]).toBeDefined();
+      expect(within(popup).getByTestId('model-preview')).toHaveAttribute('data-state', 'model');
+      fireEvent.click(within(popup).getByRole('button', { name: MODEL_TERMS.add }));
+      await press();
+      expect(useModelRegistry.getState().loaded[sha]).toBeDefined();
+    });
   });
 
   it('starts a small model at 100 m tall, and adds it at the size it is left at', async () => {
