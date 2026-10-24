@@ -1,27 +1,27 @@
 /**
  * AnnotationAddDropdown — replaces CalloutAddDropdown.
  *
- * Creates new annotation items using the style registry.
- * Only asks for location and label; style is chosen later in the inspector.
+ * Choosing a place (a search result or a point picked on the map) adds a callout
+ * there at once, selects it and brings all of it into view. The panel stays open
+ * with a field to rename the callout just added; the next place adds another.
+ * Style is chosen later in the inspector.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Flag, Plus, Link as LinkIcon } from 'lucide-react';
+import { Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import { createCalloutItem, DEFAULT_CALLOUT_STYLE_ID } from '@/store/itemFactories';
 import { SearchField } from '@/components/Search/SearchField';
-import { Switch } from "@/components/ui/switch";
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
-import { SectionLabel, Field } from '@/components/ui/field';
-import { StatusPill } from '@/components/ui/pro-badge';
+import { Field } from '@/components/ui/field';
+import { isPlacedPoint } from '@/engine/routeMode';
+import { CALLOUT_ADD_TERMS } from '@/lib/terms';
 
 export const AnnotationAddDropdown = ({
   isOpen,
@@ -30,62 +30,53 @@ export const AnnotationAddDropdown = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const { addItem, selectItem } = useProjectStore(
-    useShallow(s => ({ addItem: s.addItem, selectItem: s.selectItem }))
-  );
-
   const frame = useFrameOnMap();
 
-  const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
-  const [locationName, setLocationName] = useState('');
-  const [title, setTitle] = useState('New Callout');
-  const [linkTitle, setLinkTitle] = useState(true);
-
-  const { isPicking, toggle: handleTogglePick } = useMapPicker('callout-new', {
-    prompt: 'Callout',
-    enabled: isOpen,
-    // A map click names no place: its label is only the coordinates.
-    onPick: (result) => {
-      setLngLat(result.lngLat);
-      setLocationName('');
-      setLinkTitle(false);
-    },
+  // The callout this panel added last, which the title field renames.
+  const [addedId, setAddedId] = useState<string | null>(null);
+  const added = useProjectStore((s) => {
+    const item = addedId ? s.items[addedId] : undefined;
+    return item?.kind === 'callout' ? item : null;
   });
 
-  const handleSelect = (coords: [number, number], name: string) => {
-    setLngLat(coords);
-    setLocationName(name);
-    if (linkTitle) setTitle(name);
-  };
+  useEffect(() => {
+    if (!isOpen) setAddedId(null);
+  }, [isOpen]);
 
-  const handleAdd = () => {
-    if (lngLat[0] === 0) {
-      toast.error('Set a location first');
-      return;
-    }
-
+  /** Adds a callout at a point. A name says which place it is and becomes the title. */
+  const addAt = (lngLat: [number, number], name: string) => {
+    // Clearing the search reports the unset point: nothing to add.
+    if (!isPlacedPoint(lngLat)) return;
     const item = createCalloutItem({
       styleId: DEFAULT_CALLOUT_STYLE_ID,
-      content: { title },
+      content: { title: name || CALLOUT_ADD_TERMS.defaultTitle },
       lngLat,
       startTime: useProjectStore.getState().playheadTime,
-      linkTitleToLocation: linkTitle,
-      locationName,
+      linkTitleToLocation: !!name,
+      locationName: name,
     });
     if (!item) {
       toast.error('Invalid style selected');
       return;
     }
-    const id = item.id;
-
+    const { addItem, selectItem } = useProjectStore.getState();
     addItem(item);
-    selectItem(id);
-    frame.framePoint(lngLat);
-    setLngLat([0, 0]);
-    setLocationName('');
-    setTitle('New Callout');
-    onOpenChange(false);
-    toast.success('Callout added to timeline');
+    selectItem(item.id);
+    setAddedId(item.id);
+    frame.frameCallout(item);
+  };
+
+  const { isPicking, toggle: handleTogglePick } = useMapPicker('callout-new', {
+    prompt: 'Callout',
+    enabled: isOpen,
+    // A map click names no place: its label is only the coordinates.
+    onPick: (result) => addAt(result.lngLat, ''),
+  });
+
+  /** Renames the callout just added. Like a rename in the inspector, the title stops following the place. */
+  const rename = (title: string) => {
+    if (!added) return;
+    useProjectStore.getState().updateItem(added.id, { content: { ...added.content, title }, linkTitleToLocation: false });
   };
 
   const trigger = (
@@ -107,75 +98,40 @@ export const AnnotationAddDropdown = ({
     />
   );
 
-  const footer = (
-    <Button
-      variant="default"
-      onClick={handleAdd}
-      disabled={lngLat[0] === 0}
-      data-walkthrough="callout-action"
-      className="w-full"
-    >
-      <Plus size={16} /> Create callout
-    </Button>
-  );
-
   return (
     <ToolbarDropdownPanel
       open={isOpen}
       onOpenChange={onOpenChange}
       trigger={trigger}
       header={header}
-      footer={footer}
     >
-      <div className="space-y-4">
-        <SectionLabel>Target location</SectionLabel>
+      <div className="space-y-2" data-walkthrough="callout-action">
+        {/* A new field for each added callout, so the box is empty for the next place. */}
         <SearchField
-          label="Search location..."
-          value={lngLat}
-          name={locationName}
-          onSelect={handleSelect}
+          key={addedId ?? 'new'}
+          label={CALLOUT_ADD_TERMS.search}
+          value={[0, 0]}
+          name=""
+          onSelect={addAt}
           isPicking={isPicking}
           onStartPick={handleTogglePick}
         />
+        <p className="px-1 text-xs text-muted-foreground">{CALLOUT_ADD_TERMS.approximate}</p>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <SectionLabel className="mb-0 px-0">Label title</SectionLabel>
-          <div className="flex items-center gap-2">
-            <StatusPill>{linkTitle ? 'Linked' : 'Manual'}</StatusPill>
-            <Switch
-              checked={linkTitle}
-              onCheckedChange={setLinkTitle}
-              className="scale-75"
-            />
-          </div>
-        </div>
-        <Field label="" className="mb-0">
-          <div className="relative group">
-            <Input
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setLinkTitle(false);
-              }}
-              placeholder="Callout title"
-              className="h-9 text-xs bg-secondary/20 border-transparent focus:border-border/50 transition-all"
-            />
-            {linkTitle && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/50 group-hover:text-primary transition-colors">
-                <LinkIcon size={12} />
-              </div>
-            )}
-          </div>
+      {added && (
+        <Field label={CALLOUT_ADD_TERMS.title} className="mb-0">
+          <Input
+            value={added.content.title}
+            onChange={(e) => rename(e.target.value)}
+            placeholder={CALLOUT_ADD_TERMS.titlePlaceholder}
+            aria-label={CALLOUT_ADD_TERMS.title}
+            className="h-9 text-xs"
+          />
         </Field>
-      </div>
+      )}
 
-      <div className="space-y-3">
-        <p className="px-1 text-xs text-muted-foreground">
-          You can set the style and colors in the inspector panel after you create the callout.
-        </p>
-      </div>
+      <p className="px-1 text-xs text-muted-foreground">{CALLOUT_ADD_TERMS.styleNote}</p>
     </ToolbarDropdownPanel>
   );
 };

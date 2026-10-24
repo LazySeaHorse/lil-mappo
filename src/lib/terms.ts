@@ -204,6 +204,19 @@ export const ACCENT_TERMS = {
   customize: 'Customize colors',
 } as const;
 
+/** Words of the Add Callout panel. Choosing a place adds the callout; the panel stays open to rename it. */
+export const CALLOUT_ADD_TERMS = {
+  search: 'Search for a place',
+  /** Under the search. A search can land near the spot, not on it (a brand finds its nearest store). */
+  approximate: 'Search results can be approximate. For an exact spot, pick it on the map.',
+  /** The title of a callout added at a point with no place name. */
+  defaultTitle: 'New Callout',
+  /** Label of the field that renames the callout just added. */
+  title: 'Title',
+  titlePlaceholder: 'Callout title',
+  styleNote: 'You can set the style and colors in the inspector.',
+} as const;
+
 /** Words of the Location section of a callout. */
 export const CALLOUT_LOCATION_TERMS = {
   /** Label and placeholder of the place search field. */

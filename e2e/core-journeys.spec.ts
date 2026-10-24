@@ -147,9 +147,9 @@ test.describe("5 Golden E2E Journeys", () => {
     await calloutDropdown.getByTitle("Pick on the map").click();
     await page.locator(".mapboxgl-canvas").click({ position: { x: 740, y: 350 } });
 
+    // The pick adds the callout; the panel stays open to rename it.
     const calloutTitle = "Alpha Basecamp";
     await calloutDropdown.getByPlaceholder("Callout title").fill(calloutTitle);
-    await calloutDropdown.getByRole("button", { name: "Create callout" }).click();
 
     // Verify callout appears in inspector
     await expect(page.getByRole("heading", { name: "Callout", exact: true })).toBeVisible();

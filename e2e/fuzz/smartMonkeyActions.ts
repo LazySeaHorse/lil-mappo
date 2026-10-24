@@ -228,7 +228,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
         recorder.record('drafting', 'Open Callout Tool');
         await safeClick(page.getByTitle('Add Callout'));
       } else {
-        const subAction = rng.pick(['fillTitle', 'pickMap', 'submit', 'close']);
+        const subAction = rng.pick(['fillTitle', 'pickMap', 'close']);
         recorder.record('drafting', `Callout Tool: ${subAction}`);
         if (subAction === 'fillTitle') {
           const titleInput = calloutDropdown.getByPlaceholder('Callout title');
@@ -238,9 +238,6 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
         } else if (subAction === 'pickMap') {
           const pickBtn = calloutDropdown.getByTitle('Pick on the map');
           await safeClick(pickBtn);
-        } else if (subAction === 'submit') {
-          const submitBtn = calloutDropdown.getByRole('button', { name: 'Create callout' });
-          await safeClick(submitBtn);
         } else {
           await page.keyboard.press('Escape').catch(() => {});
         }

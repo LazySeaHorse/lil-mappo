@@ -17,8 +17,8 @@ interface ToolbarDropdownPanelProps {
   header: React.ReactNode;
   /** Scrollable body content */
   children: React.ReactNode;
-  /** Fixed footer area — typically action buttons */
-  footer: React.ReactNode;
+  /** Fixed footer area — typically action buttons. Omitted, the panel has no footer. */
+  footer?: React.ReactNode;
   /** Alignment of the dropdown */
   align?: "start" | "center" | "end";
   className?: string;
@@ -33,7 +33,7 @@ interface ToolbarDropdownPanelProps {
  *   ├──────────────────┤
  *   │  ScrollArea body │  ← children (search fields, previews, etc.)
  *   ├──────────────────┤
- *   │  footer          │  ← action buttons (Insert, Preview, etc.)
+ *   │  footer          │  ← action buttons (Insert, Preview, etc.), optional
  *   └──────────────────┘
  *
  * Key behaviors (baked in):
@@ -74,9 +74,11 @@ function ToolbarDropdownPanel({
         <ScrollArea verticalOnly className="flex-1 overflow-hidden min-h-0">
           <div className="p-4 space-y-6">{children}</div>
         </ScrollArea>
-        <div className="p-4 border-t border-border/50 bg-secondary/5 shrink-0">
-          {footer}
-        </div>
+        {footer && (
+          <div className="p-4 border-t border-border/50 bg-secondary/5 shrink-0">
+            {footer}
+          </div>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

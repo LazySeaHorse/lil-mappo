@@ -340,12 +340,12 @@ export function getWalkthroughStepConfig(
       return {
         stage,
         target: '[data-walkthrough="callout-action"]',
-        title: 'Pick a place and create it',
+        title: 'Pick a place for it',
         placement: isMobile ? 'top' : 'right',
         hideOverlay: true,
         compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Search for a place, or click the crosshair and then the map. Then press Create callout.',
+        renderContent: () => 'Search for a place and choose a result, or click the pin button and then the map. The callout is added there.',
       };
 
     case 'project-settings':
