@@ -117,6 +117,17 @@ describe('MapViewport', () => {
     else expect(updateItem).toHaveBeenCalledWith('c1', { binding: { kind: 'geographic', lngLat: [7, 8], altitude: 0 } });
   });
 
+  it('shows a crosshair cursor while the user picks a point on the map', () => {
+    mountViewport();
+    expect(mapGlRenders.at(-1)?.cursor).toBeUndefined();
+
+    act(() => useProjectStore.getState().startPicking({ id: 'p', onPick: vi.fn() }));
+    expect(mapGlRenders.at(-1)?.cursor).toBe('crosshair');
+
+    act(() => useProjectStore.getState().stopPicking());
+    expect(mapGlRenders.at(-1)?.cursor).toBeUndefined();
+  });
+
   it('leaves the selection preview pill to the editor, so fit mode does not scale it with the map', () => {
     const route = { kind: 'route', id: 'r', name: 'Coast road', startTime: 2, endTime: 6 } as RouteItem;
     useProjectStore.setState({ duration: 10, items: { r: route }, itemOrder: ['r'] });

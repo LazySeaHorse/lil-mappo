@@ -34,6 +34,8 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const updateItem = useProjectStore((s) => s.updateItem);
   const setMapCenter = useProjectStore((s) => s.setMapCenter);
+  // A crosshair tells the user a click on the map picks a point.
+  const isPicking = useProjectStore((s) => s.activePicker !== null);
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
 
@@ -174,6 +176,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
         onClick={handleMapClick}
+        cursor={isPicking ? 'crosshair' : undefined}
         onLoad={handleMapLoad}
         onMove={(evt) => debouncedSetMapCenter(evt.viewState.longitude, evt.viewState.latitude)}
         onDragEnd={() => onMapGesture?.('pan')}
