@@ -2,7 +2,6 @@ import type { StateCreator } from 'zustand';
 import type { EditorUiSlice, ProjectStore } from './types';
 import { writeTimelineHeight } from '../timelineHeightPreference';
 import { CAMERA_TRACK_ID } from '../projectDocument';
-import { DEFAULT_BOUNDARY_STYLE } from '../itemFactories';
 import { savedCalculation } from '@/engine/routeDraft';
 import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
@@ -73,21 +72,6 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
     set((s) => (s.routeDraft ? { routeDraft: { ...s.routeDraft, calculation: update(s.routeDraft.calculation) } } : s)),
   discardRouteDraft: () => set({ routeDraft: null }),
 
-  setPreviewBoundary: (geojson, name, countryCode = null) =>
-    set({
-      previewBoundary: geojson,
-      draftBoundaryName: name,
-      // The flag follows the searched place; the rest of the style is kept across searches
-      previewBoundaryStyle: { ...(get().previewBoundaryStyle || DEFAULT_BOUNDARY_STYLE), flagCode: countryCode },
-    }),
-
-  setPreviewBoundaryStyle: (updates) =>
-    set((s) => ({
-      previewBoundaryStyle: s.previewBoundaryStyle
-        ? { ...s.previewBoundaryStyle, ...updates }
-        : null,
-    })),
-
   setBoundaryDetail: (id) => set({ boundaryDetail: id }),
 
   playAppearPreview: (itemIds) => {
@@ -96,11 +80,4 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
     const startedAt = prefersReducedMotion() ? -Infinity : performance.now();
     set({ appearPreview: { itemIds, startedAt, selectedItemId, playheadTime } });
   },
-
-  clearPreviewBoundary: () =>
-    set({
-      previewBoundary: null,
-      previewBoundaryStyle: null,
-      draftBoundaryName: '',
-    }),
 });

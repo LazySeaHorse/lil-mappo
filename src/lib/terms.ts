@@ -217,6 +217,13 @@ export const CALLOUT_ADD_TERMS = {
   styleNote: 'You can set the style and colors in the inspector.',
 } as const;
 
+/** Words of the Add Boundary panel. */
+export const BOUNDARY_ADD_TERMS = {
+  empty: 'Search for a country, city or region. Its boundary is added as soon as you choose a result.',
+  /** Above the name of the boundary just added. */
+  added: 'Added',
+} as const;
+
 /** Words of the Location section of a callout. */
 export const CALLOUT_LOCATION_TERMS = {
   /** Label and placeholder of the place search field. */

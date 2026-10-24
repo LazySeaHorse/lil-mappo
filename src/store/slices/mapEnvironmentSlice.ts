@@ -29,9 +29,6 @@ export function createTransientState(): TransientProjectState {
     previewSpokeFocus: null,
     draftWalk: null,
     routeDraft: null,
-    previewBoundary: null,
-    previewBoundaryStyle: null,
-    draftBoundaryName: '',
     boundaryDetail: DEFAULT_BOUNDARY_DETAIL,
     appearPreview: null,
   };

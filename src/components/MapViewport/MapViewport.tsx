@@ -9,7 +9,6 @@ import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cam
 import { isPlacedPoint } from '@/engine/routeMode';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
-import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 import { resolveClickTarget } from './mapUtils';
 import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
@@ -191,7 +190,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
             {/* Previews */}
             <PreviewRouteLayer />
             <DraftWalkLayer />
-            <PreviewBoundaryLayer />
 
           </>
         )}

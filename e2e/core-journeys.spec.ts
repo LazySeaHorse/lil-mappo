@@ -160,8 +160,8 @@ test.describe("5 Golden E2E Journeys", () => {
     const searchInput = boundaryDropdown.getByPlaceholder("Search for a place or region");
     await searchInput.fill("Testland");
     await searchInput.press("Enter");
+    // Choosing a result adds the boundary.
     await boundaryDropdown.getByRole("button", { name: /Testland/ }).click();
-    await boundaryDropdown.getByRole("button", { name: "Insert boundary" }).click();
     await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
 
     // 4. Verify all items exist on Timeline

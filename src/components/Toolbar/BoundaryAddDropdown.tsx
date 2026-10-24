@@ -1,133 +1,171 @@
-import { applyBoundaryDetail } from '@/engine/boundaryDetail';
-import { BoundaryDetailPicker } from './BoundaryDetailPicker';
-import React from 'react';
-import { useProjectStore } from '@/store/useProjectStore';
-import { useShallow } from 'zustand/react/shallow';
-import { Button } from '@/components/ui/button';
-import {
-  Hexagon, Plus, Check, MapPin
-} from 'lucide-react';
-import { EmptyState } from '@/components/ui/empty-state';
-import { toast } from 'sonner';
-import { createBoundaryItem, createCalloutItem, DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
-import { labelPoint } from '@/engine/labelPoint';
-import { beginGesture, endGesture, withHistoryLabel } from '@/store/history';
-import { SwitchRow } from '@/components/Inspector/controls/SwitchRow';
-import { shortPlaceName, type NominatimResult } from '@/services/nominatim';
-import { parseBoundaryAnimationStyle } from '@/store/domainValues';
-import { BoundarySearch } from '../Inspector/BoundarySearch';
-import { useFrameOnMap } from '@/hooks/useFrameOnMap';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+/**
+ * BoundaryAddDropdown — the Add Boundary panel.
+ *
+ * Choosing a search result adds the place's boundary at once, selects it, brings it into
+ * view and plays its entrance (see `playAppearPreview`), so the map shows it exactly as
+ * the video will. The panel stays open: its options change the boundary just added and
+ * play it again, and the next result adds another, with the same options.
+ */
 
+import React from 'react';
+import { Hexagon, Check, MapPin } from 'lucide-react';
+import { applyBoundaryDetail, type BoundaryDetailId } from '@/engine/boundaryDetail';
+import { labelPoint } from '@/engine/labelPoint';
+import { useProjectStore } from '@/store/useProjectStore';
+import { createBoundaryItem, createCalloutItem, DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
+import type { BoundaryItem, BoundaryStyle, TimelineItem } from '@/store/types';
+import { beginGesture, endGesture, withHistoryLabel } from '@/store/history';
+import { parseBoundaryAnimationStyle } from '@/store/domainValues';
+import { shortPlaceName, type NominatimResult } from '@/services/nominatim';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
+import { SwitchRow } from '@/components/Inspector/controls/SwitchRow';
+import { ColorRow } from '@/components/Inspector/controls/ColorRow';
+import { BoundarySearch } from '../Inspector/BoundarySearch';
+import { BoundaryDetailPicker } from './BoundaryDetailPicker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { SectionLabel, Field } from '@/components/ui/field';
-import { ColorRow } from '@/components/Inspector/controls/ColorRow';
-import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
+import { BOUNDARY_ADD_TERMS, BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS } from '@/lib/terms';
 
 // A flag reads best fully opaque; the Dim switch uses a lighter mask than the inspector default.
 const FLAG_FILL_OPACITY = 1;
 const DIM_MASK_OPACITY = 0.7;
 
-export const BoundaryAddDropdown = ({ 
-  isOpen, 
-  onOpenChange 
-}: { 
+/** The fill for a flag, or for a plain colour. */
+const fillStyle = (flag: boolean): Partial<BoundaryStyle> => ({
+  fillMode: flag ? 'flag' : 'color',
+  fillOpacity: flag ? FLAG_FILL_OPACITY : DEFAULT_BOUNDARY_STYLE.fillOpacity,
+});
+
+/** A Map Label with the place name at the area's visual centre, timed like the boundary. */
+function createNameLabel(boundary: BoundaryItem) {
+  const centre = boundary.geojson ? labelPoint(boundary.geojson) : null;
+  if (!centre) return null;
+  return createCalloutItem({
+    styleId: 'map-label',
+    content: { title: boundary.placeName },
+    lngLat: centre,
+    startTime: boundary.startTime,
+    endTime: boundary.endTime,
+    linkTitleToLocation: false,
+  });
+}
+
+/** Adds items as one undo step. */
+function addItems(label: string, items: TimelineItem[]) {
+  withHistoryLabel(label, () => {
+    beginGesture();
+    try {
+      for (const item of items) useProjectStore.getState().addItem(item);
+    } finally {
+      endGesture();
+    }
+  });
+}
+
+/** What the panel added for the place chosen last. */
+interface Added {
+  boundaryId: string;
+  /** Its name label, if one was added. */
+  labelId: string | null;
+  /** The outline as found, before the detail level is applied. */
+  outline: GeoJSON.Geometry;
+}
+
+export const BoundaryAddDropdown = ({
+  isOpen,
+  onOpenChange,
+}: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const {
-    addItem, selectItem,
-    previewBoundary, setPreviewBoundary,
-    previewBoundaryStyle, setPreviewBoundaryStyle,
-    draftBoundaryName, clearPreviewBoundary,
-    boundaryDetail, setBoundaryDetail
-  } = useProjectStore(
-    useShallow(s => ({
-      addItem: s.addItem,
-      selectItem: s.selectItem,
-      previewBoundary: s.previewBoundary,
-      setPreviewBoundary: s.setPreviewBoundary,
-      previewBoundaryStyle: s.previewBoundaryStyle,
-      setPreviewBoundaryStyle: s.setPreviewBoundaryStyle,
-      draftBoundaryName: s.draftBoundaryName,
-      clearPreviewBoundary: s.clearPreviewBoundary,
-      boundaryDetail: s.boundaryDetail,
-      setBoundaryDetail: s.setBoundaryDetail,
-    }))
-  );
   const frame = useFrameOnMap();
-  // Whether a Map Label with the place name is created along with the boundary.
+  const boundaryDetail = useProjectStore((s) => s.boundaryDetail);
+  const [added, setAdded] = React.useState<Added | null>(null);
+  // Choices that carry over to the next place chosen: a flag (for a country) and a name label.
+  const [flag, setFlag] = React.useState(false);
   const [nameLabel, setNameLabel] = React.useState(false);
+  const boundary = useProjectStore((s) => {
+    const item = added ? s.items[added.boundaryId] : undefined;
+    return item?.kind === 'boundary' ? item : null;
+  });
 
   React.useEffect(() => {
-    if (!isOpen) {
-      if (useProjectStore.getState().previewBoundary) {
-        useProjectStore.getState().clearPreviewBoundary();
-      }
-    }
+    if (isOpen) return;
+    setAdded(null);
+    setFlag(false);
+    setNameLabel(false);
   }, [isOpen]);
 
-  React.useEffect(() => {
-    return () => {
-      if (useProjectStore.getState().previewBoundary) {
-        useProjectStore.getState().clearPreviewBoundary();
-      }
-    };
-  }, []);
-
-  const handleSelect = (r: NominatimResult) => {
-    setPreviewBoundary(r.geojson, shortPlaceName(r.display_name), r.countryCode);
-    frame.frameGeometry(r.geojson);
+  /** Plays the boundary just added, and its label, again. */
+  const replay = (labelId = added?.labelId) => {
+    if (!added) return;
+    const { items, playAppearPreview } = useProjectStore.getState();
+    playAppearPreview([added.boundaryId, ...(labelId && items[labelId] ? [labelId] : [])]);
   };
 
-  const handleAdd = () => {
-    if (!previewBoundary || !previewBoundaryStyle) {
-      toast.error('Search for a place first');
+  const handleSelect = (result: NominatimResult) => {
+    const placeName = shortPlaceName(result.display_name);
+    const flagCode = result.countryCode;
+    // The style carries over from the boundary added last, with this place's flag.
+    const style: BoundaryStyle = { ...(boundary?.style ?? DEFAULT_BOUNDARY_STYLE), flagCode, ...fillStyle(flag && !!flagCode) };
+    const item = createBoundaryItem({
+      placeName,
+      geojson: applyBoundaryDetail(result.geojson, boundaryDetail),
+      startTime: useProjectStore.getState().playheadTime,
+      style,
+    });
+    const label = nameLabel ? createNameLabel(item) : null;
+    addItems(label ? `Added boundary and label ${placeName}` : 'Added boundary', label ? [item, label] : [item]);
+
+    const { selectItem, playAppearPreview } = useProjectStore.getState();
+    selectItem(item.id);
+    playAppearPreview(label ? [item.id, label.id] : [item.id]);
+    setAdded({ boundaryId: item.id, labelId: label?.id ?? null, outline: result.geojson });
+    // After selecting: the inspector opens with the item and takes room on the right.
+    frame.frameGeometry(result.geojson);
+  };
+
+  const updateStyle = (patch: Partial<BoundaryStyle>, { play = true } = {}) => {
+    if (!boundary) return;
+    useProjectStore.getState().updateItem(boundary.id, { style: { ...boundary.style, ...patch } });
+    if (play) replay();
+  };
+
+  const handleFlag = (on: boolean) => {
+    setFlag(on);
+    updateStyle(fillStyle(on));
+  };
+
+  const handleNameLabel = (on: boolean) => {
+    setNameLabel(on);
+    if (!boundary || !added) return;
+    const { items, removeItem } = useProjectStore.getState();
+    if (!on) {
+      if (added.labelId && items[added.labelId]) removeItem(added.labelId);
+      setAdded({ ...added, labelId: null });
       return;
     }
+    const label = createNameLabel(boundary);
+    if (!label) return;
+    addItems(`Added label ${boundary.placeName}`, [label]);
+    setAdded({ ...added, labelId: label.id });
+    replay(label.id);
+  };
 
-    const item = createBoundaryItem({
-      placeName: draftBoundaryName,
-      geojson: applyBoundaryDetail(previewBoundary, boundaryDetail),
-      startTime: useProjectStore.getState().playheadTime,
-      // Only a country has a flag to fill with (the flag code is set from a country result alone).
-      style: previewBoundaryStyle.flagCode ? previewBoundaryStyle : { ...previewBoundaryStyle, fillMode: 'color' },
-    });
-    const id = item.id;
-
-    // The label is an ordinary callout at the area's visual centre, timed like the boundary.
-    const centre = nameLabel ? labelPoint(item.geojson) : null;
-    const label = centre
-      ? createCalloutItem({
-          styleId: 'map-label',
-          content: { title: draftBoundaryName },
-          lngLat: centre,
-          startTime: item.startTime,
-          endTime: item.endTime,
-          linkTitleToLocation: false,
-        })
-      : null;
-
-    withHistoryLabel(label ? `Added boundary and label ${draftBoundaryName}` : 'Added boundary', () => {
-      beginGesture();
-      try {
-        addItem(item);
-        if (label) addItem(label);
-      } finally {
-        endGesture();
-      }
-    });
-    selectItem(id);
-    clearPreviewBoundary();
-    onOpenChange(false);
-    toast.success('Boundary added to timeline');
+  const handleDetail = (detail: BoundaryDetailId) => {
+    useProjectStore.getState().setBoundaryDetail(detail);
+    if (!boundary || !added) return;
+    useProjectStore.getState().updateItem(boundary.id, { geojson: applyBoundaryDetail(added.outline, detail) });
+    replay();
   };
 
   const trigger = (
     <IconButton
-      variant={isOpen ? "toolbar-active" : "toolbar"}
+      variant={isOpen ? 'toolbar-active' : 'toolbar'}
       size="sm"
       title="Add Boundary"
       data-walkthrough="add-boundary"
@@ -137,28 +175,15 @@ export const BoundaryAddDropdown = ({
   );
 
   const header = (
-    <PanelHeader 
-      icon={<Hexagon size={16} />} 
-      title="Add Boundary" 
+    <PanelHeader
+      icon={<Hexagon size={16} />}
+      title="Add Boundary"
       subtitle="Search regions and countries"
     >
-      <BoundarySearch 
-        initialValue="" 
-        onSelect={handleSelect} 
-      />
+      <div data-walkthrough="boundary-action">
+        <BoundarySearch initialValue="" onSelect={handleSelect} />
+      </div>
     </PanelHeader>
-  );
-
-  const footer = (
-    <Button 
-      variant="default"
-      onClick={handleAdd}
-      disabled={!previewBoundary}
-      data-walkthrough="boundary-action"
-      className="w-full"
-    >
-      <Plus size={13} /> Insert boundary
-    </Button>
   );
 
   return (
@@ -167,57 +192,50 @@ export const BoundaryAddDropdown = ({
       onOpenChange={onOpenChange}
       trigger={trigger}
       header={header}
-      footer={footer}
     >
-      {!previewBoundary ? (
+      {!boundary ? (
         <EmptyState
           variant="dropdown"
           icon={MapPin}
           title="No location selected"
-          description="Search for a country, city, or region to preview its boundary."
+          description={BOUNDARY_ADD_TERMS.empty}
         />
       ) : (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div>
-            <SectionLabel>Selected place</SectionLabel>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <Check size={14} className="text-primary shrink-0" />
-                <span className="text-xs font-medium truncate">{draftBoundaryName}</span>
-              </div>
-              <Button variant="subtle" size="xs" onClick={clearPreviewBoundary}>Change</Button>
+            <SectionLabel>{BOUNDARY_ADD_TERMS.added}</SectionLabel>
+            <div className="flex items-center gap-2 overflow-hidden p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <Check size={14} className="text-primary shrink-0" />
+              <span className="text-xs font-medium truncate">{boundary.placeName}</span>
             </div>
           </div>
 
           <div className="px-1">
-            {previewBoundaryStyle!.flagCode && (
+            {boundary.style.flagCode && (
               <SwitchRow
                 label="Flag"
                 sublabel="Fill with the country's flag"
-                checked={previewBoundaryStyle!.fillMode === 'flag'}
-                onChange={(v) => setPreviewBoundaryStyle({
-                  fillMode: v ? 'flag' : 'color',
-                  fillOpacity: v ? FLAG_FILL_OPACITY : DEFAULT_BOUNDARY_STYLE.fillOpacity,
-                })}
+                checked={boundary.style.fillMode === 'flag'}
+                onChange={handleFlag}
               />
             )}
             <SwitchRow
               label="Dim surroundings"
               sublabel="Darken the map outside this area"
-              checked={previewBoundaryStyle!.maskOutside}
-              onChange={(v) => setPreviewBoundaryStyle(v ? { maskOutside: true, maskOpacity: DIM_MASK_OPACITY } : { maskOutside: false })}
+              checked={boundary.style.maskOutside}
+              onChange={(v) => updateStyle(v ? { maskOutside: true, maskOpacity: DIM_MASK_OPACITY } : { maskOutside: false })}
             />
             <SwitchRow
               label="Name label"
               sublabel="Add a label with the place name"
-              checked={nameLabel}
-              onChange={setNameLabel}
+              checked={!!added?.labelId}
+              onChange={handleNameLabel}
             />
           </div>
 
           <div>
             <SectionLabel>Detail</SectionLabel>
-            <BoundaryDetailPicker value={boundaryDetail} onChange={setBoundaryDetail} />
+            <BoundaryDetailPicker value={boundaryDetail} onChange={handleDetail} />
           </div>
 
           <div className="space-y-4">
@@ -225,13 +243,14 @@ export const BoundaryAddDropdown = ({
             <div className="space-y-4 px-1">
               <ColorRow
                 label={BOUNDARY_TERMS.borderColor}
-                value={previewBoundaryStyle!.strokeColor}
-                onChange={(v) => setPreviewBoundaryStyle({ strokeColor: v, fillColor: v })}
+                value={boundary.style.strokeColor}
+                // Not played again: the colour changes as the user drags through the picker.
+                onChange={(v) => updateStyle({ strokeColor: v, fillColor: v }, { play: false })}
               />
               <Field label={BOUNDARY_TERMS.animation}>
-                <Select 
-                  value={previewBoundaryStyle!.animationStyle}
-                  onValueChange={(v) => setPreviewBoundaryStyle({ animationStyle: parseBoundaryAnimationStyle(v) })}
+                <Select
+                  value={boundary.style.animationStyle}
+                  onValueChange={(v) => updateStyle({ animationStyle: parseBoundaryAnimationStyle(v) })}
                 >
                   <SelectTrigger aria-label={BOUNDARY_TERMS.animation} className="h-9 text-xs transition-all bg-secondary/20 border-transparent focus:border-border/50 rounded-lg">
                     <SelectValue />
@@ -243,7 +262,7 @@ export const BoundaryAddDropdown = ({
                   </SelectContent>
                 </Select>
               </Field>
-              </div>
+            </div>
           </div>
         </div>
       )}

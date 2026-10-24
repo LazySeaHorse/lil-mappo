@@ -1,13 +1,12 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
-import { PreviewBoundaryLayer } from '@/components/MapViewport/PreviewBoundaryLayer';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { syntheticIsland } from '@/test/syntheticGeometry';
-import type { BoundaryItem } from '@/store/types';
+import type { BoundaryItem, CalloutItem } from '@/store/types';
 import { undo } from '@/store/history';
+import { BOUNDARY_ADD_TERMS } from '@/lib/terms';
 import '@/annotations/styles';
 import { MapRefContext } from '@/hooks/useMapRef';
 import type { MapRef } from 'react-map-gl/mapbox';
@@ -27,106 +26,143 @@ vi.mock('../Inspector/BoundarySearch', () => ({
   ),
 }));
 
-vi.mock('react-map-gl/mapbox', () => ({
-  Source: ({ id, data }: { id: string; data: unknown }) => <div data-testid={id} data-json={JSON.stringify(data)} />,
-  Layer: () => null,
-}));
+const boundaries = () => Object.values(useProjectStore.getState().items).filter((i): i is BoundaryItem => i.kind === 'boundary');
+const labels = () => Object.values(useProjectStore.getState().items).filter((i): i is CalloutItem => i.kind === 'callout');
+const added = () => boundaries().at(-1)!;
+const onOpenChange = vi.fn();
 
-const ringLen = (g: GeoJSON.Geometry) => (g as GeoJSON.Polygon).coordinates[0].length;
-const added = () => Object.values(useProjectStore.getState().items).find((i) => i.kind === 'boundary') as BoundaryItem;
+function open() {
+  render(<BoundaryAddDropdown isOpen onOpenChange={onOpenChange} />);
+}
 
-describe('BoundaryAddDropdown detail levels', () => {
+const choose = (button = 'pick-result') => act(() => { fireEvent.click(screen.getByText(button)); });
+
+const toggle = (label: string) => {
+  fireEvent.click(screen.getByText(label).parentElement!.parentElement!.querySelector('[role="switch"]')!);
+};
+
+describe('BoundaryAddDropdown', () => {
   beforeEach(() => {
-    useProjectStore.setState({ items: {}, itemOrder: [], selectedItemId: null, playheadTime: 0 });
-    useProjectStore.getState().clearPreviewBoundary();
+    onOpenChange.mockClear();
+    useProjectStore.setState({ items: {}, itemOrder: [], selectedItemId: null, playheadTime: 0, appearPreview: null });
     useProjectStore.getState().setBoundaryDetail('standard');
   });
 
-  const open = () => {
-    render(<><BoundaryAddDropdown isOpen onOpenChange={vi.fn()} /><PreviewBoundaryLayer /></>);
-    fireEvent.click(screen.getByText('pick-result'));
-  };
+  it('adds the boundary as soon as a result is chosen, selects it, plays its entrance and stays open', () => {
+    open();
+    expect(screen.getByText(BOUNDARY_ADD_TERMS.empty)).toBeInTheDocument();
+    choose();
+
+    expect(boundaries()).toHaveLength(1);
+    expect(added()).toMatchObject({ placeName: 'Isola', geojson: applyBoundaryDetail(island, 'standard') });
+    expect(useProjectStore.getState().selectedItemId).toBe(added().id);
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added().id] });
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(screen.queryByRole('button', { name: /insert boundary/i })).toBeNull();
+  });
 
   it('shows Detailed / Standard / Light with Standard selected by default and the helper text', () => {
     open();
+    choose();
     expect(screen.getByRole('radio', { name: /detailed/i })).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('radio', { name: /standard/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: /light/i })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByText(/can't be changed later/i)).toBeInTheDocument();
+    expect(screen.getByText(/can't be changed once this panel is closed/i)).toBeInTheDocument();
   });
 
-  it('adds the boundary at Standard by default', () => {
+  it('changes the detail of the boundary just added, plays it again, and remembers the level for the session', () => {
     open();
-    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
-    expect(added().geojson).toEqual(applyBoundaryDetail(island, 'standard'));
-  });
-
-  it('adds at the selected level and the map preview reflects it', () => {
-    open();
-    const previewLen = () => ringLen(JSON.parse(screen.getByTestId('preview-boundary-stroke').getAttribute('data-json')!).features[0].geometry);
-    expect(previewLen()).toBe(ringLen(applyBoundaryDetail(island, 'standard')));
+    choose();
+    useProjectStore.setState({ appearPreview: null });
 
     fireEvent.click(screen.getByRole('radio', { name: /light/i }));
-    expect(previewLen()).toBe(ringLen(applyBoundaryDetail(island, 'light')));
-    expect(previewLen()).toBeLessThan(ringLen(applyBoundaryDetail(island, 'standard')));
+    expect(added().geojson).toEqual(applyBoundaryDetail(island, 'light'));
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added().id] });
 
     fireEvent.click(screen.getByRole('radio', { name: /detailed/i }));
-    expect(previewLen()).toBe(ringLen(applyBoundaryDetail(island, 'detailed')));
-
-    fireEvent.click(screen.getByRole('radio', { name: /light/i }));
-    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
-    expect(added().geojson).toEqual(applyBoundaryDetail(island, 'light'));
+    expect(added().geojson).toEqual(applyBoundaryDetail(island, 'detailed'));
+    expect(useProjectStore.getState().boundaryDetail).toBe('detailed');
   });
 
-  it('prefills the flag code from the picked result and leaves the fill mode alone', () => {
+  it('prefills the flag code from the chosen result and leaves the fill mode alone', () => {
     open();
-    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
+    choose();
     expect(added().style).toMatchObject({ flagCode: 'it', fillMode: 'color' });
   });
 
-  const toggle = (label: string) => {
-    fireEvent.click(screen.getByText(label).parentElement!.parentElement!.querySelector('[role="switch"]')!);
-  };
-
-  it('creates the boundary with a flag fill and dimmed surroundings from the switches', () => {
+  it('fills the boundary just added with its flag and dims its surroundings from the switches', () => {
     open();
+    choose();
     toggle('Flag');
     toggle('Dim surroundings');
-    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
     expect(added().style).toMatchObject({ fillMode: 'flag', flagCode: 'it', fillOpacity: 1, maskOutside: true, maskOpacity: 0.7 });
   });
 
   it('puts the fill opacity back when Flag is turned off again', () => {
     open();
+    choose();
     toggle('Flag');
     toggle('Flag');
-    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
     expect(added().style).toMatchObject({ fillMode: 'color', fillOpacity: 0.1 });
   });
 
-  it('adds a Map Label at the visual centre in the same undo step when Name label is on', () => {
+  it('adds a Map Label at the visual centre, timed like the boundary, that plays with it, and takes it away again', () => {
     open();
+    choose();
     toggle('Name label');
-    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
-    const callout = Object.values(useProjectStore.getState().items).find((i) => i.kind === 'callout');
-    expect(callout).toMatchObject({ styleId: 'map-label', content: { title: 'Isola' }, startTime: added().startTime, endTime: added().endTime });
-    undo();
-    expect(Object.values(useProjectStore.getState().items).filter((i) => i.kind !== 'camera')).toHaveLength(0);
+
+    expect(labels()).toHaveLength(1);
+    const [label] = labels();
+    expect(label).toMatchObject({ styleId: 'map-label', content: { title: 'Isola' }, startTime: added().startTime, endTime: added().endTime });
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added().id, label.id] });
+
+    toggle('Name label');
+    expect(labels()).toHaveLength(0);
+  });
+
+  it('adds the label with the next boundary, in the same undo step', () => {
+    open();
+    choose();
+    toggle('Name label');
+    choose();
+
+    expect(boundaries()).toHaveLength(2);
+    expect(labels()).toHaveLength(2);
+    expect(useProjectStore.getState().appearPreview?.itemIds).toHaveLength(2);
+    act(() => { undo(); });
+    expect(boundaries()).toHaveLength(1);
+    expect(labels()).toHaveLength(1);
+  });
+
+  it('adds another boundary for the next result, with the same options', () => {
+    open();
+    choose();
+    toggle('Flag');
+    toggle('Dim surroundings');
+    choose();
+
+    expect(boundaries()).toHaveLength(2);
+    expect(added().style).toMatchObject({ fillMode: 'flag', maskOutside: true });
   });
 
   it('adds no label by default, and offers Flag only for a country', () => {
     open();
+    choose();
     expect(screen.getByText('Flag')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /insert boundary/i }));
-    expect(Object.values(useProjectStore.getState().items).some((i) => i.kind === 'callout')).toBe(false);
-    fireEvent.click(screen.getByText('pick-city'));
+    expect(labels()).toHaveLength(0);
+
+    toggle('Flag');
+    choose('pick-city');
+    expect(added().style).toMatchObject({ flagCode: null, fillMode: 'color', fillOpacity: 0.1 });
     expect(screen.queryByText('Flag')).not.toBeInTheDocument();
   });
 
-  it('remembers the last choice for the session', () => {
+  it('goes back to the empty panel when the boundary is undone', () => {
     open();
-    fireEvent.click(screen.getByRole('radio', { name: /detailed/i }));
-    expect(useProjectStore.getState().boundaryDetail).toBe('detailed');
+    choose();
+    act(() => { undo(); });
+    expect(boundaries()).toHaveLength(0);
+    expect(screen.getByText(BOUNDARY_ADD_TERMS.empty)).toBeInTheDocument();
   });
 });
 
@@ -140,7 +176,7 @@ describe('BoundaryAddDropdown map framing', () => {
     easeTo: vi.fn(),
   };
 
-  it('fits the map to the picked place, clear of the panels', () => {
+  it('fits the map to the chosen place, clear of the panels', () => {
     fitBounds.mockClear();
     useProjectStore.setState({ isPlaying: false, isScrubbing: false, isExporting: false });
     render(
@@ -153,4 +189,3 @@ describe('BoundaryAddDropdown map framing', () => {
     expect(fitBounds.mock.calls[0][1].padding.top).toBeGreaterThanOrEqual(88);
   });
 });
-

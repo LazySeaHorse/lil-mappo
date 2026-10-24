@@ -66,13 +66,13 @@ test.describe("Boundary Animation Mode Switching", () => {
     await expect(page.getByText("Timeline", { exact: true })).toBeVisible();
     await expect(page.locator(".mapboxgl-canvas")).toBeVisible();
 
-    // Insert boundary
+    // Choosing a result adds the boundary; then close the panel.
     await page.getByTitle("Add Boundary").click();
     const search = page.getByPlaceholder("Search for a place or region");
     await search.fill("Testland");
     await search.press("Enter");
     await page.getByRole("button", { name: /Testland/ }).click();
-    await page.getByRole("button", { name: "Insert boundary" }).click();
+    await page.keyboard.press("Escape");
 
     await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
 

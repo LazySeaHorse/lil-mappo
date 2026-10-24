@@ -256,7 +256,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
         recorder.record('drafting', 'Open Boundary Tool');
         await safeClick(page.getByTitle('Add Boundary'));
       } else {
-        const subAction = rng.pick(['search', 'insert', 'close']);
+        const subAction = rng.pick(['search', 'choose', 'close']);
         recorder.record('drafting', `Boundary Tool: ${subAction}`);
         if (subAction === 'search') {
           const searchInput = boundaryDropdown.getByPlaceholder(/Search for a place/i);
@@ -264,9 +264,10 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
             await safeFill(searchInput, rng.pick(['Testland', 'Paris', 'Tokyo', 'Berlin']));
             await searchInput.press('Enter').catch(() => {});
           }
-        } else if (subAction === 'insert') {
-          const insertBtn = boundaryDropdown.getByRole('button', { name: 'Insert boundary' });
-          await safeClick(insertBtn);
+        } else if (subAction === 'choose') {
+          // Choosing a result adds the boundary.
+          const result = boundaryDropdown.getByRole('button', { name: /Testland|Paris|Tokyo|Berlin/ }).first();
+          await safeClick(result);
         } else {
           await page.keyboard.press('Escape').catch(() => {});
         }

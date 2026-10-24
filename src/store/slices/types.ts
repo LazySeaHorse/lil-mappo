@@ -68,9 +68,6 @@ export interface TransientProjectState {
   draftWalk: WalkRouteCalculation | null;
   /** The path editor of the selected route (not persisted, not in undo history). */
   routeDraft: RouteDraft | null;
-  previewBoundary: GeoJSON.Geometry | null;
-  previewBoundaryStyle: BoundaryItem['style'] | null;
-  draftBoundaryName: string;
   /** Detail level for the next boundary added; remembered for the session only. */
   boundaryDetail: BoundaryDetailId;
   /** The entrance of items just added, played a few times over (see `activeAppearPreview`). */
@@ -171,9 +168,6 @@ export interface EditorUiSlice {
   /** Edits the open draft. The function gets the latest draft, so late map picks and drags never overwrite newer edits. */
   updateRouteDraft: (update: (calc: RouteCalculation) => RouteCalculation) => void;
   discardRouteDraft: () => void;
-  setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string, countryCode?: string | null) => void;
-  setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
-  clearPreviewBoundary: () => void;
   setBoundaryDetail: (id: BoundaryDetailId) => void;
   /** Plays the entrance of items just added, a few times over, with the selection and playhead as they are now. */
   playAppearPreview: (itemIds: readonly string[]) => void;

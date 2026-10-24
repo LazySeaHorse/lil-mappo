@@ -317,12 +317,12 @@ export function getWalkthroughStepConfig(
       return {
         stage,
         target: '[data-walkthrough="boundary-action"]',
-        title: 'Pick a place and insert it',
+        title: 'Pick a place',
         placement: isMobile ? 'top' : 'right',
         hideOverlay: true,
         compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Search for a place, pick a result, then press Insert boundary.',
+        renderContent: () => 'Search for a place and choose a result. Its boundary is added there.',
       };
 
     case 'callout':
