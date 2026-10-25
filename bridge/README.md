@@ -10,6 +10,8 @@ The bridge holds no tool logic. The tab registers its tools over the WebSocket a
 
 ## Use
 
+The app walks people through this: the help button in the AI panel opens a setup guide (`src/components/AI/BridgeGuideDialog.tsx`) with a download for their computer and the setup for each coding agent. Keep its commands (`src/components/AI/bridgeSetup.ts`) in step with the ones the bridge prints.
+
 1. Download the binary for your OS from the latest `bridge-v*` GitHub release and run it (from a terminal, or double-click on Windows).
 2. Open the app, sign in, and turn on AI control in the AI panel. The tab connects on its own.
 3. Add it to your agent once, with the command the bridge prints, e.g. `claude mcp add --scope user --transport http lil-mappo http://127.0.0.1:47800/mcp` (`--scope user` makes it available in every folder, not just the one you ran it in).

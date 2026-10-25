@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { getAgentTools, isWebMcpSupported, useAgentStore } from '@/agent';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -10,9 +11,7 @@ import {
 import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAiAccess } from './useAiAccess';
-import { hasAiConsent, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
-
-export const BRIDGE_DOCS_HINT = 'Using Claude Code, Codex or another local agent? Run the lil-mappo-bridge app on this computer and follow the commands it prints.';
+import { hasAiConsent, offerBridgeGuide, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
 
 export function AiStatusLine({ enabled, supported, count, bridged }: { enabled: boolean; supported: boolean; count: number; bridged: boolean }) {
   let text: string;
@@ -35,6 +34,7 @@ export function ConnectTab() {
   const count = useAiPanelStore((s) => s.registeredCount);
   const bridged = useAiPanelStore((s) => s.bridgeConnected);
   const followAi = useAiPanelStore((s) => s.followAi);
+  const setGuideOpen = useAiPanelStore((s) => s.setGuideOpen);
   const setFollowAi = useAiPanelStore((s) => s.setFollowAi);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const supported = isWebMcpSupported();
@@ -43,13 +43,19 @@ export function ConnectTab() {
   const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const tools = useMemo(() => getAgentTools(), []);
 
+  const turnOn = () => {
+    setEnabled(true);
+    offerBridgeGuide();
+  };
+
   const handleToggle = (next: boolean) => {
     // Everyone sees the explanation; people who cannot turn it on yet are sent to sign in / upgrade from the dialog.
     if (next && (!allowed || !hasAiConsent())) {
       setConfirmOpen(true);
       return;
     }
-    setEnabled(next);
+    if (next) turnOn();
+    else setEnabled(false);
   };
 
   return (
@@ -69,7 +75,12 @@ export function ConnectTab() {
       )}
 
       <AiStatusLine enabled={enabled} supported={supported} count={count} bridged={bridged} />
-      <p className="text-2xs text-muted-foreground leading-relaxed">{BRIDGE_DOCS_HINT}</p>
+      <p className="text-2xs text-muted-foreground leading-relaxed">
+        Using Claude Code, Codex, Cursor or another coding agent?{' '}
+        <Button variant="link" size="inline" onClick={() => setGuideOpen(true)}>
+          Set up the bridge
+        </Button>
+      </p>
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -118,7 +129,7 @@ export function ConnectTab() {
                 if (!signedIn) return openAuthModal();
                 if (!allowed) return openUpgradeModal('ai');
                 recordAiConsent();
-                setEnabled(true);
+                turnOn();
               }}
             >
               {!signedIn ? 'Sign in' : !allowed ? 'See Wanderer plan' : 'Turn on'}

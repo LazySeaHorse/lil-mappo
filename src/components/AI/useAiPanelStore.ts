@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAgentStore } from '@/agent';
 
 export type AiPanelTab = 'connect' | 'activity';
 
@@ -11,12 +12,15 @@ interface AiPanelState {
   registeredCount: number;
   /** True while the tab is linked to the local bridge that serves coding agents. */
   bridgeConnected: boolean;
+  /** The bridge setup guide (download, run, connect a coding agent). */
+  guideOpen: boolean;
   openPanel: (tab?: AiPanelTab) => void;
   closePanel: () => void;
   setTab: (tab: AiPanelTab) => void;
   setFollowAi: (v: boolean) => void;
   setRegisteredCount: (n: number) => void;
   setBridgeConnected: (v: boolean) => void;
+  setGuideOpen: (v: boolean) => void;
 }
 
 /**
@@ -30,12 +34,14 @@ export const useAiPanelStore = create<AiPanelState>()((set) => ({
   followAi: true,
   registeredCount: 0,
   bridgeConnected: false,
+  guideOpen: false,
   openPanel: (tab) => set((s) => ({ open: true, tab: tab ?? s.tab })),
   closePanel: () => set({ open: false }),
   setTab: (tab) => set({ tab }),
   setFollowAi: (followAi) => set({ followAi }),
   setRegisteredCount: (registeredCount) => set({ registeredCount }),
   setBridgeConnected: (bridgeConnected) => set({ bridgeConnected }),
+  setGuideOpen: (guideOpen) => set({ guideOpen }),
 }));
 
 const CONSENT_KEY = 'lilmappo.ai.consent.v1';
@@ -55,4 +61,38 @@ export function recordAiConsent(): void {
   } catch {
     // Storage unavailable: the dialog simply shows again next time.
   }
+}
+
+const GUIDE_HIDDEN_KEY = 'lilmappo.ai.bridgeGuide.hidden.v1';
+
+/** Whether the user chose "Don't show again" on the bridge guide. It still opens from the panel's help button. */
+export function isBridgeGuideHidden(): boolean {
+  try {
+    return localStorage.getItem(GUIDE_HIDDEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function hideBridgeGuide(): void {
+  try {
+    localStorage.setItem(GUIDE_HIDDEN_KEY, '1');
+  } catch {
+    // Storage unavailable: the guide simply shows again next time.
+  }
+}
+
+/** How long a just-enabled tab waits for an already running bridge before offering the guide. */
+export const BRIDGE_GUIDE_GRACE_MS = 1500;
+
+/**
+ * Called when the user switches AI control on: unless they hid it, opens the guide if no bridge
+ * has connected by the time a running one would have.
+ */
+export function offerBridgeGuide(): void {
+  if (isBridgeGuideHidden()) return;
+  setTimeout(() => {
+    const { bridgeConnected, setGuideOpen } = useAiPanelStore.getState();
+    if (useAgentStore.getState().enabled && !bridgeConnected) setGuideOpen(true);
+  }, BRIDGE_GUIDE_GRACE_MS);
 }
