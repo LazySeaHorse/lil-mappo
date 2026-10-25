@@ -373,6 +373,7 @@
 .mappo-animated [data-part="arm"] { transform-box: view-box; transform-origin: 398px 664px; animation: mappo-wave 1.8s ease-in-out infinite; }
 .mappo-animated [data-part="reel"] { transform-box: fill-box; transform-origin: center; animation: mappo-spin 2.4s linear infinite; }
 .mappo-animated [data-part="balloon"] { animation: mappo-bob 2.6s ease-in-out infinite; }
+.mappo-animated [data-part="plug"] { animation: mappo-bob 1.8s ease-in-out infinite; }
 .mappo-animated [data-part="confetti"] rect { animation: mappo-twinkle 1.6s ease-in-out infinite; }
 .mappo-animated [data-part="confetti"] rect:nth-child(2n) { animation-delay: -0.8s; }
 .mappo-animated [data-part="confetti"] rect:nth-child(3n) { animation-delay: -0.4s; }

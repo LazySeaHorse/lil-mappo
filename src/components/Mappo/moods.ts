@@ -40,6 +40,8 @@ export type PoseMood =
   | 'peek-worried'
   /** Holds up a little 3D cube: importing a 3D model. */
   | 'cube'
+  /** Holds up a plug on a curly cable, tongue out: connecting the AI bridge. */
+  | 'plug'
   /** Leans back with a sweat drop: about to delete something. */
   | 'nervous';
 
@@ -60,6 +62,7 @@ const WIDE_FRAMES: Partial<Record<MappoMood, string>> = {
   ticket: '351 287 760 678',
   balloon: '231 237 673 728',
   cube: '351 287 760 678',
+  plug: '351 287 760 678',
 };
 
 export function mappoViewBox(mood: MappoMood): string {
