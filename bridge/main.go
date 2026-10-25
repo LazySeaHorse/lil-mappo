@@ -286,9 +286,9 @@ Open the app, sign in, and turn on AI control in the AI panel. The app
 connects to this bridge by itself.
 
 Connect your agent (once):
-  Claude Code:      claude mcp add --transport http lil-mappo %s
-  Codex:            codex mcp add lil-mappo --url %s
-  Antigravity (agy): agy mcp add --transport http lil-mappo %s
+  Claude Code:       claude mcp add --scope user --transport http lil-mappo %s
+  Codex:             codex mcp add lil-mappo --url %s
+  Antigravity (agy): agy mcp add lil-mappo %s
 
 Waiting for the app... (Ctrl+C to quit)
 
