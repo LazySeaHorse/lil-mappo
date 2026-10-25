@@ -435,6 +435,32 @@ function ConnectScene() {
   );
 }
 
+/** The bridge app in a terminal, cabled over the bridge Mappo lands on to the map open in the browser. */
+function BridgeScene() {
+  const dots = (x: number, y: number, fill: string) =>
+    [0, 8, 16].map((dx) => <circle key={dx} cx={x + dx} cy={y} r={2.4} fill={fill} opacity={0.6} />);
+  return (
+    <g>
+      <path d="M300 112 C330 60 430 60 470 98" stroke={C.primary} strokeWidth={3.5} fill="none" strokeLinecap="round" strokeDasharray="0.1 8" />
+      <g transform="rotate(-5 262 100)" style={lift}>
+        <rect x={214} y={64} width={96} height={72} rx={8} fill={C.ink} />
+        {dots(224, 74, '#fff')}
+        <path d="M224 92 l7 5 l-7 5" stroke={C.ok} strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x={236} y={95} width={44} height={4} rx={2} fill="#fff" opacity={0.7} />
+        <rect x={224} y={109} width={60} height={4} rx={2} fill="#fff" opacity={0.35} />
+        <rect x={224} y={119} width={36} height={4} rx={2} fill="#fff" opacity={0.35} />
+        <rect x={264} y={118} width={7} height={7} fill={C.ok} />
+      </g>
+      <g style={lift}>
+        <Card x={448} y={66} w={100} h={76} />
+        {dots(457, 75, C.fg)}
+        <MiniMap x={454} y={84} w={88} h={52} />
+      </g>
+      <Check x={546} y={70} />
+    </g>
+  );
+}
+
 /** A finished trip video on the left, downloading as an MP4 on the right. */
 function ExportScene() {
   return (
@@ -472,6 +498,7 @@ const SCENES = {
   connect: { center: 360, Scene: ConnectScene },
   export: { center: 700, Scene: ExportScene },
   model: { center: 560, Scene: ModelScene },
+  bridge: { center: 450, Scene: BridgeScene },
 };
 
 export type PinDropSceneName = keyof typeof SCENES;
