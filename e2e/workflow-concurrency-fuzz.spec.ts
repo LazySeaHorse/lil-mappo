@@ -340,10 +340,22 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     // 5. Verify timeline ruler playhead DOM element clamped properly without overflowing
     const playheadElement = page.getByTestId('timeline-ruler-playhead');
     await expect(playheadElement).toBeVisible();
-    const styleLeft = await playheadElement.getAttribute('style');
-    const leftPx = parseFloat(styleLeft?.replace(/[^0-9.]/g, '') || '0');
-    // Pixels per second default is 60px/s, 10s = 600px. Left should be <= 600px
-    expect(leftPx).toBeLessThanOrEqual(605);
+    const readLeft = async () => {
+      const styleLeft = await playheadElement.getAttribute('style');
+      return parseFloat(styleLeft?.replace(/[^0-9.]/g, '') || '0');
+    };
+    const leftPx = await readLeft();
+
+    // The timeline fits the panel, so the scale is not fixed: measure where the 10s end sits.
+    await page.evaluate(() => {
+      const store = (window as unknown as ProjectStoreWindow).__projectStore.getState();
+      store.setIsPlaying(false);
+      store.setPlayheadTime(10);
+    });
+    await page.waitForTimeout(100);
+    const endPx = await readLeft();
+    expect(endPx).toBeGreaterThan(0);
+    expect(leftPx).toBeLessThanOrEqual(endPx + 5);
 
     // 6. Assert store invariants and zero unhandled page crashes
     await assertStoreInvariants(page);
