@@ -28,6 +28,10 @@ jobs:
       - name: Test
         run: go test ./...
 
+      # Embeds the app icon in the Windows .exe (go build picks up the .syso files for GOOS=windows only).
+      - name: Windows icon
+        run: go run github.com/tc-hib/go-winres@v0.3.3 simply --icon winres/icon.png --arch amd64,arm64
+
       - name: Build all platforms
         env:
           CGO_ENABLED: '0'
