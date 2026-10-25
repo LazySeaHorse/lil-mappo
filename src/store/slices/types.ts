@@ -10,12 +10,15 @@ import type {
 } from '../types';
 import type { FollowCameraResult } from '../followCamera';
 import type { BoundaryDetailId } from '@/engine/boundaryDetail';
+import type { AppearPreview } from '@/engine/appearPreview';
+import type { StagedItem } from '@/engine/stagedItems';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 
 export interface PickResult {
   lngLat: [number, number];
+  /** The coordinates as a label for a place field. Not a place name. */
   name: string;
 }
 
@@ -48,8 +51,9 @@ export interface TransientProjectState {
   selectedKeyframeId: string | null;
   selectedAutoCamRouteId: string | null;
   // Transient UI modes (not persisted)
-  isMoveModeActive: boolean;
   hideUI: boolean;
+  /** Preview of the video's frame inside the free space between the panels. View only, never saved. */
+  isFitMode: boolean;
   isExporting: boolean;
   /** The map is temporarily resized to render a capture (export, snapshot, agent frames). */
   isCapturingViewport: boolean;
@@ -57,19 +61,26 @@ export interface TransientProjectState {
   // Transient picking state (not persisted)
   activePicker: PickSession | null;
   previewRoute: GeoJSON.FeatureCollection | null;
+  /** The paths of a hub and spoke plan in the Plan Route dropdown, one per spoke, drawn until inserted. */
+  previewSpokes: { id: string; geojson: GeoJSON.FeatureCollection }[];
+  /** The spoke whose preview line is highlighted (its row is hovered). */
+  previewSpokeFocus: string | null;
   /** Walk being built in the Plan Route dropdown; drawn live on the map until inserted. */
   draftWalk: WalkRouteCalculation | null;
   /** The path editor of the selected route (not persisted, not in undo history). */
   routeDraft: RouteDraft | null;
-  previewBoundary: GeoJSON.Geometry | null;
-  previewBoundaryStyle: BoundaryItem['style'] | null;
-  draftBoundaryName: string;
   /** Detail level for the next boundary added; remembered for the session only. */
   boundaryDetail: BoundaryDetailId;
+  /** The entrance of items just added, played a few times over (see `activeAppearPreview`). */
+  appearPreview: AppearPreview | null;
+  /** What an Add panel shows before it is added: drawn on the map, not in the project (see `sceneItems`). */
+  stagedItems: StagedItem[];
 }
 
 export interface ItemsSlice {
   addItem: (item: TimelineItem) => void;
+  /** Adds the staged items to the project at the playhead, in one step, and clears them. Returns what was added. */
+  addStagedItems: () => StagedItem[];
   removeItem: (id: string) => void;
   updateItem: (id: string, updates: Partial<TimelineItem>) => void;
   /**
@@ -144,8 +155,8 @@ export interface EditorUiSlice {
   selectItem: (id: string | null) => void;
   selectKeyframe: (id: string | null) => void;
   setSelectedAutoCamRouteId: (id: string | null) => void;
-  setMoveModeActive: (v: boolean) => void;
   setHideUI: (v: boolean) => void;
+  setFitMode: (v: boolean) => void;
   setIsExporting: (v: boolean) => void;
   setShowNewProjectModal: (v: boolean) => void;
   setIsInspectorOpen: (v: boolean) => void;
@@ -154,16 +165,19 @@ export interface EditorUiSlice {
   startPicking: (session: PickSession) => void;
   stopPicking: () => void;
   setPreviewRoute: (v: GeoJSON.FeatureCollection | null) => void;
+  setPreviewSpokes: (v: { id: string; geojson: GeoJSON.FeatureCollection }[]) => void;
+  setPreviewSpokeFocus: (id: string | null) => void;
   setDraftWalk: (v: WalkRouteCalculation | null) => void;
   /** Opens a draft that starts as a copy of the route's saved path settings. */
   startRouteDraft: (routeId: string) => void;
   /** Edits the open draft. The function gets the latest draft, so late map picks and drags never overwrite newer edits. */
   updateRouteDraft: (update: (calc: RouteCalculation) => RouteCalculation) => void;
   discardRouteDraft: () => void;
-  setPreviewBoundary: (geojson: GeoJSON.Geometry | null, name: string, countryCode?: string | null) => void;
-  setPreviewBoundaryStyle: (style: Partial<BoundaryItem['style']>) => void;
-  clearPreviewBoundary: () => void;
   setBoundaryDetail: (id: BoundaryDetailId) => void;
+  /** Plays the entrance of items just added, a few times over, with the selection and playhead as they are now. */
+  playAppearPreview: (itemIds: readonly string[]) => void;
+  /** Replaces the staged items; an empty list clears them. */
+  stageItems: (items: StagedItem[]) => void;
 }
 
 export type ProjectStore = Project &

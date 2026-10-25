@@ -61,7 +61,7 @@ export function BoundaryDetailPicker({
       </div>
       <p className="text-2xs font-medium text-foreground/80">{getBoundaryDetailLevel(value).hint}</p>
       <p className="text-2xs text-muted-foreground leading-snug">
-        Can&apos;t be changed later. Lighter is faster with smaller files but less accurate up close.
+        Can&apos;t be changed once this panel is closed. Lighter is faster with smaller files but less accurate up close.
       </p>
     </div>
   );

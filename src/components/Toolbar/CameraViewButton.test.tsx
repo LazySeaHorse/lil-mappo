@@ -31,6 +31,8 @@ const props = {
   handleAddCameraKF: vi.fn(),
   activeDropdown: null,
   setActiveDropdown: vi.fn(),
+  isFitMode: false,
+  onToggleFit: vi.fn(),
 };
 
 describe('the add camera view button', () => {

@@ -94,7 +94,7 @@ class FakeFrame {
 
 function installRuntime() {
   const map = {
-    getContainer: () => ({ getBoundingClientRect: () => ({ width: 640 }) }),
+    getContainer: () => ({ clientWidth: 640 }),
     triggerRepaint: vi.fn(() => { log.push('repaint'); }),
   };
   const runtime = {

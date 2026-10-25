@@ -26,7 +26,7 @@ import { canvasToBlob, stepToTime, withFrameCapturer } from './frameCapture';
 import { useProjectStore } from '@/store/useProjectStore';
 
 const fakeMap = {
-  getContainer: () => ({ getBoundingClientRect: () => ({ width: 640 }) }),
+  getContainer: () => ({ clientWidth: 640 }),
   getZoom: () => 3,
 } as never;
 

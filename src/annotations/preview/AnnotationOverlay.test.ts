@@ -6,6 +6,7 @@ import { AnnotationOverlay } from './AnnotationOverlay';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { loadCalloutAssets } from '@/annotations/draw';
 import { useProjectStore } from '@/store/useProjectStore';
+import { APPEAR_PREVIEW_TIMING } from '@/engine/appearPreview';
 import type { CalloutItem } from '@/store/types';
 
 vi.mock('@/annotations/draw', async (importOriginal) => ({
@@ -132,9 +133,10 @@ function setStore(callouts: CalloutItem[], extra: Partial<ReturnType<typeof useP
     itemOrder: callouts.map((c) => c.id),
     playheadTime: 5,
     selectedItemId: null,
-    isMoveModeActive: false,
     isExporting: false,
     isPlaying: false,
+    hideUI: false,
+    stagedItems: [],
     ...extra,
   });
 }
@@ -319,6 +321,39 @@ describe('AnnotationOverlay', () => {
     expect(texts).toEqual(['Harbour']);
   });
 
+  it('plays the entrance of a callout just added on its own clock, frame by frame, until it has played out', () => {
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    setStore([makeCallout()], { playheadTime: 0, selectedItemId: 'c1' });
+    useProjectStore.getState().playAppearPreview(['c1']);
+    const { ctx } = mount();
+    const texts = () => drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
+
+    frames.flush();
+    expect(texts()).toEqual([]); // the start of the fade in
+    now = APPEAR_PREVIEW_TIMING.playMs / 2;
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
+    expect(frames.pending()).toBe(1);
+
+    now = 60_000;
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('draws a staged callout settled with the project ones, and not with the UI hidden', () => {
+    setStore([makeCallout()], { playheadTime: 5, stagedItems: [makeCallout({ id: 'staged', content: { title: 'Draft' }, startTime: 50, endTime: 60 })] });
+    const { ctx } = mount();
+    frames.flush();
+    const texts = () => drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
+    expect(texts()).toEqual(['Harbour', 'Draft']);
+
+    useProjectStore.setState({ hideUI: true });
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
+  });
+
   it('plays the selected callout as animated while playing, and settles it again once stopped', () => {
     setStore([makeCallout()], { playheadTime: 50, selectedItemId: 'c1', isPlaying: true });
     const { fire, ctx } = mount();
@@ -331,13 +366,20 @@ describe('AnnotationOverlay', () => {
     expect(texts).toEqual(['Harbour']);
   });
 
-  it('leaves the selected callout to its drag handle in move mode', () => {
-    const other = makeCallout({ id: 'c2', content: { title: 'Other' } });
-    setStore([makeCallout(), other], { selectedItemId: 'c1', isMoveModeActive: true });
-    const { fire, ctx } = mount();
-    fire('render');
-    const texts = drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
-    expect(texts).toEqual(['Other']);
+  it('shows the selected callout as the video does with the UI hidden, and settles it again when shown', () => {
+    setStore([makeCallout()], { playheadTime: 50, selectedItemId: 'c1' });
+    const { ctx } = mount();
+    frames.flush();
+    const texts = () => drawnAfterClear(ctx.calls).filter(([name]) => name === 'fillText').map((c) => c[1]);
+    expect(texts()).toEqual(['Harbour']);
+
+    useProjectStore.setState({ hideUI: true });
+    frames.flush();
+    expect(texts()).toEqual([]);
+
+    useProjectStore.setState({ hideUI: false });
+    frames.flush();
+    expect(texts()).toEqual(['Harbour']);
   });
 
   it('draws nothing while a video export composites the callouts itself', () => {

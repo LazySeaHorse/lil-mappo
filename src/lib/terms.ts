@@ -90,6 +90,31 @@ export const PLACE_FIELD_TERMS = {
   arrival: 'Arrival',
 } as const;
 
+/** Words of the hub and spoke planner: one side of a route becomes a list of places. */
+export const HUB_SPOKE_TERMS = {
+  addPlaces: 'Add more places',
+  addPlace: 'Add another place',
+  removePlace: 'Remove place',
+  starts: 'Starts (one route each)',
+  ends: 'Ends (one route each)',
+  notFound: 'No place found. Fix it or remove it.',
+  noRoute: 'No route found. Fix it or remove it.',
+  timing: 'When routes play',
+  together: 'All at once',
+  sequence: 'Back to back',
+  staggered: 'Staggered',
+  gap: 'Gap',
+  /** Shown when a paste held more places than a list can take. */
+  tooMany: (max: number, dropped: number) => `A list holds ${max} places. ${dropped} left out.`,
+  /** Under the hub: it is shared by every route of the list. */
+  hubHint: (side: 'start' | 'end') => `All routes ${side} here`,
+  /** Above the timing: how many routes the places make. */
+  summary: (count: number) => `${count} ${count === 1 ? 'place' : 'places'} → ${count} ${count === 1 ? 'route' : 'routes'}`,
+  createNone: 'Add places to create routes',
+  create: (count: number) => `Create ${count} ${count === 1 ? 'route' : 'routes'}`,
+  created: (count: number) => `${count} ${count === 1 ? 'route' : 'routes'} added`,
+} as const;
+
 /** Words of the search fields. */
 export const SEARCH_TERMS = {
   /** The button that lets the user click a place on the map. */
@@ -98,6 +123,8 @@ export const SEARCH_TERMS = {
   clear: 'Clear search',
   /** Shows under a Mapbox place field after the user types. Every search costs money, so it starts on Enter only. */
   enterHint: 'Press Enter to search.',
+  /** A chosen result with no place behind it, such as a brand with no stores. */
+  notFound: (name: string) => `No place found for ${name}. Try a more specific search.`,
 } as const;
 
 /** Words of Follow camera in the route panel and in its own panel. */
@@ -177,6 +204,30 @@ export const ACCENT_TERMS = {
   customize: 'Customize colors',
 } as const;
 
+/** Words of the Add Callout panel. Choosing a place previews the callout; Add puts it on the timeline. */
+export const CALLOUT_ADD_TERMS = {
+  search: 'Search for a place',
+  /** Under the search. A search can land near the spot, not on it (a brand finds its nearest store). */
+  approximate: 'Search results can be approximate. For an exact spot, pick it on the map.',
+  /** The title of a callout added at a point with no place name. */
+  defaultTitle: 'New Callout',
+  /** Label of the field that renames the callout in the panel. */
+  title: 'Title',
+  titlePlaceholder: 'Callout title',
+  /** The footer button that adds the previewed callout to the timeline. */
+  add: 'Add callout',
+  moreNote: 'More options are in the inspector once it is added.',
+} as const;
+
+/** Words of the Add Boundary panel. */
+export const BOUNDARY_ADD_TERMS = {
+  empty: 'Search for a country, city or region to preview its boundary.',
+  /** Above the name of the boundary previewed. */
+  preview: 'Preview',
+  /** The footer button that adds the previewed boundary to the timeline. */
+  add: 'Add boundary',
+} as const;
+
 /** Words of the Location section of a callout. */
 export const CALLOUT_LOCATION_TERMS = {
   /** Label and placeholder of the place search field. */
@@ -186,11 +237,7 @@ export const CALLOUT_LOCATION_TERMS = {
   /** How far the callout floats above its point on the map. */
   heightAboveMap: 'Height above map',
   heightHint: 'Lifts the callout above its point on the map.',
-  /** Turns on the handle that moves the point with the mouse. */
-  dragOnMap: 'Drag point on map',
-  doneDragging: 'Done',
   linkTitle: 'Use place name as title',
-  updated: 'Callout location updated.',
 } as const;
 
 /** Words for the length of the whole video. */

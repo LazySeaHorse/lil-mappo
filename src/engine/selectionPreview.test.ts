@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isSelectionPreview, selectionPreviewTime } from './selectionPreview';
+import { isSelectionPreview, previewableSelectionId, selectionPreviewTime } from './selectionPreview';
 
 const clip = { startTime: 2, endTime: 6 };
 
@@ -44,5 +44,19 @@ describe('isSelectionPreview', () => {
   it('never previews unselected items or while exporting', () => {
     expect(isSelectionPreview(clip, 0, false)).toBe(false);
     expect(isSelectionPreview(clip, 0, true, true)).toBe(false);
+  });
+});
+
+describe('previewableSelectionId', () => {
+  const idle = { selectedItemId: 'a', isPlaying: false, isExporting: false, hideUI: false };
+
+  it('previews the selection while editing', () => {
+    expect(previewableSelectionId(idle)).toBe('a');
+  });
+
+  it('previews nothing while playing, exporting, or with the UI hidden, so the map shows what the video shows', () => {
+    expect(previewableSelectionId({ ...idle, isPlaying: true })).toBeNull();
+    expect(previewableSelectionId({ ...idle, isExporting: true })).toBeNull();
+    expect(previewableSelectionId({ ...idle, hideUI: true })).toBeNull();
   });
 });

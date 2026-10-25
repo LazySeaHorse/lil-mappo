@@ -1,7 +1,10 @@
+import { loadModelConvert } from '@/lib/lazyModules';
 import { MAX_MODEL_EXTENT_M, type ModelBounds } from './modelGeometry';
 
 /** Largest model file a user can import. */
 export const MAX_MODEL_BYTES = 50 * 1024 * 1024;
+/** How many links one paste loads; the rest are left out. */
+export const MAX_MODEL_URLS = 10;
 
 /**
  * Most nodes a model may have, how deeply they may nest, and how many mesh primitives are measured
@@ -13,7 +16,9 @@ export const MAX_MODEL_DEPTH = 1_000;
 export const MAX_MODEL_PRIMITIVES = 1_000_000;
 
 export type ModelFileErrorCode =
-  | 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex' | 'extent';
+  | 'type' | 'size' | 'parse' | 'layout' | 'external' | 'unsupported' | 'empty' | 'complex' | 'extent'
+  /** Models loaded from a web address: not a usable address, blocked by its host, unreachable, an error answer, or not a .glb. */
+  | 'url' | 'cors' | 'blocked' | 'unreachable' | 'http' | 'notglb';
 
 /** A model file that cannot be used; `message` is short and safe to show to the user. */
 export class ModelFileError extends Error {
@@ -23,7 +28,7 @@ export class ModelFileError extends Error {
   }
 }
 
-const MESSAGES: Record<ModelFileErrorCode, string> = {
+export const MODEL_FILE_MESSAGES: Record<ModelFileErrorCode, string> = {
   type: 'Pick a .glb file. Other 3D formats are not supported.',
   size: 'This model is over 50 MB. Pick a smaller .glb file.',
   parse: 'This file is not a valid .glb model.',
@@ -32,10 +37,16 @@ const MESSAGES: Record<ModelFileErrorCode, string> = {
   unsupported: 'This model keeps its data as text inside the file, which the map cannot load. Export it as a binary .glb.',
   empty: 'This model has no 3D shapes in it.',
   extent: 'This model is over 1,000 km across. Export it in metres (or scale it down), then import it again.',
+  url: 'That is not a web address. Use one that starts with https://.',
+  cors: "That host doesn't allow loading from other sites. Download the file and upload it instead.",
+  blocked: 'This site blocked loading from that address. Download the file and upload it instead.',
+  unreachable: 'Could not reach that address. Check the link and your connection.',
+  http: 'That address answered with an error.',
+  notglb: 'That address is not a .glb file.',
   complex: 'This model is too complex to place on the map. Merge or simplify its parts, then export it again.',
 };
 
-const fail = (code: ModelFileErrorCode, message = MESSAGES[code]): never => {
+const fail = (code: ModelFileErrorCode, message = MODEL_FILE_MESSAGES[code]): never => {
   throw new ModelFileError(code, message);
 };
 
@@ -56,6 +67,13 @@ const CHUNK_BIN = 0x004e4942;
  * not at all.
  */
 const SUPPORTED_REQUIRED_EXTENSIONS: ReadonlySet<string> = new Set(['KHR_draco_mesh_compression', 'EXT_meshopt_compression']);
+
+/**
+ * Extensions a model may require that are rewritten away at import (`convertGlb`): quantized vertex
+ * data and WebP textures, which mapbox would draw wrong or without textures. A model may only need
+ * these and the supported ones to be converted; anything else is refused as before.
+ */
+const CONVERTED_REQUIRED_EXTENSIONS: ReadonlySet<string> = new Set(['KHR_mesh_quantization', 'EXT_texture_webp']);
 
 type Mat4 = number[];
 
@@ -158,8 +176,9 @@ interface Accessor {
   max?: number[];
 }
 
+/** Bounds have one number per component, so only a position's (read for the size) need three. */
 function readAccessor(raw: JsonObject): Accessor {
-  return { min: numbers(raw.min, 3, true), max: numbers(raw.max, 3, true) };
+  return { min: numbers(raw.min, 1, true), max: numbers(raw.max, 1, true) };
 }
 
 /**
@@ -255,7 +274,7 @@ export function parseGlb(buffer: ArrayBuffer): { bounds: ModelBounds } {
     if (primitives > MAX_MODEL_PRIMITIVES) fail('complex');
     for (const position of positions) {
       const accessor = accessors[position];
-      if (!accessor?.min || !accessor.max) return fail('parse');
+      if (!accessor?.min || !accessor.max || accessor.min.length < 3 || accessor.max.length < 3) return fail('parse');
       for (let corner = 0; corner < 8; corner++) {
         const x = corner & 1 ? accessor.max[0] : accessor.min[0];
         const y = corner & 2 ? accessor.max[1] : accessor.min[1];
@@ -281,6 +300,27 @@ export function parseGlb(buffer: ArrayBuffer): { bounds: ModelBounds } {
       max: max as [number, number, number],
     },
   };
+}
+
+/**
+ * A model that needs `convertGlb` comes back as plain bytes; any other model, or one the converter
+ * cannot handle (so the usual checks refuse it), comes back as it was.
+ */
+async function normaliseGlb(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const gltf = readJsonChunk(buffer);
+  const required = list(gltf.extensionsRequired);
+  const handled = required.every((name) => typeof name === 'string' && (CONVERTED_REQUIRED_EXTENSIONS.has(name) || name === 'EXT_meshopt_compression'));
+  const needsExtensionsRemoved = required.some((name) => typeof name === 'string' && CONVERTED_REQUIRED_EXTENSIONS.has(name));
+  // Mapbox reads every triangle through an index list, so a mesh without one gets one.
+  const needsIndices = objects(gltf.meshes).some((mesh) => objects(mesh.primitives).some((primitive) => primitive.indices === undefined));
+  if (!handled || !(needsExtensionsRemoved || needsIndices)) return buffer;
+  // A file the checks can read is checked as it is, so the rewrite cannot hide what they refuse.
+  if (!needsExtensionsRemoved) parseGlb(buffer);
+  try {
+    return await (await loadModelConvert()).convertGlb(buffer);
+  } catch {
+    return fail('parse', 'This model could not be converted for the map. Export it again without compression.');
+  }
 }
 
 /** SHA-256 of the bytes, lowercase hex. */
@@ -316,6 +356,10 @@ export async function readModelFile(file: File): Promise<ReadModel> {
   } catch {
     return fail('parse', 'This file could not be read.');
   }
-  const { bounds } = parseGlb(bytes);
-  return { bytes, fileName: file.name, byteSize: bytes.byteLength, sha256: await sha256Hex(bytes), bounds };
+  // The hash and size stay the file's own (a relink or link reload compares against them); the
+  // converted bytes are what the map loads, converted again on every load.
+  const sha256 = await sha256Hex(bytes);
+  const plain = await normaliseGlb(bytes);
+  const { bounds } = parseGlb(plain);
+  return { bytes: plain, fileName: file.name, byteSize: bytes.byteLength, sha256, bounds };
 }

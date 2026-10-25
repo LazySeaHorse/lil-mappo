@@ -147,9 +147,10 @@ test.describe("5 Golden E2E Journeys", () => {
     await calloutDropdown.getByTitle("Pick on the map").click();
     await page.locator(".mapboxgl-canvas").click({ position: { x: 740, y: 350 } });
 
+    // The pick previews the callout; Add callout puts it on the timeline.
     const calloutTitle = "Alpha Basecamp";
     await calloutDropdown.getByPlaceholder("Callout title").fill(calloutTitle);
-    await calloutDropdown.getByRole("button", { name: "Create callout" }).click();
+    await calloutDropdown.getByRole("button", { name: "Add callout" }).click();
 
     // Verify callout appears in inspector
     await expect(page.getByRole("heading", { name: "Callout", exact: true })).toBeVisible();
@@ -160,8 +161,9 @@ test.describe("5 Golden E2E Journeys", () => {
     const searchInput = boundaryDropdown.getByPlaceholder("Search for a place or region");
     await searchInput.fill("Testland");
     await searchInput.press("Enter");
+    // Choosing a result previews the boundary; Add boundary puts it on the timeline.
     await boundaryDropdown.getByRole("button", { name: /Testland/ }).click();
-    await boundaryDropdown.getByRole("button", { name: "Insert boundary" }).click();
+    await boundaryDropdown.getByRole("button", { name: "Add boundary" }).click();
     await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
 
     // 4. Verify all items exist on Timeline

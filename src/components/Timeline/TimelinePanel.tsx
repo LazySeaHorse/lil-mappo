@@ -12,10 +12,11 @@ import { clampZoom, fitZoom, zoomBounds as getZoomBounds } from './timelineZoom'
 import {
   RIGHT_RESERVED_DESKTOP,
   RIGHT_RESERVED_TABLET,
-  PANEL_MARGIN
+  PANEL_MARGIN,
+  TIMELINE_MIN_HEIGHT as MIN_PANEL_HEIGHT,
+  timelineContentHeight,
+  visibleTimelineHeight,
 } from '@/constants/layout';
-const HEADER_HEIGHT = 48;
-const MIN_PANEL_HEIGHT = 120; // header + ruler + some visible content
 const PIXELS_PER_SECOND_DEFAULT = 60;
 
 export default function TimelinePanel() {
@@ -65,7 +66,7 @@ export default function TimelinePanel() {
     () => itemOrder.map((id) => items[id]).filter(Boolean),
     [itemOrder, items],
   );
-  const maxContentHeight = HEADER_HEIGHT + 40 + (orderedItems.length * 40) + 16;
+  const maxContentHeight = timelineContentHeight(orderedItems.length);
 
   const autoCamBlocks: AutoCamBlock[] = useMemo(() => orderedItems
     .filter((item): item is RouteItem => item.kind === 'route' && !!item.autoCam?.enabled)
@@ -164,7 +165,7 @@ export default function TimelinePanel() {
     setSelectedAutoCamRouteId(routeId);
   }, [selectItem, setSelectedAutoCamRouteId]);
 
-  const clampedHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(displayHeight, maxContentHeight));
+  const clampedHeight = visibleTimelineHeight(displayHeight, orderedItems.length);
 
   const rightMarginVal = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
   const leftMarginVal = isMobile ? 8 : PANEL_MARGIN;

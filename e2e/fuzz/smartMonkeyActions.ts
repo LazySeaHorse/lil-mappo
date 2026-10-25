@@ -228,7 +228,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
         recorder.record('drafting', 'Open Callout Tool');
         await safeClick(page.getByTitle('Add Callout'));
       } else {
-        const subAction = rng.pick(['fillTitle', 'pickMap', 'submit', 'close']);
+        const subAction = rng.pick(['fillTitle', 'pickMap', 'add', 'close']);
         recorder.record('drafting', `Callout Tool: ${subAction}`);
         if (subAction === 'fillTitle') {
           const titleInput = calloutDropdown.getByPlaceholder('Callout title');
@@ -238,9 +238,10 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
         } else if (subAction === 'pickMap') {
           const pickBtn = calloutDropdown.getByTitle('Pick on the map');
           await safeClick(pickBtn);
-        } else if (subAction === 'submit') {
-          const submitBtn = calloutDropdown.getByRole('button', { name: 'Create callout' });
-          await safeClick(submitBtn);
+        } else if (subAction === 'add') {
+          // Puts the previewed callout on the timeline, if there is one.
+          const addBtn = calloutDropdown.getByRole('button', { name: 'Add callout' });
+          if (await addBtn.isEnabled().catch(() => false)) await safeClick(addBtn);
         } else {
           await page.keyboard.press('Escape').catch(() => {});
         }
@@ -259,7 +260,7 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
         recorder.record('drafting', 'Open Boundary Tool');
         await safeClick(page.getByTitle('Add Boundary'));
       } else {
-        const subAction = rng.pick(['search', 'insert', 'close']);
+        const subAction = rng.pick(['search', 'choose', 'add', 'close']);
         recorder.record('drafting', `Boundary Tool: ${subAction}`);
         if (subAction === 'search') {
           const searchInput = boundaryDropdown.getByPlaceholder(/Search for a place/i);
@@ -267,9 +268,14 @@ export const smartMonkeyActions: SmartMonkeyAction[] = [
             await safeFill(searchInput, rng.pick(['Testland', 'Paris', 'Tokyo', 'Berlin']));
             await searchInput.press('Enter').catch(() => {});
           }
-        } else if (subAction === 'insert') {
-          const insertBtn = boundaryDropdown.getByRole('button', { name: 'Insert boundary' });
-          await safeClick(insertBtn);
+        } else if (subAction === 'choose') {
+          // Choosing a result previews the boundary.
+          const result = boundaryDropdown.getByRole('button', { name: /Testland|Paris|Tokyo|Berlin/ }).first();
+          await safeClick(result);
+        } else if (subAction === 'add') {
+          // Puts the previewed boundary on the timeline, if there is one.
+          const addBtn = boundaryDropdown.getByRole('button', { name: 'Add boundary' });
+          if (await addBtn.isEnabled().catch(() => false)) await safeClick(addBtn);
         } else {
           await page.keyboard.press('Escape').catch(() => {});
         }

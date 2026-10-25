@@ -37,7 +37,6 @@ const route = createEndpointRouteItem({ mode: 'car', geojson: line, start: [0, 0
 
 beforeEach(() => {
   useProjectStore.setState({ items: {}, itemOrder: [], selectedItemId: null });
-  useProjectStore.getState().clearPreviewBoundary();
 });
 
 function renderAddPanel() {

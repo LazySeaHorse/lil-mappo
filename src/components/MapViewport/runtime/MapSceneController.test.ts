@@ -1,10 +1,11 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { RouteItem } from '@/store/types';
 import { createBoundaryItem, DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
 import { createProject, parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { MapSceneController } from './MapSceneController';
+import { APPEAR_PREVIEW_TIMING } from '@/engine/appearPreview';
 
 const route: RouteItem = {
   kind: 'route',
@@ -253,6 +254,7 @@ describe('MapSceneController', () => {
         playheadTime,
         selectedItemId: null,
         isExporting: false,
+        hideUI: false,
       });
       const double = createMapDouble();
       const controller = new MapSceneController(double.map, vi.fn());
@@ -266,6 +268,7 @@ describe('MapSceneController', () => {
           selectedItemId: previous.selectedItemId,
           isExporting: previous.isExporting,
           isPlaying: previous.isPlaying,
+          hideUI: previous.hideUI,
         });
       };
       return { double, controller, restore };
@@ -303,6 +306,22 @@ describe('MapSceneController', () => {
       }
     });
 
+    it('shows the real animation with the UI hidden, and goes back to the preview when it is shown', () => {
+      const { double, restore } = setup(0);
+      try {
+        useProjectStore.getState().selectItem(route.id);
+        expect(lastTrim(double)).toEqual(FULL);
+
+        useProjectStore.getState().setHideUI(true);
+        expect(lastTrim(double)).toEqual([0, 1]);
+
+        useProjectStore.getState().setHideUI(false);
+        expect(lastTrim(double)).toEqual(FULL);
+      } finally {
+        restore();
+      }
+    });
+
     it('keeps the real animation while the playhead is inside the selected clip', () => {
       const { double, restore } = setup(4);
       try {
@@ -319,6 +338,159 @@ describe('MapSceneController', () => {
         useProjectStore.getState().selectItem(route.id);
         controller.renderAt(0);
         expect(lastVisibility(double)).toBe('none');
+      } finally {
+        restore();
+      }
+    });
+  });
+
+  describe('appear preview', () => {
+    const { playMs, holdMs, plays } = APPEAR_PREVIEW_TIMING;
+    let frames: FrameRequestCallback[] = [];
+    let now = 0;
+
+    beforeEach(() => {
+      frames = [];
+      now = 0;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      vi.spyOn(performance, 'now').mockImplementation(() => now);
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    /** Runs the pending frame `ms` from the start. */
+    const frameAt = (ms: number) => {
+      now = ms;
+      frames.shift()?.(now);
+    };
+
+    const lastTrim = (double: ReturnType<typeof createMapDouble>) =>
+      double.setPaintProperty.mock.calls.filter(([id, prop]) => id === 'route-layer-scene-route' && prop === 'line-trim-offset').at(-1)?.[2];
+
+    const setup = () => {
+      const previous = useProjectStore.getState();
+      useProjectStore.setState({
+        items: { [route.id]: { ...route, startTime: 2, endTime: 6 } },
+        itemOrder: [route.id],
+        playheadTime: 2,
+        selectedItemId: route.id,
+        isPlaying: false,
+        isExporting: false,
+        hideUI: false,
+        appearPreview: null,
+      });
+      const double = createMapDouble();
+      const controller = new MapSceneController(double.map, vi.fn());
+      controller.mount();
+      const restore = () => {
+        controller.dispose();
+        useProjectStore.setState({
+          items: previous.items,
+          itemOrder: previous.itemOrder,
+          playheadTime: previous.playheadTime,
+          selectedItemId: previous.selectedItemId,
+          appearPreview: null,
+        });
+      };
+      return { double, controller, restore };
+    };
+
+    it('plays the entrance of a route just added on its own clock, a few times, then leaves it drawn', () => {
+      const { double, restore } = setup();
+      try {
+        useProjectStore.getState().playAppearPreview([route.id]);
+        expect(lastTrim(double)).toEqual([0, 1]);
+
+        frameAt(playMs / 2);
+        expect(lastTrim(double)).toEqual([expect.closeTo(0.5, 3), 1]);
+        frameAt(playMs + holdMs / 2);
+        expect(lastTrim(double)).toEqual([0, 0]);
+        frameAt(playMs + holdMs);
+        expect(lastTrim(double)).toEqual([0, 1]); // the next play
+
+        frameAt(plays * (playMs + holdMs));
+        expect(lastTrim(double)).toEqual([0, 0]);
+        expect(frames).toHaveLength(0);
+      } finally {
+        restore();
+      }
+    });
+
+    it('goes back to the playhead when the user moves it', () => {
+      const { double, restore } = setup();
+      try {
+        useProjectStore.getState().playAppearPreview([route.id]);
+        frameAt(playMs / 2);
+        useProjectStore.getState().setPlayheadTime(3);
+        expect(lastTrim(double)).toEqual([expect.closeTo(0.25, 3), 1]);
+        frameAt(playMs);
+        expect(frames).toHaveLength(0);
+      } finally {
+        restore();
+      }
+    });
+
+    it('renderAt (export) ignores it', () => {
+      const { double, controller, restore } = setup();
+      try {
+        useProjectStore.getState().playAppearPreview([route.id]);
+        frameAt(playMs / 2);
+        controller.renderAt(4);
+        expect(lastTrim(double)).toEqual([expect.closeTo(0.5, 3), 1]);
+        controller.renderAt(2);
+        expect(lastTrim(double)).toEqual([0, 1]);
+      } finally {
+        restore();
+      }
+    });
+  });
+
+  describe('staged items', () => {
+    const lastTrim = (double: ReturnType<typeof createMapDouble>) =>
+      double.setPaintProperty.mock.calls.filter(([id, prop]) => id === 'route-layer-scene-route' && prop === 'line-trim-offset').at(-1)?.[2];
+
+    const setup = () => {
+      useProjectStore.setState({
+        items: {}, itemOrder: [], stagedItems: [], playheadTime: 0, selectedItemId: null,
+        isPlaying: false, isExporting: false, isCapturingViewport: false, hideUI: false, appearPreview: null,
+      });
+      const double = createMapDouble();
+      const controller = new MapSceneController(double.map, vi.fn());
+      controller.mount();
+      const restore = () => {
+        controller.dispose();
+        useProjectStore.setState({ stagedItems: [], isExporting: false, hideUI: false });
+      };
+      return { double, controller, restore };
+    };
+
+    it('draws a staged item finished, wherever the playhead is, and removes it when unstaged', () => {
+      const { double, restore } = setup();
+      try {
+        useProjectStore.getState().stageItems([{ ...route, startTime: 2, endTime: 6 }]);
+        expect(double.layers.has('route-layer-scene-route')).toBe(true);
+        expect(lastTrim(double)).toEqual([0, 0]);
+
+        useProjectStore.getState().stageItems([]);
+        expect(double.layers.has('route-layer-scene-route')).toBe(false);
+      } finally {
+        restore();
+      }
+    });
+
+    it('leaves staged items out of exports and of the view with the UI hidden', () => {
+      const { double, restore } = setup();
+      try {
+        useProjectStore.getState().stageItems([route]);
+        useProjectStore.setState({ isExporting: true });
+        expect(double.layers.has('route-layer-scene-route')).toBe(false);
+        useProjectStore.setState({ isExporting: false, hideUI: true });
+        expect(double.layers.has('route-layer-scene-route')).toBe(false);
+        useProjectStore.setState({ hideUI: false });
+        expect(double.layers.has('route-layer-scene-route')).toBe(true);
       } finally {
         restore();
       }

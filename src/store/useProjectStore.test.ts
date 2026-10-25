@@ -241,18 +241,6 @@ describe('useProjectStore modular slices', () => {
   });
 
   describe('editorUiSlice', () => {
-    it('handles drafting boundaries and route selection', () => {
-      const store = useProjectStore.getState();
-
-      store.setPreviewBoundary({ type: 'Polygon', coordinates: [] }, 'France');
-      expect(useProjectStore.getState().draftBoundaryName).toBe('France');
-      expect(useProjectStore.getState().previewBoundary).toBeDefined();
-
-      store.clearPreviewBoundary();
-      expect(useProjectStore.getState().draftBoundaryName).toBe('');
-      expect(useProjectStore.getState().previewBoundary).toBeNull();
-    });
-
     it('manages active picker sessions without leaking state', () => {
       const store = useProjectStore.getState();
       expect(store.activePicker).toBeNull();

@@ -66,6 +66,15 @@ describe('model items in the project document', () => {
     expect(Object.keys(project.models[asset.id]).sort()).toEqual(['bounds', 'byteSize', 'fileName', 'id', 'sha256']);
   });
 
+  it('keeps the link a model was loaded from, but only a web link', () => {
+    const load = (sourceUrl: unknown) =>
+      parseProjectDocument(baseDocument({ models: { [asset.id]: { ...asset, sourceUrl } } })).models[asset.id];
+    expect(load('https://cdn.test/tower.glb').sourceUrl).toBe('https://cdn.test/tower.glb');
+    expect(load('javascript:alert(1)').sourceUrl).toBeUndefined();
+    expect(load(42).sourceUrl).toBeUndefined();
+    expect(Object.keys(load('https://cdn.test/tower.glb')).sort()).toEqual(['bounds', 'byteSize', 'fileName', 'id', 'sha256', 'sourceUrl']);
+  });
+
   it('fills defaults for a model item that lacks its newer fields', () => {
     const { altitude: _a, pitch: _p, roll: _r, transition: _t, ...partial } = modelItem;
     const project = parseProjectDocument(baseDocument({

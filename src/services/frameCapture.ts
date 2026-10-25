@@ -1,6 +1,7 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyCamera, getProjectCameraAt } from '@/engine/cameraUtils';
+import { mapContainerSize } from '@/engine/mapFraming';
 import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { preloadOverlayAssets, type OverlayLayer } from '@/overlays';
@@ -67,7 +68,7 @@ export async function withFrameCapturer<T>(
   run: (capturer: FrameCapturer) => Promise<T>,
 ): Promise<T> {
   await preloadOverlayAssets();
-  const previewWidth = map.getContainer().getBoundingClientRect().width;
+  const previewWidth = mapContainerSize(map).width;
   const previewZoom = map.getZoom();
   const zoomOffset = Math.log2(width / previewWidth);
 

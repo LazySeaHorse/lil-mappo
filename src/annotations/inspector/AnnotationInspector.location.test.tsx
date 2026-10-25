@@ -13,7 +13,12 @@ vi.mock('./stylePreview', async (importOriginal) => ({
   getStylePreview: vi.fn().mockResolvedValue(null),
 }));
 
-const { suggest, retrieve } = vi.hoisted(() => ({ suggest: vi.fn(), retrieve: vi.fn() }));
+const { suggest, retrieve, frameCallout, toastSuccess } = vi.hoisted(() => ({
+  suggest: vi.fn(), retrieve: vi.fn(), frameCallout: vi.fn(), toastSuccess: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFrameOnMap', () => ({ useFrameOnMap: () => ({ frameCallout }) }));
+vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: toastSuccess, error: vi.fn() }) }));
 
 vi.mock('@mapbox/search-js-core', () => ({
   SearchBoxCore: class {},
@@ -36,6 +41,8 @@ describe('callout location field', () => {
   beforeEach(() => {
     suggest.mockReset();
     retrieve.mockReset();
+    frameCallout.mockReset();
+    toastSuccess.mockReset();
   });
 
   it('shows the place name the callout was created with', () => {
@@ -62,16 +69,26 @@ describe('callout location field', () => {
     expect(stored().binding).toMatchObject({ lngLat: [-73.9855, 40.758] });
   });
 
-  it('stores the name of a place picked on the map, and clears it when the pick has none', () => {
+  it('brings the moved callout into view after a search, with no toast', async () => {
+    suggest.mockResolvedValue({ suggestions: [{ mapbox_id: 'a', name: 'Times Square' }] });
+    retrieve.mockResolvedValue({ features: [{ geometry: { coordinates: [-73.9855, 40.758] }, properties: { name: 'Times Square' } }] });
+    render(<AnnotationInspector item={setCallout('')} />);
+
+    const input = screen.getByPlaceholderText(LOCATION_FIELD);
+    fireEvent.change(input, { target: { value: 'Times Square' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.click(await screen.findByText('Times Square'));
+
+    await waitFor(() => expect(frameCallout).toHaveBeenCalledTimes(1));
+    expect(frameCallout).toHaveBeenCalledWith(stored());
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('leaves the map alone when the callout is picked on the map, where the user is already looking', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [1, 2], name: 'Pier 17' }); });
-    expect(stored().locationName).toBe('Pier 17');
-
-    act(() => { useProjectStore.getState().stopPicking(); });
-    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
-    expect(stored().locationName).toBe('');
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '3.00000, 4.00000' }); });
+    expect(frameCallout).not.toHaveBeenCalled();
   });
 
   it('keeps the place, the height and the exact position in one Location section', async () => {
@@ -79,7 +96,7 @@ describe('callout location field', () => {
     const location = screen.getByRole('region', { name: 'Location' });
     expect(within(location).getByPlaceholderText(LOCATION_FIELD)).toHaveValue('Central Park');
     expect(within(location).getByTitle('Pick on the map')).toBeInTheDocument();
-    expect(within(location).getByText(CALLOUT_LOCATION_TERMS.dragOnMap)).toBeInTheDocument();
+    expect(within(location).queryByText('Drag point on map')).toBeNull();
     expect(within(location).queryByText(CALLOUT_LOCATION_TERMS.heightHint)).toBeNull();
     expect(await readInfoTips(location)).toEqual([CALLOUT_LOCATION_TERMS.heightHint]);
     expect(within(location).getByText(CALLOUT_LOCATION_TERMS.heightAboveMap)).toBeInTheDocument();
@@ -124,20 +141,38 @@ describe('callout location field', () => {
     expect(suggest).not.toHaveBeenCalled();
   });
 
-  it('keeps the title when a map pick has no place name', () => {
+  it('treats a point picked on the map as unnamed, so its coordinates never become the title', () => {
     render(<AnnotationInspector item={setCallout('Central Park')} />);
     fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '' }); });
+    // What the map gives for a click: the coordinates as a label.
+    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [3, 4], name: '3.00000, 4.00000' }); });
+    expect(stored().binding).toMatchObject({ lngLat: [3, 4] });
+    expect(stored().locationName).toBe('');
     expect(stored().content.title).toBe('Park');
     expect(stored().linkTitleToLocation).toBe(false);
   });
 
-  it('still follows the place name with the title when it has one', () => {
+  it('still follows the place name with the title when it has one', async () => {
+    suggest.mockResolvedValue({ suggestions: [{ mapbox_id: 'a', name: 'Pier 17' }] });
+    retrieve.mockResolvedValue({ features: [{ geometry: { coordinates: [1, 2] }, properties: { name: 'Pier 17' } }] });
     render(<AnnotationInspector item={setCallout('Central Park')} />);
-    fireEvent.click(screen.getAllByTitle('Pick on the map')[0]);
-    act(() => { useProjectStore.getState().activePicker!.onPick({ lngLat: [1, 2], name: 'Pier 17' }); });
-    expect(stored().content.title).toBe('Pier 17');
+    const input = screen.getByPlaceholderText(LOCATION_FIELD);
+    fireEvent.change(input, { target: { value: 'Pier 17' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.click(await screen.findByText('Pier 17'));
+
+    await waitFor(() => expect(stored().content.title).toBe('Pier 17'));
     expect(stored().linkTitleToLocation).toBe(true);
+  });
+
+  it('only empties the place field when the user clears it, and keeps the callout where it is', () => {
+    render(<AnnotationInspector item={setCallout('Central Park')} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+
+    expect(screen.getByPlaceholderText(LOCATION_FIELD)).toHaveValue('');
+    expect(stored().binding).toMatchObject({ lngLat: [-73.96542, 40.78243] });
+    expect(stored().locationName).toBe('Central Park');
+    expect(stored().content.title).toBe('Park');
   });
 
   it('puts the title switch and the text fields in their own Text section', () => {

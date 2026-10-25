@@ -61,4 +61,18 @@ describe('withTemporaryMapViewport', () => {
     expect(double.resize).toHaveBeenCalledTimes(2);
     expect(double.setFreeCameraOptions).toHaveBeenCalledWith(double.camera);
   });
+
+  it('lifts fit mode\'s scale off the map while capturing, then puts it back', async () => {
+    const double = createMapDouble();
+    const scaled = document.createElement('div');
+    scaled.style.transform = 'translate(16px, 88px) scale(0.5)';
+    scaled.appendChild(double.container);
+
+    await withTemporaryMapViewport(double.map, 1920, 1080, async () => {
+      expect(scaled.style.transform).toBe('none');
+      expect(double.resize).toHaveBeenCalledOnce();
+    });
+
+    expect(scaled.style.transform).toBe('translate(16px, 88px) scale(0.5)');
+  });
 });

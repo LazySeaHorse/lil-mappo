@@ -31,10 +31,27 @@ export function compositeFrame(
 }
 
 /**
+ * Clears CSS transforms set on the map's ancestors, such as fit mode's scale, and returns what
+ * puts them back. Under a transform the map would measure its size through that scale, which can
+ * round the canvas a pixel off, and `position: fixed` would follow the transformed element.
+ */
+function clearAncestorTransforms(el: HTMLElement): () => void {
+  const cleared: [HTMLElement, string][] = [];
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (node.style.transform) {
+      cleared.push([node, node.style.transform]);
+      node.style.transform = 'none';
+    }
+  }
+  return () => cleared.forEach(([node, transform]) => { node.style.transform = transform; });
+}
+
+/**
  * Temporarily lends the map viewport to a capture operation. Container styles
  * and the exact free-camera state are restored after the operation, including
  * when capture fails or is cancelled. Marks the store meanwhile, so the editor's
- * own overlays stay out of the way of the resized map.
+ * own overlays stay out of the way of the resized map. Fit mode's scale is lifted meanwhile,
+ * so a capture is the same with fit mode on or off.
  */
 export async function withTemporaryMapViewport<T>(
   map: MapboxMap,
@@ -47,6 +64,7 @@ export async function withTemporaryMapViewport<T>(
   const originalCamera = map.getFreeCameraOptions();
 
   useProjectStore.setState({ isCapturingViewport: true });
+  const restoreTransforms = clearAncestorTransforms(mapContainer);
   mapContainer.style.position = 'fixed';
   mapContainer.style.width = `${width}px`;
   mapContainer.style.height = `${height}px`;
@@ -59,6 +77,7 @@ export async function withTemporaryMapViewport<T>(
     return await fn();
   } finally {
     mapContainer.style.cssText = originalInlineStyles;
+    restoreTransforms();
     map.resize();
     map.setFreeCameraOptions(originalCamera);
     useProjectStore.setState({ isCapturingViewport: false });

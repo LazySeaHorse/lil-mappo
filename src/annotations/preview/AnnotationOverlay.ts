@@ -17,6 +17,8 @@ import { loadCalloutAssets } from '@/annotations/draw';
 import { compositeAnnotations } from '@/annotations/export/renderAnnotation';
 import { isRepaintPending } from '@/components/MapViewport/runtime/mapboxResources';
 import { previewableSelectionId } from '@/engine/selectionPreview';
+import { activeAppearPreview } from '@/engine/appearPreview';
+import { sceneItems } from '@/engine/stagedItems';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -26,10 +28,12 @@ function overlayStateChanged(state: ProjectState, previous: ProjectState): boole
     || state.items !== previous.items
     || state.itemOrder !== previous.itemOrder
     || state.selectedItemId !== previous.selectedItemId
-    || state.isMoveModeActive !== previous.isMoveModeActive
     || state.isExporting !== previous.isExporting
     || state.isPlaying !== previous.isPlaying
-    || state.isCapturingViewport !== previous.isCapturingViewport;
+    || state.hideUI !== previous.hideUI
+    || state.isCapturingViewport !== previous.isCapturingViewport
+    || state.appearPreview !== previous.appearPreview
+    || state.stagedItems !== previous.stagedItems;
 }
 
 export class AnnotationOverlay {
@@ -65,7 +69,7 @@ export class AnnotationOverlay {
 
   private handleStoreChange = (state: ProjectState, previous: ProjectState): void => {
     if (!overlayStateChanged(state, previous)) return;
-    if (state.items !== previous.items || state.itemOrder !== previous.itemOrder) this.loadAssets();
+    if (state.items !== previous.items || state.itemOrder !== previous.itemOrder || state.stagedItems !== previous.stagedItems) this.loadAssets();
     this.scheduleDraw();
   };
 
@@ -75,7 +79,7 @@ export class AnnotationOverlay {
    * callout object needs its assets requested only once.
    */
   private loadAssets(): void {
-    const { items, itemOrder } = useProjectStore.getState();
+    const { items, itemOrder } = sceneItems(useProjectStore.getState());
     const fresh: CalloutItem[] = [];
     for (const id of itemOrder) {
       const item = items[id];
@@ -137,12 +141,15 @@ export class AnnotationOverlay {
     if (state.isExporting) return;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // While positioning, the callout is replaced by its drag handle.
-    const drawn = state.isMoveModeActive
-      ? state.itemOrder.filter((id) => id !== state.selectedItemId)
-      : state.itemOrder;
-    compositeAnnotations(this.map, ctx, state.items, drawn, state.playheadTime, {
+    const preview = activeAppearPreview(state, performance.now());
+    // Staged callouts are drawn too (see `sceneItems`).
+    const { items, itemOrder, staged } = sceneItems(state);
+    compositeAnnotations(this.map, ctx, items, itemOrder, state.playheadTime, {
       selectedId: previewableSelectionId(state),
+      preview,
+      staged,
     });
+    // Callouts just added animate on their own clock: draw again next frame until they have played out.
+    if (preview && !preview.done && [...preview.itemIds].some((id) => items[id]?.kind === 'callout')) this.scheduleDraw();
   };
 }

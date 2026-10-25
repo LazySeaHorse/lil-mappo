@@ -12,6 +12,7 @@ import {
   GUEST_LOAD_LIMIT,
 } from '@/lib/cloudAccess';
 import { BYOK_STORAGE_KEY, MAPBOX_TOKEN, isAppOwnKey } from '@/config/mapbox';
+import { supabase } from '@/lib/supabase';
 
 export type MapGateReason =
   | 'guest_limit'        // Guest hit the 3-load localStorage limit
@@ -51,6 +52,40 @@ export interface MapLoadGateOptions {
    * Gate evaluation is deferred until the arrival result is known.
    */
   deepLinkPending?: boolean;
+}
+
+interface MapLoadQuota {
+  allowed: boolean;
+  reason?: string | null;
+}
+
+/**
+ * Counts one map load for the signed-in free user, in one database call:
+ * `track_my_map_load()` (migration 025) always counts against the caller's
+ * own JWT identity. Rejects on any error, so the caller fails closed.
+ *
+ * Rollout fallback: until 025 is applied (or PostgREST's schema cache has
+ * picked it up), PostgREST answers 404 with code PGRST202 and this goes
+ * through `/api/track-map-load` as before. That endpoint enforces the same
+ * quota, so falling back never lets a load through uncounted.
+ */
+async function trackMapLoad(accessToken: string): Promise<MapLoadQuota> {
+  const { data, error, status } = await supabase.rpc('track_my_map_load');
+  if (error) {
+    if (error.code === 'PGRST202' || status === 404) return trackMapLoadViaApi(accessToken);
+    throw error;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as MapLoadQuota | null | undefined;
+  if (!row || typeof row.allowed !== 'boolean') throw new Error('track_my_map_load returned no row');
+  return row;
+}
+
+/** The pre-025 path, unchanged. Remove with `api/track-map-load.ts`. */
+function trackMapLoadViaApi(accessToken: string): Promise<MapLoadQuota> {
+  return fetch('/api/track-map-load', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).then((r) => r.json());
 }
 
 export function useMapLoadGate({
@@ -114,12 +149,8 @@ export function useMapLoadGate({
       return;
     }
 
-    // Free user: call server-side quota check
-    fetch('/api/track-map-load', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    })
-      .then((r) => r.json())
+    // Free user: count the load against the server-side quota
+    trackMapLoad(session.access_token)
       .then((data) => {
         if (!data.allowed) {
           setBlocked(true);
@@ -128,9 +159,9 @@ export function useMapLoadGate({
         setReady(true);
       })
       .catch(() => {
-        // Fail closed: a quota API error blocks the map rather than granting
-        // free unlimited access. Vercel + Supabase outages are rare enough
-        // that this is the safer tradeoff.
+        // Fail closed: a quota check error blocks the map rather than granting
+        // free unlimited access. Supabase (and, on the fallback, Vercel)
+        // outages are rare enough that this is the safer tradeoff.
         setBlocked(true);
         setReason('quota_error');
         setReady(true);

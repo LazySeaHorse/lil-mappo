@@ -317,12 +317,12 @@ export function getWalkthroughStepConfig(
       return {
         stage,
         target: '[data-walkthrough="boundary-action"]',
-        title: 'Pick a place and insert it',
+        title: 'Pick a place',
         placement: isMobile ? 'top' : 'right',
         hideOverlay: true,
         compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Search for a place, pick a result, then press Insert boundary.',
+        renderContent: () => 'Search for a place and choose a result, then click Add boundary.',
       };
 
     case 'callout':
@@ -340,12 +340,12 @@ export function getWalkthroughStepConfig(
       return {
         stage,
         target: '[data-walkthrough="callout-action"]',
-        title: 'Pick a place and create it',
+        title: 'Pick a place for it',
         placement: isMobile ? 'top' : 'right',
         hideOverlay: true,
         compact: true,
         buttons: ['skip'],
-        renderContent: () => 'Search for a place, or click the crosshair and then the map. Then press Create callout.',
+        renderContent: () => 'Search for a place and choose a result, or click the pin button and then the map. Then click Add callout.',
       };
 
     case 'project-settings':

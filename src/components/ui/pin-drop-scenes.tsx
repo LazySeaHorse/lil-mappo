@@ -211,6 +211,32 @@ function CloudSlotsScene() {
   );
 }
 
+/** A .glb file on its way to the map: a little cube stands on a dashed footprint. */
+function ModelScene() {
+  const cube = (x: number, y: number, s: number) => (
+    <g>
+      <path d={`M${x} ${y + 0.5 * s} L${x - s} ${y} V${y + s} L${x} ${y + 1.5 * s}Z`} fill={C.ink} opacity={0.75} />
+      <path d={`M${x} ${y + 0.5 * s} L${x + s} ${y} V${y + s} L${x} ${y + 1.5 * s}Z`} fill={C.primary} />
+      <path d={`M${x} ${y - 0.5 * s} L${x + s} ${y} L${x} ${y + 0.5 * s} L${x - s} ${y}Z`} fill={C.bg} stroke={C.border} strokeWidth={1} />
+    </g>
+  );
+  return (
+    <g>
+      <g style={lift}>
+        <Card x={222} y={72} w={64} h={58} />
+        <rect x={232} y={82} width={44} height={28} rx={4} fill={C.fg} opacity={0.08} />
+        {cube(254, 88, 10)}
+        <text x={254} y={124} textAnchor="middle" fontSize={10} fontWeight={700} letterSpacing={0.6} fill={C.fg} opacity={0.7} fontFamily="inherit">.GLB</text>
+      </g>
+      <path d="M296 100 C330 70 380 70 430 98" stroke={C.primary} strokeWidth={3.5} fill="none" strokeLinecap="round" strokeDasharray="0.1 8" />
+      <path d="M470 138 L506 124 L542 138 L506 152Z" fill="none" stroke={C.primary} strokeWidth={1.8} strokeDasharray="4 4" />
+      <ellipse cx={506} cy={142} rx={22} ry={7} fill={C.ink} opacity={0.2} />
+      <g style={lift}>{cube(506, 92, 22)}</g>
+      <Check x={540} y={92} />
+    </g>
+  );
+}
+
 /** A fresh 16:9 frame around the spot. */
 function NewProjectScene() {
   const b = (d: string) => <path d={d} stroke={C.primary} strokeWidth={3} fill="none" strokeLinecap="round" />;
@@ -445,6 +471,7 @@ const SCENES = {
   signIn: { center: 820, Scene: SignInScene },
   connect: { center: 360, Scene: ConnectScene },
   export: { center: 700, Scene: ExportScene },
+  model: { center: 560, Scene: ModelScene },
 };
 
 export type PinDropSceneName = keyof typeof SCENES;

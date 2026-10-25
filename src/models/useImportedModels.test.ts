@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTransientState, useProjectStore } from '@/store/useProjectStore';
 import { CAMERA_TRACK_ID, createProject } from '@/store/projectDocument';
@@ -7,6 +7,9 @@ import type { ModelAsset } from '@/store/types';
 import { clearModelRegistry, markModelFailed, registerModelBytes } from './modelRegistry';
 import { useImportedModels } from './useImportedModels';
 import { MODEL_TERMS } from './modelTerms';
+import { isModelReady } from './modelRegistry';
+import { sha256Hex } from './glb';
+import { makeGlb } from './testGlb';
 
 const toast = vi.hoisted(() => ({ warning: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
@@ -61,5 +64,59 @@ describe('useImportedModels', () => {
     options.action.onClick();
     expect(useProjectStore.getState().selectedItemId).toBe('m1');
     unmount();
+  });
+
+  describe('models loaded from a link', () => {
+    const fetchMock = vi.fn();
+    const bytes = makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [1, 1, 1] });
+    const openWith = async (...assets: ModelAsset[]) => {
+      const items: Record<string, ReturnType<typeof createModelItem>> = {};
+      for (const a of assets) items[`m-${a.id}`] = { ...createModelItem({ assetId: a.id, name: a.fileName, position: [0, 0], startTime: 0 }), id: `m-${a.id}` };
+      useProjectStore.getState().loadFullProject({
+        ...createProject({ id: 'other' }),
+        schemaVersion: 5,
+        models: Object.fromEntries(assets.map((a) => [a.id, a])),
+        items: { [CAMERA_TRACK_ID]: { kind: 'camera', id: CAMERA_TRACK_ID, keyframes: [] }, ...items },
+        itemOrder: [CAMERA_TRACK_ID, ...Object.keys(items)],
+      });
+    };
+    const linked = async (id: string): Promise<ModelAsset> =>
+      ({ ...asset, id, byteSize: bytes.byteLength, sha256: await sha256Hex(bytes), sourceUrl: `https://cdn.test/${id}.glb` });
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', fetchMock);
+      fetchMock.mockReset();
+    });
+
+    it('fetches them again on open and checks the hash, so nothing needs a relink', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(new Response(bytes.slice(0))));
+      const { unmount } = renderHook(() => useImportedModels());
+      const a = await linked('a1');
+      await openWith(a);
+      await waitFor(() => expect(isModelReady(a)).toBe(true));
+      expect(fetchMock).toHaveBeenCalledWith('https://cdn.test/a1.glb');
+      expect(toast.warning).not.toHaveBeenCalled();
+      unmount();
+    });
+
+    it('still asks for the files that could not be fetched, and only those', async () => {
+      fetchMock.mockImplementation((url: string) =>
+        Promise.resolve(url.includes('good') ? new Response(bytes.slice(0)) : new Response('gone', { status: 404 })));
+      const { unmount } = renderHook(() => useImportedModels());
+      // A different file than the good one, so the good download cannot stand in for it.
+      await openWith(await linked('good'), { ...(await linked('bad')), sha256: '2'.repeat(64) }, { ...asset, id: 'plain' });
+      await waitFor(() => expect(toast.warning).toHaveBeenCalledWith(MODEL_TERMS.missingOnLoad(2), expect.anything()));
+      unmount();
+    });
+
+    it('asks for a file whose link now gives a different model', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(new Response(makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [7, 7, 7] }))));
+      const { unmount } = renderHook(() => useImportedModels());
+      const a = await linked('a1');
+      await openWith(a);
+      await waitFor(() => expect(toast.warning).toHaveBeenCalledWith(MODEL_TERMS.missingOnLoad(1), expect.anything()));
+      expect(isModelReady(a)).toBe(false);
+      unmount();
+    });
   });
 });

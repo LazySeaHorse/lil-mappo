@@ -9,6 +9,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import type { CalloutItem, TimelineItem } from '@/store/types';
 import { drawAnnotationFrame, prepareAnnotationFrame } from '@/annotations/draw';
 import { isSelectionPreview } from '@/engine/selectionPreview';
+import { entranceEnd, type AppearPreviewFrame } from '@/engine/appearPreview';
 
 export interface CompositeView {
   /**
@@ -22,6 +23,10 @@ export interface CompositeView {
    * can be edited. Exports leave this unset, so they match the timeline.
    */
   selectedId?: string | null;
+  /** Callouts just added, drawn at the preview's time in place of the playhead. Exports leave this unset. */
+  preview?: AppearPreviewFrame | null;
+  /** Staged callouts (see `sceneItems`), drawn settled outside a preview. Exports leave this unset. */
+  staged?: ReadonlySet<string>;
 }
 
 /** Render all annotations for a frame onto the compositing canvas. */
@@ -31,7 +36,7 @@ export function compositeAnnotations(
   items: Record<string, TimelineItem>,
   itemOrder: string[],
   playheadTime: number,
-  { zoomOffset = 0, selectedId = null }: CompositeView = {},
+  { zoomOffset = 0, selectedId = null, preview = null, staged }: CompositeView = {},
 ): void {
   // The zoom the editor shows, whatever size the map was rendered at.
   const viewZoom = map.getZoom() - zoomOffset;
@@ -42,8 +47,12 @@ export function compositeAnnotations(
     if (item?.kind !== 'callout') continue;
     const callout = item as CalloutItem;
 
-    const settled = isSelectionPreview(callout, playheadTime, callout.id === selectedId);
-    const frame = prepareAnnotationFrame(callout, playheadTime, { viewZoom, pixelScale, settled });
+    const previewing = !!preview?.itemIds.has(callout.id);
+    const time = previewing ? preview!.time : playheadTime;
+    const settled = previewing
+      ? time >= entranceEnd(callout)
+      : !!staged?.has(callout.id) || isSelectionPreview(callout, playheadTime, callout.id === selectedId);
+    const frame = prepareAnnotationFrame(callout, time, { viewZoom, pixelScale, settled });
     if (!frame || frame.opacity <= 0 || callout.binding.kind !== 'geographic') continue;
 
     const projected = map.project(callout.binding.lngLat);

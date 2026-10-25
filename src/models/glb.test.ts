@@ -85,6 +85,32 @@ describe('parseGlb', () => {
     expect(() => parseGlb(glb)).toThrow(/no 3D shapes/i);
   });
 
+  it('accepts bounds on texture coordinate and index accessors, as three.js writes them', () => {
+    const glb = makeGlb({
+      nodes: [{ mesh: 0 }],
+      min: [0, 0, 0],
+      max: [1, 1, 1],
+      extra: {
+        accessors: [
+          { bufferView: 0, componentType: 5126, count: 2, type: 'VEC3', min: [0, 0, 0], max: [1, 1, 1] },
+          { bufferView: 0, componentType: 5126, count: 2, type: 'VEC2', min: [0, 0], max: [1, 1] },
+          { bufferView: 0, componentType: 5123, count: 6, type: 'SCALAR', min: [0], max: [1] },
+        ],
+      },
+    });
+    expect(parseGlb(glb).bounds).toEqual({ min: [0, 0, 0], max: [1, 1, 1] });
+  });
+
+  it('refuses a position accessor whose bounds are not 3D', () => {
+    const glb = makeGlb({
+      nodes: [{ mesh: 0 }],
+      min: [0, 0, 0],
+      max: [1, 1, 1],
+      extra: { accessors: [{ bufferView: 0, componentType: 5126, count: 2, type: 'VEC3', min: [0, 0], max: [1, 1] }] },
+    });
+    expect(() => parseGlb(glb)).toThrow(ModelFileError);
+  });
+
   it('refuses a model that needs files next to it', () => {
     const glb = makeGlb({ nodes: [{ mesh: 0 }], min: [0, 0, 0], max: [1, 1, 1], images: [{ uri: 'texture.png' }] });
     expect(() => parseGlb(glb)).toThrow(/other files/i);

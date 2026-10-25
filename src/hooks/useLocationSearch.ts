@@ -10,7 +10,9 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { getEffectiveMapboxToken } from '@/config/mapbox';
 import { isPlacedPoint } from '@/engine/routeMode';
 import { useMapRef } from '@/hooks/useMapRef';
-import { readMapView, suggestForView } from '@/services/locationSearch';
+import { readMapView, retrieveForView, suggestForView, type SearchView } from '@/services/locationSearch';
+import { SEARCH_TERMS } from '@/lib/terms';
+import { toast } from 'sonner';
 
 type SearchBoxSession = SearchSession<
   SearchBoxOptions,
@@ -64,6 +66,14 @@ export function useLocationSearch({
     return () => { sessionRef.current = null; };
   }, []);
 
+  /** The live map's view, or the stored center when there is no map. */
+  const readView = useCallback((): SearchView => {
+    const storedCenter = useProjectStore.getState().mapCenter;
+    return readMapView(mapRef.current?.getMap()) ?? {
+      center: isPlacedPoint(storedCenter) ? storedCenter : undefined,
+    };
+  }, [mapRef]);
+
   const performSearch = useCallback(async (searchTerm: string) => {
     const trimmed = searchTerm.trim();
 
@@ -90,11 +100,7 @@ export function useLocationSearch({
 
     setLoading(true);
     try {
-      const storedCenter = useProjectStore.getState().mapCenter;
-      const view = readMapView(mapRef.current?.getMap()) ?? {
-        center: isPlacedPoint(storedCenter) ? storedCenter : undefined,
-      };
-      const response = await suggestForView(sessionRef.current!, trimmed, view);
+      const response = await suggestForView(sessionRef.current!, trimmed, readView());
       setSuggestions(response.suggestions || []);
       setIsOpen((response.suggestions || []).length > 0);
     } catch {
@@ -103,7 +109,7 @@ export function useLocationSearch({
     } finally {
       setLoading(false);
     }
-  }, [parseCoordinates, onSelect, mapRef]);
+  }, [parseCoordinates, onSelect, readView]);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
@@ -118,15 +124,18 @@ export function useLocationSearch({
 
   const handleSelect = useCallback(async (suggestion: SearchBoxSuggestion) => {
     try {
-      const result = await sessionRef.current!.retrieve(suggestion);
-      const feature = result.features[0];
-      const [lng, lat] = feature.geometry.coordinates;
-      onSelect([lng, lat], feature.properties?.name || suggestion.name || '');
+      const feature = await retrieveForView(sessionRef.current!, suggestion, readView());
+      if (feature) {
+        const [lng, lat] = feature.geometry.coordinates;
+        onSelect([lng, lat], feature.properties?.name || suggestion.name || '');
+      } else {
+        toast.error(SEARCH_TERMS.notFound(suggestion.name));
+      }
     } catch {
       // retrieve failed; no action
     }
     handleClose();
-  }, [handleClose, onSelect]);
+  }, [handleClose, onSelect, readView]);
 
   return {
     query,

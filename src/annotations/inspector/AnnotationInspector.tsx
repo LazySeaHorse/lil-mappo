@@ -8,11 +8,10 @@
 import React from 'react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/useProjectStore';
-import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
+import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import type { CalloutItem } from '@/store/types';
-import { Button } from "@/components/ui/button";
-import { Check, Crosshair, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { SearchField } from '@/components/Search/SearchField';
 import {
   SliderRow,
@@ -28,8 +27,8 @@ import { InspectorHeader } from '@/components/Inspector/InspectorHeader';
 import { TimingSection } from '@/components/Inspector/timing/TimingSection';
 import { calloutTiming } from '@/components/Inspector/timing/timingAdapters';
 import { getStyle } from '@/annotations/registry';
-import { switchCalloutStyle } from '@/store/itemFactories';
-import { placeLabel } from '@/engine/routeMode';
+import { moveCalloutPatch, switchCalloutStyle } from '@/store/itemFactories';
+import { isPlacedPoint, placeLabel } from '@/engine/routeMode';
 import { CALLOUT_LOCATION_TERMS, STYLE_TERMS } from '@/lib/terms';
 import { undo } from '@/store/history';
 import { DynamicControls } from './DynamicControls';
@@ -37,34 +36,8 @@ import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
 import { SizeControls } from './SizeControls';
 
-/**
- * The patch that moves a callout to a point. A name says which place it is; no
- * name (typed or edited coordinates, a pick with no place) clears the old one,
- * so the stored name never describes another place. A title that follows the
- * place name follows a real name; with no name it keeps its text and stops
- * following.
- */
-function movePatch(item: CalloutItem, lngLat: [number, number], name: string): Partial<CalloutItem> {
-  const altitude = item.binding.kind === 'geographic' ? item.binding.altitude : 0;
-  const patch: Partial<CalloutItem> = {
-    binding: { kind: 'geographic', lngLat, altitude },
-    locationName: name,
-  };
-  if (item.linkTitleToLocation) {
-    if (name) patch.content = { ...item.content, title: name };
-    else patch.linkTitleToLocation = false;
-  }
-  return patch;
-}
-
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
-  const { updateItem, isMoveModeActive, setMoveModeActive } = useProjectStore(
-    useShallow(s => ({
-      updateItem: s.updateItem,
-      isMoveModeActive: s.isMoveModeActive,
-      setMoveModeActive: s.setMoveModeActive,
-    }))
-  );
+  const updateItem = useProjectStore((s) => s.updateItem);
 
   const { isPicking, toggle: handleTogglePick } = useMapPicker(`callout-${item.id}`, {
     ownerId: item.id,
@@ -73,10 +46,12 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       // Read the latest item: it may have been edited since picking started.
       const current = useProjectStore.getState().items[item.id];
       if (current?.kind !== 'callout') return;
-      updateItem(item.id, movePatch(current, result.lngLat, result.name));
+      // A map click names no place: its label is only the coordinates.
+      updateItem(item.id, moveCalloutPatch(current, result.lngLat, ''));
     },
   });
 
+  const frame = useFrameOnMap();
   const u = (updates: Partial<CalloutItem>) => updateItem(item.id, updates);
   const updateSettings = (changes: Record<string, unknown>) => {
     u({ settings: { ...item.settings, ...changes } });
@@ -122,24 +97,18 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
           value={lngLat as [number, number]}
           name={placeLabel(item.locationName, lngLat as [number, number])}
           onSelect={(coords, name) => {
-            u(movePatch(item, coords, name));
-            toast.success(CALLOUT_LOCATION_TERMS.updated);
+            // Clearing the field reports the unset point; a callout always keeps a place.
+            if (!isPlacedPoint(coords)) return;
+            u(moveCalloutPatch(item, coords, name));
+            // A searched place may be off screen: bring the moved callout into view.
+            const moved = useProjectStore.getState().items[item.id];
+            if (moved?.kind === 'callout') frame.frameCallout(moved);
           }}
           parseCoordinates
           isPicking={isPicking}
           onStartPick={handleTogglePick}
           className="px-0"
         />
-
-        <Button
-          type="button"
-          onClick={() => setMoveModeActive(!isMoveModeActive)}
-          variant={isMoveModeActive ? 'default' : 'outline'}
-          className="w-full"
-        >
-          {isMoveModeActive ? <Check size={15} /> : <Crosshair size={15} />}
-          <span>{isMoveModeActive ? CALLOUT_LOCATION_TERMS.doneDragging : CALLOUT_LOCATION_TERMS.dragOnMap}</span>
-        </Button>
 
         {supportsAltitude && (
           <SliderRow
@@ -161,7 +130,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
         <Disclosure label={CALLOUT_LOCATION_TERMS.exactPosition}>
           <CoordinatesRows
             lngLat={lngLat as [number, number]}
-            onChange={(coords) => u(movePatch(item, coords, ''))}
+            onChange={(coords) => u(moveCalloutPatch(item, coords, ''))}
           />
         </Disclosure>
       </InspectorSection>

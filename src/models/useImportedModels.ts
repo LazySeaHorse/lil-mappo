@@ -4,6 +4,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { ModelAsset, TimelineItem } from '@/store/types';
 import { drawnModelId } from '@/store/modelAssets';
 import { isModelReady, useModelRegistry } from './modelRegistry';
+import { relinkModelFromUrl } from './modelUrl';
 import { installModelRetention } from './modelRetention';
 import { MODEL_TERMS } from './modelTerms';
 
@@ -26,21 +27,38 @@ export function itemsWithMissingModels(
 }
 
 /**
- * Editor-wide care of imported models: frees files nothing can reach any more, says so (with a Show
- * button) when a project opens with models whose files are not in memory (they are never saved),
+ * Editor-wide care of imported models: frees files nothing can reach any more, fetches again the
+ * models that came from a link when a project opens, says so (with a Show button) when some still
+ * have no file in memory (files are never saved),
  * and when the map could not load a model's file.
  */
 export function useImportedModels(): void {
   useEffect(() => installModelRetention(), []);
 
-  useEffect(() => useProjectStore.subscribe((state, previous) => {
-    if (state.id === previous.id) return;
-    const missing = itemsWithMissingModels(state.items, state.itemOrder, state.models);
-    if (missing.length === 0) return;
-    toast.warning(MODEL_TERMS.missingOnLoad(missing.length), {
-      action: { label: MODEL_TERMS.show, onClick: () => useProjectStore.getState().selectItem(missing[0]) },
+  useEffect(() => {
+    let stopped = false;
+    const unsubscribe = useProjectStore.subscribe((state, previous) => {
+      if (state.id === previous.id) return;
+      const warn = () => {
+        const current = useProjectStore.getState();
+        // Another project may have opened while the links were loading.
+        if (stopped || current.id !== state.id) return;
+        const missing = itemsWithMissingModels(current.items, current.itemOrder, current.models);
+        if (missing.length === 0) return;
+        toast.warning(MODEL_TERMS.missingOnLoad(missing.length), {
+          action: { label: MODEL_TERMS.show, onClick: () => useProjectStore.getState().selectItem(missing[0]) },
+        });
+      };
+      // Models loaded from a link fetch their file again (checked against its hash); the rest need a relink.
+      const fromLinks = Object.values(state.models).filter((asset) => asset.sourceUrl && !isModelReady(asset));
+      if (fromLinks.length === 0) warn();
+      else void Promise.allSettled(fromLinks.map((asset) => relinkModelFromUrl(asset))).then(warn);
     });
-  }), []);
+    return () => {
+      stopped = true;
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => useModelRegistry.subscribe((registry, previous) => {
     const { models, items, itemOrder } = useProjectStore.getState();

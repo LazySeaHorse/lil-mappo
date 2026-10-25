@@ -184,12 +184,14 @@ const modelBoundsSchema = z.object({ min: vector3Schema, max: vector3Schema }).t
   };
 });
 
-/** Metadata only: unknown keys (bytes, urls) are stripped, so a model file can never reach a save. */
+/** Metadata only: unknown keys (bytes, object urls) are stripped, so a model file can never reach a save. */
 const modelAssetSchema = z.object({
   id: z.string().min(1),
   fileName: z.string(),
   byteSize: z.number().int().nonnegative(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  // Only a web link survives; anything else is dropped and the model asks for its file again.
+  sourceUrl: z.string().max(2048).regex(/^https?:\/\//i).optional().catch(undefined),
   bounds: modelBoundsSchema,
 });
 

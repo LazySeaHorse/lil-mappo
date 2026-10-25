@@ -150,6 +150,7 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect(addedRoute.style).not.toHaveProperty('glowColor');
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(reportRouteAdded).toHaveBeenCalledWith('flight', expect.any(Number));
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [addedRoute.id], selectedItemId: addedRoute.id });
   });
 
   it('starts a Pro user\'s flight route with the plane marker', async () => {
@@ -248,13 +249,14 @@ describe('RouteAddDropdown with Airport Picker', () => {
     expect((added.geojson.features[0].geometry as GeoJSON.LineString).coordinates.length).toBeGreaterThan(3);
     expect(getDirections).not.toHaveBeenCalled();
     expect(reportRouteAdded).toHaveBeenLastCalledWith('walk', 3);
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [added.id] });
   });
 });
 
 describe('RouteAddDropdown map framing', () => {
   const fitBounds = vi.fn();
   const map = {
-    getContainer: () => ({ getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
+    getContainer: () => ({ clientWidth: 1200, clientHeight: 800, getBoundingClientRect: () => ({ width: 1200, height: 800 }) }),
     getZoom: () => 5,
     project: () => ({ x: 600, y: 400 }),
     fitBounds,

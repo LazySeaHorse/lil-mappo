@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Plane, Loader2 } from 'lucide-react';
 import { Command as CommandPrimitive } from 'cmdk';
 
@@ -15,8 +15,12 @@ import {
   PopoverAnchor,
 } from '@/components/ui/popover';
 import { PickOnMapButton } from './PickOnMapButton';
+import { pasteListHandler } from './pasteList';
 import { SearchFieldActions } from './SearchFieldActions';
-import { SEARCH_INPUT_CLASS } from './searchFieldStyles';
+import { SEARCH_BARE_INPUT_CLASS, SEARCH_BOX_CLASS, SEARCH_INPUT_CLASS } from './searchFieldStyles';
+import { AddPlacePill } from './PlacePills';
+import { isPlacedPoint } from '@/engine/routeMode';
+import { HUB_SPOKE_TERMS } from '@/lib/terms';
 import {
   useAirportSearch,
   parseCoordinates,
@@ -35,6 +39,12 @@ export interface AirportSearchFieldProps {
   onStartPick?: () => void;
   className?: string;
   placeholder?: string;
+  /** In a list of places: called with pasted text that holds several places. */
+  onPasteList?: (text: string) => void;
+  /** Shows a "+" pill in the box once an airport is chosen; it makes this field a list of places. */
+  onMakeList?: () => void;
+  /** In a list of places: the pills before the text input. A chosen airport becomes a pill, so the text empties. */
+  chips?: ReactNode;
 }
 
 export const AirportSearchField = ({
@@ -46,6 +56,9 @@ export const AirportSearchField = ({
   onStartPick = () => {},
   className = "",
   placeholder,
+  onPasteList,
+  onMakeList,
+  chips,
 }: AirportSearchFieldProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +78,7 @@ export const AirportSearchField = ({
     initialQuery: name,
     onSelect: (coords, airportName) => {
       onSelect(coords, airportName);
+      if (chips && isPlacedPoint(coords)) setQuery('');
     },
   });
 
@@ -88,6 +102,7 @@ export const AirportSearchField = ({
     }
   };
 
+  const showMakeList = !!onMakeList && !chips && !!value && isPlacedPoint(value);
   const hasContentToShow = results.length > 0 || loading || error || query.trim().length > 0;
 
   return (
@@ -108,28 +123,41 @@ export const AirportSearchField = ({
           <PopoverAnchor asChild>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
-                <CommandPrimitive.Input
-                  placeholder={isPicking ? "Click on map..." : (placeholder || label)}
-                  value={isPicking ? "" : query}
-                  onValueChange={(val) => {
-                    setQuery(val);
-                    if (!isOpen) open();
-                  }}
-                  onFocus={() => {
-                    if (!isPicking) open();
-                  }}
-                  onClick={() => {
-                    if (!isPicking) open();
-                  }}
-                  onKeyDown={handleKeyDown}
-                  disabled={isPicking}
-                  className={cn(
-                    'h-8',
-                    SEARCH_INPUT_CLASS,
-                    isPicking && 'placeholder:text-primary animate-pulse',
-                  )}
-                />
+                {(() => {
+                  const input = (
+                    <CommandPrimitive.Input
+                      placeholder={isPicking ? "Click on map..." : (placeholder || label)}
+                      value={isPicking ? "" : query}
+                      onValueChange={(val) => {
+                        setQuery(val);
+                        if (!isOpen) open();
+                      }}
+                      onFocus={() => {
+                        if (!isPicking) open();
+                      }}
+                      onClick={() => {
+                        if (!isPicking) open();
+                      }}
+                      onPaste={pasteListHandler(onPasteList)}
+                      onKeyDown={handleKeyDown}
+                      disabled={isPicking}
+                      className={cn(
+                        'h-8',
+                        SEARCH_INPUT_CLASS,
+                        chips && SEARCH_BARE_INPUT_CLASS,
+                        showMakeList && 'pr-[4.75rem]',
+                        isPicking && 'placeholder:text-primary animate-pulse',
+                      )}
+                    />
+                  );
+                  return chips ? (
+                    <div className={SEARCH_BOX_CLASS} data-place-box>{chips}{input}</div>
+                  ) : input;
+                })()}
                 {!isPicking && <SearchFieldActions hasText={query !== ''} loading={loading} onClear={clear} />}
+                {onMakeList && showMakeList && !isPicking && (
+                  <AddPlacePill label={HUB_SPOKE_TERMS.addPlaces} onClick={onMakeList} className="absolute right-8 top-1/2 -translate-y-1/2" />
+                )}
               </div>
               <PickOnMapButton isPicking={isPicking} onClick={onStartPick} />
             </div>

@@ -271,9 +271,10 @@ test("4. a callout can be added and edited", async ({ page }) => {
   await openEditor(page);
 
   await page.getByTitle("Add Callout").click();
+  // The pick previews the callout; Add callout puts it on the timeline.
   await pickMapPoint(page, 0, { x: 760, y: 360 });
-  await page.getByPlaceholder("Callout title").fill("Customer HQ");
-  await page.getByRole("button", { name: "Create callout" }).click();
+  await page.getByRole("menu").getByPlaceholder("Callout title").fill("Customer HQ");
+  await page.getByRole("menu").getByRole("button", { name: "Add callout" }).click();
 
   await expect(page.getByRole("heading", { name: "Callout", exact: true })).toBeVisible();
   const titleInput = page.locator("#root").getByRole("textbox", { name: "Callout title" });
@@ -296,8 +297,9 @@ test("5. a boundary can be added and edited", async ({ page }) => {
   const search = page.getByPlaceholder("Search for a place or region");
   await search.fill("Testland");
   await search.press("Enter");
+  // Choosing a result previews the boundary; Add boundary puts it on the timeline and closes the panel.
   await page.getByRole("button", { name: /Testland/ }).click();
-  await page.getByRole("button", { name: "Insert boundary" }).click();
+  await page.getByRole("menu").getByRole("button", { name: "Add boundary" }).click();
 
   await expect(page.getByRole("heading", { name: "Area", exact: true })).toBeVisible();
   const nameInput = page.locator('input[placeholder="Boundary name"]');

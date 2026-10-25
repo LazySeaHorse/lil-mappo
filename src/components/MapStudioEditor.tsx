@@ -33,6 +33,9 @@ import ExportModal from "@/components/ExportModal/ExportModal";
 import { AccountModals } from "@/components/Account/AccountModals";
 import { useWalkthroughStore } from "@/components/Onboarding/useWalkthroughStore";
 import QuickWalkthrough from "@/components/Onboarding/QuickWalkthrough";
+import { FitModeMap } from "@/components/FitMode/FitModeMap";
+import { SelectionPreviewPill } from "@/components/MapViewport/SelectionPreviewPill";
+import { isFitModeOn } from "@/components/FitMode/useFitFrame";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
@@ -164,10 +167,13 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   const setHideUI = useProjectStore((s) => s.setHideUI);
   const isPlaying = useProjectStore((s) => s.isPlaying);
   const setIsPlaying = useProjectStore((s) => s.setIsPlaying);
+  const isFitMode = useProjectStore((s) => s.isFitMode);
+  const fitOn = isFitModeOn(isFitMode, hideUI, isToolbarCollapsed);
+  // Dark theme with a dark map style, and always in fit mode, whose frame sits on black.
   useEffect(() => {
-    const isDark = isDarkMapStyle(mapStyle, lightPreset);
+    const isDark = fitOn || isDarkMapStyle(mapStyle, lightPreset);
     document.documentElement.classList.toggle("dark", isDark);
-  }, [mapStyle, lightPreset]);
+  }, [fitOn, mapStyle, lightPreset]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("hide-ui-active", hideUI);
@@ -187,7 +193,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         <Sonner style={sonnerStyle as React.CSSProperties} />
         <div className="h-dvh w-screen relative overflow-hidden bg-background">
         {/* Map Background Layer — wrapped in gate to prevent loads over quota */}
-        <div className="absolute inset-0 z-0">
+        <FitModeMap>
           <MapLoadGate gate={mapLoadGate}>
             <MapViewport
               mapRef={mapRef}
@@ -200,7 +206,11 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
               mapboxToken={mapLoadGate.mapboxToken}
             />
           </MapLoadGate>
-        </div>
+        </FitModeMap>
+
+        {/* Outside the map's wrapper, so fit mode's scale leaves it at full size, and before the
+            floating UI so the panels stay above it while Hide UI, which fades them, keeps it. */}
+        {mapLoadGate.ready && !mapLoadGate.blocked && <SelectionPreviewPill />}
 
         {/* Floating UI Layer */}
         <div

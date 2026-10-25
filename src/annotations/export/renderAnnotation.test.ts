@@ -343,5 +343,24 @@ describe('renderAnnotation and compositeAnnotations', () => {
       // On the clip, the real animation shows.
       expect(opacityAt(2.5, 's1')).toBe(0.5);
     });
+
+    it('draws a callout in an appear preview at the preview time, and settled once its entrance is over', () => {
+      const callout = calloutAt({ transition: { enter: 'fade', exit: 'fade', enterDuration: 1, exitDuration: 1 } });
+      const opacityAt = (previewTime: number) => {
+        const ctx = createMockCtx();
+        const alphas: number[] = [];
+        Object.defineProperty(ctx, 'globalAlpha', { set: (v: number) => alphas.push(v), get: () => 1 });
+        // The playhead is on the clip start, where the callout has not faded in yet.
+        compositeAnnotations(mapAt(12, 0, 0), ctx, { s1: callout }, ['s1'], 2, {
+          selectedId: 's1',
+          preview: { itemIds: new Set(['s1']), time: previewTime, done: false },
+        });
+        return alphas[0];
+      };
+
+      expect(opacityAt(2.25)).toBe(0.25);
+      expect(opacityAt(3)).toBe(1);
+      expect(opacityAt(2)).toBeUndefined(); // the start of the next play: not shown yet
+    });
   });
 });

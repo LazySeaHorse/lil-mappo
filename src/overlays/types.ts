@@ -1,5 +1,8 @@
-/** Where the output is being shown: editor (no overlays), hide-UI mode, or a video/snapshot export. */
-export type OverlayMode = 'editor' | 'present' | 'export';
+/**
+ * Where the output is being shown: editor (no overlays), the fit mode frame (Mapbox's marks
+ * only), hide-UI mode, or a video/snapshot export.
+ */
+export type OverlayMode = 'editor' | 'fit' | 'present' | 'export';
 
 /** 'free' = anything that is not an active Wanderer subscription (BYOK included). */
 export type Branding = 'free' | 'paid';

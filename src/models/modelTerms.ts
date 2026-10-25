@@ -1,4 +1,5 @@
 import type { ModelEnter, ModelExit } from '@/store/types';
+import { MAX_MODEL_BYTES, MAX_MODEL_URLS } from './glb';
 
 /** Words for imported 3D models, shared by the toolbar, the model panel and the route marker. */
 export const MODEL_TERMS = {
@@ -10,6 +11,9 @@ export const MODEL_TERMS = {
   missingTitle: 'Model file missing',
   missingBody: (fileName: string) => `3D models stay on this device and are not saved. Pick ${fileName} again to show it.`,
   relink: 'Relink model',
+  /** A model that came from a link, when the link did not give it back on reload. */
+  missingFromUrl: (fileName: string) => `Could not load ${fileName} from its link. Try again, or pick the file.`,
+  retryUrl: 'Load from link again',
   relinked: 'Model relinked.',
   mismatch: (fileName: string) => `This is a different file from ${fileName}. Use it anyway?`,
   useAnyway: 'Use this file',
@@ -42,6 +46,36 @@ export const MODEL_TERMS = {
   enterDuration: 'Appear duration',
   exit: 'Disappear',
   exitDuration: 'Disappear duration',
+  /** The popup the toolbar and route marker buttons open. */
+  popupTitle: '3D models',
+  upload: 'Upload .glb',
+  popupIntro: 'Drop your own 3D model onto the map.',
+  /** What to know before picking a file. */
+  popupFacts: [
+    `Only .glb files, up to ${MAX_MODEL_BYTES / (1024 * 1024)} MB.`,
+    'Your file stays in your browser and is never uploaded.',
+    'After a reload, pick the file again, unless you added it from a link.',
+  ],
+  popupTag: '3D model',
+  /** The popup's list of models the project already has. */
+  listTitle: 'In this project',
+  needsFile: 'Needs its file',
+  /** Pasting links to .glb files. */
+  urlLabel: 'Or paste .glb links',
+  urlPlaceholder: 'https://example.com/model.glb',
+  urlAdd: 'Add links',
+  urlLoading: 'Loading',
+  urlAdded: 'Added',
+  urlSkipped: (count: number) => `${count} more ${count === 1 ? 'link was' : 'links were'} left out. Add up to ${MAX_MODEL_URLS} at a time.`,
+  /** The popup's second step, after a model is picked or uploaded: where it goes and how big. */
+  placeTitle: 'Place your model',
+  reading: 'Reading the model',
+  previewLabel: (fileName: string) => `Preview of ${fileName}`,
+  position: 'Position',
+  positionCenter: 'Middle of the map',
+  inspectorNote: 'Height above ground, heading, tilt, timing and the rest are in the inspector panel once it is added.',
+  back: 'Back',
+  add: 'Add to map',
   /** Route marker: the imported model card and picker. */
   customMarker: 'Custom',
   chooseModel: 'Model',
@@ -57,3 +91,11 @@ export const MODEL_TRANSITION_LABELS: Record<ModelEnter | ModelExit, string> = {
   rise: 'Rise from ground',
   sink: 'Sink into ground',
 };
+
+/** A length in metres for people: one decimal under 10 m, whole metres, then km. */
+export const formatMeters = (meters: number) =>
+  meters >= 1000 ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km` : `${meters >= 10 ? Math.round(meters) : meters.toFixed(1)} m`;
+
+/** A model file's size for people: KB under a megabyte, MB above. */
+export const formatBytes = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;

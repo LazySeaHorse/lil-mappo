@@ -18,6 +18,22 @@ export const RIGHT_RESERVED_DESKTOP = INSPECTOR_WIDTH_DESKTOP + PANEL_MARGIN + P
 export const RIGHT_RESERVED_TABLET = INSPECTOR_WIDTH_TABLET + PANEL_MARGIN + PANEL_GAP;   // 332
 
 
+export const TIMELINE_HEADER_HEIGHT = 48;
+export const TIMELINE_MIN_HEIGHT = 120; // header + ruler + some visible content
+
+/** Tallest the timeline grows: its header, the ruler and one row per track. */
+export function timelineContentHeight(trackCount: number): number {
+  return TIMELINE_HEADER_HEIGHT + 40 + trackCount * 40 + 16;
+}
+
+/**
+ * Height the timeline is drawn at. The height the user dragged it to is kept, but the panel
+ * shrinks to its tracks, so anything laid out around the timeline must use this one.
+ */
+export function visibleTimelineHeight(height: number, trackCount: number): number {
+  return Math.max(TIMELINE_MIN_HEIGHT, Math.min(height, timelineContentHeight(trackCount)));
+}
+
 /**
  * Space to keep clear on the right edge for floating UI that shares the top
  * of the screen with the inspector. Phones show the inspector as a drawer, so

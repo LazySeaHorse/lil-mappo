@@ -33,6 +33,8 @@ const layerProps = {
   handleAddCameraKF: vi.fn(),
   activeDropdown: null,
   setActiveDropdown: vi.fn(),
+  isFitMode: false,
+  onToggleFit: vi.fn(),
 };
 
 function renderToolbars(mapStyle: string) {

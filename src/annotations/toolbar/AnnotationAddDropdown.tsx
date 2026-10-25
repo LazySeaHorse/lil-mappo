@@ -1,27 +1,42 @@
 /**
  * AnnotationAddDropdown — replaces CalloutAddDropdown.
  *
- * Creates new annotation items using the style registry.
- * Only asks for location and label; style is chosen later in the inspector.
+ * Choosing a place (a search result or a point picked on the map) previews a callout
+ * there: it is staged (see `sceneItems`), so the map draws it as the video will, but it
+ * is not on the timeline yet. The panel sets its style, title, subtitle and accent
+ * color; choosing another place moves it. Add callout puts it on the timeline at the
+ * playhead, selects it and closes the panel; closing the panel drops the preview.
  */
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { useShallow } from 'zustand/react/shallow';
 import { useMapPicker } from '@/hooks/useMapPicker';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Flag, Plus, Link as LinkIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Flag, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { createCalloutItem, DEFAULT_CALLOUT_STYLE_ID } from '@/store/itemFactories';
+import { createCalloutItem, DEFAULT_CALLOUT_STYLE_ID, moveCalloutPatch, switchCalloutStyle } from '@/store/itemFactories';
+import type { CalloutItem } from '@/store/types';
+import { getStyle } from '@/annotations/registry';
+import { StylePicker } from '@/annotations/inspector/StylePicker';
+import { ContentFields } from '@/annotations/inspector/ContentFields';
+import { accentControls, accentSettings } from '@/annotations/accent';
+import { ColorRow } from '@/components/Inspector/controls/ColorRow';
 import { SearchField } from '@/components/Search/SearchField';
-import { Switch } from "@/components/ui/switch";
 import { IconButton } from '@/components/ui/icon-button';
 import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
-import { SectionLabel, Field } from '@/components/ui/field';
-import { StatusPill } from '@/components/ui/pro-badge';
+import { Field } from '@/components/ui/field';
+import { isPlacedPoint, placeLabel } from '@/engine/routeMode';
+import { ACCENT_TERMS, CALLOUT_ADD_TERMS } from '@/lib/terms';
+
+/** Shows a callout in the panel's preview; `play` plays its entrance again. */
+function stage(item: CalloutItem, { play = false } = {}) {
+  const { stageItems, playAppearPreview } = useProjectStore.getState();
+  stageItems([item]);
+  if (play) playAppearPreview([item.id]);
+}
 
 export const AnnotationAddDropdown = ({
   isOpen,
@@ -30,62 +45,63 @@ export const AnnotationAddDropdown = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const { addItem, selectItem } = useProjectStore(
-    useShallow(s => ({ addItem: s.addItem, selectItem: s.selectItem }))
-  );
-
   const frame = useFrameOnMap();
 
-  const [lngLat, setLngLat] = useState<[number, number]>([0, 0]);
-  const [locationName, setLocationName] = useState('');
-  const [title, setTitle] = useState('New Callout');
-  const [linkTitle, setLinkTitle] = useState(true);
-
-  const { isPicking, toggle: handleTogglePick } = useMapPicker('callout-new', {
-    prompt: 'Callout',
-    enabled: isOpen,
-    onPick: (result) => {
-      setLngLat(result.lngLat);
-      setLocationName(result.name);
-      if (linkTitle) setTitle(result.name);
-    },
+  // The callout being previewed, before it is added.
+  const draft = useProjectStore((s) => {
+    const item = s.stagedItems[0];
+    return item?.kind === 'callout' ? item : null;
   });
 
-  const handleSelect = (coords: [number, number], name: string) => {
-    setLngLat(coords);
-    setLocationName(name);
-    if (linkTitle) setTitle(name);
-  };
+  // Closing the panel, or leaving the editor, drops the preview.
+  useEffect(() => {
+    if (!isOpen) useProjectStore.getState().stageItems([]);
+  }, [isOpen]);
+  useEffect(() => () => useProjectStore.getState().stageItems([]), []);
 
-  const handleAdd = () => {
-    if (lngLat[0] === 0) {
-      toast.error('Set a location first');
-      return;
-    }
-
-    const item = createCalloutItem({
-      styleId: DEFAULT_CALLOUT_STYLE_ID,
-      content: { title },
-      lngLat,
-      startTime: useProjectStore.getState().playheadTime,
-      linkTitleToLocation: linkTitle,
-      locationName,
-    });
+  /** Previews a callout at a point, or moves the one previewed. A name says which place it is and becomes the title. */
+  const placeAt = (lngLat: [number, number], name: string) => {
+    // Clearing the search reports the unset point: nothing to place.
+    if (!isPlacedPoint(lngLat)) return;
+    const item = draft
+      ? { ...draft, ...moveCalloutPatch(draft, lngLat, name) }
+      : createCalloutItem({
+          styleId: DEFAULT_CALLOUT_STYLE_ID,
+          content: { title: name || CALLOUT_ADD_TERMS.defaultTitle },
+          lngLat,
+          startTime: useProjectStore.getState().playheadTime,
+          linkTitleToLocation: !!name,
+          locationName: name,
+        });
     if (!item) {
       toast.error('Invalid style selected');
       return;
     }
-    const id = item.id;
-
-    addItem(item);
-    selectItem(id);
-    frame.framePoint(lngLat);
-    setLngLat([0, 0]);
-    setLocationName('');
-    setTitle('New Callout');
-    onOpenChange(false);
-    toast.success('Callout added to timeline');
+    stage(item, { play: true });
+    frame.frameCallout(item);
   };
+
+  const { isPicking, toggle: handleTogglePick } = useMapPicker('callout-new', {
+    prompt: 'Callout',
+    enabled: isOpen,
+    // A map click names no place: its label is only the coordinates.
+    onPick: (result) => placeAt(result.lngLat, ''),
+  });
+
+  const edit = (patch: Partial<CalloutItem>, options?: { play?: boolean }) => {
+    if (draft) stage({ ...draft, ...patch }, options);
+  };
+
+  const handleAdd = () => {
+    const [added] = useProjectStore.getState().addStagedItems();
+    if (!added) return;
+    useProjectStore.getState().selectItem(added.id);
+    onOpenChange(false);
+  };
+
+  const style = draft ? getStyle(draft.styleId) : undefined;
+  const accents = accentControls(style?.controls ?? []);
+  const lngLat = draft?.binding.kind === 'geographic' ? draft.binding.lngLat : null;
 
   const trigger = (
     <IconButton
@@ -107,14 +123,8 @@ export const AnnotationAddDropdown = ({
   );
 
   const footer = (
-    <Button
-      variant="default"
-      onClick={handleAdd}
-      disabled={lngLat[0] === 0}
-      data-walkthrough="callout-action"
-      className="w-full"
-    >
-      <Plus size={16} /> Create callout
+    <Button variant={draft ? 'default' : 'secondary'} onClick={handleAdd} disabled={!draft} className="w-full">
+      <Plus size={16} /> {CALLOUT_ADD_TERMS.add}
     </Button>
   );
 
@@ -126,55 +136,57 @@ export const AnnotationAddDropdown = ({
       header={header}
       footer={footer}
     >
-      <div className="space-y-4">
-        <SectionLabel>Target location</SectionLabel>
+      <div className="space-y-2" data-walkthrough="callout-action">
         <SearchField
-          label="Search location..."
-          value={lngLat}
-          name={locationName}
-          onSelect={handleSelect}
+          label={CALLOUT_ADD_TERMS.search}
+          value={lngLat ?? [0, 0]}
+          name={draft && lngLat ? placeLabel(draft.locationName, lngLat) : ''}
+          onSelect={placeAt}
           isPicking={isPicking}
           onStartPick={handleTogglePick}
         />
+        <p className="px-1 text-xs text-muted-foreground">{CALLOUT_ADD_TERMS.approximate}</p>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <SectionLabel className="mb-0 px-0">Label title</SectionLabel>
-          <div className="flex items-center gap-2">
-            <StatusPill>{linkTitle ? 'Linked' : 'Manual'}</StatusPill>
-            <Switch
-              checked={linkTitle}
-              onCheckedChange={setLinkTitle}
-              className="scale-75"
-            />
-          </div>
-        </div>
-        <Field label="" className="mb-0">
-          <div className="relative group">
+      {draft && (
+        <div className="space-y-4">
+          <StylePicker
+            value={draft.styleId}
+            title={draft.content.title}
+            onChange={(styleId) => {
+              const patch = switchCalloutStyle(draft, styleId);
+              if (patch) edit(patch, { play: true });
+            }}
+          />
+
+          <Field label={CALLOUT_ADD_TERMS.title} className="mb-0">
             <Input
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setLinkTitle(false);
-              }}
-              placeholder="Callout title"
-              className="h-9 text-xs bg-secondary/20 border-transparent focus:border-border/50 transition-all"
+              value={draft.content.title}
+              // Like a rename in the inspector, the title stops following the place.
+              onChange={(e) => edit({ content: { ...draft.content, title: e.target.value }, linkTitleToLocation: false })}
+              placeholder={CALLOUT_ADD_TERMS.titlePlaceholder}
+              aria-label={CALLOUT_ADD_TERMS.title}
+              className="h-9 text-xs"
             />
-            {linkTitle && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/50 group-hover:text-primary transition-colors">
-                <LinkIcon size={12} />
-              </div>
-            )}
-          </div>
-        </Field>
-      </div>
+          </Field>
 
-      <div className="space-y-3">
-        <p className="px-1 text-xs text-muted-foreground">
-          You can set the style and colors in the inspector panel after you create the callout.
-        </p>
-      </div>
+          <ContentFields
+            content={draft.content}
+            slots={(style?.contentSlots ?? []).filter((slot) => slot === 'subtitle')}
+            onChange={(content) => edit({ content })}
+          />
+
+          {accents.length > 0 && (
+            <ColorRow
+              label={ACCENT_TERMS.accent}
+              value={(draft.settings[accents[0].key] as string) || '#000000'}
+              onChange={(color) => edit({ settings: { ...draft.settings, ...accentSettings(accents, color) } })}
+            />
+          )}
+
+          <p className="px-1 text-xs text-muted-foreground">{CALLOUT_ADD_TERMS.moreNote}</p>
+        </div>
+      )}
     </ToolbarDropdownPanel>
   );
 };

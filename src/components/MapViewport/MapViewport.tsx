@@ -9,14 +9,12 @@ import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cam
 import { isPlacedPoint } from '@/engine/routeMode';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
-import { PreviewBoundaryLayer } from './PreviewBoundaryLayer';
 
 import { resolveClickTarget } from './mapUtils';
 import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
 import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
 import { DraftWalkLayer } from './DraftWalkLayer';
 import { ModelDragHandle } from './ModelDragHandle';
-import { SelectionPreviewPill } from './SelectionPreviewPill';
 import { handleEscapeKey } from './escapeDeselect';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
@@ -35,6 +33,8 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const updateItem = useProjectStore((s) => s.updateItem);
   const setMapCenter = useProjectStore((s) => s.setMapCenter);
+  // A crosshair tells the user a click on the map picks a point.
+  const isPicking = useProjectStore((s) => s.activePicker !== null);
 
   const styleUrl = MAP_STYLES[mapStyle]?.url || MAP_STYLES.streets.url;
 
@@ -63,7 +63,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     const activePicker = s.activePicker;
 
     if (activePicker) {
-      const target = resolveClickTarget(e, activePicker.prompt || 'Point');
+      const target = resolveClickTarget(e);
       activePicker.onPick(target);
       s.stopPicking();
       const label = activePicker.prompt || 'Point';
@@ -108,6 +108,23 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
       if (runtimeRef.current === runtime) runtimeRef.current = null;
     };
   }, [mapReady, mapRef, runtimeRef]);
+
+  // Mapbox only resizes its canvas on window events, so a container size change on its own (fit
+  // mode, project orientation, aspect ratio) would leave it drawing at the old size. resize() reads
+  // the layout size through fit mode's CSS scale and clears the canvas, so a frame is requested.
+  // Viewport capture sizes the map itself and resizes again after restoring it, so skip meanwhile.
+  useEffect(() => {
+    if (!mapReady) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const observer = new ResizeObserver(() => {
+      if (useProjectStore.getState().isCapturingViewport) return;
+      map.resize();
+      map.triggerRepaint();
+    });
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [mapReady, mapRef]);
 
   // Start close to where syncMapToProject will put the map, to avoid a visible jump.
   const initialViewState = useMemo(() => {
@@ -158,13 +175,13 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         style={{ width: '100%', height: '100%' }}
         mapStyle={styleUrl}
         onClick={handleMapClick}
+        cursor={isPicking ? 'crosshair' : undefined}
         onLoad={handleMapLoad}
         onMove={(evt) => debouncedSetMapCenter(evt.viewState.longitude, evt.viewState.latitude)}
         onDragEnd={() => onMapGesture?.('pan')}
         onRotateEnd={() => onMapGesture?.('orbit')}
         onPitchEnd={() => onMapGesture?.('orbit')}
         onZoomEnd={() => onMapGesture?.('zoom')}
-        interactiveLayerIds={["search-results-circles"]}
         preserveDrawingBuffer={true}
       >
         {/* Gate all sources/layers behind styleLoaded to prevent "Style is not done loading" crash */}
@@ -173,7 +190,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
             {/* Previews */}
             <PreviewRouteLayer />
             <DraftWalkLayer />
-            <PreviewBoundaryLayer />
 
           </>
         )}
@@ -185,7 +201,6 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         <DraftWalkMarkers />
         <ModelDragHandle />
       </MapGL>
-      <SelectionPreviewPill />
     </div>
   );
 }
