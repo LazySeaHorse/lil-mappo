@@ -20,6 +20,7 @@ import { createVideoExportTarget, type VideoExportTarget } from './videoExportTa
 import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
 import { withTemporaryProjectPlayhead } from './captureSession';
 import { errorMessage } from '@/lib/utils';
+import { exportBitrate } from './videoBitrate';
 
 /**
  * Non-realtime offline export engine.
@@ -72,6 +73,7 @@ function describeMuxerError(error: unknown): string {
 // universally supported H.264 codec. initEncoder still wraps configure() in a
 // try/catch and surfaces a clear error if it throws.
 async function selectH264Codec(width: number, height: number, fps: number): Promise<string> {
+  const bitrate = exportBitrate(width, height, fps);
   const candidates = [
     'avc1.640034', // High Profile Level 5.2 — 4K@60
     'avc1.640033', // High Profile Level 5.1 — 4K@30
@@ -85,7 +87,7 @@ async function selectH264Codec(width: number, height: number, fps: number): Prom
   ];
   for (const codec of candidates) {
     try {
-      const { supported } = await VideoEncoder.isConfigSupported({ codec, width, height, bitrate: 8_000_000, framerate: fps });
+      const { supported } = await VideoEncoder.isConfigSupported({ codec, width, height, bitrate, framerate: fps });
       if (supported) return codec;
     } catch {
       // isConfigSupported itself can throw on some browsers — skip this candidate
@@ -168,7 +170,10 @@ async function initEncoder(
         encoderError = new Error(`VideoEncoder error: ${e.message}`);
       },
     });
-    videoEncoder.configure({ codec, width, height, bitrate: 8_000_000, framerate: fps });
+    videoEncoder.configure({
+      codec, width, height, bitrate: exportBitrate(width, height, fps), framerate: fps,
+      latencyMode: 'quality', bitrateMode: 'variable',
+    });
   } catch (e: unknown) {
     await cancelAndDiscard(output, exportTarget);
     console.error('[videoExport] VideoEncoder.configure() failed:', e);
