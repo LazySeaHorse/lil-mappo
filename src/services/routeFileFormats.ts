@@ -27,6 +27,18 @@ export const ROUTE_IMPORT_MESSAGES = {
   noTrack: 'No GPS track in this file. Indoor activities have no route to draw.',
 } as const;
 
+/**
+ * The route file picker's accept list. iOS and Android grey out files whose extension they do not
+ * know when only extensions are listed, so the types are listed too; octet-stream is what a phone
+ * calls a .fit. What a file really is gets decided from its bytes, never from this list.
+ */
+export const ROUTE_FILE_ACCEPT = [
+  '.gpx', '.kml', '.kmz', '.tcx', '.fit', '.geojson', '.json', '.zip', '.gz',
+  'application/gpx+xml', 'application/vnd.google-earth.kml+xml', 'application/vnd.google-earth.kmz',
+  'application/vnd.garmin.tcx+xml', 'application/geo+json', 'application/json', 'application/xml', 'text/xml',
+  'application/zip', 'application/gzip', 'application/octet-stream',
+].join(',');
+
 const SNIFF_BYTES = 2048;
 
 /** Decodes route-file text, honouring a UTF-8 or UTF-16 byte-order mark (what `readAsText` did). */

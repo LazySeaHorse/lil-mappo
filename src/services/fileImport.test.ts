@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { importRouteFiles } from './fileImport';
 import type { ImportedRoute } from './fileImport';
-import { MAX_ROUTE_FILE_BYTES, decodeRouteText, detectRouteFormat, routeNameOf } from './routeFileFormats';
+import { MAX_ROUTE_FILE_BYTES, ROUTE_FILE_ACCEPT, decodeRouteText, detectRouteFormat, routeNameOf } from './routeFileFormats';
 
 const importOne = async (f: File): Promise<ImportedRoute> => (await importRouteFiles(f))[0];
 
@@ -137,5 +137,13 @@ describe('TCX import', () => {
   it('refuses an indoor activity whose trackpoints have no position', async () => {
     const xml = tcx('<Activities><Activity Sport="Biking"><Lap><Track><Trackpoint><Time>2025-01-01T00:00:00Z</Time><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities>');
     await expect(importRouteFiles(file(xml, 'trainer.tcx'))).rejects.toMatchObject({ code: 'noTrack' });
+  });
+});
+
+describe('ROUTE_FILE_ACCEPT', () => {
+  it('lists the extensions and the types phones report for them', () => {
+    const accept = ROUTE_FILE_ACCEPT.split(',');
+    for (const ext of ['.gpx', '.kml', '.kmz', '.tcx', '.fit', '.geojson', '.json', '.zip', '.gz']) expect(accept).toContain(ext);
+    expect(accept).toContain('application/octet-stream');
   });
 });
