@@ -1,6 +1,7 @@
 import * as toGeoJSON from '@tmcw/togeojson';
 import { sanitizeFeatureCollection } from '@/engine/geojsonSanitize';
 import { extractLineCoords } from '@/engine/geoUtils';
+import { readFitTrack } from '@/engine/fitTrack';
 import {
   MAX_ROUTE_FILE_BYTES,
   ROUTE_IMPORT_MESSAGES,
@@ -82,6 +83,15 @@ export function parseTCX(text: string): GeoJSON.FeatureCollection {
   return mergeLaps(sanitizeFeatureCollection(toGeoJSON.tcx(dom) as GeoJSON.FeatureCollection));
 }
 
+export function parseFIT(bytes: Uint8Array): GeoJSON.FeatureCollection {
+  const coordinates = readFitTrack(bytes);
+  if (coordinates.length === 0) return { type: 'FeatureCollection', features: [] };
+  return sanitizeFeatureCollection({
+    type: 'FeatureCollection',
+    features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }],
+  });
+}
+
 export function parseGeoJSON(text: string): GeoJSON.FeatureCollection {
   if (!text || text.trim().length === 0) {
     throw new Error('GeoJSON content is empty');
@@ -160,6 +170,7 @@ function parseRouteBytes(bytes: Uint8Array, format: RouteFileFormat): GeoJSON.Fe
     case 'kml': return parseKML(decodeRouteText(bytes));
     case 'tcx': return parseTCX(decodeRouteText(bytes));
     case 'geojson': return parseGeoJSON(decodeRouteText(bytes));
+    case 'fit': return parseFIT(bytes);
     default: throw new RouteImportError('type', ROUTE_IMPORT_MESSAGES.type);
   }
 }
