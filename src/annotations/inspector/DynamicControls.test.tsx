@@ -70,3 +70,21 @@ describe('DynamicControls accent colour', () => {
     expect(screen.queryByRole('button', { name: ACCENT_TERMS.customize })).toBeNull();
   });
 });
+
+describe('DynamicControls country flag', () => {
+  const flagControls: ControlDefinition[] = [{ type: 'flag', key: 'flagCode', label: 'Country flag' }];
+
+  it('offers a country picker, with no way to remove a flag until one is chosen', () => {
+    setup({ controls: flagControls, settings: { flagCode: '' } });
+    expect(screen.getByText('Country flag')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Country flag' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove the country flag' })).toBeNull();
+  });
+
+  it('shows the chosen country and clears it back to the plain cloth', () => {
+    const onUpdate = setup({ controls: flagControls, settings: { flagCode: 'fr' } });
+    expect(screen.getByRole('combobox', { name: 'Country flag' })).toHaveTextContent('France');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the country flag' }));
+    expect(onUpdate).toHaveBeenCalledWith({ flagCode: '' });
+  });
+});

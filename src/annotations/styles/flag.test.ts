@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { GroupNode, PathNode, PolylineNode, SceneNode, StyleRenderInput, TextNode } from '../types';
+import type { GroupNode, ImageNode, PathNode, PolylineNode, SceneNode, StyleRenderInput, TextNode } from '../types';
 import { defaultFlagSettings, flagStyle, measureFlag, renderFlag, type FlagSettings } from './flag';
 
 const GROUND = { x: 0, y: 90 };
@@ -26,6 +26,7 @@ function flatten(node: SceneNode): SceneNode[] {
 }
 const texts = (s: SceneNode) => flatten(s).filter((n): n is TextNode => n.type === 'text');
 const paths = (s: SceneNode) => flatten(s).filter((n): n is PathNode => n.type === 'path');
+const images = (s: SceneNode) => flatten(s).filter((n): n is ImageNode => n.type === 'image');
 const poles = (s: SceneNode) => flatten(s).filter((n): n is PolylineNode => n.type === 'polyline' && !n.closed);
 
 describe('flagStyle definition', () => {
@@ -116,5 +117,52 @@ describe('flag layout and settings', () => {
   it('tilts the title with the cloth as a group rotation', () => {
     const rotated = flatten(renderFlag(makeInput())).filter((n): n is GroupNode => n.type === 'group' && n.rotation !== undefined);
     expect(rotated.length).toBeGreaterThan(0);
+  });
+});
+
+describe('country flag', () => {
+  const withFlag = (overrides: Partial<StyleRenderInput<FlagSettings>> = {}) =>
+    makeInput({ settings: { ...defaultFlagSettings, flagCode: 'gb' }, ...overrides });
+
+  it('flies the whole flag, 4:3, cut into strips that cover it edge to edge', () => {
+    const strips = images(renderFlag(withFlag()));
+    expect(strips.length).toBeGreaterThan(6);
+    expect(strips.every((s) => s.src === 'flag:gb' && s.height === 96)).toBe(true);
+    expect(strips[0].crop?.x).toBe(0);
+    const last = strips[strips.length - 1].crop!;
+    expect(last.x + last.width).toBeCloseTo(1, 6);
+    expect(strips[strips.length - 1].x + strips[strips.length - 1].width).toBeCloseTo(128, 6);
+    expect(measureFlag(withFlag()).height).toBeGreaterThan(measureFlag(makeInput()).height + 50);
+  });
+
+  it('draws no strips for a plain cloth, an empty code or a code with no flag', () => {
+    expect(images(renderFlag(makeInput()))).toHaveLength(0);
+    expect(images(renderFlag(withFlag({ settings: { ...defaultFlagSettings, flagCode: 'zz' } })))).toHaveLength(0);
+  });
+
+  it('uncovers the flag from the pole as it unfurls, without squeezing it', () => {
+    const early = images(enter(0.45, { settings: { ...defaultFlagSettings, flagCode: 'gb' } }));
+    const done = images(renderFlag(withFlag()));
+    expect(early.length).toBeGreaterThan(0);
+    expect(early.length).toBeLessThan(done.length);
+    // Each strip shows the same part of the flag as when finished.
+    early.forEach((strip, i) => expect(strip.crop?.x).toBeCloseTo(done[i].crop!.x, 6));
+  });
+
+  it('keeps the flag clear of text: the title goes under it, then the subtitle', () => {
+    const scene = renderFlag(withFlag());
+    const [title, subtitle] = texts(scene);
+    expect(title.text).toBe('BASE CAMP');
+    expect(subtitle.text).toBe('Elevation 5,364 m');
+    // The pole reaches 150 above the ground (y 90), so the flag hangs from y -60 to 36.
+    expect(title.y).toBeGreaterThan(36);
+    expect(subtitle.y).toBeGreaterThan(title.y);
+    // Nothing is written on the flag itself.
+    expect(flatten(scene).filter((n): n is GroupNode => n.type === 'group' && n.rotation !== undefined)).toHaveLength(0);
+  });
+
+  it('stands a taller pole for the bigger flag', () => {
+    const [pole] = poles(renderFlag(withFlag({ ground: { x: 0, y: 10 } })));
+    expect(pole.points[0][1] - pole.points[1][1]).toBeGreaterThanOrEqual(150);
   });
 });

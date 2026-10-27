@@ -13,6 +13,7 @@ import {
   SwitchRow,
   SelectRow,
 } from '@/components/Inspector/InspectorShared';
+import { FlagPicker } from '@/components/Inspector/FlagPicker';
 import { Disclosure } from '@/components/Inspector/controls/Disclosure';
 import { ACCENT_TERMS } from '@/lib/terms';
 import { MAP_FONTS } from '@/constants/fonts';
@@ -112,6 +113,23 @@ export function DynamicControls({ controls, settings, onUpdate }: DynamicControl
               placeholder={control.placeholder}
               className="w-full h-8 px-2.5 text-xs bg-secondary/20 border border-transparent rounded-md focus:border-border/50 transition-all outline-none"
             />
+          </div>
+        );
+
+      case 'flag':
+        return (
+          <div key={control.key} className="space-y-1">
+            <label className="text-xs text-muted-foreground">{control.label}</label>
+            <FlagPicker value={(value as string) || null} onChange={set} />
+            {!!value && (
+              <button
+                type="button"
+                onClick={() => set('')}
+                className="text-2xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Remove the country flag
+              </button>
+            )}
           </div>
         );
 
