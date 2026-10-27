@@ -199,11 +199,13 @@ export default function TimelineViewport({
 
           <div className="relative" style={{ height: lanes.length * TIMELINE_LANE_HEIGHT }}>
             {lanes.map((_, lane) => (
-              <div key={lane} data-testid="timeline-lane" className="flex h-10 border-b border-border/30">
+              <div key={lane} data-testid="timeline-lane" className="flex h-10">
+                {/* No divider or lane line here, so the gutter beside the clips reads as margin; it still covers clips scrolled under it. */}
                 <div
-                  className="shrink-0 sticky left-0 z-10 border-r border-border/50 bg-background/90 backdrop-blur-sm"
+                  className="shrink-0 sticky left-0 z-10 bg-background/90 backdrop-blur-sm"
                   style={{ width: TIMELINE_GUTTER_WIDTH }}
                 />
+                <div className="flex-1 border-b border-border/30" />
               </div>
             ))}
             {/* One layer for every clip, so a clip dragged to another lane moves rather than remounts. */}
