@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PATH_CACHE_LIMIT, renderScene } from './renderer';
+import { PATH_CACHE_LIMIT, preloadImage, registerImageScheme, renderScene } from './renderer';
 import { circle, group, line, path, polyline, rect, text } from './primitives';
 
 /** A context that records the calls and state changes the renderer makes. */
@@ -187,6 +187,64 @@ describe('path nodes', () => {
     for (let i = 0; i <= PATH_CACHE_LIMIT; i++) renderScene(ctx, path({ d: `M${i} 0 L1 1`, fill: '#fff' }));
     renderScene(ctx, path({ d: 'M0 0 L1 1', fill: '#fff' }));
     expect(made.filter((d) => d === 'M0 0 L1 1')).toHaveLength(2);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('image sources and crops', () => {
+  /** An Image that "loads" 200x100 pixels as soon as it is given a source, and remembers the sources. */
+  function stubImage() {
+    const sources: string[] = [];
+    class FakeImage {
+      complete = false;
+      naturalWidth = 0;
+      naturalHeight = 0;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      crossOrigin = '';
+      set src(value: string) {
+        sources.push(value);
+        queueMicrotask(() => {
+          this.complete = true;
+          this.naturalWidth = 200;
+          this.naturalHeight = 100;
+          this.onload?.();
+        });
+      }
+    }
+    vi.stubGlobal('Image', FakeImage);
+    return sources;
+  }
+
+  it('resolves a registered scheme to the URL the browser loads, and draws once it has', async () => {
+    const sources = stubImage();
+    registerImageScheme('test-scheme', async (name) => `data:image/png;base64,${name}`);
+    const src = 'test-scheme:abc';
+    const node = { type: 'image' as const, x: 0, y: 0, width: 20, height: 10, src };
+
+    const { ctx, calls } = recordingContext();
+    renderScene(ctx, node);
+    expect(names(calls)).not.toContain('drawImage');
+
+    await preloadImage(src);
+    expect(sources).toEqual(['data:image/png;base64,abc']);
+    renderScene(ctx, node);
+    expect(names(calls)).toContain('drawImage');
+    vi.unstubAllGlobals();
+  });
+
+  it('draws only the cropped part of the image over the box', async () => {
+    stubImage();
+    const src = 'data:image/png;base64,crop';
+    await preloadImage(src);
+
+    const { ctx, calls } = recordingContext();
+    renderScene(ctx, {
+      type: 'image', x: 5, y: 6, width: 10, height: 20, src,
+      crop: { x: 0.25, y: 0, width: 0.5, height: 1 },
+    });
+    // The image is 200x100: the middle half of its width, all of its height.
+    expect(calls.find((c) => c[0] === 'drawImage')).toEqual(['drawImage', expect.anything(), 50, 0, 100, 100, 5, 6, 10, 20]);
     vi.unstubAllGlobals();
   });
 });

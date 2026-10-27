@@ -181,6 +181,12 @@ export interface ImageNode {
   cornerRadius?: number;
   opacity?: number;
   objectFit?: 'cover' | 'contain' | 'fill';
+  /**
+   * Part of the source image to draw, as fractions (0–1) of its width and
+   * height; the part is stretched over the box and `objectFit` is ignored.
+   * Slice an image into strips to bend it, e.g. a flag rippling in the wind.
+   */
+  crop?: { x: number; y: number; width: number; height: number };
 }
 
 export interface LineNode extends StrokeOptions {
@@ -374,4 +380,6 @@ export type ControlDefinition =
       options: Array<{ value: string; label: string }>;
     }
   | { type: 'font'; key: string; label: string }
-  | { type: 'text-input'; key: string; label: string; placeholder?: string };
+  | { type: 'text-input'; key: string; label: string; placeholder?: string }
+  /** A country flag, stored as a lowercase ISO 3166-1 alpha-2 code; empty when none is chosen. */
+  | { type: 'flag'; key: string; label: string };
