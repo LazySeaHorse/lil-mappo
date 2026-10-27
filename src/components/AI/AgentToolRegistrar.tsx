@@ -6,7 +6,7 @@ import { useAiPanelStore } from './useAiPanelStore';
 
 /**
  * Registers the agent tools with the browser's WebMCP API and links them to the
- * local bridge (for coding agents) while the user is signed in, Pro and has
+ * local bridge (for coding agents) while the user is signed in and has
  * switched AI control on. Renders nothing. Unmounting
  * or turning any condition off unregisters every tool.
  */

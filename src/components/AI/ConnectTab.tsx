@@ -40,7 +40,6 @@ export function ConnectTab() {
   const supported = isWebMcpSupported();
   const { signedIn, allowed } = useAiAccess();
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
-  const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const tools = useMemo(() => getAgentTools(), []);
 
   const turnOn = () => {
@@ -69,8 +68,8 @@ export function ConnectTab() {
       </div>
 
       {!allowed && (
-        <p data-testid="ai-pro-note" className="text-xs text-muted-foreground leading-relaxed">
-          Create and edit animations by chatting with an AI agent. This is an experimental Wanderer (Pro) feature.
+        <p data-testid="ai-signin-note" className="text-xs text-muted-foreground leading-relaxed">
+          Create and edit animations by chatting with an AI agent. This is an experimental feature; sign in to turn it on.
         </p>
       )}
 
@@ -119,7 +118,7 @@ export function ConnectTab() {
                 <p><strong>It can:</strong> add and edit routes, boundaries and callouts, edit the camera and project settings, and render preview frames.</p>
                 <p><strong>It cannot:</strong> export video, save or delete projects, or modify your account.</p>
                 <p>Every AI change is one undo step. Use Undo, or &ldquo;Undo last AI change&rdquo; in the Activity tab.</p>
-                {!allowed && <p className="text-muted-foreground">{signedIn ? 'AI control is part of the Wanderer plan.' : 'Sign in with a Wanderer account to turn it on.'}</p>}
+                {!allowed && <p className="text-muted-foreground">Sign in to turn it on.</p>}
               </div>
             </AlertDialogDescription>
           <PopupActions>
@@ -127,12 +126,11 @@ export function ConnectTab() {
             <AlertDialogAction
               onClick={() => {
                 if (!signedIn) return openAuthModal();
-                if (!allowed) return openUpgradeModal('ai');
                 recordAiConsent();
                 turnOn();
               }}
             >
-              {!signedIn ? 'Sign in' : !allowed ? 'See Wanderer plan' : 'Turn on'}
+              {allowed ? 'Turn on' : 'Sign in'}
             </AlertDialogAction>
           </PopupActions>
           </PopupBody>
