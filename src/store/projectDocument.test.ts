@@ -7,6 +7,8 @@ import {
 } from './projectDocument';
 import { createTransientState, useProjectStore } from './useProjectStore';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
+import '@/annotations/styles';
+import { getAllStyles } from '@/annotations/registry';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
 import { DEFAULT_BOUNDARY_STYLE } from './itemFactories';
 
@@ -742,6 +744,18 @@ describe('project document persistence boundary', () => {
       if (item.kind !== 'callout') throw new Error('expected a callout');
       return item;
     };
+
+    // Loading parses twice (the file or row, then loadFullProject) and a parsed Project has no
+    // schemaVersion, so every current style has to survive the v3 → v4 step untouched.
+    it.each(getAllStyles().map((style) => style.id))('keeps a %s callout and its settings when a parsed project is parsed again', (styleId) => {
+      const style = getAllStyles().find((s) => s.id === styleId)!;
+      const settings = { ...(style.defaultSettings as Record<string, unknown>) };
+      const once = parseProjectDocument(v3Document({ c1: v3Callout(styleId, { settings }) }));
+      const twice = calloutOf(once);
+
+      expect(twice.styleId).toBe(styleId);
+      expect(twice.settings).toEqual(settings);
+    });
 
     it.each(OLD_STYLE_IDS)('turns a %s callout into a Leader Line and keeps what it said and where it was', (styleId) => {
       const callout = calloutOf(v3Document({ c1: v3Callout(styleId) }));
