@@ -89,6 +89,26 @@ if (!args.sheet && !spec.styleId) {
   process.exit(1);
 }
 
+/**
+ * flagImages.ts lists the country flags with Vite's import.meta.glob, which
+ * esbuild does not have. Stand in for that one call with loaders that fetch
+ * each flag from this script's server (see /flags/ below).
+ */
+const flagIconsDir = path.join(repo, 'node_modules/flag-icons/flags/4x3');
+const viteGlobPlugin = {
+  name: 'flag-glob',
+  setup(b) {
+    b.onLoad({ filter: /runtime[\\/]flagImages\.ts$/ }, (load) => {
+      const loaders = fs.readdirSync(flagIconsDir)
+        .filter((f) => /^[a-z]{2}\.svg$/.test(f))
+        .map((f) => `'/node_modules/flag-icons/flags/4x3/${f}': () => fetch('/flags/${f}').then((r) => r.text())`)
+        .join(',');
+      const source = fs.readFileSync(load.path, 'utf8').replace(/import\.meta\.glob\([\s\S]*?\) as Record<string, \(\) => Promise<string>>/, `({${loaders}}) as Record<string, () => Promise<string>>`);
+      return { contents: source, loader: 'ts' };
+    });
+  },
+};
+
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'callout-filmstrip-'));
 const bundle = path.join(work, 'harness.js');
 await build({
@@ -97,6 +117,7 @@ await build({
   format: 'iife',
   outfile: bundle,
   alias: { '@': path.join(repo, 'src') },
+  plugins: [viteGlobPlugin],
   absWorkingDir: repo,
   logLevel: 'error',
 });
@@ -112,6 +133,10 @@ const server = http.createServer((req, res) => {
   const url = decodeURIComponent(req.url ?? '/');
   if (url === '/') return res.end(html);
   if (url === '/harness.js') return res.end(fs.readFileSync(bundle));
+  if (/^\/flags\/[a-z]{2}\.svg$/.test(url)) {
+    res.setHeader('content-type', 'image/svg+xml');
+    return res.end(fs.readFileSync(path.join(flagIconsDir, path.basename(url))));
+  }
   if (url.startsWith('/fontsource/') && !url.includes('..')) {
     const file = path.join(repo, 'node_modules/@fontsource', url.slice('/fontsource/'.length));
     if (fs.existsSync(file)) {
