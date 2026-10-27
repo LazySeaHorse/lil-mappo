@@ -102,6 +102,8 @@ export interface BoundaryStyle {
   maskOpacity: number;
   /** 'flag' fills the boundary with the flag of `flagCode` instead of the fill colour. */
   fillMode: 'color' | 'flag';
+  /** Draw the colour fill under the basemap's roads and labels, so streets show through it. Flag fills are always there. */
+  fillUnderRoads: boolean;
   /** Lowercase ISO 3166-1 alpha-2 code of the flag to fill with; null when none is chosen. */
   flagCode: string | null;
 }

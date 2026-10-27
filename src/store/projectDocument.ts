@@ -131,6 +131,7 @@ const boundaryStyleSchema = z.object({
   maskColor: z.string().default('#0b0f19'),
   maskOpacity: z.number().min(0).max(1).default(0.85),
   fillMode: z.enum(['color', 'flag']).default('color'),
+  fillUnderRoads: z.boolean().default(false),
   flagCode: z.string().nullable().default(null),
 });
 

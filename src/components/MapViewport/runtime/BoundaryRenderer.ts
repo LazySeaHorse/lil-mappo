@@ -8,6 +8,7 @@ import {
   geoJSONSource,
   getGeoJSONSource,
   LayerPropertyWriter,
+  mutateMap,
   noPaintTransitions,
   removeLayerIfPresent,
   removeSourceIfPresent,
@@ -63,13 +64,18 @@ export class BoundaryRenderer {
   /** Inputs of the last animated stroke upload; an identical frame skips the (large) setData. */
   private lastAnimatedStroke: { geometry: GeoJSON.Geometry; key: string } | null = null;
   private readonly flag: BoundaryFlagLayer;
+  /** Whether the colour fill layer was created under the roads; null while it does not exist yet. */
+  private fillUnderRoads: boolean | null = null;
   private disposed = false;
 
-  /** `getPlacement` is where flag fills go (under the basemap's roads and labels). */
+  /**
+   * `getPlacement` is where fills that sit under the basemap's roads and labels go: flag fills,
+   * and colour fills with `fillUnderRoads`.
+   */
   constructor(
     private readonly map: MapboxMap,
     boundary: BoundaryItem,
-    getPlacement: () => FlagPlacement = () => ({}),
+    private readonly getPlacement: () => FlagPlacement = () => ({}),
   ) {
     this.layers = new LayerPropertyWriter(map, createPaintCache);
     this.flag = new BoundaryFlagLayer(map, boundary.id, getPlacement);
@@ -83,6 +89,7 @@ export class BoundaryRenderer {
     this.lastGeometry = null;
     this.strokeSourceMode = null;
     this.lastAnimatedStroke = null;
+    this.fillUnderRoads = null;
     this.flag.reset();
     this.ensureResources();
     preloadFlag(this.boundary.style.fillMode === 'flag', this.boundary.style.flagCode);
@@ -110,6 +117,7 @@ export class BoundaryRenderer {
     const { progress, exitProgress, reverseProgress, reverseExit, animationStyle, fillFactor } = timing;
     const geometryChanged = this.lastGeometry !== geometry;
 
+    this.ensureFillLayer();
     const { fillColor } = style;
     this.layers.setPaint(this.ids.fillLayer, 'fill-color', fillColor, 'fillColor', fillColor);
     this.updateStrokeStyle();
@@ -179,6 +187,39 @@ export class BoundaryRenderer {
       .forEach((id) => removeSourceIfPresent(this.map, id));
   }
 
+  /**
+   * The colour fill layer, at the top of the map, or under the basemap's roads and labels while
+   * `fillUnderRoads` is on. A layer cannot change its place, so a change of the setting creates
+   * it again; the border and glow stay where they are, above the basemap.
+   */
+  private ensureFillLayer(): void {
+    const style = this.boundary.style;
+    if (this.map.getLayer(this.ids.fillLayer) && this.fillUnderRoads === style.fillUnderRoads) return;
+    removeLayerIfPresent(this.map, this.ids.fillLayer);
+
+    const { slot, beforeId } = style.fillUnderRoads ? this.getPlacement() : ({} as FlagPlacement);
+    // With no place under the roads, the fill goes right under this boundary's own glow and border.
+    const anchor = beforeId ?? (slot || !this.map.getLayer(this.ids.glowLayer) ? undefined : this.ids.glowLayer);
+    const added = mutateMap(this.map, { operation: 'addLayer', phase: 'update', resourceId: this.ids.fillLayer }, () => {
+      this.map.addLayer({
+        id: this.ids.fillLayer,
+        type: 'fill',
+        source: this.ids.fillSource,
+        ...(slot ? { slot } : {}),
+        paint: {
+          'fill-color': style.fillColor,
+          'fill-opacity': 0,
+          ...noPaintTransitions('fill-color', 'fill-opacity'),
+        },
+      }, anchor);
+    });
+    if (!added) return;
+    this.fillUnderRoads = style.fillUnderRoads;
+    // The new layer starts from the values it was created with: write the current ones again.
+    this.layers.cache.fillColor = '';
+    this.layers.cache.fillOpacity = -1;
+  }
+
   private ensureResources(): void {
     if (!this.map.getSource(this.ids.fillSource)) {
       this.map.addSource(this.ids.fillSource, geoJSONSource());
@@ -187,19 +228,9 @@ export class BoundaryRenderer {
       this.map.addSource(this.ids.strokeSource, geoJSONSource());
     }
 
+    this.ensureFillLayer();
+
     const style = this.boundary.style;
-    if (!this.map.getLayer(this.ids.fillLayer)) {
-      this.map.addLayer({
-        id: this.ids.fillLayer,
-        type: 'fill',
-        source: this.ids.fillSource,
-        paint: {
-          'fill-color': style.fillColor,
-          'fill-opacity': 0,
-          ...noPaintTransitions('fill-color', 'fill-opacity'),
-        },
-      });
-    }
     if (!this.map.getLayer(this.ids.strokeLayer)) {
       this.map.addLayer({
         id: this.ids.strokeLayer,
