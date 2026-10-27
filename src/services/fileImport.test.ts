@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { importRouteFiles } from './fileImport';
 import type { ImportedRoute } from './fileImport';
 import { MAX_ROUTE_FILE_BYTES, ROUTE_FILE_ACCEPT, decodeRouteText, detectRouteFormat, routeNameOf } from './routeFileFormats';
+import { extractLineCoords } from '@/engine/geoUtils';
+import { decimals, maxDeviationMeters, syntheticRoad } from '@/test/syntheticGeometry';
 
 const importOne = async (f: File): Promise<ImportedRoute> => (await importRouteFiles(f))[0];
 
@@ -81,6 +83,18 @@ describe('importRouteFiles', () => {
     expect(JSON.stringify(imported.geojson)).not.toContain('150');
   });
 
+  it('simplifies a dense recording to within a metre and rounds it to 6 decimals', async () => {
+    const road = syntheticRoad();
+    const imported = await importOne(file(gpx(road.map(([lng, lat]) => [lat, lng])), 'ride.gpx'));
+    const kept = extractLineCoords(imported.geojson);
+    expect(kept.length).toBeLessThan(road.length * 0.2);
+    expect(maxDeviationMeters(road, kept)).toBeLessThanOrEqual(1 + 0.1);
+    for (const c of kept) {
+      expect(c[2]).toBe(10);
+      for (const v of c) expect(decimals(v)).toBeLessThanOrEqual(6);
+    }
+  });
+
   it('refuses a file with no line to draw', async () => {
     const waypointsOnly = '<gpx version="1.1"><wpt lat="1" lon="2"><name>Cafe</name></wpt></gpx>';
     await expect(importRouteFiles(file(waypointsOnly, 'w.gpx'))).rejects.toMatchObject({ code: 'noTrack', message: expect.stringContaining('No GPS track') });
@@ -106,17 +120,18 @@ describe('TCX import', () => {
   const lap = (...tracks: string[][]) => `<Lap>${tracks.map((t) => `<Track>${t.join('')}</Track>`).join('')}</Lap>`;
 
   it('joins laps into one line', async () => {
+    // A zig-zag, so every point is a corner the import's simplification keeps.
     const xml = tcx(`<Activities><Activity Sport="Running">${[
-      lap([trackpoint(46, 8), trackpoint(46.1, 8.1)]),
-      lap([trackpoint(46.2, 8.2), trackpoint(46.3, 8.3)]),
-      lap([trackpoint(46.4, 8.4), trackpoint(46.5, 8.5)]),
+      lap([trackpoint(46, 8), trackpoint(46.1, 8.2)]),
+      lap([trackpoint(46.2, 8), trackpoint(46.3, 8.2)]),
+      lap([trackpoint(46.4, 8), trackpoint(46.5, 8.2)]),
     ].join('')}</Activity></Activities>`);
     const [imported] = await importRouteFiles(file(xml, 'run.tcx'));
     expect(imported.format).toBe('tcx');
     expect(imported.geojson.features).toHaveLength(1);
     expect(imported.geojson.features[0].geometry).toEqual({
       type: 'LineString',
-      coordinates: [[8, 46], [8.1, 46.1], [8.2, 46.2], [8.3, 46.3], [8.4, 46.4], [8.5, 46.5]],
+      coordinates: [[8, 46], [8.2, 46.1], [8, 46.2], [8.2, 46.3], [8, 46.4], [8.2, 46.5]],
     });
     expect(JSON.stringify(imported.geojson)).not.toContain('150');
   });

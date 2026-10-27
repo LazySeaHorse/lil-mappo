@@ -1,6 +1,6 @@
 import * as toGeoJSON from '@tmcw/togeojson';
 import { sanitizeFeatureCollection } from '@/engine/geojsonSanitize';
-import { extractLineCoords } from '@/engine/geoUtils';
+import { IMPORTED_ROUTE_TOLERANCE_M, IMPORTED_ROUTE_VERTICAL_TOLERANCE_M, extractLineCoords, optimizeGeometry } from '@/engine/geoUtils';
 import { readFitTrack } from '@/engine/fitTrack';
 import {
   MAX_ROUTE_FILE_BYTES,
@@ -147,11 +147,24 @@ export interface ImportedRoute {
   format: RouteFileFormat;
 }
 
-/** Geometry only: per-point times, heart rate and the like are never read, and they bloat the saved project. */
-function stripFeatureProperties(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+/**
+ * Geometry only: per-point times, heart rate and the like are never read, and they bloat the saved
+ * project. Lines are simplified to {@link IMPORTED_ROUTE_TOLERANCE_M} (altitude to
+ * {@link IMPORTED_ROUTE_VERTICAL_TOLERANCE_M}) and rounded to 6 decimals, so a day of 1 Hz
+ * recording stays small enough to save and sync.
+ */
+function cleanImportedRoute(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: fc.features.map((f) => ({ type: 'Feature', properties: {}, geometry: f.geometry })),
+    features: fc.features.map((f) => ({
+      type: 'Feature',
+      properties: {},
+      geometry: optimizeGeometry(f.geometry, {
+        toleranceM: IMPORTED_ROUTE_TOLERANCE_M,
+        verticalToleranceM: IMPORTED_ROUTE_VERTICAL_TOLERANCE_M,
+        precision: 6,
+      }),
+    })),
   };
 }
 
@@ -198,7 +211,7 @@ async function routesFromBytes(bytes: Uint8Array, fileName: string, depth: numbe
     return routes;
   }
   if (!format) throw new RouteImportError('type', ROUTE_IMPORT_MESSAGES.type);
-  const geojson = stripFeatureProperties(parseRouteBytes(bytes, format));
+  const geojson = cleanImportedRoute(parseRouteBytes(bytes, format));
   if (extractLineCoords(geojson).length < 2) throw new RouteImportError('noTrack', ROUTE_IMPORT_MESSAGES.noTrack);
   return [{ name: routeNameOf(fileName), geojson, format }];
 }
