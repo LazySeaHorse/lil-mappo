@@ -259,6 +259,20 @@ export function truncateCoordinates<T extends GeoJSON.Geometry>(geometry: T, pre
 export const ROUTE_SIMPLIFY_TOLERANCE_M = 0.5;
 
 /**
+ * Cleanup for imported route files. A 1 Hz recording stores a point every few metres plus GPS
+ * jitter while standing still; 1 m is under a pixel at the closest follow-camera zoom and keeps a
+ * day-long track well under the cloud-sync size cap.
+ */
+export const IMPORTED_ROUTE_TOLERANCE_M = 1;
+
+/**
+ * Vertical tolerance for imported route files. GPS altitude without a barometer wobbles by metres
+ * from second to second; at 1 m that noise kept three quarters of a day's points. Hills are tens of
+ * metres, so 5 m keeps their shape and drops the wobble.
+ */
+export const IMPORTED_ROUTE_VERTICAL_TOLERANCE_M = 5;
+
+/**
  * Converts a distance in metres to degrees for @turf/simplify, which works in degrees.
  * A degree of longitude shrinks with cos(latitude), so away from the equator the
  * resulting tolerance is smaller than requested in metres east-west: conservative
@@ -275,41 +289,113 @@ function hasAltitude(coords: unknown): boolean {
 }
 
 /**
- * Removes redundant vertices with Douglas-Peucker (via @turf/simplify) at a tolerance given in
- * metres, then rounds coordinates (default 6 decimals, ~0.1 m). Surviving vertices keep their
- * original positions, so the shape is preserved while the point count drops.
+ * Douglas-Peucker over one line, measured in metres: every dropped vertex lies within `toleranceM`
+ * of the kept line. When every vertex has an altitude it is a third axis, within
+ * `verticalToleranceM` (default the same), so a climb along a straight road keeps its profile. Distances are taken on a local plane at each chord's
+ * mid-latitude, with longitude unwrapped so an antimeridian crossing is a short step.
+ *
+ * Iterative (an explicit stack of ranges) because the recursive form can overflow the call stack
+ * on a 100k+ point recording. Returns the kept vertices themselves, not copies; a line that loses
+ * nothing comes back as the same array.
+ */
+export function simplifyLine(coords: number[][], toleranceM: number, verticalToleranceM = toleranceM): number[][] {
+  const n = coords.length;
+  if (n < 3 || !(toleranceM > 0)) return coords;
+  const use3d = coords.every((c) => Number.isFinite(c[2])) && verticalToleranceM > 0;
+  // Altitude is scaled so a vertical miss of `verticalToleranceM` counts as one of `toleranceM`.
+  const kz = toleranceM / verticalToleranceM;
+
+  const lng = new Float64Array(n);
+  lng[0] = coords[0][0];
+  for (let i = 1; i < n; i++) {
+    let d = coords[i][0] - coords[i - 1][0];
+    if (d > 180) d -= 360;
+    else if (d < -180) d += 360;
+    lng[i] = lng[i - 1] + d;
+  }
+
+  const keep = new Uint8Array(n);
+  keep[0] = keep[n - 1] = 1;
+  const tolerance2 = toleranceM * toleranceM;
+  const stack = [0, n - 1];
+  while (stack.length > 0) {
+    const last = stack.pop()!;
+    const first = stack.pop()!;
+    const a = coords[first];
+    const b = coords[last];
+    const kx = METERS_PER_DEGREE * Math.cos(((a[1] + b[1]) / 2) * (Math.PI / 180));
+    const ky = METERS_PER_DEGREE;
+    const dx = (lng[last] - lng[first]) * kx;
+    const dy = (b[1] - a[1]) * ky;
+    const dz = use3d ? (b[2] - a[2]) * kz : 0;
+    const len2 = dx * dx + dy * dy + dz * dz;
+
+    let farthest2 = tolerance2;
+    let index = -1;
+    for (let i = first + 1; i < last; i++) {
+      const p = coords[i];
+      const px = (lng[i] - lng[first]) * kx;
+      const py = (p[1] - a[1]) * ky;
+      const pz = use3d ? (p[2] - a[2]) * kz : 0;
+      const t = len2 > 0 ? clamp((px * dx + py * dy + pz * dz) / len2, 0, 1) : 0;
+      const ex = px - t * dx, ey = py - t * dy, ez = pz - t * dz;
+      const d2 = ex * ex + ey * ey + ez * ez;
+      if (d2 > farthest2) {
+        farthest2 = d2;
+        index = i;
+      }
+    }
+    if (index < 0) continue;
+    keep[index] = 1;
+    if (index - first > 1) stack.push(first, index);
+    if (last - index > 1) stack.push(index, last);
+  }
+
+  const out: number[][] = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(coords[i]);
+  return out.length === n ? coords : out;
+}
+
+/**
+ * Removes redundant vertices with Douglas-Peucker at a tolerance given in metres, then rounds
+ * coordinates (default 6 decimals, ~0.1 m). Surviving vertices keep their original positions, so
+ * the shape is preserved while the point count drops.
  *
  * Options: `toleranceM` (default {@link ROUTE_SIMPLIFY_TOLERANCE_M}); `tolerance` is a raw
- * degree override; `simplify: false` only rounds.
+ * degree override; `verticalToleranceM` bounds altitude on lines (default `toleranceM`);
+ * `simplify: false` only rounds.
  *
- * Geometries that carry altitude (a 3rd coordinate) are rounded but not simplified:
- * @turf/simplify is 2D-only and would drop vertices along straight ground tracks, flattening
- * the altitude profile.
- *
- * Simplification uses the exact Douglas-Peucker pass (turf `highQuality`) so the tolerance is a
- * true bound on deviation; the faster radial pre-pass can compound it to roughly twice that.
+ * Lines go through {@link simplifyLine}, which keeps an altitude profile and handles any length.
+ * Polygons go through @turf/simplify (exact pass, turf `highQuality`, so the tolerance is a true
+ * bound); it is 2D-only, so a polygon with altitude is only rounded.
  */
 export function optimizeGeometry<T extends GeoJSON.Geometry>(
   geometry: T,
-  options?: { simplify?: boolean; toleranceM?: number; tolerance?: number; precision?: number }
+  options?: { simplify?: boolean; toleranceM?: number; tolerance?: number; verticalToleranceM?: number; precision?: number }
 ): T {
   if (!geometry) return geometry;
 
   const doSimplify = options?.simplify ?? true;
-  const tolerance = options?.tolerance ?? metersToDegrees(options?.toleranceM ?? ROUTE_SIMPLIFY_TOLERANCE_M);
+  const toleranceM = options?.tolerance !== undefined
+    ? options.tolerance * METERS_PER_DEGREE
+    : options?.toleranceM ?? ROUTE_SIMPLIFY_TOLERANCE_M;
+  const verticalToleranceM = options?.verticalToleranceM ?? toleranceM;
   const precision = options?.precision ?? 6;
 
   let result: GeoJSON.Geometry = geometry;
 
-  if (
+  if (doSimplify && geometry.type === 'LineString') {
+    result = { ...geometry, coordinates: simplifyLine(geometry.coordinates, toleranceM, verticalToleranceM) };
+  } else if (doSimplify && geometry.type === 'MultiLineString') {
+    result = { ...geometry, coordinates: geometry.coordinates.map((line) => simplifyLine(line, toleranceM, verticalToleranceM)) };
+  } else if (
     doSimplify &&
-    (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon' || geometry.type === 'LineString' || geometry.type === 'MultiLineString') &&
+    (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') &&
     !hasAltitude(geometry.coordinates)
   ) {
+    const tolerance = metersToDegrees(toleranceM);
     try {
-      const simplified = simplify(geometry, { tolerance, highQuality: true, mutate: false });
-      // cleanCoords can collapse degenerate lines (e.g. identical endpoints) below a valid size.
-      result = hasEnoughPositions(simplified, geometry) ? simplified : geometry;
+      result = simplify(geometry, { tolerance, highQuality: true, mutate: false });
     } catch (e) {
       console.warn('Geometry simplification failed, falling back to unsimplified geometry:', e);
       result = geometry;
@@ -317,13 +403,4 @@ export function optimizeGeometry<T extends GeoJSON.Geometry>(
   }
 
   return truncateCoordinates(result as T, precision);
-}
-
-function hasEnoughPositions(out: GeoJSON.Geometry, input: GeoJSON.Geometry): boolean {
-  if (out.type === 'LineString') return out.coordinates.length >= 2;
-  if (out.type === 'MultiLineString') {
-    return out.coordinates.length === (input as GeoJSON.MultiLineString).coordinates.length
-      && out.coordinates.every((l) => l.length >= 2);
-  }
-  return true;
 }
