@@ -49,6 +49,38 @@ export function parseGPX(text: string): GeoJSON.FeatureCollection {
   return sanitizeFeatureCollection(geojson);
 }
 
+/**
+ * togeojson makes one feature per lap (a marathon auto-lapped every km is about 42 lines). Laps follow
+ * each other, so they are joined into one line; a pause inside a lap (a second Track) stays a gap.
+ */
+function mergeLaps(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+  const segments: number[][][] = [];
+  fc.features.forEach((f) => {
+    const geom = f.geometry;
+    const lines = geom?.type === 'LineString' ? [geom.coordinates] : geom?.type === 'MultiLineString' ? geom.coordinates : [];
+    lines.forEach((line, i) => {
+      if (i === 0 && segments.length > 0) for (const c of line) segments[segments.length - 1].push(c);
+      else segments.push([...line]);
+    });
+  });
+  if (segments.length === 0) return { type: 'FeatureCollection', features: [] };
+  const geometry: GeoJSON.LineString | GeoJSON.MultiLineString =
+    segments.length === 1 ? { type: 'LineString', coordinates: segments[0] } : { type: 'MultiLineString', coordinates: segments };
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry }] };
+}
+
+export function parseTCX(text: string): GeoJSON.FeatureCollection {
+  if (!text || text.trim().length === 0) {
+    throw new Error('TCX content is empty');
+  }
+  if (text.includes('\0')) {
+    throw new Error('Binary data is not valid TCX');
+  }
+  const dom = new DOMParser().parseFromString(text, 'text/xml');
+  checkXmlErrors(dom, 'TCX');
+  return mergeLaps(sanitizeFeatureCollection(toGeoJSON.tcx(dom) as GeoJSON.FeatureCollection));
+}
+
 export function parseGeoJSON(text: string): GeoJSON.FeatureCollection {
   if (!text || text.trim().length === 0) {
     throw new Error('GeoJSON content is empty');
@@ -125,6 +157,7 @@ function parseRouteBytes(bytes: Uint8Array, format: RouteFileFormat): GeoJSON.Fe
   switch (format) {
     case 'gpx': return parseGPX(decodeRouteText(bytes));
     case 'kml': return parseKML(decodeRouteText(bytes));
+    case 'tcx': return parseTCX(decodeRouteText(bytes));
     case 'geojson': return parseGeoJSON(decodeRouteText(bytes));
     default: throw new RouteImportError('type', ROUTE_IMPORT_MESSAGES.type);
   }

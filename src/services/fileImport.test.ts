@@ -94,3 +94,45 @@ describe('importRouteFile', () => {
     await expect(importRouteFile(big)).rejects.toMatchObject({ code: 'size' });
   });
 });
+
+describe('TCX import', () => {
+  const trackpoint = (lat: number, lon: number) =>
+    `<Trackpoint><Time>2025-01-01T00:00:00Z</Time><Position><LatitudeDegrees>${lat}</LatitudeDegrees><LongitudeDegrees>${lon}</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint>`;
+  const tcx = (body: string) =>
+    `<?xml version="1.0"?><TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">${body}</TrainingCenterDatabase>`;
+  const lap = (...tracks: string[][]) => `<Lap>${tracks.map((t) => `<Track>${t.join('')}</Track>`).join('')}</Lap>`;
+
+  it('joins laps into one line', async () => {
+    const xml = tcx(`<Activities><Activity Sport="Running">${[
+      lap([trackpoint(46, 8), trackpoint(46.1, 8.1)]),
+      lap([trackpoint(46.2, 8.2), trackpoint(46.3, 8.3)]),
+      lap([trackpoint(46.4, 8.4), trackpoint(46.5, 8.5)]),
+    ].join('')}</Activity></Activities>`);
+    const imported = await importRouteFile(file(xml, 'run.tcx'));
+    expect(imported.format).toBe('tcx');
+    expect(imported.geojson.features).toHaveLength(1);
+    expect(imported.geojson.features[0].geometry).toEqual({
+      type: 'LineString',
+      coordinates: [[8, 46], [8.1, 46.1], [8.2, 46.2], [8.3, 46.3], [8.4, 46.4], [8.5, 46.5]],
+    });
+    expect(JSON.stringify(imported.geojson)).not.toContain('150');
+  });
+
+  it('keeps a pause inside a lap as a gap', async () => {
+    const xml = tcx(`<Activities><Activity>${lap([trackpoint(1, 1), trackpoint(2, 2)], [trackpoint(3, 3), trackpoint(4, 4)])}</Activity></Activities>`);
+    const imported = await importRouteFile(file(xml, 'paused.tcx'));
+    expect(imported.geojson.features[0].geometry.type).toBe('MultiLineString');
+  });
+
+  it('reads a course and ignores its course points', async () => {
+    const xml = tcx(`<Courses><Course><Track>${trackpoint(46, 8)}${trackpoint(46.1, 8.1)}</Track><CoursePoint><Name>Turn</Name><Position><LatitudeDegrees>46</LatitudeDegrees><LongitudeDegrees>8</LongitudeDegrees></Position></CoursePoint></Course></Courses>`);
+    const imported = await importRouteFile(file(xml, 'course.tcx'));
+    expect(imported.geojson.features).toHaveLength(1);
+    expect(imported.geojson.features[0].geometry.type).toBe('LineString');
+  });
+
+  it('refuses an indoor activity whose trackpoints have no position', async () => {
+    const xml = tcx('<Activities><Activity Sport="Biking"><Lap><Track><Trackpoint><Time>2025-01-01T00:00:00Z</Time><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities>');
+    await expect(importRouteFile(file(xml, 'trainer.tcx'))).rejects.toMatchObject({ code: 'noTrack' });
+  });
+});
