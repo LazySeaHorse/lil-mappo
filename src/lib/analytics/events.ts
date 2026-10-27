@@ -27,7 +27,6 @@ export type UpgradeWhere =
   | 'project_settings'
   | 'export_limits'
   | 'cloud_slots'
-  | 'ai'
   | 'account_settings'
   | 'account_menu';
 

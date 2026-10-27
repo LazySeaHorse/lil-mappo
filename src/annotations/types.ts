@@ -181,6 +181,12 @@ export interface ImageNode {
   cornerRadius?: number;
   opacity?: number;
   objectFit?: 'cover' | 'contain' | 'fill';
+  /**
+   * Part of the source image to draw, as fractions (0–1) of its width and
+   * height; the part is stretched over the box and `objectFit` is ignored.
+   * Slice an image into strips to bend it, e.g. a flag rippling in the wind.
+   */
+  crop?: { x: number; y: number; width: number; height: number };
 }
 
 export interface LineNode extends StrokeOptions {
@@ -352,7 +358,12 @@ export interface AnnotationStyleDefinition<TSettings = Record<string, unknown>> 
 
 // ─── Inspector Control Definitions ────────────────────────────────────────────
 
-export type ControlDefinition =
+interface ControlVisibility {
+  /** Show the control only while the style's setting `key` equals `equals`, e.g. a flag picker while Fill is Flag. */
+  when?: { key: string; equals: unknown };
+}
+
+export type ControlDefinition = ControlVisibility & (
   | {
       type: 'color';
       key: string;
@@ -373,5 +384,15 @@ export type ControlDefinition =
       label: string;
       options: Array<{ value: string; label: string }>;
     }
+  /** A select shown as tabs, for a few options that read better side by side. */
+  | {
+      type: 'tabs';
+      key: string;
+      label: string;
+      options: Array<{ value: string; label: string }>;
+    }
   | { type: 'font'; key: string; label: string }
-  | { type: 'text-input'; key: string; label: string; placeholder?: string };
+  | { type: 'text-input'; key: string; label: string; placeholder?: string }
+  /** A country flag, stored as a lowercase ISO 3166-1 alpha-2 code; empty when none is chosen. */
+  | { type: 'flag'; key: string; label: string }
+);

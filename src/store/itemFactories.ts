@@ -41,6 +41,7 @@ export const DEFAULT_BOUNDARY_STYLE: BoundaryStyle = {
   maskColor: '#0b0f19',
   maskOpacity: 0.85,
   fillMode: 'color',
+  fillUnderRoads: false,
   flagCode: null,
 };
 

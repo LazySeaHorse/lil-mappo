@@ -222,8 +222,8 @@ describe('upgrade_prompt_shown', () => {
     mocks.posthog.startSessionRecording.mockClear();
     mocks.posthog.sessionRecordingStarted.mockReturnValue(false);
     const { track } = await import('./index');
-    track('upgrade_prompt_shown', { where: 'ai' });
-    expect(mocks.posthog.capture).toHaveBeenCalledWith('upgrade_prompt_shown', { where: 'ai' });
+    track('upgrade_prompt_shown', { where: 'account_menu' });
+    expect(mocks.posthog.capture).toHaveBeenCalledWith('upgrade_prompt_shown', { where: 'account_menu' });
     expect(mocks.posthog.startSessionRecording).toHaveBeenCalledWith(true);
   });
 });

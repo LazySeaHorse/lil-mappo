@@ -74,6 +74,7 @@ const sampleBoundary: BoundaryItem = {
     maskColor: "#0b0f19",
     maskOpacity: 0.85,
     fillMode: 'color',
+    fillUnderRoads: false,
     flagCode: null,
   },
   easing: "linear", exitAnimation: "none",
@@ -478,5 +479,114 @@ describe("BoundaryRenderer flag fill", () => {
     expect(layers.has(FLAG_LAYER)).toBe(true);
     expect(sources.get(FLAG_SOURCE)?.spec).toBeInstanceOf(FlagTileSource);
     expect(map.addSource).toHaveBeenCalled();
+  });
+});
+
+describe("BoundaryRenderer fill under roads", () => {
+  const FILL = "boundary-fill-layer-test-boundary";
+  const GLOW = "boundary-glow-layer-test-boundary";
+  const STROKE = "boundary-stroke-layer-test-boundary";
+
+  function setup(style: Partial<BoundaryItem["style"]> = {}, placement: { slot?: "bottom"; beforeId?: string } = { slot: "bottom" }) {
+    const double = createMapDouble();
+    const boundary: BoundaryItem = {
+      ...sampleBoundary,
+      style: { ...sampleBoundary.style, animateStroke: false, fillOpacity: 0.8, ...style },
+    };
+    const renderer = new BoundaryRenderer(double.map, boundary, () => placement);
+    renderer.mount();
+    return { ...double, renderer, boundary };
+  }
+
+  const fillCalls = (addLayer: ReturnType<typeof createMapDouble>["addLayer"]) =>
+    addLayer.mock.calls.filter(([layer]) => layer.id === FILL);
+
+  it("keeps the fill at the top of the map, with no slot, while it is off", () => {
+    const { addLayer, layers } = setup();
+    const [[layer, beforeId]] = fillCalls(addLayer);
+    expect(beforeId).toBeUndefined();
+    expect(layer).not.toHaveProperty("slot");
+    expect(layers.has(FILL)).toBe(true);
+  });
+
+  it("puts the fill in the bottom slot on Standard, leaving the border and glow where they were", () => {
+    const { layers, addLayer } = setup({ fillUnderRoads: true }, { slot: "bottom" });
+    expect(layers.get(FILL)).toMatchObject({ slot: "bottom" });
+    const [[, beforeId]] = fillCalls(addLayer);
+    expect(beforeId).toBeUndefined();
+    expect(layers.get(STROKE)).not.toHaveProperty("slot");
+    expect(layers.get(GLOW)).not.toHaveProperty("slot");
+  });
+
+  it("puts the fill before the first road layer on classic styles", () => {
+    const { layers, addLayer } = setup({ fillUnderRoads: true }, { beforeId: "road-street" });
+    const [[, beforeId]] = fillCalls(addLayer);
+    expect(beforeId).toBe("road-street");
+    expect(layers.get(FILL)).not.toHaveProperty("slot");
+  });
+
+  it("creates the fill again when the switch flips, and writes its colour and opacity to the new layer", () => {
+    const { renderer, boundary, layers, addLayer, removeLayer } = setup();
+    renderer.render(5);
+    expect(layers.get(FILL)?.paint?.["fill-opacity"]).toBeCloseTo(0.8);
+
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, fillUnderRoads: true } });
+    renderer.render(5);
+    expect(removeLayer).toHaveBeenCalledWith(FILL);
+    expect(fillCalls(addLayer)).toHaveLength(2);
+    expect(layers.get(FILL)).toMatchObject({ slot: "bottom" });
+    expect(layers.get(FILL)?.paint).toMatchObject({ "fill-color": boundary.style.fillColor, "fill-opacity": expect.closeTo(0.8) });
+
+    // Nothing more is added while it stays as it is.
+    renderer.render(5.5);
+    renderer.render(6);
+    expect(fillCalls(addLayer)).toHaveLength(2);
+  });
+
+  it("puts the fill back right under its own glow when the switch goes off", () => {
+    const { renderer, boundary, layers, addLayer } = setup({ fillUnderRoads: true });
+    renderer.render(5);
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, fillUnderRoads: false } });
+    renderer.render(5);
+    const calls = fillCalls(addLayer);
+    expect(calls).toHaveLength(2);
+    expect(calls[1][1]).toBe(GLOW);
+    expect(layers.get(FILL)).not.toHaveProperty("slot");
+  });
+
+  it("never puts the fill above its border when the place under the roads is not known", () => {
+    const { renderer, boundary, addLayer } = setup({}, {});
+    renderer.render(5);
+    renderer.setBoundary({ ...boundary, style: { ...boundary.style, fillUnderRoads: true } });
+    renderer.render(5);
+    expect(fillCalls(addLayer)[1][1]).toBe(GLOW);
+  });
+
+  it("follows the fill opacity and fade exit on the fill under the roads", () => {
+    const { renderer, boundary, layers } = setup({ fillUnderRoads: true });
+    renderer.setBoundary({ ...boundary, exitAnimation: "fade" });
+    renderer.render(10.25);
+    expect(layers.get(FILL)?.paint?.["fill-opacity"]).toBeCloseTo(0.4);
+  });
+
+  it("leaves the colour fill invisible in flag mode whatever the switch says", () => {
+    const { renderer, layers, addLayer } = setup({ fillUnderRoads: true, fillMode: "flag", flagCode: "fr" });
+    renderer.render(5);
+    expect(layers.get(FILL)?.paint?.["fill-opacity"]).toBe(0);
+    expect(layers.has("boundary-flag-layer-test-boundary")).toBe(true);
+    expect(fillCalls(addLayer)).toHaveLength(1);
+  });
+
+  it("brings the fill back under the roads after the style is replaced", () => {
+    const { renderer, layers, sources, addLayer } = setup({ fillUnderRoads: true }, { beforeId: "road-street" });
+    renderer.render(5);
+    layers.clear();
+    sources.clear();
+    renderer.mount();
+    renderer.render(5);
+    const calls = fillCalls(addLayer);
+    expect(calls).toHaveLength(2);
+    expect(calls[1][1]).toBe("road-street");
+    expect(layers.get(FILL)?.paint?.["fill-opacity"]).toBeCloseTo(0.8);
   });
 });

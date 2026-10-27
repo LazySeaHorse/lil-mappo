@@ -1,4 +1,5 @@
 // Kept apart from videoExport.ts so the capability probe does not pull mediabunny into the initial bundle.
+import { exportBitrate } from './videoBitrate';
 
 export type LocalExportCapability =
   | { status: 'ready'; codec: string }
@@ -18,6 +19,7 @@ export async function getLocalExportCapability(
 ): Promise<LocalExportCapability> {
   if (typeof VideoEncoder === 'undefined') return { status: 'unsupported' };
 
+  const bitrate = exportBitrate(width, height, fps);
   const candidates = [
     'avc1.640034', 'avc1.640033', 'avc1.64002A', 'avc1.640028',
     'avc1.4D002A', 'avc1.4D0028', 'avc1.42E028', 'avc1.42E01F', 'avc1.42E01E',
@@ -26,7 +28,7 @@ export async function getLocalExportCapability(
   for (const codec of candidates) {
     try {
       const { supported } = await VideoEncoder.isConfigSupported({
-        codec, width, height, bitrate: 8_000_000, framerate: fps,
+        codec, width, height, bitrate, framerate: fps,
       });
       if (supported) return { status: 'ready', codec };
     } catch {

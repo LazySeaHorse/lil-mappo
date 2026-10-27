@@ -10,6 +10,8 @@ import type { AgentToolDescriptor } from './defineTool';
  */
 
 export const BRIDGE_URL = 'ws://127.0.0.1:47800/page';
+/** Where coding agents reach the bridge over MCP (streamable HTTP). */
+export const BRIDGE_MCP_URL = 'http://127.0.0.1:47800/mcp';
 /** Close code the bridge uses when another tab took over; do not reconnect. */
 const REPLACED = 4000;
 const MAX_DELAY_MS = 30_000;

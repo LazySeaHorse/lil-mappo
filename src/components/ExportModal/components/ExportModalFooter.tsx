@@ -206,7 +206,7 @@ interface ExportProgressProps {
 function ExportProgress({ progress, label, onCancel }: ExportProgressProps) {
   const pct = Math.max(0, Math.min(100, Math.round(progress)));
   const complete = label === 'complete';
-  const text = complete ? 'Export complete' : label === 'prewarm' ? 'Preparing map tiles' : 'Exporting frames';
+  const text = complete ? 'Export complete' : label === 'prewarm' ? 'Preparing map tiles' : 'Exporting frames, do NOT switch tabs!';
 
   const content = (
     <>

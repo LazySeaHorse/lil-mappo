@@ -101,6 +101,7 @@ const boundary: BoundaryItem = {
     maskColor: '#0b0f19',
     maskOpacity: 0.85,
     fillMode: 'color',
+    fillUnderRoads: false,
     flagCode: null,
   },
   easing: 'linear', exitAnimation: 'none',

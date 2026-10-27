@@ -5,6 +5,7 @@ import { AgentToolRegistrar } from './AgentToolRegistrar';
 import { useAgentActionVisuals } from './useAgentActionVisuals';
 import { useAiPanelStore } from './useAiPanelStore';
 import { AiStatusPill } from './AiStatusPill';
+import { BridgeGuideDialog } from './BridgeGuideDialog';
 
 /** Non-visual AI plumbing: tool registration and live action visuals. Stays mounted in zen mode. */
 export function AiRuntime() {
@@ -23,7 +24,10 @@ export function AiOverlays() {
   return (
     <>
       {openedRef.current && (
-        <AiPanel />
+        <>
+          <AiPanel />
+          <BridgeGuideDialog />
+        </>
       )}
       <AiStatusPill />
     </>

@@ -1,0 +1,10 @@
+{
+  "styleId": "highlight-tag",
+  "variants": [
+    { "name": "title", "content": { "title": "Malaysia" }, "ground": [0.5, 0.5] },
+    { "name": "title + subtitle", "content": { "title": "Strait of Malacca", "subtitle": "Busiest shipping lane" }, "ground": [0.5, 0.5] },
+    { "name": "blue, no shadow", "settings": { "boxColor": "#4DD0FF", "halo": false }, "content": { "title": "Indonesia" }, "ground": [0.5, 0.5] }
+  ],
+  "cellWidth": 420,
+  "samples": 6
+}

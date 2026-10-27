@@ -90,6 +90,7 @@ export class BasemapController {
    * Where boundary flag fills go: over land and water but under roads, buildings and
    * labels, so the country's streets and place names read on top of its flag. Standard's
    * `bottom` slot is exactly that (`middle` is above roads, `top` above POI labels).
+   * Fills that sit under the roads use it: flag fills, and colour fills with `fillUnderRoads`.
    * Classic styles insert before the first road layer, or the first symbol layer when a
    * style has no roads (satellite).
    */

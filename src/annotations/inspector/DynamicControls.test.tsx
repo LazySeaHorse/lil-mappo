@@ -70,3 +70,43 @@ describe('DynamicControls accent colour', () => {
     expect(screen.queryByRole('button', { name: ACCENT_TERMS.customize })).toBeNull();
   });
 });
+
+describe('DynamicControls country flag', () => {
+  const flagControls: ControlDefinition[] = [{ type: 'flag', key: 'flagCode', label: 'Country' }];
+
+  it('offers a searchable country picker showing the chosen country', () => {
+    setup({ controls: flagControls, settings: { flagCode: '' } });
+    expect(screen.getByText('Country')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Country flag' })).toHaveTextContent('Choose a country flag');
+  });
+
+  it('shows the chosen country', () => {
+    setup({ controls: flagControls, settings: { flagCode: 'fr' } });
+    expect(screen.getByRole('combobox', { name: 'Country flag' })).toHaveTextContent('France');
+  });
+});
+
+describe('DynamicControls tabs and conditional controls', () => {
+  const fillControls: ControlDefinition[] = [
+    { type: 'tabs', key: 'fill', label: 'Fill', options: [{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }] },
+    { type: 'switch', key: 'shape', label: 'Shape', when: { key: 'fill', equals: 'color' } },
+    { type: 'flag', key: 'flagCode', label: 'Country', when: { key: 'fill', equals: 'flag' } },
+    { type: 'switch', key: 'wave', label: 'Wave' },
+  ];
+
+  it('shows the controls for the chosen tab and the ones with no condition', () => {
+    setup({ controls: fillControls, settings: { fill: 'color' } });
+    expect(screen.getByText('Shape')).toBeInTheDocument();
+    expect(screen.queryByText('Country')).toBeNull();
+    expect(screen.getByText('Wave')).toBeInTheDocument();
+  });
+
+  it('swaps them when the other tab is chosen', () => {
+    const onUpdate = setup({ controls: fillControls, settings: { fill: 'flag' } });
+    expect(screen.getByText('Country')).toBeInTheDocument();
+    expect(screen.queryByText('Shape')).toBeNull();
+    expect(screen.getByText('Wave')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Color' }));
+    expect(onUpdate).toHaveBeenCalledWith({ fill: 'color' });
+  });
+});

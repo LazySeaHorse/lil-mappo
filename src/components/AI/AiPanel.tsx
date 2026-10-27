@@ -1,4 +1,4 @@
-import { Sparkles, X } from 'lucide-react';
+import { CircleHelp, Sparkles, X } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { IconButton } from '@/components/ui/icon-button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,7 @@ export function AiPanel() {
   const tab = useAiPanelStore((s) => s.tab);
   const setTab = useAiPanelStore((s) => s.setTab);
   const closePanel = useAiPanelStore((s) => s.closePanel);
+  const setGuideOpen = useAiPanelStore((s) => s.setGuideOpen);
   const isInspectorOpen = useProjectStore((s) => s.isInspectorOpen);
   const { isMobile, isTablet } = useResponsive();
 
@@ -58,9 +59,14 @@ export function AiPanel() {
           <h2 className="text-xs font-medium tracking-tight">AI</h2>
           <ExperimentalBadge />
         </div>
-        <IconButton variant="ghost" size="xs" aria-label="Close AI panel" onClick={closePanel}>
-          <X size={14} />
-        </IconButton>
+        <div className="flex items-center gap-1">
+          <IconButton variant="ghost" size="xs" aria-label="How to connect a coding agent" onClick={() => setGuideOpen(true)}>
+            <CircleHelp size={14} />
+          </IconButton>
+          <IconButton variant="ghost" size="xs" aria-label="Close AI panel" onClick={closePanel}>
+            <X size={14} />
+          </IconButton>
+        </div>
       </div>
       <Tabs value={tab} onValueChange={(v) => setTab(v as AiPanelTab)} className="flex flex-col min-h-0 flex-1">
         <div className="px-3 pt-3 shrink-0">

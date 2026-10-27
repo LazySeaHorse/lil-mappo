@@ -59,7 +59,7 @@ describe('ExportModal Sub-components', () => {
       render(<ExportModalFooter {...base} isExporting progress={65} />);
       const bar = screen.getByRole('progressbar', { name: 'Export progress' });
       expect(bar.getAttribute('aria-valuenow')).toBe('65');
-      expect(screen.getAllByText('Exporting frames').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Exporting frames, do NOT switch tabs!').length).toBeGreaterThan(0);
       expect(screen.getAllByText('65%').length).toBeGreaterThan(0);
       expect(screen.queryByRole('button', { name: /Export locally/i })).toBeNull();
     });

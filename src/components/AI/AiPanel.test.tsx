@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe('AgentToolRegistrar', () => {
-  it('registers every tool only when signed in + Pro + enabled, and unregisters on disable', () => {
+  it('registers every tool only when signed in + enabled, and unregisters on disable', () => {
     const mc = installModelContext();
     render(<AgentToolRegistrar />);
     expect(mc.registerTool).not.toHaveBeenCalled();
@@ -51,20 +51,22 @@ describe('AgentToolRegistrar', () => {
     expect(useAiPanelStore.getState().registeredCount).toBe(0);
   });
 
-  it('does not register for signed-out or non-Pro users, and switches the runner off', () => {
+  it('registers for free accounts too', () => {
     const mc = installModelContext();
     sub.current = null;
     useAgentStore.setState({ enabled: true });
     render(<AgentToolRegistrar />);
-    expect(mc.registerTool).not.toHaveBeenCalled();
-    expect(useAgentStore.getState().enabled).toBe(false);
+    expect(mc.registerTool).toHaveBeenCalledTimes(getAgentTools().length);
+    expect(useAgentStore.getState().enabled).toBe(true);
+  });
 
-    cleanup();
-    sub.current = PRO;
+  it('does not register for signed-out users, and switches the runner off', () => {
+    const mc = installModelContext();
     setSignedIn(false);
     useAgentStore.setState({ enabled: true });
     render(<AgentToolRegistrar />);
     expect(mc.registerTool).not.toHaveBeenCalled();
+    expect(useAgentStore.getState().enabled).toBe(false);
   });
 
   it('unregisters on unmount', () => {
@@ -139,18 +141,18 @@ describe('Connect tab', () => {
 describe('Gating in the panel', () => {
   const toggle = () => screen.getByRole('switch', { name: 'Allow AI agents to control this project' });
 
-  it('explains the feature to non-Pro users, then sends them to upgrade instead of enabling', () => {
+  it('lets a free account turn it on after the explanation', () => {
     sub.current = null;
     useAiPanelStore.setState({ open: true });
     render(<AiPanel />);
-    expect(screen.getByTestId('ai-pro-note')).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-signin-note')).toBeNull();
     fireEvent.click(toggle());
     expect(screen.getByText(/experimental feature/)).toBeInTheDocument();
     expect(screen.getByText(/small lil-mappo bridge app/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'See Wanderer plan' }));
-    expect(useAuthStore.getState().showUpgradeModal).toBe(true);
-    expect(useAgentStore.getState().enabled).toBe(false);
-    expect(hasAiConsent()).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Turn on' }));
+    expect(useAuthStore.getState().showUpgradeModal).toBe(false);
+    expect(useAgentStore.getState().enabled).toBe(true);
+    expect(hasAiConsent()).toBe(true);
   });
 
   it('sends signed-out users to sign in', () => {
@@ -165,20 +167,13 @@ describe('Gating in the panel', () => {
 });
 
 describe('Toolbar button', () => {
-  it('opens the panel for everyone and shows the PRO badge to non-Pro users', () => {
+  it('toggles the panel for everyone, with no PRO badge', () => {
     sub.current = null;
-    render(<AiToolbarButton />);
-    expect(screen.getByText('PRO')).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('AI (Experimental)'));
-    expect(useAiPanelStore.getState().open).toBe(true);
-    expect(useAuthStore.getState().showUpgradeModal).toBe(false);
-  });
-
-  it('toggles the panel for Pro users', () => {
     render(<AiToolbarButton />);
     expect(screen.queryByText('PRO')).toBeNull();
     fireEvent.click(screen.getByTitle('AI (Experimental)'));
     expect(useAiPanelStore.getState().open).toBe(true);
+    expect(useAuthStore.getState().showUpgradeModal).toBe(false);
     fireEvent.click(screen.getByTitle('AI (Experimental)'));
     expect(useAiPanelStore.getState().open).toBe(false);
   });

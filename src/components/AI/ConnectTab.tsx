@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { getAgentTools, isWebMcpSupported, useAgentStore } from '@/agent';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -10,9 +11,7 @@ import {
 import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAiAccess } from './useAiAccess';
-import { hasAiConsent, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
-
-export const BRIDGE_DOCS_HINT = 'Using Claude Code, Codex or another local agent? Run the lil-mappo-bridge app on this computer and follow the commands it prints.';
+import { hasAiConsent, offerBridgeGuide, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
 
 export function AiStatusLine({ enabled, supported, count, bridged }: { enabled: boolean; supported: boolean; count: number; bridged: boolean }) {
   let text: string;
@@ -35,13 +34,18 @@ export function ConnectTab() {
   const count = useAiPanelStore((s) => s.registeredCount);
   const bridged = useAiPanelStore((s) => s.bridgeConnected);
   const followAi = useAiPanelStore((s) => s.followAi);
+  const setGuideOpen = useAiPanelStore((s) => s.setGuideOpen);
   const setFollowAi = useAiPanelStore((s) => s.setFollowAi);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const supported = isWebMcpSupported();
   const { signedIn, allowed } = useAiAccess();
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
-  const openUpgradeModal = useAuthStore((s) => s.openUpgradeModal);
   const tools = useMemo(() => getAgentTools(), []);
+
+  const turnOn = () => {
+    setEnabled(true);
+    offerBridgeGuide();
+  };
 
   const handleToggle = (next: boolean) => {
     // Everyone sees the explanation; people who cannot turn it on yet are sent to sign in / upgrade from the dialog.
@@ -49,7 +53,8 @@ export function ConnectTab() {
       setConfirmOpen(true);
       return;
     }
-    setEnabled(next);
+    if (next) turnOn();
+    else setEnabled(false);
   };
 
   return (
@@ -63,13 +68,18 @@ export function ConnectTab() {
       </div>
 
       {!allowed && (
-        <p data-testid="ai-pro-note" className="text-xs text-muted-foreground leading-relaxed">
-          Create and edit animations by chatting with an AI agent. This is an experimental Wanderer (Pro) feature.
+        <p data-testid="ai-signin-note" className="text-xs text-muted-foreground leading-relaxed">
+          Create and edit animations by chatting with an AI agent. This is an experimental feature; sign in to turn it on.
         </p>
       )}
 
       <AiStatusLine enabled={enabled} supported={supported} count={count} bridged={bridged} />
-      <p className="text-2xs text-muted-foreground leading-relaxed">{BRIDGE_DOCS_HINT}</p>
+      <p className="text-2xs text-muted-foreground leading-relaxed">
+        Using Claude Code, Codex, Cursor or another coding agent?{' '}
+        <Button variant="link" size="inline" onClick={() => setGuideOpen(true)}>
+          Set up the bridge
+        </Button>
+      </p>
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -108,7 +118,7 @@ export function ConnectTab() {
                 <p><strong>It can:</strong> add and edit routes, boundaries and callouts, edit the camera and project settings, and render preview frames.</p>
                 <p><strong>It cannot:</strong> export video, save or delete projects, or modify your account.</p>
                 <p>Every AI change is one undo step. Use Undo, or &ldquo;Undo last AI change&rdquo; in the Activity tab.</p>
-                {!allowed && <p className="text-muted-foreground">{signedIn ? 'AI control is part of the Wanderer plan.' : 'Sign in with a Wanderer account to turn it on.'}</p>}
+                {!allowed && <p className="text-muted-foreground">Sign in to turn it on.</p>}
               </div>
             </AlertDialogDescription>
           <PopupActions>
@@ -116,12 +126,11 @@ export function ConnectTab() {
             <AlertDialogAction
               onClick={() => {
                 if (!signedIn) return openAuthModal();
-                if (!allowed) return openUpgradeModal('ai');
                 recordAiConsent();
-                setEnabled(true);
+                turnOn();
               }}
             >
-              {!signedIn ? 'Sign in' : !allowed ? 'See Wanderer plan' : 'Turn on'}
+              {allowed ? 'Turn on' : 'Sign in'}
             </AlertDialogAction>
           </PopupActions>
           </PopupBody>

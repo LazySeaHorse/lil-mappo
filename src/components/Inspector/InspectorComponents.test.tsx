@@ -157,6 +157,7 @@ describe('Inspector Components Integration', () => {
         maskColor: '#0b0f19',
         maskOpacity: 0.85,
         fillMode: 'color',
+        fillUnderRoads: false,
         flagCode: null,
       },
     };
@@ -192,7 +193,7 @@ describe('Inspector Components Integration', () => {
       style: {
         strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,
         animateStroke: false, animationStyle: 'fade', traceLength: 0.1,
-        maskOutside: true, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null,
+        maskOutside: true, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', fillUnderRoads: false, flagCode: null,
       },
     };
     useProjectStore.setState({ items: { 'boundary-2': boundaryItem }, selectedItemId: 'boundary-2' });
@@ -214,7 +215,7 @@ describe('Inspector Components Integration', () => {
       style: {
         strokeColor: '#00ff00', fillColor: '#003300', strokeWidth: 3, glow: false, fillOpacity: 0.5,
         animateStroke: true, animationStyle: 'trace', traceLength: 0,
-        maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null,
+        maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', fillUnderRoads: false, flagCode: null,
       },
     };
     useProjectStore.setState({ items: { 'boundary-3': boundaryItem }, selectedItemId: 'boundary-3' });

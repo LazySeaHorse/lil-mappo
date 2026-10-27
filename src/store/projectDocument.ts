@@ -131,6 +131,7 @@ const boundaryStyleSchema = z.object({
   maskColor: z.string().default('#0b0f19'),
   maskOpacity: z.number().min(0).max(1).default(0.85),
   fillMode: z.enum(['color', 'flag']).default('color'),
+  fillUnderRoads: z.boolean().default(false),
   flagCode: z.string().nullable().default(null),
 });
 
@@ -480,10 +481,14 @@ const migrateProjectV2ToV3: ProjectMigration = (input) => {
 /**
  * Callout styles that exist from v4 on. Listed here rather than read from the
  * registry so this migration keeps meaning the same thing as styles are added.
+ * Styles added since still belong here: loading parses a project twice, and the
+ * second parse has no schemaVersion, so it runs this migration on current callouts.
  */
 const V4_CALLOUT_STYLE_IDS: ReadonlySet<string> = new Set([
   'leader-line',
   'map-label',
+  'highlight-tag',
+  'pin-callout',
   'target-lock',
   'editorial',
   'stamp',

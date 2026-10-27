@@ -138,6 +138,15 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             formatValue={formatPercent}
           />
 
+          {item.style.fillMode === 'color' && (
+            <SwitchRow
+              label="Keep roads visible"
+              sublabel="Streets show through the fill"
+              checked={item.style.fillUnderRoads}
+              onChange={(v) => us({ fillUnderRoads: v })}
+            />
+          )}
+
           <SwitchRow
             label="Mask outside"
             sublabel="Cover the map area outside the boundary"

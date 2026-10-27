@@ -7,7 +7,10 @@ import {
 } from './projectDocument';
 import { createTransientState, useProjectStore } from './useProjectStore';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
+import '@/annotations/styles';
+import { getAllStyles } from '@/annotations/registry';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
+import { DEFAULT_BOUNDARY_STYLE } from './itemFactories';
 
 describe('project document persistence boundary', () => {
   it('serializes only durable project fields from the Zustand store', () => {
@@ -430,7 +433,7 @@ describe('project document persistence boundary', () => {
     if (boundary.kind === 'boundary') {
       expect(boundary.style.fillColor).toBe('#123456');
       expect(boundary.style.traceLength).toBe(0.1);
-      expect(boundary.style).toMatchObject({ maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', flagCode: null });
+      expect(boundary.style).toMatchObject({ maskOutside: false, maskColor: '#0b0f19', maskOpacity: 0.85, fillMode: 'color', fillUnderRoads: false, flagCode: null });
       expect(boundary.exitAnimation).toBe('none');
     }
     expect(callout.kind).toBe('callout');
@@ -742,6 +745,18 @@ describe('project document persistence boundary', () => {
       return item;
     };
 
+    // Loading parses twice (the file or row, then loadFullProject) and a parsed Project has no
+    // schemaVersion, so every current style has to survive the v3 → v4 step untouched.
+    it.each(getAllStyles().map((style) => style.id))('keeps a %s callout and its settings when a parsed project is parsed again', (styleId) => {
+      const style = getAllStyles().find((s) => s.id === styleId)!;
+      const settings = { ...(style.defaultSettings as Record<string, unknown>) };
+      const once = parseProjectDocument(v3Document({ c1: v3Callout(styleId, { settings }) }));
+      const twice = calloutOf(once);
+
+      expect(twice.styleId).toBe(styleId);
+      expect(twice.settings).toEqual(settings);
+    });
+
     it.each(OLD_STYLE_IDS)('turns a %s callout into a Leader Line and keeps what it said and where it was', (styleId) => {
       const callout = calloutOf(v3Document({ c1: v3Callout(styleId) }));
 
@@ -907,5 +922,32 @@ describe('createProject', () => {
     expect(a.labelVisibility).not.toBe(b.labelVisibility);
     expect(a.mapCenter).not.toBe(b.mapCenter);
     expect(a.items).not.toBe(b.items);
+  });
+});
+
+describe('boundary fill under roads', () => {
+  const boundaryWith = (fillUnderRoads: boolean | undefined) => {
+    const project = createProject({ id: 'roads' });
+    const { schemaVersion: _, ...document } = toProjectDocument(project);
+    const style = { ...DEFAULT_BOUNDARY_STYLE, fillUnderRoads };
+    const boundary = {
+      kind: 'boundary', id: 'b1', placeName: 'Manhattan', geojson: null, startTime: 0, endTime: 4,
+      easing: 'linear', exitAnimation: 'none', style,
+    };
+    if (fillUnderRoads === undefined) delete (boundary.style as Partial<typeof style>).fillUnderRoads;
+    return { ...document, items: { b1: boundary }, itemOrder: ['b1'] };
+  };
+  const styleOf = (document: ReturnType<typeof boundaryWith>) => {
+    const item = parseProjectDocument(document).items.b1;
+    if (item.kind !== 'boundary') throw new Error('not a boundary');
+    return item.style;
+  };
+
+  it('reads a boundary saved without the setting as off, so old projects look as they did', () => {
+    expect(styleOf(boundaryWith(undefined)).fillUnderRoads).toBe(false);
+  });
+
+  it('keeps the setting when a project is saved and loaded', () => {
+    expect(styleOf(boundaryWith(true)).fillUnderRoads).toBe(true);
   });
 });

@@ -41,6 +41,13 @@ describe('<PinDropHero />', () => {
     expect(container.querySelector('img')).toBeNull();
   });
 
+  it('has a drawn scene for the AI bridge guide', () => {
+    const { container } = render(<PinDropHero mood="plug" scene="bridge" />);
+    expect(container.querySelector('[data-slot="pin-drop"]')?.getAttribute('data-scene')).toBe('bridge');
+    expect(container.querySelector('svg[data-mood="plug"]')).not.toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
   it('can label the scene', () => {
     render(<PinDropHero mood="phone" scene="mobile" tag="You are here" />);
     expect(screen.getByText('You are here')).toBeTruthy();

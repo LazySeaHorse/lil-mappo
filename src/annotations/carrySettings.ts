@@ -23,6 +23,7 @@ function fitToControl(control: ControlDefinition, value: unknown): unknown {
     case 'slider':
       return typeof value === 'number' && Number.isFinite(value) ? fitSlider(control, value) : undefined;
     case 'select':
+    case 'tabs':
       return typeof value === 'string' && control.options.some((option) => option.value === value) ? value : undefined;
     default:
       return undefined;

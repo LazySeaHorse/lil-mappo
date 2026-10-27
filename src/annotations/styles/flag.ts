@@ -4,8 +4,9 @@ import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, clamp01, easeOutBack, easeOutCubic, stage } from '../motion';
 import { arcPoints } from '../scene/geometry';
 import { measureScene } from '../scene/measure';
-import { circle, group, path, polyline, text } from '../scene/primitives';
+import { circle, group, image, path, polyline, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { flagSource, isFlagCode } from '../flagImage';
 import { HALO_SHADOW } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
@@ -16,6 +17,10 @@ export const flagSettingsSchema = z.object({
   poleColor: z.string().default('#EDEDED'),
   shape: z.enum(['rect', 'swallowtail', 'pennant']).default('swallowtail'),
   wave: z.boolean().default(true),
+  /** What the cloth is: the flag color, or a country's flag. */
+  fill: z.enum(['color', 'flag']).default('color'),
+  /** Lowercase ISO 3166-1 alpha-2 code of the country flag flown when `fill` is 'flag'. */
+  flagCode: z.string().default(''),
 });
 
 export type FlagSettings = z.infer<typeof flagSettingsSchema>;
@@ -37,6 +42,10 @@ const FINIAL_RADIUS = 3.5;
 const MIN_POLE_HEIGHT = 56;
 
 const CLOTH_HEIGHT = 40;
+/** A country flag flies full size (4:3), on a taller pole, with no text. */
+const COUNTRY_FLAG_HEIGHT = 96;
+const COUNTRY_FLAG_WIDTH = (COUNTRY_FLAG_HEIGHT * 4) / 3;
+const COUNTRY_FLAG_MIN_POLE_HEIGHT = 150;
 const CLOTH_PAD = 12;
 /** Depth of the swallowtail's notch. */
 const NOTCH_DEPTH = 14;
@@ -74,6 +83,9 @@ const SUBTITLE_WINDOW = [0.72, 1] as const;
 type Pt = [number, number];
 
 interface Layout {
+  /** The country flag flown, or null for the plain cloth. */
+  flagCode: string | null;
+  clothHeight: number;
   title: string;
   subtitle: string;
   titleWidth: number;
@@ -96,13 +108,15 @@ function layout(input: StyleRenderInput<FlagSettings>): Layout {
 
   // The pole is the connector: it runs from the ground point to the origin,
   // or stands a minimum height when the origin is too close to the ground.
+  const flagCode = settings.fill === 'flag' && isFlagCode(settings.flagCode) ? settings.flagCode : null;
+  const minPole = flagCode ? COUNTRY_FLAG_MIN_POLE_HEIGHT : MIN_POLE_HEIGHT;
   const reach = Math.hypot(ground.x, ground.y);
-  const top: Pt = reach >= MIN_POLE_HEIGHT ? [0, 0] : [ground.x, ground.y - MIN_POLE_HEIGHT];
+  const top: Pt = reach >= minPole ? [0, 0] : [ground.x, ground.y - minPole];
 
   const textSpan = titleWidth + CLOTH_PAD * 2;
   let clothWidth: number;
   let textX: number;
-  switch (settings.shape) {
+  switch (flagCode ? 'rect' : settings.shape) {
     case 'pennant':
       // The title has to sit where the point is still tall enough for it.
       clothWidth = Math.max(textSpan / PENNANT_TEXT_SHARE, MIN_CLOTH_WIDTH);
@@ -117,7 +131,11 @@ function layout(input: StyleRenderInput<FlagSettings>): Layout {
       textX = CLOTH_PAD;
   }
 
+  if (flagCode) clothWidth = COUNTRY_FLAG_WIDTH;
+
   return {
+    flagCode,
+    clothHeight: flagCode ? COUNTRY_FLAG_HEIGHT : CLOTH_HEIGHT,
     title,
     subtitle,
     titleWidth,
@@ -143,13 +161,13 @@ function rippleSlope(x: number, clothWidth: number, phase: number, amplitude: nu
 }
 
 /** The cloth's bottom edge, at distance `x` along an unrippled cloth of `width`. */
-function bottomEdge(shape: FlagSettings['shape'], x: number, width: number): number {
-  if (shape !== 'pennant') return CLOTH_HEIGHT;
-  return CLOTH_HEIGHT - (CLOTH_HEIGHT / 2) * (x / width);
+function bottomEdge(shape: FlagSettings['shape'], x: number, width: number, height: number): number {
+  if (shape !== 'pennant') return height;
+  return height - (height / 2) * (x / width);
 }
-function topEdge(shape: FlagSettings['shape'], x: number, width: number): number {
+function topEdge(shape: FlagSettings['shape'], x: number, width: number, height: number): number {
   if (shape !== 'pennant') return 0;
-  return (CLOTH_HEIGHT / 2) * (x / width);
+  return (height / 2) * (x / width);
 }
 
 function columnCount(width: number): number {
@@ -164,21 +182,22 @@ function columnCount(width: number): number {
 function clothOutline(
   shape: FlagSettings['shape'],
   clothWidth: number,
+  clothHeight: number,
   reveal: number,
   wave: (x: number) => number,
 ): Pt[] {
   const width = clothWidth * reveal;
   const n = columnCount(width);
   const along = (i: number) => (width * i) / n;
-  const topRow: Pt[] = Array.from({ length: n + 1 }, (_, i) => [along(i), topEdge(shape, along(i), width)]);
-  const bottomRow: Pt[] = Array.from({ length: n + 1 }, (_, i) => [along(i), bottomEdge(shape, along(i), width)]).reverse() as Pt[];
+  const topRow: Pt[] = Array.from({ length: n + 1 }, (_, i) => [along(i), topEdge(shape, along(i), width, clothHeight)]);
+  const bottomRow: Pt[] = Array.from({ length: n + 1 }, (_, i) => [along(i), bottomEdge(shape, along(i), width, clothHeight)]).reverse() as Pt[];
 
   let points: Pt[];
   if (shape === 'pennant') {
     // The two edges meet at the tip.
-    points = [...topRow.slice(0, -1), [width, CLOTH_HEIGHT / 2], ...bottomRow.slice(1)];
+    points = [...topRow.slice(0, -1), [width, clothHeight / 2], ...bottomRow.slice(1)];
   } else if (shape === 'swallowtail') {
-    points = [...topRow, [width - NOTCH_DEPTH * reveal, CLOTH_HEIGHT / 2], ...bottomRow];
+    points = [...topRow, [width - NOTCH_DEPTH * reveal, clothHeight / 2], ...bottomRow];
   } else {
     points = [...topRow, ...bottomRow];
   }
@@ -194,7 +213,8 @@ function polygonPath(points: readonly Pt[]): string {
 
 export function renderFlag(input: StyleRenderInput<FlagSettings>): SceneNode {
   const { settings, ground, phase, phaseProgress, itemTime } = input;
-  const { title, subtitle, titleWidth, top, clothX, clothWidth, textX } = layout(input);
+  const { flagCode, clothHeight, title, subtitle, titleWidth, top, clothX, clothWidth, textX } = layout(input);
+  const shape = flagCode ? 'rect' : settings.shape;
   const build = buildProgress(phase, phaseProgress);
 
   const base = stage(build, ...BASE_WINDOW, easeOutBack);
@@ -249,16 +269,37 @@ export function renderFlag(input: StyleRenderInput<FlagSettings>): SceneNode {
       ripple(x, clothWidth, phaseNow, RIPPLE_AMPLITUDE) +
       ripple(x, clothWidth, build * 14, (1 - unfurl) * UNFURL_AMPLITUDE);
 
-    const outline = clothOutline(settings.shape, clothWidth, unfurl, wave);
+    const outline = clothOutline(shape, clothWidth, clothHeight, unfurl, wave);
     const cloth: SceneNode[] = [
       path({ d: polygonPath(outline), fill: settings.clothColor, shadow: CLOTH_SHADOW }),
     ];
+
+    // A country flag is the cloth's picture: cut into strips that each follow the
+    // ripple, so the flag bends with it and is uncovered from the pole as it unfurls.
+    if (flagCode) {
+      const strips = columnCount(clothWidth);
+      const revealed = clothWidth * unfurl;
+      for (let i = 0; i < strips; i++) {
+        const x0 = (clothWidth * i) / strips;
+        if (x0 >= revealed) break;
+        const x1 = Math.min((clothWidth * (i + 1)) / strips, revealed);
+        cloth.push(image({
+          // A little overlap hides the seam between neighbouring strips.
+          x: x0,
+          y: wave((x0 + x1) / 2),
+          width: x1 - x0 + (x1 < revealed ? 0.6 : 0),
+          height: clothHeight,
+          src: flagSource(flagCode),
+          crop: { x: x0 / clothWidth, y: 0, width: (x1 - x0) / clothWidth, height: 1 },
+        }));
+      }
+    }
 
     // Fold shading: a translucent dark band per column, stronger where the
     // cloth turns away from the light (its ripple descending).
     const width = clothWidth * unfurl;
     const columns = columnCount(width);
-    const shadeLimit = settings.shape === 'swallowtail' ? width - NOTCH_DEPTH * unfurl : width;
+    const shadeLimit = shape === 'swallowtail' ? width - NOTCH_DEPTH * unfurl : width;
     for (let i = 0; i < columns; i++) {
       const x0 = (width * i) / columns;
       const x1 = (width * (i + 1)) / columns;
@@ -268,26 +309,26 @@ export function renderFlag(input: StyleRenderInput<FlagSettings>): SceneNode {
       if (shade < 0.01) continue;
       cloth.push(path({
         d: polygonPath([
-          [x0, topEdge(settings.shape, x0, width) + wave(x0)],
-          [x1, topEdge(settings.shape, x1, width) + wave(x1)],
-          [x1, bottomEdge(settings.shape, x1, width) + wave(x1)],
-          [x0, bottomEdge(settings.shape, x0, width) + wave(x0)],
+          [x0, topEdge(shape, x0, width, clothHeight) + wave(x0)],
+          [x1, topEdge(shape, x1, width, clothHeight) + wave(x1)],
+          [x1, bottomEdge(shape, x1, width, clothHeight) + wave(x1)],
+          [x0, bottomEdge(shape, x0, width, clothHeight) + wave(x0)],
         ]),
         fill: `rgba(0, 0, 0, ${shade.toFixed(3)})`,
       }));
     }
 
-    if (title && titleReveal > 0) {
+    if (title && !flagCode && titleReveal > 0) {
       // The title rides the cloth: it follows the ripple at its middle and
       // tilts with the local slope (gently, so it stays readable).
       const middle = textX + titleWidth / 2;
       const tilt = settings.wave ? rippleSlope(middle, clothWidth, phaseNow, RIPPLE_AMPLITUDE) * 0.5 : 0;
       cloth.push(group({
-        clip: { x: 0, y: -RIPPLE_AMPLITUDE * 3, width: width, height: CLOTH_HEIGHT + RIPPLE_AMPLITUDE * 6 },
+        clip: { x: 0, y: -RIPPLE_AMPLITUDE * 3, width: width, height: clothHeight + RIPPLE_AMPLITUDE * 6 },
         children: [
           group({
             x: middle,
-            y: CLOTH_HEIGHT / 2 + wave(middle),
+            y: clothHeight / 2 + wave(middle),
             rotation: Math.atan(tilt),
             opacity: titleReveal,
             children: [text({
@@ -311,10 +352,11 @@ export function renderFlag(input: StyleRenderInput<FlagSettings>): SceneNode {
     children.push(group({ x: clothX, y: top[1], children: cloth }));
   }
 
-  if (subtitle && subtitleReveal > 0) {
+  // A country flag flies bare, with no text. The plain cloth has its subtitle under it.
+  if (subtitle && !flagCode && subtitleReveal > 0) {
     children.push(text({
       x: clothX + 2,
-      y: top[1] + CLOTH_HEIGHT + RIPPLE_AMPLITUDE + SUBTITLE_GAP - (1 - subtitleReveal) * 6,
+      y: top[1] + clothHeight + RIPPLE_AMPLITUDE + SUBTITLE_GAP - (1 - subtitleReveal) * 6,
       text: subtitle,
       fontSize: SUBTITLE_SIZE,
       fontFamily: ANNOTATION_FONTS.condensed,
@@ -338,7 +380,7 @@ export function renderFlag(input: StyleRenderInput<FlagSettings>): SceneNode {
  */
 export function measureFlag(input: StyleRenderInput<FlagSettings>): StyleBounds {
   const { ground } = input;
-  const { clothX, clothWidth, top } = layout(input);
+  const { clothX, clothWidth, clothHeight, top } = layout(input);
   const finished = renderFlag({ ...input, phase: 'visible', phaseProgress: 1 });
   const scene = measureScene(finished);
 
@@ -347,7 +389,7 @@ export function measureFlag(input: StyleRenderInput<FlagSettings>): StyleBounds 
     minX: clothX,
     minY: top[1] - swing - CLOTH_SHADOW.blur,
     maxX: clothX + clothWidth + CLOTH_SHADOW.blur,
-    maxY: top[1] + CLOTH_HEIGHT + swing + CLOTH_SHADOW.blur + (CLOTH_SHADOW.offsetY ?? 0),
+    maxY: top[1] + clothHeight + swing + CLOTH_SHADOW.blur + (CLOTH_SHADOW.offsetY ?? 0),
   };
   const baseBox = {
     minX: ground.x - BASE_RADIUS_X,
@@ -368,7 +410,7 @@ export const flagStyle: AnnotationStyleDefinition<FlagSettings> = {
   id: 'flag',
   version: 1,
   name: 'Flag',
-  description: 'A pole planted at the point with a flag that unfurls from the top',
+  description: 'A pole planted at the point with a plain or country flag that unfurls from the top',
   category: 'marker',
   icon: 'flag',
   contentSlots: ['title', 'subtitle'],
@@ -386,9 +428,13 @@ export const flagStyle: AnnotationStyleDefinition<FlagSettings> = {
     exitDuration: 0.6,
   },
   controls: [
-    { type: 'color', key: 'clothColor', label: 'Flag color', role: 'accent' },
-    { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'color', key: 'poleColor', label: 'Pole color' },
+    {
+      type: 'tabs',
+      key: 'fill',
+      label: 'Fill',
+      options: [{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }],
+    },
+    { type: 'color', key: 'clothColor', label: 'Flag color', role: 'accent', when: { key: 'fill', equals: 'color' } },
     {
       type: 'select',
       key: 'shape',
@@ -398,8 +444,12 @@ export const flagStyle: AnnotationStyleDefinition<FlagSettings> = {
         { value: 'swallowtail', label: 'Swallowtail' },
         { value: 'pennant', label: 'Pennant' },
       ],
+      when: { key: 'fill', equals: 'color' },
     },
+    { type: 'flag', key: 'flagCode', label: 'Country', when: { key: 'fill', equals: 'flag' } },
     { type: 'switch', key: 'wave', label: 'Wave' },
+    { type: 'color', key: 'textColor', label: 'Text color', when: { key: 'fill', equals: 'color' } },
+    { type: 'color', key: 'poleColor', label: 'Pole color' },
   ],
   render: renderFlag,
   measure: measureFlag,

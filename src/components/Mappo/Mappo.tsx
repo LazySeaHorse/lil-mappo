@@ -307,6 +307,24 @@ const CubeInHand = () => (
   </>
 );
 
+/** A plug held up on its curly cable, for connecting the AI bridge. The plug is its own part so a page can bob it. */
+const PlugInHand = () => (
+  <>
+    <path d="M962 584 C984 650 1046 634 1036 700 C1028 752 972 738 982 792 C990 834 1044 832 1066 868" stroke={INK} strokeWidth={16} strokeLinecap="round" fill="none" />
+    <Arm d="M874 660 Q930 650 944 604" />
+    <g transform="rotate(12 960 530)">
+      <g data-part="plug">
+        <rect x={939} y={412} width={14} height={62} rx={4} fill={KEY_GOLD} strokeWidth={8} {...outline} />
+        <rect x={969} y={412} width={14} height={62} rx={4} fill={KEY_GOLD} strokeWidth={8} {...outline} />
+        <rect x={922} y={466} width={78} height={92} rx={16} fill={CREAM} strokeWidth={10} {...outline} />
+        <path d="M966 482 L946 518 H962 L954 544 L978 504 H962Z" fill={BLUE} />
+        <rect x={936} y={554} width={50} height={28} rx={8} fill="#2c4f86" strokeWidth={10} {...outline} />
+      </g>
+    </g>
+    <Fist x={940} y={594} />
+  </>
+);
+
 /** Two fists gripping an edge, for peeking over the top of a card. */
 const GripFists = () => (
   <>
@@ -506,6 +524,16 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: CubeInHand,
+  },
+  plug: {
+    face: () => (
+      <>
+        <LookEyes dx={14} dy={-8} />
+        <Blush />
+        <TongueOut />
+      </>
+    ),
+    front: PlugInHand,
   },
   peek: {
     face: () => (

@@ -15,6 +15,24 @@ import { buildFont } from './textMetrics';
 const imageCache = new Map<string, HTMLImageElement>();
 const pendingLoads = new Map<string, Promise<HTMLImageElement>>();
 
+type SourceResolver = (name: string) => Promise<string>;
+const sourceSchemes = new Map<string, SourceResolver>();
+
+/**
+ * Lets an image node name its picture as `<scheme>:<name>` instead of a URL:
+ * `resolve` turns the name into a URL the browser can load (e.g. a data URL),
+ * possibly after fetching it. Until it does, the image counts as not loaded.
+ */
+export function registerImageScheme(scheme: string, resolve: SourceResolver): void {
+  sourceSchemes.set(scheme, resolve);
+}
+
+function resolveImageSource(src: string): string | Promise<string> {
+  const colon = src.indexOf(':');
+  const resolve = colon > 0 ? sourceSchemes.get(src.slice(0, colon)) : undefined;
+  return resolve ? resolve(src.slice(colon + 1)) : src;
+}
+
 /**
  * Get a cached image element, starting a load if needed.
  * Returns null if the image isn't loaded yet.
@@ -37,8 +55,11 @@ export function getCachedImage(src: string): HTMLImageElement | null {
         reject(new Error(`Failed to load image: ${src}`));
       };
     });
-    img.src = src;
     pendingLoads.set(src, promise);
+    Promise.resolve(resolveImageSource(src)).then(
+      (url) => { img.src = url; },
+      () => img.onerror?.(new Event('error')),
+    );
   }
 
   return null;
@@ -195,7 +216,14 @@ export function renderScene(ctx: CanvasRenderingContext2D, node: SceneNode): voi
 
       // Handle object-fit
       const fit = node.objectFit ?? 'cover';
-      if (fit === 'fill') {
+      if (node.crop) {
+        const { x, y, width, height } = node.crop;
+        ctx.drawImage(
+          img,
+          x * img.naturalWidth, y * img.naturalHeight, width * img.naturalWidth, height * img.naturalHeight,
+          node.x, node.y, node.width, node.height,
+        );
+      } else if (fit === 'fill') {
         ctx.drawImage(img, node.x, node.y, node.width, node.height);
       } else {
         const imgAspect = img.naturalWidth / img.naturalHeight;
