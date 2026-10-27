@@ -1,10 +1,8 @@
 import React, { useCallback } from 'react';
-import { Eye, EyeOff, Video } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
-import { CAMERA_VIEW_TERMS } from '@/lib/terms';
-import { TIMELINE_GUTTER_WIDTH } from '@/constants/layout';
 import { nearestSnap, SNAP_PIXELS, snapTimes } from './timelineSnap';
 import type { TimelineDragHandlers } from './useTimelineLanes';
 
@@ -25,6 +23,7 @@ interface TimelineCameraLaneProps {
   autoCamBlocks: AutoCamBlock[];
   onSelectAutoCam: (routeId: string) => void;
   drag: TimelineDragHandlers;
+  gutterWidth: number;
 }
 
 /** The camera's own lane at the top of the timeline: its camera views and the Auto Cam spans. */
@@ -38,6 +37,7 @@ const TimelineCameraLane = React.memo(({
   autoCamBlocks,
   onSelectAutoCam,
   drag,
+  gutterWidth,
 }: TimelineCameraLaneProps) => {
   const isCameraEnabled = useProjectStore((state) => state.isCameraEnabled);
   const setIsCameraEnabled = useProjectStore((state) => state.setIsCameraEnabled);
@@ -101,10 +101,9 @@ const TimelineCameraLane = React.memo(({
       onClick={handleSelect}
     >
       <div
-        className="shrink-0 sticky left-0 z-10 flex items-center justify-center gap-1 border-r border-border/50 bg-background/90 backdrop-blur-sm"
-        style={{ width: TIMELINE_GUTTER_WIDTH }}
+        className="shrink-0 sticky left-0 z-10 flex items-center justify-center border-r border-border/50 bg-background/90 backdrop-blur-sm"
+        style={{ width: gutterWidth }}
       >
-        <Video size={12} className={isSelected ? 'text-primary' : 'text-muted-foreground'} aria-label={CAMERA_VIEW_TERMS.track} />
         <IconButton
           variant="ghost"
           size="xs"

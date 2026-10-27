@@ -22,8 +22,10 @@ export const TIMELINE_HEADER_HEIGHT = 48;
 export const TIMELINE_MIN_HEIGHT = 120; // header + ruler + some visible content
 /** Height of the ruler and of each timeline lane. */
 export const TIMELINE_LANE_HEIGHT = 40;
-/** The column left of the lanes that holds the camera lane's switch. */
-export const TIMELINE_GUTTER_WIDTH = 64;
+/** The column left of the lanes: the camera lane's show/hide switch, and on phones the timecode. */
+export function timelineGutterWidth(isMobile: boolean): number {
+  return isMobile ? 64 : 32;
+}
 
 /** Tallest the timeline grows: its header, the ruler and its lanes (see timelineLaneCount). */
 export function timelineContentHeight(laneCount: number): number {

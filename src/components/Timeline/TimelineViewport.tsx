@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem, TimelineItem } from '@/store/types';
-import { TIMELINE_GUTTER_WIDTH, TIMELINE_LANE_HEIGHT } from '@/constants/layout';
+import { TIMELINE_LANE_HEIGHT } from '@/constants/layout';
 import TimelineCameraLane, { type AutoCamBlock } from './TimelineCameraLane';
 import TimelineItemBar from './TimelineItemBar';
 import type { TimelineDragHandlers } from './useTimelineLanes';
@@ -17,6 +17,7 @@ interface TimelineViewportProps {
   cameraItem: CameraItem | undefined;
   drag: TimelineDragHandlers;
   duration: number;
+  gutterWidth: number;
   isMobile: boolean;
   items: Record<string, TimelineItem>;
   lanes: string[][];
@@ -42,6 +43,7 @@ export default function TimelineViewport({
   cameraItem,
   drag,
   duration,
+  gutterWidth,
   isMobile,
   items,
   lanes,
@@ -78,7 +80,7 @@ export default function TimelineViewport({
     observer.observe(panel);
     return () => observer.disconnect();
   }, []);
-  const rulerDuration = Math.max(duration, (panelWidth - TIMELINE_GUTTER_WIDTH) / pixelsPerSecond);
+  const rulerDuration = Math.max(duration, (panelWidth - gutterWidth) / pixelsPerSecond);
 
   const handleRulerPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -130,13 +132,13 @@ export default function TimelineViewport({
         ref={contentRef}
         data-testid="timeline-viewport-content"
         className="flex flex-col relative min-w-max pb-4"
-        style={{ width: rulerDuration * pixelsPerSecond + TIMELINE_GUTTER_WIDTH + 20 }}
+        style={{ width: rulerDuration * pixelsPerSecond + gutterWidth + 20 }}
         onWheel={handleWheel}
       >
         <div className="h-10 border-b border-border/50 relative shrink-0 bg-background/60 sticky top-0 z-30 backdrop-blur-md flex items-end">
           <div
             className="h-full bg-background/90 border-r border-border/50 shrink-0 sticky left-0 z-30 pointer-events-none flex items-center justify-center"
-            style={{ width: TIMELINE_GUTTER_WIDTH }}
+            style={{ width: gutterWidth }}
           >
             {isMobile && (
               <span className="flex flex-col items-center gap-1 text-2xs font-mono tabular-nums text-muted-foreground/70 leading-none">
@@ -172,14 +174,14 @@ export default function TimelineViewport({
             ref={trackLineRef}
             data-testid="timeline-track-playhead"
             className="absolute top-0 bottom-0 w-px bg-primary z-20 pointer-events-none transition-none"
-            style={{ left: initialPlayheadX + TIMELINE_GUTTER_WIDTH }}
+            style={{ left: initialPlayheadX + gutterWidth }}
           />
 
           {snapTime !== null && (
             <div
               data-testid="timeline-snap-guide"
               className="absolute top-0 bottom-0 w-px bg-foreground/70 z-20 pointer-events-none"
-              style={{ left: snapTime * pixelsPerSecond + TIMELINE_GUTTER_WIDTH }}
+              style={{ left: snapTime * pixelsPerSecond + gutterWidth }}
             />
           )}
 
@@ -194,6 +196,7 @@ export default function TimelineViewport({
               autoCamBlocks={autoCamBlocks}
               onSelectAutoCam={onSelectAutoCam}
               drag={drag}
+              gutterWidth={gutterWidth}
             />
           )}
 
@@ -203,13 +206,13 @@ export default function TimelineViewport({
                 {/* No divider or lane line here, so the gutter beside the clips reads as margin; it still covers clips scrolled under it. */}
                 <div
                   className="shrink-0 sticky left-0 z-10 bg-background/90 backdrop-blur-sm"
-                  style={{ width: TIMELINE_GUTTER_WIDTH }}
+                  style={{ width: gutterWidth }}
                 />
                 <div className="flex-1 border-b border-border/30" />
               </div>
             ))}
             {/* One layer for every clip, so a clip dragged to another lane moves rather than remounts. */}
-            <div className="absolute inset-y-0 right-0 isolate pointer-events-none" style={{ left: TIMELINE_GUTTER_WIDTH }}>
+            <div className="absolute inset-y-0 right-0 isolate pointer-events-none" style={{ left: gutterWidth }}>
               {lanes.flatMap((ids, lane) => ids.map((id) => {
                 const item = items[id];
                 if (!item || item.kind === 'camera') return null;

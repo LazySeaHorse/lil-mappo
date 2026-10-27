@@ -138,7 +138,7 @@ describe('TimelinePanel', () => {
       const pastEnd = screen.getByTestId('timeline-ruler-past-end');
       // 10 s at 60 px/s.
       expect(pastEnd).toHaveAttribute('x', '600');
-      // 1000px panel minus the 64px gutter reaches 936px.
+      // 1000px panel minus the 32px gutter reaches 968px.
       expect(Number(pastEnd.getAttribute('width'))).toBeGreaterThanOrEqual(240);
       // Labels every 2 s at 60 px/s, so the ruler is still labelled past the 10 s end.
       expect(screen.getByTestId('timeline-ruler')).toHaveTextContent('0:12');
@@ -177,11 +177,11 @@ describe('TimelinePanel', () => {
 
     act(() => useProjectStore.getState().setPlayheadTime(2));
     expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '120px' });
-    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '184px' });
+    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '152px' });
 
     fireEvent.click(screen.getByTitle('Zoom In'));
     expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '150px' });
-    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '214px' });
+    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '182px' });
 
     fireEvent.wheel(screen.getByTestId('timeline-viewport-content'), {
       ctrlKey: true,
@@ -193,14 +193,14 @@ describe('TimelinePanel', () => {
   });
 
   it('fits the timeline to the available panel width', () => {
-    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1088);
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1056);
     try {
       renderTimeline();
       act(() => useProjectStore.getState().setPlayheadTime(2));
       fireEvent.click(screen.getByTitle('Zoom In'));
       fireEvent.click(screen.getByTitle('Fit to Timeline'));
 
-      // 10 s into the 1088px panel less 88px of gutter and padding.
+      // 10 s into the 1056px panel less 56px of gutter and padding.
       expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '200px' });
     } finally {
       width.mockRestore();
@@ -208,7 +208,7 @@ describe('TimelinePanel', () => {
   });
 
   it('cannot zoom out past the whole project fitting the panel', () => {
-    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1088);
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1056);
     try {
       renderTimeline();
       act(() => useProjectStore.getState().setPlayheadTime(2));
@@ -434,7 +434,7 @@ describe('TimelinePanel', () => {
     fireEvent.pointerDown(moving, { clientX: 100, pointerId: 1 });
     fireEvent.pointerMove(moving, { clientX: 158, pointerId: 1 });
     expect(useProjectStore.getState().items.moving).toMatchObject({ startTime: 2, endTime: 4 });
-    expect(screen.getByTestId('timeline-snap-guide')).toHaveStyle({ left: `${2 * 60 + 64}px` });
+    expect(screen.getByTestId('timeline-snap-guide')).toHaveStyle({ left: `${2 * 60 + 32}px` });
 
     fireEvent.pointerUp(moving, { pointerId: 1 });
     expect(screen.queryByTestId('timeline-snap-guide')).not.toBeInTheDocument();

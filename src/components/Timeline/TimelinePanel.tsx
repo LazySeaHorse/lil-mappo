@@ -15,6 +15,7 @@ import {
   RIGHT_RESERVED_TABLET,
   PANEL_MARGIN,
   TIMELINE_MIN_HEIGHT as MIN_PANEL_HEIGHT,
+  timelineGutterWidth,
   timelineContentHeight,
   visibleTimelineHeight,
 } from '@/constants/layout';
@@ -52,7 +53,6 @@ export default function TimelinePanel() {
     setSelectedAutoCamRouteId: state.setSelectedAutoCamRouteId,
   })));
 
-  const { rulerDiamondRef, timeDisplayRef, trackLineRef } = useTimelinePlayheadSync(pixelsPerSecond);
 
   const [displayHeight, setDisplayHeight] = useState(timelineHeight);
 
@@ -62,6 +62,8 @@ export default function TimelinePanel() {
   }, [timelineHeight, isResizing]);
 
   const { isMobile, isTablet } = useResponsive();
+  const gutterWidth = timelineGutterWidth(isMobile);
+  const { rulerDiamondRef, timeDisplayRef, trackLineRef } = useTimelinePlayheadSync(pixelsPerSecond, gutterWidth);
 
   const orderedItems = useMemo(
     () => itemOrder.map((id) => items[id]).filter(Boolean),
@@ -148,8 +150,8 @@ export default function TimelinePanel() {
 
   // Zoomed all the way out is the whole project fitting the panel.
   const zoomBounds = useMemo(
-    () => getZoomBounds(fitZoom(panelWidth, duration), fps),
-    [panelWidth, duration, fps],
+    () => getZoomBounds(fitZoom(panelWidth, duration, gutterWidth), fps),
+    [panelWidth, duration, gutterWidth, fps],
   );
   useEffect(() => {
     setPixelsPerSecond((value) => clampZoom(value, zoomBounds));
@@ -226,6 +228,7 @@ export default function TimelinePanel() {
         cameraItem={cameraItem}
         drag={dragHandlers}
         duration={duration}
+        gutterWidth={gutterWidth}
         isMobile={isMobile}
         items={items}
         lanes={lanes}

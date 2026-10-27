@@ -1,17 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { TIMELINE_GUTTER_WIDTH } from '@/constants/layout';
 import { formatTimelineTime } from './timelineTime';
 
-export function useTimelinePlayheadSync(pixelsPerSecond: number) {
+export function useTimelinePlayheadSync(pixelsPerSecond: number, gutterWidth: number) {
   const rulerDiamondRef = useRef<HTMLDivElement>(null);
   const trackLineRef = useRef<HTMLDivElement>(null);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const pixelsPerSecondRef = useRef(pixelsPerSecond);
+  const gutterWidthRef = useRef(gutterWidth);
 
   useEffect(() => {
     pixelsPerSecondRef.current = pixelsPerSecond;
-  }, [pixelsPerSecond]);
+    gutterWidthRef.current = gutterWidth;
+  }, [pixelsPerSecond, gutterWidth]);
 
   useEffect(() => useProjectStore.subscribe(
     (state) => state.playheadTime,
@@ -20,13 +21,13 @@ export function useTimelinePlayheadSync(pixelsPerSecond: number) {
 
   useEffect(() => {
     updatePlayheadElements(useProjectStore.getState().playheadTime, pixelsPerSecond);
-  }, [pixelsPerSecond]);
+  }, [pixelsPerSecond, gutterWidth]);
 
   function updatePlayheadElements(playheadTime: number, scale: number) {
     const x = playheadTime * scale;
 
     if (rulerDiamondRef.current) rulerDiamondRef.current.style.left = `${x}px`;
-    if (trackLineRef.current) trackLineRef.current.style.left = `${x + TIMELINE_GUTTER_WIDTH}px`;
+    if (trackLineRef.current) trackLineRef.current.style.left = `${x + gutterWidthRef.current}px`;
     if (timeDisplayRef.current) timeDisplayRef.current.textContent = formatTimelineTime(playheadTime);
   }
 
