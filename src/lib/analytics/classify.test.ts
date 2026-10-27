@@ -17,18 +17,21 @@ describe('classifyExportError', () => {
 });
 
 describe('importSourceOf', () => {
-  it('uses only the extension', () => {
-    expect(importSourceOf('Holiday 2025.GPX')).toBe('import_gpx');
-    expect(importSourceOf('a.kml')).toBe('import_kml');
-    expect(importSourceOf('a.json')).toBe('import_geojson');
-    expect(importSourceOf('noext')).toBe('import_geojson');
+  it('maps the detected format to a route source', () => {
+    expect(importSourceOf('gpx')).toBe('import_gpx');
+    expect(importSourceOf('kml')).toBe('import_kml');
+    expect(importSourceOf('tcx')).toBe('import_tcx');
+    expect(importSourceOf('fit')).toBe('import_fit');
+    expect(importSourceOf('geojson')).toBe('import_geojson');
   });
 });
 
 describe('import classification', () => {
-  it('derives the format from the extension only', () => {
-    expect([importFormatOf('a.GPX'), importFormatOf('a.kml'), importFormatOf('a.json'), importFormatOf('a.geojson'), importFormatOf('a.zip')])
-      .toEqual(['gpx', 'kml', 'geojson', 'geojson', 'unknown']);
+  it('guesses the format from the extension only, looking through .gz and .kmz', () => {
+    expect([
+      importFormatOf('a.GPX'), importFormatOf('a.kml'), importFormatOf('a.json'), importFormatOf('a.geojson'), importFormatOf('a.zip'),
+      importFormatOf('a.tcx'), importFormatOf('a.fit.gz'), importFormatOf('a.kmz'),
+    ]).toEqual(['gpx', 'kml', 'geojson', 'geojson', 'unknown', 'tcx', 'fit', 'kml']);
   });
 
   it('maps parser errors to coarse classes without keeping the message', () => {
@@ -36,5 +39,11 @@ describe('import classification', () => {
     expect(classifyImportError(new Error('Invalid GPX: line 3'))).toBe('parse');
     expect(classifyImportError(new Error('Unsupported file type: .zip'))).toBe('parse');
     expect(classifyImportError(new Error('Failed to read file'))).toBe('other');
+  });
+
+  it('classifies route import errors by their code', () => {
+    expect(classifyImportError(Object.assign(new Error('x'), { code: 'noTrack' }))).toBe('empty');
+    expect(classifyImportError(Object.assign(new Error('x'), { code: 'type' }))).toBe('parse');
+    expect(classifyImportError(Object.assign(new Error('x'), { code: 'size' }))).toBe('other');
   });
 });

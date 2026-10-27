@@ -13,6 +13,8 @@ export type RouteSource =
   | 'walk'
   | 'import_gpx'
   | 'import_kml'
+  | 'import_tcx'
+  | 'import_fit'
   | 'import_geojson'
   | 'ai'
   | 'deep_link';
@@ -33,7 +35,7 @@ export type UpgradeWhere =
 export type ExportErrorClass = 'unsupported' | 'encoder' | 'capture' | 'oom' | 'other';
 
 export type ImportErrorClass = 'parse' | 'empty' | 'other';
-export type ImportFormat = 'gpx' | 'kml' | 'geojson' | 'unknown';
+export type ImportFormat = 'gpx' | 'kml' | 'tcx' | 'fit' | 'geojson' | 'unknown';
 
 export type StorageKind = 'local' | 'cloud';
 

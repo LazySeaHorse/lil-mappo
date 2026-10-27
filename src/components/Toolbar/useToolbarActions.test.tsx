@@ -20,6 +20,7 @@ vi.mock('@/lib/analytics/reporters', () => ({ reportRouteAdded: vi.fn() }));
 vi.mock('@/services/fileImport', () => ({
   importRouteFile: async () => ({
     name: 'Ride',
+    format: 'gpx',
     geojson: {
       type: 'FeatureCollection',
       features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[8, 46], [9, 47]] } }],

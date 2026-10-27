@@ -1,5 +1,15 @@
 import * as toGeoJSON from '@tmcw/togeojson';
 import { sanitizeFeatureCollection } from '@/engine/geojsonSanitize';
+import { extractLineCoords } from '@/engine/geoUtils';
+import {
+  MAX_ROUTE_FILE_BYTES,
+  ROUTE_IMPORT_MESSAGES,
+  RouteImportError,
+  decodeRouteText,
+  detectRouteFormat,
+  routeNameOf,
+  type RouteFileFormat,
+} from './routeFileFormats';
 
 function checkXmlErrors(dom: Document, format: string): void {
   const parserErrors = dom.getElementsByTagName('parsererror');
@@ -88,51 +98,46 @@ export function parseGeoJSON(text: string): GeoJSON.FeatureCollection {
   return sanitizeFeatureCollection(fc);
 }
 
-export function importRouteFile(file: File): Promise<{ name: string; geojson: GeoJSON.FeatureCollection }> {
+export interface ImportedRoute {
+  name: string;
+  geojson: GeoJSON.FeatureCollection;
+  format: RouteFileFormat;
+}
+
+/** Geometry only: per-point times, heart rate and the like are never read, and they bloat the saved project. */
+function stripFeatureProperties(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: fc.features.map((f) => ({ type: 'Feature', properties: {}, geometry: f.geometry })),
+  };
+}
+
+function readBytes(file: File): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
-    if (!file) {
-      reject(new Error('No file provided'));
-      return;
-    }
-    if (file.size === 0) {
-      reject(new Error('File is empty (0 bytes)'));
-      return;
-    }
     const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const text = reader.result as string;
-        if (!text || text.trim().length === 0) {
-          throw new Error('File content is empty');
-        }
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        let geojson: GeoJSON.FeatureCollection;
-        if (ext === 'kml') {
-          geojson = parseKML(text);
-        } else if (ext === 'gpx') {
-          geojson = parseGPX(text);
-        } else if (ext === 'geojson' || ext === 'json') {
-          geojson = parseGeoJSON(text);
-        } else {
-          // Detect format by inspecting content
-          const trimmed = text.trim();
-          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            geojson = parseGeoJSON(text);
-          } else if (trimmed.includes('<kml')) {
-            geojson = parseKML(text);
-          } else if (trimmed.includes('<gpx')) {
-            geojson = parseGPX(text);
-          } else {
-            throw new Error(`Unsupported file type: .${ext || 'unknown'}`);
-          }
-        }
-        const name = file.name.replace(/\.(kml|gpx|geojson|json)$/i, '');
-        resolve({ name, geojson });
-      } catch (e) {
-        reject(e);
-      }
-    };
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
     reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   });
+}
+
+function parseRouteBytes(bytes: Uint8Array, format: RouteFileFormat): GeoJSON.FeatureCollection {
+  switch (format) {
+    case 'gpx': return parseGPX(decodeRouteText(bytes));
+    case 'kml': return parseKML(decodeRouteText(bytes));
+    case 'geojson': return parseGeoJSON(decodeRouteText(bytes));
+    default: throw new RouteImportError('type', ROUTE_IMPORT_MESSAGES.type);
+  }
+}
+
+export async function importRouteFile(file: File): Promise<ImportedRoute> {
+  if (!file) throw new RouteImportError('empty', ROUTE_IMPORT_MESSAGES.empty);
+  if (file.size === 0) throw new RouteImportError('empty', ROUTE_IMPORT_MESSAGES.empty);
+  if (file.size > MAX_ROUTE_FILE_BYTES) throw new RouteImportError('size', ROUTE_IMPORT_MESSAGES.size);
+  const bytes = await readBytes(file);
+  const format = detectRouteFormat(bytes);
+  if (!format || format === 'zip' || format === 'gzip') throw new RouteImportError('type', ROUTE_IMPORT_MESSAGES.type);
+  const geojson = stripFeatureProperties(parseRouteBytes(bytes, format));
+  if (extractLineCoords(geojson).length < 2) throw new RouteImportError('noTrack', ROUTE_IMPORT_MESSAGES.noTrack);
+  return { name: routeNameOf(file.name), geojson, format };
 }

@@ -789,7 +789,7 @@ Code: `src/lib/analytics/`, `api/_lib/analytics.ts`, `api/_lib/dodo/analyticsEve
 | `$pageview`, `$pageleave`, `$exception` | scrubbed URL | bridge / SDK |
 | `signed_up` | `utm_*`, `ref` | bridge (first session after confirmation) |
 | `project_created` | `source`: blank, import_file, deep_link | NewProjectModal, import, route deep link |
-| `route_added` | `source`: car, flight, walk, import_gpx/kml/geojson, ai, deep_link; `point_bucket` | `reportRouteAdded` (route dropdown, import, AI tool, deep link) |
+| `route_added` | `source`: car, flight, walk, import_gpx/kml/tcx/fit/geojson, ai, deep_link; `point_bucket` | `reportRouteAdded` (route dropdown, import, AI tool, deep link) |
 | `keyframe_added` | `source`: toolbar, ai | toolbar, AI tools |
 | `autocam_enabled`, `preview_played` (once per project per page load), `walkthrough_started` | none | RouteInspector, bridge, walkthrough store |
 | `export_started` / `export_succeeded` / `export_cancelled` | `resolution`, `fps`, `duration_bucket` | `useVideoExportExecution` |

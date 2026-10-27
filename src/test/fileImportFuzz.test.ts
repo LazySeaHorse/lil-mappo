@@ -159,12 +159,11 @@ describe('File Import Payload Fuzzing', () => {
       expect(parsed.features).toEqual([]);
 
       const file = createMockFile(emptyFC, 'empty-fc.geojson');
-      const imported = await importRouteFile(file);
-      expect(imported.name).toBe('empty-fc');
-      expect(imported.geojson.features).toEqual([]);
+      // A file with no line to draw is refused, not added as an empty route
+      await expect(importRouteFile(file)).rejects.toMatchObject({ code: 'noTrack' });
 
       // Ensure downstream consumers do not crash on empty features
-      const item = createMinimalRouteItem(imported.name, imported.geojson);
+      const item = createMinimalRouteItem('empty-fc', parsed);
       useProjectStore.getState().addItem(item);
       expect(getRouteCoords(item.id)).toBeNull();
     });
@@ -384,11 +383,9 @@ describe('File Import Payload Fuzzing', () => {
         expect(Array.isArray(parsed.features)).toBe(true);
 
         const file = createMockFile(xml, 'empty-trk.gpx');
-        const imported = await importRouteFile(file);
-        expect(imported.geojson.type).toBe('FeatureCollection');
-        expect(imported.geojson.features).toBeDefined();
+        await expect(importRouteFile(file)).rejects.toMatchObject({ code: 'noTrack' });
 
-        const item = createMinimalRouteItem(imported.name, imported.geojson);
+        const item = createMinimalRouteItem('empty-trk', parsed);
         useProjectStore.getState().addItem(item);
         expect(getRouteCoords(item.id)).toBeNull();
       }
@@ -438,11 +435,10 @@ describe('File Import Payload Fuzzing', () => {
         }
 
         const file = createMockFile(xml, 'empty-coords.kml');
-        const imported = await importRouteFile(file);
-        expect(imported.geojson.features.length).toBe(0);
+        await expect(importRouteFile(file)).rejects.toMatchObject({ code: 'noTrack' });
 
         // Downstream calculation does not throw
-        const item = createMinimalRouteItem(imported.name, imported.geojson);
+        const item = createMinimalRouteItem('empty-coords', parsed);
         expect(() => {
           item.geojson.features.forEach((f) => {
             const _t = f.geometry.type;

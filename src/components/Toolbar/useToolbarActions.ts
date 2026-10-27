@@ -3,6 +3,7 @@ import { cameraViewLockedReason } from '@/components/Onboarding/useWalkthroughSt
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import { importRouteFile } from '@/services/fileImport';
+import { RouteImportError } from '@/services/routeFileFormats';
 import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
@@ -58,7 +59,7 @@ export function useToolbarActions() {
     if (!files) return;
     for (const file of Array.from(files)) {
       try {
-        const { name, geojson } = await importRouteFile(file);
+        const { name, geojson, format } = await importRouteFile(file);
         const playheadTime = useProjectStore.getState().playheadTime;
         const item = createImportedRouteItem({ name, geojson, startTime: playheadTime });
         addItem(item);
@@ -67,11 +68,11 @@ export function useToolbarActions() {
         selectItem(item.id);
         frame.frameGeometry(geojson);
         const pointCount = extractLineCoords(geojson).length;
-        reportRouteAdded(importSourceOf(file.name), pointCount);
+        reportRouteAdded(importSourceOf(format), pointCount);
         toast.success(`Imported "${name}" (${pointCount} points)`);
       } catch (err) {
         track('route_import_failed', { format: importFormatOf(file.name), error_class: classifyImportError(err) });
-        toast.error(`Failed to import ${file.name}`);
+        toast.error(`Failed to import ${file.name}`, { description: err instanceof RouteImportError ? err.message : undefined });
       }
     }
     e.target.value = '';
