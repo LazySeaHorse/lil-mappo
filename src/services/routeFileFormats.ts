@@ -38,7 +38,8 @@ export function decodeRouteText(bytes: Uint8Array): string {
 
 /** The format of a file's bytes, or null when it is none we read. */
 export function detectRouteFormat(bytes: Uint8Array): RouteFileFormat | RouteContainerFormat | null {
-  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) return 'zip';
+  // zip: a local file header, or the end record of an empty archive.
+  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && ((bytes[2] === 0x03 && bytes[3] === 0x04) || (bytes[2] === 0x05 && bytes[3] === 0x06))) return 'zip';
   if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return 'gzip';
   // FIT: the 12 or 14 byte header has ".FIT" at offset 8.
   if (bytes.length >= 12 && bytes[8] === 0x2e && bytes[9] === 0x46 && bytes[10] === 0x49 && bytes[11] === 0x54) return 'fit';

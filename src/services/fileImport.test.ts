@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { importRouteFile } from './fileImport';
+import { importRouteFiles } from './fileImport';
+import type { ImportedRoute } from './fileImport';
 import { MAX_ROUTE_FILE_BYTES, decodeRouteText, detectRouteFormat, routeNameOf } from './routeFileFormats';
+
+const importOne = async (f: File): Promise<ImportedRoute> => (await importRouteFiles(f))[0];
 
 const gpx = (points: [number, number][], extra = '') =>
   `<?xml version="1.0"?><gpx version="1.1"><trk><name>Morning run</name><trkseg>${points
@@ -56,22 +59,22 @@ describe('routeNameOf', () => {
   });
 });
 
-describe('importRouteFile', () => {
+describe('importRouteFiles', () => {
   it('picks the format from the bytes, whatever the extension says', async () => {
-    const imported = await importRouteFile(file(gpx([[46, 8], [47, 9]]), 'activity_123.dat'));
+    const [imported] = await importRouteFiles(file(gpx([[46, 8], [47, 9]]), 'activity_123.dat'));
     expect(imported.format).toBe('gpx');
     expect(imported.name).toBe('activity_123.dat');
   });
 
   it('reads UTF-16 and byte-order-marked GPX', async () => {
     for (const bytes of [utf16le(gpx([[46, 8], [47, 9]])), new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode(gpx([[46, 8], [47, 9]]))])]) {
-      const imported = await importRouteFile(file(bytes, 'bom.gpx'));
+      const [imported] = await importRouteFiles(file(bytes, 'bom.gpx'));
       expect(imported.geojson.features[0].geometry).toMatchObject({ type: 'LineString' });
     }
   });
 
   it('keeps geometry only: per-point times and sensor data are not stored', async () => {
-    const imported = await importRouteFile(
+    const imported = await importOne(
       file(gpx([[46, 8], [47, 9]], '<extensions><gpxtpx:TrackPointExtension xmlns:gpxtpx="x"><gpxtpx:hr>150</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions>'), 'ride.gpx'),
     );
     for (const f of imported.geojson.features) expect(f.properties).toEqual({});
@@ -80,18 +83,18 @@ describe('importRouteFile', () => {
 
   it('refuses a file with no line to draw', async () => {
     const waypointsOnly = '<gpx version="1.1"><wpt lat="1" lon="2"><name>Cafe</name></wpt></gpx>';
-    await expect(importRouteFile(file(waypointsOnly, 'w.gpx'))).rejects.toMatchObject({ code: 'noTrack', message: expect.stringContaining('No GPS track') });
+    await expect(importRouteFiles(file(waypointsOnly, 'w.gpx'))).rejects.toMatchObject({ code: 'noTrack', message: expect.stringContaining('No GPS track') });
   });
 
   it('says why a file of an unknown kind is refused', async () => {
-    await expect(importRouteFile(file('just some notes', 'notes.txt'))).rejects.toMatchObject({ code: 'type' });
-    await expect(importRouteFile(file('', 'e.gpx'))).rejects.toMatchObject({ code: 'empty' });
+    await expect(importRouteFiles(file('just some notes', 'notes.txt'))).rejects.toMatchObject({ code: 'type' });
+    await expect(importRouteFiles(file('', 'e.gpx'))).rejects.toMatchObject({ code: 'empty' });
   });
 
   it('refuses a file over the size cap before reading it', async () => {
     const big = file('x', 'big.gpx');
     Object.defineProperty(big, 'size', { value: MAX_ROUTE_FILE_BYTES + 1 });
-    await expect(importRouteFile(big)).rejects.toMatchObject({ code: 'size' });
+    await expect(importRouteFiles(big)).rejects.toMatchObject({ code: 'size' });
   });
 });
 
@@ -108,7 +111,7 @@ describe('TCX import', () => {
       lap([trackpoint(46.2, 8.2), trackpoint(46.3, 8.3)]),
       lap([trackpoint(46.4, 8.4), trackpoint(46.5, 8.5)]),
     ].join('')}</Activity></Activities>`);
-    const imported = await importRouteFile(file(xml, 'run.tcx'));
+    const [imported] = await importRouteFiles(file(xml, 'run.tcx'));
     expect(imported.format).toBe('tcx');
     expect(imported.geojson.features).toHaveLength(1);
     expect(imported.geojson.features[0].geometry).toEqual({
@@ -120,19 +123,19 @@ describe('TCX import', () => {
 
   it('keeps a pause inside a lap as a gap', async () => {
     const xml = tcx(`<Activities><Activity>${lap([trackpoint(1, 1), trackpoint(2, 2)], [trackpoint(3, 3), trackpoint(4, 4)])}</Activity></Activities>`);
-    const imported = await importRouteFile(file(xml, 'paused.tcx'));
+    const [imported] = await importRouteFiles(file(xml, 'paused.tcx'));
     expect(imported.geojson.features[0].geometry.type).toBe('MultiLineString');
   });
 
   it('reads a course and ignores its course points', async () => {
     const xml = tcx(`<Courses><Course><Track>${trackpoint(46, 8)}${trackpoint(46.1, 8.1)}</Track><CoursePoint><Name>Turn</Name><Position><LatitudeDegrees>46</LatitudeDegrees><LongitudeDegrees>8</LongitudeDegrees></Position></CoursePoint></Course></Courses>`);
-    const imported = await importRouteFile(file(xml, 'course.tcx'));
+    const [imported] = await importRouteFiles(file(xml, 'course.tcx'));
     expect(imported.geojson.features).toHaveLength(1);
     expect(imported.geojson.features[0].geometry.type).toBe('LineString');
   });
 
   it('refuses an indoor activity whose trackpoints have no position', async () => {
     const xml = tcx('<Activities><Activity Sport="Biking"><Lap><Track><Trackpoint><Time>2025-01-01T00:00:00Z</Time><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities>');
-    await expect(importRouteFile(file(xml, 'trainer.tcx'))).rejects.toMatchObject({ code: 'noTrack' });
+    await expect(importRouteFiles(file(xml, 'trainer.tcx'))).rejects.toMatchObject({ code: 'noTrack' });
   });
 });

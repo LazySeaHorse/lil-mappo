@@ -10,6 +10,7 @@ import {
   routeNameOf,
   type RouteFileFormat,
 } from './routeFileFormats';
+import { ArchiveBudget, ROUTE_ARCHIVE_LIMITS, gunzipRoute, unzipRoutes } from './routeArchives';
 
 function checkXmlErrors(dom: Document, format: string): void {
   const parserErrors = dom.getElementsByTagName('parsererror');
@@ -163,14 +164,36 @@ function parseRouteBytes(bytes: Uint8Array, format: RouteFileFormat): GeoJSON.Fe
   }
 }
 
-export async function importRouteFile(file: File): Promise<ImportedRoute> {
-  if (!file) throw new RouteImportError('empty', ROUTE_IMPORT_MESSAGES.empty);
-  if (file.size === 0) throw new RouteImportError('empty', ROUTE_IMPORT_MESSAGES.empty);
-  if (file.size > MAX_ROUTE_FILE_BYTES) throw new RouteImportError('size', ROUTE_IMPORT_MESSAGES.size);
-  const bytes = await readBytes(file);
+/** One file's bytes to its routes: a track file gives one, a .gz is opened, a zip gives one per route file in it. */
+async function routesFromBytes(bytes: Uint8Array, fileName: string, depth: number, budget: ArchiveBudget): Promise<ImportedRoute[]> {
   const format = detectRouteFormat(bytes);
-  if (!format || format === 'zip' || format === 'gzip') throw new RouteImportError('type', ROUTE_IMPORT_MESSAGES.type);
+  if (format === 'gzip' || format === 'zip') {
+    if (depth >= ROUTE_ARCHIVE_LIMITS.depth) throw new RouteImportError('archive', 'This archive has archives inside archives. Unzip it and pick the files you want.');
+    if (format === 'gzip') {
+      return routesFromBytes(await gunzipRoute(bytes, budget), routeNameOf(fileName), depth + 1, budget);
+    }
+    const entries = await unzipRoutes(bytes, fileName, budget);
+    const isKmz = /\.kmz$/i.test(fileName);
+    const routes: ImportedRoute[] = [];
+    let firstError: unknown;
+    for (const entry of entries) {
+      try {
+        routes.push(...(await routesFromBytes(entry.bytes, isKmz ? fileName : entry.name, depth + 1, budget)));
+      } catch (err) {
+        firstError ??= err;
+      }
+    }
+    if (routes.length === 0) throw firstError ?? new RouteImportError('noTrack', ROUTE_IMPORT_MESSAGES.noTrack);
+    return routes;
+  }
+  if (!format) throw new RouteImportError('type', ROUTE_IMPORT_MESSAGES.type);
   const geojson = stripFeatureProperties(parseRouteBytes(bytes, format));
   if (extractLineCoords(geojson).length < 2) throw new RouteImportError('noTrack', ROUTE_IMPORT_MESSAGES.noTrack);
-  return { name: routeNameOf(file.name), geojson, format };
+  return [{ name: routeNameOf(fileName), geojson, format }];
+}
+
+export async function importRouteFiles(file: File): Promise<ImportedRoute[]> {
+  if (!file || file.size === 0) throw new RouteImportError('empty', ROUTE_IMPORT_MESSAGES.empty);
+  if (file.size > MAX_ROUTE_FILE_BYTES) throw new RouteImportError('size', ROUTE_IMPORT_MESSAGES.size);
+  return routesFromBytes(await readBytes(file), file.name, 0, new ArchiveBudget());
 }
