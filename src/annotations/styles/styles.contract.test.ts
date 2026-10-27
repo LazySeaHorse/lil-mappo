@@ -87,7 +87,7 @@ describe('registered styles', () => {
       const keys = Object.keys(style.defaultSettings as object);
       for (const control of style.controls) {
         expect(keys, `control "${control.key}"`).toContain(control.key);
-        if (control.type === 'select') {
+        if (control.type === 'select' || control.type === 'tabs') {
           expect(control.options.map((o) => o.value)).toContain((style.defaultSettings as Record<string, unknown>)[control.key]);
         }
       }

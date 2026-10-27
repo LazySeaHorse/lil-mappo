@@ -1,8 +1,8 @@
 {
   "styleId": "flag",
   "variants": [
-    { "name": "United Kingdom", "offset": [0, 0], "altitude": 160, "settings": { "flagCode": "gb" }, "content": { "title": "United Kingdom", "subtitle": "London" } },
-    { "name": "Japan, no wave", "offset": [0, 0], "altitude": 160, "settings": { "flagCode": "jp", "wave": false }, "content": { "title": "Japan" } }
+    { "name": "United Kingdom", "offset": [0, 0], "altitude": 160, "settings": { "fill": "flag", "flagCode": "gb" }, "content": { "title": "United Kingdom", "subtitle": "London" } },
+    { "name": "Japan, no wave", "offset": [0, 0], "altitude": 160, "settings": { "fill": "flag", "flagCode": "jp", "wave": false }, "content": { "title": "Japan" } }
   ],
   "cellWidth": 360,
   "cellHeight": 300,

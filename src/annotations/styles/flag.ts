@@ -17,7 +17,9 @@ export const flagSettingsSchema = z.object({
   poleColor: z.string().default('#EDEDED'),
   shape: z.enum(['rect', 'swallowtail', 'pennant']).default('swallowtail'),
   wave: z.boolean().default(true),
-  /** Lowercase ISO 3166-1 alpha-2 code of a country flag to fly instead of the plain cloth; empty for none. */
+  /** What the cloth is: the flag color, or a country's flag. */
+  fill: z.enum(['color', 'flag']).default('color'),
+  /** Lowercase ISO 3166-1 alpha-2 code of the country flag flown when `fill` is 'flag'. */
   flagCode: z.string().default(''),
 });
 
@@ -40,12 +42,10 @@ const FINIAL_RADIUS = 3.5;
 const MIN_POLE_HEIGHT = 56;
 
 const CLOTH_HEIGHT = 40;
-/** A country flag flies full size (4:3), on a taller pole, with its text underneath. */
+/** A country flag flies full size (4:3), on a taller pole, with no text. */
 const COUNTRY_FLAG_HEIGHT = 96;
 const COUNTRY_FLAG_WIDTH = (COUNTRY_FLAG_HEIGHT * 4) / 3;
 const COUNTRY_FLAG_MIN_POLE_HEIGHT = 150;
-/** Gap between the flag and the title under it, and between title and subtitle. */
-const CAPTION_GAP = 4;
 const CLOTH_PAD = 12;
 /** Depth of the swallowtail's notch. */
 const NOTCH_DEPTH = 14;
@@ -108,7 +108,7 @@ function layout(input: StyleRenderInput<FlagSettings>): Layout {
 
   // The pole is the connector: it runs from the ground point to the origin,
   // or stands a minimum height when the origin is too close to the ground.
-  const flagCode = isFlagCode(settings.flagCode) ? settings.flagCode : null;
+  const flagCode = settings.fill === 'flag' && isFlagCode(settings.flagCode) ? settings.flagCode : null;
   const minPole = flagCode ? COUNTRY_FLAG_MIN_POLE_HEIGHT : MIN_POLE_HEIGHT;
   const reach = Math.hypot(ground.x, ground.y);
   const top: Pt = reach >= minPole ? [0, 0] : [ground.x, ground.y - minPole];
@@ -352,31 +352,11 @@ export function renderFlag(input: StyleRenderInput<FlagSettings>): SceneNode {
     children.push(group({ x: clothX, y: top[1], children: cloth }));
   }
 
-  // Under the cloth. A country flag keeps its whole face clear, so the title goes here too.
-  const captionTop = top[1] + clothHeight + RIPPLE_AMPLITUDE + SUBTITLE_GAP;
-  const captionTitle = flagCode && title;
-
-  if (captionTitle && titleReveal > 0) {
+  // A country flag flies bare, with no text. The plain cloth has its subtitle under it.
+  if (subtitle && !flagCode && subtitleReveal > 0) {
     children.push(text({
       x: clothX + 2,
-      y: captionTop - (1 - titleReveal) * 6,
-      text: title,
-      fontSize: TITLE_SIZE,
-      fontFamily: ANNOTATION_FONTS.condensed,
-      fontWeight: TITLE_WEIGHT,
-      letterSpacing: TITLE_SPACING,
-      fill: settings.textColor,
-      align: 'left',
-      baseline: 'top',
-      opacity: titleReveal,
-      shadow: HALO_SHADOW,
-    }));
-  }
-
-  if (subtitle && subtitleReveal > 0) {
-    children.push(text({
-      x: clothX + 2,
-      y: captionTop + (captionTitle ? TITLE_SIZE + CAPTION_GAP : 0) - (1 - subtitleReveal) * 6,
+      y: top[1] + clothHeight + RIPPLE_AMPLITUDE + SUBTITLE_GAP - (1 - subtitleReveal) * 6,
       text: subtitle,
       fontSize: SUBTITLE_SIZE,
       fontFamily: ANNOTATION_FONTS.condensed,
@@ -448,9 +428,13 @@ export const flagStyle: AnnotationStyleDefinition<FlagSettings> = {
     exitDuration: 0.6,
   },
   controls: [
-    { type: 'color', key: 'clothColor', label: 'Flag color', role: 'accent' },
-    { type: 'color', key: 'textColor', label: 'Text color' },
-    { type: 'color', key: 'poleColor', label: 'Pole color' },
+    {
+      type: 'tabs',
+      key: 'fill',
+      label: 'Fill',
+      options: [{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }],
+    },
+    { type: 'color', key: 'clothColor', label: 'Flag color', role: 'accent', when: { key: 'fill', equals: 'color' } },
     {
       type: 'select',
       key: 'shape',
@@ -460,9 +444,12 @@ export const flagStyle: AnnotationStyleDefinition<FlagSettings> = {
         { value: 'swallowtail', label: 'Swallowtail' },
         { value: 'pennant', label: 'Pennant' },
       ],
+      when: { key: 'fill', equals: 'color' },
     },
+    { type: 'flag', key: 'flagCode', label: 'Country', when: { key: 'fill', equals: 'flag' } },
     { type: 'switch', key: 'wave', label: 'Wave' },
-    { type: 'flag', key: 'flagCode', label: 'Country flag' },
+    { type: 'color', key: 'textColor', label: 'Text color', when: { key: 'fill', equals: 'color' } },
+    { type: 'color', key: 'poleColor', label: 'Pole color' },
   ],
   render: renderFlag,
   measure: measureFlag,

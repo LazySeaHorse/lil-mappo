@@ -120,9 +120,19 @@ describe('flag layout and settings', () => {
   });
 });
 
+describe('flag fill controls', () => {
+  const shownFor = (fill: 'color' | 'flag') =>
+    flagStyle.controls.filter((c) => !c.when || c.when.equals === fill).map((c) => c.key);
+
+  it('offers either the flag color and shape or a country, and the wave for both', () => {
+    expect(shownFor('color')).toEqual(['fill', 'clothColor', 'shape', 'wave', 'textColor', 'poleColor']);
+    expect(shownFor('flag')).toEqual(['fill', 'flagCode', 'wave', 'poleColor']);
+  });
+});
+
 describe('country flag', () => {
   const withFlag = (overrides: Partial<StyleRenderInput<FlagSettings>> = {}) =>
-    makeInput({ settings: { ...defaultFlagSettings, flagCode: 'gb' }, ...overrides });
+    makeInput({ settings: { ...defaultFlagSettings, fill: 'flag', flagCode: 'gb' }, ...overrides });
 
   it('flies the whole flag, 4:3, cut into strips that cover it edge to edge', () => {
     const strips = images(renderFlag(withFlag()));
@@ -135,13 +145,15 @@ describe('country flag', () => {
     expect(measureFlag(withFlag()).height).toBeGreaterThan(measureFlag(makeInput()).height + 50);
   });
 
-  it('draws no strips for a plain cloth, an empty code or a code with no flag', () => {
+  it('draws no strips for a plain cloth, a code while Fill is Color, an empty code or a code with no flag', () => {
     expect(images(renderFlag(makeInput()))).toHaveLength(0);
-    expect(images(renderFlag(withFlag({ settings: { ...defaultFlagSettings, flagCode: 'zz' } })))).toHaveLength(0);
+    expect(images(renderFlag(makeInput({ settings: { ...defaultFlagSettings, flagCode: 'gb' } })))).toHaveLength(0);
+    expect(images(renderFlag(makeInput({ settings: { ...defaultFlagSettings, fill: 'flag' } })))).toHaveLength(0);
+    expect(images(renderFlag(withFlag({ settings: { ...defaultFlagSettings, fill: 'flag', flagCode: 'zz' } })))).toHaveLength(0);
   });
 
   it('uncovers the flag from the pole as it unfurls, without squeezing it', () => {
-    const early = images(enter(0.45, { settings: { ...defaultFlagSettings, flagCode: 'gb' } }));
+    const early = images(enter(0.45, { settings: { ...defaultFlagSettings, fill: 'flag', flagCode: 'gb' } }));
     const done = images(renderFlag(withFlag()));
     expect(early.length).toBeGreaterThan(0);
     expect(early.length).toBeLessThan(done.length);
@@ -149,16 +161,9 @@ describe('country flag', () => {
     early.forEach((strip, i) => expect(strip.crop?.x).toBeCloseTo(done[i].crop!.x, 6));
   });
 
-  it('keeps the flag clear of text: the title goes under it, then the subtitle', () => {
-    const scene = renderFlag(withFlag());
-    const [title, subtitle] = texts(scene);
-    expect(title.text).toBe('BASE CAMP');
-    expect(subtitle.text).toBe('Elevation 5,364 m');
-    // The pole reaches 150 above the ground (y 90), so the flag hangs from y -60 to 36.
-    expect(title.y).toBeGreaterThan(36);
-    expect(subtitle.y).toBeGreaterThan(title.y);
-    // Nothing is written on the flag itself.
-    expect(flatten(scene).filter((n): n is GroupNode => n.type === 'group' && n.rotation !== undefined)).toHaveLength(0);
+  it('writes no text, on the flag or under it', () => {
+    expect(texts(renderFlag(withFlag()))).toHaveLength(0);
+    expect(texts(renderFlag(makeInput()))).not.toHaveLength(0);
   });
 
   it('stands a taller pole for the bigger flag', () => {
