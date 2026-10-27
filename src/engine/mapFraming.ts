@@ -1,6 +1,7 @@
 import type { Map as MapboxMap, PaddingOptions } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { isGestureActive } from '@/store/history';
+import { timelineLaneCount } from '@/store/timelineLanes';
 import { PANEL_GAP, PANEL_MARGIN, rightReserved, visibleTimelineHeight } from '@/constants/layout';
 import { geojsonBounds } from '@/engine/geoUtils';
 import type { MapCameraView } from '@/engine/readMapCamera';
@@ -107,10 +108,10 @@ function currentPadding(map: MapboxMap, layout: FrameLayout): PaddingOptions {
     const inset = FIT_INSET / scale;
     return { top: inset, bottom: inset, left: inset, right: inset };
   }
-  const { isInspectorOpen, timelineHeight, itemOrder } = useProjectStore.getState();
+  const { isInspectorOpen, timelineHeight, items, itemOrder } = useProjectStore.getState();
   return framePadding({ width, height }, layout, {
     isInspectorOpen,
-    timelineHeight: visibleTimelineHeight(timelineHeight, itemOrder.length),
+    timelineHeight: visibleTimelineHeight(timelineHeight, timelineLaneCount(items, itemOrder)),
   });
 }
 

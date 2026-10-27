@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import { visibleTimelineHeight } from '@/constants/layout';
+import { timelineLaneCount } from '@/store/timelineLanes';
 import type { FrameLayout } from '@/engine/mapFraming';
 import { fitFrame, type FitFrame } from '@/engine/viewFit';
 
@@ -68,7 +69,7 @@ export function useFitFrame(ref: RefObject<HTMLElement | null>): FitFrameState {
       isFitMode: s.isFitMode,
       hideUI: s.hideUI,
       resolution: s.resolution,
-      timelineHeight: visibleTimelineHeight(s.timelineHeight, s.itemOrder.length),
+      timelineHeight: visibleTimelineHeight(s.timelineHeight, timelineLaneCount(s.items, s.itemOrder)),
     })),
   );
   const { isMobile, isTablet, isToolbarCollapsed } = useResponsive();

@@ -20,18 +20,22 @@ export const RIGHT_RESERVED_TABLET = INSPECTOR_WIDTH_TABLET + PANEL_MARGIN + PAN
 
 export const TIMELINE_HEADER_HEIGHT = 48;
 export const TIMELINE_MIN_HEIGHT = 120; // header + ruler + some visible content
+/** Height of the ruler and of each timeline lane. */
+export const TIMELINE_LANE_HEIGHT = 40;
+/** The column left of the lanes that holds the camera lane's switch. */
+export const TIMELINE_GUTTER_WIDTH = 64;
 
-/** Tallest the timeline grows: its header, the ruler and one row per track. */
-export function timelineContentHeight(trackCount: number): number {
-  return TIMELINE_HEADER_HEIGHT + 40 + trackCount * 40 + 16;
+/** Tallest the timeline grows: its header, the ruler and its lanes (see timelineLaneCount). */
+export function timelineContentHeight(laneCount: number): number {
+  return TIMELINE_HEADER_HEIGHT + TIMELINE_LANE_HEIGHT + laneCount * TIMELINE_LANE_HEIGHT + 16;
 }
 
 /**
  * Height the timeline is drawn at. The height the user dragged it to is kept, but the panel
- * shrinks to its tracks, so anything laid out around the timeline must use this one.
+ * shrinks to its lanes, so anything laid out around the timeline must use this one.
  */
-export function visibleTimelineHeight(height: number, trackCount: number): number {
-  return Math.max(TIMELINE_MIN_HEIGHT, Math.min(height, timelineContentHeight(trackCount)));
+export function visibleTimelineHeight(height: number, laneCount: number): number {
+  return Math.max(TIMELINE_MIN_HEIGHT, Math.min(height, timelineContentHeight(laneCount)));
 }
 
 /**

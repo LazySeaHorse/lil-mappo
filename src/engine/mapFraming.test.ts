@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { PANEL_GAP, PANEL_MARGIN, RIGHT_RESERVED_DESKTOP, visibleTimelineHeight } from '@/constants/layout';
+import { timelineLaneCount } from '@/store/timelineLanes';
 import { useProjectStore } from '@/store/useProjectStore';
 import { beginGesture, endGesture } from '@/store/history';
 import { canMoveCamera, frameBox, moveToCamera, frameGeometry, frameModel, framePadding, framePixelBox, framePoint, withMinimumSpan, zoomForMeters } from './mapFraming';
@@ -164,10 +165,10 @@ describe('framePixelBox', () => {
     const { map, api } = fakeMap({ zoom: 7, projected: { x: 600, y: 150 } });
     expect(framePixelBox(api, [1, 2], callout, desktop)).toBe(true);
 
-    const { timelineHeight, itemOrder } = useProjectStore.getState();
+    const { timelineHeight, items, itemOrder } = useProjectStore.getState();
     const padding = framePadding({ width: 1200, height: 800 }, desktop, {
       isInspectorOpen: false,
-      timelineHeight: visibleTimelineHeight(timelineHeight, itemOrder.length),
+      timelineHeight: visibleTimelineHeight(timelineHeight, timelineLaneCount(items, itemOrder)),
     });
     const move = map.easeTo.mock.calls[0][0];
     expect(move.center).toEqual([1, 2]);

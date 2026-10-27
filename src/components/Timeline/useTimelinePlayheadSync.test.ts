@@ -16,7 +16,7 @@ describe('useTimelinePlayheadSync', () => {
 
     act(() => useProjectStore.setState({ playheadTime: 2 }));
     expect(diamond.style.left).toBe('20px');
-    expect(line.style.left).toBe('180px');
+    expect(line.style.left).toBe('84px');
     expect(time.textContent).not.toBe('');
 
     diamond.style.left = '999px';

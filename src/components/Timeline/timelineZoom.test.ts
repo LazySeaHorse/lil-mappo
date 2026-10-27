@@ -32,8 +32,8 @@ describe('zoomBounds', () => {
 });
 
 describe('fitZoom', () => {
-  it('fits the duration into the panel past the track labels and scrollbar padding', () => {
-    expect(fitZoom(1184, 10)).toBe(100);
+  it('fits the duration into the panel past the gutter and scrollbar padding', () => {
+    expect(fitZoom(1088, 10)).toBe(100);
   });
 
   it('is the floor when there is nothing to fit', () => {

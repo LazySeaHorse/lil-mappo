@@ -5,7 +5,9 @@ import { createProject } from '@/store/projectDocument';
 import { createModelItem } from '@/store/itemFactories';
 import { clearModelRegistry, markModelFailed, registerModelBytes } from '@/models/modelRegistry';
 import { MODEL_TERMS } from '@/models/modelTerms';
-import TimelineTrackRow from './TimelineTrackRow';
+import TimelineItemBar from './TimelineItemBar';
+
+const drag = { begin: vi.fn(), moveLanes: vi.fn(), showSnap: vi.fn(), end: vi.fn() };
 
 const SHA = '9'.repeat(64);
 const item = { ...createModelItem({ assetId: 'a1', name: 'Tower', position: [0, 0], startTime: 1 }), id: 'm1' };
@@ -25,9 +27,9 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('a placed model on the timeline', () => {
-  it('has its own row with a bar, and a warning while its file is missing', () => {
+  it('shows its name on its clip, and a warning while its file is missing', () => {
     render(
-      <TimelineTrackRow item={item} pixelsPerSecond={20} isSelected={false} selectedKeyframeId={null} onSelectItem={vi.fn()} onSelectKeyframe={vi.fn()} />,
+      <TimelineItemBar item={item} lane={0} pixelsPerSecond={20} isSelected={false} onSelect={vi.fn()} drag={drag} />,
     );
     expect(screen.getAllByText('Tower').length).toBeGreaterThan(0);
     expect(screen.getByRole('img', { name: MODEL_TERMS.missingTitle })).toBeInTheDocument();
@@ -35,10 +37,10 @@ describe('a placed model on the timeline', () => {
     expect(screen.queryByRole('img', { name: MODEL_TERMS.missingTitle })).not.toBeInTheDocument();
   });
 
-  it('marks the row when the map could not load the model file', () => {
+  it('marks the clip when the map could not load the model file', () => {
     registerModelBytes(SHA, new ArrayBuffer(4));
     render(
-      <TimelineTrackRow item={item} pixelsPerSecond={20} isSelected={false} selectedKeyframeId={null} onSelectItem={vi.fn()} onSelectKeyframe={vi.fn()} />,
+      <TimelineItemBar item={item} lane={0} pixelsPerSecond={20} isSelected={false} onSelect={vi.fn()} drag={drag} />,
     );
     expect(screen.queryByRole('img', { name: MODEL_TERMS.failedTitle })).not.toBeInTheDocument();
     act(() => { markModelFailed(SHA); });

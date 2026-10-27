@@ -1,3 +1,5 @@
+import { TIMELINE_GUTTER_WIDTH } from '@/constants/layout';
+
 /**
  * Timeline zoom is a scale, so it moves by factors: each step multiplies the
  * pixels per second, and the slider is logarithmic so equal slider distances
@@ -16,8 +18,8 @@ export const FRAME_PIXELS = 24;
 export const MIN_ZOOM_FLOOR = 0.5;
 /** The zoom range never gets narrower than this factor, however short the project. */
 const MIN_ZOOM_RANGE = 4;
-/** The track label column and scrollbar padding that the timeline's ruler does not get. */
-const TRACK_CHROME_WIDTH = 160 + 24;
+/** The gutter and scrollbar padding that the timeline's ruler does not get. */
+const TRACK_CHROME_WIDTH = TIMELINE_GUTTER_WIDTH + 24;
 /** What one press of the zoom in button multiplies by, and the zoom out button divides by. */
 export const ZOOM_BUTTON_FACTOR = 1.25;
 /** Slider positions run 0 to this, which is fine enough that a drag looks smooth. */

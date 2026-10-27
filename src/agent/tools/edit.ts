@@ -329,7 +329,7 @@ export const reorderItems = defineTool({
   name: 'reorder_items',
   title: 'Reorder items',
   description:
-    'Sets the track order of the timeline (first = top row; also the layer stacking order for overlapping items). `itemOrder` must be a permutation of the current itemOrder from get_project: every id exactly once, including "camera-track". One undo step.',
+    'Sets itemOrder, the stacking order (later draws on top where items overlap), which the timeline packs its lanes from. `itemOrder` must be a permutation of the current itemOrder from get_project: every id exactly once, including "camera-track". One undo step.',
   input: z.strictObject({
     itemOrder: z.array(z.string().min(1)).min(1).max(500).describe('Complete list of item ids in the new order.'),
   }),
@@ -347,7 +347,7 @@ export const reorderItems = defineTool({
         current,
       });
     }
-    commitAiWrite('AI: reorder timeline tracks', () => getState().reorderItems(itemOrder));
-    return { data: { itemOrder }, summary: 'Reordered tracks', affectedItemIds: itemOrder };
+    commitAiWrite('AI: reorder timeline items', () => getState().reorderItems(itemOrder));
+    return { data: { itemOrder }, summary: 'Reordered items', affectedItemIds: itemOrder };
   },
 });
