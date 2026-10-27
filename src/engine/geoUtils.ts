@@ -54,10 +54,11 @@ export function extractLineCoords(fc: { features: GeoJSON.Feature[] }): number[]
   for (const feature of fc.features) {
     const geom = feature.geometry;
     if (geom?.type === 'LineString' && Array.isArray(geom.coordinates)) {
-      coords.push(...geom.coordinates);
+      // Plain loops: spreading a long recorded track into push() overflows the call stack.
+      for (const c of geom.coordinates) coords.push(c);
     } else if (geom?.type === 'MultiLineString' && Array.isArray(geom.coordinates)) {
       for (const line of geom.coordinates) {
-        if (Array.isArray(line)) coords.push(...line);
+        if (Array.isArray(line)) for (const c of line) coords.push(c);
       }
     }
   }

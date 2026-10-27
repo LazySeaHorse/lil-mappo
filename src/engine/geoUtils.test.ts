@@ -15,6 +15,18 @@ describe('extractLineCoords', () => {
     });
     expect(coords).toEqual([[0, 0], [1, 1], [2, 2], [3, 3], [4, 4]]);
   });
+
+  it('flattens a very long track without overflowing the call stack', () => {
+    const line = Array.from({ length: 200_000 }, (_, i) => [i / 1e4, 0]);
+    const multi = Array.from({ length: 200_000 }, (_, i) => [0, i / 1e4]);
+    const coords = extractLineCoords({
+      features: [
+        feature({ type: 'LineString', coordinates: line }),
+        feature({ type: 'MultiLineString', coordinates: [multi] }),
+      ],
+    });
+    expect(coords).toHaveLength(400_000);
+  });
 });
 
 describe('splitAtAntimeridian', () => {
