@@ -195,7 +195,7 @@ const TimelineItemBar = React.memo(({
       </div>
 
       <div className="flex-1 min-w-0 flex items-center gap-1 cursor-grab active:cursor-grabbing z-10">
-        <span className="text-2xs font-medium text-foreground/90 truncate pointer-events-none ph-mask">
+        <span className="text-2xs font-medium text-white truncate pointer-events-none ph-mask">
           {label}
         </span>
         {item.kind === 'model' && <ModelFileMark assetId={item.assetId} />}
