@@ -1,0 +1,10 @@
+{
+  "styleId": "pin-callout",
+  "variants": [
+    { "name": "default", "offset": [80, -90], "content": { "title": "Oil", "subtitle": "Crude tankers" }, "ground": [0.3, 0.8] },
+    { "name": "left, no ripple", "offset": [-80, -90], "settings": { "side": "left", "pulse": false }, "content": { "title": "Electronics" }, "ground": [0.88, 0.8] },
+    { "name": "pink, thick", "offset": [60, -70], "settings": { "accentColor": "#FF3D81", "lineWidth": 4 }, "content": { "title": "Cars" }, "ground": [0.3, 0.8] }
+  ],
+  "cellWidth": 420,
+  "samples": 6
+}
