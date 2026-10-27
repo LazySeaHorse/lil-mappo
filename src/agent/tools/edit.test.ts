@@ -90,6 +90,16 @@ describe('update_item', () => {
     expect(state().items[boundary.id]).toMatchObject({ style: { maskOutside: true, maskOpacity: 0.6, maskColor: '#0b0f19' } });
   });
 
+  it('update_item sets fillUnderRoads on a boundary, as a boolean only', async () => {
+    const { boundary } = seed();
+    expect(state().items[boundary.id]).toMatchObject({ style: { fillUnderRoads: false } });
+    const ok = await runAgentTool('update_item', { id: boundary.id, patch: { style: { fillUnderRoads: true } } });
+    expect(ok.isError).toBeFalsy();
+    expect(state().items[boundary.id]).toMatchObject({ style: { fillUnderRoads: true, fillMode: 'color' } });
+    const bad = await runAgentTool('update_item', { id: boundary.id, patch: { style: { fillUnderRoads: 'yes' } } });
+    expect(bad.isError).toBe(true);
+  });
+
   it('update_item sets fillMode and a validated, lowercased flagCode on a boundary', async () => {
     const { boundary } = seed();
     const ok = await runAgentTool('update_item', { id: boundary.id, patch: { style: { fillMode: 'flag', flagCode: ' FR ' } } });

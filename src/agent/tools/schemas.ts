@@ -32,6 +32,7 @@ export const boundaryStyleShape = {
   maskColor: colorSchema.describe('Color painted outside the boundary when maskOutside is on. Default "#0b0f19" (near black).'),
   maskOpacity: z.number().min(0).max(1).describe('Opacity of the outside mask, 0-1, when maskOutside is on. It fades in and out with the boundary fill. Default 0.85.'),
   fillMode: z.enum(['color', 'flag']).describe('color = fill with fillColor (default); flag = fill the region with a country flag (see flagCode), cropped to cover, below the map labels. fillOpacity still applies.'),
+  fillUnderRoads: z.boolean().describe('Color fills only: draw the fill under the basemap roads and labels, so streets show through it and the area looks colored in from the inside. Best with a high fillOpacity on a light map style. Flag fills are always under the roads. Default false.'),
   flagCode: z
     .string()
     .trim()
