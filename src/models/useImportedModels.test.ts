@@ -30,7 +30,6 @@ describe('useImportedModels', () => {
     const item = { ...createModelItem({ assetId: 'a1', name: 'Tower', position: [0, 0], startTime: 0 }), id: 'm1' };
     useProjectStore.getState().loadFullProject({
       ...createProject({ id: 'other' }),
-      schemaVersion: 5,
       models: { a1: asset },
       items: { [CAMERA_TRACK_ID]: { kind: 'camera', id: CAMERA_TRACK_ID, keyframes: [] }, m1: item },
       itemOrder: [CAMERA_TRACK_ID, 'm1'],
@@ -74,8 +73,7 @@ describe('useImportedModels', () => {
       for (const a of assets) items[`m-${a.id}`] = { ...createModelItem({ assetId: a.id, name: a.fileName, position: [0, 0], startTime: 0 }), id: `m-${a.id}` };
       useProjectStore.getState().loadFullProject({
         ...createProject({ id: 'other' }),
-        schemaVersion: 5,
-        models: Object.fromEntries(assets.map((a) => [a.id, a])),
+          models: Object.fromEntries(assets.map((a) => [a.id, a])),
         items: { [CAMERA_TRACK_ID]: { kind: 'camera', id: CAMERA_TRACK_ID, keyframes: [] }, ...items },
         itemOrder: [CAMERA_TRACK_ID, ...Object.keys(items)],
       });

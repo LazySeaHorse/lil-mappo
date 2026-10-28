@@ -137,8 +137,8 @@ export interface ProjectSettingsSlice {
   setLightPreset: (v: Project['lightPreset']) => void;
   setAtmosphere: (updates: Partial<Pick<Project, 'starIntensity' | 'fogColor'>>) => void;
   setTerrainExaggeration: (v: number) => void;
-  /** Replaces the project with a parsed document and resets transient editor state. */
-  loadFullProject: (input: unknown) => void;
+  /** Replaces the project with one parsed by `parseProjectDocument` (or made by `createProject`) and resets transient editor state. */
+  loadFullProject: (project: Project) => void;
 }
 
 export interface MapEnvironmentSlice {

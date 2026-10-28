@@ -10,7 +10,7 @@ import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 import '@/annotations/styles';
 import { getAllStyles } from '@/annotations/registry';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
-import { DEFAULT_BOUNDARY_STYLE } from './itemFactories';
+import { createCalloutItem, DEFAULT_BOUNDARY_STYLE } from './itemFactories';
 
 describe('project document persistence boundary', () => {
   it('serializes only durable project fields from the Zustand store', () => {
@@ -195,12 +195,11 @@ describe('project document persistence boundary', () => {
       });
     });
 
-    it('keeps endpoint names when an already parsed project is parsed again', () => {
+    it('keeps endpoint names through a save and a load', () => {
       const parsed = parseWith({
         r1: { ...baseRoute, calculation: { mode: 'car', startPoint: [1, 2], endPoint: [3, 4], startName: 'Times Square', endName: 'Central Park' } },
       });
-      // A Project has no schemaVersion, so loading it runs the whole migration chain.
-      const reparsed = parseProjectDocument(parsed);
+      const reparsed = parseProjectDocument(toProjectDocument(parsed));
       expect(reparsed.items.r1).toMatchObject({ calculation: { startName: 'Times Square', endName: 'Central Park' } });
     });
 
@@ -211,16 +210,30 @@ describe('project document persistence boundary', () => {
     });
   });
 
+  it('loads a project as it is, without migrating it again', () => {
+    // A callout on a style v4 did not know: the v3 → v4 migration would turn it into a Leader Line.
+    const callout = { ...createCalloutItem({ id: 'c1', styleId: 'leader-line', content: { title: 'Pier' }, lngLat: [1, 2], startTime: 0 })!, styleId: 'a-later-style' };
+    const project = createProject({ id: 'as-is' });
+    useProjectStore.getState().loadFullProject({
+      ...project,
+      items: { ...project.items, c1: callout },
+      itemOrder: [...project.itemOrder, 'c1'],
+    });
+    expect(useProjectStore.getState().items.c1).toMatchObject({ kind: 'callout', styleId: 'a-later-style' });
+  });
+
   it('loads polluted input without allowing it to replace store actions', () => {
     const project = createProject({ id: 'safe-load' });
 
-    useProjectStore.getState().loadFullProject({
+    // Loaders can hand over more than a Project, e.g. a whole saved store.
+    const polluted = {
       ...project,
       isExporting: true,
       isCameraEnabled: false,
       previewRoute: { type: 'FeatureCollection', features: [] },
       setDuration: null,
-    });
+    };
+    useProjectStore.getState().loadFullProject(polluted);
 
     const loaded = useProjectStore.getState();
     expect(typeof loaded.setDuration).toBe('function');
@@ -746,16 +759,14 @@ describe('project document persistence boundary', () => {
       return item;
     };
 
-    // Loading parses twice (the file or row, then loadFullProject) and a parsed Project has no
-    // schemaVersion, so every current style has to survive the v3 → v4 step untouched.
-    it.each(getAllStyles().map((style) => style.id))('keeps a %s callout and its settings when a parsed project is parsed again', (styleId) => {
-      const style = getAllStyles().find((s) => s.id === styleId)!;
-      const settings = { ...(style.defaultSettings as Record<string, unknown>) };
-      const once = parseProjectDocument(v3Document({ c1: v3Callout(styleId, { settings }) }));
-      const twice = calloutOf(once);
+    it.each(getAllStyles().map((style) => style.id))('keeps a %s callout and its settings through a save and a load', (styleId) => {
+      const callout = createCalloutItem({ id: 'c1', styleId, content: { title: 'Pier' }, lngLat: [1, 2], startTime: 0 })!;
+      const project = createProject();
+      const saved = toProjectDocument({ ...project, items: { ...project.items, c1: callout }, itemOrder: [...project.itemOrder, 'c1'] });
+      const loaded = calloutOf(JSON.parse(JSON.stringify(saved)));
 
-      expect(twice.styleId).toBe(styleId);
-      expect(twice.settings).toEqual(settings);
+      expect(loaded.styleId).toBe(styleId);
+      expect(loaded.settings).toEqual(callout.settings);
     });
 
     it.each(OLD_STYLE_IDS)('turns a %s callout into a Leader Line and keeps what it said and where it was', (styleId) => {

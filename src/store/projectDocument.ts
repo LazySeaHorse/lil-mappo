@@ -409,7 +409,7 @@ const legacyRouteCalculationSchema = z.object({
   curved: z.boolean().optional(),
   sharpness: z.number().optional(),
   vehicle: z.unknown().optional(),
-  // Not v2 fields: an already parsed project has no schemaVersion and runs the whole chain again.
+  // Not v2 fields; kept when present so the migration never drops names it was given.
   startName: z.unknown().optional(),
   endName: z.unknown().optional(),
 }).passthrough();
@@ -483,15 +483,12 @@ const migrateProjectV2ToV3: ProjectMigration = (input) => {
 
 /**
  * Callout styles that exist from v4 on. Listed here rather than read from the
- * registry so this migration keeps meaning the same thing as styles are added.
- * Styles added since still belong here: loading parses a project twice, and the
- * second parse has no schemaVersion, so it runs this migration on current callouts.
+ * registry so this migration keeps meaning the same thing as styles are added;
+ * it only ever sees v3 documents, which predate every later style.
  */
 const V4_CALLOUT_STYLE_IDS: ReadonlySet<string> = new Set([
   'leader-line',
   'map-label',
-  'highlight-tag',
-  'pin-callout',
   'target-lock',
   'editorial',
   'stamp',
@@ -609,6 +606,9 @@ function migrateProjectDocument(input: unknown): unknown {
  * Converts unknown storage or network data into the canonical Project shape.
  * Zod object schemas strip unknown keys, so UI state and store actions cannot
  * cross the persistence boundary or be spread back into Zustand.
+ *
+ * Parse once, where the data comes in: the result has no schemaVersion, so
+ * parsing it again would run every migration over current data.
  */
 export function parseProjectDocument(input: unknown): Project {
   const parsed = projectDocumentSchema.parse(migrateProjectDocument(input));
@@ -619,16 +619,25 @@ export function parseProjectDocument(input: unknown): Project {
   return { ...project, itemOrder: [...knownOrder, ...missingIds] } as Project;
 }
 
+/**
+ * The project's own fields of a Project or the wider Zustand store, by reference.
+ * Unset optional fields (custom style url/label) are left out, not copied as undefined.
+ */
+export function pickProject(state: Project): Project {
+  const project: Record<string, unknown> = {};
+  for (const key of PERSISTED_PROJECT_KEYS) {
+    if (state[key] !== undefined) project[key] = state[key];
+  }
+  return project as unknown as Project;
+}
+
 /** Selects only durable project data from a Project or the wider Zustand store. */
 export function toProjectDocument(state: Project): ProjectDocument {
-  // Unset optional fields (custom style url/label) are left out, not written as undefined.
-  const document: Record<string, unknown> = { schemaVersion: PROJECT_SCHEMA_VERSION };
-  for (const key of PERSISTED_PROJECT_KEYS) {
-    if (state[key] !== undefined) document[key] = state[key];
-  }
-
   // Validate live state too, so invalid data fails at its first durable boundary.
-  return { schemaVersion: PROJECT_SCHEMA_VERSION, ...parseProjectDocument(document) };
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    ...parseProjectDocument({ schemaVersion: PROJECT_SCHEMA_VERSION, ...pickProject(state) }),
+  };
 }
 
 /**

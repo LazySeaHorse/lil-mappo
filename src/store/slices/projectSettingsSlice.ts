@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { getExportDimensions } from '@/types/render';
-import { parseProjectDocument } from '../projectDocument';
+import { pickProject } from '../projectDocument';
 import type { ProjectSettingsSlice, ProjectStore } from './types';
 import { createTransientState } from './mapEnvironmentSlice';
 
@@ -31,8 +31,10 @@ export const createProjectSettingsSlice: StateCreator<
   setAtmosphere: (updates) => set(updates),
   setTerrainExaggeration: (v) => set({ terrainExaggeration: v }),
 
-  loadFullProject: (input) => {
-    const project = parseProjectDocument(input);
+  loadFullProject: (loaded) => {
+    // Only the project's fields: a loaded object can carry more (a whole store), and it must not
+    // overwrite UI state or actions. Parsing happens where the data comes in, never here again.
+    const project = pickProject(loaded);
     // Capabilities are re-detected on style.load, which only fires when the style changes.
     // Same-style loads (e.g. draft hydration after the map loaded) keep the current detection.
     const { mapStyle, detectedCapabilities } = get();

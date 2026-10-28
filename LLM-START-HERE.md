@@ -84,6 +84,7 @@ This is applied to high-frequency components like `InspectorPanel` and `Toolbar`
 - **Background writes** (async results) must be wrapped in `withoutHistory(fn)`; otherwise they create undo steps. Search progress is not a project write at all: it stays in the search component (e.g. `BoundarySearch`), and the item changes only when a result is picked.
 - **Metadata**: each step has `{ label, source: 'user' | 'ai', at }` (labels derived by diffing in `historyLabels.ts`). Tag writes with `withHistorySource('ai', fn)`, override with `withHistoryLabel(label, fn)`; read with `useHistoryEntries()` / `getHistoryEntries()`.
 - `loadFullProject` clears history. In tests that reset via `setState`, call `clearHistory()` if you assert on history.
+- `loadFullProject` takes a `Project` that is already parsed (`parseProjectDocument` where the data comes in: file, IndexedDB, cloud row, render job) or made by `createProject`; it only picks the project's fields (`pickProject`). Never parse a parsed `Project` again: it has no `schemaVersion`, so every migration would run over current data.
 
 ### 3.1a AI tool layer: `src/agent/`
 
