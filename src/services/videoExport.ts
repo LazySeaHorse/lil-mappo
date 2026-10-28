@@ -51,6 +51,8 @@ interface EncoderState {
   exportTarget: VideoExportTarget;
   videoSource: EncodedVideoPacketSource;
   videoEncoder: VideoEncoder;
+  /** Each frame's quantizer when the encoder runs in quantizer mode. */
+  quantizer?: number;
   waitForMuxer: () => Promise<void>;
   getEncoderError: () => Error | null;
 }
@@ -96,19 +98,74 @@ async function selectH264Codec(width: number, height: number, fps: number): Prom
   return 'avc1.42E01E'; // false-negative fallback
 }
 
-// Constant bitrate where the encoder takes it: with variable, hardware encoders
-// spend far less than the target on map footage (a 4K60 export came out at
-// 17 Mb/s of 75), which shows as blocking in pans over imagery and labels.
-async function selectBitrateMode(
-  config: VideoEncoderConfig,
-): Promise<VideoEncoderBitrateMode> {
+// ─── Rate control ─────────────────────────────────────────────────────────────
+
+/**
+ * H.264 quantizer (0 best … 51 worst) for every frame in quantizer mode. 22 keeps
+ * imagery and labels clean in pans without the file sizes of near-lossless.
+ */
+const EXPORT_QUANTIZER = 22;
+
+interface RateControl {
+  bitrateMode: VideoEncoderBitrateMode;
+  /** Set in quantizer mode, where each frame is encoded at this quality. */
+  quantizer?: number;
+}
+
+async function isEncoderConfigSupported(config: VideoEncoderConfig): Promise<boolean> {
   try {
-    const { supported } = await VideoEncoder.isConfigSupported({ ...config, bitrateMode: 'constant' });
-    if (supported) return 'constant';
+    return (await VideoEncoder.isConfigSupported(config)).supported === true;
   } catch {
-    // isConfigSupported itself can throw on some browsers — keep variable
+    return false; // isConfigSupported itself can throw on some browsers
   }
-  return 'variable';
+}
+
+// Best first. Hardware encoders treat a bitrate, variable or constant, as a
+// ceiling and spend far less on map footage (a 4K60 export came out at 16 Mb/s
+// of 75 either way), which shows as blocking in pans over imagery and labels.
+// A fixed quantizer makes every frame meet one quality. Variable comes last
+// whatever the probe says: it is what every encoder has always accepted.
+async function rateControlCandidates(config: VideoEncoderConfig): Promise<RateControl[]> {
+  const candidates: RateControl[] = [];
+  if (await isEncoderConfigSupported({ ...config, bitrateMode: 'quantizer' })) {
+    candidates.push({ bitrateMode: 'quantizer', quantizer: EXPORT_QUANTIZER });
+  }
+  if (await isEncoderConfigSupported({ ...config, bitrateMode: 'constant' })) candidates.push({ bitrateMode: 'constant' });
+  candidates.push({ bitrateMode: 'variable' });
+  return candidates;
+}
+
+/**
+ * An encoder configured and confirmed working. Configuring is asynchronous: an
+ * encoder that cannot start with the config (some report support and then fail)
+ * says so through `error` and fails the flush, so that is awaited before use.
+ * Errors after that go to `onError`.
+ */
+async function openEncoder(
+  config: VideoEncoderConfig,
+  output: EncodedVideoChunkOutputCallback,
+  onError: (error: Error) => void,
+): Promise<VideoEncoder> {
+  const start: { ready: boolean; error: unknown } = { ready: false, error: null };
+  const encoder = new VideoEncoder({
+    output,
+    error: (e: Error) => {
+      if (start.ready) onError(e);
+      else start.error ??= e;
+    },
+  });
+  try {
+    encoder.configure(config);
+    await encoder.flush();
+  } catch (e: unknown) {
+    start.error ??= e;
+  }
+  if (start.error) {
+    if (encoder.state !== 'closed') encoder.close();
+    throw start.error;
+  }
+  start.ready = true;
+  return encoder;
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────
@@ -151,7 +208,7 @@ async function initEncoder(
   const encoderConfig: VideoEncoderConfig = {
     codec, width, height, bitrate: exportBitrate(width, height, fps), framerate: fps, latencyMode: 'quality',
   };
-  const bitrateMode = await selectBitrateMode(encoderConfig);
+  const rateControls = await rateControlCandidates(encoderConfig);
   const exportTarget = await createVideoExportTarget();
   const output = new Output({
     target: exportTarget.target,
@@ -169,31 +226,41 @@ async function initEncoder(
     throw error;
   }
 
-  let videoEncoder: VideoEncoder;
   let encoderError: Error | null = null;
   let packetWriteChain = Promise.resolve();
-  try {
-    videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => {
-        packetWriteChain = packetWriteChain.then(async () => {
-          if (encoderError) return;
+  const writePacket: EncodedVideoChunkOutputCallback = (chunk, meta) => {
+    packetWriteChain = packetWriteChain.then(async () => {
+      if (encoderError) return;
 
-          try {
-            await videoSource.add(EncodedPacket.fromEncodedChunk(chunk), meta);
-          } catch (error: unknown) {
-            encoderError = new Error(`MP4 muxer error: ${describeMuxerError(error)}`);
-          }
-        });
-      },
-      error: (e: Error) => {
-        encoderError = new Error(`VideoEncoder error: ${e.message}`);
-      },
+      try {
+        await videoSource.add(EncodedPacket.fromEncodedChunk(chunk), meta);
+      } catch (error: unknown) {
+        encoderError = new Error(`MP4 muxer error: ${describeMuxerError(error)}`);
+      }
     });
-    videoEncoder.configure({ ...encoderConfig, bitrateMode });
-  } catch (e: unknown) {
+  };
+  const failEncoder = (e: Error) => {
+    encoderError = new Error(`VideoEncoder error: ${e.message}`);
+  };
+
+  // The best rate control that really starts, falling back on encoders that claim more than they do.
+  let videoEncoder: VideoEncoder | null = null;
+  let rateControl: RateControl = rateControls[rateControls.length - 1];
+  let startError: unknown = null;
+  for (const candidate of rateControls) {
+    try {
+      videoEncoder = await openEncoder({ ...encoderConfig, bitrateMode: candidate.bitrateMode }, writePacket, failEncoder);
+      rateControl = candidate;
+      break;
+    } catch (e: unknown) {
+      startError = e;
+      console.warn(`[videoExport] the encoder did not start with bitrateMode ${candidate.bitrateMode}:`, e);
+    }
+  }
+  if (!videoEncoder) {
     await cancelAndDiscard(output, exportTarget);
-    console.error('[videoExport] VideoEncoder.configure() failed:', e);
-    const message = errorMessage(e);
+    console.error('[videoExport] VideoEncoder.configure() failed:', startError);
+    const message = errorMessage(startError);
     throw new Error(
       `H.264 encoding failed on this device (codec: ${codec}). ` +
       `Your browser supports WebCodecs but rejected the encoder config. ` +
@@ -208,6 +275,7 @@ async function initEncoder(
     exportTarget,
     videoSource,
     videoEncoder,
+    quantizer: rateControl.quantizer,
     waitForMuxer: () => packetWriteChain,
     getEncoderError: () => encoderError,
   };
@@ -255,7 +323,7 @@ async function prewarmTileCache(
 interface CaptureFrameOptions {
   runtime: MapSceneRuntime;
   map: MapboxMap;
-  encoder: Pick<EncoderState, 'compCanvas' | 'compCtx' | 'videoEncoder' | 'waitForMuxer'>;
+  encoder: Pick<EncoderState, 'compCanvas' | 'compCtx' | 'videoEncoder' | 'quantizer' | 'waitForMuxer'>;
   frameIndex: number;
   fps: number;
   time: number;
@@ -298,7 +366,10 @@ async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, over
     timestamp: frameIndex * frameDuration,
     duration: frameDuration,
   });
-  videoEncoder.encode(videoFrame, { keyFrame: frameIndex % (fps * 2) === 0 });
+  videoEncoder.encode(videoFrame, {
+    keyFrame: frameIndex % (fps * 2) === 0,
+    ...(encoder.quantizer !== undefined ? { avc: { quantizer: encoder.quantizer } } : {}),
+  });
   videoFrame.close();
 }
 
