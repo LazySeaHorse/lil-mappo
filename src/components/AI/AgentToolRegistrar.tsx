@@ -17,7 +17,7 @@ export function AgentToolRegistrar() {
   const setExportLimits = useAgentStore((s) => s.setExportLimits);
   const setPaidPlan = useAgentStore((s) => s.setPaidPlan);
   const setRegisteredCount = useAiPanelStore((s) => s.setRegisteredCount);
-  const setBridgeConnected = useAiPanelStore((s) => s.setBridgeConnected);
+  const setBridgeStatus = useAiPanelStore((s) => s.setBridgeStatus);
 
   useEffect(() => {
     setExportLimits(getExportLimits(subscription));
@@ -47,12 +47,12 @@ export function AgentToolRegistrar() {
 
   useEffect(() => {
     if (!active) return;
-    const disconnect = connectBridge(getAgentTools(), setBridgeConnected);
+    const disconnect = connectBridge(getAgentTools(), setBridgeStatus);
     return () => {
       disconnect();
-      setBridgeConnected(false);
+      setBridgeStatus('off');
     };
-  }, [active, setBridgeConnected]);
+  }, [active, setBridgeStatus]);
 
   return null;
 }

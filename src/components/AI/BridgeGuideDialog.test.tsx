@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { useAgentStore } from '@/agent';
+import { useAgentStore, type BridgeStatus } from '@/agent';
 import { resetAgentTestState } from '@/agent/testHelpers';
 import { AiPanel } from './AiPanel';
 import { BridgeGuideDialog } from './BridgeGuideDialog';
 import { bridgeDownloadUrl, detectBridgeTarget, vscodeInstallLink } from './bridgeSetup';
-import { BRIDGE_GUIDE_GRACE_MS, isBridgeGuideHidden, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
+import { isBridgeGuideHidden, recordAiConsent } from './aiPrefs';
+import { useAiPanelStore } from './useAiPanelStore';
 import { PRO, setSignedIn } from './testUtils';
 
 const sub = vi.hoisted(() => ({ current: null as unknown }));
@@ -15,14 +16,13 @@ vi.mock('react-secure-storage', () => ({ default: { getItem: () => null, setItem
 beforeEach(() => {
   resetAgentTestState();
   useAgentStore.setState({ enabled: false });
-  useAiPanelStore.setState({ open: true, tab: 'connect', registeredCount: 0, bridgeConnected: false, guideOpen: false });
+  useAiPanelStore.setState({ open: true, tab: 'connect', registeredCount: 0, bridgeStatus: 'off', guideOpen: false, guideOffered: false });
   sub.current = PRO;
   setSignedIn(true);
   localStorage.clear();
 });
 afterEach(() => {
   cleanup();
-  vi.useRealTimers();
 });
 
 const guide = () => screen.queryByTestId('bridge-guide');
@@ -37,29 +37,37 @@ describe('Bridge guide', () => {
     expect(screen.getByText('Connect your coding agent')).toBeInTheDocument();
   });
 
-  it('offers itself when AI control is switched on and no bridge connects', () => {
-    vi.useFakeTimers();
+  const bridge = (status: BridgeStatus) =>
+    act(() => useAiPanelStore.getState().setBridgeStatus(status));
+
+  it('offers itself when AI control is switched on and no bridge answers', () => {
     recordAiConsent();
     render(<><AiPanel /><BridgeGuideDialog /></>);
     fireEvent.click(toggle());
     expect(useAgentStore.getState().enabled).toBe(true);
+    bridge('connecting');
     expect(guide()).toBeNull();
-    act(() => vi.advanceTimersByTime(BRIDGE_GUIDE_GRACE_MS));
+    bridge('unreachable');
     expect(guide()).not.toBeNull();
   });
 
-  it('stays closed when a running bridge connects in time', () => {
-    vi.useFakeTimers();
+  it('stays closed when a running bridge answers, even if it drops later', () => {
     recordAiConsent();
     render(<><AiPanel /><BridgeGuideDialog /></>);
     fireEvent.click(toggle());
-    act(() => useAiPanelStore.getState().setBridgeConnected(true));
-    act(() => vi.advanceTimersByTime(BRIDGE_GUIDE_GRACE_MS));
+    bridge('connecting');
+    bridge('connected');
+    bridge('unreachable');
+    expect(guide()).toBeNull();
+  });
+
+  it('does not offer itself for a bridge that is unreachable without AI control just switched on', () => {
+    render(<><AiPanel /><BridgeGuideDialog /></>);
+    bridge('unreachable');
     expect(guide()).toBeNull();
   });
 
   it('stops offering itself after "Don’t show again", but the help button still opens it', () => {
-    vi.useFakeTimers();
     recordAiConsent();
     useAiPanelStore.setState({ guideOpen: true });
     render(<><AiPanel /><BridgeGuideDialog /></>);
@@ -68,7 +76,7 @@ describe('Bridge guide', () => {
     expect(isBridgeGuideHidden()).toBe(true);
 
     fireEvent.click(toggle());
-    act(() => vi.advanceTimersByTime(BRIDGE_GUIDE_GRACE_MS));
+    bridge('unreachable');
     expect(guide()).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'How to connect a coding agent' }));
@@ -98,7 +106,7 @@ describe('Bridge guide', () => {
     useAiPanelStore.setState({ guideOpen: true });
     render(<BridgeGuideDialog />);
     expect(screen.getByTestId('bridge-guide-status').textContent).toMatch(/Waiting for the bridge/);
-    act(() => useAiPanelStore.getState().setBridgeConnected(true));
+    act(() => useAiPanelStore.getState().setBridgeStatus('connected'));
     expect(screen.getByTestId('bridge-guide-status').textContent).toMatch(/connected/);
   });
 });

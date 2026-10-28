@@ -11,7 +11,8 @@ import {
 import { PinDropHero, PopupActions, PopupBody } from '@/components/ui/pin-drop';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAiAccess } from './useAiAccess';
-import { hasAiConsent, offerBridgeGuide, recordAiConsent, useAiPanelStore } from './useAiPanelStore';
+import { hasAiConsent, recordAiConsent } from './aiPrefs';
+import { useAiPanelStore } from './useAiPanelStore';
 
 export function AiStatusLine({ enabled, supported, count, bridged }: { enabled: boolean; supported: boolean; count: number; bridged: boolean }) {
   let text: string;
@@ -32,7 +33,7 @@ export function ConnectTab() {
   const enabled = useAgentStore((s) => s.enabled);
   const setEnabled = useAgentStore((s) => s.setEnabled);
   const count = useAiPanelStore((s) => s.registeredCount);
-  const bridged = useAiPanelStore((s) => s.bridgeConnected);
+  const bridged = useAiPanelStore((s) => s.bridgeStatus === 'connected');
   const followAi = useAiPanelStore((s) => s.followAi);
   const setGuideOpen = useAiPanelStore((s) => s.setGuideOpen);
   const setFollowAi = useAiPanelStore((s) => s.setFollowAi);
@@ -44,7 +45,7 @@ export function ConnectTab() {
 
   const turnOn = () => {
     setEnabled(true);
-    offerBridgeGuide();
+    useAiPanelStore.getState().offerBridgeGuide();
   };
 
   const handleToggle = (next: boolean) => {

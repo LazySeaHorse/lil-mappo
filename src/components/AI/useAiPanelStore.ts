@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { useAgentStore } from '@/agent';
+import type { BridgeStatus } from '@/agent';
+import { isBridgeGuideHidden } from './aiPrefs';
 
 export type AiPanelTab = 'connect' | 'activity';
 
@@ -10,17 +11,21 @@ interface AiPanelState {
   followAi: boolean;
   /** Number of tools currently registered with the browser (0 when not registered). */
   registeredCount: number;
-  /** True while the tab is linked to the local bridge that serves coding agents. */
-  bridgeConnected: boolean;
+  /** The link to the local bridge that serves coding agents; `off` while AI control is off. */
+  bridgeStatus: BridgeStatus | 'off';
   /** The bridge setup guide (download, run, connect a coding agent). */
   guideOpen: boolean;
+  /** AI control was just switched on: open the guide if the bridge turns out to be unreachable. */
+  guideOffered: boolean;
   openPanel: (tab?: AiPanelTab) => void;
   closePanel: () => void;
   setTab: (tab: AiPanelTab) => void;
   setFollowAi: (v: boolean) => void;
   setRegisteredCount: (n: number) => void;
-  setBridgeConnected: (v: boolean) => void;
+  setBridgeStatus: (status: BridgeStatus | 'off') => void;
   setGuideOpen: (v: boolean) => void;
+  /** Called when the user switches AI control on: unless they hid it, the guide opens if no bridge answers. */
+  offerBridgeGuide: () => void;
 }
 
 /**
@@ -33,66 +38,21 @@ export const useAiPanelStore = create<AiPanelState>()((set) => ({
   tab: 'connect',
   followAi: true,
   registeredCount: 0,
-  bridgeConnected: false,
+  bridgeStatus: 'off',
   guideOpen: false,
+  guideOffered: false,
   openPanel: (tab) => set((s) => ({ open: true, tab: tab ?? s.tab })),
   closePanel: () => set({ open: false }),
   setTab: (tab) => set({ tab }),
   setFollowAi: (followAi) => set({ followAi }),
   setRegisteredCount: (registeredCount) => set({ registeredCount }),
-  setBridgeConnected: (bridgeConnected) => set({ bridgeConnected }),
+  setBridgeStatus: (bridgeStatus) => set((s) => {
+    if (!s.guideOffered || bridgeStatus === 'connecting') return { bridgeStatus };
+    // The offer is settled by the first real answer: no bridge opens the guide, anything else drops it.
+    return { bridgeStatus, guideOffered: false, guideOpen: s.guideOpen || bridgeStatus === 'unreachable' };
+  }),
   setGuideOpen: (guideOpen) => set({ guideOpen }),
+  offerBridgeGuide: () => {
+    if (!isBridgeGuideHidden()) set({ guideOffered: true });
+  },
 }));
-
-const CONSENT_KEY = 'lilmappo.ai.consent.v1';
-
-/** Whether the user already accepted the experimental-feature confirmation in this browser. */
-export function hasAiConsent(): boolean {
-  try {
-    return localStorage.getItem(CONSENT_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function recordAiConsent(): void {
-  try {
-    localStorage.setItem(CONSENT_KEY, '1');
-  } catch {
-    // Storage unavailable: the dialog simply shows again next time.
-  }
-}
-
-const GUIDE_HIDDEN_KEY = 'lilmappo.ai.bridgeGuide.hidden.v1';
-
-/** Whether the user chose "Don't show again" on the bridge guide. It still opens from the panel's help button. */
-export function isBridgeGuideHidden(): boolean {
-  try {
-    return localStorage.getItem(GUIDE_HIDDEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function hideBridgeGuide(): void {
-  try {
-    localStorage.setItem(GUIDE_HIDDEN_KEY, '1');
-  } catch {
-    // Storage unavailable: the guide simply shows again next time.
-  }
-}
-
-/** How long a just-enabled tab waits for an already running bridge before offering the guide. */
-export const BRIDGE_GUIDE_GRACE_MS = 1500;
-
-/**
- * Called when the user switches AI control on: unless they hid it, opens the guide if no bridge
- * has connected by the time a running one would have.
- */
-export function offerBridgeGuide(): void {
-  if (isBridgeGuideHidden()) return;
-  setTimeout(() => {
-    const { bridgeConnected, setGuideOpen } = useAiPanelStore.getState();
-    if (useAgentStore.getState().enabled && !bridgeConnected) setGuideOpen(true);
-  }, BRIDGE_GUIDE_GRACE_MS);
-}
