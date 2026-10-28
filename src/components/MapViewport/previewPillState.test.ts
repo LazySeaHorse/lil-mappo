@@ -11,7 +11,7 @@ const items: Record<string, TimelineItem> = Object.fromEntries(
   [route, boundary, callout, camera].map((item) => [item.id, item]),
 );
 
-const base = { items, selectedItemId: 'r', playheadTime: 0, isExporting: false, isPlaying: false, hideUI: false };
+const base = { items, selectedItemId: 'r', previewDismissedId: null, playheadTime: 0, isExporting: false, isPlaying: false, hideUI: false };
 
 describe('selectionPreviewPillState', () => {
   it('names the selected item and seeks to the clip midpoint while it is previewed', () => {

@@ -48,7 +48,7 @@ describe('isSelectionPreview', () => {
 });
 
 describe('previewableSelectionId', () => {
-  const idle = { selectedItemId: 'a', isPlaying: false, isExporting: false, hideUI: false };
+  const idle = { selectedItemId: 'a', previewDismissedId: null, isPlaying: false, isExporting: false, hideUI: false };
 
   it('previews the selection while editing', () => {
     expect(previewableSelectionId(idle)).toBe('a');
@@ -58,5 +58,10 @@ describe('previewableSelectionId', () => {
     expect(previewableSelectionId({ ...idle, isPlaying: true })).toBeNull();
     expect(previewableSelectionId({ ...idle, isExporting: true })).toBeNull();
     expect(previewableSelectionId({ ...idle, hideUI: true })).toBeNull();
+  });
+
+  it('previews nothing for a selection whose preview was dismissed', () => {
+    expect(previewableSelectionId({ ...idle, previewDismissedId: 'a' })).toBeNull();
+    expect(previewableSelectionId({ ...idle, previewDismissedId: 'b' })).toBe('a');
   });
 });

@@ -12,6 +12,7 @@ export interface SelectionPreviewPillState {
 interface PillInputs {
   items: Record<string, TimelineItem>;
   selectedItemId: string | null;
+  previewDismissedId: string | null;
   playheadTime: number;
   isExporting: boolean;
   isPlaying: boolean;
@@ -21,18 +22,19 @@ interface PillInputs {
 /**
  * What the map's preview pill shows, or null when it is hidden: only for a
  * selected timed item the live map is drawing in full (see `isSelectionPreview`),
- * and never in present mode, while playing or while exporting. The seek time is the clip
- * midpoint, which is inside the clip however the item animates.
+ * and never in present mode, while playing, while exporting or once dismissed. The seek
+ * time is the clip midpoint, which is inside the clip however the item animates.
  */
 export function selectionPreviewPillState({
   items,
   selectedItemId,
+  previewDismissedId,
   playheadTime,
   isExporting,
   isPlaying,
   hideUI,
 }: PillInputs): SelectionPreviewPillState | null {
-  if (hideUI || isPlaying || !selectedItemId) return null;
+  if (hideUI || isPlaying || !selectedItemId || selectedItemId === previewDismissedId) return null;
   const item = items[selectedItemId];
   if (!item || item.kind === 'camera') return null;
   if (!isSelectionPreview(item, playheadTime, true, isExporting)) return null;

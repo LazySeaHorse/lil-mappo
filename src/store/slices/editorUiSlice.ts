@@ -23,9 +23,12 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
       selectedKeyframeId: null,
       selectedAutoCamRouteId: null,
       isInspectorOpen: true,
+      // Selecting another item ends a dismissal; deselecting or reselecting the same one keeps it.
+      ...(id && id !== state.previewDismissedId ? { previewDismissedId: null } : {}),
       ...(newPlayheadTime !== state.playheadTime ? { playheadTime: newPlayheadTime } : {}),
     });
   },
+  dismissSelectionPreview: () => set((s) => ({ previewDismissedId: s.selectedItemId })),
 
   selectKeyframe: (id) => {
     const state = get();

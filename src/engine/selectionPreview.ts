@@ -6,15 +6,18 @@ interface TimedItem {
 /**
  * The selected item the live editor may preview: none while playing, so playback
  * shows the real animation, while exporting, so renders match the timeline, or
- * with the UI hidden, which shows exactly what the video shows.
+ * with the UI hidden, which shows exactly what the video shows. Nor one whose
+ * preview was dismissed (see `previewDismissedId`).
  */
 export function previewableSelectionId(state: {
   selectedItemId: string | null;
+  previewDismissedId: string | null;
   isPlaying: boolean;
   isExporting: boolean;
   hideUI: boolean;
 }): string | null {
-  return state.isPlaying || state.isExporting || state.hideUI ? null : state.selectedItemId;
+  if (state.isPlaying || state.isExporting || state.hideUI) return null;
+  return state.selectedItemId === state.previewDismissedId ? null : state.selectedItemId;
 }
 
 /**

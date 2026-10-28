@@ -51,6 +51,8 @@ export interface TransientProjectState {
   selectedItemId: string | null;
   selectedKeyframeId: string | null;
   selectedAutoCamRouteId: string | null;
+  /** The item whose show-in-full preview was dismissed: it stays off, even when reselected, until another item is selected. */
+  previewDismissedId: string | null;
   // Transient UI modes (not persisted)
   hideUI: boolean;
   /** Preview of the video's frame inside the free space between the panels. View only, never saved. */
@@ -157,6 +159,8 @@ export interface MapEnvironmentSlice {
 
 export interface EditorUiSlice {
   selectItem: (id: string | null) => void;
+  /** Turns off the selected item's show-in-full preview (see `previewDismissedId`). */
+  dismissSelectionPreview: () => void;
   selectKeyframe: (id: string | null) => void;
   setSelectedAutoCamRouteId: (id: string | null) => void;
   setHideUI: (v: boolean) => void;

@@ -18,6 +18,7 @@ export function createTransientState(): TransientProjectState {
     selectedItemId: null,
     selectedKeyframeId: null,
     selectedAutoCamRouteId: null,
+    previewDismissedId: null,
     hideUI: false,
     isFitMode: false,
     isExporting: false,
