@@ -1,7 +1,26 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { toast } from 'sonner';
 import { MapStylePicker, THUMBNAIL_FILES } from './MapStylePicker';
 import { MAP_STYLES } from '@/config/mapbox';
+import { SAVED_MAP_STYLES_STORAGE_KEY, useSavedMapStyles } from '@/customMapStyles/savedStyles';
+import { useCustomStylesAllowed } from '@/customMapStyles/useCustomStylesAllowed';
+import type { CustomMapStyle } from '@/customMapStyles/model';
+import { useProjectStore } from '@/store/useProjectStore';
+
+vi.mock('@/customMapStyles/useCustomStylesAllowed', () => ({ useCustomStylesAllowed: vi.fn(() => true) }));
+vi.mock('sonner', () => ({ toast: vi.fn() }));
+
+const ink: CustomMapStyle = { name: 'Ink', colors: { land: '#101820' }, theme: 'default' };
+const paper: CustomMapStyle = { name: 'Paper', colors: { land: '#f2e8d5' }, theme: 'faded' };
+
+beforeEach(() => {
+  vi.mocked(useCustomStylesAllowed).mockReturnValue(true);
+  vi.mocked(toast).mockClear();
+  localStorage.removeItem(SAVED_MAP_STYLES_STORAGE_KEY);
+  useSavedMapStyles.getState().reload();
+  useProjectStore.getState().setMapStyle('streets');
+});
 
 describe('MapStylePicker', () => {
   it('shows the current style and lists every style until a mood is picked', async () => {
@@ -51,5 +70,57 @@ describe('MapStylePicker', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Vintage/ }));
     expect(onChange).toHaveBeenCalledWith('vintage');
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
+
+  describe('custom styles', () => {
+    const open = (name: string) => fireEvent.click(screen.getByRole('button', { name: `Map style: ${name}` }));
+
+    it('shows the custom style in the trigger, and no built-in style as the one in use', () => {
+      useProjectStore.getState().setMapStyle('light', ink);
+      render(<MapStylePicker value="light" onChange={() => {}} />);
+      open('Ink');
+      expect(screen.getByRole('radio', { name: /^Light/ })).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('lists saved styles first, and applies one with its base style', () => {
+      useSavedMapStyles.getState().save('light', ink);
+      useSavedMapStyles.getState().save('standard', paper);
+      render(<MapStylePicker value="streets" onChange={() => {}} />);
+      open('Streets');
+
+      const saved = within(screen.getByRole('group', { name: 'Your styles' }));
+      expect(saved.getAllByRole('button', { pressed: false }).map((b) => b.textContent)).toEqual([
+        expect.stringContaining('PaperBased on Standard'),
+        expect.stringContaining('InkBased on Light'),
+      ]);
+      fireEvent.click(saved.getByRole('button', { name: /^Ink/ }));
+      expect(useProjectStore.getState()).toMatchObject({ mapStyle: 'light', customStyle: ink });
+      expect(screen.queryByRole('group', { name: 'Your styles' })).not.toBeInTheDocument();
+
+      open('Ink');
+      expect(screen.getByRole('button', { name: /^Ink/, pressed: true })).toBeInTheDocument();
+    });
+
+    it('deletes a saved style, and puts it back from the toast', () => {
+      useSavedMapStyles.getState().save('light', ink);
+      useSavedMapStyles.getState().save('standard', paper);
+      render(<MapStylePicker value="streets" onChange={() => {}} />);
+      open('Streets');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete Ink' }));
+      expect(useSavedMapStyles.getState().styles.map((s) => s.style.name)).toEqual(['Paper']);
+      const [message, options] = vi.mocked(toast).mock.calls[0] as unknown as [string, { action: { label: string; onClick: () => void } }];
+      expect(message).toBe('Deleted Ink.');
+      options.action.onClick();
+      expect(useSavedMapStyles.getState().styles.map((s) => s.style.name)).toEqual(['Paper', 'Ink']);
+    });
+
+    it('hides saved styles from free plans', () => {
+      vi.mocked(useCustomStylesAllowed).mockReturnValue(false);
+      useSavedMapStyles.getState().save('light', ink);
+      render(<MapStylePicker value="streets" onChange={() => {}} />);
+      open('Streets');
+      expect(screen.queryByRole('group', { name: 'Your styles' })).not.toBeInTheDocument();
+    });
   });
 });

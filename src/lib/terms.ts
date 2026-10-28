@@ -182,6 +182,17 @@ export const CAMERA_VIEW_TERMS = {
   noRoomToDuplicate: 'There is no time after this view for a copy. Move it earlier first.',
 } as const;
 
+/** Words of the map style picker for custom map styles (made and saved by the AI). */
+export const MAP_STYLE_TERMS = {
+  /** Heading of the saved custom styles. */
+  yourStyles: 'Your styles',
+  /** Under a saved style's name: the built-in style it changes. */
+  basedOn: (label: string) => `Based on ${label}`,
+  delete: (name: string) => `Delete ${name}`,
+  deleted: (name: string) => `Deleted ${name}.`,
+  undo: 'Undo',
+} as const;
+
 /** Words for changing the style of a callout. */
 export const STYLE_TERMS = {
   changed: 'Style changed.',
