@@ -91,47 +91,44 @@ export const SearchField = ({
     </div>
   );
 
+  const input = (
+    <Input
+      placeholder={isPicking ? "Click on map..." : (placeholder || label)}
+      value={isPicking ? "" : query}
+      onChange={(e) => {
+        setQuery(e.target.value);
+        // Suggestions will be cleared naturally on the next performSearch
+      }}
+      onPaste={pasteListHandler(onPasteList)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          setSearched(query);
+          performSearch(query);
+        }
+      }}
+      disabled={isPicking}
+      className={cn(
+        'h-8',
+        SEARCH_INPUT_CLASS,
+        chips && SEARCH_BARE_INPUT_CLASS,
+        showMakeList && 'pr-[4.75rem]',
+        isPicking && 'placeholder:text-primary animate-pulse',
+      )}
+    />
+  );
+
   return (
     <div className={`relative group w-full px-1 !overflow-visible ${className}`}>
       <Popover open={isOpen && suggestions.length > 0} onOpenChange={(o) => !o && handleClose()}>
         <PopoverAnchor asChild>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              {(() => {
-                const input = (
-                  <Input
-                    placeholder={isPicking ? "Click on map..." : (placeholder || label)}
-                    value={isPicking ? "" : query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      // Suggestions will be cleared naturally on the next performSearch
-                    }}
-                    onPaste={pasteListHandler(onPasteList)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        setSearched(query);
-                        performSearch(query);
-                      }
-                    }}
-                    disabled={isPicking}
-                    className={cn(
-                      'h-8',
-                      SEARCH_INPUT_CLASS,
-                      chips && SEARCH_BARE_INPUT_CLASS,
-                      showMakeList && 'pr-[4.75rem]',
-                      isPicking && 'placeholder:text-primary animate-pulse',
-                    )}
-                  />
-                );
-                return chips ? (
-                  <div className={SEARCH_BOX_CLASS} data-place-box>{chips}{input}</div>
-                ) : input;
-              })()}
+              {chips ? <div className={SEARCH_BOX_CLASS} data-place-box>{chips}{input}</div> : input}
               {!isPicking && (
                 <SearchFieldActions hasText={query !== ''} loading={loading} onClear={clear} />
               )}
-              {onMakeList && showMakeList && !isPicking && (
+              {showMakeList && !isPicking && (
                 <AddPlacePill label={HUB_SPOKE_TERMS.addPlaces} onClick={onMakeList} className="absolute right-8 top-1/2 -translate-y-1/2" />
               )}
             </div>
