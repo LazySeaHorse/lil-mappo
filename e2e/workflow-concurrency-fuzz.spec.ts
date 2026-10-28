@@ -324,8 +324,11 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
       store.setDuration(10);
     });
 
-    // Wait a brief tick for render/playback to settle
-    await page.waitForTimeout(200);
+    // Wait for the store to apply the new duration and clamp the playhead
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as ProjectStoreWindow).__projectStore.getState().duration)).toBe(10);
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as ProjectStoreWindow).__projectStore.getState().playheadTime)).toBeLessThanOrEqual(10);
 
     // 4. Verify playhead clamped cleanly within bounds [0, 10]
     state = await page.evaluate(() => {
@@ -340,10 +343,7 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
     // 5. Verify timeline ruler playhead DOM element clamped properly without overflowing
     const playheadElement = page.getByTestId('timeline-ruler-playhead');
     await expect(playheadElement).toBeVisible();
-    const readLeft = async () => {
-      const styleLeft = await playheadElement.getAttribute('style');
-      return parseFloat(styleLeft?.replace(/[^0-9.]/g, '') || '0');
-    };
+    const readLeft = () => playheadElement.evaluate((el) => parseFloat((el as HTMLElement).style.left));
     const leftPx = await readLeft();
 
     // The timeline fits the panel, so the scale is not fixed: measure where the 10s end sits.
@@ -352,7 +352,9 @@ test.describe('Workflow & Concurrency Fuzzing (State Machine Chaos)', () => {
       store.setIsPlaying(false);
       store.setPlayheadTime(10);
     });
-    await page.waitForTimeout(100);
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as ProjectStoreWindow).__projectStore.getState().playheadTime)).toBe(10);
+    await expect.poll(readLeft).toBeGreaterThan(0);
     const endPx = await readLeft();
     expect(endPx).toBeGreaterThan(0);
     expect(leftPx).toBeLessThanOrEqual(endPx + 5);
