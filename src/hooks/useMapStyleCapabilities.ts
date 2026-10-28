@@ -13,6 +13,6 @@ export function useMapStyleCapabilities(): MapStyleCapabilities {
     trees3d: false,
     facades3d: false,
     timeOfDayPreset: false,
-    colorCustomization: false,
+    colorRoles: [],
   };
 }

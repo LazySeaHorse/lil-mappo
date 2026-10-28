@@ -41,11 +41,12 @@ export const createMapEnvironmentSlice: StateCreator<
   [],
   MapEnvironmentSlice
 > = (set) => ({
-  setMapStyle: (s) =>
-    set((s2) => ({
-      mapStyle: s,
+  setMapStyle: (style, customStyle = null) =>
+    set((s) => (style === s.mapStyle ? { customStyle } : {
+      mapStyle: style,
+      customStyle,
       // The DEM source/terrain are re-added by BasemapController after the swap.
-      terrainLoading: s2.terrainEnabled,
+      terrainLoading: s.terrainEnabled,
       detectedCapabilities: null,
     })),
 

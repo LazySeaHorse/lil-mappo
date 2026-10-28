@@ -1,5 +1,6 @@
 import type { AspectRatio, ExportResolution } from '@/types/render';
 import type { EasingName } from '@/engine/easings';
+import type { CustomMapStyle } from '@/customMapStyles/model';
 import type {
   AnnotationContent,
   AnnotationBinding,
@@ -279,6 +280,8 @@ export interface Project {
   terrainExaggeration: number;
   /** Key of MAP_STYLES; anything that changes exported pixels lives in the project. */
   mapStyle: string;
+  /** Colours that replace some of `mapStyle`'s, or null for the style as it is. */
+  customStyle: CustomMapStyle | null;
   terrainEnabled: boolean;
   buildingsEnabled: boolean;
   /** Label category id -> visible; missing ids use the style default. */

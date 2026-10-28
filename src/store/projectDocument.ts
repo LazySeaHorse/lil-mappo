@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getExportDimensions } from '@/types/render';
 import { sanitizeFeatureCollection } from '@/engine/geojsonSanitize';
 import { EASING_NAMES } from '@/engine/easings';
+import { customMapStyleSchema } from '@/customMapStyles/schema';
 import {
   cameraZoomAt,
   DEFAULT_VIEW_ZOOM,
@@ -249,6 +250,8 @@ const projectDocumentSchema = z.object({
     .catch('standard')
     .transform((key) => (Object.prototype.hasOwnProperty.call(MAP_STYLES, key) ? key : 'standard'))
     .default('standard'),
+  // Added after v5 shipped; an invalid custom style loads as the plain style.
+  customStyle: customMapStyleSchema.nullable().default(null).catch(null),
   terrainEnabled: z.boolean().default(false),
   buildingsEnabled: z.boolean().default(false),
   labelVisibility: z.record(z.string(), z.boolean()).default({}),

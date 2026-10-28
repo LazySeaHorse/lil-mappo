@@ -60,6 +60,7 @@ function createMapDouble() {
     getProjection: vi.fn(() => ({ name: state.projection })),
     setProjection: vi.fn(),
     getConfigProperty: vi.fn(),
+    getSchema: vi.fn(() => null),
     setConfigProperty: vi.fn(),
     getStyle: vi.fn(() => ({ version: 8, sources: {}, layers: [...layers.values()] })),
     getLayer: vi.fn((id: string) => layers.get(id)),
@@ -500,7 +501,7 @@ describe('MapSceneController', () => {
 
 describe('MapSceneController basemap reconcile', () => {
   const BASEMAP_KEYS = [
-    'mapStyle', 'projection', 'terrainEnabled', 'terrainExaggeration', 'buildingsEnabled', 'lightPreset',
+    'mapStyle', 'customStyle', 'projection', 'terrainEnabled', 'terrainExaggeration', 'buildingsEnabled', 'lightPreset',
     'labelVisibility', 'show3dLandmarks', 'show3dTrees', 'show3dFacades', 'starIntensity', 'fogColor',
     'terrainLoading', 'detectedCapabilities',
   ] as const;

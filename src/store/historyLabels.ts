@@ -21,6 +21,7 @@ function itemName(item: TimelineItem): string {
 
 const SETTING_LABELS: Partial<Record<TrackedKey, string>> = {
   mapStyle: 'Changed map style',
+  customStyle: 'Changed map style',
   customMapStyleUrl: 'Changed map style',
   customMapStyleLabel: 'Changed map style',
   labelVisibility: 'Changed map labels',

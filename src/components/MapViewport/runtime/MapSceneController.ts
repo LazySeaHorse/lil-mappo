@@ -20,6 +20,7 @@ type ProjectState = ReturnType<typeof useProjectStore.getState>;
 /** Store fields the basemap is reconciled from. */
 const BASEMAP_KEYS = [
   'mapStyle',
+  'customStyle',
   'projection',
   'terrainEnabled',
   'terrainExaggeration',

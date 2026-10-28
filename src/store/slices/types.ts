@@ -14,6 +14,7 @@ import type { AppearPreview } from '@/engine/appearPreview';
 import type { StagedItem } from '@/engine/stagedItems';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
+import type { CustomMapStyle } from '@/customMapStyles/model';
 import type { AspectRatio, ExportResolution } from '@/types/render';
 
 export interface PickResult {
@@ -141,7 +142,8 @@ export interface ProjectSettingsSlice {
 }
 
 export interface MapEnvironmentSlice {
-  setMapStyle: (s: string) => void;
+  /** Switches to a built-in style, with `customStyle` colours over it (none by default). */
+  setMapStyle: (style: string, customStyle?: CustomMapStyle | null) => void;
   setLabelGroupVisibility: (groupId: string, visible: boolean) => void;
   setAllLabelsVisibility: (visible: boolean) => void;
   set3dDetails: (key: 'landmarks' | 'trees' | 'facades', visible: boolean) => void;

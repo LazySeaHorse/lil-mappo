@@ -19,6 +19,7 @@ export const TRACKED_PROJECT_KEYS = [
   'fogColor',
   'terrainExaggeration',
   'mapStyle',
+  'customStyle',
   'terrainEnabled',
   'buildingsEnabled',
   'labelVisibility',

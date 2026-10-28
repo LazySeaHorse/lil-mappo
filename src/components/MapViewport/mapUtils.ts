@@ -1,4 +1,5 @@
 import { LABEL_CATEGORIES, STANDARD_CAPABILITIES, getStandardLabelGroups, isStandardBasemap, type MapStyleCapabilities } from '@/config/mapbox';
+import { classicColorRoles, type RecolorLayer } from '@/customMapStyles/classicRecolor';
 import type { PickResult } from '@/store/slices/types';
 import type { Map as MapboxMap } from 'mapbox-gl';
 
@@ -10,13 +11,14 @@ interface ClickTargetEvent {
  * Detects capabilities for the loaded style.
  * Standard returns its fixed config-driven label categories (its layers live inside the
  * `basemap` import, unreachable via getStyle().layers). Classic styles return only the
- * canonical label categories that match at least one layer in the loaded style, and offer
- * 3D buildings only when `compositeHasBuildings` finds the layer to extrude them from.
+ * canonical label categories that match at least one layer in the loaded style, and the
+ * colour roles a custom style can change on its layers.
  */
 export function detectRuntimeCapabilities(map: MapboxMap, mapStyle: string): MapStyleCapabilities {
   if (isStandardBasemap(mapStyle)) return { ...STANDARD_CAPABILITIES, labelGroups: getStandardLabelGroups() };
 
-  const layerIds = (map.getStyle()?.layers ?? []).map((l) => l.id.toLowerCase());
+  const layers = map.getStyle()?.layers ?? [];
+  const layerIds = layers.map((l) => l.id.toLowerCase());
   const labelGroups = LABEL_CATEGORIES
     .filter((c) => c.layerPatterns.some((p) => layerIds.some((id) => id.includes(p.toLowerCase()))))
     .map((c) => ({ id: c.id, label: c.label, layerPatterns: [...c.layerPatterns] }));
@@ -28,7 +30,7 @@ export function detectRuntimeCapabilities(map: MapboxMap, mapStyle: string): Map
     trees3d: false,
     facades3d: false,
     timeOfDayPreset: false,
-    colorCustomization: true,
+    colorRoles: classicColorRoles(layers as RecolorLayer[]),
   };
 }
 

@@ -6,6 +6,8 @@ import type {
 import { useProjectStore } from '@/store/useProjectStore';
 import { LABEL_CATEGORIES, MAP_STYLES, isStandardBasemap, resolveFog } from '@/config/mapbox';
 import { track } from '@/lib/analytics';
+import { classicColorTargets, recolorValue, type RecolorLayer, type RecolorTarget } from '@/customMapStyles/classicRecolor';
+import { STANDARD_CUSTOM_PROPERTIES, standardCustomConfig } from '@/customMapStyles/model';
 import { detectRuntimeCapabilities } from '../mapUtils';
 import { isStyleReady, mutateMap } from './mapboxResources';
 import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
@@ -14,6 +16,13 @@ import { handleMissingStyleImage, loadKnownStyleAssets } from './styleAssets';
 const reportedStyleFailures = new Set<string>();
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
+
+interface StyleScan {
+  labelLayerIds: string[];
+  firstSymbolId: string | undefined;
+  firstRoadId: string | undefined;
+  colorTargets: Array<{ layerId: string; target: RecolorTarget }>;
+}
 
 /** Fog values within this are the same; Mapbox hands numbers back with float noise. */
 const FOG_NUMBER_TOLERANCE = 0.005;
@@ -48,8 +57,12 @@ function setLayerVisibility(
 export class BasemapController {
   private disposed = false;
   private readonly animationFrames = new Set<number>();
-  /** Label-relevant classic layer ids and the first symbol layer, scanned once per style load (getStyle() serializes the whole style). */
-  private styleScan: { labelLayerIds: string[]; firstSymbolId: string | undefined; firstRoadId: string | undefined } | undefined;
+  /** Label-relevant classic layer ids, the first symbol and road layers and the colours a custom style can repaint, scanned once per style load (getStyle() serializes the whole style). */
+  private styleScan: StyleScan | undefined;
+  /** The classic style's own value of each paint property a custom style changed, by `layerId\u0000property`. */
+  private readonly originalPaint = new Map<string, unknown>();
+  /** The custom style last painted on this classic style (undefined: none since the style loaded). */
+  private paintedStyle: ProjectState['customStyle'] | undefined;
   private unsubscribeInteractive: (() => void) | undefined;
 
   constructor(
@@ -111,6 +124,7 @@ export class BasemapController {
     }
 
     this.reconcileBuildings(state);
+    this.reconcileCustomStyle(state);
     this.reconcileLabels(state);
     this.reconcileTerrain(state);
     this.reconcileFog(state);
@@ -147,6 +161,49 @@ export class BasemapController {
         this.map.setConfigProperty('basemap', property, value);
       });
     }
+  }
+
+  private reconcileCustomStyle(state: ProjectState): void {
+    if (isStandardBasemap(state.mapStyle)) this.reconcileStandardColors(state);
+    else this.reconcileClassicColors(state);
+  }
+
+  /** Standard: the custom style's config values, and the schema default for every one it does not set. */
+  private reconcileStandardColors(state: ProjectState): void {
+    const schema = this.map.getSchema('basemap');
+    if (!schema) return;
+    const config = standardCustomConfig(state.customStyle);
+    for (const property of STANDARD_CUSTOM_PROPERTIES) {
+      const value = config[property] ?? schema[property]?.default;
+      if (value === undefined || this.map.getConfigProperty('basemap', property) === value) continue;
+      mutateMap(this.map, { operation: `setConfigProperty:${property}`, phase: 'style-sync' }, () => {
+        this.map.setConfigProperty('basemap', property, value);
+      });
+    }
+  }
+
+  /**
+   * Classic: repaints the layers the custom style has a colour for, from the style's own
+   * values (kept the first time a property changes), and puts back the ones it no longer sets.
+   */
+  private reconcileClassicColors(state: ProjectState): void {
+    if (state.customStyle === this.paintedStyle) return;
+    if (this.paintedStyle === undefined && !state.customStyle) {
+      this.paintedStyle = null;
+      return;
+    }
+    const colors = state.customStyle?.colors ?? {};
+    for (const { layerId, target } of this.getStyleScan().colorTargets) {
+      const key = `${layerId}\u0000${target.property}`;
+      if (!this.originalPaint.has(key)) this.originalPaint.set(key, this.map.getPaintProperty(layerId, target.property as never));
+      const original = this.originalPaint.get(key);
+      const value = recolorValue(target, colors, original) ?? original;
+      if (JSON.stringify(value) === JSON.stringify(this.map.getPaintProperty(layerId, target.property as never))) continue;
+      mutateMap(this.map, { operation: `setPaintProperty:${target.property}`, phase: 'style-sync', resourceId: layerId }, () => {
+        this.map.setPaintProperty(layerId, target.property as never, value as never);
+      });
+    }
+    this.paintedStyle = state.customStyle;
   }
 
   private reconcileLabels(state: ProjectState): void {
@@ -204,11 +261,11 @@ export class BasemapController {
     });
   }
 
-  private getStyleScan(): NonNullable<BasemapController['styleScan']> {
+  private getStyleScan(): StyleScan {
     if (this.styleScan) return this.styleScan;
     // Standard's layers live inside the basemap import and are driven by config properties, so skip the scan
     if (isStandardBasemap(useProjectStore.getState().mapStyle)) {
-      return { labelLayerIds: [], firstSymbolId: undefined, firstRoadId: undefined };
+      return { labelLayerIds: [], firstSymbolId: undefined, firstRoadId: undefined, colorTargets: [] };
     }
     const layers = this.map.getStyle()?.layers ?? [];
     const patterns = LABEL_CATEGORIES.flatMap((category) => category.layerPatterns.map((p) => p.toLowerCase()));
@@ -218,6 +275,8 @@ export class BasemapController {
       firstSymbolId: layers.find((layer) => layer.type === 'symbol')?.id,
       // Mapbox Streets puts roads, tunnels and bridges in the `road` source layer
       firstRoadId: layers.find((layer) => 'source-layer' in layer && layer['source-layer'] === 'road')?.id,
+      colorTargets: layers.flatMap((layer) =>
+        classicColorTargets(layer as RecolorLayer).map((target) => ({ layerId: layer.id, target }))),
     };
     return this.styleScan;
   }
@@ -240,6 +299,8 @@ export class BasemapController {
   private readonly handleStyleLoad = () => {
     const state = useProjectStore.getState();
     this.styleScan = undefined;
+    this.originalPaint.clear();
+    this.paintedStyle = undefined;
     void loadKnownStyleAssets(this.map);
     state.setDetectedCapabilities(detectRuntimeCapabilities(this.map, state.mapStyle));
     this.setStyleLoaded(true);
