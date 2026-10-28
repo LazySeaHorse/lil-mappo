@@ -96,6 +96,21 @@ async function selectH264Codec(width: number, height: number, fps: number): Prom
   return 'avc1.42E01E'; // false-negative fallback
 }
 
+// Constant bitrate where the encoder takes it: with variable, hardware encoders
+// spend far less than the target on map footage (a 4K60 export came out at
+// 17 Mb/s of 75), which shows as blocking in pans over imagery and labels.
+async function selectBitrateMode(
+  config: VideoEncoderConfig,
+): Promise<VideoEncoderBitrateMode> {
+  try {
+    const { supported } = await VideoEncoder.isConfigSupported({ ...config, bitrateMode: 'constant' });
+    if (supported) return 'constant';
+  } catch {
+    // isConfigSupported itself can throw on some browsers — keep variable
+  }
+  return 'variable';
+}
+
 // ─── Teardown ─────────────────────────────────────────────────────────────────
 
 /**
@@ -133,6 +148,10 @@ async function initEncoder(
   }
 
   const codec = await selectH264Codec(width, height, fps);
+  const encoderConfig: VideoEncoderConfig = {
+    codec, width, height, bitrate: exportBitrate(width, height, fps), framerate: fps, latencyMode: 'quality',
+  };
+  const bitrateMode = await selectBitrateMode(encoderConfig);
   const exportTarget = await createVideoExportTarget();
   const output = new Output({
     target: exportTarget.target,
@@ -170,10 +189,7 @@ async function initEncoder(
         encoderError = new Error(`VideoEncoder error: ${e.message}`);
       },
     });
-    videoEncoder.configure({
-      codec, width, height, bitrate: exportBitrate(width, height, fps), framerate: fps,
-      latencyMode: 'quality', bitrateMode: 'variable',
-    });
+    videoEncoder.configure({ ...encoderConfig, bitrateMode });
   } catch (e: unknown) {
     await cancelAndDiscard(output, exportTarget);
     console.error('[videoExport] VideoEncoder.configure() failed:', e);

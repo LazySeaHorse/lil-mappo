@@ -200,6 +200,18 @@ describe('runExport', () => {
     expect(target.discard).toHaveBeenCalledTimes(1);
   });
 
+  it('encodes at a constant bitrate where the encoder supports it, else variable', async () => {
+    const configure = vi.spyOn(FakeEncoder.prototype, 'configure');
+    await runExport(installRuntime().ref, options());
+    expect(configure).toHaveBeenLastCalledWith(expect.objectContaining({ bitrateMode: 'constant', latencyMode: 'quality' }));
+
+    FakeEncoder.isConfigSupported.mockImplementation(async (config?: { bitrateMode?: string }) => ({
+      supported: config?.bitrateMode !== 'constant',
+    }));
+    await runExport(installRuntime().ref, options());
+    expect(configure).toHaveBeenLastCalledWith(expect.objectContaining({ bitrateMode: 'variable' }));
+  });
+
   it('discards the output when the encoder rejects its config', async () => {
     const { ref } = installRuntime();
     vi.spyOn(FakeEncoder.prototype, 'configure').mockImplementation(() => { throw new Error('nope'); });
