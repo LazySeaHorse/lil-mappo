@@ -322,6 +322,22 @@ describe('TimelinePanel', () => {
     expect(useProjectStore.getState().items.trimming).toMatchObject({ startTime: 4, endTime: 8 });
   });
 
+  it('trims with one store write per pointer move', () => {
+    renderTimeline(route('trimming', 2, 6));
+    const writes = vi.fn();
+    const unsubscribe = useProjectStore.subscribe((state, previous) => {
+      if (state.items !== previous.items) writes();
+    });
+    const handle = screen.getByTestId('timeline-item-trimming-end-handle');
+    fireEvent.pointerDown(handle, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 130, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    unsubscribe();
+
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect((useProjectStore.getState().items.trimming as RouteItem).endTime).toBeGreaterThan(6);
+  });
+
   it('leaves the item unchanged when no complete legal gap exists', () => {
     renderTimeline(route('moving', 0, 3, true), route('blocked', 0, 10, true));
     drag('timeline-item-moving', 120);

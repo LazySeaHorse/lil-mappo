@@ -63,7 +63,10 @@ const TimelineItemBar = React.memo(({
     blockedRanges: ReturnType<typeof getOtherAutoCamRanges>;
   } | null>(null);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, type: 'start' | 'end' | 'move') => {
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    // A press on an edge handle trims that edge; anywhere else on the clip moves it.
+    const handle = (event.target as Element).closest<HTMLElement>('[data-handle]');
+    const type = handle && event.currentTarget.contains(handle) ? (handle.dataset.handle as 'start' | 'end') : 'move';
     event.stopPropagation();
     event.preventDefault();
     onSelect(item.id);
@@ -174,7 +177,7 @@ const TimelineItemBar = React.memo(({
         top: lane * TIMELINE_LANE_HEIGHT + CLIP_INSET,
         height: TIMELINE_LANE_HEIGHT - CLIP_INSET * 2,
       }}
-      onPointerDown={(event) => handlePointerDown(event, 'move')}
+      onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
@@ -184,12 +187,8 @@ const TimelineItemBar = React.memo(({
 
       <div
         data-testid={`timeline-item-${item.id}-start-handle`}
+        data-handle="start"
         className={handleClass}
-        onPointerDown={(event) => handlePointerDown(event, 'start')}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onLostPointerCapture={handleLostPointerCapture}
       >
         <div className="w-1 h-3.5 rounded-full bg-white/80 shadow-sm pointer-events-none" />
       </div>
@@ -203,12 +202,8 @@ const TimelineItemBar = React.memo(({
 
       <div
         data-testid={`timeline-item-${item.id}-end-handle`}
+        data-handle="end"
         className={handleClass}
-        onPointerDown={(event) => handlePointerDown(event, 'end')}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onLostPointerCapture={handleLostPointerCapture}
       >
         <div className="w-1 h-3.5 rounded-full bg-white/80 shadow-sm pointer-events-none" />
       </div>
