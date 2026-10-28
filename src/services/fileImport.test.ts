@@ -45,6 +45,10 @@ describe('detectRouteFormat', () => {
     expect(detectRouteFormat(new Uint8Array())).toBeNull();
   });
 
+  it('needs a 12 or 14 byte header as well as ".FIT" to call bytes a FIT file', () => {
+    expect(detectRouteFormat(new Uint8Array([13, 0x10, 0, 0, 0, 0, 0, 0, 0x2e, 0x46, 0x49, 0x54, 0, 0]))).toBeNull();
+  });
+
   it('reads through a UTF-8 or UTF-16 byte-order mark', () => {
     expect(detectRouteFormat(new Uint8Array([0xef, 0xbb, 0xbf, ...enc(gpx([[1, 2]]))]))).toBe('gpx');
     expect(detectRouteFormat(utf16le(gpx([[1, 2]])))).toBe('gpx');
