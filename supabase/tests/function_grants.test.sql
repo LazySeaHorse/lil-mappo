@@ -30,7 +30,7 @@ SELECT ok(
 
 SELECT ok(
   has_function_privilege('service_role', 'public.track_map_load(uuid)', 'EXECUTE'),
-  'the server (api/track-map-load.ts) can call track_map_load'
+  'service_role keeps EXECUTE on track_map_load'
 );
 SELECT ok(
   has_function_privilege('supabase_auth_admin', 'public.check_email_domain_before_signup(jsonb)', 'EXECUTE'),

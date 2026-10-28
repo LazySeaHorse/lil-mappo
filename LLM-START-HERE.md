@@ -577,9 +577,9 @@ A one-time $3 Dodo product (`DODO_PRODUCT_PASS_3DAY`) that unlocks every Wandere
 
 **Solution** (Migration 025): `useMapLoadGate` calls `supabase.rpc('track_my_map_load')` directly. The function takes **no arguments**: the user is always `auth.uid()` from the caller's JWT, and it raises `unauthorized` without one, so nobody can spend another user's quota. `has_pro_access` (Wanderer or Pro pass) → `(allowed: true, reason: null, 0, 0)`, nothing counted, as the endpoint's `isWanderer` branch did. Otherwise it returns `track_map_load(auth.uid())`, so counting, limits and the advisory lock stay in one place (018). EXECUTE for `authenticated` only (not `anon`). Tested in `supabase/tests/track_my_map_load.test.sql`.
 
-**Client** (`trackMapLoad` in `useMapLoadGate.ts`): first returned row → `allowed` false blocks with its `reason`. If the function is missing (PostgREST answers HTTP 404 with code `PGRST202`, e.g. before 025 is applied or before the schema cache reloads), it falls back to the old `/api/track-map-load` fetch, which enforces the same quota. Any other error, or no row, fails closed (`quota_error`) without the fallback. BYOK, guest and Wanderer branches and the once-per-load guard are unchanged.
+**Client** (`trackMapLoad` in `useMapLoadGate.ts`): first returned row → `allowed` false blocks with its `reason`. Any error (including a missing function) or no row fails closed (`quota_error`). BYOK, guest and Wanderer branches and the once-per-load guard are unchanged.
 
-**Rollout order**: (1) apply 025 to the Supabase project (it only adds a function, so existing clients and the endpoint are unaffected); (2) deploy the client. Deploying first is also safe: the client falls back until 025 lands. (3) Later, once 025 is applied everywhere and cached old builds have aged out, delete `api/track-map-load.ts`, `trackMapLoadViaApi` and the fallback branch (and `api/_tests/track-map-load.test.ts`). `track_map_load` itself stays: `track_my_map_load` calls it.
+**Rollout** (done): 025 is applied in production, and the `/api/track-map-load` endpoint and the client's fallback to it (for a missing function, `PGRST202`) are removed. `track_map_load` itself stays: `track_my_map_load` calls it. The endpoint named in 6.11 and 6.12 is history.
 
 ### 6.13 Three Client-Side Security Fixes (April 2026)
 

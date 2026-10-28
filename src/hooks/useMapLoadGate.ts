@@ -63,29 +63,13 @@ interface MapLoadQuota {
  * Counts one map load for the signed-in free user, in one database call:
  * `track_my_map_load()` (migration 025) always counts against the caller's
  * own JWT identity. Rejects on any error, so the caller fails closed.
- *
- * Rollout fallback: until 025 is applied (or PostgREST's schema cache has
- * picked it up), PostgREST answers 404 with code PGRST202 and this goes
- * through `/api/track-map-load` as before. That endpoint enforces the same
- * quota, so falling back never lets a load through uncounted.
  */
-async function trackMapLoad(accessToken: string): Promise<MapLoadQuota> {
-  const { data, error, status } = await supabase.rpc('track_my_map_load');
-  if (error) {
-    if (error.code === 'PGRST202' || status === 404) return trackMapLoadViaApi(accessToken);
-    throw error;
-  }
+async function trackMapLoad(): Promise<MapLoadQuota> {
+  const { data, error } = await supabase.rpc('track_my_map_load');
+  if (error) throw error;
   const row = (Array.isArray(data) ? data[0] : data) as MapLoadQuota | null | undefined;
   if (!row || typeof row.allowed !== 'boolean') throw new Error('track_my_map_load returned no row');
   return row;
-}
-
-/** The pre-025 path, unchanged. Remove with `api/track-map-load.ts`. */
-function trackMapLoadViaApi(accessToken: string): Promise<MapLoadQuota> {
-  return fetch('/api/track-map-load', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  }).then((r) => r.json());
 }
 
 export function useMapLoadGate({
@@ -150,7 +134,7 @@ export function useMapLoadGate({
     }
 
     // Free user: count the load against the server-side quota
-    trackMapLoad(session.access_token)
+    trackMapLoad()
       .then((data) => {
         if (!data.allowed) {
           setBlocked(true);
@@ -160,8 +144,8 @@ export function useMapLoadGate({
       })
       .catch(() => {
         // Fail closed: a quota check error blocks the map rather than granting
-        // free unlimited access. Supabase (and, on the fallback, Vercel)
-        // outages are rare enough that this is the safer tradeoff.
+        // free unlimited access. Supabase outages are rare enough that this is
+        // the safer tradeoff.
         setBlocked(true);
         setReason('quota_error');
         setReady(true);
