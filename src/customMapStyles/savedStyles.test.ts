@@ -25,15 +25,17 @@ describe('saved map styles', () => {
 
   it('replaces a saved style of the same name in place, keeping its id', () => {
     const first = store().save('light', ink);
+    expect(first.replaced).toBe(false);
     store().save('standard', paper);
     const again = store().save('dark', { ...ink, name: ' ink ', colors: { land: '#000000' } });
-    expect(again.id).toBe(first.id);
+    expect(again.replaced).toBe(true);
+    expect(again.saved.id).toBe(first.saved.id);
     expect(store().styles.map((s) => [s.style.name, s.mapStyle])).toEqual([['Paper', 'standard'], [' ink ', 'dark']]);
   });
 
   it('removes a style and puts it back at its place', () => {
     store().save('light', ink);
-    const paperSaved = store().save('standard', paper);
+    const { saved: paperSaved } = store().save('standard', paper);
     store().save('dark', { ...ink, name: 'Night' });
 
     const removed = store().remove(paperSaved.id);

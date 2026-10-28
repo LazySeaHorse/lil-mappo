@@ -56,8 +56,8 @@ const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 interface SavedMapStylesState {
   /** Newest first. */
   styles: SavedMapStyle[];
-  /** Saves `style` over `mapStyle` under its name. A saved style with the same name is replaced (it keeps its id and place). */
-  save: (mapStyle: string, style: CustomMapStyle) => SavedMapStyle;
+  /** Saves `style` over `mapStyle` under its name. A saved style with the same name is replaced (it keeps its id and place); `replaced` says so. */
+  save: (mapStyle: string, style: CustomMapStyle) => { saved: SavedMapStyle; replaced: boolean };
   /** Removes a saved style; returns it with its place in the list, for undo. */
   remove: (id: string) => { saved: SavedMapStyle; index: number } | undefined;
   /** Puts a removed style back at its place. */
@@ -79,7 +79,7 @@ export const useSavedMapStyles = create<SavedMapStylesState>()((set, get) => {
       const existing = styles.find((saved) => sameName(saved.style.name, style.name));
       const saved: SavedMapStyle = { id: existing?.id ?? nanoid(), mapStyle, style, savedAt: new Date().toISOString() };
       commit(existing ? styles.map((s) => (s === existing ? saved : s)) : [saved, ...styles]);
-      return saved;
+      return { saved, replaced: !!existing };
     },
     remove: (id) => {
       const { styles } = get();

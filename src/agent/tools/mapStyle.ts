@@ -111,10 +111,8 @@ export const saveMapStyle = defineTool({
     if (!customStyle) {
       throw new ToolError('no_custom_style', 'The project has no custom map style to save. Make one with set_custom_map_style first.');
     }
-    const saved = useSavedMapStyles.getState();
-    const replaced = saved.styles.some((s) => s.style.name.trim().toLowerCase() === customStyle.name.trim().toLowerCase());
-    const entry = saved.save(mapStyle, customStyle);
-    return { data: { saved: savedView(entry), replaced }, summary: `Saved map style "${customStyle.name}"` };
+    const { saved, replaced } = useSavedMapStyles.getState().save(mapStyle, customStyle);
+    return { data: { saved: savedView(saved), replaced }, summary: `Saved map style "${customStyle.name}"` };
   },
 });
 
