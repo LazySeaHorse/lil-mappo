@@ -31,7 +31,7 @@ export function ProjectSettings() {
     labelVisibility, setLabelGroupVisibility, setAllLabelsVisibility,
     setProjectName, setFps, setTerrainExaggeration,
     setProjection, setLightPreset, set3dDetails, setAtmosphere,
-    mapStyle,
+    mapStyle, customStyle,
     aspectRatio, exportResolution, isVertical,
     setAspectRatio, setExportResolution, setIsVertical,
   } = useProjectStore(
@@ -46,7 +46,7 @@ export function ProjectSettings() {
       setTerrainExaggeration: s.setTerrainExaggeration,
       setProjection: s.setProjection, setLightPreset: s.setLightPreset,
       set3dDetails: s.set3dDetails, setAtmosphere: s.setAtmosphere,
-      mapStyle: s.mapStyle,
+      mapStyle: s.mapStyle, customStyle: s.customStyle,
       aspectRatio: s.aspectRatio, exportResolution: s.exportResolution, isVertical: s.isVertical,
       setAspectRatio: s.setAspectRatio, setExportResolution: s.setExportResolution, setIsVertical: s.setIsVertical,
     }))
@@ -185,7 +185,7 @@ export function ProjectSettings() {
         <ColorRow
           label="Fog color"
           hint={MAP_SETTING_HINTS.fogColor}
-          value={resolveFog({ mapStyle, projection, lightPreset, starIntensity, fogColor }).color}
+          value={resolveFog({ mapStyle, customStyle, projection, lightPreset, starIntensity, fogColor }).color}
           onChange={(v) => setAtmosphere({ fogColor: v })}
           action={
             <Button

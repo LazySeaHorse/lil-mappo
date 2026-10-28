@@ -18,6 +18,7 @@ export function createTransientState(): TransientProjectState {
     selectedItemId: null,
     selectedKeyframeId: null,
     selectedAutoCamRouteId: null,
+    previewDismissedId: null,
     hideUI: false,
     isFitMode: false,
     isExporting: false,
@@ -32,6 +33,7 @@ export function createTransientState(): TransientProjectState {
     boundaryDetail: DEFAULT_BOUNDARY_DETAIL,
     appearPreview: null,
     stagedItems: [],
+    stagedBy: null,
   };
 }
 
@@ -41,11 +43,12 @@ export const createMapEnvironmentSlice: StateCreator<
   [],
   MapEnvironmentSlice
 > = (set) => ({
-  setMapStyle: (s) =>
-    set((s2) => ({
-      mapStyle: s,
+  setMapStyle: (style, customStyle = null) =>
+    set((s) => (style === s.mapStyle ? { customStyle } : {
+      mapStyle: style,
+      customStyle,
       // The DEM source/terrain are re-added by BasemapController after the swap.
-      terrainLoading: s2.terrainEnabled,
+      terrainLoading: s.terrainEnabled,
       detectedCapabilities: null,
     })),
 

@@ -3,7 +3,7 @@ import { createBoundaryItem, createCalloutItem } from '@/store/itemFactories';
 import { useProjectStore } from '@/store/useProjectStore';
 import { clearHistory, getHistoryEntries, undo } from '@/store/history';
 import '@/annotations/styles';
-import { sceneItems, stagedAt } from './stagedItems';
+import { sceneItems, stagedAt, stagedItemsOf } from './stagedItems';
 
 const boundary = { ...createBoundaryItem({ placeName: 'A', geojson: null, startTime: 2 }), endTime: 6 };
 const label = createCalloutItem({ styleId: 'map-label', content: { title: 'A' }, lngLat: [0, 0], startTime: 3, endTime: 6 })!;
@@ -46,16 +46,16 @@ describe('stagedAt', () => {
 
 describe('addStagedItems', () => {
   beforeEach(() => {
-    useProjectStore.setState({ ...project, stagedItems: [], playheadTime: 0 });
+    useProjectStore.setState({ ...project, stagedItems: [], stagedBy: null, playheadTime: 0 });
     clearHistory();
   });
 
   it('adds the staged items at the playhead as one undo step and clears them', () => {
-    useProjectStore.getState().stageItems([boundary, label]);
+    useProjectStore.getState().stageItems('boundary-add', [boundary, label]);
     expect(getHistoryEntries().past).toHaveLength(0);
     useProjectStore.setState({ playheadTime: 8 });
 
-    const added = useProjectStore.getState().addStagedItems();
+    const added = useProjectStore.getState().addStagedItems('boundary-add');
 
     const state = useProjectStore.getState();
     expect(state.stagedItems).toEqual([]);
@@ -66,5 +66,30 @@ describe('addStagedItems', () => {
 
     undo();
     expect(useProjectStore.getState().itemOrder).toEqual([existing.id]);
+  });
+
+  it('adds only what the asking panel staged', () => {
+    useProjectStore.getState().stageItems('boundary-add', [boundary]);
+
+    expect(useProjectStore.getState().addStagedItems('callout-add')).toEqual([]);
+    expect(useProjectStore.getState().itemOrder).toEqual([existing.id]);
+    expect(useProjectStore.getState().stagedItems).toEqual([boundary]);
+  });
+});
+
+describe('clearStagedItems', () => {
+  beforeEach(() => useProjectStore.setState({ stagedItems: [], stagedBy: null }));
+
+  it('drops what the panel staged', () => {
+    useProjectStore.getState().stageItems('callout-add', [label]);
+    useProjectStore.getState().clearStagedItems('callout-add');
+    expect(useProjectStore.getState()).toMatchObject({ stagedItems: [], stagedBy: null });
+  });
+
+  it('leaves another panel\'s staged items alone', () => {
+    useProjectStore.getState().stageItems('boundary-add', [boundary]);
+    useProjectStore.getState().clearStagedItems('callout-add');
+    expect(useProjectStore.getState()).toMatchObject({ stagedItems: [boundary], stagedBy: 'boundary-add' });
+    expect(stagedItemsOf(useProjectStore.getState(), 'callout-add')).toEqual([]);
   });
 });

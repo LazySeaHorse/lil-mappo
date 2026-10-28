@@ -6,7 +6,7 @@ import { PREVIEW_HEIGHT, PREVIEW_WIDTH, getStylePreview } from './stylePreview';
 
 /** The theme the editor shows: the map look decides it (see `MapStudioEditor`). */
 function useIsDarkTheme(): boolean {
-  return useProjectStore((s) => isDarkMapStyle(s.mapStyle, s.lightPreset));
+  return useProjectStore((s) => isDarkMapStyle(s.mapStyle, s.lightPreset, s.customStyle));
 }
 
 /** A picture of a callout style, drawn by the real renderer. Shows the style icon while it draws or when it cannot. */

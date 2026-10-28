@@ -8,7 +8,7 @@ import { autoCamForRoute, defaultAutoCamFor } from '@/config/vehicles';
 import { canEnableFollowCamera } from '../followCamera';
 import { isRouteItem } from '../typeGuards';
 import { pruneModels } from '../modelAssets';
-import { stagedAt } from '@/engine/stagedItems';
+import { stagedAt, stagedItemsOf } from '@/engine/stagedItems';
 
 export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set, get) => ({
   addItem: (item) =>
@@ -17,12 +17,14 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
       itemOrder: item.kind === 'camera' ? s.itemOrder : [...s.itemOrder, item.id],
     })),
 
-  addStagedItems: () => {
-    const added = stagedAt(get().stagedItems, get().playheadTime);
+  addStagedItems: (owner) => {
+    const added = stagedAt(stagedItemsOf(get(), owner), get().playheadTime);
+    if (added.length === 0) return added;
     set((s) => ({
       items: { ...s.items, ...Object.fromEntries(added.map((item) => [item.id, item])) },
       itemOrder: [...s.itemOrder, ...added.map((item) => item.id)],
       stagedItems: [],
+      stagedBy: null,
     }));
     return added;
   },

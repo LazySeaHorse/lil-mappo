@@ -16,23 +16,25 @@ export function classifyExportError(err: unknown): ExportErrorClass {
   return 'other';
 }
 
-/** Route import source from the file extension only (the name itself is never sent). */
-export function importSourceOf(fileName: string): Extract<RouteSource, 'import_gpx' | 'import_kml' | 'import_geojson'> {
-  const ext = fileName.split('.').pop()?.toLowerCase();
-  if (ext === 'gpx') return 'import_gpx';
-  if (ext === 'kml') return 'import_kml';
+/** Route import source from the format that was read from the file's bytes. */
+export function importSourceOf(format: ImportFormat): Extract<RouteSource, 'import_gpx' | 'import_kml' | 'import_tcx' | 'import_fit' | 'import_geojson'> {
+  if (format === 'gpx' || format === 'kml' || format === 'tcx' || format === 'fit') return `import_${format}`;
   return 'import_geojson';
 }
 
-/** Route import format from the file extension only. */
+/** Route import format guessed from the file extension only, for files that failed before their content was read. */
 export function importFormatOf(fileName: string): ImportFormat {
-  const ext = fileName.split('.').pop()?.toLowerCase();
-  if (ext === 'gpx' || ext === 'kml') return ext;
+  const ext = fileName.replace(/\.gz$/i, '').split('.').pop()?.toLowerCase();
+  if (ext === 'gpx' || ext === 'kml' || ext === 'tcx' || ext === 'fit') return ext;
+  if (ext === 'kmz') return 'kml';
   if (ext === 'geojson' || ext === 'json') return 'geojson';
   return 'unknown';
 }
 
 export function classifyImportError(err: unknown): ImportErrorClass {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (code === 'empty' || code === 'noTrack') return 'empty';
+  if (code === 'type' || code === 'parse' || code === 'archive') return 'parse';
   const message = errorMessage(err, String(err ?? '')).toLowerCase();
   if (/empty/.test(message)) return 'empty';
   if (/invalid|malformed|binary|unsupported|not valid/.test(message)) return 'parse';

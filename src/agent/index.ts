@@ -23,4 +23,4 @@ export type {
   AgentToolResult,
 } from './defineTool';
 export { isWebMcpSupported, registerWebMcpTool } from './webmcp';
-export { connectBridge, BRIDGE_MCP_URL } from './bridge';
+export { connectBridge, BRIDGE_MCP_URL, type BridgeStatus } from './bridge';

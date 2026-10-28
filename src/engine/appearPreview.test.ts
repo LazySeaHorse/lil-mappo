@@ -72,7 +72,10 @@ describe('activeAppearPreview', () => {
 });
 
 describe('playAppearPreview', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   const stubReducedMotion = (matches: boolean) =>
     vi.stubGlobal('matchMedia', (query: string) => ({ matches, media: query, addEventListener() {}, removeEventListener() {} }));
@@ -83,7 +86,6 @@ describe('playAppearPreview', () => {
     useProjectStore.setState({ selectedItemId: 'a', playheadTime: 3 });
     useProjectStore.getState().playAppearPreview(['a', 'b']);
     expect(useProjectStore.getState().appearPreview).toEqual({ itemIds: ['a', 'b'], startedAt: 500, selectedItemId: 'a', playheadTime: 3 });
-    vi.restoreAllMocks();
   });
 
   it('starts finished when the user asks for less motion', () => {

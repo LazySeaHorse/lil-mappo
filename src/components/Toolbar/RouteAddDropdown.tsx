@@ -415,7 +415,7 @@ export const RouteAddDropdown = ({
         className="w-full"
       >
         {isGuest ? <Lock size={13} /> : <Upload size={13} />}
-        {isGuest ? 'Sign in to import KML / GPX data' : 'Import KML / GPX data'}
+        {isGuest ? 'Sign in to import a route file' : 'Import route file'}
       </Button>
     </div>
   );

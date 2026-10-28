@@ -27,8 +27,11 @@ function createMapDouble() {
     isStyleLoaded: vi.fn(() => true),
     getProjection: vi.fn(() => ({ name: state.projection })),
     setProjection: vi.fn(),
-    getConfigProperty: vi.fn(() => undefined),
+    getConfigProperty: vi.fn((_importId: string, _property: string): unknown => undefined),
     setConfigProperty: vi.fn(),
+    getSchema: vi.fn((): Record<string, { default: unknown }> | null => null),
+    getPaintProperty: vi.fn((_layerId: string, _property: string): unknown => undefined),
+    setPaintProperty: vi.fn(),
     getLayer: vi.fn(),
     addLayer: vi.fn(),
     getLayoutProperty: vi.fn(),
@@ -220,6 +223,103 @@ describe('BasemapController', () => {
     controller.dispose();
     store.setMapStyle('standard');
     store.setAllLabelsVisibility(true);
+  });
+
+  describe('custom style', () => {
+    it('sets its Standard config and puts every property it does not set back to the default', () => {
+      const double = createMapDouble();
+      const config = new Map<string, unknown>();
+      double.getConfigProperty.mockImplementation((_id, property) => config.get(property));
+      double.setConfigProperty.mockImplementation((_id: string, property: string, value: unknown) => config.set(property, value));
+      double.getSchema.mockReturnValue({
+        theme: { default: 'default' },
+        colorLand: { default: 'hsl(20, 20%, 95%)' },
+        colorWater: { default: 'hsl(200, 100%, 80%)' },
+        colorPointOfInterestLabels: { default: 'hsl(203, 7%, 55%)' },
+        colorModePointOfInterestLabels: { default: 'default' },
+      });
+      const store = useProjectStore.getState();
+      store.setMapStyle('standard', { name: 'Ink', colors: { land: '#112233', poiLabels: '#ffffff' }, theme: 'monochrome' });
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+
+      expect(Object.fromEntries(config)).toMatchObject({
+        theme: 'monochrome',
+        colorLand: '#112233',
+        colorWater: 'hsl(200, 100%, 80%)',
+        colorPointOfInterestLabels: '#ffffff',
+        colorModePointOfInterestLabels: 'single',
+      });
+
+      store.setMapStyle('standard');
+      controller.reconcile();
+      expect(Object.fromEntries(config)).toMatchObject({
+        theme: 'default',
+        colorLand: 'hsl(20, 20%, 95%)',
+        colorPointOfInterestLabels: 'hsl(203, 7%, 55%)',
+        colorModePointOfInterestLabels: 'default',
+      });
+      controller.dispose();
+    });
+
+    it('repaints classic layers from their own values and restores them when the style is dropped', () => {
+      const double = createMapDouble();
+      const original: Record<string, unknown> = {
+        'land\u0000background-color': '#f0f0f0',
+        'water\u0000fill-color': '#aaccff',
+        'road-primary\u0000line-color': ['interpolate', ['linear'], ['zoom'], 10, '#ffffff', 14, '#eeeeee'],
+        'road-primary-case\u0000line-color': '#cccccc',
+      };
+      const paint = new Map(Object.entries(original));
+      double.getPaintProperty.mockImplementation((id, property) => paint.get(`${id}\u0000${property}`));
+      double.setPaintProperty.mockImplementation((id: string, property: string, value: unknown) => paint.set(`${id}\u0000${property}`, value));
+      double.getStyle.mockReturnValue({
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'land', type: 'background' },
+          { id: 'water', type: 'fill', source: 'composite', 'source-layer': 'water' },
+          { id: 'road-primary-case', type: 'line', source: 'composite', 'source-layer': 'road' },
+          { id: 'road-primary', type: 'line', source: 'composite', 'source-layer': 'road' },
+        ],
+      });
+      const store = useProjectStore.getState();
+      store.setMapStyle('streets', { name: 'Night ink', colors: { land: '#101010', roads: '#ff0000' }, theme: 'default' });
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+
+      expect(paint.get('land\u0000background-color')).toBe('#101010');
+      expect(paint.get('road-primary-case\u0000line-color')).toBe('#101010');
+      expect(paint.get('water\u0000fill-color')).toBe('#aaccff');
+      const road = paint.get('road-primary\u0000line-color') as unknown[];
+      expect(road.slice(0, 4)).toEqual(['interpolate', ['linear'], ['zoom'], 10]);
+      expect(road[4]).toEqual(['match', ['get', 'class'], expect.arrayContaining(['primary']), '#ff0000', '#ffffff']);
+
+      store.setMapStyle('streets', { name: 'Night ink', colors: { roads: '#00ff00' }, theme: 'default' });
+      controller.reconcile();
+      expect(paint.get('land\u0000background-color')).toBe('#f0f0f0');
+      expect((paint.get('road-primary\u0000line-color') as unknown[])[4]).toEqual(['match', ['get', 'class'], expect.anything(), '#00ff00', '#ffffff']);
+
+      store.setMapStyle('streets');
+      controller.reconcile();
+      expect(Object.fromEntries(paint)).toEqual(original);
+
+      controller.dispose();
+      store.setMapStyle('standard');
+    });
+
+    it('leaves classic paint alone when the project has no custom style', () => {
+      const double = createMapDouble();
+      double.getStyle.mockReturnValue({ version: 8, sources: {}, layers: [{ id: 'land', type: 'background' }] });
+      useProjectStore.getState().setMapStyle('streets');
+      const controller = new BasemapController(double.map, vi.fn());
+      controller.mount();
+      controller.reconcile();
+      expect(double.getPaintProperty).not.toHaveBeenCalled();
+      expect(double.setPaintProperty).not.toHaveBeenCalled();
+      controller.dispose();
+      useProjectStore.getState().setMapStyle('standard');
+    });
   });
 
   describe('flag placement', () => {

@@ -1,5 +1,6 @@
 import secureLocalStorage from "react-secure-storage";
 import type { FogSpecification } from "mapbox-gl";
+import { MAP_COLOR_ROLE_IDS, isDarkColor, type CustomMapStyle, type MapColorRole } from '@/customMapStyles/model';
 
 /**
  * Mapbox API token loaded from environment variable.
@@ -71,7 +72,7 @@ export const STANDARD_CAPABILITIES: MapStyleCapabilities = {
   trees3d: true,
   facades3d: true,
   timeOfDayPreset: true,
-  colorCustomization: false,
+  colorRoles: MAP_COLOR_ROLE_IDS,
 };
 
 export interface MapStyleCapabilities {
@@ -82,7 +83,8 @@ export interface MapStyleCapabilities {
   trees3d: boolean;
   facades3d: boolean;
   timeOfDayPreset: boolean;
-  colorCustomization: boolean;
+  /** The colour roles a custom style can change on this style. */
+  colorRoles: readonly MapColorRole[];
 }
 
 export type LightPreset = 'day' | 'night' | 'dusk' | 'dawn';
@@ -331,18 +333,27 @@ export function isStandardBasemap(mapStyle: string): boolean {
   return getMapStyleDef(mapStyle)?.basemap === 'standard';
 }
 
-/** The look of a style under a light preset; unknown styles are treated as light. */
-export function getStyleAtmosphere(mapStyle: string, lightPreset?: string): StyleAtmosphere {
+/**
+ * The look of a style under a light preset; unknown styles are treated as light. A custom
+ * style's land colour decides light or dark, except under Standard's dusk and night, which
+ * darken every colour. Imagery keeps its own haze.
+ */
+export function getStyleAtmosphere(mapStyle: string, lightPreset?: string, customStyle?: CustomMapStyle | null): StyleAtmosphere {
   const def = getMapStyleDef(mapStyle);
-  return def?.lightPresetAtmosphere?.[lightPreset as LightPreset] ?? def?.atmosphere ?? LIGHT;
+  const preset = def?.lightPresetAtmosphere?.[lightPreset as LightPreset];
+  if (preset) return preset;
+  const atmosphere = def?.atmosphere ?? LIGHT;
+  const land = customStyle?.colors.land;
+  if (!land || atmosphere.fog === 'satellite') return atmosphere;
+  return isDarkColor(land) ? DARK : LIGHT;
 }
 
 /**
  * Returns true if the map style has a dark background palette,
  * so the editor UI can switch to dark mode.
  */
-export function isDarkMapStyle(mapStyle: string, lightPreset?: string): boolean {
-  return getStyleAtmosphere(mapStyle, lightPreset).dark;
+export function isDarkMapStyle(mapStyle: string, lightPreset?: string, customStyle?: CustomMapStyle | null): boolean {
+  return getStyleAtmosphere(mapStyle, lightPreset, customStyle).dark;
 }
 
 /** The fog color a style renders when the project has no fog color override. */
@@ -363,6 +374,7 @@ export interface FogState {
   mapStyle: string;
   projection: MapProjection;
   lightPreset?: string;
+  customStyle?: CustomMapStyle | null;
   starIntensity: number | null;
   fogColor: string | null;
 }
@@ -375,7 +387,7 @@ export interface FogState {
  * instead of darkening to black. The fog color picker shows this `color`.
  */
 export function resolveFog(state: FogState): ResolvedFog {
-  const base = FOG_PALETTES[getStyleAtmosphere(state.mapStyle, state.lightPreset).fog];
+  const base = FOG_PALETTES[getStyleAtmosphere(state.mapStyle, state.lightPreset, state.customStyle).fog];
   const color = state.fogColor ?? base.color;
   if (!projectionShowsStars(state.projection)) {
     return { ...base, color, 'space-color': color, 'star-intensity': 0 };

@@ -2,7 +2,8 @@ import { useCallback } from 'react';
 import { cameraViewLockedReason } from '@/components/Onboarding/useWalkthroughStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
-import { importRouteFile } from '@/services/fileImport';
+import { importRouteFiles } from '@/services/fileImport';
+import { RouteImportError } from '@/services/routeFileFormats';
 import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
 import { useMapRef } from '@/hooks/useMapRef';
@@ -58,20 +59,23 @@ export function useToolbarActions() {
     if (!files) return;
     for (const file of Array.from(files)) {
       try {
-        const { name, geojson } = await importRouteFile(file);
-        const playheadTime = useProjectStore.getState().playheadTime;
-        const item = createImportedRouteItem({ name, geojson, startTime: playheadTime });
-        addItem(item);
-        setTerrainEnabled(false);
-        setBuildingsEnabled(false);
-        selectItem(item.id);
-        frame.frameGeometry(geojson);
-        const pointCount = extractLineCoords(geojson).length;
-        reportRouteAdded(importSourceOf(file.name), pointCount);
-        toast.success(`Imported "${name}" (${pointCount} points)`);
+        const routes = await importRouteFiles(file);
+        for (const { name, geojson, format } of routes) {
+          const playheadTime = useProjectStore.getState().playheadTime;
+          const item = createImportedRouteItem({ name, geojson, startTime: playheadTime });
+          addItem(item);
+          setTerrainEnabled(false);
+          setBuildingsEnabled(false);
+          selectItem(item.id);
+          frame.frameGeometry(geojson);
+          const pointCount = extractLineCoords(geojson).length;
+          reportRouteAdded(importSourceOf(format), pointCount);
+          if (routes.length === 1) toast.success(`Imported "${name}" (${pointCount} points)`);
+        }
+        if (routes.length > 1) toast.success(`Imported ${routes.length} routes from ${file.name}`);
       } catch (err) {
         track('route_import_failed', { format: importFormatOf(file.name), error_class: classifyImportError(err) });
-        toast.error(`Failed to import ${file.name}`);
+        toast.error(`Failed to import ${file.name}`, { description: err instanceof RouteImportError ? err.message : undefined });
       }
     }
     e.target.value = '';

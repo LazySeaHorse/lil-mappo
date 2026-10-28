@@ -75,6 +75,51 @@ export function noPaintTransitions(...props: string[]): PaintSpecification {
   ) as PaintSpecification;
 }
 
+type CasterCheck = (layer: unknown, coords: unknown) => boolean;
+interface ShadowRendererInternals {
+  painter: { style: { getLayerSourceCache(layer: unknown): { getSource(): { type: string; getModels?: unknown } } | undefined } };
+  _hasCasterGeometry: CasterCheck;
+}
+
+/**
+ * Mapbox loads model sources lazily: until the model module arrives, a `model`
+ * source is a placeholder without `getModels`, and the shadow pass calls it
+ * anyway (`n.getModels is not a function`, mapbox-gl 3.32 and 3.33), so adding a
+ * model under a style that casts shadows throws on every frame until the module
+ * loads. A placeholder casts no shadow yet; this answers that instead of throwing.
+ * The painter creates its private `_shadowRenderer` only once a style turns on 3D
+ * lights, so the guard goes on as it is assigned. Does nothing if the painter is
+ * not there. Re-check this when upgrading mapbox-gl.
+ */
+export function guardShadowCasterCheck(map: MapboxMap): void {
+  const painter = (map as unknown as { painter?: { _shadowRenderer?: ShadowRendererInternals | null } }).painter;
+  if (!painter || typeof painter !== 'object') return;
+  let renderer = painter._shadowRenderer;
+  if (renderer) guardRenderer(renderer);
+  Object.defineProperty(painter, '_shadowRenderer', {
+    configurable: true,
+    enumerable: true,
+    get: () => renderer,
+    set: (next: ShadowRendererInternals | null | undefined) => {
+      renderer = next;
+      if (next) guardRenderer(next);
+    },
+  });
+}
+
+const guardedRenderers = new WeakSet<object>();
+
+function guardRenderer(renderer: ShadowRendererInternals): void {
+  const check = renderer._hasCasterGeometry;
+  if (guardedRenderers.has(renderer) || typeof check !== 'function') return;
+  guardedRenderers.add(renderer);
+  renderer._hasCasterGeometry = function (layer, coords) {
+    const source = this.painter.style.getLayerSourceCache(layer)?.getSource();
+    if (source?.type === 'model' && typeof source.getModels !== 'function') return false;
+    return check.call(this, layer, coords);
+  };
+}
+
 /**
  * Whether Mapbox has a render queued for the current animation frame, i.e. a
  * 'render' event is about to fire. Mapbox has no public equivalent (`isMoving()`

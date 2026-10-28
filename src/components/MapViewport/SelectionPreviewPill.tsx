@@ -9,13 +9,15 @@ import { clearSelection } from './escapeDeselect';
 /**
  * Flags that the selected item is drawn in full rather than at the playhead's
  * time, and jumps into its clip to show the real animation. The × clears the
- * selection, like Escape.
+ * selection, like Escape, and keeps the item from showing in full again until
+ * another item is selected.
  */
 export function SelectionPreviewPill() {
   const pill = useProjectStore(
     useShallow((s) => selectionPreviewPillState(s)),
   );
   const setPlayheadTime = useProjectStore((s) => s.setPlayheadTime);
+  const dismissSelectionPreview = useProjectStore((s) => s.dismissSelectionPreview);
   const isInspectorOpen = useProjectStore((s) => s.isInspectorOpen);
   const { isMobile, isTablet } = useResponsive();
 
@@ -44,7 +46,10 @@ export function SelectionPreviewPill() {
           type="button"
           aria-label="Clear selection"
           title="Clear selection"
-          onClick={clearSelection}
+          onClick={() => {
+            dismissSelectionPreview();
+            clearSelection();
+          }}
           className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-secondary/80 hover:text-foreground"
         >
           <X size={12} />

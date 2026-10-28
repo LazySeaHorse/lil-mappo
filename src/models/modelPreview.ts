@@ -49,8 +49,10 @@ export async function startModelPreview(canvas: HTMLCanvasElement, url: string):
   let frame = 0;
   let model: Group | null = null;
   let controls: OrbitControls | null = null;
+  let observer: ResizeObserver | null = null;
   const dispose = () => {
     cancelAnimationFrame(frame);
+    observer?.disconnect();
     controls?.dispose();
     if (model) disposeTree(model);
     renderer.dispose();
@@ -134,14 +136,28 @@ export async function startModelPreview(canvas: HTMLCanvasElement, url: string):
   let turning = !still;
   controls.addEventListener('start', () => { turning = false; });
 
+  // Draws only when something changed: while the model turns, and on each `change` of the
+  // controls, which `update` also sends while the camera still moves (damping settling).
+  const requestDraw = () => {
+    if (!frame) frame = requestAnimationFrame(draw);
+  };
   const start = performance.now();
   const draw = () => {
-    resize();
-    if (turning) turntable.rotation.y = ((performance.now() - start) / TURN_MS) * Math.PI * 2;
+    frame = 0;
+    if (turning) {
+      turntable.rotation.y = ((performance.now() - start) / TURN_MS) * Math.PI * 2;
+      requestDraw();
+    }
     controls?.update();
     renderer.render(scene, camera);
-    frame = requestAnimationFrame(draw);
   };
+  controls.addEventListener('change', requestDraw);
+  observer = new ResizeObserver(() => {
+    resize();
+    requestDraw();
+  });
+  observer.observe(canvas);
+  resize();
   draw();
   return { dispose };
 }

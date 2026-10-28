@@ -10,7 +10,8 @@ import { AgentToolRegistrar } from './AgentToolRegistrar';
 import { AiPanel } from './AiPanel';
 import { AiStatusPill } from './AiStatusPill';
 import { AiToolbarButton } from './AiToolbarButton';
-import { hasAiConsent, useAiPanelStore } from './useAiPanelStore';
+import { hasAiConsent } from './aiPrefs';
+import { useAiPanelStore } from './useAiPanelStore';
 import { PRO, installModelContext, removeModelContext, setSignedIn } from './testUtils';
 
 const sub = vi.hoisted(() => ({ current: null as unknown }));
@@ -23,7 +24,7 @@ const rename = (n: string) =>
 function reset() {
   resetAgentTestState();
   useAgentStore.setState({ enabled: false });
-  useAiPanelStore.setState({ open: false, tab: 'connect', followAi: true, registeredCount: 0, bridgeConnected: false });
+  useAiPanelStore.setState({ open: false, tab: 'connect', followAi: true, registeredCount: 0, bridgeStatus: 'off' });
   sub.current = PRO;
   setSignedIn(true);
   localStorage.clear();
@@ -100,7 +101,7 @@ describe('Connect tab', () => {
   });
 
   it('reports tools available through the bridge without WebMCP', () => {
-    useAiPanelStore.setState({ open: true, bridgeConnected: true });
+    useAiPanelStore.setState({ open: true, bridgeStatus: 'connected' });
     useAgentStore.setState({ enabled: true });
     render(<AiPanel />);
     expect(screen.getByTestId('ai-status').textContent).toContain('through the local bridge');

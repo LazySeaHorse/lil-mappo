@@ -163,6 +163,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
 
   const mapStyle = useProjectStore((s) => s.mapStyle);
   const lightPreset = useProjectStore((s) => s.lightPreset);
+  const customStyle = useProjectStore((s) => s.customStyle);
   const hideUI = useProjectStore((s) => s.hideUI);
   const setHideUI = useProjectStore((s) => s.setHideUI);
   const isPlaying = useProjectStore((s) => s.isPlaying);
@@ -171,9 +172,9 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
   const fitOn = isFitModeOn(isFitMode, hideUI, isToolbarCollapsed);
   // Dark theme with a dark map style, and always in fit mode, whose frame sits on black.
   useEffect(() => {
-    const isDark = fitOn || isDarkMapStyle(mapStyle, lightPreset);
+    const isDark = fitOn || isDarkMapStyle(mapStyle, lightPreset, customStyle);
     document.documentElement.classList.toggle("dark", isDark);
-  }, [fitOn, mapStyle, lightPreset]);
+  }, [fitOn, mapStyle, lightPreset, customStyle]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("hide-ui-active", hideUI);

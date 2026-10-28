@@ -16,8 +16,8 @@ export const FRAME_PIXELS = 24;
 export const MIN_ZOOM_FLOOR = 0.5;
 /** The zoom range never gets narrower than this factor, however short the project. */
 const MIN_ZOOM_RANGE = 4;
-/** The track label column and scrollbar padding that the timeline's ruler does not get. */
-const TRACK_CHROME_WIDTH = 160 + 24;
+/** Scrollbar padding that the timeline's ruler does not get, besides the gutter. */
+const SCROLLBAR_PADDING = 24;
 /** What one press of the zoom in button multiplies by, and the zoom out button divides by. */
 export const ZOOM_BUTTON_FACTOR = 1.25;
 /** Slider positions run 0 to this, which is fine enough that a drag looks smooth. */
@@ -25,10 +25,10 @@ export const ZOOM_SLIDER_MAX = 1000;
 
 const WHEEL_ZOOM_PER_DELTA = 0.01;
 
-/** The zoom at which the whole duration fits a panel of this width. */
-export function fitZoom(panelWidth: number, duration: number): number {
+/** The zoom at which the whole duration fits a panel of this width, past a gutter this wide. */
+export function fitZoom(panelWidth: number, duration: number, gutterWidth: number): number {
   if (duration <= 0) return 0;
-  return (panelWidth - TRACK_CHROME_WIDTH) / duration;
+  return (panelWidth - gutterWidth - SCROLLBAR_PADDING) / duration;
 }
 
 export function zoomBounds(fit: number, fps: number): ZoomBounds {

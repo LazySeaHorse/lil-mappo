@@ -13,6 +13,7 @@ import React from 'react';
 import { Hexagon, Check, MapPin, Plus } from 'lucide-react';
 import { applyBoundaryDetail, type BoundaryDetailId } from '@/engine/boundaryDetail';
 import { labelPoint } from '@/engine/labelPoint';
+import { stagedItemsOf, type StagingOwner } from '@/engine/stagedItems';
 import { useProjectStore } from '@/store/useProjectStore';
 import { createBoundaryItem, createCalloutItem, DEFAULT_BOUNDARY_STYLE } from '@/store/itemFactories';
 import type { BoundaryItem, BoundaryStyle, CalloutItem } from '@/store/types';
@@ -57,11 +58,13 @@ function createNameLabel(boundary: BoundaryItem) {
   });
 }
 
+const STAGING: StagingOwner = 'boundary-add';
+
 /** Shows a boundary, and its name label, in the panel's preview; `play` plays their entrance again. */
 function stage(boundary: BoundaryItem, label: CalloutItem | null, { play = true } = {}) {
   const { stageItems, playAppearPreview } = useProjectStore.getState();
   const items = label ? [boundary, label] : [boundary];
-  stageItems(items);
+  stageItems(STAGING, items);
   if (play) playAppearPreview(items.map((item) => item.id));
 }
 
@@ -75,7 +78,7 @@ export const BoundaryAddDropdown = ({
   const frame = useFrameOnMap();
   const boundaryDetail = useProjectStore((s) => s.boundaryDetail);
   // The boundary being previewed, and its name label, before they are added.
-  const staged = useProjectStore((s) => s.stagedItems);
+  const staged = useProjectStore((s) => stagedItemsOf(s, STAGING));
   const boundary = staged.find((item): item is BoundaryItem => item.kind === 'boundary') ?? null;
   const label = staged.find((item): item is CalloutItem => item.kind === 'callout') ?? null;
   /** The outline as found, before the detail level is applied. */
@@ -87,12 +90,12 @@ export const BoundaryAddDropdown = ({
   // Closing the panel, or leaving the editor, drops the preview.
   React.useEffect(() => {
     if (isOpen) return;
-    useProjectStore.getState().stageItems([]);
+    useProjectStore.getState().clearStagedItems(STAGING);
     setOutline(null);
     setFlag(false);
     setNameLabel(false);
   }, [isOpen]);
-  React.useEffect(() => () => useProjectStore.getState().stageItems([]), []);
+  React.useEffect(() => () => useProjectStore.getState().clearStagedItems(STAGING), []);
 
   const handleSelect = (result: NominatimResult) => {
     const placeName = shortPlaceName(result.display_name);
@@ -132,7 +135,7 @@ export const BoundaryAddDropdown = ({
   const handleAdd = () => {
     if (!boundary) return;
     withHistoryLabel(label ? `Added boundary and label ${boundary.placeName}` : 'Added boundary', () =>
-      useProjectStore.getState().addStagedItems(),
+      useProjectStore.getState().addStagedItems(STAGING),
     );
     useProjectStore.getState().selectItem(boundary.id);
     onOpenChange(false);

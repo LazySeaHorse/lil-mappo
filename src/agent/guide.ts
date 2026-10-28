@@ -1,6 +1,7 @@
 import '@/annotations/styles/index';
 import { getAllStyles } from '@/annotations/registry';
 import { LABEL_CATEGORIES, MAP_STYLES } from '@/config/mapbox';
+import { MAP_COLOR_ROLES } from '@/customMapStyles/model';
 import { EASING_NAMES } from './tools/shared';
 
 /** Domain primer returned by get_guide. Kept as one plain-text document. */
@@ -9,6 +10,7 @@ export function buildGuide(): string {
     .map(([key, def]) => `${key} (${def.label})`)
     .join(', ');
   const labels = LABEL_CATEGORIES.map((c) => c.id).join(', ');
+  const colorRoles = Object.entries(MAP_COLOR_ROLES).map(([role, text]) => `- ${role}: ${text}`).join('\n');
   const callouts = getAllStyles()
     .map((s) => `- ${s.id}: ${s.name}, ${s.category}. ${s.description} Uses content: ${s.contentSlots.join(', ')}.${s.eyebrowFallback === 'coordinates' ? ' An empty eyebrow shows the point\'s coordinates.' : ''}`)
     .join('\n');
@@ -29,7 +31,7 @@ ITEMS (get_project lists them, ids are stable)
 - boundary: a region outline (country, state, city) resolved from OpenStreetMap by name. animationStyle: fade | draw | trace. Style has strokeColor, fillColor, fillOpacity, strokeWidth, glow, and optionally maskOutside/maskColor/maskOpacity to dim everything outside the region. fillUnderRoads (color fill only) puts the fill under the map's roads and labels so streets show through it. fillMode "flag" fills a country with its flag (flagCode, lowercase ISO 3166-1 alpha-2, is pre-filled by add_boundary for countries).
 - callout: an animated label or marker pinned to a map location (or the screen). styleId picks the look; content has title, subtitle, eyebrow, body, badge, metric. altitude lifts it above the ground point in pixels and offset [x, y] shifts it on screen. scale (1 = normal) sizes it; sizeMode "screen" (default) keeps that size in pixels at any zoom, "map" makes it grow and shrink with the camera zoom like a label printed on the map, sized as set at the map's current zoom. Each style plays its own entrance and exit by default (transition "auto", with enterDuration/exitDuration); set transition to fade, scale-up/scale-down or slide-up/slide-down to animate the whole callout instead.
 - camera: one track (id "camera-track") holding keyframes {id, time, center, zoom, pitch, bearing, easing}. Between keyframes the camera eases from one to the next. With no keyframes the view stays wherever the map is.
-- itemOrder is the track order in the timeline (first = top row). Camera track is included.
+- itemOrder is the stacking order (later draws on top where items overlap). The timeline shows the camera in its own top lane and packs the other items into lanes under it from itemOrder: each item sits in the highest lane below every earlier item it overlaps in time, so items that never overlap share a lane. Camera track is included.
 
 CALLOUT STYLES (styleId)
 ${callouts}
@@ -39,6 +41,14 @@ MAP LOOK (update_project_settings)
 - lightPreset (Standard style): day | night | dusk | dawn. projection: globe | mercator. terrainEnabled, buildingsEnabled, show3dLandmarks/Trees/Facades, starIntensity 0-1, terrainExaggeration 1-3, fogColor.
 - labelVisibility keys (true/false): ${labels}. Not every style supports every category.
 - aspectRatio 16:9 | 21:9 | 4:3 | 1:1, exportResolution 480p-2160p, isVertical, fps 30 | 60. Free plans are capped at 720p, 30fps, 30s.
+
+CUSTOM MAP STYLES (paid plans: set_custom_map_style, save_map_style, list_saved_map_styles, apply_saved_map_style)
+A custom style is a built-in style with your colours (#rrggbb) for some of its parts, and a name. Standard follows every role and also takes theme: default keeps your colours exact, faded and monochrome grade the whole map afterwards, your colours included (monochrome turns everything grey); other styles only change the parts they draw (get_project colorRoles). Satellite imagery cannot be recoloured, only the roads and labels over it.
+Colour roles:
+${colorRoles}
+- The land colour also decides whether the editor goes dark. fogColor (update_project_settings) is the horizon haze; set it to match the new palette.
+- Work in a few calls, then render_frames to look: land and water first, then roads, then labels (keep labels readable on the land colour).
+- save_map_style keeps it for the user's other projects (they pick it in the style picker). Setting mapStyle with update_project_settings drops the custom style.
 
 EASING NAMES
 ${EASING_NAMES.join(', ')}

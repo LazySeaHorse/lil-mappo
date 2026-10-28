@@ -68,14 +68,14 @@ class FakeEncoder {
   static isConfigSupported = vi.fn(async () => ({ supported: true }));
   state = 'unconfigured';
   encodeQueueSize = 0;
-  encoded: Array<{ timestamp: number; duration: number; keyFrame: boolean }> = [];
+  encoded: Array<{ timestamp: number; duration: number; keyFrame: boolean; quantizer?: number }> = [];
   constructor(private readonly init: { output: (chunk: unknown, meta?: unknown) => void; error: (e: Error) => void }) {
     encoders.push(this);
   }
-  configure() { this.state = 'configured'; }
-  encode(frame: { timestamp: number; duration: number }, opts: { keyFrame: boolean }) {
+  configure(_config?: { bitrateMode?: string }) { this.state = 'configured'; }
+  encode(frame: { timestamp: number; duration: number }, opts: { keyFrame: boolean; avc?: { quantizer: number } }) {
     log.push(`encode:${frame.timestamp}`);
-    this.encoded.push({ timestamp: frame.timestamp, duration: frame.duration, keyFrame: opts.keyFrame });
+    this.encoded.push({ timestamp: frame.timestamp, duration: frame.duration, keyFrame: opts.keyFrame, quantizer: opts.avc?.quantizer });
     this.init.output({ timestamp: frame.timestamp });
   }
   fail(message: string) { this.init.error(new Error(message)); }
@@ -198,6 +198,56 @@ describe('runExport', () => {
     expect(encoders[0].state).toBe('closed');
     expect(mux.outputs[0].cancel).toHaveBeenCalled();
     expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('encodes every frame at a fixed quantizer where the encoder supports it', async () => {
+    const configure = vi.spyOn(FakeEncoder.prototype, 'configure');
+    await runExport(installRuntime().ref, options());
+    expect(configure).toHaveBeenCalledTimes(1);
+    expect(configure).toHaveBeenLastCalledWith(expect.objectContaining({ bitrateMode: 'quantizer', latencyMode: 'quality' }));
+    expect(encoders[0].encoded.every((f) => f.quantizer === 22)).toBe(true);
+  });
+
+  it('falls back to constant, then variable, by what the encoder reports', async () => {
+    const configure = vi.spyOn(FakeEncoder.prototype, 'configure');
+    const unsupported = new Set(['quantizer']);
+    FakeEncoder.isConfigSupported.mockImplementation(async (config?: { bitrateMode?: string }) => ({
+      supported: !unsupported.has(config?.bitrateMode ?? ''),
+    }));
+
+    await runExport(installRuntime().ref, options());
+    expect(configure).toHaveBeenLastCalledWith(expect.objectContaining({ bitrateMode: 'constant' }));
+    expect(encoders.at(-1)!.encoded.every((f) => f.quantizer === undefined)).toBe(true);
+
+    unsupported.add('constant');
+    await runExport(installRuntime().ref, options());
+    expect(configure).toHaveBeenLastCalledWith(expect.objectContaining({ bitrateMode: 'variable' }));
+  });
+
+  it('moves on to the next mode when an encoder reports support but fails to start, and closes the failed one', async () => {
+    vi.spyOn(FakeEncoder.prototype, 'configure').mockImplementation(function (this: FakeEncoder, config?: { bitrateMode?: string }) {
+      if (config?.bitrateMode === 'quantizer') throw new Error('not really');
+      this.state = 'configured';
+    });
+
+    await runExport(installRuntime().ref, options());
+    expect(encoders).toHaveLength(2);
+    expect(encoders[0].state).toBe('closed');
+    expect(encoders[0].encoded).toHaveLength(0);
+    expect(encoders[1].encoded).toHaveLength(3);
+    expect(encoders[1].encoded.every((f) => f.quantizer === undefined)).toBe(true);
+  });
+
+  it('moves on when an encoder fails while starting up, without failing the export', async () => {
+    vi.spyOn(FakeEncoder.prototype, 'flush').mockImplementationOnce(async function (this: FakeEncoder) {
+      this.fail('could not create');
+      this.state = 'closed';
+      throw new Error('could not create');
+    });
+
+    await runExport(installRuntime().ref, options());
+    expect(encoders).toHaveLength(2);
+    expect(encoders[1].encoded).toHaveLength(3);
   });
 
   it('discards the output when the encoder rejects its config', async () => {

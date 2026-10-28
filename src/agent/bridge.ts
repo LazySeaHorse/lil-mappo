@@ -16,10 +16,17 @@ export const BRIDGE_MCP_URL = 'http://127.0.0.1:47800/mcp';
 const REPLACED = 4000;
 const MAX_DELAY_MS = 30_000;
 
-/** Returns a disconnect function. `onStatus` reports whether the bridge link is up. */
+/**
+ * The link to the bridge: `connecting` until a first answer, `connected` while it is up,
+ * `unreachable` when nothing answered since this tab started dialling (no bridge running; it
+ * keeps retrying), `connecting` again after a drop, `elsewhere` when another tab took it over.
+ */
+export type BridgeStatus = 'connecting' | 'connected' | 'unreachable' | 'elsewhere';
+
+/** Returns a disconnect function. `onStatus` reports the link as it changes (see `BridgeStatus`). */
 export function connectBridge(
   tools: AgentToolDescriptor[],
-  onStatus: (connected: boolean) => void,
+  onStatus: (status: BridgeStatus) => void,
   url: string = BRIDGE_URL,
 ): () => void {
   if (typeof WebSocket === 'undefined') return () => {};
@@ -35,14 +42,16 @@ export function connectBridge(
   let sock: WebSocket | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let delay = 1000;
+  let everConnected = false;
 
   const open = () => {
     const ws = new WebSocket(url);
     sock = ws;
     ws.onopen = () => {
       delay = 1000;
+      everConnected = true;
       ws.send(manifest);
-      onStatus(true);
+      onStatus('connected');
     };
     ws.onmessage = async (e) => {
       let msg: { type?: string; id?: number; name?: string; input?: unknown };
@@ -59,12 +68,17 @@ export function connectBridge(
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'result', id: msg.id, result }));
     };
     ws.onclose = (e) => {
-      if (sock === ws) onStatus(false);
-      if (stopped || e.code === REPLACED) return;
+      if (stopped || sock !== ws) return;
+      if (e.code === REPLACED) {
+        onStatus('elsewhere');
+        return;
+      }
+      onStatus(everConnected ? 'connecting' : 'unreachable');
       timer = setTimeout(open, delay);
       delay = Math.min(delay * 2, MAX_DELAY_MS);
     };
   };
+  onStatus('connecting');
   open();
 
   return () => {

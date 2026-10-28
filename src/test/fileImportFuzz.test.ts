@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
-import { importRouteFile, parseGPX, parseKML, parseGeoJSON } from '@/services/fileImport';
+import { importRouteFiles, parseGPX, parseKML, parseGeoJSON } from '@/services/fileImport';
 import {
   sanitizeFeatureCollection,
   isValidCoordinate,
@@ -60,7 +60,7 @@ describe('File Import Payload Fuzzing', () => {
 
       for (const ext of extensions) {
         const file = createMockFile('', `empty-file.${ext}`);
-        await expect(importRouteFile(file)).rejects.toThrow();
+        await expect(importRouteFiles(file)).rejects.toThrow();
       }
     });
 
@@ -86,7 +86,7 @@ describe('File Import Payload Fuzzing', () => {
       for (const bytes of binaryPayloads) {
         for (const ext of ['gpx', 'kml', 'geojson', 'json', 'bin', 'dat']) {
           const file = createMockFile(bytes, `corrupt.${ext}`);
-          await expect(importRouteFile(file)).rejects.toThrow();
+          await expect(importRouteFiles(file)).rejects.toThrow();
         }
       }
     });
@@ -97,7 +97,7 @@ describe('File Import Payload Fuzzing', () => {
           const file = createMockFile(bytes, 'fuzzed-binary.gpx');
           let errorThrown = false;
           try {
-            await importRouteFile(file);
+            await importRouteFiles(file);
           } catch (err) {
             errorThrown = true;
             expect(err).toBeInstanceOf(Error);
@@ -122,10 +122,10 @@ describe('File Import Payload Fuzzing', () => {
         expect(() => parseKML(xml)).toThrow();
 
         const gpxFile = createMockFile(xml, 'truncated.gpx');
-        await expect(importRouteFile(gpxFile)).rejects.toThrow();
+        await expect(importRouteFiles(gpxFile)).rejects.toThrow();
 
         const kmlFile = createMockFile(xml, 'truncated.kml');
-        await expect(importRouteFile(kmlFile)).rejects.toThrow();
+        await expect(importRouteFiles(kmlFile)).rejects.toThrow();
       }
 
       const malformedJsonList = [
@@ -142,7 +142,7 @@ describe('File Import Payload Fuzzing', () => {
         expect(() => parseGeoJSON(json)).toThrow();
 
         const jsonFile = createMockFile(json, 'malformed.geojson');
-        await expect(importRouteFile(jsonFile)).rejects.toThrow();
+        await expect(importRouteFiles(jsonFile)).rejects.toThrow();
       }
     });
   });
@@ -159,12 +159,11 @@ describe('File Import Payload Fuzzing', () => {
       expect(parsed.features).toEqual([]);
 
       const file = createMockFile(emptyFC, 'empty-fc.geojson');
-      const imported = await importRouteFile(file);
-      expect(imported.name).toBe('empty-fc');
-      expect(imported.geojson.features).toEqual([]);
+      // A file with no line to draw is refused, not added as an empty route
+      await expect(importRouteFiles(file)).rejects.toMatchObject({ code: 'noTrack' });
 
       // Ensure downstream consumers do not crash on empty features
-      const item = createMinimalRouteItem(imported.name, imported.geojson);
+      const item = createMinimalRouteItem('empty-fc', parsed);
       useProjectStore.getState().addItem(item);
       expect(getRouteCoords(item.id)).toBeNull();
     });
@@ -384,11 +383,9 @@ describe('File Import Payload Fuzzing', () => {
         expect(Array.isArray(parsed.features)).toBe(true);
 
         const file = createMockFile(xml, 'empty-trk.gpx');
-        const imported = await importRouteFile(file);
-        expect(imported.geojson.type).toBe('FeatureCollection');
-        expect(imported.geojson.features).toBeDefined();
+        await expect(importRouteFiles(file)).rejects.toMatchObject({ code: 'noTrack' });
 
-        const item = createMinimalRouteItem(imported.name, imported.geojson);
+        const item = createMinimalRouteItem('empty-trk', parsed);
         useProjectStore.getState().addItem(item);
         expect(getRouteCoords(item.id)).toBeNull();
       }
@@ -438,11 +435,10 @@ describe('File Import Payload Fuzzing', () => {
         }
 
         const file = createMockFile(xml, 'empty-coords.kml');
-        const imported = await importRouteFile(file);
-        expect(imported.geojson.features.length).toBe(0);
+        await expect(importRouteFiles(file)).rejects.toMatchObject({ code: 'noTrack' });
 
         // Downstream calculation does not throw
-        const item = createMinimalRouteItem(imported.name, imported.geojson);
+        const item = createMinimalRouteItem('empty-coords', parsed);
         expect(() => {
           item.geojson.features.forEach((f) => {
             const _t = f.geometry.type;

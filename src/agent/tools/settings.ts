@@ -25,7 +25,7 @@ const settingsShape = {
   starIntensity: z.number().min(0).max(1).describe('Stars visible around the globe, 0-1.'),
   fogColor: colorSchema.nullable().describe('Atmosphere/fog color, or null to use the style default.'),
   terrainExaggeration: z.number().min(1).max(3).describe('Terrain height multiplier 1-3 (needs terrainEnabled).'),
-  mapStyle: z.enum(MAP_STYLE_KEYS).describe(`Base map style key: ${MAP_STYLE_KEYS.join(', ')}.`),
+  mapStyle: z.enum(MAP_STYLE_KEYS).describe(`Built-in map style key: ${MAP_STYLE_KEYS.join(', ')}. Drops any custom map style.`),
   terrainEnabled: z.boolean().describe('3D terrain.'),
   buildingsEnabled: z.boolean().describe('3D buildings (classic styles; Standard always has them).'),
   labelVisibility: z
@@ -80,7 +80,7 @@ export const updateProjectSettings = defineTool({
       if (patch.starIntensity !== undefined) s.setAtmosphere({ starIntensity: patch.starIntensity });
       if (patch.fogColor !== undefined) s.setAtmosphere({ fogColor: patch.fogColor });
       if (patch.terrainExaggeration !== undefined) s.setTerrainExaggeration(patch.terrainExaggeration);
-      if (patch.mapStyle !== undefined && patch.mapStyle !== s.mapStyle) s.setMapStyle(patch.mapStyle);
+      if (patch.mapStyle !== undefined && (patch.mapStyle !== s.mapStyle || s.customStyle)) s.setMapStyle(patch.mapStyle);
       if (patch.terrainEnabled !== undefined) s.setTerrainEnabled(patch.terrainEnabled);
       if (patch.buildingsEnabled !== undefined) s.setBuildingsEnabled(patch.buildingsEnabled);
       for (const [id, visible] of Object.entries(patch.labelVisibility ?? {})) {
@@ -96,6 +96,7 @@ export const updateProjectSettings = defineTool({
       if (key === 'labelVisibility') track(key, before.labelVisibility, after.labelVisibility);
       else track(key, (before as unknown as Record<string, unknown>)[key], (after as unknown as Record<string, unknown>)[key]);
     }
+    if (patch.mapStyle !== undefined) track('customStyle', before.customStyle, after.customStyle);
     if (changed.aspectRatio || changed.exportResolution || changed.isVertical) {
       track('resolution', before.resolution, after.resolution);
     }

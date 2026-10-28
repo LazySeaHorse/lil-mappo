@@ -11,6 +11,9 @@ interface AgentState {
    */
   exportLimits: ExportLimits | null;
   setExportLimits: (limits: ExportLimits | null) => void;
+  /** Paid plan (Wanderer or Pro pass): custom map styles. The UI sets it from the subscription. */
+  paidPlan: boolean;
+  setPaidPlan: (paidPlan: boolean) => void;
 }
 
 export const useAgentStore = create<AgentState>()((set) => ({
@@ -18,4 +21,6 @@ export const useAgentStore = create<AgentState>()((set) => ({
   setEnabled: (enabled) => set({ enabled }),
   exportLimits: null,
   setExportLimits: (exportLimits) => set({ exportLimits }),
+  paidPlan: false,
+  setPaidPlan: (paidPlan) => set({ paidPlan }),
 }));

@@ -37,6 +37,23 @@ describe('SelectionPreviewPill', () => {
     expect(screen.queryByTestId('selection-preview-pill')).toBeNull();
   });
 
+  it('stays dismissed when the same item is selected again, until another item is selected', () => {
+    const other = { ...route, id: 'o', name: 'Hill path' } as RouteItem;
+    act(() => useProjectStore.setState({ items: { r: route, o: other }, itemOrder: ['r', 'o'] }));
+    render(<SelectionPreviewPill />);
+    act(() => useProjectStore.getState().selectItem('r'));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+
+    act(() => useProjectStore.getState().selectItem('r'));
+    expect(screen.queryByTestId('selection-preview-pill')).toBeNull();
+
+    act(() => useProjectStore.getState().selectItem('o'));
+    expect(screen.getByTestId('selection-preview-pill')).toHaveTextContent('Hill path');
+
+    act(() => useProjectStore.getState().selectItem('r'));
+    expect(screen.getByTestId('selection-preview-pill')).toHaveTextContent('Coast road');
+  });
+
   it('centres on the area the inspector leaves free', () => {
     render(<SelectionPreviewPill />);
     act(() => useProjectStore.getState().selectItem('r'));

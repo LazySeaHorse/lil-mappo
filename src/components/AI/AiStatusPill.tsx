@@ -7,7 +7,7 @@ import { useAiPanelStore } from './useAiPanelStore';
 /** Visible only while tools are registered with the browser or linked to the bridge. Opens the panel on Activity. */
 export function AiStatusPill() {
   const registered = useAiPanelStore((s) => s.registeredCount);
-  const bridged = useAiPanelStore((s) => s.bridgeConnected);
+  const bridged = useAiPanelStore((s) => s.bridgeStatus === 'connected');
   const open = useAiPanelStore((s) => s.open);
   const openPanel = useAiPanelStore((s) => s.openPanel);
   const { isMobile } = useResponsive();

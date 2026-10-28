@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { connectBridge, getAgentTools, isWebMcpSupported, registerWebMcpTool, useAgentStore } from '@/agent';
-import { getExportLimits } from '@/lib/cloudAccess';
+import { getExportLimits, isWanderer } from '@/lib/cloudAccess';
 import { useAiAccess } from './useAiAccess';
 import { useAiPanelStore } from './useAiPanelStore';
 
@@ -15,12 +15,14 @@ export function AgentToolRegistrar() {
   const enabled = useAgentStore((s) => s.enabled);
   const setEnabled = useAgentStore((s) => s.setEnabled);
   const setExportLimits = useAgentStore((s) => s.setExportLimits);
+  const setPaidPlan = useAgentStore((s) => s.setPaidPlan);
   const setRegisteredCount = useAiPanelStore((s) => s.setRegisteredCount);
-  const setBridgeConnected = useAiPanelStore((s) => s.setBridgeConnected);
+  const setBridgeStatus = useAiPanelStore((s) => s.setBridgeStatus);
 
   useEffect(() => {
     setExportLimits(getExportLimits(subscription));
-  }, [subscription, setExportLimits]);
+    setPaidPlan(isWanderer(subscription));
+  }, [subscription, setExportLimits, setPaidPlan]);
 
   // Losing access (sign out, plan lapse) also switches the runner off.
   useEffect(() => {
@@ -45,12 +47,12 @@ export function AgentToolRegistrar() {
 
   useEffect(() => {
     if (!active) return;
-    const disconnect = connectBridge(getAgentTools(), setBridgeConnected);
+    const disconnect = connectBridge(getAgentTools(), setBridgeStatus);
     return () => {
       disconnect();
-      setBridgeConnected(false);
+      setBridgeStatus('off');
     };
-  }, [active, setBridgeConnected]);
+  }, [active, setBridgeStatus]);
 
   return null;
 }

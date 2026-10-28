@@ -76,6 +76,7 @@
     "cmdk": "^1.1.1",
     "dodopayments": "^2.27.0",
     "dodopayments-checkout": "^1.8.0",
+    "fflate": "^0.8.3",
     "file-saver": "^2.0.5",
     "flag-icons": "^7.5.0",
     "lucide-react": "^0.462.0",

@@ -33,6 +33,9 @@ const TOOLBAR_TARGETS: Record<string, string[]> = {
   remove_camera_keyframe: ['camera-keyframe', 'add-menu'],
   frame_items: ['camera-keyframe', 'add-menu'],
   update_project_settings: ['map-settings', 'map-tools'],
+  set_custom_map_style: ['map-style', 'map-settings', 'map-tools'],
+  save_map_style: ['map-style', 'map-settings', 'map-tools'],
+  apply_saved_map_style: ['map-style', 'map-settings', 'map-tools'],
 };
 
 const CAMERA_TOOLS = new Set(['add_camera_keyframe', 'update_camera_keyframe', 'frame_items']);

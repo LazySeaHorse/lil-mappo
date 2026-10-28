@@ -46,7 +46,7 @@ describe('connectBridge', () => {
     connectBridge([tool], status);
     const ws = FakeSocket.instances[0];
     ws.onopen?.();
-    expect(status).toHaveBeenCalledWith(true);
+    expect(status).toHaveBeenCalledWith('connected');
     const manifest = JSON.parse(ws.sent[0]);
     expect(manifest.type).toBe('tools');
     expect(manifest.tools[0]).not.toHaveProperty('execute');
@@ -71,16 +71,40 @@ describe('connectBridge', () => {
     const status = vi.fn();
     const disconnect = connectBridge([tool], status);
     FakeSocket.instances[0].onclose?.({ code: 1006 });
-    expect(status).toHaveBeenLastCalledWith(false);
+    expect(status).toHaveBeenLastCalledWith('unreachable');
     vi.advanceTimersByTime(1000);
     expect(FakeSocket.instances).toHaveLength(2);
 
     FakeSocket.instances[1].onclose?.({ code: 4000 });
+    expect(status).toHaveBeenLastCalledWith('elsewhere');
     vi.advanceTimersByTime(60_000);
     expect(FakeSocket.instances).toHaveLength(2);
 
     disconnect();
     vi.advanceTimersByTime(60_000);
     expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it('is unreachable until a first answer, and connecting again after a drop', () => {
+    const status = vi.fn();
+    connectBridge([tool], status);
+    expect(status).toHaveBeenLastCalledWith('connecting');
+    FakeSocket.instances[0].onclose?.({ code: 1006 });
+    expect(status).toHaveBeenLastCalledWith('unreachable');
+
+    vi.advanceTimersByTime(1000);
+    FakeSocket.instances[1].onopen?.();
+    expect(status).toHaveBeenLastCalledWith('connected');
+    FakeSocket.instances[1].onclose?.({ code: 1006 });
+    expect(status).toHaveBeenLastCalledWith('connecting');
+  });
+
+  it('reports nothing once disconnected', () => {
+    const status = vi.fn();
+    const disconnect = connectBridge([tool], status);
+    FakeSocket.instances[0].onopen?.();
+    status.mockClear();
+    disconnect();
+    expect(status).not.toHaveBeenCalled();
   });
 });

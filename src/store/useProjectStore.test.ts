@@ -3,6 +3,7 @@ import { useProjectStore, CAMERA_TRACK_ID, createTransientState } from './usePro
 import { isRouteItem, isBoundaryItem, getItem } from './typeGuards';
 import type { RouteItem, CameraKeyframe, CameraItem } from './types';
 import { createProject } from './projectDocument';
+import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 
 describe('useProjectStore modular slices', () => {
   beforeEach(() => {
@@ -222,6 +223,18 @@ describe('useProjectStore modular slices', () => {
       expect(state.buildingsEnabled).toBe(true);
       expect(state.labelVisibility).toEqual({ road: false });
       expect(state.detectedCapabilities).toBeNull();
+    });
+
+    it('puts a custom style over a built-in one, and drops it when a built-in style is picked', () => {
+      const store = useProjectStore.getState();
+      const ink = { name: 'Ink', colors: { land: '#101820' }, theme: 'default' as const };
+      store.setMapStyle('light', ink);
+      expect(useProjectStore.getState()).toMatchObject({ mapStyle: 'light', customStyle: ink });
+
+      // Same base style: no style reload, so the detected capabilities stay.
+      store.setDetectedCapabilities(STANDARD_CAPABILITIES);
+      store.setMapStyle('light');
+      expect(useProjectStore.getState()).toMatchObject({ mapStyle: 'light', customStyle: null, detectedCapabilities: STANDARD_CAPABILITIES });
     });
   });
 

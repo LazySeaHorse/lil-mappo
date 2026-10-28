@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { RouteItem } from '@/store/types';
+import type { CameraItem, RouteItem } from '@/store/types';
 import TimelineHeader from './TimelineHeader';
 import TimelineViewport from './TimelineViewport';
-import type { AutoCamBlock } from './TimelineTrackRow';
+import type { AutoCamBlock } from './TimelineCameraLane';
+import { useTimelineLanes } from './useTimelineLanes';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useTimelineKeyboardShortcuts } from './useTimelineKeyboardShortcuts';
 import { useTimelinePlayheadSync } from './useTimelinePlayheadSync';
@@ -14,6 +15,7 @@ import {
   RIGHT_RESERVED_TABLET,
   PANEL_MARGIN,
   TIMELINE_MIN_HEIGHT as MIN_PANEL_HEIGHT,
+  timelineGutterWidth,
   timelineContentHeight,
   visibleTimelineHeight,
 } from '@/constants/layout';
@@ -51,7 +53,6 @@ export default function TimelinePanel() {
     setSelectedAutoCamRouteId: state.setSelectedAutoCamRouteId,
   })));
 
-  const { rulerDiamondRef, timeDisplayRef, trackLineRef } = useTimelinePlayheadSync(pixelsPerSecond);
 
   const [displayHeight, setDisplayHeight] = useState(timelineHeight);
 
@@ -61,12 +62,20 @@ export default function TimelinePanel() {
   }, [timelineHeight, isResizing]);
 
   const { isMobile, isTablet } = useResponsive();
+  const gutterWidth = timelineGutterWidth(isMobile);
+  const { rulerDiamondRef, timeDisplayRef, trackLineRef } = useTimelinePlayheadSync(pixelsPerSecond, gutterWidth);
 
   const orderedItems = useMemo(
     () => itemOrder.map((id) => items[id]).filter(Boolean),
     [itemOrder, items],
   );
-  const maxContentHeight = timelineContentHeight(orderedItems.length);
+  const cameraItem = useMemo(
+    () => orderedItems.find((item): item is CameraItem => item.kind === 'camera'),
+    [orderedItems],
+  );
+  const { lanes, snapTime, handlers: dragHandlers } = useTimelineLanes(orderedItems);
+  const laneCount = 1 + lanes.length;
+  const maxContentHeight = timelineContentHeight(laneCount);
 
   const autoCamBlocks: AutoCamBlock[] = useMemo(() => orderedItems
     .filter((item): item is RouteItem => item.kind === 'route' && !!item.autoCam?.enabled)
@@ -141,8 +150,8 @@ export default function TimelinePanel() {
 
   // Zoomed all the way out is the whole project fitting the panel.
   const zoomBounds = useMemo(
-    () => getZoomBounds(fitZoom(panelWidth, duration), fps),
-    [panelWidth, duration, fps],
+    () => getZoomBounds(fitZoom(panelWidth, duration, gutterWidth), fps),
+    [panelWidth, duration, gutterWidth, fps],
   );
   useEffect(() => {
     setPixelsPerSecond((value) => clampZoom(value, zoomBounds));
@@ -165,7 +174,7 @@ export default function TimelinePanel() {
     setSelectedAutoCamRouteId(routeId);
   }, [selectItem, setSelectedAutoCamRouteId]);
 
-  const clampedHeight = visibleTimelineHeight(displayHeight, orderedItems.length);
+  const clampedHeight = visibleTimelineHeight(displayHeight, laneCount);
 
   const rightMarginVal = !isInspectorOpen || isMobile ? PANEL_MARGIN : isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
   const leftMarginVal = isMobile ? 8 : PANEL_MARGIN;
@@ -216,9 +225,13 @@ export default function TimelinePanel() {
 
       <TimelineViewport
         autoCamBlocks={autoCamBlocks}
+        cameraItem={cameraItem}
+        drag={dragHandlers}
         duration={duration}
+        gutterWidth={gutterWidth}
         isMobile={isMobile}
-        items={orderedItems}
+        items={items}
+        lanes={lanes}
         pixelsPerSecond={pixelsPerSecond}
         rulerDiamondRef={rulerDiamondRef}
         selectedItemId={selectedItemId}
@@ -227,6 +240,7 @@ export default function TimelinePanel() {
         setIsScrubbing={setIsScrubbing}
         setPixelsPerSecond={setPixelsPerSecond}
         setPlayheadTime={setPlayheadTime}
+        snapTime={snapTime}
         timeDisplayRef={timeDisplayRef}
         trackLineRef={trackLineRef}
         zoomBounds={zoomBounds}

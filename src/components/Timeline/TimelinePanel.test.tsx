@@ -138,7 +138,7 @@ describe('TimelinePanel', () => {
       const pastEnd = screen.getByTestId('timeline-ruler-past-end');
       // 10 s at 60 px/s.
       expect(pastEnd).toHaveAttribute('x', '600');
-      // 1000px panel minus the 160px track labels reaches 840px.
+      // 1000px panel minus the 32px gutter reaches 968px.
       expect(Number(pastEnd.getAttribute('width'))).toBeGreaterThanOrEqual(240);
       // Labels every 2 s at 60 px/s, so the ruler is still labelled past the 10 s end.
       expect(screen.getByTestId('timeline-ruler')).toHaveTextContent('0:12');
@@ -177,11 +177,11 @@ describe('TimelinePanel', () => {
 
     act(() => useProjectStore.getState().setPlayheadTime(2));
     expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '120px' });
-    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '280px' });
+    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '152px' });
 
     fireEvent.click(screen.getByTitle('Zoom In'));
     expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '150px' });
-    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '310px' });
+    expect(screen.getByTestId('timeline-track-playhead')).toHaveStyle({ left: '182px' });
 
     fireEvent.wheel(screen.getByTestId('timeline-viewport-content'), {
       ctrlKey: true,
@@ -193,14 +193,14 @@ describe('TimelinePanel', () => {
   });
 
   it('fits the timeline to the available panel width', () => {
-    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1184);
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1056);
     try {
       renderTimeline();
       act(() => useProjectStore.getState().setPlayheadTime(2));
       fireEvent.click(screen.getByTitle('Zoom In'));
       fireEvent.click(screen.getByTitle('Fit to Timeline'));
 
-      // 10 s into the 1184px panel less 184px of label column and padding.
+      // 10 s into the 1056px panel less 56px of gutter and padding.
       expect(screen.getByTestId('timeline-ruler-playhead')).toHaveStyle({ left: '200px' });
     } finally {
       width.mockRestore();
@@ -208,7 +208,7 @@ describe('TimelinePanel', () => {
   });
 
   it('cannot zoom out past the whole project fitting the panel', () => {
-    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1184);
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1056);
     try {
       renderTimeline();
       act(() => useProjectStore.getState().setPlayheadTime(2));
@@ -285,7 +285,7 @@ describe('TimelinePanel', () => {
 
     expect(screen.getByTitle('Play / Pause (Space)')).toBeInTheDocument();
     expect(screen.getByText('00:00.00')).toBeInTheDocument();
-    expect(screen.getByText('/ 00:10.00')).toBeInTheDocument();
+    expect(screen.getByText('00:10.00')).toBeInTheDocument();
   });
 
   it('moves an ordinary item without applying auto-camera constraints', () => {
@@ -320,6 +320,22 @@ describe('TimelinePanel', () => {
 
     drag('timeline-item-trimming-end-handle', 120);
     expect(useProjectStore.getState().items.trimming).toMatchObject({ startTime: 4, endTime: 8 });
+  });
+
+  it('trims with one store write per pointer move', () => {
+    renderTimeline(route('trimming', 2, 6));
+    const writes = vi.fn();
+    const unsubscribe = useProjectStore.subscribe((state, previous) => {
+      if (state.items !== previous.items) writes();
+    });
+    const handle = screen.getByTestId('timeline-item-trimming-end-handle');
+    fireEvent.pointerDown(handle, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 130, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    unsubscribe();
+
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect((useProjectStore.getState().items.trimming as RouteItem).endTime).toBeGreaterThan(6);
   });
 
   it('leaves the item unchanged when no complete legal gap exists', () => {
@@ -386,6 +402,85 @@ describe('TimelinePanel', () => {
     expect(document.body.classList.contains('cursor-grabbing')).toBe(false);
     expect(document.body.classList.contains('cursor-ew-resize')).toBe(false);
     expect(document.body.style.cursor).toBe('');
+  });
+
+  it('puts clips that never overlap in one lane and an overlapping one in the lane under it', () => {
+    renderTimeline(route('first', 0, 2), route('second', 3, 5), route('over', 4, 6));
+
+    expect(screen.getAllByTestId('timeline-lane')).toHaveLength(2);
+    expect(screen.getByTestId('timeline-item-first')).toHaveAttribute('data-lane', '0');
+    expect(screen.getByTestId('timeline-item-second')).toHaveAttribute('data-lane', '0');
+    expect(screen.getByTestId('timeline-item-over')).toHaveAttribute('data-lane', '1');
+  });
+
+  it('drags a clip down a lane, under the clip it overlaps there, as one reorder', () => {
+    renderTimeline(route('top', 0, 4), route('under', 2, 6));
+    const top = screen.getByTestId('timeline-item-top');
+
+    fireEvent.pointerDown(top, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(top, { clientX: 100, clientY: 140, pointerId: 1 });
+    expect(useProjectStore.getState().itemOrder).toEqual([CAMERA_TRACK_ID, 'under', 'top']);
+    // The other clip holds its lane until the drag ends.
+    expect(screen.getByTestId('timeline-item-under')).toHaveAttribute('data-lane', '1');
+    fireEvent.pointerUp(top, { pointerId: 1 });
+
+    expect(screen.getByTestId('timeline-item-under')).toHaveAttribute('data-lane', '0');
+    expect(screen.getByTestId('timeline-item-top')).toHaveAttribute('data-lane', '1');
+    expect(useProjectStore.getState().items.top).toMatchObject({ startTime: 0, endTime: 4 });
+  });
+
+  it('puts a clip back where it was when it is dragged back to its own lane', () => {
+    renderTimeline(route('top', 0, 4), route('under', 2, 6));
+    const top = screen.getByTestId('timeline-item-top');
+
+    fireEvent.pointerDown(top, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(top, { clientX: 100, clientY: 140, pointerId: 1 });
+    fireEvent.pointerMove(top, { clientX: 100, clientY: 105, pointerId: 1 });
+    fireEvent.pointerUp(top, { pointerId: 1 });
+
+    expect(useProjectStore.getState().itemOrder).toEqual([CAMERA_TRACK_ID, 'top', 'under']);
+  });
+
+  it('snaps a dragged clip to the playhead and shows the snap guide until release', () => {
+    renderTimeline(route('moving', 1, 3));
+    act(() => useProjectStore.getState().setPlayheadTime(2));
+    const moving = screen.getByTestId('timeline-item-moving');
+
+    // 58px at 60 px/s puts the start at 1.97 s, close enough to snap to the playhead at 2 s.
+    fireEvent.pointerDown(moving, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(moving, { clientX: 158, pointerId: 1 });
+    expect(useProjectStore.getState().items.moving).toMatchObject({ startTime: 2, endTime: 4 });
+    expect(screen.getByTestId('timeline-snap-guide')).toHaveStyle({ left: `${2 * 60 + 32}px` });
+
+    fireEvent.pointerUp(moving, { pointerId: 1 });
+    expect(screen.queryByTestId('timeline-snap-guide')).not.toBeInTheDocument();
+  });
+
+  it('snaps a trimmed edge to another clip and a camera view to a clip edge', () => {
+    renderTimeline(route('trimming', 1, 3), route('other', 6, 8));
+    drag('timeline-item-trimming-end-handle', 2.95 * 60);
+    expect(useProjectStore.getState().items.trimming).toMatchObject({ endTime: 6 });
+
+    act(() => {
+      useProjectStore.getState().addCameraKeyframe({
+        id: 'keyframe',
+        time: 7.9,
+        camera: { center: [0, 0], zoom: 1, pitch: 0, bearing: 0, altitude: null },
+        easing: 'linear',
+        followRoute: null,
+      });
+    });
+    drag('timeline-keyframe-keyframe', 5);
+    const cameraItem = useProjectStore.getState().items[CAMERA_TRACK_ID] as CameraItem;
+    expect(cameraItem.keyframes[0].time).toBe(8);
+  });
+
+  it('keeps the trim handles showing on the selected clip', () => {
+    renderTimeline(route('first', 1, 3));
+    expect(screen.getByTestId('timeline-item-first-start-handle')).toHaveClass('opacity-0');
+
+    act(() => useProjectStore.getState().selectItem('first'));
+    expect(screen.getByTestId('timeline-item-first-start-handle')).toHaveClass('opacity-100');
   });
 
   it('resizes timeline panel height via pointer events', () => {

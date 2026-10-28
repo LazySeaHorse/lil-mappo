@@ -32,14 +32,15 @@ describe('zoomBounds', () => {
 });
 
 describe('fitZoom', () => {
-  it('fits the duration into the panel past the track labels and scrollbar padding', () => {
-    expect(fitZoom(1184, 10)).toBe(100);
+  it('fits the duration into the panel past the gutter and scrollbar padding', () => {
+    expect(fitZoom(1088, 10, 64)).toBe(100);
+    expect(fitZoom(1056, 10, 32)).toBe(100);
   });
 
   it('is the floor when there is nothing to fit', () => {
-    expect(fitZoom(0, 10)).toBeLessThanOrEqual(0);
-    expect(zoomBounds(fitZoom(0, 10), 30).min).toBe(MIN_ZOOM_FLOOR);
-    expect(zoomBounds(fitZoom(1184, 0), 30).min).toBe(MIN_ZOOM_FLOOR);
+    expect(fitZoom(0, 10, 32)).toBeLessThanOrEqual(0);
+    expect(zoomBounds(fitZoom(0, 10, 32), 30).min).toBe(MIN_ZOOM_FLOOR);
+    expect(zoomBounds(fitZoom(1184, 0, 32), 30).min).toBe(MIN_ZOOM_FLOOR);
   });
 });
 

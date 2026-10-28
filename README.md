@@ -7,7 +7,7 @@ li'l Mappo is a web application for map animation. You can animate camera moveme
 ## Features
 
 ### 1. Route Planning and Import
-- **Import GPX and KML**: Import and animate GPS route files.
+- **Import route files**: Import and animate GPS routes from GPX, KML/KMZ, TCX, FIT and GeoJSON files (also zipped or .gz), so Strava, Garmin, Komoot, AllTrails, Runkeeper, Fitbit, Apple Fitness and Wikiloc exports work.
 - **Automated Routing**: Create road paths or flight paths with Mapbox Directions and Great Circle math.
 - **Custom Walking Paths**: Build multi-point paths with interactive waypoints, drag-to-reorder controls, and Bezier spline curves.
 - **Airport Search**: Search 7,697 global airports by IATA or ICAO code. Routes snap to airport runways automatically.

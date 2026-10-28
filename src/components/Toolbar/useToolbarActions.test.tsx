@@ -18,13 +18,14 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: null }) }));
 vi.mock('@/lib/analytics/reporters', () => ({ reportRouteAdded: vi.fn() }));
 vi.mock('@/services/fileImport', () => ({
-  importRouteFile: async () => ({
+  importRouteFiles: async () => [{
     name: 'Ride',
+    format: 'gpx',
     geojson: {
       type: 'FeatureCollection',
       features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[8, 46], [9, 47]] } }],
     },
-  }),
+  }],
 }));
 
 const fitBounds = vi.fn();

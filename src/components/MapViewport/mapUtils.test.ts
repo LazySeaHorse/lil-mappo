@@ -44,7 +44,21 @@ describe('detectRuntimeCapabilities', () => {
     expect(caps.labelGroups.map((g) => g.id)).toEqual(['place', 'admin', 'road', 'poi', 'water']);
     const road = caps.labelGroups.find((g) => g.id === 'road');
     expect(road?.layerPatterns).toEqual(LABEL_CATEGORIES.find((c) => c.id === 'road')?.layerPatterns);
-    expect(caps.colorCustomization).toBe(true);
+    expect(caps.colorRoles).toEqual([]);
+  });
+
+  it('lists the colour roles a custom style can change on a classic style', () => {
+    const map = {
+      getStyle: () => ({
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'water', type: 'fill', source: 'composite', 'source-layer': 'water' },
+          { id: 'building', type: 'fill', source: 'composite', 'source-layer': 'building' },
+        ],
+      }),
+    } as unknown as MapboxMap;
+    expect(detectRuntimeCapabilities(map, 'streets').colorRoles).toEqual(['water', 'buildings']);
   });
 
   it('matches case-insensitively and yields no groups when nothing matches', () => {

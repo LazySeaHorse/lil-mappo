@@ -140,28 +140,11 @@ describe('useMapLoadGate signed-in users', () => {
     expect(gate.reason).toBe('monthly_exhausted');
   });
 
-  it('falls back to the endpoint when the database function is not there yet', async () => {
-    rpcFails({ code: 'PGRST202', message: 'Could not find the function public.track_my_map_load' }, 404);
-    fetchMock.mockResolvedValue({ json: async () => ({ allowed: false, reason: 'monthly_exhausted' }) });
-    const gate = await settle();
-    expect(fetchMock).toHaveBeenCalledWith('/api/track-map-load', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer token' },
-    });
-    expect(gate.blocked).toBe(true);
-    expect(gate.reason).toBe('monthly_exhausted');
-  });
-
-  it('uses an allowed answer from the fallback endpoint', async () => {
-    rpcFails({ code: 'PGRST202', message: 'Could not find the function public.track_my_map_load' }, 404);
-    fetchMock.mockResolvedValue({ json: async () => ({ allowed: true, monthly_total: 2, daily_total: 1 }) });
-    const gate = await settle();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(gate.blocked).toBe(false);
-  });
-
-  it('fails closed on any other database error, without the fallback', async () => {
-    rpcFails({ code: '42501', message: 'permission denied for function track_my_map_load' }, 401);
+  it.each([
+    ['the function is missing', { code: 'PGRST202', message: 'Could not find the function public.track_my_map_load' }, 404],
+    ['the call is refused', { code: '42501', message: 'permission denied for function track_my_map_load' }, 401],
+  ])('fails closed when %s', async (_, error, status) => {
+    rpcFails(error, status);
     const gate = await settle();
     expect(gate.blocked).toBe(true);
     expect(gate.reason).toBe('quota_error');

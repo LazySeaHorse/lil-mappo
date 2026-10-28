@@ -12,7 +12,8 @@ import {
   BRIDGE_TARGETS, bridgeDownloadUrl, bridgeRunCommand, codingClients, detectBridgeTarget, refineBridgeTarget,
   type BridgeTarget, type CodingClient,
 } from './bridgeSetup';
-import { hideBridgeGuide, useAiPanelStore } from './useAiPanelStore';
+import { hideBridgeGuide } from './aiPrefs';
+import { useAiPanelStore } from './useAiPanelStore';
 
 /** Text to paste somewhere, with a copy button. */
 function CopyBlock({ text }: { text: string }) {
@@ -109,7 +110,7 @@ function ClientPanel({ client }: { client: CodingClient }) {
 
 function ConnectionStatus() {
   const enabled = useAgentStore((s) => s.enabled);
-  const bridged = useAiPanelStore((s) => s.bridgeConnected);
+  const bridged = useAiPanelStore((s) => s.bridgeStatus === 'connected');
   const [message, tone] = bridged
     ? ['The bridge is connected. Ask your agent to make a map.', 'text-emerald-600']
     : enabled

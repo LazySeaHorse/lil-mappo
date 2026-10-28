@@ -18,7 +18,6 @@ vi.mock('./HistoryButtons', () => ({ HistoryButtons: () => null }));
 const initialStore = useProjectStore.getState();
 
 const layerProps = {
-  setMapStyle: vi.fn(),
   terrainEnabled: false,
   setTerrainEnabled: vi.fn(),
   buildingsEnabled: false,
@@ -37,11 +36,11 @@ const layerProps = {
   onToggleFit: vi.fn(),
 };
 
-function renderToolbars(mapStyle: string) {
+function renderToolbars() {
   render(
     <>
-      <DesktopToolbarLayout {...layerProps} mapStyle={mapStyle} isTablet={false} isPlaying={false} />
-      <MobileToolbarLayout {...layerProps} mapStyle={mapStyle} mobileMode="layers" setMobileMode={vi.fn()} isPlaying2={false} />
+      <DesktopToolbarLayout {...layerProps} isTablet={false} isPlaying={false} />
+      <MobileToolbarLayout {...layerProps} mobileMode="layers" setMobileMode={vi.fn()} isPlaying2={false} />
     </>,
   );
   return screen.getAllByTitle('Buildings');
@@ -54,18 +53,18 @@ beforeEach(() => {
 describe('Buildings toggle', () => {
   it('is enabled on Standard', () => {
     act(() => useProjectStore.setState({ mapStyle: 'standard', detectedCapabilities: STANDARD_CAPABILITIES }));
-    const toggles = renderToolbars('standard');
+    const toggles = renderToolbars();
     expect(toggles).toHaveLength(2);
     toggles.forEach((toggle) => expect(toggle).toBeEnabled());
   });
 
   it('is disabled on every classic style', () => {
     act(() => useProjectStore.setState({ mapStyle: 'streets', detectedCapabilities: { ...STANDARD_CAPABILITIES, buildings3d: false } }));
-    renderToolbars('streets').forEach((toggle) => expect(toggle).toBeDisabled());
+    renderToolbars().forEach((toggle) => expect(toggle).toBeDisabled());
   });
 
   it('is disabled while the style is still loading and nothing is detected yet', () => {
     act(() => useProjectStore.setState({ mapStyle: 'streets', detectedCapabilities: null }));
-    renderToolbars('streets').forEach((toggle) => expect(toggle).toBeDisabled());
+    renderToolbars().forEach((toggle) => expect(toggle).toBeDisabled());
   });
 });

@@ -23,9 +23,12 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
       selectedKeyframeId: null,
       selectedAutoCamRouteId: null,
       isInspectorOpen: true,
+      // Selecting another item ends a dismissal; deselecting or reselecting the same one keeps it.
+      ...(id && id !== state.previewDismissedId ? { previewDismissedId: null } : {}),
       ...(newPlayheadTime !== state.playheadTime ? { playheadTime: newPlayheadTime } : {}),
     });
   },
+  dismissSelectionPreview: () => set((s) => ({ previewDismissedId: s.selectedItemId })),
 
   selectKeyframe: (id) => {
     const state = get();
@@ -80,5 +83,6 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
     const startedAt = prefersReducedMotion() ? -Infinity : performance.now();
     set({ appearPreview: { itemIds, startedAt, selectedItemId, playheadTime } });
   },
-  stageItems: (items) => set({ stagedItems: items }),
+  stageItems: (owner, items) => set({ stagedItems: items, stagedBy: items.length ? owner : null }),
+  clearStagedItems: (owner) => set((s) => (s.stagedBy === owner ? { stagedItems: [], stagedBy: null } : s)),
 });
