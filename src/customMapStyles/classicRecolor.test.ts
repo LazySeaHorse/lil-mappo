@@ -52,6 +52,16 @@ describe('classicColorRoles', () => {
     ])).toEqual(['land', 'water', 'roadLabels']);
     expect(classicColorRoles([layer('satellite', 'raster')])).toEqual([]);
   });
+
+  it('leaves out the classes of a layer whose colour is an old data-driven function, which cannot be repainted per class', () => {
+    const road = (paint?: Record<string, unknown>): RecolorLayer => ({ ...layer('road-street', 'line', 'road'), ...(paint ? { paint } : {}) });
+    const byClass = { 'line-color': { property: 'class', type: 'categorical', stops: [['street', '#111111']] } };
+
+    expect(classicColorRoles([road(byClass)])).toEqual([]);
+    expect(classicColorRoles([road()])).toEqual(['roads', 'trunks', 'motorways']);
+    // A rest role replaces the whole value, so it still works.
+    expect(classicColorRoles([{ ...layer('landuse', 'fill', 'landuse'), paint: { 'fill-color': byClass['line-color'] } }])).toEqual(['land']);
+  });
 });
 
 describe('recolorValue', () => {

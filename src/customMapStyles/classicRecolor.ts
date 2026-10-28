@@ -14,6 +14,7 @@ export interface RecolorLayer {
   type: string;
   'source-layer'?: string;
   layout?: Record<string, unknown>;
+  paint?: Record<string, unknown>;
 }
 
 /** Feature classes that get a role's colour. */
@@ -123,16 +124,29 @@ function symbolTargets(layer: RecolorLayer, sourceLayer: string): RecolorTarget[
   return targets;
 }
 
-function targetRoles(target: RecolorTarget): MapColorRole[] {
+/**
+ * The roles `recolorValue` can paint on a target over the style's value `original`. Class roles
+ * work by rewriting that value, which an old data-driven function does not allow; a rest role
+ * replaces the whole value, so it always works.
+ */
+function targetRoles(target: RecolorTarget, original: unknown): MapColorRole[] {
   if ('role' in target) return [target.role];
-  const roles = target.classes.map(([, role]) => role);
+  const roles = canAddClassOverrides(original) ? target.classes.map(([, role]) => role) : [];
   return target.rest ? [...roles, target.rest] : roles;
 }
 
 /** The roles that change something in a style with these layers, in role order. */
 export function classicColorRoles(layers: readonly RecolorLayer[]): MapColorRole[] {
-  const found = new Set(layers.flatMap((layer) => classicColorTargets(layer).flatMap(targetRoles)));
+  const found = new Set(layers.flatMap((layer) =>
+    classicColorTargets(layer).flatMap((target) => targetRoles(target, layer.paint?.[target.property]))));
   return MAP_COLOR_ROLE_IDS.filter((role) => found.has(role));
+}
+
+/** Unset fill and line colours are black (style spec default). */
+const DEFAULT_COLOR = '#000000';
+
+function canAddClassOverrides(original: unknown): boolean {
+  return legacyZoomFunctionToExpression(original ?? DEFAULT_COLOR) !== undefined;
 }
 
 /**
@@ -147,8 +161,7 @@ export function recolorValue(target: RecolorTarget, colors: CustomMapStyle['colo
   if (!cases.length) return rest || undefined;
   const branches = cases.flatMap(([classes, role]) => [classes, colors[role]]);
   if (rest) return ['match', ['get', 'class'], ...branches, rest];
-  // Unset fill and line colours are black (style spec default).
-  return withClassOverrides(original ?? '#000000', branches);
+  return withClassOverrides(original ?? DEFAULT_COLOR, branches);
 }
 
 /**
