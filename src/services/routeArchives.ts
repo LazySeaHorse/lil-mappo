@@ -23,6 +23,7 @@ export const ROUTE_ARCHIVE_LIMITS = {
 const GUNZIP_STEP = 16 * 1024;
 
 const ROUTE_ENTRY = /\.(gpx|kml|tcx|fit|geojson|json|gz)$/i;
+const JSON_ENTRY = /\.json$/i;
 
 const fail = (message: string) => new RouteImportError('archive', message);
 
@@ -102,6 +103,10 @@ export async function unzipRoutes(bytes: Uint8Array, fileName: string, budget: A
   if (isKmz) {
     const doc = candidates.find((n) => n.toLowerCase() === 'doc.kml');
     wanted = doc ? [doc] : candidates.slice(0, 1);
+  } else {
+    // .json is often metadata next to the route (a Garmin export is one .fit and many .json), so it counts only when nothing else does.
+    const routes = candidates.filter((n) => !JSON_ENTRY.test(n));
+    if (routes.length > 0) wanted = routes;
   }
   if (wanted.length === 0) throw fail('No route files found in this archive.');
   if (wanted.length > ROUTE_ARCHIVE_LIMITS.routes) {

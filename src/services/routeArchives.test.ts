@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { gzipSync, strToU8, zipSync } from 'fflate';
 import { importRouteFiles } from './fileImport';
-import { ROUTE_ARCHIVE_LIMITS } from './routeArchives';
+import { ArchiveBudget, ROUTE_ARCHIVE_LIMITS, unzipRoutes } from './routeArchives';
 
 const gpx = (n = 3, lat = 46) =>
   `<?xml version="1.0"?><gpx version="1.1"><trk><trkseg>${Array.from({ length: n }, (_, i) => `<trkpt lat="${lat + i / 100}" lon="${8 + i / 100}"/>`).join('')}</trkseg></trk></gpx>`;
@@ -70,6 +70,21 @@ describe('zip', () => {
       code: 'archive',
       message: 'This archive has 21 routes; unzip it and pick the files you want.',
     });
+  });
+
+  it('skips .json metadata next to a route file, as in a Garmin export', async () => {
+    const zip = zipSync({
+      'activity.fit': new Uint8Array([14, 0x10, 0, 0, 0, 0, 0, 0, 0x2e, 0x46, 0x49, 0x54, 0, 0]),
+      ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`meta${i}.json`, strToU8('{}')])),
+    });
+    const entries = await unzipRoutes(zip, 'export.zip', new ArchiveBudget());
+    expect(entries.map((e) => e.name)).toEqual(['activity.fit']);
+  });
+
+  it('opens a .json when it is the only route candidate in the zip', async () => {
+    const zip = zipSync({ 'route.json': strToU8('{"type":"FeatureCollection","features":[]}'), 'readme.txt': strToU8('hi') });
+    const entries = await unzipRoutes(zip, 'route.zip', new ArchiveBudget());
+    expect(entries.map((e) => e.name)).toEqual(['route.json']);
   });
 
   it('keeps the routes that read when one file in the zip is bad', async () => {
