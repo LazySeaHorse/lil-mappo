@@ -54,7 +54,7 @@ export const setCustomMapStyle = defineTool({
   description:
     'Makes the map a custom style: a built-in style (baseStyle) with your colours for some of its parts (paid plans). ' +
     'Colours are #rrggbb per role; a role you never set keeps the built-in colour. Calls add to the current custom style (same base): pass only what changes, null removes a colour, reset starts again from the plain base (keeping the name). ' +
-    'theme (default | faded | monochrome) is Mapbox Standard\'s own colour treatment; Standard follows every role, other styles only the ones they draw. ' +
+    'theme (default | faded | monochrome) is Mapbox Standard\'s grade over the whole map, your colours included (monochrome is grey); keep default for exact colours. Standard follows every role, other styles only the ones they draw. ' +
     'Returns the custom style and colorRoles, the roles this base style can show (null while it loads; get_project has it then). Look at the result with render_frames. One undo step. update_project_settings mapStyle goes back to a plain built-in style.',
   input: z.strictObject({
     name: z.string().trim().min(1).max(CUSTOM_STYLE_NAME_MAX).optional().describe('Name shown in the style picker. Default: the current custom style\'s name, or "Custom style".'),

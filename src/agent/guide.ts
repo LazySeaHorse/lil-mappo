@@ -43,7 +43,7 @@ MAP LOOK (update_project_settings)
 - aspectRatio 16:9 | 21:9 | 4:3 | 1:1, exportResolution 480p-2160p, isVertical, fps 30 | 60. Free plans are capped at 720p, 30fps, 30s.
 
 CUSTOM MAP STYLES (paid plans: set_custom_map_style, save_map_style, list_saved_map_styles, apply_saved_map_style)
-A custom style is a built-in style with your colours (#rrggbb) for some of its parts, and a name. Standard follows every role and also takes theme (default | faded | monochrome; monochrome is a good blank canvas); other styles only change the parts they draw (get_project colorRoles). Satellite imagery cannot be recoloured, only the roads and labels over it.
+A custom style is a built-in style with your colours (#rrggbb) for some of its parts, and a name. Standard follows every role and also takes theme: default keeps your colours exact, faded and monochrome grade the whole map afterwards, your colours included (monochrome turns everything grey); other styles only change the parts they draw (get_project colorRoles). Satellite imagery cannot be recoloured, only the roads and labels over it.
 Colour roles:
 ${colorRoles}
 - The land colour also decides whether the editor goes dark. fogColor (update_project_settings) is the horizon haze; set it to match the new palette.
