@@ -2,6 +2,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   getGeoJSONSource,
+  guardShadowCasterCheck,
   LayerPropertyWriter,
   mutateMap,
   removeLayerIfPresent,
@@ -18,6 +19,40 @@ function createMap(overrides: Record<string, unknown> = {}): MapboxMap {
     ...overrides,
   } as unknown as MapboxMap;
 }
+
+describe('guardShadowCasterCheck', () => {
+  // Mirrors mapbox-gl 3.32's ShadowRenderer._hasCasterGeometry for a model source.
+  function shadowRenderer(source: { type: string; getModels?: () => unknown[] }) {
+    const painter = { style: { getLayerSourceCache: () => ({ getSource: () => source }) } };
+    return {
+      painter,
+      _hasCasterGeometry(this: { painter: typeof painter }) {
+        const s = this.painter.style.getLayerSourceCache().getSource();
+        return (s as { getModels: () => unknown[] }).getModels().length > 0;
+      },
+    };
+  }
+
+  it('answers no caster for a model source still loading, on a shadow renderer the painter creates later', () => {
+    const painter: { _shadowRenderer?: ReturnType<typeof shadowRenderer> } = {};
+    guardShadowCasterCheck({ painter } as unknown as MapboxMap);
+
+    const unguarded = shadowRenderer({ type: 'model' });
+    expect(() => unguarded._hasCasterGeometry()).toThrow(TypeError);
+    painter._shadowRenderer = shadowRenderer({ type: 'model' });
+    expect(painter._shadowRenderer._hasCasterGeometry()).toBe(false);
+  });
+
+  it('guards a shadow renderer that already exists, and leaves loaded model sources to the real check', () => {
+    const painter = { _shadowRenderer: shadowRenderer({ type: 'model', getModels: () => [{}] }) };
+    guardShadowCasterCheck({ painter } as unknown as MapboxMap);
+    expect(painter._shadowRenderer._hasCasterGeometry()).toBe(true);
+  });
+
+  it('does nothing when the internals are not there', () => {
+    expect(() => guardShadowCasterCheck({} as MapboxMap)).not.toThrow();
+  });
+});
 
 describe('mapbox resource helpers', () => {
   it('reports a failed mutation while the style is stable', () => {

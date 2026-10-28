@@ -9,7 +9,7 @@ import { BoundaryRenderer } from './BoundaryRenderer';
 import { RouteRenderer } from './RouteRenderer';
 import { ModelRenderer } from './ModelRenderer';
 import { ModelCatalog } from './ModelCatalog';
-import { isStyleReady } from './mapboxResources';
+import { guardShadowCasterCheck, isStyleReady } from './mapboxResources';
 import { isSelectionPreview, previewableSelectionId, selectionPreviewTime } from '@/engine/selectionPreview';
 import { activeAppearPreview, entranceEnd, type AppearPreviewFrame } from '@/engine/appearPreview';
 import { sceneItems, type SceneItems } from '@/engine/stagedItems';
@@ -106,6 +106,7 @@ export class MapSceneController implements MapSceneRuntime {
     private readonly map: MapboxMap,
     setStyleLoaded: (loaded: boolean) => void,
   ) {
+    guardShadowCasterCheck(map);
     this.basemap = new BasemapController(map, setStyleLoaded, this.rebuildAfterStyleLoad);
     this.mask = new BoundaryMaskRenderer(map);
     this.catalog = new ModelCatalog(map, () => useProjectStore.getState().models);
