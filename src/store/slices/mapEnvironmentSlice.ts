@@ -32,6 +32,7 @@ export function createTransientState(): TransientProjectState {
     boundaryDetail: DEFAULT_BOUNDARY_DETAIL,
     appearPreview: null,
     stagedItems: [],
+    stagedBy: null,
   };
 }
 

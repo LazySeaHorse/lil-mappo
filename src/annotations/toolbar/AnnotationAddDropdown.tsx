@@ -29,12 +29,15 @@ import { ToolbarDropdownPanel } from '@/components/ui/toolbar-dropdown-panel';
 import { PanelHeader } from '@/components/ui/panel-header';
 import { Field } from '@/components/ui/field';
 import { isPlacedPoint, placeLabel } from '@/engine/routeMode';
+import { stagedItemsOf, type StagingOwner } from '@/engine/stagedItems';
 import { ACCENT_TERMS, CALLOUT_ADD_TERMS } from '@/lib/terms';
+
+const STAGING: StagingOwner = 'callout-add';
 
 /** Shows a callout in the panel's preview; `play` plays its entrance again. */
 function stage(item: CalloutItem, { play = false } = {}) {
   const { stageItems, playAppearPreview } = useProjectStore.getState();
-  stageItems([item]);
+  stageItems(STAGING, [item]);
   if (play) playAppearPreview([item.id]);
 }
 
@@ -49,15 +52,15 @@ export const AnnotationAddDropdown = ({
 
   // The callout being previewed, before it is added.
   const draft = useProjectStore((s) => {
-    const item = s.stagedItems[0];
+    const [item] = stagedItemsOf(s, STAGING);
     return item?.kind === 'callout' ? item : null;
   });
 
   // Closing the panel, or leaving the editor, drops the preview.
   useEffect(() => {
-    if (!isOpen) useProjectStore.getState().stageItems([]);
+    if (!isOpen) useProjectStore.getState().clearStagedItems(STAGING);
   }, [isOpen]);
-  useEffect(() => () => useProjectStore.getState().stageItems([]), []);
+  useEffect(() => () => useProjectStore.getState().clearStagedItems(STAGING), []);
 
   /** Previews a callout at a point, or moves the one previewed. A name says which place it is and becomes the title. */
   const placeAt = (lngLat: [number, number], name: string) => {
@@ -93,7 +96,7 @@ export const AnnotationAddDropdown = ({
   };
 
   const handleAdd = () => {
-    const [added] = useProjectStore.getState().addStagedItems();
+    const [added] = useProjectStore.getState().addStagedItems(STAGING);
     if (!added) return;
     useProjectStore.getState().selectItem(added.id);
     onOpenChange(false);

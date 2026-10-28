@@ -471,11 +471,11 @@ describe('MapSceneController', () => {
     it('draws a staged item finished, wherever the playhead is, and removes it when unstaged', () => {
       const { double, restore } = setup();
       try {
-        useProjectStore.getState().stageItems([{ ...route, startTime: 2, endTime: 6 }]);
+        useProjectStore.getState().stageItems('boundary-add', [{ ...route, startTime: 2, endTime: 6 }]);
         expect(double.layers.has('route-layer-scene-route')).toBe(true);
         expect(lastTrim(double)).toEqual([0, 0]);
 
-        useProjectStore.getState().stageItems([]);
+        useProjectStore.getState().clearStagedItems('boundary-add');
         expect(double.layers.has('route-layer-scene-route')).toBe(false);
       } finally {
         restore();
@@ -485,7 +485,7 @@ describe('MapSceneController', () => {
     it('leaves staged items out of exports and of the view with the UI hidden', () => {
       const { double, restore } = setup();
       try {
-        useProjectStore.getState().stageItems([route]);
+        useProjectStore.getState().stageItems('boundary-add', [route]);
         useProjectStore.setState({ isExporting: true });
         expect(double.layers.has('route-layer-scene-route')).toBe(false);
         useProjectStore.setState({ isExporting: false, hideUI: true });

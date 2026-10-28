@@ -11,6 +11,22 @@ import type { TimelineItem } from '@/store/types';
 /** An item that can be staged: anything on the timeline but the camera. */
 export type StagedItem = Exclude<TimelineItem, { kind: 'camera' }>;
 
+/**
+ * The Add panel that staged the items. Only one panel stages at a time; a panel reads, adds
+ * and clears only what it staged itself, so one panel closing never drops another's preview.
+ */
+export type StagingOwner = 'boundary-add' | 'callout-add';
+
+const NOTHING_STAGED: readonly StagedItem[] = [];
+
+/** The items `owner` staged, or none when another panel (or nothing) has staged. */
+export function stagedItemsOf(
+  state: { stagedItems: readonly StagedItem[]; stagedBy: StagingOwner | null },
+  owner: StagingOwner,
+): readonly StagedItem[] {
+  return state.stagedBy === owner ? state.stagedItems : NOTHING_STAGED;
+}
+
 type SceneState = {
   items: Record<string, TimelineItem>;
   itemOrder: string[];

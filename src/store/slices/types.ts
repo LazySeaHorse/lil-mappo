@@ -11,7 +11,7 @@ import type {
 import type { FollowCameraResult } from '../followCamera';
 import type { BoundaryDetailId } from '@/engine/boundaryDetail';
 import type { AppearPreview } from '@/engine/appearPreview';
-import type { StagedItem } from '@/engine/stagedItems';
+import type { StagedItem, StagingOwner } from '@/engine/stagedItems';
 import type { WalkPatch } from '@/engine/routeCurves';
 import type { MapStyleCapabilities } from '@/config/mapbox';
 import type { CustomMapStyle } from '@/customMapStyles/model';
@@ -76,12 +76,14 @@ export interface TransientProjectState {
   appearPreview: AppearPreview | null;
   /** What an Add panel shows before it is added: drawn on the map, not in the project (see `sceneItems`). */
   stagedItems: StagedItem[];
+  /** The Add panel that staged them; null when nothing is staged. */
+  stagedBy: StagingOwner | null;
 }
 
 export interface ItemsSlice {
   addItem: (item: TimelineItem) => void;
-  /** Adds the staged items to the project at the playhead, in one step, and clears them. Returns what was added. */
-  addStagedItems: () => StagedItem[];
+  /** Adds what `owner` staged to the project at the playhead, in one step, and clears it. Returns what was added. */
+  addStagedItems: (owner: StagingOwner) => StagedItem[];
   removeItem: (id: string) => void;
   updateItem: (id: string, updates: Partial<TimelineItem>) => void;
   /**
@@ -178,8 +180,10 @@ export interface EditorUiSlice {
   setBoundaryDetail: (id: BoundaryDetailId) => void;
   /** Plays the entrance of items just added, a few times over, with the selection and playhead as they are now. */
   playAppearPreview: (itemIds: readonly string[]) => void;
-  /** Replaces the staged items; an empty list clears them. */
-  stageItems: (items: StagedItem[]) => void;
+  /** Stages `items` for `owner`, replacing whatever was staged. */
+  stageItems: (owner: StagingOwner, items: StagedItem[]) => void;
+  /** Drops what `owner` staged; leaves another panel's items alone. */
+  clearStagedItems: (owner: StagingOwner) => void;
 }
 
 export type ProjectStore = Project &
