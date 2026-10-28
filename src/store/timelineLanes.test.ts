@@ -27,6 +27,15 @@ describe('packLanes', () => {
     expect(timelineLaneCount(items, ['camera-track', 'a', 'b', 'c'])).toBe(3);
     expect(timelineLaneCount({ 'camera-track': camera }, ['camera-track'])).toBe(1);
   });
+
+  it('counts again when the items or their order change', () => {
+    const order = ['camera-track', 'a', 'b'];
+    const apart = { 'camera-track': camera, a: clip('a', 0, 2), b: clip('b', 3, 4) };
+    expect(timelineLaneCount(apart, order)).toBe(2);
+    expect(timelineLaneCount(apart, order)).toBe(2);
+    expect(timelineLaneCount({ ...apart, b: clip('b', 1, 4) }, order)).toBe(3);
+    expect(timelineLaneCount(apart, ['camera-track', 'a'])).toBe(2);
+  });
 });
 
 describe('orderForLane', () => {

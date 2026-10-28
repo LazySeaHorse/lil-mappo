@@ -27,9 +27,18 @@ function overlapsInTime(a: Clip, b: Clip): boolean {
   return a.startTime < b.endTime && b.startTime < a.endTime;
 }
 
-/** How many lanes the timeline shows: the camera's and the packed ones under it. */
+let lastCount: { items: Record<string, TimelineItem>; itemOrder: readonly string[]; count: number } | null = null;
+
+/**
+ * How many lanes the timeline shows: the camera's and the packed ones under it. Store selectors
+ * call this on every store write (each playhead tick), so the last answer is kept and reused
+ * while `items` and `itemOrder` are the same objects.
+ */
 export function timelineLaneCount(items: Record<string, TimelineItem>, itemOrder: readonly string[]): number {
-  return 1 + packLanes(itemOrder.map((id) => items[id]).filter(Boolean)).length;
+  if (lastCount?.items === items && lastCount.itemOrder === itemOrder) return lastCount.count;
+  const count = 1 + packLanes(itemOrder.map((id) => items[id]).filter(Boolean)).length;
+  lastCount = { items, itemOrder, count };
+  return count;
 }
 
 /**
