@@ -149,24 +149,25 @@ function SavedStyles({ onPicked }: { onPicked: () => void }) {
 }
 
 interface MapStylePickerProps {
-  value: string;
-  onChange: (style: string) => void;
   /** `inline` suits a place inside a menu, where a popover cannot open; it expands in place instead. */
   variant?: 'popover' | 'inline';
   className?: string;
 }
 
-/** The saved custom styles, the mood chips and the list of styles. */
-function MapStylePanel({ value, onPick, onPicked, className }: {
-  value: string;
-  onPick: (style: string) => void;
-  /** After a saved style was applied. */
+/** The saved custom styles, the mood chips and the list of styles. Picking either applies it to the project. */
+function MapStylePanel({ onPicked, className }: {
+  /** After a style was applied. */
   onPicked: () => void;
   className?: string;
 }) {
   const [mood, setMood] = useState<StyleMood | 'All'>('All');
+  const value = useProjectStore((s) => s.mapStyle);
   // A built-in style is the one in use only without a custom style over it.
   const custom = useProjectStore((s) => s.customStyle !== null);
+  const pick = (style: string) => {
+    useProjectStore.getState().setMapStyle(style);
+    onPicked();
+  };
   const entries = Object.entries(MAP_STYLES as Record<string, MapStyleDef>).filter(
     ([, def]) => mood === 'All' || def.mood === mood,
   );
@@ -207,7 +208,7 @@ function MapStylePanel({ value, onPick, onPicked, className }: {
               role="radio"
               aria-checked={checked}
               onKeyDown={handleRowKeyDown}
-              onClick={() => onPick(key)}
+              onClick={() => pick(key)}
               className={`flex items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-secondary/70 focus-visible:bg-secondary/70 focus-visible:outline-none ${
                 checked ? 'bg-primary/10' : ''
               }`}
@@ -232,11 +233,12 @@ function MapStylePanel({ value, onPick, onPicked, className }: {
 const TRIGGER_CLASS =
   'flex h-8 items-center gap-2 rounded-lg pl-1 pr-2 text-xs transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
-export function MapStylePicker({ value, onChange, variant = 'popover', className }: MapStylePickerProps) {
+/** The project's map style: a built-in style, or a custom style over one. */
+export function MapStylePicker({ variant = 'popover', className }: MapStylePickerProps) {
   const [open, setOpen] = useState(false);
+  const value = useProjectStore((s) => s.mapStyle);
   const customStyle = useProjectStore((s) => s.customStyle);
   const current = getMapStyleDef(value);
-  const pick = (style: string) => { onChange(style); setOpen(false); };
   const close = () => setOpen(false);
   const label = customStyle?.name ?? current?.label ?? 'Map style';
 
@@ -261,7 +263,7 @@ export function MapStylePicker({ value, onChange, variant = 'popover', className
         <button {...triggerProps} aria-expanded={open} onClick={() => setOpen(!open)} className={`${TRIGGER_CLASS} h-9 w-full bg-secondary/40`}>
           {triggerContent}
         </button>
-        {open && <MapStylePanel value={value} onPick={pick} onPicked={close} className="mt-2" />}
+        {open && <MapStylePanel onPicked={close} className="mt-2" />}
       </div>
     );
   }
@@ -274,7 +276,7 @@ export function MapStylePicker({ value, onChange, variant = 'popover', className
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" collisionPadding={8} className="w-[min(330px,calc(100vw-1rem))] rounded-xl border-border/50 p-2 shadow-2xl">
-        <MapStylePanel value={value} onPick={pick} onPicked={close} />
+        <MapStylePanel onPicked={close} />
       </PopoverContent>
     </Popover>
   );

@@ -24,8 +24,6 @@ interface MobileToolbarLayoutProps {
   onHideUI: () => void;
   renderAvatarMenu: () => React.ReactNode;
   // Layer group props
-  mapStyle: string;
-  setMapStyle: (s: string) => void;
   terrainEnabled: boolean;
   setTerrainEnabled: (v: boolean) => void;
   buildingsEnabled: boolean;
@@ -44,7 +42,6 @@ export function MobileToolbarLayout({
   activeDropdown, setActiveDropdown,
   onExport,
   onImportClick, onHideUI, renderAvatarMenu,
-  mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
   terrainLoading,
@@ -106,7 +103,7 @@ export function MobileToolbarLayout({
         <div className="flex items-center w-full animate-in slide-in-from-right-4 duration-300 fill-mode-both">
           <div className="flex items-center gap-2 w-full justify-between px-2">
             <div className="flex items-center gap-1 px-1 flex-1">
-              <MapStylePicker value={mapStyle} onChange={setMapStyle} className="flex-1" />
+              <MapStylePicker className="flex-1" />
             </div>
             <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
             <div data-walkthrough="map-3d" className="flex items-center gap-1">

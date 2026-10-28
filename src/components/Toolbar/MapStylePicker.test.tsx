@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('MapStylePicker', () => {
   it('shows the current style and lists every style until a mood is picked', async () => {
-    render(<MapStylePicker value="streets" onChange={() => {}} />);
+    render(<MapStylePicker />);
     expect(screen.getByRole('button', { name: 'Map style: Streets' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Map style: Streets' }));
@@ -39,11 +39,10 @@ describe('MapStylePicker', () => {
   });
 
   it('picks a style and closes', async () => {
-    const onChange = vi.fn();
-    render(<MapStylePicker value="streets" onChange={onChange} />);
+    render(<MapStylePicker />);
     fireEvent.click(screen.getByRole('button', { name: 'Map style: Streets' }));
     fireEvent.click(screen.getByRole('radio', { name: /Neon Glow/ }));
-    expect(onChange).toHaveBeenCalledWith('neonGlow');
+    expect(useProjectStore.getState().mapStyle).toBe('neonGlow');
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
   });
 
@@ -55,7 +54,7 @@ describe('MapStylePicker', () => {
   });
 
   it('marks Standard with 3D buildings and its four times of day', () => {
-    render(<MapStylePicker value="streets" onChange={() => {}} />);
+    render(<MapStylePicker />);
     fireEvent.click(screen.getByRole('button', { name: 'Map style: Streets' }));
     const standard = screen.getByRole('radio', { name: /^Standard/ });
     expect(standard.textContent).toMatch(/3D buildings/);
@@ -63,12 +62,11 @@ describe('MapStylePicker', () => {
   });
 
   it('expands in place inside a menu', () => {
-    const onChange = vi.fn();
-    render(<MapStylePicker variant="inline" value="streets" onChange={onChange} />);
+    render(<MapStylePicker variant="inline" />);
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Map style: Streets' }));
     fireEvent.click(screen.getByRole('radio', { name: /Vintage/ }));
-    expect(onChange).toHaveBeenCalledWith('vintage');
+    expect(useProjectStore.getState().mapStyle).toBe('vintage');
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
   });
 
@@ -77,15 +75,23 @@ describe('MapStylePicker', () => {
 
     it('shows the custom style in the trigger, and no built-in style as the one in use', () => {
       useProjectStore.getState().setMapStyle('light', ink);
-      render(<MapStylePicker value="light" onChange={() => {}} />);
+      render(<MapStylePicker />);
       open('Ink');
       expect(screen.getByRole('radio', { name: /^Light/ })).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('drops the custom style when its built-in style is picked again', () => {
+      useProjectStore.getState().setMapStyle('light', ink);
+      render(<MapStylePicker />);
+      open('Ink');
+      fireEvent.click(screen.getByRole('radio', { name: /^Light/ }));
+      expect(useProjectStore.getState()).toMatchObject({ mapStyle: 'light', customStyle: null });
     });
 
     it('lists saved styles first, and applies one with its base style', () => {
       useSavedMapStyles.getState().save('light', ink);
       useSavedMapStyles.getState().save('standard', paper);
-      render(<MapStylePicker value="streets" onChange={() => {}} />);
+      render(<MapStylePicker />);
       open('Streets');
 
       const saved = within(screen.getByRole('group', { name: 'Your styles' }));
@@ -104,7 +110,7 @@ describe('MapStylePicker', () => {
     it('deletes a saved style, and puts it back from the toast', () => {
       useSavedMapStyles.getState().save('light', ink);
       useSavedMapStyles.getState().save('standard', paper);
-      render(<MapStylePicker value="streets" onChange={() => {}} />);
+      render(<MapStylePicker />);
       open('Streets');
 
       fireEvent.click(screen.getByRole('button', { name: 'Delete Ink' }));
@@ -118,7 +124,7 @@ describe('MapStylePicker', () => {
     it('hides saved styles from free plans', () => {
       vi.mocked(useCustomStylesAllowed).mockReturnValue(false);
       useSavedMapStyles.getState().save('light', ink);
-      render(<MapStylePicker value="streets" onChange={() => {}} />);
+      render(<MapStylePicker />);
       open('Streets');
       expect(screen.queryByRole('group', { name: 'Your styles' })).not.toBeInTheDocument();
     });

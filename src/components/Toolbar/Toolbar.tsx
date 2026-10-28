@@ -48,13 +48,13 @@ export default function Toolbar({
   }, [activeDropdown, onAddToolOpenChange]);
 
   const {
-    isPlaying, mapStyle, setMapStyle,
+    isPlaying,
     terrainEnabled, setTerrainEnabled, buildingsEnabled, setBuildingsEnabled,
     terrainLoading,
     setHideUI, isFitMode, setFitMode, isInspectorOpen, isScrubbing,
   } = useProjectStore(
     useShallow(s => ({
-      isPlaying: s.isPlaying, mapStyle: s.mapStyle, setMapStyle: s.setMapStyle,
+      isPlaying: s.isPlaying,
       terrainEnabled: s.terrainEnabled, setTerrainEnabled: s.setTerrainEnabled,
       buildingsEnabled: s.buildingsEnabled, setBuildingsEnabled: s.setBuildingsEnabled,
       terrainLoading: s.terrainLoading,
@@ -82,7 +82,6 @@ export default function Toolbar({
   );
 
   const layerProps = {
-    mapStyle, setMapStyle,
     terrainEnabled, setTerrainEnabled,
     buildingsEnabled, setBuildingsEnabled,
     terrainLoading,

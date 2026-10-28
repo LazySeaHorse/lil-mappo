@@ -34,8 +34,6 @@ interface DesktopToolbarLayoutProps {
   renderAvatarMenu: () => React.ReactNode;
   handleAddCameraKF: () => void;
   // Layer group props
-  mapStyle: string;
-  setMapStyle: (s: string) => void;
   terrainEnabled: boolean;
   setTerrainEnabled: (v: boolean) => void;
   buildingsEnabled: boolean;
@@ -45,14 +43,13 @@ interface DesktopToolbarLayoutProps {
 }
 
 function TabletLayerDropdown({
-  mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
   terrainLoading,
   isPlaying, isScrubbing,
   onProjectSettings,
   buildingsAvailable,
-}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
+}: Pick<DesktopToolbarLayoutProps, 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -63,7 +60,7 @@ function TabletLayerDropdown({
       <DropdownMenuContent align="start" className="w-64 bg-background/95 p-3 space-y-4 rounded-2xl shadow-2xl border-border/50">
         <div className="space-y-2">
           <label className="text-xs font-medium text-foreground/80 px-1">Map Style</label>
-          <MapStylePicker variant="inline" value={mapStyle} onChange={setMapStyle} />
+          <MapStylePicker variant="inline" />
         </div>
         <div data-walkthrough="map-3d" className="grid grid-cols-2 gap-2">
           <DropdownToggle icon={<Mountain size={14} />} label="Terrain" active={terrainEnabled} onClick={() => setTerrainEnabled(!terrainEnabled)} loading={terrainLoading && !isPlaying && !isScrubbing} />
@@ -79,17 +76,16 @@ function TabletLayerDropdown({
 }
 
 function InlineLayerGroup({
-  mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
   terrainLoading,
   isPlaying, isScrubbing, onProjectSettings,
   buildingsAvailable,
-}: Pick<DesktopToolbarLayoutProps, 'mapStyle' | 'setMapStyle' | 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
+}: Pick<DesktopToolbarLayoutProps, 'terrainEnabled' | 'setTerrainEnabled' | 'buildingsEnabled' | 'setBuildingsEnabled' | 'terrainLoading' | 'isScrubbing' | 'onProjectSettings'> & { isPlaying: boolean; buildingsAvailable: boolean }) {
   return (
     <div className="flex items-center gap-1">
       <div className="flex items-center gap-1 px-1">
-        <MapStylePicker value={mapStyle} onChange={setMapStyle} />
+        <MapStylePicker />
       </div>
       <ToolbarButton icon={<Settings2 size={16} />} label="Map Settings" hideLabel onClick={onProjectSettings} walkthroughTarget="map-settings" />
       <Divider />
@@ -121,7 +117,6 @@ export function DesktopToolbarLayout({
   isPlaying, onExport,
   onImportClick, onHideUI, isFitMode, onToggleFit, onProjectSettings,
   renderAvatarMenu, handleAddCameraKF,
-  mapStyle, setMapStyle,
   terrainEnabled, setTerrainEnabled,
   buildingsEnabled, setBuildingsEnabled,
   terrainLoading, isScrubbing,
@@ -129,7 +124,7 @@ export function DesktopToolbarLayout({
   const buildingsAvailable = useMapStyleCapabilities().buildings3d === true;
 
   const layerProps = {
-    mapStyle, setMapStyle, terrainEnabled, setTerrainEnabled,
+    terrainEnabled, setTerrainEnabled,
     buildingsEnabled, setBuildingsEnabled, buildingsAvailable, terrainLoading,
     isPlaying, isScrubbing, onProjectSettings,
   };

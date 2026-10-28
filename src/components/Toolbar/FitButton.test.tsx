@@ -13,7 +13,6 @@ vi.mock('./ModelImportButton', () => ({ ModelImportButton: () => null }));
 vi.mock('./HistoryButtons', () => ({ HistoryButtons: () => null }));
 
 const props = {
-  mapStyle: 'standard', setMapStyle: vi.fn(),
   terrainEnabled: false, setTerrainEnabled: vi.fn(),
   buildingsEnabled: false, setBuildingsEnabled: vi.fn(),
   terrainLoading: false, isScrubbing: false,

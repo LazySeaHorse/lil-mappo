@@ -23,8 +23,6 @@ const props = {
   onImportClick: vi.fn(),
   onHideUI: vi.fn(),
   renderAvatarMenu: () => null,
-  mapStyle: 'standard',
-  setMapStyle: vi.fn(),
   terrainEnabled: false,
   setTerrainEnabled: vi.fn(),
   buildingsEnabled: false,
