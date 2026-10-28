@@ -96,4 +96,25 @@ describe('startModelPreview', () => {
     nextFrame(1000);
     expect(turntable().rotation.y).toBe(turned);
   });
+
+  it('draws only when something changes once the model stands still', async () => {
+    await startModelPreview(document.createElement('canvas'), 'blob:model');
+    three.controls[0].listeners.start();
+    nextFrame(16);
+    expect(frames).toHaveLength(0);
+
+    const drawn = three.render.mock.calls.length;
+    three.controls[0].listeners.change();
+    three.controls[0].listeners.change();
+    expect(frames).toHaveLength(1);
+    nextFrame(16);
+    expect(three.render.mock.calls.length).toBe(drawn + 1);
+  });
+
+  it('draws once and then waits when the user asks for less motion', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }));
+    await startModelPreview(document.createElement('canvas'), 'blob:model');
+    expect(three.render).toHaveBeenCalledTimes(1);
+    expect(frames).toHaveLength(0);
+  });
 });
