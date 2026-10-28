@@ -11,7 +11,7 @@ export function resetAgentTestState(): void {
   useProjectStore.setState({ ...createProject(), ...createTransientState() });
   clearHistory();
   agentEvents.clear();
-  useAgentStore.setState({ enabled: true, exportLimits: null });
+  useAgentStore.setState({ enabled: true, exportLimits: null, paidPlan: false });
   setAgentMapRef(null);
   setAgentRuntimeRef(null);
 }

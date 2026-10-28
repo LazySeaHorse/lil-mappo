@@ -6,6 +6,7 @@ import { addCameraKeyframe, frameItems, removeCameraKeyframe, updateCameraKeyfra
 import { duplicateItem, removeItem, reorderItems, updateItem } from './edit';
 import { renderFrames } from './render';
 import { updateProjectSettings } from './settings';
+import { applySavedMapStyle, listSavedMapStyles, saveMapStyle, setCustomMapStyle } from './mapStyle';
 import { redoTool, setPlayhead, undoTool } from './playback';
 
 /** Every tool exposed to agents, in the order they are listed. */
@@ -27,6 +28,10 @@ export const ALL_TOOLS = [
   removeCameraKeyframe,
   frameItems,
   updateProjectSettings,
+  setCustomMapStyle,
+  saveMapStyle,
+  listSavedMapStyles,
+  applySavedMapStyle,
   setPlayhead,
   undoTool,
   redoTool,

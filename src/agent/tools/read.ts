@@ -5,6 +5,7 @@ import { buildGuide } from '../guide';
 import { searchPlaces } from '../geocode';
 import { summarizeItem } from '../summaries';
 import { getState, itemIdSchema, requireItem } from './shared';
+import { currentColorRoles } from './mapStyle';
 
 export const getGuide = defineTool({
   name: 'get_guide',
@@ -21,7 +22,7 @@ export const getProject = defineTool({
   name: 'get_project',
   title: 'Get project',
   description:
-    'Returns project settings (name, duration in seconds, fps, resolution, aspect ratio, projection, light preset, map style, terrain/buildings/label toggles, 3D detail flags), the playhead time, and a compact list of every timeline item in itemOrder (stacking order): ' +
+    'Returns project settings (name, duration in seconds, fps, resolution, aspect ratio, projection, light preset, map style, custom map style and the colour roles the map style can show, terrain/buildings/label toggles, 3D detail flags), the playhead time, and a compact list of every timeline item in itemOrder (stacking order): ' +
     'id, kind, name/title, startTime/endTime (seconds), key style fields, and geometry summarized as point count and bbox [west, south, east, north] (never raw GeoJSON). The camera track includes all keyframes. ' +
     'Use get_item for full details of one item.',
   input: z.strictObject({}),
@@ -48,6 +49,8 @@ export const getProject = defineTool({
         fogColor: s.fogColor,
         terrainExaggeration: s.terrainExaggeration,
         mapStyle: s.mapStyle,
+        customStyle: s.customStyle,
+        colorRoles: currentColorRoles(),
         terrainEnabled: s.terrainEnabled,
         buildingsEnabled: s.buildingsEnabled,
         labelVisibility: s.labelVisibility,

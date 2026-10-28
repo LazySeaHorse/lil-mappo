@@ -1,6 +1,7 @@
 import '@/annotations/styles/index';
 import { getAllStyles } from '@/annotations/registry';
 import { LABEL_CATEGORIES, MAP_STYLES } from '@/config/mapbox';
+import { MAP_COLOR_ROLES } from '@/customMapStyles/model';
 import { EASING_NAMES } from './tools/shared';
 
 /** Domain primer returned by get_guide. Kept as one plain-text document. */
@@ -9,6 +10,7 @@ export function buildGuide(): string {
     .map(([key, def]) => `${key} (${def.label})`)
     .join(', ');
   const labels = LABEL_CATEGORIES.map((c) => c.id).join(', ');
+  const colorRoles = Object.entries(MAP_COLOR_ROLES).map(([role, text]) => `- ${role}: ${text}`).join('\n');
   const callouts = getAllStyles()
     .map((s) => `- ${s.id}: ${s.name}, ${s.category}. ${s.description} Uses content: ${s.contentSlots.join(', ')}.${s.eyebrowFallback === 'coordinates' ? ' An empty eyebrow shows the point\'s coordinates.' : ''}`)
     .join('\n');
@@ -39,6 +41,14 @@ MAP LOOK (update_project_settings)
 - lightPreset (Standard style): day | night | dusk | dawn. projection: globe | mercator. terrainEnabled, buildingsEnabled, show3dLandmarks/Trees/Facades, starIntensity 0-1, terrainExaggeration 1-3, fogColor.
 - labelVisibility keys (true/false): ${labels}. Not every style supports every category.
 - aspectRatio 16:9 | 21:9 | 4:3 | 1:1, exportResolution 480p-2160p, isVertical, fps 30 | 60. Free plans are capped at 720p, 30fps, 30s.
+
+CUSTOM MAP STYLES (paid plans: set_custom_map_style, save_map_style, list_saved_map_styles, apply_saved_map_style)
+A custom style is a built-in style with your colours (#rrggbb) for some of its parts, and a name. Standard follows every role and also takes theme (default | faded | monochrome; monochrome is a good blank canvas); other styles only change the parts they draw (get_project colorRoles). Satellite imagery cannot be recoloured, only the roads and labels over it.
+Colour roles:
+${colorRoles}
+- The land colour also decides whether the editor goes dark. fogColor (update_project_settings) is the horizon haze; set it to match the new palette.
+- Work in a few calls, then render_frames to look: land and water first, then roads, then labels (keep labels readable on the land colour).
+- save_map_style keeps it for the user's other projects (they pick it in the style picker). Setting mapStyle with update_project_settings drops the custom style.
 
 EASING NAMES
 ${EASING_NAMES.join(', ')}
