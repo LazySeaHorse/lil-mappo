@@ -65,3 +65,110 @@
   z-index: 40;
   cursor: none;
 }
+
+/* The app's device: chrome drawn under, the live iframe laid over it. Everything that moves when
+   the AI panel opens shares one transition, so chrome and iframe travel together. */
+.ds-root {
+  --ds-move: 650ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ds-device {
+  position: absolute;
+  inset: 0;
+}
+
+.ds-browser,
+.ds-phone,
+.ds-viewport {
+  position: absolute;
+}
+
+/* Only while the AI panel opens or closes: a device switch on load snaps into place */
+.ds-root[data-moving] :is(.ds-browser, .ds-phone, .ds-viewport) {
+  transition:
+    left var(--ds-move),
+    top var(--ds-move),
+    width var(--ds-move),
+    height var(--ds-move),
+    transform var(--ds-move);
+}
+
+.ds-browser {
+  /* A Mac window on a dark desktop: a crisp dark outline, a faint inner highlight, a long soft fall */
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.55),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.6),
+    0 22px 70px 4px rgba(0, 0, 0, 0.42),
+    0 8px 22px rgba(0, 0, 0, 0.22);
+}
+
+.ds-browser .ss-window__bar {
+  justify-content: center;
+  background: #f4f4f5;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+}
+
+/* Safari-style: the address pill centred on the window, the lights left */
+.ds-browser .ss-window__lights {
+  position: absolute;
+  left: calc(var(--ss-lights-y) - var(--ss-dot) / 2);
+}
+
+.ds-browser .ss-window__url {
+  display: flex;
+  flex: 0 1 380px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  margin: 0;
+  padding: 0 14px;
+  background: rgba(0, 0, 0, 0.055);
+  color: #3c3c43;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 26px;
+}
+
+.ds-browser__lock {
+  flex-shrink: 0;
+  color: #8a8a8e;
+}
+
+.ds-browser > .ss-window__body {
+  background: #fff;
+}
+
+.ds-phone {
+  transform-origin: 0 0;
+}
+
+.ds-viewport {
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: #fff;
+}
+
+.ds-device:not([data-portrait]) .ds-viewport {
+  border-radius: 0 0 var(--ss-radius-window) var(--ss-radius-window);
+}
+
+.ds-viewport iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* The home indicator rides over the app, as on iOS */
+.ds-viewport__home {
+  color: #000;
+  pointer-events: none;
+}
+
+/* The phone's own status bar shows through above the app */
+.ds-device[data-portrait] .ds-viewport {
+  background: transparent;
+}
