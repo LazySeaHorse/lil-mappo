@@ -1,6 +1,7 @@
 import type { Locator } from './actions';
 import type { InspectorSectionKind } from '@/components/Inspector/inspectorSections';
-import { BOUNDARY_ADD_TERMS } from '@/lib/terms';
+import { BOUNDARY_ADD_TERMS, CALLOUT_ADD_TERMS, SEARCH_TERMS, STYLE_TERMS } from '@/lib/terms';
+import { MODEL_TERMS } from '@/models/modelTerms';
 
 /**
  * Where the driver finds the app's controls, in one place. These are the
@@ -31,11 +32,42 @@ export interface Locators {
   addBoundaryConfirm: Locator;
 
   inspectorSection: (kind: InspectorSectionKind, id: string) => Locator;
+
+  // --- callouts ---
+  addCalloutButton: Locator;
+  /** The Add Callout panel (a Radix menu). */
+  addCalloutPanel: Locator;
+  calloutSearchInput: Locator;
+  /** A result of a place search field's list (it opens in a popover outside the panel). */
+  placeResult: (placeName: string) => Locator;
+  addCalloutConfirm: Locator;
+  /** The Pick on the map button next to a place search field, inside `within`. */
+  pickOnMapButton: (within: Locator) => Locator;
+  /** The name field at the top of an item's panel. */
+  inspectorTitleField: (placeholder: string) => Locator;
+  /** Opens the callout style grid. */
+  styleChangeButton: Locator;
+  styleCard: (styleName: string) => Locator;
+  /** The closed group a panel keeps rarely used rows in (inside `within`). */
+  disclosureToggle: (label: string, within: Element) => Locator;
+
+  // --- 3D models ---
+  modelButton: Locator;
+  modelDialog: Locator;
+  /** The upload button of the model dialog. */
+  modelUploadButton: Locator;
+  /** The dialog's hidden file input, which the picked .glb arrives in. */
+  modelFileInput: Locator;
+  /** A model the project already has, in the dialog's list. */
+  modelListRow: (fileName: string) => Locator;
+  modelAddButton: Locator;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const addBoundaryPanel: Locator = { role: 'menu', description: 'the Add Boundary panel' };
+const addCalloutPanel: Locator = { role: 'menu', description: 'the Add Callout panel' };
+const modelDialog: Locator = { role: 'dialog', description: 'the 3D model popup' };
 
 export const DESKTOP_LOCATORS: Locators = {
   mapStyleTrigger: { walkthrough: 'map-style', description: 'the map style picker' },
@@ -75,6 +107,49 @@ export const DESKTOP_LOCATORS: Locators = {
   addBoundaryConfirm: { role: 'button', name: new RegExp(BOUNDARY_ADD_TERMS.add), within: addBoundaryPanel, description: 'the Add boundary button' },
 
   inspectorSection: (kind, id) => ({ attrs: { 'data-section': `${kind}-${id}` }, description: `the ${kind} ${id} section` }),
+
+  addCalloutButton: { walkthrough: 'add-callout', description: 'the Add Callout button' },
+  addCalloutPanel,
+  calloutSearchInput: {
+    role: 'textbox',
+    name: CALLOUT_ADD_TERMS.search,
+    within: { walkthrough: 'callout-action' },
+    description: 'the callout search field',
+  },
+  placeResult: (placeName) => ({
+    role: 'button',
+    selector: '.z-tour-popover button',
+    name: new RegExp(`^${escapeRegExp(placeName)}`),
+    description: `the search result ${placeName}`,
+  }),
+  addCalloutConfirm: { role: 'button', name: CALLOUT_ADD_TERMS.add, within: addCalloutPanel, description: 'the Add callout button' },
+  pickOnMapButton: (within) => ({ role: 'button', name: SEARCH_TERMS.pickOnMap, within, description: 'the Pick on the map button' }),
+  inspectorTitleField: (placeholder) => ({ role: 'textbox', name: placeholder, description: `the ${placeholder} field` }),
+  styleChangeButton: {
+    role: 'button',
+    name: STYLE_TERMS.change,
+    within: { attrs: { 'data-section': 'callout-style' } },
+    description: 'the style Change button',
+  },
+  styleCard: (styleName) => ({
+    role: 'button',
+    name: styleName,
+    within: { attrs: { 'data-section': 'callout-style' } },
+    description: `the ${styleName} style`,
+  }),
+  disclosureToggle: (label, within) => ({ role: 'button', name: label, within, description: `the ${label} group` }),
+
+  modelButton: { walkthrough: 'import-model', description: 'the 3D model button' },
+  modelDialog,
+  modelUploadButton: { role: 'button', name: MODEL_TERMS.upload, within: modelDialog, description: 'the Upload .glb button' },
+  modelFileInput: { selector: 'input[type="file"][accept*=".glb"]', description: 'the model file input' },
+  modelListRow: (fileName) => ({
+    role: 'button',
+    name: new RegExp(`^${escapeRegExp(fileName)}`),
+    within: { selector: `ul[aria-label="${MODEL_TERMS.listTitle}"]` },
+    description: `${fileName} in the model list`,
+  }),
+  modelAddButton: { role: 'button', name: MODEL_TERMS.add, within: modelDialog, description: 'the Add to map button' },
 };
 
 /** The locators for the layout on screen. Desktop only for now. */
