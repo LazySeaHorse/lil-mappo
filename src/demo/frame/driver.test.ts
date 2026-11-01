@@ -26,6 +26,21 @@ vi.mock('./runners', async (importActual) => {
   };
 });
 
+/** Mock AI mode, replaced by a beat on the clock: its own tests are in ai/. */
+const ai = vi.hoisted(() => ({ runs: 0, teardowns: 0, ms: 1000, settings: null as unknown }));
+vi.mock('./ai/mode', () => ({
+  AiMode: class {
+    async run(ctx: DemoContext, _file: unknown, settings: unknown) {
+      ai.runs++;
+      ai.settings = settings;
+      await ctx.clock.wait(ai.ms);
+    }
+    teardown() {
+      ai.teardowns++;
+    }
+  },
+}));
+
 const { DemoDriver } = await import('./driver');
 
 const file = demoFixture();
@@ -51,6 +66,9 @@ beforeEach(() => {
   flow.ms = 1000;
   flow.fail = null;
   flow.calls = [];
+  ai.runs = 0;
+  ai.teardowns = 0;
+  ai.ms = 1000;
   useProjectStore.setState({ ...createProject(), ...createTransientState() });
   clearHistory();
 });
@@ -140,15 +158,41 @@ describe('DemoDriver runs', () => {
     error.mockRestore();
   });
 
-  it('hides the cursor in mock AI mode and still runs the plan for now', async () => {
-    flow.ms = 10;
-    const { driver } = setup();
+  it('runs the AI pass instead of the plan in mock AI mode, with the cursor in view for it', async () => {
+    const { driver, states, progress } = setup();
+    await driver.handle({ type: 'load', fileName: 'tour.json', json });
+    void driver.handle({ type: 'start', settings: settings({ mockAi: true, aiPrompt: 'Make a trip' }) });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(driver.runState).toBe('running');
+    expect(driver.cursor.hidden).toBe(false);
+    expect(ai.settings).toMatchObject({ mockAi: true, aiPrompt: 'Make a trip' });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(states()).toEqual(['ready', 'running', 'done']);
+    expect(flow.calls).toEqual([]);
+    expect(progress()).toEqual([]);
+  });
+
+  it('pauses, resumes and resets the AI pass like any run, tearing the AI mode down', async () => {
+    const { driver, states } = setup();
     await driver.handle({ type: 'load', fileName: 'tour.json', json });
     void driver.handle({ type: 'start', settings: settings({ mockAi: true }) });
-    await vi.advanceTimersByTimeAsync(0);
-    expect(driver.cursor.hidden).toBe(true);
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(400);
+    await driver.handle({ type: 'pause' });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(driver.runState).toBe('paused');
+    await driver.handle({ type: 'resume' });
+    await driver.handle({ type: 'set-speed', speed: 2 });
+    await vi.advanceTimersByTimeAsync(300 + 1);
     expect(driver.runState).toBe('done');
+
+    void driver.handle({ type: 'start', settings: settings({ mockAi: true }) });
+    await vi.advanceTimersByTimeAsync(100);
+    const before = ai.teardowns;
+    await driver.handle({ type: 'reset' });
+    expect(ai.teardowns).toBeGreaterThan(before);
+    expect(driver.runState).toBe('ready');
+    expect(driver.cursor.hidden).toBe(true);
+    expect(states().at(-1)).toBe('ready');
   });
 
   it('ignores start before a file is loaded, and pause when not running', async () => {

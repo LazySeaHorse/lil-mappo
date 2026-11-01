@@ -14,6 +14,7 @@ import {
   type DemoFile,
 } from './session';
 import { projectAspect } from './startState';
+import { AiMode } from './ai/mode';
 
 /**
  * The frame's side of the demo: it answers the shell's messages (load, relink,
@@ -27,9 +28,11 @@ export class DemoDriver {
   private state: DemoRunState = 'empty';
   private clock: DemoClock | null = null;
   private run: Promise<void> | null = null;
+  private readonly ai: AiMode;
 
   constructor(private readonly post: (msg: FrameToShell) => void) {
     this.cursor.setHidden(true);
+    this.ai = new AiMode(post);
   }
 
   get runState(): DemoRunState {
@@ -119,14 +122,23 @@ export class DemoDriver {
     const clock = new DemoClock({ speed: settings.speed });
     this.clock = clock;
     const ctx: DemoContext = { clock, cursor: this.cursor, timing: settings.timing };
-    // Mock AI mode drives the app without a cursor (its own pass); until then it runs the plan unseen.
-    this.cursor.setHidden(settings.mockAi);
+    this.cursor.setHidden(false);
     if (this.cursor.position.x === 0 && this.cursor.position.y === 0) {
       this.cursor.jumpTo({ x: window.innerWidth * 0.62, y: window.innerHeight * 0.58 });
     }
     this.setState('running');
-    this.run = this.runPlan(ctx, file);
+    this.run = settings.mockAi ? this.runAi(ctx, file, settings) : this.runPlan(ctx, file);
     await this.run;
+  }
+
+  /** Mock AI mode: the cursor flicks AI on, then a scripted agent builds the project; no cursor after that. */
+  private async runAi(ctx: DemoContext, file: DemoFile['project'], settings: DemoRunSettings): Promise<void> {
+    try {
+      await this.ai.run(ctx, file, settings);
+      if (this.clock === ctx.clock) this.setState('done');
+    } catch (error) {
+      if (!isDemoAborted(error)) throw error;
+    }
   }
 
   private async runPlan(ctx: DemoContext, file: DemoFile['project']): Promise<void> {
@@ -157,6 +169,7 @@ export class DemoDriver {
     this.clock = null;
     await this.run?.catch(() => {});
     this.run = null;
+    this.ai.teardown();
   }
 
   /** Back to the empty starting state of the loaded file, stopping a run in progress. */
