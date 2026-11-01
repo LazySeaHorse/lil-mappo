@@ -3,7 +3,7 @@ import { Phone } from './kit/phone';
 import { CORNER, superellipsePath } from './kit/phoneGeometry';
 import { Window } from './kit/window';
 import { PHONE_EDGE, PHONE_OUTER, PHONE_SCREEN, type StageLayout } from './layout';
-import './kit/tokens.css';
+
 
 /** The kit's window bar is a fixed 38 px. */
 const BAR_HEIGHT = 38;
@@ -46,7 +46,7 @@ export function AppDevice({ layout, iframeRef, src }: AppDeviceProps) {
     : { left: app.left, top: app.top + BAR_HEIGHT, width: app.width, height: Math.max(0, app.height - BAR_HEIGHT) };
 
   return (
-    <div className="ss-tokens ds-device" data-portrait={portrait || undefined}>
+    <div className="ds-device" data-portrait={portrait || undefined}>
       {portrait ? (
         <div className="ds-phone" style={{ left: app.left, top: app.top, transform: `scale(${phoneScale})` }}>
           <Phone width={PHONE_OUTER.width} frame="pro" />

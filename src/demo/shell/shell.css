@@ -172,3 +172,180 @@
 .ds-device[data-portrait] .ds-viewport {
   background: transparent;
 }
+
+/* The mock Claude Code window: a dark Mac Terminal on the left (top, in portrait). It slides in
+   from off the stage's edge while the app window makes room. */
+.ds-term {
+  --cc-fg: #e4e4e7;
+  --cc-dim: #8b8b93;
+  --cc-accent: #d77757;
+  --cc-ok: #4eba65;
+  --cc-err: #ff6b80;
+  --ss-term-bg: #1c1c1f;
+  position: absolute;
+  z-index: 2;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+    0 22px 70px 4px rgba(0, 0, 0, 0.45),
+    0 8px 22px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transform: translateX(calc(-100% - 80px));
+  transition:
+    left var(--ds-move),
+    top var(--ds-move),
+    width var(--ds-move),
+    height var(--ds-move),
+    transform var(--ds-move),
+    opacity 300ms ease;
+  pointer-events: none;
+}
+
+.ds-term[data-portrait] {
+  transform: translateY(calc(-100% - 80px));
+}
+
+.ds-term[data-open] {
+  opacity: 1;
+  transform: none;
+}
+
+.ds-term .ss-term__title {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.ds-term > .ss-window__body {
+  padding: 0;
+  /* The window carries the size, from the stage's size */
+  font-size: inherit;
+}
+
+.ds-term .ds-cc {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 0.4em 1.1em 1.1em;
+  color: var(--cc-fg);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1em;
+  line-height: 1.5;
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ds-cc b {
+  font-weight: 700;
+}
+
+/* One blank line between blocks, as in the real thing */
+.ds-cc > * + * {
+  margin-top: 1.5em;
+}
+
+.ds-cc > .ds-cc__hint {
+  margin-top: 0;
+}
+
+.ds-cc__dim {
+  color: var(--cc-dim);
+}
+
+.ds-cc__accent {
+  color: var(--cc-accent);
+}
+
+.ds-cc__welcome {
+  width: max-content;
+  max-width: 100%;
+  padding: 0.25em 1.5ch 0.25em 1ch;
+  border: 1px solid var(--cc-accent);
+  border-radius: 0.5em;
+}
+
+.ds-cc__gap {
+  height: 1.5em;
+}
+
+.ds-cc__indent {
+  padding-left: 2ch;
+}
+
+.ds-cc__user,
+.ds-cc__msg,
+.ds-cc__result {
+  display: flex;
+}
+
+.ds-cc__user,
+.ds-cc__result {
+  color: var(--cc-dim);
+}
+
+.ds-cc__mark,
+.ds-cc__bullet,
+.ds-cc__glyph {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 2ch;
+}
+
+.ds-cc__mark {
+  color: var(--cc-dim);
+}
+
+.ds-cc__bullet[data-status='ok'] {
+  color: var(--cc-ok);
+}
+
+.ds-cc__bullet[data-status='error'],
+.ds-cc__result[data-status='error'] > :last-child {
+  color: var(--cc-err);
+}
+
+.ds-cc__bullet[data-status='running'] {
+  color: var(--cc-dim);
+  animation: ds-cc-blink 1s steps(1) infinite;
+}
+
+.ds-cc__elbow {
+  flex-shrink: 0;
+  width: 5ch;
+  padding-left: 2ch;
+}
+
+.ds-cc__spinner {
+  color: var(--cc-accent);
+}
+
+.ds-cc__input {
+  display: flex;
+  padding: 0.25em 1ch;
+  border: 1px solid #5c5c63;
+  border-radius: 0.5em;
+}
+
+.ds-cc__hint {
+  padding-left: 2ch;
+}
+
+.ds-cc__caret {
+  display: inline-block;
+  width: 1ch;
+  height: 1.2em;
+  margin-left: 1px;
+  vertical-align: -0.22em;
+  background: var(--cc-fg);
+  animation: ds-cc-blink 1.06s steps(1) infinite;
+}
+
+.ds-cc__caret[data-still] {
+  animation: none;
+}
+
+@keyframes ds-cc-blink {
+  50% {
+    opacity: 0;
+  }
+}
