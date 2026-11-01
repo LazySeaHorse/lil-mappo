@@ -11,3 +11,8 @@ export const loadAirportsData = () => import('@/data/airportsData');
 export const loadModelConvert = () => import('@/models/modelConvert');
 export const loadModelPreview = () => import('@/models/modelPreview');
 export const loadFflate = () => import('fflate');
+
+// Demo mode only (VITE_DEMO=1); unused in other builds, so their chunks are never built.
+export const loadDemoShell = () => import('@/demo/shell/DemoShell');
+export const loadDemoFrame = () => import('@/demo/frame/DemoFrame');
+export const loadDemoFrameSetup = () => import('@/demo/frame/setup');

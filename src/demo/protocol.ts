@@ -81,7 +81,9 @@ export type FrameToShell =
   | { type: 'progress'; step: number; total: number; label: string }
   /** Open/close the mock Claude Code window (the app window shrinks to make room). */
   | { type: 'ai-panel'; open: boolean }
-  | { type: 'ai-event'; event: DemoAiEvent };
+  | { type: 'ai-event'; event: DemoAiEvent }
+  /** Cmd/Ctrl+Period pressed while the frame has focus: show or hide the widget. */
+  | { type: 'toggle-widget' };
 
 interface Envelope<T> {
   tag: typeof DEMO_MESSAGE_TAG;

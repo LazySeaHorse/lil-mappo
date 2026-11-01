@@ -3,6 +3,7 @@ import { connectBridge, getAgentTools, isWebMcpSupported, registerWebMcpTool, us
 import { getExportLimits, isWanderer } from '@/lib/cloudAccess';
 import { useAiAccess } from './useAiAccess';
 import { useAiPanelStore } from './useAiPanelStore';
+import { IS_DEMO_FRAME } from '@/demo/isDemo';
 
 /**
  * Registers the agent tools with the browser's WebMCP API and links them to the
@@ -46,7 +47,8 @@ export function AgentToolRegistrar() {
   }, [active, setRegisteredCount]);
 
   useEffect(() => {
-    if (!active) return;
+    // The demo frame never dials the real bridge on 127.0.0.1.
+    if (!active || IS_DEMO_FRAME) return;
     const disconnect = connectBridge(getAgentTools(), setBridgeStatus);
     return () => {
       disconnect();

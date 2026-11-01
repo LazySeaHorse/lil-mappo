@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { projectDocumentChanged } from '@/store/historyKeys';
 import { workingProjectDraftManager } from '@/services/workingProjectDraft';
+import { IS_DEMO_FRAME } from '@/demo/isDemo';
 
 /** Hydrates the last local working draft, then keeps it autosaved. */
 export function useWorkingProjectDraft(): boolean {
-  const [ready, setReady] = useState(false);
+  // The demo frame starts from an empty project every load and never saves a draft.
+  const [ready, setReady] = useState(IS_DEMO_FRAME);
 
   useEffect(() => {
+    if (IS_DEMO_FRAME) return;
     let active = true;
     let unsubscribe: (() => void) | null = null;
 

@@ -11,8 +11,10 @@ import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { lazy, Suspense } from "react";
 import { IS_DEMO, IS_DEMO_FRAME } from "./demo/isDemo";
+import { loadDemoFrame } from "@/lib/lazyModules";
 
-const DemoFrame = lazy(() => import("./demo/frame/DemoFrame"));
+// Pure, so builds without the demo drop it along with its chunk.
+const DemoFrame = /* @__PURE__ */ lazy(loadDemoFrame);
 
 const App = () => (
   <AppErrorBoundary>
