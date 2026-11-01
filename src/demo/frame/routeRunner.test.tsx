@@ -168,4 +168,58 @@ describe('route runner', () => {
     expect(getHistoryEntries().past.length).toBeGreaterThan(8);
     expect(getHistoryEntries().past.every((entry) => entry.source === 'user')).toBe(true);
   }, 30_000);
+
+  it('places a walk’s points one by one, then tunes the curvature in the Path section', async () => {
+    const points: [number, number][] = [PARIS, [2.9, 48.2], [3.4, 47.9], LYON];
+    const walk = createWalkRouteItem({ id: 'r-walk', points, curved: true, name: 'Pilgrimage', startTime: 1 });
+    const tuned: RouteItem = { ...walk, calculation: { ...walk.calculation!, sharpness: 0.7 } as RouteItem['calculation'] };
+    const { seen, last } = await runRoute(fileWith(tuned), 'r-walk');
+
+    // The panel inserts a walk through the file's points, then the inspector names and tunes it.
+    const inserted = seen.find((r) => r.calculation?.mode === 'walk')!;
+    expect(inserted.calculation).toMatchObject({ mode: 'walk', points });
+    expect(inserted.name).toBe('Walk path');
+    expect(last).toMatchObject({ name: 'Pilgrimage', startTime: 1 });
+    expect((last.calculation as { sharpness: number }).sharpness).toBeCloseTo(0.7, 1);
+    expect(warn).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().items['r-walk']).toEqual(tuned);
+    expect(useProjectStore.getState().activePicker).toBeNull();
+  }, 30_000);
+
+  it('turns Smooth Curve off in the panel for a straight walk', async () => {
+    const walk = createWalkRouteItem({ id: 'r-straight', points: [PARIS, LYON, NICE], curved: false, startTime: 0 });
+    const { seen } = await runRoute(fileWith(walk), 'r-straight');
+    expect(seen.find((r) => r.calculation?.mode === 'walk')?.calculation).toMatchObject({ curved: false, points: [PARIS, LYON, NICE] });
+    expect(useProjectStore.getState().items['r-straight']).toEqual(walk);
+  }, 30_000);
+
+  it('searches the airports for a flight, and edits a comet trail and a plane marker', async () => {
+    const airports = await loadAirports();
+    const from = airports.find((a) => a.iata === 'JFK')!;
+    const to = airports.find((a) => a.iata === 'LHR')!;
+    const flight = createEndpointRouteItem({
+      id: 'r-flight',
+      mode: 'flight',
+      geojson: line(from.coordinates, to.coordinates),
+      start: from.coordinates,
+      end: to.coordinates,
+      startName: from.name,
+      endName: to.name,
+      name: 'Transatlantic',
+      startTime: 4,
+      pro: true,
+    });
+    const edited: RouteItem = {
+      ...flight,
+      style: { ...flight.style, animationType: 'comet', cometTrailLength: 0.4 },
+      calculation: { ...flight.calculation!, vehicle: { enabled: true, type: 'plane', modelId: '', scale: 6 } } as RouteItem['calculation'],
+    };
+    const { last } = await runRoute(fileWith(edited), 'r-flight');
+    expect(last.calculation).toMatchObject({ mode: 'flight', startName: from.name, endName: to.name, vehicle: { type: 'plane' } });
+    expect(last.calculation?.vehicle?.scale).toBeCloseTo(6, 0);
+    expect(last).toMatchObject({ name: 'Transatlantic', startTime: 4, style: { animationType: 'comet' } });
+    expect(last.style.cometTrailLength).toBeCloseTo(0.4, 1);
+    expect(warn).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().items['r-flight']).toEqual(edited);
+  }, 30_000);
 });
