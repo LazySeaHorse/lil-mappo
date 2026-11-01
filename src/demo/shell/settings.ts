@@ -18,10 +18,10 @@ export const DEFAULT_SETTINGS: DemoRunSettings = {
 
 export const TIMING_FIELDS: { key: keyof DemoTiming; label: string }[] = [
   { key: 'move', label: 'Move' },
-  { key: 'typeChar', label: 'Type char' },
+  { key: 'typeChar', label: 'Per char' },
   { key: 'afterClick', label: 'After click' },
-  { key: 'inspectorEdit', label: 'Inspector edit' },
-  { key: 'betweenSteps', label: 'Between steps' },
+  { key: 'inspectorEdit', label: 'Inspector' },
+  { key: 'betweenSteps', label: 'Between' },
 ];
 
 export function clampSpeed(speed: unknown): number {
