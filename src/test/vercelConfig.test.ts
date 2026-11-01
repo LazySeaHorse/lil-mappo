@@ -80,7 +80,8 @@ describe('Vercel Content-Security-Policy', () => {
 
     expect(directives.get('object-src')).toEqual(["'none'"]);
     expect(directives.get('base-uri')).toEqual(["'self'"]);
-    expect(directives.get('frame-ancestors')).toEqual(["'none'"]);
+    // Demo branch: the demo shell frames the app from its own origin (DEMO.md).
+    expect(directives.get('frame-ancestors')).toEqual(["'self'"]);
     expect(directives.get('form-action')).toEqual(["'self'"]);
   });
 });
