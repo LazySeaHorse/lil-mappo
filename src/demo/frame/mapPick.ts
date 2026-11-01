@@ -57,9 +57,9 @@ export async function pickOnMap(ctx: DemoContext, button: Target, lngLat: [numbe
   const picking = () => useProjectStore.getState().activePicker !== null;
   if (!picking()) return false;
 
-  const cancel = async () => {
-    // The button toggles the picker off again.
-    if (picking()) await click(ctx, button, { hold: false });
+  // The picker off again, as Escape does (a panel can step aside while it picks, taking its button).
+  const cancel = () => {
+    useProjectStore.getState().stopPicking();
     return false;
   };
   await bringIntoView(ctx, map, lngLat);

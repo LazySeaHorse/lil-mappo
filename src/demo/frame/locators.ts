@@ -56,8 +56,8 @@ export interface Locators {
   modelDialog: Locator;
   /** The upload button of the model dialog. */
   modelUploadButton: Locator;
-  /** The dialog's hidden file input, which the picked .glb arrives in. */
-  modelFileInput: Locator;
+  /** CSS selector of the dialog's hidden file input, which the picked .glb arrives in (hidden, so not a Locator). */
+  modelFileInputSelector: string;
   /** A model the project already has, in the dialog's list. */
   modelListRow: (fileName: string) => Locator;
   modelAddButton: Locator;
@@ -142,7 +142,7 @@ export const DESKTOP_LOCATORS: Locators = {
   modelButton: { walkthrough: 'import-model', description: 'the 3D model button' },
   modelDialog,
   modelUploadButton: { role: 'button', name: MODEL_TERMS.upload, within: modelDialog, description: 'the Upload .glb button' },
-  modelFileInput: { selector: 'input[type="file"][accept*=".glb"]', description: 'the model file input' },
+  modelFileInputSelector: 'input[type="file"][accept*=".glb"]',
   modelListRow: (fileName) => ({
     role: 'button',
     name: new RegExp(`^${escapeRegExp(fileName)}`),
