@@ -308,6 +308,13 @@ export function installPointerCapturePatch(): () => void {
   };
 }
 
+/** Closes open menus, popovers and lists (Escape on each), as after an interrupted flow. */
+export function dismissOpenLayers(doc: Document = document): void {
+  const layers = doc.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"], [data-radix-popper-content-wrapper] > *');
+  for (const layer of Array.from(layers).reverse()) key(layer, 'Escape');
+  if (doc.activeElement && doc.activeElement !== doc.body) (doc.activeElement as HTMLElement).blur?.();
+}
+
 // --- primitives ----------------------------------------------------------------
 
 /** Holds still for `ms` of clock time. */

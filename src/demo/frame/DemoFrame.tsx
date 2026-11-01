@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { onDemoMessage, postDemoMessage, type FrameToShell, type ShellToFrame } from '../protocol';
 import { getAgentMap } from '@/agent/mapRef';
 import { installPointerCapturePatch } from './actions';
+import { DemoCursor } from './DemoCursor';
 import { DemoDriver } from './driver';
 import { installFetchMocks } from './mocks';
 
@@ -10,8 +11,8 @@ const EDITOR_WAIT_MS = 20_000;
 
 /**
  * Mounted beside the editor in the frame. Owns the demo driver (load, run,
- * reset), the cursor and the frame's fetch mocks; the input blocker is set up
- * separately (`setup.ts`).
+ * reset), draws its cursor, and installs the frame's fetch mocks and pointer
+ * capture patch; the input blocker is set up separately (`setup.ts`).
  */
 export default function DemoFrame() {
   const [driver] = useState(() => new DemoDriver(postToShell));
@@ -49,7 +50,7 @@ export default function DemoFrame() {
     };
   }, [driver]);
 
-  return null;
+  return <DemoCursor controller={driver.cursor} />;
 }
 
 function postToShell(msg: FrameToShell): void {
