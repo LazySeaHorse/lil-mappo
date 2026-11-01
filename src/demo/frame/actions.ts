@@ -79,6 +79,14 @@ function implicitRole(el: Element): string | null {
 
 const squash = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
 
+/** The element's words, with a space between separate text nodes ("Dark" and "Moody" in two spans). */
+function spacedText(el: Element): string {
+  const walker = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const parts: string[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) parts.push(node.nodeValue ?? '');
+  return squash(parts.join(' '));
+}
+
 function accessibleName(el: Element): string {
   const label = el.getAttribute('aria-label');
   if (label) return squash(label);
@@ -93,7 +101,7 @@ function accessibleName(el: Element): string {
     if (el.placeholder) return squash(el.placeholder);
   }
   const title = el.getAttribute('title');
-  const text = squash(el.textContent);
+  const text = spacedText(el);
   return text || squash(title);
 }
 
@@ -101,7 +109,7 @@ const matches = (value: string, pattern: string | RegExp) =>
   typeof pattern === 'string' ? value === squash(pattern) : pattern.test(value);
 
 /** Text of the element without its descendants' controls (a label's own words). */
-const ownText = (el: Element) => squash(el.textContent);
+const ownText = (el: Element) => spacedText(el);
 
 export function isVisible(el: Element): boolean {
   if (!el.isConnected) return false;
@@ -132,6 +140,8 @@ function candidatesSelector(locator: Locator): string {
   if (locator.role === 'textbox') return 'input, textarea, [role="textbox"]';
   if (locator.role === 'link') return 'a[href], [role="link"]';
   if (locator.role) return `[role="${CSS.escape(locator.role)}"]`;
+  const [attr] = Object.keys(locator.attrs ?? {});
+  if (attr) return `[${CSS.escape(attr)}]`;
   return '*';
 }
 
@@ -141,15 +151,19 @@ function scopeOf(locator: Locator, root: ParentNode): ParentNode | null {
   return query(locator.within, root);
 }
 
-/** The control in the row a label names: climb from the label until a container holds one. */
+/**
+ * The control in the row a label names: climb from the label until a container
+ * holds one. A row whose only words are the label is a label too, so the climb
+ * starts at the label itself, never above its own row.
+ */
 function queryByLabel(locator: Locator, scope: ParentNode): Element | null {
   const control = { ...locator, label: undefined, within: undefined };
   const selector = candidatesSelector(control);
   const labels = Array.from(scope.querySelectorAll('label, span, div, p, h3, legend'))
-    .filter((el) => isVisible(el) && matches(ownText(el), locator.label!) && el.children.length <= 2);
+    .filter((el) => el.children.length <= 2 && matches(ownText(el), locator.label!) && isVisible(el));
   for (const label of labels) {
-    for (let node = label.parentElement; node && node !== scope; node = node.parentElement) {
-      const found = Array.from(node.querySelectorAll(selector)).find((el) => isVisible(el) && matchesLocator(el, control));
+    for (let node: Element | null = label; node && node !== scope; node = node.parentElement) {
+      const found = Array.from(node.querySelectorAll(selector)).find((el) => matchesLocator(el, control) && isVisible(el));
       if (found) return found;
     }
   }
@@ -162,7 +176,7 @@ export function query(locator: Locator, root: ParentNode = document): Element | 
   if (!scope) return null;
   if (locator.label !== undefined) return queryByLabel(locator, scope);
   return Array.from(scope.querySelectorAll(candidatesSelector(locator)))
-    .find((el) => isVisible(el) && matchesLocator(el, locator)) ?? null;
+    .find((el) => matchesLocator(el, locator) && isVisible(el)) ?? null;
 }
 
 const describe = (locator: Locator) =>
