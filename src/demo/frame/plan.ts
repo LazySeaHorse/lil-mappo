@@ -6,9 +6,11 @@ import {
   createImportedRouteItem,
   createModelItem,
   createWalkRouteItem,
+  defaultEndpointRouteName,
 } from '@/store/itemFactories';
 import type { BoundaryItem, CalloutItem, ModelItem, Project, RouteItem, TimelineItem } from '@/store/types';
 import type { CustomMapStyle } from '@/customMapStyles/model';
+import { isPlacedPoint } from '@/engine/routeMode';
 import { startingProject } from './startState';
 
 /**
@@ -158,12 +160,49 @@ export function boundaryEdits(base: BoundaryItem, target: BoundaryItem): FieldEd
   return orderSpan(orderEdits(diffLeaves(base, target, ITEM_SKIP), BOUNDARY_FIELD_ORDER), base);
 }
 
-function routeBaseline(item: RouteItem): RouteItem {
+// --- routes ---------------------------------------------------------------------
+
+/**
+ * The route inspector's fields in the order they sit on screen: name, path
+ * (the walk's curvature), line, animation, marker, timing, then the Follow
+ * camera. The line's glow is set before its width, a marker's type before its
+ * size (a new type clamps the size).
+ */
+export const ROUTE_FIELD_ORDER = [
+  'name',
+  'calculation.sharpness',
+  'style.color',
+  'style.width',
+  'style.dashPattern',
+  'style.glow',
+  'style.glowWidth',
+  'style.animationType',
+  'style.cometTrailLength',
+  'calculation.vehicle.enabled',
+  'calculation.vehicle.type',
+  'calculation.vehicle.modelId',
+  'calculation.vehicle.scale',
+  'startTime',
+  'endTime',
+  'easing',
+  'exitAnimation',
+  'autoCam',
+] as const;
+
+/** The marker switch off, as the inspector shows an imported route (which has no calculation). */
+const NO_MARKER = { enabled: false, type: 'dot', modelId: '', scale: 1 } as const;
+
+/** Whether a calculation has two placed endpoints to search for; an imported route with a marker has none. */
+export const hasPlacedEndpoints = (calc: NonNullable<RouteItem['calculation']>) =>
+  calc.mode !== 'walk' && isPlacedPoint(calc.startPoint) && isPlacedPoint(calc.endPoint);
+
+/** What the Plan Route panel (or the route import) makes for this file route. */
+export function routeBaseline(item: RouteItem): RouteItem {
   const calc = item.calculation;
   if (calc?.mode === 'walk') {
-    return createWalkRouteItem({ id: item.id, points: calc.points, curved: calc.curved, name: item.name, startTime: 0 });
+    return createWalkRouteItem({ id: item.id, points: calc.points, curved: calc.curved, startTime: 0 });
   }
-  if (calc) {
+  if (calc && hasPlacedEndpoints(calc)) {
     return createEndpointRouteItem({
       id: item.id,
       mode: calc.mode,
@@ -172,12 +211,27 @@ function routeBaseline(item: RouteItem): RouteItem {
       end: calc.endPoint,
       startName: calc.startName,
       endName: calc.endName,
-      name: item.name,
+      name: defaultEndpointRouteName(calc.mode, calc.startName, calc.endName),
       startTime: 0,
       pro: true,
     });
   }
   return createImportedRouteItem({ id: item.id, name: item.name, geojson: item.geojson, startTime: 0 });
+}
+
+/**
+ * The inspector edits that turn `base` (what the UI made) into the file's
+ * route, in screen order. An imported route whose file has a marker has a
+ * calculation with unset endpoints; the marker switch makes that on screen,
+ * so the marker's fields are edits and the rest of the calculation is not.
+ */
+export function routeEdits(base: RouteItem, target: RouteItem): FieldEdit[] {
+  const calc = target.calculation;
+  const shown: RouteItem =
+    !base.calculation && calc && calc.mode !== 'walk' && !hasPlacedEndpoints(calc)
+      ? { ...base, calculation: { ...calc, ...(calc.vehicle ? { vehicle: { ...NO_MARKER } } : {}) } }
+      : base;
+  return orderSpan(orderEdits(diffLeaves(shown, target, ITEM_SKIP), ROUTE_FIELD_ORDER), base);
 }
 
 function calloutBaseline(item: CalloutItem): CalloutItem | null {
@@ -198,11 +252,11 @@ function modelBaseline(item: ModelItem): ModelItem {
   return { ...createModelItem({ assetId: item.assetId, name: item.name, position: item.position, startTime: 0 }), id: item.id };
 }
 
-/** Field edits for an item kind not driven on screen yet (routes, callouts, models): what differs from Add. */
+/** Field edits for an item kind not driven on screen yet (callouts, models): what differs from Add. */
 function genericEdits(item: TimelineItem): FieldEdit[] {
+  if (item.kind === 'route') return routeEdits(routeBaseline(item), item);
   let base: TimelineItem | null = null;
-  if (item.kind === 'route') base = routeBaseline(item);
-  else if (item.kind === 'callout') base = calloutBaseline(item);
+  if (item.kind === 'callout') base = calloutBaseline(item);
   else if (item.kind === 'model') base = modelBaseline(item);
   if (!base) return [];
   const edits = diffLeaves(base, item, ITEM_SKIP);

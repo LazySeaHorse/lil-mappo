@@ -8,6 +8,7 @@ import { BOUNDARY_FIELDS, PROJECT_FIELDS } from './fields';
 import { openSection, showEdit } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { mockBoundarySearch } from './mocks';
+import { runRoute } from './routeRunner';
 import { applyStep, boundaryEdits, deepEqual, type DemoStep, type FieldEdit } from './plan';
 
 /**
@@ -183,6 +184,7 @@ export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): 
       return runSettings(ctx, step, file);
     case 'item':
       if (step.itemKind === 'boundary') return runBoundary(ctx, step, file);
+      if (step.itemKind === 'route') return runRoute(ctx, step, file);
       commitStep(step, file);
       return;
     default:
