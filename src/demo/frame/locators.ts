@@ -46,6 +46,9 @@ export interface Locators {
 
   /** The toolbar button that adds a camera view at the playhead. */
   addCameraViewButton: Locator;
+
+  /** The transport's play / pause button. */
+  timelinePlay: Locator;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -104,6 +107,8 @@ export const DESKTOP_LOCATORS: Locators = {
   timelineJumpToStart: { walkthrough: 'timeline-start', description: 'the timeline Jump to Start button' },
 
   addCameraViewButton: { walkthrough: 'camera-keyframe', description: 'the Add camera view button' },
+
+  timelinePlay: { walkthrough: 'timeline-play', description: 'the timeline Play button' },
 };
 
 /** The locators for the layout on screen. Desktop only for now. */
