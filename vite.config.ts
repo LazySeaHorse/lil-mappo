@@ -1,15 +1,25 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import fs from "fs";
 import path from "path";
 import obfuscatorPlugin from "rollup-plugin-obfuscator";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Validate required environment variables in production builds
+  // Demo build (`demo` branch, see DEMO.md). loadEnv reads the same value the client
+  // sees as import.meta.env.VITE_DEMO (process.env first, then .env files).
+  const isDemo = loadEnv(mode, process.cwd(), 'VITE_').VITE_DEMO === '1';
+  const realSupabase = path.resolve(__dirname, "./src/lib/supabase.ts");
+  const demoSupabase = path.resolve(__dirname, "./src/demo/private/supabase.ts");
+  if (isDemo && !fs.existsSync(demoSupabase)) {
+    throw new Error('The demo build needs the private bundle (src/demo/private/supabase.ts), see DEMO.md.');
+  }
+
+  // Validate required environment variables in production builds.
+  // The demo never talks to the database, so it needs no Supabase keys.
   const requiredEnvVars = [
     'VITE_MAPBOX_TOKEN',
-    'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_ANON_KEY'
+    ...(isDemo ? [] : ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY']),
   ];
 
   if (mode === 'production') {
@@ -34,6 +44,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      isDemo && demoSupabaseGuard(realSupabase),
       // Obfuscate the production bundle to raise the bar for reverse-engineering
       // client-side limits (duration cap, quality cap, load counter).
       // Does NOT protect against a determined attacker — server-side checks are
@@ -43,7 +54,7 @@ export default defineConfig(({ mode }) => {
       //   • No control flow flattening — inflates bundle & breaks async code
       //   • String array encoding deters casual inspection
       //   • Identifier name mangling makes variable purposes opaque
-      ...(mode === 'production'
+      ...(mode === 'production' && !isDemo
         ? [
             obfuscatorPlugin({
               // The analytics module lazy-loads posthog-js via dynamic import(); string-array
@@ -97,10 +108,24 @@ export default defineConfig(({ mode }) => {
       },
     },
     resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "./src"),
-      },
+      alias: [
+        // The demo swaps the whole Supabase client for the private fake one.
+        ...(isDemo ? [{ find: /^@\/lib\/supabase$/, replacement: demoSupabase }] : []),
+        { find: "@", replacement: path.resolve(__dirname, "./src") },
+      ],
       dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
     },
   };
 });
+
+/** Fails the demo build if anything reaches the real Supabase client by a path the alias does not cover. */
+function demoSupabaseGuard(realSupabase: string): Plugin {
+  return {
+    name: "demo-supabase-guard",
+    load(id) {
+      if (id.split("?")[0] === realSupabase) {
+        throw new Error(`The demo build must not include src/lib/supabase.ts (imported as ${id}). Import it as "@/lib/supabase" so the demo alias applies.`);
+      }
+    },
+  };
+}

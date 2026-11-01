@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "dev:demo": "VITE_DEMO=1 vite",
+    "build:demo": "VITE_DEMO=1 vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
