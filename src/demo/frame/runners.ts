@@ -8,6 +8,7 @@ import { BOUNDARY_FIELDS, PROJECT_FIELDS } from './fields';
 import { openSection, showEdit } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { mockBoundarySearch } from './mocks';
+import { runCamera } from './cameraRunner';
 import { runTimeline } from './timelineRunner';
 import { applyStep, boundaryEdits, deepEqual, hasTiming, isTimingEdit, type DemoStep, type FieldEdit } from './plan';
 
@@ -197,6 +198,8 @@ export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): 
       return;
     case 'timeline':
       return runTimeline(ctx, step, file);
+    case 'camera':
+      return runCamera(ctx, step, file);
     default:
       commitStep(step, file);
   }

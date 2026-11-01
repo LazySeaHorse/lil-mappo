@@ -43,6 +43,9 @@ export interface Locators {
   timelineZoomOut: Locator;
   /** The transport's jump to start button. */
   timelineJumpToStart: Locator;
+
+  /** The toolbar button that adds a camera view at the playhead. */
+  addCameraViewButton: Locator;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -99,6 +102,8 @@ export const DESKTOP_LOCATORS: Locators = {
   timelineRuler: { attrs: { 'data-testid': 'timeline-ruler' }, description: 'the timeline ruler' },
   timelineZoomOut: { role: 'button', name: 'Zoom Out', within: timelinePanel, description: 'the timeline Zoom Out button' },
   timelineJumpToStart: { walkthrough: 'timeline-start', description: 'the timeline Jump to Start button' },
+
+  addCameraViewButton: { walkthrough: 'camera-keyframe', description: 'the Add camera view button' },
 };
 
 /** The locators for the layout on screen. Desktop only for now. */
