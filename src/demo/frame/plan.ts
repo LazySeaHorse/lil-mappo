@@ -26,10 +26,19 @@ export interface FieldEdit {
 
 export type ItemStepKind = 'boundary' | 'route' | 'callout' | 'model';
 
+/** When an item shows. The item steps leave the timing the UI gave a new item; the timeline step moves it to the file's. */
+export interface ItemTiming {
+  startTime: number;
+  endTime: number;
+}
+
+/** Items that sit on the timeline as a clip (the camera track holds views, not a clip). */
+export const hasTiming = (item: TimelineItem): item is Extract<TimelineItem, ItemTiming> => 'startTime' in item && 'endTime' in item;
+
 export type DemoStep =
   | { kind: 'map-style'; label: string; mapStyle: string; customStyle: CustomMapStyle | null }
   | { kind: 'settings'; label: string; edits: FieldEdit[] }
-  | { kind: 'item'; itemKind: ItemStepKind; itemId: string; label: string; edits: FieldEdit[] }
+  | { kind: 'item'; itemKind: ItemStepKind; itemId: string; label: string; edits: FieldEdit[]; timing?: ItemTiming }
   | { kind: 'timeline'; label: string }
   | { kind: 'camera'; label: string; keyframeIds: string[] }
   | { kind: 'play'; label: string }
@@ -198,6 +207,26 @@ function modelBaseline(item: ModelItem): ModelItem {
   return { ...createModelItem({ assetId: item.assetId, name: item.name, position: item.position, startTime: 0 }), id: item.id };
 }
 
+/** What the UI makes for this item kind when it is added at the start (null for kinds without a clip). */
+function itemBaseline(item: TimelineItem): TimelineItem | null {
+  switch (item.kind) {
+    case 'boundary': return boundaryBaseline(item);
+    case 'route': return routeBaseline(item);
+    case 'callout': return calloutBaseline(item);
+    case 'model': return modelBaseline(item);
+    default: return null;
+  }
+}
+
+/** The timing the UI gives this item when it is added: the item steps leave it, the timeline step changes it. */
+export function baselineTiming(item: TimelineItem): ItemTiming | undefined {
+  const base = itemBaseline(item);
+  return base && hasTiming(base) ? { startTime: base.startTime, endTime: base.endTime } : undefined;
+}
+
+/** An edit of the clip's span, which the timeline step makes by dragging. */
+export const isTimingEdit = (edit: FieldEdit) => edit.path === 'startTime' || edit.path === 'endTime';
+
 /** Field edits for an item kind not driven on screen yet (routes, callouts, models): what differs from Add. */
 function genericEdits(item: TimelineItem): FieldEdit[] {
   let base: TimelineItem | null = null;
@@ -282,8 +311,11 @@ export function planDemo(file: Project): DemoStep[] {
     for (const id of file.itemOrder) {
       const item = file.items[id];
       if (!item || item.kind !== kind) continue;
-      const edits = item.kind === 'boundary' ? boundaryEdits(boundaryBaseline(item), item) : genericEdits(item);
-      steps.push({ kind: 'item', itemKind: kind, itemId: id, label: itemLabel(item), edits });
+      const timing = baselineTiming(item);
+      const all = item.kind === 'boundary' ? boundaryEdits(boundaryBaseline(item), item) : genericEdits(item);
+      // The timeline step sets the timing, by dragging the clip.
+      const edits = timing ? all.filter((edit) => !isTimingEdit(edit)) : all;
+      steps.push({ kind: 'item', itemKind: kind, itemId: id, label: itemLabel(item), edits, timing });
     }
   }
 
@@ -332,16 +364,25 @@ export function applyStep(project: Project, step: DemoStep, file: Project): Proj
       if (!item) return project;
       const models = { ...project.models };
       for (const assetId of assetsOf(item)) if (file.models[assetId]) models[assetId] = file.models[assetId];
+      const placed = step.timing && hasTiming(item) ? { ...item, ...step.timing } : item;
       return {
         ...project,
-        items: { ...project.items, [item.id]: item },
+        items: { ...project.items, [item.id]: placed },
         itemOrder: orderLikeFile([...project.itemOrder, item.id], file.itemOrder),
         models,
       };
     }
-    case 'timeline':
-      // Lane order, and model assets no item uses (kept by the file all the same).
-      return { ...project, itemOrder: orderLikeFile(project.itemOrder, file.itemOrder), models: { ...file.models, ...project.models } };
+    case 'timeline': {
+      // Every clip on the file's timing, the lane order, and model assets no item uses (kept by the file all the same).
+      const items = { ...project.items };
+      for (const [id, target] of Object.entries(file.items)) {
+        const item = items[id];
+        if (item && hasTiming(item) && hasTiming(target) && (item.startTime !== target.startTime || item.endTime !== target.endTime)) {
+          items[id] = { ...item, startTime: target.startTime, endTime: target.endTime };
+        }
+      }
+      return { ...project, items, itemOrder: orderLikeFile(project.itemOrder, file.itemOrder), models: { ...file.models, ...project.models } };
+    }
     case 'camera':
       return file.items[CAMERA_TRACK_ID] ? { ...project, items: { ...project.items, [CAMERA_TRACK_ID]: file.items[CAMERA_TRACK_ID] } } : project;
     case 'play':

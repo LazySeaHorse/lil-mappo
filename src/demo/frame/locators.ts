@@ -31,11 +31,24 @@ export interface Locators {
   addBoundaryConfirm: Locator;
 
   inspectorSection: (kind: InspectorSectionKind, id: string) => Locator;
+
+  timelinePanel: Locator;
+  /** The timeline's scroll box, which the zoom controls fit the clips into. */
+  timelineViewport: Locator;
+  /** A clip's bar: press it to move the clip. */
+  timelineClip: (itemId: string) => Locator;
+  /** A clip's edge handle: press it to trim that edge. */
+  timelineHandle: (itemId: string, edge: 'start' | 'end') => Locator;
+  timelineRuler: Locator;
+  timelineZoomOut: Locator;
+  /** The transport's jump to start button. */
+  timelineJumpToStart: Locator;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const addBoundaryPanel: Locator = { role: 'menu', description: 'the Add Boundary panel' };
+const timelinePanel: Locator = { walkthrough: 'timeline-panel', description: 'the timeline' };
 
 export const DESKTOP_LOCATORS: Locators = {
   mapStyleTrigger: { walkthrough: 'map-style', description: 'the map style picker' },
@@ -75,6 +88,17 @@ export const DESKTOP_LOCATORS: Locators = {
   addBoundaryConfirm: { role: 'button', name: new RegExp(BOUNDARY_ADD_TERMS.add), within: addBoundaryPanel, description: 'the Add boundary button' },
 
   inspectorSection: (kind, id) => ({ attrs: { 'data-section': `${kind}-${id}` }, description: `the ${kind} ${id} section` }),
+
+  timelinePanel,
+  timelineViewport: { attrs: { 'data-slot': 'scroll-area-viewport' }, within: timelinePanel, description: 'the timeline' },
+  timelineClip: (itemId) => ({ attrs: { 'data-testid': `timeline-item-${itemId}` }, description: `the timeline clip ${itemId}` }),
+  timelineHandle: (itemId, edge) => ({
+    attrs: { 'data-testid': `timeline-item-${itemId}-${edge}-handle` },
+    description: `the ${edge} handle of the clip ${itemId}`,
+  }),
+  timelineRuler: { attrs: { 'data-testid': 'timeline-ruler' }, description: 'the timeline ruler' },
+  timelineZoomOut: { role: 'button', name: 'Zoom Out', within: timelinePanel, description: 'the timeline Zoom Out button' },
+  timelineJumpToStart: { walkthrough: 'timeline-start', description: 'the timeline Jump to Start button' },
 };
 
 /** The locators for the layout on screen. Desktop only for now. */

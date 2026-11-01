@@ -98,12 +98,14 @@ describe('boundary runner', () => {
     expect(shown.style.fillOpacity).toBeCloseTo(0.35, 2);
     expect(shown.style.maskOpacity).toBeCloseTo(0.6, 2);
     expect(shown.style.traceLength).toBeCloseTo(0.25, 2);
-    expect(shown).toMatchObject({ startTime: 1.5, endTime: 9, easing: 'linear' });
+    expect(shown).toMatchObject({ easing: 'linear' });
+    // The timing is the timeline step's: the boundary keeps the span Add gave it.
+    expect(shown).toMatchObject({ startTime: 0 });
     expect(warn).not.toHaveBeenCalled();
 
     const state = useProjectStore.getState();
     expect(Object.keys(state.items)).toEqual(['camera-track', 'b-france']);
-    expect(state.items['b-france']).toEqual(target);
+    expect(state.items['b-france']).toEqual({ ...target, startTime: shown.startTime, endTime: shown.endTime });
     expect(state.itemOrder).toEqual(['camera-track', 'b-france']);
     expect(state.selectedItemId).toBe('b-france');
     // The add, each edit and the final swap are undo steps, as a user's would be.
@@ -114,7 +116,7 @@ describe('boundary runner', () => {
   it('still ends on the file’s boundary when the panel cannot be found', async () => {
     render(<InspectorPanel />);
     await (runStep(testContext(), stepFor('b-spain'), file));
-    expect(useProjectStore.getState().items['b-spain']).toEqual(file.items['b-spain']);
+    expect(useProjectStore.getState().items['b-spain']).toEqual({ ...file.items['b-spain'], ...stepFor('b-spain').timing });
     expect(warn).toHaveBeenCalled();
   }, 15_000);
 });
