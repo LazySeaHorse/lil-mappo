@@ -1,0 +1,651 @@
+/* Demo shell: the letterbox, the stage and its wallpaper. */
+
+.ds-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #050506;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ds-stage {
+  position: absolute;
+  overflow: hidden;
+  isolation: isolate;
+  /* The frame draws its own macOS cursor; the real pointer stays out of the shot */
+  cursor: none;
+}
+
+/* A dusk gradient: deep blue up top, violet through the middle, a warm glow low on the left,
+   and one broad soft swell of light, so the windows have depth to sit on */
+.ds-wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(55% 45% at 18% 104%, rgba(255, 150, 96, 0.9), transparent 72%),
+    radial-gradient(50% 55% at 88% 96%, rgba(231, 84, 151, 0.62), transparent 70%),
+    radial-gradient(65% 60% at 78% -4%, rgba(64, 120, 238, 0.85), transparent 70%),
+    radial-gradient(55% 55% at 6% 8%, rgba(108, 70, 214, 0.75), transparent 70%),
+    linear-gradient(176deg, #172264 0%, #33268a 38%, #7a3590 70%, #d26a63 100%);
+}
+
+.ds-wallpaper::before,
+.ds-wallpaper::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+}
+
+/* Two long arcs of light, like dunes catching the last sun */
+.ds-wallpaper::before {
+  left: -20%;
+  right: -20%;
+  top: 58%;
+  height: 90%;
+  background: radial-gradient(50% 50% at 50% 0%, rgba(255, 200, 170, 0.32), transparent 70%);
+  transform: rotate(-6deg);
+}
+
+.ds-wallpaper::after {
+  left: -10%;
+  right: -30%;
+  top: 30%;
+  height: 80%;
+  background: radial-gradient(50% 40% at 60% 0%, rgba(160, 150, 255, 0.22), transparent 70%);
+  transform: rotate(9deg);
+}
+
+/* Over the windows: catches stray clicks and file drops, and keeps the pointer hidden over the
+   iframe too (an iframe's cursor comes from its own document). The frame blocks trusted input anyway. */
+.ds-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  cursor: none;
+}
+
+/* The app's device: chrome drawn under, the live iframe laid over it. Everything that moves when
+   the AI panel opens shares one transition, so chrome and iframe travel together. */
+.ds-root {
+  --ds-move: 650ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ds-device {
+  position: absolute;
+  inset: 0;
+}
+
+.ds-browser,
+.ds-phone,
+.ds-viewport {
+  position: absolute;
+}
+
+/* Only while the AI panel opens or closes: a device switch on load snaps into place */
+.ds-root[data-moving] :is(.ds-browser, .ds-phone, .ds-viewport) {
+  transition:
+    left var(--ds-move),
+    top var(--ds-move),
+    width var(--ds-move),
+    height var(--ds-move),
+    transform var(--ds-move);
+}
+
+.ds-browser {
+  /* A Mac window on a dark desktop: a crisp dark outline, a faint inner highlight, a long soft fall */
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.55),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.6),
+    0 22px 70px 4px rgba(0, 0, 0, 0.42),
+    0 8px 22px rgba(0, 0, 0, 0.22);
+}
+
+.ds-browser .ss-window__bar {
+  justify-content: center;
+  background: #f4f4f5;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+}
+
+/* Safari-style: the address pill centred on the window, the lights left */
+.ds-browser .ss-window__lights {
+  position: absolute;
+  left: calc(var(--ss-lights-y) - var(--ss-dot) / 2);
+}
+
+.ds-browser .ss-window__url {
+  display: flex;
+  flex: 0 1 380px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  margin: 0;
+  padding: 0 14px;
+  background: rgba(0, 0, 0, 0.055);
+  color: #3c3c43;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 26px;
+}
+
+.ds-browser__lock {
+  flex-shrink: 0;
+  color: #8a8a8e;
+}
+
+.ds-browser > .ss-window__body {
+  background: #fff;
+}
+
+.ds-phone {
+  transform-origin: 0 0;
+}
+
+.ds-viewport {
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: #fff;
+}
+
+.ds-device:not([data-portrait]) .ds-viewport {
+  border-radius: 0 0 var(--ss-radius-window) var(--ss-radius-window);
+}
+
+.ds-viewport iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* The home indicator rides over the app, as on iOS */
+.ds-viewport__home {
+  color: #000;
+  pointer-events: none;
+}
+
+/* The phone's own status bar shows through above the app */
+.ds-device[data-portrait] .ds-viewport {
+  background: transparent;
+}
+
+/* The mock Claude Code window: a dark Mac Terminal on the left (top, in portrait). It slides in
+   from off the stage's edge while the app window makes room. */
+.ds-term {
+  --cc-fg: #e4e4e7;
+  --cc-dim: #8b8b93;
+  --cc-accent: #d77757;
+  --cc-ok: #4eba65;
+  --cc-err: #ff6b80;
+  --ss-term-bg: #1c1c1f;
+  position: absolute;
+  z-index: 2;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+    0 22px 70px 4px rgba(0, 0, 0, 0.45),
+    0 8px 22px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transform: translateX(calc(-100% - 80px));
+  transition:
+    left var(--ds-move),
+    top var(--ds-move),
+    width var(--ds-move),
+    height var(--ds-move),
+    transform var(--ds-move),
+    opacity 300ms ease;
+  pointer-events: none;
+}
+
+.ds-term[data-portrait] {
+  transform: translateY(calc(-100% - 80px));
+}
+
+.ds-term[data-open] {
+  opacity: 1;
+  transform: none;
+}
+
+.ds-term .ss-term__title {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.ds-term > .ss-window__body {
+  padding: 0;
+  /* The window carries the size, from the stage's size */
+  font-size: inherit;
+}
+
+.ds-term .ds-cc {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 0.4em 1.1em 1.1em;
+  color: var(--cc-fg);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1em;
+  line-height: 1.5;
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ds-cc b {
+  font-weight: 700;
+}
+
+/* One blank line between blocks, as in the real thing */
+.ds-cc > * + * {
+  margin-top: 1.5em;
+}
+
+.ds-cc > .ds-cc__hint {
+  margin-top: 0;
+}
+
+.ds-cc__dim {
+  color: var(--cc-dim);
+}
+
+.ds-cc__accent {
+  color: var(--cc-accent);
+}
+
+.ds-cc__welcome {
+  width: max-content;
+  max-width: 100%;
+  padding: 0.25em 1.5ch 0.25em 1ch;
+  border: 1px solid var(--cc-accent);
+  border-radius: 0.5em;
+}
+
+.ds-cc__gap {
+  height: 1.5em;
+}
+
+.ds-cc__indent {
+  padding-left: 2ch;
+}
+
+.ds-cc__user,
+.ds-cc__msg,
+.ds-cc__result {
+  display: flex;
+}
+
+.ds-cc__user,
+.ds-cc__result {
+  color: var(--cc-dim);
+}
+
+.ds-cc__mark,
+.ds-cc__bullet,
+.ds-cc__glyph {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 2ch;
+}
+
+.ds-cc__mark {
+  color: var(--cc-dim);
+}
+
+.ds-cc__bullet[data-status='ok'] {
+  color: var(--cc-ok);
+}
+
+.ds-cc__bullet[data-status='error'],
+.ds-cc__result[data-status='error'] > :last-child {
+  color: var(--cc-err);
+}
+
+.ds-cc__bullet[data-status='running'] {
+  color: var(--cc-dim);
+  animation: ds-cc-blink 1s steps(1) infinite;
+}
+
+.ds-cc__elbow {
+  flex-shrink: 0;
+  width: 5ch;
+  padding-left: 2ch;
+}
+
+.ds-cc__spinner {
+  color: var(--cc-accent);
+}
+
+.ds-cc__input {
+  display: flex;
+  padding: 0.25em 1ch;
+  border: 1px solid #5c5c63;
+  border-radius: 0.5em;
+}
+
+.ds-cc__hint {
+  padding-left: 2ch;
+}
+
+.ds-cc__caret {
+  display: inline-block;
+  width: 1ch;
+  height: 1.2em;
+  margin-left: 1px;
+  vertical-align: -0.22em;
+  background: var(--cc-fg);
+  animation: ds-cc-blink 1.06s steps(1) infinite;
+}
+
+.ds-cc__caret[data-still] {
+  animation: none;
+}
+
+@keyframes ds-cc-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 3-2-1: one big numeral at a time, landing and fading */
+.ds-countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+/* A frosted dark disc, so the white numeral reads over a white app and a bright map alike */
+.ds-countdown__n {
+  display: grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  color: #fff;
+  font: 700 min(20vh, 15vw) / 1 system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+  background: rgba(16, 16, 20, 0.62);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 20px 60px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  animation: ds-count 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes ds-count {
+  0% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+/* The widget: a compact dark panel over the top of the viewport, with the normal pointer */
+.ds-widget {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 100;
+  width: min(380px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+  transform: translateX(-50%);
+  color: #ececf1;
+  font: 12.5px/1.4 system-ui, -apple-system, sans-serif;
+  background: rgba(24, 24, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  cursor: default;
+}
+
+.ds-widget__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ds-widget__title {
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.ds-widget__hint {
+  flex: 1;
+  color: #8e8e98;
+  font-size: 11.5px;
+}
+
+.ds-widget kbd {
+  padding: 1px 5px;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+}
+
+.ds-widget__close {
+  width: 22px;
+  height: 22px;
+  color: #a5a5ae;
+  font-size: 17px;
+  line-height: 20px;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ds-widget__close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ds-widget__row,
+.ds-widget__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-widget__status,
+.ds-widget__progress {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #a5a5ae;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ds-widget__status[data-tone='ok'] {
+  color: #ececf1;
+  font-weight: 550;
+}
+
+.ds-widget__status[data-tone='error'] {
+  color: #ff8a8a;
+}
+
+.ds-widget__section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ds-widget__label {
+  margin-bottom: 6px;
+  color: #8e8e98;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ds-widget__model {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.ds-widget__model-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ds-widget__timing {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #a5a5ae;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.ds-field input,
+.ds-widget__prompt {
+  width: 100%;
+  padding: 4px 6px;
+  color: #ececf1;
+  font: inherit;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  outline: none;
+}
+
+.ds-field input:focus,
+.ds-widget__prompt:focus {
+  border-color: #6d8cff;
+}
+
+.ds-widget__speed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  color: #a5a5ae;
+}
+
+.ds-widget__speed input {
+  flex: 1;
+  accent-color: #6d8cff;
+}
+
+.ds-widget__speed output {
+  width: 36px;
+  color: #ececf1;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ds-widget__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.ds-widget__toggle input {
+  accent-color: #d77757;
+}
+
+.ds-widget__prompt {
+  display: block;
+  margin-top: 8px;
+  resize: vertical;
+}
+
+.ds-widget__foot {
+  margin-top: 12px;
+}
+
+.ds-widget__step {
+  margin-right: 6px;
+  color: #ececf1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-widget__bar {
+  height: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+.ds-widget__bar span {
+  display: block;
+  height: 100%;
+  background: #6d8cff;
+  border-radius: 2px;
+  transition: width 300ms ease;
+}
+
+.ds-btn {
+  flex-shrink: 0;
+  padding: 5px 11px;
+  color: #ececf1;
+  font: inherit;
+  font-weight: 550;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ds-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.ds-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ds-btn--primary {
+  min-width: 76px;
+  background: #4f6ef7;
+  border-color: #4f6ef7;
+}
+
+.ds-btn--primary:hover:not(:disabled) {
+  background: #6380ff;
+}
+
+.ds-btn--small {
+  padding: 3px 8px;
+  font-size: 11.5px;
+}

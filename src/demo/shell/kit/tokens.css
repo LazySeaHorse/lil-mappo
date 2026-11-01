@@ -1,0 +1,29 @@
+/* Stageshow kit (MIT, Copyright (c) 2026 Benji Taylor; see LICENSE). The token block of
+   stage.css, set on .ss-tokens instead of .ss-stage so the demo shell keeps its own layout. */
+
+  .ss-tokens {
+    --ss-canvas: #f6f5f4;
+    --ss-surface: #fff;
+    --ss-chrome: #fff;
+    --ss-ink-1: rgba(0, 0, 0, 0.04);
+    --ss-ink-2: rgba(0, 0, 0, 0.06);
+    --ss-ink-3: rgba(0, 0, 0, 0.08);
+    --ss-fill: #ebebeb;
+    --ss-ink-4: rgba(0, 0, 0, 0.1);
+    --ss-ink-5: rgba(0, 0, 0, 0.15);
+    --ss-line: rgba(0, 0, 0, 0.06);
+    --ss-line-faint: rgba(0, 0, 0, 0.04);
+    --ss-text: #7a7a7d;
+    --ss-text-strong: #262628;
+    --ss-text-faint: #9a9a9d;
+    --ss-icon: #707074;
+    --ss-icon-faint: #c4c4c7;
+    --ss-accent: #3b82f6;
+    --ss-shadow-window: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.08);
+    --ss-shadow-hero: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 30px 60px -12px rgba(50, 50, 93, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.3);
+    --ss-font: system-ui, -apple-system, sans-serif;
+    --ss-mono: "SF Mono", "SFMono-Regular", ui-monospace, Consolas, monospace;
+    --ss-radius-window: 12px;
+    font-family: var(--ss-font);
+    -webkit-font-smoothing: antialiased;
+  }
