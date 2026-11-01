@@ -41,10 +41,18 @@ export function missingModels(project: Project): DemoMissingModel[] {
 
 /** Model files the demo keeps in memory although the starting project does not use them yet. */
 const heldModels = new Map<string, () => void>();
+/** The .glb files the owner relinked, by the file's model id, for the model step to hand to the app's import. */
+const relinkedFiles = new Map<string, File>();
 
 export function releaseHeldModels(): void {
   for (const release of heldModels.values()) release();
   heldModels.clear();
+  relinkedFiles.clear();
+}
+
+/** The .glb the owner relinked for a model of the file, or undefined when none was. */
+export function relinkedModelFile(modelId: string): File | undefined {
+  return relinkedFiles.get(modelId);
 }
 
 /**
@@ -69,6 +77,7 @@ export async function relinkDemoModel(demo: DemoFile, modelId: string, file: Fil
       },
     };
   }
+  relinkedFiles.set(modelId, file);
   // The starting project has no models yet; hold the bytes until the run adds them.
   if (!heldModels.has(sha256)) heldModels.set(sha256, holdModelFile(sha256));
 }

@@ -6,6 +6,8 @@ import { getMapStyleDef } from '@/config/mapbox';
 import { click, find, key, pause, query, type, warn, type DemoContext } from './actions';
 import { BOUNDARY_FIELDS, PROJECT_FIELDS } from './fields';
 import { openSection, showEdit } from './edits';
+import { runCallout } from './calloutRunner';
+import { runModel } from './modelRunner';
 import { currentLocators, type Locators } from './locators';
 import { mockBoundarySearch } from './mocks';
 import { applyStep, boundaryEdits, deepEqual, type DemoStep, type FieldEdit } from './plan';
@@ -183,6 +185,8 @@ export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): 
       return runSettings(ctx, step, file);
     case 'item':
       if (step.itemKind === 'boundary') return runBoundary(ctx, step, file);
+      if (step.itemKind === 'callout') return runCallout(ctx, step, file);
+      if (step.itemKind === 'model') return runModel(ctx, step, file);
       commitStep(step, file);
       return;
     default:
