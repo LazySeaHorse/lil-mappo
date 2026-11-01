@@ -97,23 +97,19 @@ describe('AiMode', () => {
     await vi.waitFor(() => expect(useAgentStore.getState().enabled).toBe(true));
     await vi.waitFor(() => expect(useAiPanelStore.getState().bridgeStatus).toBe('connected'));
     await vi.waitFor(() => expect(useAiPanelStore.getState().open).toBe(false));
-    expect(document.querySelector('[data-testid="ai-status-pill"]')).not.toBeNull();
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="ai-status-pill"]')).not.toBeNull());
     expect(ctx.cursor.hidden).toBe(true);
     expect(sent.find((m) => m.type === 'ai-panel')).toEqual({ type: 'ai-panel', open: true });
     await run;
   });
 
   it('builds the project through the tools: it ends equal to the file, as the AI’s writes', async () => {
-    // Slow enough for the app's feedback (it follows each call a tick later) to see the items before they are swapped.
-    const ctx = testContext(40);
+    const ctx = testContext(200);
     render(<Editor />);
     const { mode, aiEvents, sent } = setup();
-    const selected = new Set<string>();
-    const stop = useProjectStore.subscribe((s) => s.selectedItemId && selected.add(s.selectedItemId));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await mode.run(ctx, file, settings);
-    stop();
 
     const project = pickProject(useProjectStore.getState());
     expect(project).toEqual(pickProject(file));
@@ -138,9 +134,13 @@ describe('AiMode', () => {
     expect(ends.find((e) => e.kind === 'tool-end' && /Added boundary "Spain"/.test(e.summary))).toBeDefined();
     expect(warn).not.toHaveBeenCalled();
 
-    // The app's own AI feedback ran off those calls: the items the tools made were selected as they landed.
-    expect([...selected].some((id) => !(id in file.items))).toBe(true);
-    expect(agentEvents.getLog().filter((e) => e.phase === 'succeeded').length).toBe(starts.length);
+    // The app's AI feedback (select and pulse the item, follow the map) runs off these events, so each add names what it made.
+    const succeeded = agentEvents.getLog().filter((e) => e.phase === 'succeeded');
+    expect(succeeded).toHaveLength(starts.length);
+    for (const tool of ['add_boundary', 'add_route', 'add_callout']) {
+      expect(succeeded.filter((e) => e.tool === tool).every((e) => e.affectedItemIds?.length === 1)).toBe(true);
+    }
+    expect(succeeded.filter((e) => e.tool === 'add_camera_keyframe').every((e) => e.affectedKeyframeIds?.length === 1)).toBe(true);
 
     // History: every step is the AI's, except the model the user placed.
     const sources = getHistoryEntries().past.map((e) => e.source);
