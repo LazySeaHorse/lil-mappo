@@ -384,9 +384,10 @@ async function showFollowCamera(ctx: DemoContext, id: string, goal: AutoCamConfi
 }
 
 /** Shows one edit on screen: the route's own controls where they differ from the table's. */
-async function showRouteEdit(ctx: DemoContext, edit: FieldEdit, live: () => RouteItem | null, target: RouteItem): Promise<void> {
+async function showRouteEdit(ctx: DemoContext, edit: FieldEdit, live: () => RouteItem | null, target: RouteItem, file: Project): Promise<void> {
   const item = live();
   if (!item || deepEqual(getPath(item, edit.path), edit.value)) return;
+  if (edit.path === 'calculation.vehicle.type' && edit.value === 'custom') holdMarkerModel(target, file);
   switch (edit.path) {
     case 'name':
       await showName(ctx, String(edit.value));
@@ -411,10 +412,11 @@ async function showRouteEdit(ctx: DemoContext, edit: FieldEdit, live: () => Rout
 }
 
 /**
- * A marker that rides an imported .glb needs the model in the project before
- * the marker card can pick it (with none there, the card opens a file
- * dialog). The model's own step comes later; this is the project holding it
- * already, which the step's final write sets anyway.
+ * A marker that rides an imported .glb needs the model in the project when
+ * its card is clicked (with none there, the card opens a file dialog). The
+ * model's own step comes later; this is the project holding it already, which
+ * the step's final write sets anyway. An edit prunes models no item uses, so
+ * it is held just before the card.
  */
 function holdMarkerModel(target: RouteItem, file: Project): void {
   const vehicle = target.calculation?.vehicle;
@@ -464,11 +466,10 @@ export async function runRoute(ctx: DemoContext, step: ItemStep, file: Project):
     // A list made all its routes at once; this step edits its own.
     if (useProjectStore.getState().selectedItemId !== created) withoutHistory(() => useProjectStore.getState().selectItem(created));
     await pause(ctx, ctx.timing.betweenSteps * 0.4);
-    holdMarkerModel(target, file);
     const live = () => liveRoute(created);
     for (const edit of routeEdits(live() ?? target, target)) {
       ctx.clock.check();
-      await showRouteEdit(ctx, edit, live, target);
+      await showRouteEdit(ctx, edit, live, target, file);
     }
   }
   commitStep(step, file, { replace: created ?? undefined });

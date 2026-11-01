@@ -222,4 +222,142 @@ describe('route runner', () => {
     expect(warn).not.toHaveBeenCalled();
     expect(useProjectStore.getState().items['r-flight']).toEqual(edited);
   }, 30_000);
+
+  /** A drive from each spoke to Paris, as the Plan Route list makes them. */
+  function spokeRoutes(starts: number[], mode: 'car' | 'flight' = 'car'): RouteItem[] {
+    return [LYON, BORDEAUX, NICE].slice(0, starts.length).map((from, i) =>
+      createEndpointRouteItem({
+        id: `r-spoke-${i}`,
+        mode,
+        geojson: line(from, PARIS),
+        start: from,
+        end: PARIS,
+        startName: ['Lyon', 'Bordeaux', 'Nice'][i],
+        endName: 'Paris',
+        name: `${['Lyon', 'Bordeaux', 'Nice'][i]} to Paris`,
+        startTime: starts[i],
+        pro: true,
+      }),
+    );
+  }
+
+  it('makes a hub and spoke list in the panel, then edits each of its routes in turn', async () => {
+    const [lyon, bordeaux, nice] = spokeRoutes([1, 3.5, 6]);
+    const edited: RouteItem = { ...bordeaux, name: 'Wine run', style: { ...bordeaux.style, color: '#22c55e' } };
+    const file = fileWith(lyon, edited, nice);
+    expect(planDemo(file).filter((s) => s.kind === 'item').map((s) => s.label)).toEqual(['Route: Lyon to Paris', 'Route: Wine run', 'Route: Nice to Paris']);
+
+    const ctx = testContext();
+    useProjectStore.setState({ ...startingProject(file), ...createTransientState(), isInspectorOpen: true });
+    clearHistory();
+    render(<Editor onChooser={() => {}} />);
+    const steps = planDemo(file).filter((s): s is Extract<DemoStep, { kind: 'item' }> => s.kind === 'item');
+
+    await runStep(ctx, steps[0], file);
+    // One Create made all three routes; the first is now the file's, the other two wait their turn.
+    let routes = Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route');
+    expect(routes).toHaveLength(3);
+    expect(routes.map((r) => r.id)).toContain('r-spoke-0');
+    expect(routes.filter((r) => !file.items[r.id])).toHaveLength(2);
+    expect(useProjectStore.getState().items['r-spoke-0']).toEqual(lyon);
+
+    // The gap typed into the panel spaced the starts 2.5 s apart, from the playhead.
+    const pending = routes.filter((r) => !file.items[r.id]) as RouteItem[];
+    expect(pending.map((r) => r.startTime)).toEqual([2.5, 5]);
+
+    await runStep(ctx, steps[1], file);
+    await runStep(ctx, steps[2], file);
+    routes = Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route');
+    expect(routes.map((r) => r.id)).toEqual(['r-spoke-0', 'r-spoke-1', 'r-spoke-2']);
+    expect(useProjectStore.getState().items['r-spoke-1']).toEqual(edited);
+    expect(useProjectStore.getState().items['r-spoke-2']).toEqual(nice);
+    expect(useProjectStore.getState().itemOrder).toEqual(['camera-track', 'r-spoke-0', 'r-spoke-1', 'r-spoke-2']);
+    expect(warn).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('picks the all at once schedule and a flight hub from the airports', async () => {
+    const airports = await loadAirports();
+    const hub = airports.find((a) => a.iata === 'CDG')!;
+    const spokes = ['JFK', 'LHR'].map((code) => airports.find((a) => a.iata === code)!);
+    const flights = spokes.map((from, i) =>
+      createEndpointRouteItem({
+        id: `f-${i}`,
+        mode: 'flight',
+        geojson: line(from.coordinates, hub.coordinates),
+        start: from.coordinates,
+        end: hub.coordinates,
+        startName: from.name,
+        endName: hub.name,
+        name: `${from.name} → ${hub.name}`,
+        startTime: 0,
+        pro: true,
+      }),
+    );
+    const file = fileWith(...flights);
+    const ctx = testContext();
+    useProjectStore.setState({ ...startingProject(file), ...createTransientState(), isInspectorOpen: true });
+    render(<Editor onChooser={() => {}} />);
+    const steps = planDemo(file).filter((s): s is Extract<DemoStep, { kind: 'item' }> => s.kind === 'item');
+    for (const step of steps) await runStep(ctx, step, file);
+    expect(useProjectStore.getState().items['f-0']).toEqual(flights[0]);
+    expect(useProjectStore.getState().items['f-1']).toEqual(flights[1]);
+    expect(Object.keys(useProjectStore.getState().items)).toEqual(['camera-track', 'f-0', 'f-1']);
+    expect(warn).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('clicks the import entry without opening the file dialog, then adds the imported route and edits it', async () => {
+    const imported = createImportedRouteItem({ id: 'r-gpx', name: 'Morning ride', geojson: line(PARIS, [2.6, 48.4], LYON), startTime: 0 });
+    const target: RouteItem = {
+      ...imported,
+      startTime: 3,
+      style: { ...imported.style, color: '#a855f7', glow: true },
+      // A marker on an imported route has a calculation with no places.
+      calculation: { mode: 'car', startPoint: [0, 0], endPoint: [0, 0], startName: '', endName: '', vehicle: { enabled: true, type: 'plane', modelId: '', scale: 2 } },
+    };
+    const { seen, last } = await runRoute(fileWith(target), 'r-gpx');
+
+    // The chooser's click was held back; the route is the imported one with the file's geometry.
+    expect(chooserPrevented).toEqual([true]);
+    expect(seen[0]).toMatchObject({ name: 'Morning ride', geojson: imported.geojson });
+    expect(seen[0].calculation).toBeUndefined();
+    expect(last).toMatchObject({ startTime: 3, style: { color: '#a855f7', glow: true }, calculation: { vehicle: { enabled: true, type: 'plane' } } });
+    expect(useProjectStore.getState().items['r-gpx']).toEqual(target);
+    expect(useProjectStore.getState().activePicker).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  }, 30_000);
+
+  it('runs a custom 3D marker on the model the project holds', async () => {
+    const car = editedCar();
+    const model = { id: 'm-bike', fileName: 'Bike.glb', byteSize: 10, sha256: 'cd'.repeat(32), bounds: { min: [0, 0, 0], max: [1, 2, 3] } } as Project['models'][string];
+    const target: RouteItem = {
+      ...car,
+      calculation: { ...car.calculation!, vehicle: { enabled: true, type: 'custom', modelId: 'm-bike', scale: 2 } } as RouteItem['calculation'],
+    };
+    const file = { ...fileWith(target), models: { 'm-bike': model } };
+    const { last } = await runRoute(file, 'r-car');
+    expect(last.calculation?.vehicle).toMatchObject({ type: 'custom', modelId: 'm-bike' });
+    expect(useProjectStore.getState().items['r-car']).toEqual(target);
+    expect(useProjectStore.getState().models).toEqual({ 'm-bike': model });
+  }, 30_000);
+
+  it('still ends on the file’s route when the panel cannot be found', async () => {
+    const car = editedCar();
+    const file = fileWith(car);
+    useProjectStore.setState({ ...startingProject(file), ...createTransientState(), isInspectorOpen: true });
+    render(<InspectorPanel />);
+    const step = planDemo(file).find((s): s is Extract<DemoStep, { kind: 'item' }> => s.kind === 'item')!;
+    await runStep(testContext(), step, file);
+    expect(useProjectStore.getState().items['r-car']).toEqual(car);
+    expect(warn).toHaveBeenCalled();
+  }, 30_000);
+
+  it('ends a whole run of routes on exactly the file’s project', async () => {
+    const walk = createWalkRouteItem({ id: 'r-walk', points: [PARIS, LYON, NICE], curved: true, startTime: 2 });
+    const file = fileWith(editedCar(), walk);
+    const ctx = testContext();
+    useProjectStore.setState({ ...startingProject(file), ...createTransientState(), isInspectorOpen: true });
+    render(<Editor onChooser={() => {}} />);
+    for (const step of planDemo(file)) await runStep(ctx, step, file);
+    expect(pickProject(useProjectStore.getState())).toEqual(pickProject(file));
+  }, 60_000);
 });
