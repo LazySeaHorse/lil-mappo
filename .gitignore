@@ -39,3 +39,6 @@ NEW-MONIES-MODEL.md
 knip.json
 dist-bridge
 bridge/*.syso
+
+# Demo private bundle (see DEMO.md)
+src/demo/private/

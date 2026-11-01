@@ -9,6 +9,10 @@ import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { AnalyticsBridge } from "@/lib/analytics/AnalyticsBridge";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { lazy, Suspense } from "react";
+import { IS_DEMO, IS_DEMO_FRAME } from "./demo/isDemo";
+
+const DemoFrame = lazy(() => import("./demo/frame/DemoFrame"));
 
 const App = () => (
   <AppErrorBoundary>
@@ -16,7 +20,8 @@ const App = () => (
     <AuthProvider>
     <TooltipProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
-        <AnalyticsBridge />
+        {!IS_DEMO && <AnalyticsBridge />}
+        {IS_DEMO_FRAME && <Suspense fallback={null}><DemoFrame /></Suspense>}
         <Routes>
           <Route path="/" element={<Index />} />
           {/* Same element as "/" so replacing the URL after a deep link applies does not remount the editor. */}
@@ -25,8 +30,8 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-      <SpeedInsights />
-      <Analytics />
+      {!IS_DEMO && <SpeedInsights />}
+      {!IS_DEMO && <Analytics />}
     </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
