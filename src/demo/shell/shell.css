@@ -1,0 +1,67 @@
+/* Demo shell: the letterbox, the stage and its wallpaper. */
+
+.ds-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #050506;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ds-stage {
+  position: absolute;
+  overflow: hidden;
+  isolation: isolate;
+  /* The frame draws its own macOS cursor; the real pointer stays out of the shot */
+  cursor: none;
+}
+
+/* A dusk gradient: deep blue up top, violet through the middle, a warm glow low on the left,
+   and one broad soft swell of light, so the windows have depth to sit on */
+.ds-wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(55% 45% at 18% 104%, rgba(255, 150, 96, 0.9), transparent 72%),
+    radial-gradient(50% 55% at 88% 96%, rgba(231, 84, 151, 0.62), transparent 70%),
+    radial-gradient(65% 60% at 78% -4%, rgba(64, 120, 238, 0.85), transparent 70%),
+    radial-gradient(55% 55% at 6% 8%, rgba(108, 70, 214, 0.75), transparent 70%),
+    linear-gradient(176deg, #172264 0%, #33268a 38%, #7a3590 70%, #d26a63 100%);
+}
+
+.ds-wallpaper::before,
+.ds-wallpaper::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+}
+
+/* Two long arcs of light, like dunes catching the last sun */
+.ds-wallpaper::before {
+  left: -20%;
+  right: -20%;
+  top: 58%;
+  height: 90%;
+  background: radial-gradient(50% 50% at 50% 0%, rgba(255, 200, 170, 0.32), transparent 70%);
+  transform: rotate(-6deg);
+}
+
+.ds-wallpaper::after {
+  left: -10%;
+  right: -30%;
+  top: 30%;
+  height: 80%;
+  background: radial-gradient(50% 40% at 60% 0%, rgba(160, 150, 255, 0.22), transparent 70%);
+  transform: rotate(9deg);
+}
+
+/* Over the windows: catches stray clicks and file drops, and keeps the pointer hidden over the
+   iframe too (an iframe's cursor comes from its own document). The frame blocks trusted input anyway. */
+.ds-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  cursor: none;
+}
