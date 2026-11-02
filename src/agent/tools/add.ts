@@ -2,6 +2,9 @@ import { z } from 'zod/v4';
 import { computeEndpointGeometry, type EndpointGeometry } from '@/services/endpointGeometry';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { searchBoundary, shortPlaceName } from '@/services/nominatim';
+import { fetchHistoricalOutline, searchHistorical, type HistoricalPlace } from '@/services/openHistoricalMap';
+import { formatDateRange, formatHistoricalYear, parseHistoricalDate } from '@/engine/historicalDate';
+import { pickVersionForYear, sourceForVersion } from '@/engine/historicalSource';
 import { getAllStyles, getStyle } from '@/annotations/registry';
 import {
   DEFAULT_BOUNDARY_STYLE,
@@ -12,7 +15,7 @@ import {
   createWalkRouteItem,
   defaultEndpointRouteName,
 } from '@/store/itemFactories';
-import type { RouteItem } from '@/store/types';
+import type { BoundaryItem, RouteItem } from '@/store/types';
 import { defineTool } from '../defineTool';
 import { ToolError } from '../errors';
 import { commitAiWrite } from '../commit';
@@ -143,37 +146,115 @@ export const addRoute = defineTool({
 
 // ---- add_boundary ----------------------------------------------------------
 
+/** How many places and, per place, how many periods the "nothing covers that year" error lists. */
+const MAX_LISTED_PLACES = 6;
+const MAX_LISTED_PERIODS = 4;
+
+/** Distance in years from `year` to the nearest end of a period (0 when an end is unknown). */
+function yearsFrom(year: number, version: { startDate: string | null; endDate: string | null }): number {
+  const years = [parseHistoricalDate(version.startDate), parseHistoricalDate(version.endDate)].flatMap((d) => (d ? [Math.abs(d.year - year)] : []));
+  return years.length ? Math.min(...years) : 0;
+}
+
+/** "Kingdom of Prussia 1701–1947 (nearest: 1701–1807, 1807–1871)": the whole span, then the periods closest to the year. */
+function describePlacePeriods(place: HistoricalPlace, year: number): string {
+  const dated = place.versions.filter((v) => formatDateRange(v.startDate, v.endDate));
+  const nearest = [...dated].sort((a, b) => yearsFrom(year, a) - yearsFrom(year, b)).slice(0, MAX_LISTED_PERIODS);
+  const ordered = dated.filter((v) => nearest.includes(v)).map((v) => formatDateRange(v.startDate, v.endDate));
+  const more = dated.length - ordered.length;
+  return `${place.placeName}: ${ordered.join(', ')}${more > 0 ? ` (+${more} more periods)` : ''}`;
+}
+
 export const addBoundary = defineTool({
   name: 'add_boundary',
   title: 'Add boundary',
   description:
-    'Adds an outlined region (country, state, city, district) found by name via OpenStreetMap Nominatim; the best polygon match is used. ' +
-    'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace, maskOutside + maskColor + maskOpacity to dim everything outside the region as a spotlight, fillUnderRoads to put the color fill under the roads so streets show through it, fillMode "flag" to fill a country with its flag (flagCode is pre-filled from the search result; override it with a lowercase ISO 3166-1 alpha-2 code)...). ' +
+    'Adds an outlined region (country, state, city, district) found by name; the best polygon match is used. Without `year` it is the present-day outline from OpenStreetMap Nominatim. ' +
+    'With `year` it is the historical region from OpenHistoricalMap that existed in that year (e.g. "Prussia" in 1850, "Roman Empire" in 117, "Soviet Union" in 1960): use it for documentary or history requests. ' +
+    'Historical coverage is uneven and borders may be approximate; the result names the place, its period and the source. If no period covers the year, the error lists the periods found, so retry with another year or name (English or historical names work best, e.g. "Kingdom of Prussia"). ' +
+    'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace, maskOutside + maskColor + maskOpacity to dim everything outside the region as a spotlight, fillUnderRoads to put the color fill under the roads so streets show through it, fillMode "flag" to fill a country with its flag (flagCode is pre-filled from the search result when there is one; override it with a lowercase ISO 3166-1 alpha-2 code)...). ' +
     '`detail` sets outline accuracy: detailed (~1 m, cities and neighbourhoods, close-ups), standard (~10 m, default, most regions) or light (~50 m, countries and continents, wide shots). ' +
-    'One undo step. Returns the item id, resolved place name and bbox [west, south, east, north] (pass the id to frame_items to frame it).',
+    'One undo step. Returns the item id, resolved place name, bbox [west, south, east, north] (pass the id to frame_items to frame it) and, for a historical boundary, its period and source.',
   input: z.strictObject({
-    query: z.string().min(2).max(200).describe('Region name, e.g. "Portugal", "Manhattan, New York", "Bavaria".'),
+    query: z.string().min(2).max(200).describe('Region name, e.g. "Portugal", "Manhattan, New York", "Bavaria". With `year`, a historical name works too, e.g. "Kingdom of Prussia".'),
+    year: z.number().int().min(-9999).max(9999).optional().describe(
+      'Optional. Pass it to get the region as it was in that year (OpenHistoricalMap) instead of today\'s outline. Whole year, e.g. 1871, or -44 for 45 BC (astronomical numbering: 0 is 1 BC, -1 is 2 BC, so the BC year is 1 minus the number). Omit for the present-day border.',
+    ),
     detail: z.enum(['detailed', 'standard', 'light']).optional().describe('Outline detail. Default "standard".'),
     ...timing,
     style: boundaryStylePatchSchema.optional().describe('Partial boundary style merged over the defaults.'),
   }),
   readOnly: false,
-  handler: async ({ query, detail, startTime, endTime, style }) => {
+  handler: async ({ query, year, detail, startTime, endTime, style }) => {
     resolveNewTimeRange(startTime, endTime);
-    let results;
-    try {
-      results = await searchBoundary(query);
-    } catch (err) {
-      throw new ToolError('boundary_search_failed', `Boundary search failed: ${errorMessage(err)}`);
-    }
-    const best = results[0];
-    if (!best) {
-      throw new ToolError('boundary_not_found', `No region outline found for "${query}". Try a broader or differently spelled name (regions, cities and countries work; addresses and POIs do not).`, { query });
-    }
-    const placeName = shortPlaceName(best.display_name);
-    const item = createBoundaryItem({ placeName, geojson: applyBoundaryDetail(best.geojson, detail), startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style }, countryCode: best.countryCode });
 
-    commitAiWrite(`AI: add boundary "${placeName}"`, () => {
+    // 1. Async work first: find the outline.
+    let placeName: string;
+    let geojson: GeoJSON.Geometry;
+    let countryCode: string | null;
+    let source: BoundaryItem['source'] = null;
+    let extra: Record<string, unknown>;
+    if (year === undefined) {
+      let results;
+      try {
+        results = await searchBoundary(query);
+      } catch (err) {
+        throw new ToolError('boundary_search_failed', `Boundary search failed: ${errorMessage(err)}`);
+      }
+      const best = results[0];
+      if (!best) {
+        throw new ToolError('boundary_not_found', `No region outline found for "${query}". Try a broader or differently spelled name (regions, cities and countries work; addresses and POIs do not).`, { query });
+      }
+      placeName = shortPlaceName(best.display_name);
+      geojson = best.geojson;
+      countryCode = best.countryCode;
+      extra = { resolvedName: best.display_name, otherMatches: results.slice(1).map((r) => r.display_name) };
+    } else {
+      let places: HistoricalPlace[];
+      try {
+        places = await searchHistorical(query);
+      } catch (err) {
+        throw new ToolError('boundary_search_failed', `Historical boundary search failed: ${errorMessage(err)}`);
+      }
+      if (places.length === 0) {
+        throw new ToolError('boundary_not_found', `No historical region found for "${query}". Try the English or the historical name of the place (e.g. "Kingdom of Prussia", "Roman Empire"), or omit \`year\` for the present-day border.`, { query, year });
+      }
+      // OHM's own rank order: the first place with a period that covers the year.
+      const covering = places.flatMap((place) => {
+        const version = pickVersionForYear(place.versions, year);
+        return version ? [{ place, version }] : [];
+      });
+      const chosen = covering[0];
+      if (!chosen) {
+        const listed = places.slice(0, MAX_LISTED_PLACES).map((p) => describePlacePeriods(p, year));
+        const hidden = places.length - listed.length;
+        throw new ToolError(
+          'boundary_year_not_found',
+          `OpenHistoricalMap has no "${query}" region that covers ${formatHistoricalYear(year)} (year ${year}). Found: ${listed.join('; ')}${hidden > 0 ? `; +${hidden} more places` : ''}. Retry with a year inside one of these periods or a different name.`,
+          { query, year, places: places.slice(0, MAX_LISTED_PLACES).map((p) => ({ name: p.placeName, periods: p.versions.map((v) => formatDateRange(v.startDate, v.endDate)).filter(Boolean) })) },
+        );
+      }
+      let outline;
+      try {
+        outline = await fetchHistoricalOutline(chosen.version.osmId);
+      } catch (err) {
+        throw new ToolError('boundary_outline_failed', `Could not load the historical outline of "${chosen.place.placeName}": ${errorMessage(err)}`);
+      }
+      placeName = chosen.place.placeName;
+      geojson = outline.geojson;
+      countryCode = outline.countryCode;
+      source = sourceForVersion(chosen.place, chosen.version);
+      extra = {
+        period: formatDateRange(source.startDate, source.endDate),
+        source: 'OpenHistoricalMap',
+        otherPlacesInThatYear: covering.slice(1, 6).map(({ place, version }) => `${place.placeName} (${formatDateRange(version.startDate, version.endDate)})`),
+      };
+    }
+    const item = createBoundaryItem({ placeName, geojson: applyBoundaryDetail(geojson, detail), startTime: 0, style: { ...DEFAULT_BOUNDARY_STYLE, ...style }, countryCode, source });
+    const period = source ? formatDateRange(source.startDate, source.endDate) : '';
+
+    // 2. One synchronous, labeled write.
+    commitAiWrite(`AI: add boundary "${placeName}"${period ? ` (${period})` : ''}`, () => {
       const [s, e] = resolveNewTimeRange(startTime, endTime);
       item.startTime = s;
       item.endTime = e;
@@ -183,11 +264,12 @@ export const addBoundary = defineTool({
     return {
       data: {
         created: summarizeItem(item, { detail: false }),
-        resolvedName: best.display_name,
-        bbox: geoStats(best.geojson).bbox,
-        otherMatches: results.slice(1).map((r) => r.display_name),
+        bbox: geoStats(geojson).bbox,
+        ...extra,
       },
-      summary: `Added boundary "${placeName}" (${item.startTime}s-${item.endTime}s)`,
+      summary: source
+        ? `Added boundary "${placeName}" (${period ? `${period}, ` : ''}OpenHistoricalMap, ${item.startTime}s-${item.endTime}s)`
+        : `Added boundary "${placeName}" (${item.startTime}s-${item.endTime}s)`,
       affectedItemIds: [item.id],
     };
   },

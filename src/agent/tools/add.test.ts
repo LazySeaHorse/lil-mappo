@@ -8,6 +8,7 @@ import { runAgentTool } from '../runner';
 import { setAgentMapRef } from '../mapRef';
 import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { syntheticIsland } from '@/test/syntheticGeometry';
+import { clearHistoricalOutlineCache } from '@/services/openHistoricalMap';
 import { historyPast, resetAgentTestState, resultJson } from '../testHelpers';
 
 const state = () => useProjectStore.getState();
@@ -43,8 +44,41 @@ function stubNetwork() {
   return fetchMock;
 }
 
+type OhmHit = { id: number; name: string; start?: string; end?: string; wikidata?: string };
+
+/** Stubs OpenHistoricalMap: `hits` for the search, one square outline for any lookup. Returns the mock so tests can inspect the calls. */
+function stubOhm(hits: OhmHit[], opts: { lookupStatus?: number } = {}) {
+  const fetchMock = vi.fn(async (input: unknown) => {
+    const url = new URL(String(input));
+    if (url.pathname === '/search') {
+      return new Response(JSON.stringify(hits.map((h) => ({
+        osm_type: 'relation', osm_id: h.id, name: h.name, display_name: `${h.name}, wrong suffix`, addresstype: 'country', type: 'administrative',
+        extratags: { ...(h.start ? { start_date: h.start } : {}), ...(h.end ? { end_date: h.end } : {}), ...(h.wikidata ? { wikidata: h.wikidata } : {}) },
+      }))));
+    }
+    if (url.pathname === '/lookup') {
+      if (opts.lookupStatus) return new Response('{}', { status: opts.lookupStatus });
+      return new Response(JSON.stringify({
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', properties: { extratags: {} }, geometry: { type: 'Polygon', coordinates: [[[6, 50], [14, 50], [14, 54], [6, 54], [6, 50]]] } }],
+      }));
+    }
+    return new Response('{}', { status: 404 });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+const PRUSSIA: OhmHit[] = [
+  { id: 1, name: 'Kingdom of Prussia', start: '1701', end: '1867', wikidata: 'Q27306' },
+  { id: 2, name: 'Kingdom of Prussia', start: '1867', end: '1876', wikidata: 'Q27306' },
+  { id: 3, name: 'Kingdom of Prussia', start: '1876', end: '1918-11-09', wikidata: 'Q27306' },
+  { id: 4, name: 'Free State of Prussia', start: '1918-11-09', end: '1947-02-25', wikidata: 'Q161036' },
+];
+
 describe('add tools', () => {
   beforeEach(() => {
+    clearHistoricalOutlineCache();
     resetAgentTestState();
     useAuthStore.setState({ user: null });
     queryClient.clear();
@@ -190,6 +224,126 @@ describe('add tools', () => {
     const result = await runAgentTool('add_boundary', { query: 'Nowhereland' });
     expect(resultJson(result).error).toBe('boundary_not_found');
     expect(steps()).toBe(0);
+  });
+
+  it('add_boundary without year never touches OpenHistoricalMap and stores no source', async () => {
+    const fetchMock = stubNetwork();
+    const body = resultJson<{ created: { id: string; historical?: unknown } }>(await runAgentTool('add_boundary', { query: 'Portugal' }));
+    expect(state().items[body.created.id]).toMatchObject({ source: null });
+    expect(body.created.historical).toBeUndefined();
+    expect(fetchMock.mock.calls.every(([u]) => !String(u).includes('openhistoricalmap'))).toBe(true);
+  });
+
+  it('add_boundary with year picks the period that covers it and records the source', async () => {
+    const fetchMock = stubOhm(PRUSSIA);
+    const result = await runAgentTool('add_boundary', { query: 'Prussia', year: 1870, startTime: 2, endTime: 7 });
+    const body = resultJson<{ created: { id: string; placeName: string; historical: { period: string; source: string } }; period: string; source: string; bbox: number[] }>(result);
+    expect(body.created.placeName).toBe('Kingdom of Prussia');
+    expect(body.period).toBe('1867–1876');
+    expect(body.source).toBe('OpenHistoricalMap');
+    expect(body.created.historical).toEqual({ period: '1867–1876', source: 'OpenHistoricalMap' });
+    expect(body.bbox).toEqual([6, 50, 14, 54]);
+    expect(result.content[0].type).toBe('text');
+    const item = state().items[body.created.id];
+    expect(item).toMatchObject({
+      kind: 'boundary', placeName: 'Kingdom of Prussia', startTime: 2, endTime: 7,
+      source: {
+        provider: 'ohm', osmId: 'R2', wikidata: 'Q27306', startDate: '1867', endDate: '1876',
+        versions: [{ osmId: 'R1', startDate: '1701' }, { osmId: 'R2', startDate: '1867' }, { osmId: 'R3', endDate: '1918-11-09' }],
+      },
+    });
+    // only the chosen period's outline is downloaded
+    const lookups = fetchMock.mock.calls.map(([u]) => new URL(String(u))).filter((u) => u.pathname === '/lookup');
+    expect(lookups).toHaveLength(1);
+    expect(lookups[0].searchParams.get('osm_ids')).toBe('R2');
+    expect(steps()).toBe(1);
+    expect(historyPast()[0]).toMatchObject({ source: 'ai', label: 'AI: add boundary "Kingdom of Prussia" (1867–1876)' });
+  });
+
+  it('add_boundary reports the period and source in the summary', async () => {
+    stubOhm(PRUSSIA);
+    const result = await runAgentTool('add_boundary', { query: 'Prussia', year: 1870 });
+    expect(agentEvents.getLog().at(-1)).toMatchObject({ phase: 'succeeded', summary: expect.stringContaining('Added boundary "Kingdom of Prussia" (1867–1876, OpenHistoricalMap') });
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('add_boundary hands a shared year to the later period, so adjacent periods do not both match', async () => {
+    stubOhm(PRUSSIA);
+    const at1876 = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Prussia', year: 1876 }));
+    expect(state().items[at1876.created.id]).toMatchObject({ source: { osmId: 'R3' } });
+    const at1867 = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Prussia', year: 1867 }));
+    expect(state().items[at1867.created.id]).toMatchObject({ source: { osmId: 'R2' } });
+  });
+
+  it('add_boundary takes the first covering place in OpenHistoricalMap order and lists the others', async () => {
+    stubOhm([
+      { id: 10, name: 'Brandenburg-Prussia', start: '1618', end: '1701', wikidata: 'Q157367' },
+      ...PRUSSIA,
+    ]);
+    const body = resultJson<{ created: { placeName: string }; otherPlacesInThatYear: string[] }>(await runAgentTool('add_boundary', { query: 'Prussia', year: 1930 }));
+    expect(body.created.placeName).toBe('Free State of Prussia');
+    expect(body.otherPlacesInThatYear).toEqual([]);
+    stubOhm([...PRUSSIA, { id: 11, name: 'Hanover', start: '1866', end: '1866', wikidata: 'Q706018' }]);
+    const both = resultJson<{ created: { placeName: string }; otherPlacesInThatYear: string[] }>(await runAgentTool('add_boundary', { query: 'Prussia', year: 1866 }));
+    expect(both.created.placeName).toBe('Kingdom of Prussia');
+    expect(both.otherPlacesInThatYear).toEqual(['Hanover (1866)']);
+  });
+
+  it('add_boundary treats negative years as astronomical BC years (-44 is 45 BC)', async () => {
+    stubOhm([
+      { id: 20, name: 'Roman Republic', start: '-0508', end: '-0026', wikidata: 'Q17167' },
+      { id: 21, name: 'Roman Empire', start: '-0026', end: '0476', wikidata: 'Q2277' },
+    ]);
+    const caesar = resultJson<{ created: { placeName: string }; period: string }>(await runAgentTool('add_boundary', { query: 'Rome', year: -44 }));
+    expect(caesar).toMatchObject({ created: { placeName: 'Roman Republic' }, period: '509 BC–27 BC' });
+    const trajan = resultJson<{ created: { placeName: string } }>(await runAgentTool('add_boundary', { query: 'Rome', year: 117 }));
+    expect(trajan.created.placeName).toBe('Roman Empire');
+    const year0 = resultJson<{ created: { placeName: string } }>(await runAgentTool('add_boundary', { query: 'Rome', year: 0 }));
+    expect(year0.created.placeName).toBe('Roman Empire');
+  });
+
+  it('add_boundary errors with the available periods when no period covers the year', async () => {
+    stubOhm(PRUSSIA);
+    const result = await runAgentTool('add_boundary', { query: 'Prussia', year: 1500 });
+    expect(result.isError).toBe(true);
+    const err = resultJson<{ error: string; message: string; places: { name: string; periods: string[] }[] }>(result);
+    expect(err.error).toBe('boundary_year_not_found');
+    expect(err.message).toContain('1500');
+    expect(err.message).toContain('Kingdom of Prussia: 1701–1867, 1867–1876, 1876–1918');
+    expect(err.message).toContain('Free State of Prussia: 1918–1947');
+    expect(err.places.map((p) => p.name)).toEqual(['Kingdom of Prussia', 'Free State of Prussia']);
+    expect(steps()).toBe(0);
+  });
+
+  it('add_boundary caps the periods it lists in the error, keeping those nearest the year', async () => {
+    const many: OhmHit[] = Array.from({ length: 12 }, (_, i) => ({ id: 100 + i, name: 'Kingdom of Prussia', start: String(1700 + i * 10), end: String(1710 + i * 10), wikidata: 'Q27306' }));
+    stubOhm(many);
+    const err = resultJson<{ message: string }>(await runAgentTool('add_boundary', { query: 'Prussia', year: 1600 }));
+    expect(err.message).toContain('1700–1710, 1710–1720, 1720–1730, 1730–1740 (+8 more periods)');
+  });
+
+  it('add_boundary says when OpenHistoricalMap finds nothing and suggests another name', async () => {
+    stubOhm([]);
+    const err = resultJson<{ error: string; message: string }>(await runAgentTool('add_boundary', { query: 'Atlantis', year: 1900 }));
+    expect(err.error).toBe('boundary_not_found');
+    expect(err.message).toMatch(/English or the historical name/);
+    expect(steps()).toBe(0);
+  });
+
+  it('add_boundary turns historical search and outline failures into tool errors', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 503 })));
+    const search = resultJson<{ error: string }>(await runAgentTool('add_boundary', { query: 'Prussia', year: 1870 }));
+    expect(search.error).toBe('boundary_search_failed');
+    stubOhm(PRUSSIA, { lookupStatus: 500 });
+    const outline = resultJson<{ error: string }>(await runAgentTool('add_boundary', { query: 'Prussia', year: 1870 }));
+    expect(outline.error).toBe('boundary_outline_failed');
+    expect(steps()).toBe(0);
+  });
+
+  it('add_boundary rejects a non-integer year', async () => {
+    stubOhm(PRUSSIA);
+    expect((await runAgentTool('add_boundary', { query: 'Prussia', year: 1870.5 })).isError).toBe(true);
+    expect((await runAgentTool('add_boundary', { query: 'Prussia', year: '1870' })).isError).toBe(true);
   });
 
   it('add_callout pins to a geocoded place with the UI defaults', async () => {
