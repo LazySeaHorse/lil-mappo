@@ -1,7 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Window } from './kit/window';
 import type { Box } from './layout';
-import { SPINNER_FRAMES, spinnerVerb, type TranscriptEntry, type TranscriptState } from './transcript';
+import {
+  SPINNER_FRAMES,
+  formatSeconds,
+  formatTokens,
+  spinnerTokens,
+  spinnerVerb,
+  type TranscriptEntry,
+  type TranscriptState,
+} from './transcript';
 import '@fontsource/jetbrains-mono/400.css';
 
 interface ClaudeCodeProps {
@@ -15,7 +23,7 @@ interface ClaudeCodeProps {
 
 const SPINNER_TICK_MS = 120;
 
-/** The spinner's frame and the turn's elapsed seconds, ticking while Claude works. */
+/** The spinner's frame and the turn's elapsed time, ticking while Claude works. */
 function useSpinner(busySince: number | null) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
@@ -26,7 +34,7 @@ function useSpinner(busySince: number | null) {
   }, [busySince]);
   if (busySince === null) return null;
   const elapsed = Math.max(0, now - busySince);
-  return { glyph: SPINNER_FRAMES[Math.floor(elapsed / SPINNER_TICK_MS) % SPINNER_FRAMES.length], seconds: Math.floor(elapsed / 1000) };
+  return { glyph: SPINNER_FRAMES[Math.floor(elapsed / SPINNER_TICK_MS) % SPINNER_FRAMES.length], elapsed };
 }
 
 function Entry({ entry }: { entry: TranscriptEntry }) {
@@ -35,6 +43,22 @@ function Entry({ entry }: { entry: TranscriptEntry }) {
       <div className="ds-cc__user">
         <span className="ds-cc__mark">&gt;</span>
         <span>{entry.text}</span>
+      </div>
+    );
+  }
+  if (entry.kind === 'thought') {
+    return (
+      <div className="ds-cc__note">
+        <span className="ds-cc__glyph">∴</span>
+        <span>Thought for {formatSeconds(entry.seconds)}</span>
+      </div>
+    );
+  }
+  if (entry.kind === 'worked') {
+    return (
+      <div className="ds-cc__note">
+        <span className="ds-cc__glyph">✻</span>
+        <span>Worked for {formatSeconds(entry.seconds)}</span>
       </div>
     );
   }
@@ -72,6 +96,7 @@ export function ClaudeCode({ box, open, portrait, transcript, fontSize }: Claude
   const scrollRef = useRef<HTMLDivElement>(null);
   const spinner = useSpinner(transcript.busySince);
   const typing = transcript.typing;
+  const tokens = spinner ? spinnerTokens(transcript, spinner.elapsed) : 0;
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -104,11 +129,21 @@ export function ClaudeCode({ box, open, portrait, transcript, fontSize }: Claude
           <Entry key={i} entry={entry} />
         ))}
 
+        {transcript.thinking && (
+          <div className="ds-cc__note">
+            <span className="ds-cc__glyph">✻</span>
+            <span>Thinking…</span>
+          </div>
+        )}
+
         {spinner && (
           <div className="ds-cc__spinner">
             <span className="ds-cc__glyph">{spinner.glyph}</span>
-            <span>{spinnerVerb(transcript.turn)}…</span>{' '}
-            <span className="ds-cc__dim">({spinner.seconds}s · esc to interrupt)</span>
+            <span>{spinnerVerb(transcript.requests)}…</span>{' '}
+            <span className="ds-cc__dim">
+              ({formatSeconds(spinner.elapsed / 1000)}
+              {tokens > 0 ? ` · ↓ ${formatTokens(tokens)}` : ''} · esc to interrupt)
+            </span>
           </div>
         )}
 

@@ -319,6 +319,12 @@
   color: var(--cc-accent);
 }
 
+/* `∴ Thought for 3s`, `✻ Thinking…`, `✻ Worked for 2m 14s`: dim notes between the messages */
+.ds-cc__note {
+  display: flex;
+  color: var(--cc-dim);
+}
+
 .ds-cc__input {
   display: flex;
   padding: 0.25em 1ch;
