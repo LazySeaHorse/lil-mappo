@@ -102,7 +102,10 @@ function installRuntime(renderResultAt: (t: number) => 'idle' | 'timeout' = () =
     getMap: () => map,
     sync: vi.fn(() => { log.push('sync'); }),
     renderAt: vi.fn((t: number) => { log.push(`renderAt:${t}`); lastRenderedAt = t; }),
-    waitUntilRendered: vi.fn(async () => { log.push('rendered'); return renderResultAt(lastRenderedAt); }),
+    waitUntilRendered: vi.fn(async (_wait?: unknown): Promise<'idle' | 'timeout'> => {
+      log.push('rendered');
+      return renderResultAt(lastRenderedAt);
+    }),
   };
   return { map, runtime, ref: { current: runtime } as never };
 }
@@ -177,6 +180,52 @@ describe('runExport', () => {
     expect(incompleteFrames).toBe(1);
     expect(log.filter((e) => e.startsWith('encode:'))).toEqual(['encode:0', 'encode:500000', 'encode:1000000']);
     expect(mux.outputs[0].finalize).toHaveBeenCalled();
+  });
+
+  it('waits for each frame as long as tiles keep arriving, giving up after 30s with no progress', async () => {
+    const { ref, runtime } = installRuntime();
+    await runExport(ref, options());
+
+    expect(runtime.waitUntilRendered).toHaveBeenCalledTimes(3);
+    for (const [wait] of runtime.waitUntilRendered.mock.calls) {
+      expect(wait).toMatchObject({ timeoutMs: 30_000, extendWhileLoading: true, signal: expect.any(AbortSignal) });
+    }
+  });
+
+  it('stops with a plain message after 3 frames in a row stall, and discards the output', async () => {
+    useProjectStore.setState({ duration: 3 });
+    const { ref } = installRuntime((t) => (t >= 1 ? 'timeout' : 'idle'));
+
+    await expect(runExport(ref, options())).rejects.toThrow(
+      'Export stopped: the map stopped loading. Check your internet connection and try again.',
+    );
+    // Frames at 1, 1.5 and 2 stall; the third stops the export before it is encoded.
+    expect(log.filter((e) => e.startsWith('encode:'))).toEqual(['encode:0', 'encode:500000', 'encode:1000000', 'encode:1500000']);
+    expect(mux.outputs[0].finalize).not.toHaveBeenCalled();
+    expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('finishes when stalls are not 3 in a row, counting every stalled frame', async () => {
+    useProjectStore.setState({ duration: 3 });
+    const stalled = new Set([0.5, 1, 2, 2.5]);
+    const { ref } = installRuntime((t) => (stalled.has(t) ? 'timeout' : 'idle'));
+
+    const { incompleteFrames } = await runExport(ref, options());
+
+    expect(incompleteFrames).toBe(4);
+    expect(log.filter((e) => e.startsWith('encode:'))).toHaveLength(7);
+  });
+
+  it('cancels a frame that is still waiting for the map', async () => {
+    const { ref, runtime } = installRuntime();
+    const controller = new AbortController();
+    runtime.waitUntilRendered.mockImplementation((wait?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+      wait?.signal?.addEventListener('abort', () => reject(wait.signal!.reason));
+      controller.abort();
+    }));
+
+    await expect(runExport(ref, options({ abortSignal: controller.signal }))).rejects.toMatchObject({ name: 'AbortError' });
+    expect(target.discard).toHaveBeenCalledTimes(1);
   });
 
   it('refuses without a map runtime, before starting an encoder', async () => {
