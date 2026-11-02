@@ -8,10 +8,9 @@ import { createBoundaryItem } from '@/store/itemFactories';
 import type { BoundaryItem } from '@/store/types';
 import { readInfoTips } from '@/test/infoTips';
 
-vi.mock('@/services/nominatim', async (importActual) => ({
-  ...(await importActual<typeof import('@/services/nominatim')>()),
-  searchBoundary: vi.fn(async () => [
-    { display_name: 'Lyon, Metropolis of Lyon, France', geojson: { type: 'Polygon', coordinates: [[[4, 45], [5, 45], [5, 46], [4, 45]]] } },
+vi.mock('@/services/boundarySearch', () => ({
+  searchBoundaries: vi.fn(async () => [
+    { kind: 'present', placeName: 'Lyon', displayName: 'Lyon, Metropolis of Lyon, France', type: 'city', countryCode: null, geojson: { type: 'Polygon', coordinates: [[[4, 45], [5, 45], [5, 46], [4, 45]]] } },
   ]),
 }));
 

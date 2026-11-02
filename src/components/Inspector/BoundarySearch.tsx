@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { searchBoundary, shortPlaceName, NominatimResult } from '@/services/nominatim';
+import { searchBoundaries, type BoundarySearchResult } from '@/services/boundarySearch';
 import { toast } from 'sonner';
 import { SearchFieldActions } from '@/components/Search/SearchFieldActions';
 import { SEARCH_INPUT_CLASS } from '@/components/Search/searchFieldStyles';
 import { cn } from '@/lib/utils';
 import { useMapRef } from '@/hooks/useMapRef';
 import { readMapView } from '@/services/locationSearch';
+import { HistoricalBadge } from './controls/HistoricalBadge';
 
 interface BoundarySearchProps {
   initialValue: string;
-  onSelect: (result: NominatimResult) => void;
+  onSelect: (result: BoundarySearchResult) => void;
   /** Put the cursor in the field on mount, for a search the user just asked for. */
   autoFocus?: boolean;
 }
@@ -19,7 +20,7 @@ interface BoundarySearchProps {
 /** The search's progress is local to this component: the boundary item only changes when a result is picked. */
 export function BoundarySearch({ initialValue, onSelect, autoFocus = false }: BoundarySearchProps) {
   const [query, setQuery] = useState(initialValue);
-  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [results, setResults] = useState<BoundarySearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const mapRef = useMapRef();
 
@@ -55,7 +56,7 @@ export function BoundarySearch({ initialValue, onSelect, autoFocus = false }: Bo
 
     try {
       const view = readMapView(mapRef.current?.getMap());
-      const res = await searchBoundary(trimmed, abortController.signal, view?.bbox);
+      const res = await searchBoundaries(trimmed, abortController.signal, view?.bbox);
       if (abortController.signal.aborted) {
         return;
       }
@@ -136,19 +137,33 @@ export function BoundarySearch({ initialValue, onSelect, autoFocus = false }: Bo
             <Button variant="subtle" size="xs" onClick={() => setResults([])}>Clear</Button>
           </div>
           <div className="ph-no-capture max-h-[160px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {results.map((r, i) => (
-              <button 
-                key={i} 
-                onClick={() => {
-                  onSelect(r);
-                  setResults([]);
-                }} 
-                className="w-full text-left px-3 py-2 text-xs hover:bg-primary/5 transition-colors border-b border-border/30 last:border-0 group"
-              >
-                <div className="font-medium group-hover:text-primary transition-colors">{shortPlaceName(r.display_name)}</div>
-                <div className="text-2xs text-muted-foreground truncate">{r.display_name.split(',').slice(1).join(',')}</div>
-              </button>
-            ))}
+            {results.map((r, i) => {
+              const pick = () => {
+                onSelect(r);
+                setResults([]);
+              };
+              return r.kind === 'present' ? (
+                <button
+                  key={i}
+                  onClick={pick}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-primary/5 transition-colors border-b border-border/30 last:border-0 group"
+                >
+                  <div className="font-medium group-hover:text-primary transition-colors">{r.placeName}</div>
+                  <div className="text-2xs text-muted-foreground truncate">{r.displayName.split(',').slice(1).join(',')}</div>
+                </button>
+              ) : (
+                // The badge is a button of its own (tooltip on hover, focus and tap), so it sits beside the row button.
+                <div
+                  key={i}
+                  className="flex items-center gap-2 pr-3 hover:bg-primary/5 transition-colors border-b border-border/30 last:border-0 group"
+                >
+                  <button onClick={pick} className="min-w-0 flex-1 text-left pl-3 py-2 text-xs">
+                    <div className="font-medium truncate group-hover:text-primary transition-colors">{r.placeName}</div>
+                  </button>
+                  <HistoricalBadge versions={r.versions} />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

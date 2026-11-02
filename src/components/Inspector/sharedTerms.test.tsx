@@ -21,7 +21,7 @@ vi.mock('@/hooks/useResponsive', () => ({
 vi.mock('./RoutePlanner', () => ({ RoutePlanner: () => <div /> }));
 vi.mock('./BoundarySearch', () => ({
   BoundarySearch: ({ onSelect }: { onSelect?: (r: unknown) => void }) => (
-    <button onClick={() => onSelect?.({ display_name: 'Isola, Italia', type: 'island', geojson: syntheticIsland(), countryCode: 'it' })}>
+    <button onClick={() => onSelect?.({ kind: 'present', placeName: 'Isola', displayName: 'Isola, Italia', type: 'island', geojson: syntheticIsland(), countryCode: 'it' })}>
       pick-result
     </button>
   ),

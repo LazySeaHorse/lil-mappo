@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -6,12 +6,19 @@ import { applyBoundaryDetail } from '@/engine/boundaryDetail';
 import { syntheticIsland } from '@/test/syntheticGeometry';
 import type { BoundaryItem, CalloutItem } from '@/store/types';
 import { clearHistory, getHistoryEntries, undo } from '@/store/history';
-import { BOUNDARY_ADD_TERMS } from '@/lib/terms';
+import { BOUNDARY_ADD_TERMS, HISTORICAL_TERMS } from '@/lib/terms';
+import { fetchHistoricalOutline, type HistoricalOutline } from '@/services/openHistoricalMap';
+import { outlineOf, prussia } from '@/test/historicalFixtures';
+import { readInfoTips } from '@/test/infoTips';
+import { toast } from 'sonner';
 import '@/annotations/styles';
 import { MapRefContext } from '@/hooks/useMapRef';
 import type { MapRef } from 'react-map-gl/mapbox';
 
 const island = syntheticIsland();
+
+vi.mock('@/services/openHistoricalMap', () => ({ fetchHistoricalOutline: vi.fn() }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 vi.mock('react-secure-storage', () => ({
   default: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn() },
@@ -20,8 +27,9 @@ vi.mock('react-secure-storage', () => ({
 vi.mock('../Inspector/BoundarySearch', () => ({
   BoundarySearch: ({ onSelect }: { onSelect: (r: unknown) => void }) => (
     <>
-      <button onClick={() => onSelect({ display_name: 'Isola, Italia', type: 'island', geojson: island, countryCode: 'it' })}>pick-result</button>
-      <button onClick={() => onSelect({ display_name: 'Citta, Italia', type: 'city', geojson: island, countryCode: null })}>pick-city</button>
+      <button onClick={() => onSelect({ kind: 'present', placeName: 'Isola', displayName: 'Isola, Italia', type: 'island', geojson: island, countryCode: 'it' })}>pick-result</button>
+      <button onClick={() => onSelect(prussia)}>pick-historical</button>
+      <button onClick={() => onSelect({ kind: 'present', placeName: 'Citta', displayName: 'Citta, Italia', type: 'city', geojson: island, countryCode: null })}>pick-city</button>
     </>
   ),
 }));
@@ -188,6 +196,166 @@ describe('BoundaryAddDropdown', () => {
     choose('pick-city');
     expect(staged().style).toMatchObject({ flagCode: null, fillMode: 'color', fillOpacity: 0.1 });
     expect(screen.queryByText('Flag')).not.toBeInTheDocument();
+  });
+});
+
+/** A download the test settles itself, to place a second pick or period change in the middle of it. */
+function deferredOutline() {
+  let resolve!: (outline: HistoricalOutline) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<HistoricalOutline>((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
+const periodPicker = () => screen.getByRole('combobox', { name: HISTORICAL_TERMS.period });
+const choosePeriod = (range: string) => {
+  fireEvent.click(periodPicker());
+  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: range }));
+};
+const R1 = '18 Jan 1701 – 1815';
+const R2 = '1815 – 1867';
+const R3 = '1867 – 9 Nov 1918';
+
+describe('BoundaryAddDropdown historical places', () => {
+  beforeEach(() => {
+    onOpenChange.mockClear();
+    vi.mocked(fetchHistoricalOutline).mockReset();
+    vi.mocked(fetchHistoricalOutline).mockImplementation(async (osmId) => outlineOf(osmId));
+    vi.mocked(toast.error).mockClear();
+    useProjectStore.setState({ items: {}, itemOrder: [], stagedItems: [], selectedItemId: null, playheadTime: 0, appearPreview: null });
+    useProjectStore.getState().setBoundaryDetail('standard');
+    clearHistory();
+  });
+
+  it('stages the latest period with its source, shows the dates and plays the entrance', async () => {
+    open();
+    choose('pick-historical');
+    await waitFor(() => expect(staged()).toBeDefined());
+
+    expect(fetchHistoricalOutline).toHaveBeenCalledWith('R3', expect.any(AbortSignal));
+    expect(staged()).toMatchObject({
+      placeName: 'Kingdom of Prussia',
+      geojson: applyBoundaryDetail(outlineOf('R3').geojson, 'standard'),
+      source: { provider: 'ohm', osmId: 'R3', wikidata: 'Q27306', startDate: '1867', endDate: '1918-11-09' },
+    });
+    expect(staged().source!.versions.map((v) => v.osmId)).toEqual(['R1', 'R2', 'R3']);
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [staged().id] });
+    expect(screen.getByText('1867–1918')).toBeInTheDocument();
+    expect(periodPicker()).toHaveTextContent(R3);
+    expect(screen.queryByText('Flag')).not.toBeInTheDocument(); // no country code, so no Flag switch
+  });
+
+  it('shows a loading state while the outline downloads, and keeps Add off until it arrives', async () => {
+    const download = deferredOutline();
+    vi.mocked(fetchHistoricalOutline).mockReturnValueOnce(download.promise);
+    open();
+    choose('pick-historical');
+
+    expect(screen.getByText(HISTORICAL_TERMS.loading)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: BOUNDARY_ADD_TERMS.add })).toBeDisabled();
+    await act(async () => { download.resolve(outlineOf('R3')); });
+    await waitFor(() => expect(staged()).toBeDefined());
+    expect(screen.queryByText(HISTORICAL_TERMS.loading)).not.toBeInTheDocument();
+  });
+
+  it('changing the period fetches that outline and stages it again, keeping the options', async () => {
+    open();
+    choose('pick-historical');
+    await waitFor(() => expect(staged()).toBeDefined());
+    toggle('Dim surroundings');
+    toggle('Name label');
+    const first = staged().id;
+    useProjectStore.setState({ appearPreview: null });
+
+    choosePeriod(R1);
+    await waitFor(() => expect(staged().source?.osmId).toBe('R1'));
+
+    expect(staged().id).not.toBe(first);
+    expect(staged().geojson).toEqual(applyBoundaryDetail(outlineOf('R1').geojson, 'standard'));
+    expect(staged().source).toMatchObject({ startDate: '1701-01-18', endDate: '1815' });
+    expect(staged().style.maskOutside).toBe(true);
+    expect(stagedLabels()).toHaveLength(1);
+    expect(useProjectStore.getState().appearPreview).toMatchObject({ itemIds: [staged().id, stagedLabels()[0].id] });
+    expect(periodPicker()).toHaveTextContent(R1);
+    expect(getHistoryEntries().past).toHaveLength(0);
+  });
+
+  it('ignores an outline that arrives after the user chose another period', async () => {
+    open();
+    choose('pick-historical');
+    await waitFor(() => expect(staged()).toBeDefined());
+
+    const slow = deferredOutline();
+    vi.mocked(fetchHistoricalOutline).mockReturnValueOnce(slow.promise);
+    choosePeriod(R1);
+    // The picker is locked while loading; the user instead picks another place and then comes back.
+    choose('pick-result');
+    expect(staged().placeName).toBe('Isola');
+    await act(async () => { slow.resolve(outlineOf('R1')); });
+
+    expect(staged().placeName).toBe('Isola');
+    expect(staged().source).toBeNull();
+    expect(screen.queryByRole('combobox', { name: HISTORICAL_TERMS.period })).not.toBeInTheDocument();
+  });
+
+  it('keeps the newest of two quick historical picks', async () => {
+    const slow = deferredOutline();
+    vi.mocked(fetchHistoricalOutline).mockReturnValueOnce(slow.promise);
+    open();
+    choose('pick-historical'); // R3, slow
+    vi.mocked(fetchHistoricalOutline).mockImplementationOnce(async (osmId) => outlineOf(osmId));
+    choose('pick-historical'); // R3 again, fast
+    await waitFor(() => expect(staged()).toBeDefined());
+    await act(async () => { slow.resolve({ ...outlineOf('R3'), geojson: island as GeoJSON.Polygon }); });
+
+    expect(staged().geojson).toEqual(applyBoundaryDetail(outlineOf('R3').geojson, 'standard'));
+  });
+
+  it('shows a toast when the outline cannot be loaded and keeps the earlier preview', async () => {
+    open();
+    choose();
+    vi.mocked(fetchHistoricalOutline).mockRejectedValueOnce(new Error('OpenHistoricalMap error: 500'));
+    choose('pick-historical');
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(HISTORICAL_TERMS.loadFailed));
+
+    expect(staged().placeName).toBe('Isola');
+    expect(screen.queryByText(HISTORICAL_TERMS.loading)).not.toBeInTheDocument();
+  });
+
+  it('puts the OpenHistoricalMap notes of the chosen period in the picker hint', async () => {
+    open();
+    choose('pick-historical');
+    await waitFor(() => expect(staged()).toBeDefined());
+    expect(await readInfoTips()).not.toContain(HISTORICAL_TERMS.notes(['needs source for boundary lines']));
+
+    choosePeriod(R2);
+    await waitFor(() => expect(staged().source?.osmId).toBe('R2'));
+    expect(await readInfoTips()).toContain('OpenHistoricalMap notes: needs source for boundary lines');
+  });
+
+  it('adds the historical boundary with its source', async () => {
+    open();
+    choose('pick-historical');
+    await waitFor(() => expect(staged()).toBeDefined());
+    add();
+    expect(boundaries()).toEqual([expect.objectContaining({ placeName: 'Kingdom of Prussia', source: expect.objectContaining({ osmId: 'R3' }) })]);
+  });
+
+  it('shows a present place with no source and no period picker', () => {
+    open();
+    choose();
+    expect(staged().source).toBeNull();
+    expect(screen.queryByRole('combobox', { name: HISTORICAL_TERMS.period })).not.toBeInTheDocument();
+    expect(fetchHistoricalOutline).not.toHaveBeenCalled();
+  });
+
+  it('turns on the Flag switch for an outline with a country code', async () => {
+    vi.mocked(fetchHistoricalOutline).mockResolvedValueOnce({ ...outlineOf('R3'), countryCode: 'de' });
+    open();
+    choose('pick-historical');
+    await waitFor(() => expect(staged()).toBeDefined());
+    expect(screen.getByText('Flag')).toBeInTheDocument();
+    expect(staged().style.flagCode).toBe('de');
   });
 });
 
