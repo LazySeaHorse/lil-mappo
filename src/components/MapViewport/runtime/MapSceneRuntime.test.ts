@@ -6,6 +6,7 @@ function createMapDouble(loaded: boolean) {
   const listeners = new Set<() => void>();
   const map = {
     loaded: vi.fn(() => loaded),
+    areTilesLoaded: vi.fn(() => false),
     on: vi.fn((_event: string, listener: () => void) => listeners.add(listener)),
     off: vi.fn((_event: string, listener: () => void) => listeners.delete(listener)),
   };
