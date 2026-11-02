@@ -10,6 +10,7 @@ import { runCallout } from './calloutRunner';
 import { runModel } from './modelRunner';
 import { currentLocators, type Locators } from './locators';
 import { mockBoundarySearch } from './mocks';
+import { runRoute } from './routeRunner';
 import { applyStep, boundaryEdits, deepEqual, type DemoStep, type FieldEdit } from './plan';
 
 /**
@@ -187,6 +188,7 @@ export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): 
       if (step.itemKind === 'boundary') return runBoundary(ctx, step, file);
       if (step.itemKind === 'callout') return runCallout(ctx, step, file);
       if (step.itemKind === 'model') return runModel(ctx, step, file);
+      if (step.itemKind === 'route') return runRoute(ctx, step, file);
       commitStep(step, file);
       return;
     default:

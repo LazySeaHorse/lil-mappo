@@ -61,6 +61,30 @@ export interface Locators {
   /** A model the project already has, in the dialog's list. */
   modelListRow: (fileName: string) => Locator;
   modelAddButton: Locator;
+  // --- routes ---
+  addRouteButton: Locator;
+  /** The Plan Route panel (a Radix menu). */
+  addRoutePanel: Locator;
+  /** The Car / Walk / Flight switch of the panel. */
+  routeMode: (label: string) => Locator;
+  /** A place field of the panel, by its label above it (Start, End, Departure, Arrival). */
+  routePlaceField: (label: string) => Locator;
+  /** The "+" pill of a place field that makes it a list of places. */
+  routeMakeListPill: (label: string) => Locator;
+  /** The search box of the list of places of a hub and spoke plan. */
+  routeSpokeField: Locator;
+  /** A result of a place or airport search (they open in a popover outside the panel). */
+  routePlaceResult: (placeName: string) => Locator;
+  routeAirportResult: (airportName: string) => Locator;
+  routeTimingOption: (label: string) => Locator;
+  routeGapField: Locator;
+  routePreviewButton: Locator;
+  routeInsertButton: Locator;
+  routeCreateHubButton: Locator;
+  routeImportButton: Locator;
+  walkSmoothSwitch: Locator;
+  walkAddPointButton: Locator;
+  routeNameField: Locator;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -68,6 +92,37 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
 const addBoundaryPanel: Locator = { role: 'menu', description: 'the Add Boundary panel' };
 const addCalloutPanel: Locator = { role: 'menu', description: 'the Add Callout panel' };
 const modelDialog: Locator = { role: 'dialog', description: 'the 3D model popup' };
+
+// --- routes ---
+const addRoutePanel: Locator = { role: 'menu', description: 'the Plan Route panel' };
+
+const routeLocators = {
+  addRouteButton: { walkthrough: 'add-route', description: 'the Plan Route button' },
+  addRoutePanel,
+  routeMode: (label: string) => ({ role: 'radio', name: label, within: addRoutePanel, description: `the ${label} travel mode` }),
+  routePlaceField: (label: string) => ({ label, selector: 'input', within: addRoutePanel, description: `the ${label} place field` }),
+  routeMakeListPill: (label: string) => ({ label, role: 'button', name: 'Add more places', within: addRoutePanel, description: `the "add more places" pill of ${label}` }),
+  routeSpokeField: { selector: '[data-testid="hub-spoke-list"] input', within: addRoutePanel, description: 'the list of places field' },
+  routePlaceResult: (placeName: string) => ({
+    selector: '[data-slot="popover-content"] button',
+    name: new RegExp(`^${escapeRegExp(placeName)}`),
+    description: `the search result ${placeName}`,
+  }),
+  routeAirportResult: (airportName: string) => ({
+    role: 'option',
+    name: new RegExp(`^${escapeRegExp(airportName)}`),
+    description: `the airport ${airportName}`,
+  }),
+  routeTimingOption: (label: string) => ({ role: 'radio', name: label, within: addRoutePanel, description: `the "${label}" timing` }),
+  routeGapField: { role: 'textbox', name: 'Gap', within: addRoutePanel, description: 'the gap field' },
+  routePreviewButton: { role: 'button', name: /^Preview path/, within: addRoutePanel, description: 'the Preview path button' },
+  routeInsertButton: { role: 'button', name: /^Insert (route|walk path)/, within: addRoutePanel, description: 'the Insert route button' },
+  routeCreateHubButton: { role: 'button', name: /^Create \d+ routes?/, within: addRoutePanel, description: 'the Create routes button' },
+  routeImportButton: { role: 'button', name: /route file/i, within: addRoutePanel, description: 'the import route file button' },
+  walkSmoothSwitch: { label: 'Smooth Curve', role: 'switch', within: addRoutePanel, description: 'the Smooth Curve switch' },
+  walkAddPointButton: { role: 'button', name: /^(Add point on map|Click map to place point)/, within: addRoutePanel, description: 'the Add point on map button' },
+  routeNameField: { role: 'textbox', name: 'Route name', description: 'the route name field' },
+} satisfies Partial<Locators>;
 
 export const DESKTOP_LOCATORS: Locators = {
   mapStyleTrigger: { walkthrough: 'map-style', description: 'the map style picker' },
@@ -150,6 +205,7 @@ export const DESKTOP_LOCATORS: Locators = {
     description: `${fileName} in the model list`,
   }),
   modelAddButton: { role: 'button', name: MODEL_TERMS.add, within: modelDialog, description: 'the Add to map button' },
+  ...routeLocators,
 };
 
 /** The locators for the layout on screen. Desktop only for now. */
