@@ -20,7 +20,7 @@ import { travelDuration } from './cursor';
 import { openSection, showEdit, type EditOutcome } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { mockDirections, mockPlaceSearch } from './mocks';
-import { deepEqual, getPath, hasPlacedEndpoints, routeEdits, type DemoStep, type FieldEdit } from './plan';
+import { deepEqual, getPath, hasPlacedEndpoints, isTimingEdit, routeEdits, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
 import { ROUTE_FIELDS } from './routeFields';
 import { hubPlanFor, type HubPlan } from './routePlan';
@@ -469,6 +469,7 @@ export async function runRoute(ctx: DemoContext, step: ItemStep, file: Project):
     const live = () => liveRoute(created);
     for (const edit of routeEdits(live() ?? target, target)) {
       ctx.clock.check();
+      if (step.timing && isTimingEdit(edit)) continue;
       await showRouteEdit(ctx, edit, live, target, file);
     }
   }

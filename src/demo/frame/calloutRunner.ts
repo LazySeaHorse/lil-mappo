@@ -11,7 +11,7 @@ import { openSection, showEdit, type EditOutcome } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { pickOnMap } from './mapPick';
 import { mockPlaceSearch } from './mocks';
-import { deepEqual, getPath, type DemoStep, type FieldEdit } from './plan';
+import { deepEqual, getPath, isTimingEdit, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
 
 /**
@@ -150,6 +150,7 @@ export async function runCallout(ctx: DemoContext, step: ItemStep, file: Project
     // What Add made, against the file: the edits left to show in the inspector.
     for (const edit of calloutEdits(live() ?? target, target)) {
       ctx.clock.check();
+      if (step.timing && isTimingEdit(edit)) continue;
       await showCalloutEdit(ctx, edit, live, target);
     }
   }

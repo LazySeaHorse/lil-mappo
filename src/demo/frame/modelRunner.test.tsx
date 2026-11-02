@@ -144,7 +144,8 @@ describe('model runner', () => {
       if (e.target instanceof HTMLInputElement && e.target.type === 'file') chooserClicks.push(e.defaultPrevented);
     });
 
-    await runStep(testContext(), stepFor(file, target.id), file);
+    const step = stepFor(file, target.id);
+    await runStep(testContext(), step, file);
     unsubscribe();
     remove();
 
@@ -157,8 +158,7 @@ describe('model runner', () => {
       heading: 90,
       pitch: 15,
       altitude: 30,
-      startTime: 3,
-      endTime: 9,
+      ...step.timing,
       transition: { enter: 'rise', exit: 'sink' },
     });
     expect(shown.scale).toBeCloseTo(4, 0);
@@ -166,7 +166,8 @@ describe('model runner', () => {
     expect(warn).not.toHaveBeenCalled();
 
     const state = useProjectStore.getState();
-    expect(state.items[target.id]).toEqual(target);
+    // The clip keeps the timing the popup gave it; the timeline step drags it to the file's.
+    expect(state.items[target.id]).toEqual({ ...target, ...step.timing });
     expect(Object.values(state.items).filter((i) => i.kind === 'model')).toHaveLength(1);
     // The app's import made an asset of its own; the file's took its place.
     expect(state.models).toEqual(file.models);
@@ -181,10 +182,11 @@ describe('model runner', () => {
     useProjectStore.setState({ models: file.models });
     render(<Editor />);
 
-    await runStep(testContext(), stepFor(file, target.id), file);
+    const step = stepFor(file, target.id);
+    await runStep(testContext(), step, file);
 
     expect(warn).not.toHaveBeenCalled();
-    expect(useProjectStore.getState().items[target.id]).toEqual(target);
+    expect(useProjectStore.getState().items[target.id]).toEqual({ ...target, ...step.timing });
     expect(useProjectStore.getState().models).toEqual(file.models);
   }, 30_000);
 
@@ -192,10 +194,11 @@ describe('model runner', () => {
     const { file, target } = await modelFile();
     render(<Editor />);
 
-    await runStep(testContext(), stepFor(file, target.id), file);
+    const step = stepFor(file, target.id);
+    await runStep(testContext(), step, file);
 
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('was not relinked'));
-    expect(useProjectStore.getState().items[target.id]).toEqual(target);
+    expect(useProjectStore.getState().items[target.id]).toEqual({ ...target, ...step.timing });
     expect(useProjectStore.getState().models).toEqual(file.models);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   }, 15_000);

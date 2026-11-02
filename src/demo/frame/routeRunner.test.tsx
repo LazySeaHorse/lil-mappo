@@ -132,8 +132,11 @@ async function runRoute(file: Project, id: string) {
   });
   await runStep(testContext(), step, file);
   unsubscribe();
-  return { seen, last: seen[seen.length - 1] };
+  return { seen, last: seen[seen.length - 1], step };
 }
+
+/** The route as an item step leaves it: the file's, on the timing the app gave the new clip (the timeline step moves it). */
+const onUiTiming = (route: RouteItem, step: Extract<DemoStep, { kind: 'item' }>): RouteItem => ({ ...route, ...step.timing });
 
 // Runs are not wrapped in act(): act holds React's renders until it exits, and a run needs
 // each click's render before the next control can be found.
@@ -141,13 +144,13 @@ describe('route runner', () => {
   it('plans a drive in the Plan Route panel, edits it in the inspector, then swaps in the file’s route', async () => {
     const car = { ...editedCar(), autoCam: { enabled: true, mode: 'navigation', pitch: 55, smoothing: 0.4, distance: 300, zoom: 15, lookAhead: 400, dynamics: 0.8 } } as RouteItem;
     const file = fileWith(car);
-    const { last } = await runRoute(file, 'r-car');
+    const { last, step } = await runRoute(file, 'r-car');
+    const ui = step.timing!;
 
     // What the panel made and the inspector edited, before the file's route replaced it.
     expect(last).toMatchObject({
       name: 'Road trip',
-      startTime: 2,
-      endTime: 9,
+      ...ui,
       easing: 'linear',
       exitAnimation: 'fade',
       style: { color: '#ef4444', width: 8, dashPattern: [8, 4], glow: false },
@@ -162,7 +165,7 @@ describe('route runner', () => {
     expect(warn).not.toHaveBeenCalled();
 
     const state = useProjectStore.getState();
-    expect(state.items['r-car']).toEqual(car);
+    expect(state.items['r-car']).toEqual(onUiTiming(car, step));
     expect(Object.keys(state.items)).toEqual(['camera-track', 'r-car']);
     expect(state.selectedItemId).toBe('r-car');
     expect(state.selectedAutoCamRouteId).toBeNull();
@@ -175,14 +178,14 @@ describe('route runner', () => {
     const drone = autoCamPresetPatch('drone', 'car', routeFitOf(car));
     const autoCam = { ...drone, enabled: true, mode: 'cinematic', pitch: 38, orbit: 0.3, distance: Math.round(drone.distance / 2) } as RouteItem['autoCam'];
     const target: RouteItem = { ...car, autoCam };
-    const { last } = await runRoute(fileWith(target), 'r-car');
+    const { last, step } = await runRoute(fileWith(target), 'r-car');
 
     expect(last.autoCam).toMatchObject({ enabled: true, mode: 'cinematic', preset: 'drone', pitch: 38 });
     expect(last.autoCam?.orbit).toBeCloseTo(0.3, 1);
     // The distance slider is dragged, so it lands within a pixel of the file's value.
     expect(last.autoCam!.distance / autoCam!.distance).toBeGreaterThan(0.9);
     expect(last.autoCam!.distance / autoCam!.distance).toBeLessThan(1.1);
-    expect(useProjectStore.getState().items['r-car']).toEqual(target);
+    expect(useProjectStore.getState().items['r-car']).toEqual(onUiTiming(target, step));
     expect(useProjectStore.getState().selectedAutoCamRouteId).toBeNull();
     expect(warn).not.toHaveBeenCalled();
   }, 30_000);
@@ -191,16 +194,16 @@ describe('route runner', () => {
     const points: [number, number][] = [PARIS, [2.9, 48.2], [3.4, 47.9], LYON];
     const walk = createWalkRouteItem({ id: 'r-walk', points, curved: true, name: 'Pilgrimage', startTime: 1 });
     const tuned: RouteItem = { ...walk, calculation: { ...walk.calculation!, sharpness: 0.7 } as RouteItem['calculation'] };
-    const { seen, last } = await runRoute(fileWith(tuned), 'r-walk');
+    const { seen, last, step } = await runRoute(fileWith(tuned), 'r-walk');
 
     // The panel inserts a walk through the file's points, then the inspector names and tunes it.
     const inserted = seen.find((r) => r.calculation?.mode === 'walk')!;
     expect(inserted.calculation).toMatchObject({ mode: 'walk', points });
     expect(inserted.name).toBe('Walk path');
-    expect(last).toMatchObject({ name: 'Pilgrimage', startTime: 1 });
+    expect(last).toMatchObject({ name: 'Pilgrimage', ...step.timing });
     expect((last.calculation as { sharpness: number }).sharpness).toBeCloseTo(0.7, 1);
     expect(warn).not.toHaveBeenCalled();
-    expect(useProjectStore.getState().items['r-walk']).toEqual(tuned);
+    expect(useProjectStore.getState().items['r-walk']).toEqual(onUiTiming(tuned, step));
     expect(useProjectStore.getState().activePicker).toBeNull();
   }, 30_000);
 
@@ -232,13 +235,13 @@ describe('route runner', () => {
       style: { ...flight.style, animationType: 'comet', cometTrailLength: 0.4 },
       calculation: { ...flight.calculation!, vehicle: { enabled: true, type: 'plane', modelId: '', scale: 6 } } as RouteItem['calculation'],
     };
-    const { last } = await runRoute(fileWith(edited), 'r-flight');
+    const { last, step } = await runRoute(fileWith(edited), 'r-flight');
     expect(last.calculation).toMatchObject({ mode: 'flight', startName: from.name, endName: to.name, vehicle: { type: 'plane' } });
     expect(last.calculation?.vehicle?.scale).toBeCloseTo(6, 0);
-    expect(last).toMatchObject({ name: 'Transatlantic', startTime: 4, style: { animationType: 'comet' } });
+    expect(last).toMatchObject({ name: 'Transatlantic', ...step.timing, style: { animationType: 'comet' } });
     expect(last.style.cometTrailLength).toBeCloseTo(0.4, 1);
     expect(warn).not.toHaveBeenCalled();
-    expect(useProjectStore.getState().items['r-flight']).toEqual(edited);
+    expect(useProjectStore.getState().items['r-flight']).toEqual(onUiTiming(edited, step));
   }, 30_000);
 
   /** A drive from each spoke to Paris, as the Plan Route list makes them. */
@@ -277,7 +280,7 @@ describe('route runner', () => {
     expect(routes).toHaveLength(3);
     expect(routes.map((r) => r.id)).toContain('r-spoke-0');
     expect(routes.filter((r) => !file.items[r.id])).toHaveLength(2);
-    expect(useProjectStore.getState().items['r-spoke-0']).toEqual(lyon);
+    expect(useProjectStore.getState().items['r-spoke-0']).toEqual(onUiTiming(lyon, steps[0]));
 
     // The gap typed into the panel spaced the starts 2.5 s apart, from the playhead.
     const pending = routes.filter((r) => !file.items[r.id]) as RouteItem[];
@@ -287,10 +290,14 @@ describe('route runner', () => {
     await runStep(ctx, steps[2], file);
     routes = Object.values(useProjectStore.getState().items).filter((i) => i.kind === 'route');
     expect(routes.map((r) => r.id)).toEqual(['r-spoke-0', 'r-spoke-1', 'r-spoke-2']);
-    expect(useProjectStore.getState().items['r-spoke-1']).toEqual(edited);
-    expect(useProjectStore.getState().items['r-spoke-2']).toEqual(nice);
+    // Each keeps the start the list gave it, which the timeline step moves to the file's.
+    expect(useProjectStore.getState().items['r-spoke-1']).toEqual({ ...edited, startTime: 2.5, endTime: 7.5 });
+    expect(useProjectStore.getState().items['r-spoke-2']).toEqual({ ...nice, startTime: 5, endTime: 10 });
     expect(useProjectStore.getState().itemOrder).toEqual(['camera-track', 'r-spoke-0', 'r-spoke-1', 'r-spoke-2']);
     expect(warn).not.toHaveBeenCalled();
+    // The timeline step (no timeline here, so it writes) puts every clip on the file's timing.
+    await runStep(ctx, planDemo(file).find((s) => s.kind === 'timeline')!, file);
+    expect(pickProject(useProjectStore.getState()).items).toEqual(file.items);
   }, 60_000);
 
   it('picks the all at once schedule and a flight hub from the airports', async () => {
@@ -332,14 +339,14 @@ describe('route runner', () => {
       // A marker on an imported route has a calculation with no places.
       calculation: { mode: 'car', startPoint: [0, 0], endPoint: [0, 0], startName: '', endName: '', vehicle: { enabled: true, type: 'plane', modelId: '', scale: 2 } },
     };
-    const { seen, last } = await runRoute(fileWith(target), 'r-gpx');
+    const { seen, last, step } = await runRoute(fileWith(target), 'r-gpx');
 
     // The chooser's click was held back; the route is the imported one with the file's geometry.
     expect(chooserPrevented).toEqual([true]);
     expect(seen[0]).toMatchObject({ name: 'Morning ride', geojson: imported.geojson });
     expect(seen[0].calculation).toBeUndefined();
-    expect(last).toMatchObject({ startTime: 3, style: { color: '#a855f7', glow: true }, calculation: { vehicle: { enabled: true, type: 'plane' } } });
-    expect(useProjectStore.getState().items['r-gpx']).toEqual(target);
+    expect(last).toMatchObject({ ...step.timing, style: { color: '#a855f7', glow: true }, calculation: { vehicle: { enabled: true, type: 'plane' } } });
+    expect(useProjectStore.getState().items['r-gpx']).toEqual(onUiTiming(target, step));
     expect(useProjectStore.getState().activePicker).toBeNull();
     expect(warn).not.toHaveBeenCalled();
   }, 30_000);
@@ -352,9 +359,9 @@ describe('route runner', () => {
       calculation: { ...car.calculation!, vehicle: { enabled: true, type: 'custom', modelId: 'm-bike', scale: 2 } } as RouteItem['calculation'],
     };
     const file = { ...fileWith(target), models: { 'm-bike': model } };
-    const { last } = await runRoute(file, 'r-car');
+    const { last, step } = await runRoute(file, 'r-car');
     expect(last.calculation?.vehicle).toMatchObject({ type: 'custom', modelId: 'm-bike' });
-    expect(useProjectStore.getState().items['r-car']).toEqual(target);
+    expect(useProjectStore.getState().items['r-car']).toEqual(onUiTiming(target, step));
     expect(useProjectStore.getState().models).toEqual({ 'm-bike': model });
   }, 30_000);
 
@@ -365,7 +372,7 @@ describe('route runner', () => {
     render(<InspectorPanel />);
     const step = planDemo(file).find((s): s is Extract<DemoStep, { kind: 'item' }> => s.kind === 'item')!;
     await runStep(testContext(), step, file);
-    expect(useProjectStore.getState().items['r-car']).toEqual(car);
+    expect(useProjectStore.getState().items['r-car']).toEqual(onUiTiming(car, step));
     expect(warn).toHaveBeenCalled();
   }, 30_000);
 

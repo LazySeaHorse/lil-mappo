@@ -121,8 +121,7 @@ describe('callout runner', () => {
       styleId: 'big-number',
       content: { title: 'Eiffel Tower', subtitle: 'Paris', metric: { value: 330, unit: 'm', label: 'tall' } },
       sizeMode: 'map',
-      startTime: 2,
-      endTime: 6.5,
+      ...step.timing,
       transition: { enter: 'scale-up' },
     });
     expect(shown.settings).toMatchObject({ accentColor: '#ef4444', textColor: '#112233', prefix: '~' });
@@ -131,7 +130,8 @@ describe('callout runner', () => {
     expect(warn).not.toHaveBeenCalled();
 
     const state = useProjectStore.getState();
-    expect(state.items['c-eiffel']).toEqual(target);
+    // The clip keeps the timing Add gave it; the timeline step drags it to the file's.
+    expect(state.items['c-eiffel']).toEqual({ ...target, ...step.timing });
     expect(state.itemOrder).toContain('c-eiffel');
     expect(state.selectedItemId).toBe('c-eiffel');
     expect(Object.values(state.items).filter((i) => i.kind === 'callout')).toHaveLength(1);
@@ -172,16 +172,17 @@ describe('callout runner', () => {
 
     expect(map.easeTo).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
-    expect(useProjectStore.getState().items['c-eiffel']).toEqual(target);
-    expect(pickProject(useProjectStore.getState()).items['c-eiffel']).toEqual(target);
+    expect(useProjectStore.getState().items['c-eiffel']).toEqual({ ...target, ...step.timing });
+    expect(pickProject(useProjectStore.getState()).items['c-eiffel']).toEqual({ ...target, ...step.timing });
   }, 30_000);
 
   it('still ends on the file’s callout when the panel cannot be found', async () => {
     const target = styledCallout('Eiffel Tower');
     const file = fileWith(target);
     render(<InspectorPanel />);
-    await runStep(testContext(), stepFor(planDemo(file), target.id), file);
-    expect(useProjectStore.getState().items['c-eiffel']).toEqual(target);
+    const step = stepFor(planDemo(file), target.id);
+    await runStep(testContext(), step, file);
+    expect(useProjectStore.getState().items['c-eiffel']).toEqual({ ...target, ...step.timing });
     expect(warn).toHaveBeenCalled();
   }, 15_000);
 });

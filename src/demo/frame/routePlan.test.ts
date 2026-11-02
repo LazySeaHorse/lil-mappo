@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEndpointRouteItem, createImportedRouteItem, createWalkRouteItem, wrapGeometry } from '@/store/itemFactories';
+import { DEFAULT_ITEM_DURATION, createEndpointRouteItem, createImportedRouteItem, createWalkRouteItem, wrapGeometry } from '@/store/itemFactories';
 import { createProject } from '@/store/projectDocument';
 import type { Project, RouteItem } from '@/store/types';
 import { planDemo, routeBaseline, routeEdits } from './plan';
@@ -69,6 +69,8 @@ describe('route edits', () => {
     route.style = { ...route.style, color: '#ef4444', width: 9, glow: false, dashPattern: [8, 4] };
     route.calculation = { ...route.calculation!, vehicle: { enabled: true, type: 'car', modelId: '', scale: 4 } } as RouteItem['calculation'];
     const plan = planDemo(projectOf(route)).find((s) => s.kind === 'item');
+    // The span is not an inspector edit: the timeline step drags the clip, from the timing the panel gives it.
+    expect(plan && 'timing' in plan ? plan.timing : null).toEqual({ startTime: 0, endTime: DEFAULT_ITEM_DURATION });
     expect(plan && 'edits' in plan ? plan.edits.map((e) => e.path) : null).toEqual([
       'name',
       'style.color',
@@ -77,8 +79,6 @@ describe('route edits', () => {
       'style.glow',
       'calculation.vehicle.type',
       'calculation.vehicle.scale',
-      'startTime',
-      'endTime',
       'easing',
       'exitAnimation',
     ]);

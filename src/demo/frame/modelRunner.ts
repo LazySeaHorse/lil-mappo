@@ -11,7 +11,7 @@ import { showEdit, openSection, type EditOutcome } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { pickOnMap } from './mapPick';
 import { MODEL_FIELDS, modelEdits } from './modelFields';
-import { deepEqual, getPath, type DemoStep, type FieldEdit } from './plan';
+import { deepEqual, getPath, isTimingEdit, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
 import { dragSlider } from './sliderDrag';
 import { relinkedModelFile } from './session';
@@ -179,6 +179,7 @@ export async function runModel(ctx: DemoContext, step: ItemStep, file: Project):
     // What the popup made, against the file: the edits left to show in the inspector.
     for (const edit of modelEdits(live() ?? target, target)) {
       ctx.clock.check();
+      if (step.timing && isTimingEdit(edit)) continue;
       await showModelEdit(ctx, edit, live, target);
     }
   }
