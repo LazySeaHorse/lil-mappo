@@ -1,4 +1,5 @@
-import type { CalloutItem, CameraItem, TimelineItem } from '@/store/types';
+import { formatDateRange } from '@/engine/historicalDate';
+import type { BoundaryItem, CalloutItem, CameraItem, TimelineItem } from '@/store/types';
 import { geoStats } from './geo';
 import { round } from './tools/shared';
 
@@ -31,6 +32,24 @@ function calloutLocation(item: CalloutItem) {
     : { screenPosition: item.binding.position };
 }
 
+/**
+ * What an agent needs to know about a historical boundary: the period it shows
+ * and where it came from. `detail` adds every period of the place, so the agent
+ * can see which years it could switch to. Nothing for a present-day boundary.
+ */
+function historicalSummary(item: BoundaryItem, detail: boolean): { historical?: Record<string, unknown> } {
+  const { source } = item;
+  if (!source) return {};
+  const period = formatDateRange(source.startDate, source.endDate);
+  return {
+    historical: {
+      ...(period ? { period } : {}),
+      source: 'OpenHistoricalMap',
+      ...(detail ? { allPeriods: source.versions.map((v) => formatDateRange(v.startDate, v.endDate)).filter(Boolean) } : {}),
+    },
+  };
+}
+
 export function summarizeItem(item: TimelineItem, opts: { detail: boolean; cameraEnabled?: boolean }): Record<string, unknown> {
   const { detail } = opts;
   switch (item.kind) {
@@ -60,6 +79,7 @@ export function summarizeItem(item: TimelineItem, opts: { detail: boolean; camer
         id: item.id,
         kind: 'boundary',
         placeName: item.placeName,
+        ...historicalSummary(item, detail),
         startTime: item.startTime,
         endTime: item.endTime,
         geometry: geoStats(item.geojson),
