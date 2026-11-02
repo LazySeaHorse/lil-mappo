@@ -11,6 +11,7 @@ import { click, find, pause, warn, type DemoContext } from './actions';
 import { showEdit } from './edits';
 import type { FieldTable } from './fields';
 import { currentLocators } from './locators';
+import { closeInspectorDrawer, showAddBar } from './phone';
 import { diffLeaves, orderEdits, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
 import { clickRulerAt, fitSpan } from './timelineActions';
@@ -104,12 +105,15 @@ function selectedView(): CameraKeyframe | null {
 /** Adds one camera view the way a person does: playhead, map, button, inspector. Returns the new view's id. */
 async function addViewOnScreen(ctx: DemoContext, view: CameraKeyframe): Promise<string | null> {
   const L = currentLocators();
+  // The previous view's inspector (a drawer on phones) is over the timeline.
+  await closeInspectorDrawer(ctx, L);
   if (Math.abs(useProjectStore.getState().playheadTime - view.time) > 0.005) {
     await fitSpan(ctx, L, view.time);
     if (!(await clickRulerAt(ctx, L, view.time))) return null;
   }
   await easeMapTo(ctx, view.camera);
   const before = new Set(cameraTrack(useProjectStore.getState())?.keyframes.map((k) => k.id));
+  await showAddBar(ctx, L);
   if (!(await click(ctx, L.addCameraViewButton))) return null;
   const made = selectedView();
   if (!made || before.has(made.id)) {
@@ -126,6 +130,7 @@ async function addViewOnScreen(ctx: DemoContext, view: CameraKeyframe): Promise<
 
 export async function runCamera(ctx: DemoContext, step: Extract<DemoStep, { kind: 'camera' }>, file: Project): Promise<void> {
   const views = fileViews(file);
+  await showAddBar(ctx, currentLocators());
   // No Add camera view button on screen: write the track without waiting for each view.
   const onScreen = !!(await find(ctx, currentLocators().addCameraViewButton, { timeout: 1500 }));
   const made: (string | null)[] = [];

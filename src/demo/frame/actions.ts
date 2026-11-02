@@ -375,9 +375,9 @@ export function pressAndRelease(el: Element, at: Point): void {
 export async function click(
   ctx: DemoContext,
   target: Target,
-  { hold = true, timeout }: { hold?: boolean; timeout?: number } = {},
+  { hold = true, timeout, at: where }: { hold?: boolean; timeout?: number; at?: (el: Element) => Point } = {},
 ): Promise<boolean> {
-  const el = await moveTo(ctx, target, { timeout });
+  const el = await moveTo(ctx, target, { timeout, at: where });
   if (!el) return false;
   const at = ctx.cursor.position;
   ctx.cursor.setPressed(true);

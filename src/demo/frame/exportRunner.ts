@@ -5,6 +5,7 @@ import { click, find, pause, query, selectOption, type, warn, type DemoContext }
 import { FAKE_EXPORT_MS, setFakeExportPace } from './fakeExport';
 import { currentLocators, type Locators } from './locators';
 import type { DemoStep } from './plan';
+import { showMainBar } from './phone';
 import { commitStep } from './runners';
 
 /**
@@ -63,6 +64,7 @@ async function matchSettings(ctx: DemoContext, L: Locators, file: Project): Prom
 async function exportOnScreen(ctx: DemoContext, file: Project): Promise<boolean> {
   const L = currentLocators();
   const store = () => useProjectStore.getState();
+  if (!query(L.exportDialog)) await showMainBar(ctx, L);
   if (!query(L.exportDialog) && !(await find(ctx, L.exportButton, { timeout: 1500 }) && (await click(ctx, L.exportButton)))) return false;
   if (!(await find(ctx, L.exportDialog, { timeout: 2000 }))) return false;
   await pause(ctx, ctx.timing.betweenSteps * 0.4);

@@ -2,6 +2,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/store/types';
 import { click, find, warn, type DemoContext } from './actions';
 import { currentLocators } from './locators';
+import { closeInspectorDrawer } from './phone';
 import type { DemoStep } from './plan';
 import { commitStep } from './runners';
 
@@ -55,6 +56,7 @@ async function untilPlaybackEnds(ctx: DemoContext, durationSeconds: number): Pro
 
 export async function runPlay(ctx: DemoContext, step: Extract<DemoStep, { kind: 'play' }>, file: Project): Promise<void> {
   const L = currentLocators();
+  await closeInspectorDrawer(ctx, L);
   // No transport on screen: nothing to play, and no reason to wait for it.
   if (!(await find(ctx, L.timelinePlay, { timeout: 1500 }))) {
     commitStep(step, file);

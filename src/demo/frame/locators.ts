@@ -2,11 +2,12 @@ import type { Locator } from './actions';
 import type { InspectorSectionKind } from '@/components/Inspector/inspectorSections';
 import { BOUNDARY_ADD_TERMS, CALLOUT_ADD_TERMS, SEARCH_TERMS, STYLE_TERMS } from '@/lib/terms';
 import { MODEL_TERMS } from '@/models/modelTerms';
+import { MOBILE_QUERY, TABLET_QUERY } from '@/constants/layout';
 
 /**
- * Where the driver finds the app's controls, in one place. These are the
- * desktop (and tablet) toolbar and inspector; a phone variant can implement
- * the same table against the phone layout's mode bars and drawer.
+ * Where the driver finds the app's controls, in one place: one table for the
+ * desktop (and tablet) toolbar and side inspector, one for the phone layout's
+ * mode bars and inspector drawer (`currentLocators` picks).
  *
  * They lean on what the app already exposes: `data-walkthrough` ids, the
  * inspector sections' `data-section`, accessible names and visible labels.
@@ -32,6 +33,16 @@ export interface Locators {
   addBoundaryConfirm: Locator;
 
   inspectorSection: (kind: InspectorSectionKind, id: string) => Locator;
+
+  // --- the phone layout (the collapsed toolbar and the inspector drawer) ---
+  /** The collapsed toolbar's "+" button, which swaps its bar for the Add tools. The desktop toolbar has none. */
+  addMenuButton: Locator;
+  /** The X that takes the collapsed toolbar's Add or Map Display bar back to its main bar. */
+  toolbarBackButton: Locator;
+  /** The phone's inspector drawer. */
+  inspectorDrawer: Locator;
+  /** The dimmed page behind the drawer: a tap on it closes the drawer. */
+  inspectorBackdrop: Locator;
 
   // --- callouts ---
   addCalloutButton: Locator;
@@ -155,6 +166,17 @@ const routeLocators = {
 const exportDialog: Locator = { role: 'dialog', description: 'the export modal' };
 const timelinePanel: Locator = { walkthrough: 'timeline-panel', description: 'the timeline' };
 
+const toolbar: Locator = { selector: 'div[data-ph-unmask].h-14', description: 'the toolbar' };
+const inspectorDrawer: Locator = { selector: '[data-slot="drawer-content"][data-walkthrough="inspector-panel"]', description: 'the inspector drawer' };
+
+/** What only the collapsed toolbar and the drawer have: absent from the desktop layout, where the steps that use them find nothing and do nothing. */
+const phoneOnlyLocators = {
+  addMenuButton: { walkthrough: 'add-menu', description: 'the Add menu button' },
+  toolbarBackButton: { selector: 'button:has(> svg.lucide-x)', within: toolbar, description: 'the toolbar close button' },
+  inspectorDrawer,
+  inspectorBackdrop: { selector: '[data-slot="drawer-overlay"]', description: 'the page behind the drawer' },
+} satisfies Partial<Locators>;
+
 export const DESKTOP_LOCATORS: Locators = {
   mapStyleTrigger: { walkthrough: 'map-style', description: 'the map style picker' },
   mapToolsMenu: { walkthrough: 'map-tools', description: 'the Map Display menu' },
@@ -193,6 +215,7 @@ export const DESKTOP_LOCATORS: Locators = {
   addBoundaryConfirm: { role: 'button', name: new RegExp(BOUNDARY_ADD_TERMS.add), within: addBoundaryPanel, description: 'the Add boundary button' },
 
   inspectorSection: (kind, id) => ({ attrs: { 'data-section': `${kind}-${id}` }, description: `the ${kind} ${id} section` }),
+  ...phoneOnlyLocators,
 
   addCalloutButton: { walkthrough: 'add-callout', description: 'the Add Callout button' },
   addCalloutPanel,
@@ -260,7 +283,32 @@ export const DESKTOP_LOCATORS: Locators = {
   exportConfirm: { role: 'button', name: /^Export (locally|again)/, within: exportDialog, description: 'the Export button of the export modal' },
 };
 
-/** The locators for the layout on screen. Desktop only for now. */
+/**
+ * The phone layout: the same controls (the Add tools, the map controls and the
+ * Export button keep their `data-walkthrough` ids and names), reached through
+ * the collapsed toolbar's bars, with the inspector in a drawer. Its sections
+ * are looked up in the drawer.
+ */
+export const PHONE_LOCATORS: Locators = {
+  ...DESKTOP_LOCATORS,
+  inspectorSection: (kind, id) => ({
+    attrs: { 'data-section': `${kind}-${id}` },
+    within: inspectorDrawer,
+    description: `the ${kind} ${id} section`,
+  }),
+};
+
+/** Whether the app is in its phone layout: the breakpoint `useResponsive` calls `isMobile`. */
+export function isPhoneLayout(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches;
+}
+
+/** The layout flags the app's map framing takes. */
+export function currentLayout(): { isMobile: boolean; isTablet: boolean } {
+  return { isMobile: isPhoneLayout(), isTablet: window.matchMedia(TABLET_QUERY).matches };
+}
+
+/** The locators for the layout on screen. */
 export function currentLocators(): Locators {
-  return DESKTOP_LOCATORS;
+  return isPhoneLayout() ? PHONE_LOCATORS : DESKTOP_LOCATORS;
 }

@@ -3,6 +3,10 @@
  * Ensures consistent spacing between floating "island" panels across different device breakpoints.
  */
 
+/** The media queries behind `useResponsive`'s `isMobile` and `isTablet`, for code that asks outside React (the demo driver). */
+export const MOBILE_QUERY = '(max-width: 706px)';
+export const TABLET_QUERY = '(min-width: 641px) and (max-width: 1024px)';
+
 export const PANEL_MARGIN = 16; // Matches tailwind '4' (1rem) spacing used for 'top-4', 'right-4', etc.
 export const PANEL_GAP = 16;    // The desired air-gap between floating panels.
 

@@ -1,7 +1,7 @@
 import { timelineGutterWidth } from '@/constants/layout';
 import { useProjectStore } from '@/store/useProjectStore';
 import { click, find, moveTo, pressAndRelease, query, warn, type DemoContext } from './actions';
-import type { Locators } from './locators';
+import { isPhoneLayout, type Locators } from './locators';
 
 /**
  * What the timeline runner and the camera runner share: reading the timeline's
@@ -31,7 +31,7 @@ export function pixelsPerSecond(): number {
 export async function fitSpan(ctx: DemoContext, L: Locators, seconds: number): Promise<void> {
   const viewport = query(L.timelineViewport);
   if (!viewport || viewport.clientWidth <= 0) return;
-  const needed = () => seconds * pixelsPerSecond() + timelineGutterWidth(false) + EDGE_MARGIN;
+  const needed = () => seconds * pixelsPerSecond() + timelineGutterWidth(isPhoneLayout()) + EDGE_MARGIN;
   for (let clicks = 0; needed() > viewport.clientWidth && clicks < MAX_ZOOM_CLICKS; clicks++) {
     if (!(await click(ctx, L.timelineZoomOut, { hold: false }))) return;
     await ctx.clock.wait(ctx.timing.afterClick * 0.4);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { MOBILE_QUERY, TABLET_QUERY } from '@/constants/layout';
 
 /**
  * Custom hook to handle responsive breakpoints.
@@ -13,8 +14,8 @@ export function useResponsive() {
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
   useEffect(() => {
-    const mobileQuery = window.matchMedia('(max-width: 706px)');
-    const tabletQuery = window.matchMedia('(min-width: 641px) and (max-width: 1024px)');
+    const mobileQuery = window.matchMedia(MOBILE_QUERY);
+    const tabletQuery = window.matchMedia(TABLET_QUERY);
     const desktopQuery = window.matchMedia('(min-width: 1025px)');
     // Toolbar-only breakpoints: the bar has no room for every control at these widths.
     const toolbarQuery = window.matchMedia('(max-width: 815px)');

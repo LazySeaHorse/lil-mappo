@@ -2,6 +2,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/store/types';
 import { drag, find, moveTo, pause, warn, type DemoContext } from './actions';
 import { currentLocators } from './locators';
+import { closeInspectorDrawer } from './phone';
 import { hasTiming, type DemoStep, type ItemTiming } from './plan';
 import { fitSpan, pixelsPerSecond } from './timelineActions';
 import { commitStep } from './runners';
@@ -72,6 +73,8 @@ export async function dragClipsToFile(ctx: DemoContext, file: Project): Promise<
   const clips = clipsToDrag(file);
   if (!clips.length) return;
   const L = currentLocators();
+  // The phone's drawer takes the timeline's place while it is open.
+  await closeInspectorDrawer(ctx, L);
   if (!(await find(ctx, L.timelinePanel, { timeout: 1500 }))) return;
   for (const { id, target } of clips) {
     ctx.clock.check();

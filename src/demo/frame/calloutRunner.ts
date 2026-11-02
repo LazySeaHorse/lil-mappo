@@ -11,6 +11,7 @@ import { openSection, showEdit, type EditOutcome } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { pickOnMap } from './mapPick';
 import { mockPlaceSearch } from './mocks';
+import { showAddBar } from './phone';
 import { deepEqual, getPath, isTimingEdit, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
 
@@ -41,7 +42,10 @@ async function addCalloutOnScreen(ctx: DemoContext, item: CalloutItem): Promise<
   const lngLat = item.binding.lngLat;
   const before = calloutIds();
 
-  if (!query(L.calloutSearchInput) && !(await click(ctx, L.addCalloutButton))) return null;
+  if (!query(L.calloutSearchInput)) {
+    await showAddBar(ctx, L);
+    if (!(await click(ctx, L.addCalloutButton))) return null;
+  }
   // Without a live map there is nothing to click, so the title stands in as the place searched.
   const name = item.locationName || (getAgentMap() ? '' : item.content.title);
   if (name) {

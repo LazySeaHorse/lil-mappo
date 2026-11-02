@@ -18,8 +18,9 @@ import {
 import { click, drag, find, key, pause, query, setSlider, selectOption, type, warn, type DemoContext, type Locator } from './actions';
 import { travelDuration } from './cursor';
 import { openSection, showEdit, type EditOutcome } from './edits';
-import { currentLocators, type Locators } from './locators';
+import { currentLayout, currentLocators, type Locators } from './locators';
 import { mockDirections, mockPlaceSearch } from './mocks';
+import { showAddBar } from './phone';
 import { deepEqual, getPath, hasPlacedEndpoints, isTimingEdit, routeEdits, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
 import { ROUTE_FIELDS } from './routeFields';
@@ -71,6 +72,7 @@ function lineOf(geojson: GeoJSON.FeatureCollection): GeoJSON.LineString | undefi
 
 async function openRoutePanel(ctx: DemoContext, L: Locators): Promise<boolean> {
   if (query(L.addRoutePanel)) return true;
+  await showAddBar(ctx, L);
   if (!(await click(ctx, L.addRouteButton))) return false;
   return !!(await find(ctx, L.addRoutePanel, { timeout: 2000 }));
 }
@@ -183,8 +185,8 @@ async function addHubRoutes(ctx: DemoContext, plan: HubPlan, file: Project): Pro
 /** Frames `geojson` on the map the way an insert does (a map may not be there, as in tests). */
 async function frameOnMap(ctx: DemoContext, geojson: GeoJSON.FeatureCollection): Promise<void> {
   const map = getAgentMap();
-  // Desktop layout; a phone pass passes its own.
-  if (map && frameGeometry(map, geojson, { isMobile: false, isTablet: false })) await pause(ctx, ctx.timing.betweenSteps);
+  // The side inspector leaves the map less room than the phone's drawer: frame for the layout on screen.
+  if (map && frameGeometry(map, geojson, currentLayout())) await pause(ctx, ctx.timing.betweenSteps);
 }
 
 /**

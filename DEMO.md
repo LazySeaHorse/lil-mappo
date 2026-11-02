@@ -29,6 +29,16 @@ Two pages, same origin:
 4. Per item: the cursor clicks the real toolbar/menu/inspector controls; the final values are written to the store so the result matches the file exactly. Inspector edits are the fields that differ from what "Add" creates (`src/store/itemFactories.ts`).
 5. Mock AI mode (`src/demo/frame/ai/`): the visible cursor clicks the AI toolbar button, flips AI control on in the panel, the bridge status is set to `connected` from demo code (the real bridge is not dialled), and the panel is closed again so the map has room; the status pill ("AI connected, N calls") stays. The cursor hides, the frame asks the shell to open the Claude Code window, the widget's prompt is typed there (the frame waits `typeChar` per character, as the shell types), and a script (`script.ts`, pure, built from the same plan) plays as agent turns: `text` lines built from item names, `thinking` beats, and real `runAgentTool` calls (`add_boundary`, `add_route`, `add_callout`, `add_camera_keyframe`, `update_project_settings`, `update_item`...) with the inputs an agent would send, each shown as `tool-start` / `tool-end`. Because they go through `runAgentTool`, the app's own AI feedback (select and pulse the item, follow the map, the pill) reacts as it does for a real agent. After an item's calls the file's exact item is swapped in as an AI write, so the end state equals the file; models cannot be added by any tool, so a loaded model is placed (as the user's write) and the agent only retimes it, and a model whose .glb is not loaded is skipped. A closing summary, `done`, then `set_playhead 0` and playback. Reset closes the panel, turns AI control off and the Claude Code window away.
 
+### The phone layout
+
+A portrait project runs in an iframe of phone width, so the app lays itself out as on a phone (`MOBILE_QUERY` in `src/constants/layout.ts`, the one `useResponsive` uses; `currentLocators()` asks it). The runners are the same; `PHONE_LOCATORS` and the taps in `phone.ts` get them to the controls:
+
+- The collapsed toolbar shows one bar at a time. Add tools (route, boundary, callout, camera view, 3D model) are behind the "+" button, the map controls behind the Map Display button, Export on the main bar. Before using one, the runner calls `showAddBar` / `showMainBar` (the X button goes back to the main bar).
+- The inspector is a drawer that covers the toolbar and replaces the timeline while it is open. `closeInspectorDrawer` taps the map above it (Escape, then the store, as fallbacks) before the toolbar or the timeline are needed again. Item steps leave it open after their edits, as selecting an item does.
+- Map framing after a route import uses the phone's layout flags; the timeline's zoom fit uses the phone's wider timecode gutter.
+- The phone's toolbar has no AI button or panel, so mock AI mode switches AI control on directly there (the terminal and the script are unchanged).
+- Test with `setViewportWidth` (`testViewport.ts`) and the real `Toolbar` and `InspectorPanel` (`phone.test.tsx`).
+
 ### The end of a run
 
 - **Timeline.** Item steps leave the timing the app gave the new item; the timeline step drags each clip (whole clip to move, edge handles to trim) to the file's start and end, zooming out with the real zoom button when needed. The final write makes the times exact.

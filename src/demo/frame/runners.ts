@@ -10,6 +10,7 @@ import { runCallout } from './calloutRunner';
 import { runModel } from './modelRunner';
 import { currentLocators, type Locators } from './locators';
 import { mockBoundarySearch } from './mocks';
+import { closeInspectorDrawer, showAddBar, showMainBar } from './phone';
 import { runRoute } from './routeRunner';
 import { runCamera } from './cameraRunner';
 import { runExport } from './exportRunner';
@@ -63,10 +64,16 @@ export function commitStep(step: DemoStep, file: Project, { replace }: { replace
 
 // --- map style and settings -------------------------------------------------------
 
-/** The map controls live in the toolbar on desktop, in the Map Display menu on tablets. */
+/**
+ * The map controls live in the toolbar on desktop, in the Map Display menu on
+ * tablets, and on the Map Display bar of the phone's toolbar (behind the
+ * inspector drawer, which closes first).
+ */
 async function reachMapControl(ctx: DemoContext, L: Locators, control: keyof Pick<Locators, 'mapStyleTrigger' | 'mapSettingsButton' | 'terrainToggle' | 'buildingsToggle'>): Promise<Element | null> {
+  await closeInspectorDrawer(ctx, L);
   const direct = query(L[control]);
   if (direct) return direct;
+  await showMainBar(ctx, L);
   if (query(L.mapToolsMenu)) await click(ctx, L.mapToolsMenu);
   return find(ctx, L[control], { timeout: 1500 });
 }
@@ -142,7 +149,10 @@ async function addBoundaryOnScreen(ctx: DemoContext, item: BoundaryItem): Promis
   mockBoundarySearch(item.placeName, [{ displayName: item.placeName, geometry: item.geojson, countryCode: item.style.flagCode }]);
   const before = boundaryIds();
 
-  if (!query(L.boundarySearchInput) && !(await click(ctx, L.addBoundaryButton))) return null;
+  if (!query(L.boundarySearchInput)) {
+    await showAddBar(ctx, L);
+    if (!(await click(ctx, L.addBoundaryButton))) return null;
+  }
   if (!(await type(ctx, L.boundarySearchInput, item.placeName))) return null;
   if (!(await click(ctx, L.boundaryResult(item.placeName)))) return null;
   // The outline in the file was simplified already; the finest level keeps it as it is.

@@ -10,6 +10,7 @@ import { click, find, key, pause, query, type, warn, type DemoContext } from './
 import { showEdit, openSection, type EditOutcome } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { pickOnMap } from './mapPick';
+import { showAddBar } from './phone';
 import { MODEL_FIELDS, modelEdits } from './modelFields';
 import { deepEqual, getPath, isTimingEdit, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
@@ -95,7 +96,10 @@ async function addModelOnScreen(ctx: DemoContext, target: ModelItem, asset: Mode
   }
   const before = modelIds();
 
-  if (!query(L.modelDialog) && !(await click(ctx, L.modelButton))) return null;
+  if (!query(L.modelDialog)) {
+    await showAddBar(ctx, L);
+    if (!(await click(ctx, L.modelButton))) return null;
+  }
   if (!(await find(ctx, L.modelDialog))) return null;
   if (inProject) {
     if (!(await click(ctx, L.modelListRow(inProject.fileName)))) return null;
