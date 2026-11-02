@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { selectAgentCalls, useAgentEvents } from '@/agent';
 import { useResponsive } from '@/hooks/useResponsive';
-import { belowToolbarTop } from './aiUtils';
+import { belowToolbarTop } from '@/constants/layout';
 import { useAiPanelStore } from './useAiPanelStore';
 
 /** Visible only while tools are registered with the browser or linked to the bridge. Opens the panel on Activity. */

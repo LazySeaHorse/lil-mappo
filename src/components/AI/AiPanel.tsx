@@ -6,11 +6,10 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   INSPECTOR_WIDTH_DESKTOP, INSPECTOR_WIDTH_TABLET,
-  PANEL_MARGIN, RIGHT_RESERVED_DESKTOP, RIGHT_RESERVED_TABLET,
+  PANEL_MARGIN, RIGHT_RESERVED_DESKTOP, RIGHT_RESERVED_TABLET, belowToolbarTop,
 } from '@/constants/layout';
 import { ConnectTab } from './ConnectTab';
 import { ActivityTab } from './ActivityTab';
-import { belowToolbarTop } from './aiUtils';
 import { useAiPanelStore, type AiPanelTab } from './useAiPanelStore';
 
 export function ExperimentalBadge() {
