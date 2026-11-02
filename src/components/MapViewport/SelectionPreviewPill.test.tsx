@@ -54,17 +54,6 @@ describe('SelectionPreviewPill', () => {
     expect(screen.getByTestId('selection-preview-pill')).toHaveTextContent('Coast road');
   });
 
-  it('centres on the area the inspector leaves free', () => {
-    render(<SelectionPreviewPill />);
-    act(() => useProjectStore.getState().selectItem('r'));
-    const wrapper = () => screen.getByTestId('selection-preview-pill').parentElement!;
-
-    act(() => useProjectStore.getState().setIsInspectorOpen(false));
-    const closed = wrapper().style.right;
-    act(() => useProjectStore.getState().setIsInspectorOpen(true));
-    expect(parseInt(wrapper().style.right)).toBeGreaterThan(parseInt(closed));
-  });
-
   it('hides while playing and comes back once stopped', () => {
     render(<SelectionPreviewPill />);
     act(() => useProjectStore.getState().selectItem('r'));
@@ -74,10 +63,16 @@ describe('SelectionPreviewPill', () => {
     expect(screen.getByTestId('selection-preview-pill')).toBeInTheDocument();
   });
 
-  it('hides in present mode', () => {
+  it('leaves present mode to the floating UI layer, which fades it out with the other pills', () => {
     render(<SelectionPreviewPill />);
     act(() => useProjectStore.getState().selectItem('r'));
     act(() => useProjectStore.getState().setHideUI(true));
-    expect(screen.queryByTestId('selection-preview-pill')).toBeNull();
+    expect(screen.getByTestId('selection-preview-pill')).toBeInTheDocument();
+  });
+
+  it('leaves its placement to the pill stack', () => {
+    render(<SelectionPreviewPill />);
+    act(() => useProjectStore.getState().selectItem('r'));
+    expect(screen.getByTestId('selection-preview-pill').parentElement).toBe(document.body.firstElementChild);
   });
 });

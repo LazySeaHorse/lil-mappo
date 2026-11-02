@@ -255,4 +255,19 @@ describe('Status pill', () => {
     fireEvent.click(screen.getByRole('button', { name: /AI connected/ }));
     expect(useAiPanelStore.getState()).toMatchObject({ open: true, tab: 'activity' });
   });
+
+  it('hides while exporting', () => {
+    useAiPanelStore.setState({ registeredCount: 5 });
+    render(<AiStatusPill />);
+    expect(screen.getByTestId('ai-status-pill')).toBeInTheDocument();
+
+    act(() => useProjectStore.getState().setIsExporting(true));
+    expect(screen.queryByTestId('ai-status-pill')).toBeNull();
+  });
+
+  it('leaves its placement to the pill stack', () => {
+    useAiPanelStore.setState({ registeredCount: 5 });
+    const { container } = render(<AiStatusPill />);
+    expect(container.firstElementChild).toBe(screen.getByTestId('ai-status-pill'));
+  });
 });

@@ -36,8 +36,7 @@ describe('selectionPreviewPillState', () => {
     expect(selectionPreviewPillState({ ...base, selectedItemId: 'cam' })).toBeNull();
   });
 
-  it('hides in present mode, while playing and while exporting', () => {
-    expect(selectionPreviewPillState({ ...base, hideUI: true })).toBeNull();
+  it('hides while playing and while exporting', () => {
     expect(selectionPreviewPillState({ ...base, isExporting: true })).toBeNull();
     expect(selectionPreviewPillState({ ...base, isPlaying: true })).toBeNull();
   });
