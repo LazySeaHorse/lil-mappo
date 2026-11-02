@@ -1,5 +1,5 @@
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
-import type { ExportOptions } from '@/services/videoExport';
+import type { ExportOptions, ExportResult } from '@/services/videoExport';
 import { isDemoAborted } from './clock';
 
 /**
@@ -33,7 +33,7 @@ const realTimePace: FakeExportPace = async (ms, frame) => {
   }
 };
 
-export async function runExport(_runtimeRef: MapSceneRuntimeRef, { onProgress, abortSignal }: ExportOptions): Promise<Blob> {
+export async function runExport(_runtimeRef: MapSceneRuntimeRef, { onProgress, abortSignal }: ExportOptions): Promise<ExportResult> {
   const stopped = () => new DOMException('Export cancelled', 'AbortError');
   if (abortSignal.aborted) throw stopped();
   try {
@@ -46,5 +46,5 @@ export async function runExport(_runtimeRef: MapSceneRuntimeRef, { onProgress, a
     if (isDemoAborted(error)) document.querySelector<HTMLButtonElement>('button[aria-label="Cancel export"]')?.click();
     throw error;
   }
-  return new Blob([], { type: 'video/mp4' });
+  return { blob: new Blob([], { type: 'video/mp4' }), incompleteFrames: 0 };
 }
