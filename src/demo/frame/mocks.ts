@@ -169,7 +169,29 @@ function geocoding(url: URL): Response {
   return json({ type: 'FeatureCollection', features: results.map(placeFeature), attribution: '' });
 }
 
-const near = (a: LngLat, b: LngLat) => Math.abs(a[0] - b[0]) < 1e-4 && Math.abs(a[1] - b[1]) < 1e-4;
+/** How far, in degrees, a picked end may be from the file's (about 5 km); the clicks at any zoom the run uses land well inside. */
+const PICK_TOLERANCE = 0.05;
+
+const gap = (a: LngLat, b: LngLat) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+/**
+ * The registered route whose ends are the nearest to the asked ones, within the
+ * tolerance. A place the driver picked on the map is a click away from the
+ * file's point (a pixel is many metres), so the ends are matched by distance,
+ * not by equality.
+ */
+function nearestRoute(start: LngLat, end: LngLat): MockRoute | undefined {
+  let best: MockRoute | undefined;
+  let bestTotal = Infinity;
+  for (const route of registry.routes) {
+    const fromStart = gap(route.start, start);
+    const fromEnd = gap(route.end, end);
+    if (fromStart > PICK_TOLERANCE || fromEnd > PICK_TOLERANCE || fromStart + fromEnd >= bestTotal) continue;
+    best = route;
+    bestTotal = fromStart + fromEnd;
+  }
+  return best;
+}
 
 function directions(url: URL): Response {
   const coords = decodeURIComponent(url.pathname.split('/').pop() ?? '')
@@ -179,7 +201,7 @@ function directions(url: URL): Response {
   if (!start || !end || coords.some((c) => c.some((n) => !Number.isFinite(n)))) {
     return json({ code: 'InvalidInput', message: 'Bad coordinates', routes: [] }, 422);
   }
-  const route = registry.routes.find((r) => near(r.start, start) && near(r.end, end));
+  const route = nearestRoute(start, end);
   // Nothing registered: a straight line, so a route is always found.
   const geometry: GeoJSON.LineString = route?.geometry ?? { type: 'LineString', coordinates: [start, end] };
   return json({

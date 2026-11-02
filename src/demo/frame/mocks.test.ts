@@ -46,6 +46,16 @@ describe('demo fetch mocks', () => {
     expect(network).not.toHaveBeenCalled();
   });
 
+  it('answers directions between ends picked a pixel off the file’s points with the nearest registered path', async () => {
+    const paris: GeoJSON.LineString = { type: 'LineString', coordinates: [[2.35, 48.85], [4.83, 45.76]] };
+    const rome: GeoJSON.LineString = { type: 'LineString', coordinates: [[2.35, 48.85], [3.5, 47], [12.5, 41.9]] };
+    mockDirections({ start: [2.35, 48.85], end: [4.83, 45.76], geometry: paris, distance: 1 });
+    mockDirections({ start: [2.35, 48.85], end: [12.5, 41.9], geometry: rome, distance: 2 });
+    const picked = await getDirections([2.3512, 48.8493], [12.5006, 41.8995]);
+    expect(picked.geometry.coordinates).toEqual(rome.coordinates);
+    expect(picked.distance).toBe(2);
+  });
+
   it('answers Mapbox Search Box suggest and retrieve through search-js-core', async () => {
     mockPlaceSearch('Lyon', [{ name: 'Lyon', coordinates: [4.83, 45.76], placeFormatted: 'Auvergne-Rhône-Alpes, France' }]);
     // Typed as the app's location search types its session.
