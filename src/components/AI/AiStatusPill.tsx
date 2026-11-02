@@ -3,6 +3,7 @@ import { selectAgentCalls, useAgentEvents } from '@/agent';
 import { useResponsive } from '@/hooks/useResponsive';
 import { belowToolbarTop } from '@/constants/layout';
 import { useAiPanelStore } from './useAiPanelStore';
+import { MapPill } from '@/components/MapStatusPills/MapPill';
 
 /** Visible only while tools are registered with the browser or linked to the bridge. Opens the panel on Activity. */
 export function AiStatusPill() {
@@ -20,20 +21,21 @@ export function AiStatusPill() {
   if ((registered === 0 && !bridged) || open) return null;
 
   return (
-    <button
-      type="button"
-      data-testid="ai-status-pill"
-      onClick={() => openPanel('activity')}
-      className="absolute left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-full border border-border/50 bg-background/85 px-3 py-1.5 text-2xs font-medium shadow-lg backdrop-blur-xl pointer-events-auto hover:bg-background"
-      style={{ top: belowToolbarTop(isMobile) }}
-    >
-      <span
-        data-testid="ai-status-dot"
-        data-running={running}
-        className={`h-2 w-2 rounded-full bg-success ${running ? 'agent-dot-active' : ''}`}
-      />
-      <span>AI connected</span>
-      <span className="text-muted-foreground">{calls} {calls === 1 ? 'call' : 'calls'}</span>
-    </button>
+    <div className="absolute left-1/2 z-40 -translate-x-1/2" style={{ top: belowToolbarTop(isMobile) }}>
+      <MapPill
+        testId="ai-status-pill"
+        leading={(
+          <span
+            data-testid="ai-status-dot"
+            data-running={running}
+            className={`size-2 shrink-0 rounded-full bg-success ${running ? 'agent-dot-active' : ''}`}
+          />
+        )}
+        title="Open AI activity"
+        onClick={() => openPanel('activity')}
+      >
+        AI connected <span className="ml-1 text-muted-foreground">{calls} {calls === 1 ? 'call' : 'calls'}</span>
+      </MapPill>
+    </div>
   );
 }

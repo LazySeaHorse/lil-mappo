@@ -252,7 +252,7 @@ describe('Status pill', () => {
     expect(screen.getByTestId('ai-status-dot').dataset.running).toBe('true');
     expect(screen.getByTestId('ai-status-pill').textContent).toContain('1 call');
 
-    fireEvent.click(screen.getByTestId('ai-status-pill'));
+    fireEvent.click(screen.getByRole('button', { name: /AI connected/ }));
     expect(useAiPanelStore.getState()).toMatchObject({ open: true, tab: 'activity' });
   });
 });
