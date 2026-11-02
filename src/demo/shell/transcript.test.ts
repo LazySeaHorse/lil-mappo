@@ -67,6 +67,27 @@ describe('transcriptReducer', () => {
     expect(s.busySince).toBeNull();
   });
 
+  it('keeps the spinner off for anything that lands after done, until the next prompt is sent', () => {
+    let s = ev(INITIAL_TRANSCRIPT, { kind: 'tool-start', id: 't1', name: 'set_playhead', args: { time: 0 } }, 10);
+    s = ev(s, { kind: 'tool-end', id: 't1', ok: true, summary: 'Playhead moved to 0s' }, 20);
+    s = ev(s, { kind: 'done' }, 30);
+    expect(s.busySince).toBeNull();
+    // A straggler (a tool call or a thinking beat) is still shown but never restarts the spinner.
+    s = ev(s, { kind: 'thinking', ms: 500 }, 40);
+    expect(s.busySince).toBeNull();
+    s = ev(s, { kind: 'tool-start', id: 't2', name: 'get_project', args: {} }, 50);
+    expect(s.busySince).toBeNull();
+    expect(s.entries.at(-1)).toMatchObject({ kind: 'tool', id: 't2', status: 'running' });
+    s = ev(s, { kind: 'tool-end', id: 't2', ok: true, summary: 'ok' }, 60);
+    expect(s.busySince).toBeNull();
+    // A new prompt starts the next turn, and its spinner.
+    s = ev(s, { kind: 'user', text: 'Again' }, 70);
+    s = transcriptReducer(s, { type: 'submit', now: 80 });
+    expect(s.busySince).toBe(80);
+    s = ev(s, { kind: 'tool-start', id: 't3', name: 'get_project', args: {} }, 90);
+    expect(s.busySince).toBe(80);
+  });
+
   it('marks a tool line done with its result summary, matched by id', () => {
     let s = ev(INITIAL_TRANSCRIPT, { kind: 'tool-start', id: 't1', name: 'add_boundary', args: { name: 'France' } });
     s = ev(s, { kind: 'tool-start', id: 't2', name: 'add_route', args: { from: 'Paris' } });

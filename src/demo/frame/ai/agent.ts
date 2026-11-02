@@ -65,6 +65,8 @@ export class AiAgent {
   private toolCalls = 0;
   /** The id the last call created, for the update and the swap that follow it. */
   private createdId: string | null = null;
+  /** The running playback watch, from `play` until the project reaches its end. */
+  private playback: Promise<void> = Promise.resolve();
 
   constructor({ ctx, file, post }: AiAgentOptions) {
     this.ctx = ctx;
@@ -119,7 +121,10 @@ export class AiAgent {
         await clock.wait(this.ctx.timing.betweenSteps);
         return;
       case 'play':
-        await this.play();
+        this.startPlay();
+        return;
+      case 'play-end':
+        await this.playback;
         return;
       case 'finalize':
         for (const step of action.steps) commitAiWrite(`AI: ${step.label}`, () => commitStep(step, this.file));
@@ -152,11 +157,22 @@ export class AiAgent {
     await clock.wait(this.ctx.timing.betweenSteps * 0.4);
   }
 
-  /** Starts the project playing from the playhead and waits for it to reach the end; pausing the run pauses it. */
-  private async play(): Promise<void> {
+  /**
+   * Starts the project playing from the playhead. No tool does this, so the transcript shows nothing for it.
+   * The watch runs on its own, so a pause during the closing message still holds playback; `play-end` joins it.
+   */
+  private startPlay(): void {
+    useProjectStore.getState().setIsPlaying(true);
+    const watch = this.watchPlay();
+    // Joined later by `play-end`; if the run unwinds first, nobody is left to hear this reject.
+    watch.catch(() => {});
+    this.playback = watch;
+  }
+
+  /** Follows playback to its end; pausing the run pauses it, and a reset stops it. */
+  private async watchPlay(): Promise<void> {
     const { clock } = this.ctx;
     const store = () => useProjectStore.getState();
-    store().setIsPlaying(true);
     let halted = false;
     try {
       while (halted || store().isPlaying) {

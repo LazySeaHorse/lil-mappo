@@ -34,8 +34,10 @@ export type AiAction =
   | { kind: 'place'; step: DemoStep; file: Project }
   /** The end of the AI turn: the transcript's spinner stops. */
   | { kind: 'done' }
-  /** Plays the project from the start, then waits for it to end. */
+  /** Starts the project playing from the playhead (no tool does this, so the transcript shows nothing for it). */
   | { kind: 'play' }
+  /** Waits for the playback `play` started to reach the end; the run goes on after it, not the terminal's turn. */
+  | { kind: 'play-end' }
   /** Writes whatever of these steps the tools did not already leave exactly as the file has it. */
   | { kind: 'finalize'; steps: DemoStep[] };
 
@@ -391,12 +393,19 @@ export function buildAiScript(file: Project, steps: DemoStep[], { modelReady = (
     counts.model && count(counts.model, '3D model'),
     counts.view && count(counts.view, 'camera view'),
   ].filter((p): p is string => !!p);
-  actions.push(
-    { kind: 'text', text: `Done. "${file.name}" now has ${parts.length ? join(parts) : 'its settings in place'}. Playing it back from the start.` },
-    { kind: 'done' },
-  );
+  // The agent's last calls come first: back to the start, then play. Only then does it tell the user the map is
+  // made and the turn ends (the terminal goes idle) while the playback runs on.
   if (playIndex >= 0) actions.push({ kind: 'progress', index: playIndex, label: steps[playIndex].label });
-  actions.push({ kind: 'tool', name: 'set_playhead', input: { time: 0 } }, { kind: 'play' });
+  actions.push(
+    { kind: 'tool', name: 'set_playhead', input: { time: 0 } },
+    { kind: 'play' },
+    {
+      kind: 'text',
+      text: `Your map "${file.name}" is ready: ${parts.length ? join(parts) : 'its settings are in place'}. I've set the playhead to the start and started playback.`,
+    },
+    { kind: 'done' },
+    { kind: 'play-end' },
+  );
   actions.push({ kind: 'finalize', steps: kept.filter((s) => s.kind !== 'play') });
   return actions;
 }

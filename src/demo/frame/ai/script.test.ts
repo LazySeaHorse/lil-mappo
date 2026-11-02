@@ -38,9 +38,19 @@ describe('buildAiScript', () => {
     ]);
     const kinds = script.map((a) => a.kind);
     expect(kinds.at(-1)).toBe('finalize');
-    expect(kinds.slice(-3, -1)).toEqual(['tool', 'play']);
-    // The turn ends (done) before the project plays.
-    expect(kinds.indexOf('done')).toBeLessThan(kinds.indexOf('play'));
+  });
+
+  it('ends the turn on the closing message: the agent’s last calls and the playback start come before it', () => {
+    const kinds = script.map((a) => a.kind);
+    // set_playhead, playback starts, the closing summary, done; then the run waits out the playback, then finalises.
+    expect(kinds.slice(-6)).toEqual(['tool', 'play', 'text', 'done', 'play-end', 'finalize']);
+    expect(script.at(-6)).toMatchObject({ name: 'set_playhead', input: { time: 0 } });
+    // Nothing the terminal would show as work follows done.
+    const afterDone = script.slice(kinds.indexOf('done') + 1).map((a) => a.kind);
+    expect(afterDone).toEqual(['play-end', 'finalize']);
+    expect(texts().at(-1)).toBe(
+      'Your map "Tour de France" is ready: 2 boundaries, 1 route, 1 callout, 1 3D model and 2 camera views. I\'ve set the playhead to the start and started playback.',
+    );
   });
 
   it('never uses timeline drags or the export, and has no tool for the timeline step', () => {
@@ -96,7 +106,7 @@ describe('buildAiScript', () => {
     expect(texts()).toContain('Adding the Spain outline first.');
     expect(texts()).toContain('Now the France outline.');
     expect(texts().some((t) => t.includes('Paris') && t.includes('Lyon'))).toBe(true);
-    expect(texts().at(-1)).toMatch(/^Done\. "Tour de France" now has 2 boundaries, 1 route, 1 callout, 1 3D model and 2 camera views\./);
+    expect(texts().at(-1)).toMatch(/^Your map "Tour de France" is ready: 2 boundaries, 1 route, 1 callout, 1 3D model and 2 camera views\./);
     expect(texts().join(' ')).not.toMatch(/\p{Extended_Pictographic}/u);
     const beats = script.filter((a): a is Extract<AiAction, { kind: 'think' }> => a.kind === 'think').map((a) => a.ms);
     expect(beats.length).toBeGreaterThan(5);

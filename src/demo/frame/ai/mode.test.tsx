@@ -148,8 +148,18 @@ describe('AiMode', () => {
     render(<Editor />);
     const { mode, aiEvents, sent } = setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // How many transcript events had been sent when playback started.
+    const playedAfter: number[] = [];
+    const stopWatching = useProjectStore.subscribe((state, prev) => {
+      if (state.isPlaying && !prev.isPlaying) playedAfter.push(aiEvents().length);
+    });
 
     await mode.run(ctx, file, settings);
+    stopWatching();
+
+    // Playback starts right after the playhead call, before the closing message and `done`; the run waits it out.
+    expect(playedAfter).toEqual([aiEvents().length - 2]);
+    expect(useProjectStore.getState().isPlaying).toBe(false);
 
     const project = pickProject(useProjectStore.getState());
     expect(project).toEqual(pickProject(file));
@@ -158,10 +168,13 @@ describe('AiMode', () => {
     const order = sent.map((m) => (m.type === 'ai-event' ? m.event.kind : m.type));
     expect(order.slice(0, 4)).toEqual(['ai-panel', 'user', 'thinking', 'text']);
     expect(aiEvents()[0]).toEqual({ kind: 'user', text: 'Show me a trip around France' });
-    // The turn ends with the closing summary; the playback call follows it.
+    // The agent's last call (playhead to the start) comes before the closing summary, and the turn ends on it:
+    // nothing but `done` follows, so the terminal goes idle while the playback plays out.
     const kinds = aiEvents().map((e) => e.kind);
-    expect(kinds.indexOf('done')).toBeGreaterThan(kinds.lastIndexOf('text') - 1);
-    expect(aiEvents().at(-1)).toMatchObject({ kind: 'tool-end', summary: expect.stringContaining('Playhead') });
+    expect(kinds.slice(-4)).toEqual(['tool-start', 'tool-end', 'text', 'done']);
+    expect(aiEvents().at(-3)).toMatchObject({ kind: 'tool-end', summary: expect.stringContaining('Playhead') });
+    expect(aiEvents().at(-2)).toMatchObject({ kind: 'text', text: expect.stringContaining('started playback') });
+    expect(kinds.filter((k) => k === 'done')).toHaveLength(1);
 
     // Every call is started then ended, in pairs, and succeeded.
     const starts = aiEvents().filter((e) => e.kind === 'tool-start');

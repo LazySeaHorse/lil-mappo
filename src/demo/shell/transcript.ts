@@ -15,6 +15,8 @@ export interface TranscriptState {
   busySince: number | null;
   /** Counts the turns, so each one gets its own spinner verb. */
   turn: number;
+  /** The turn is over (`done`): the spinner stays off until the next prompt is sent, whatever else arrives. */
+  ended: boolean;
 }
 
 export type TranscriptAction =
@@ -25,7 +27,7 @@ export type TranscriptAction =
   | { type: 'submit'; now: number }
   | { type: 'clear' };
 
-export const INITIAL_TRANSCRIPT: TranscriptState = { entries: [], typing: null, busySince: null, turn: 0 };
+export const INITIAL_TRANSCRIPT: TranscriptState = { entries: [], typing: null, busySince: null, turn: 0, ended: false };
 
 const MCP_SERVER = 'lilmappo';
 
@@ -80,6 +82,7 @@ function flushTyping(state: TranscriptState, now: number): TranscriptState {
     typing: null,
     busySince: now,
     turn: state.turn + 1,
+    ended: false,
   };
 }
 
@@ -102,13 +105,14 @@ export function transcriptReducer(state: TranscriptState, action: TranscriptActi
       const s = flushTyping(state, now);
       switch (event.kind) {
         case 'thinking':
-          return s.busySince === null ? { ...s, busySince: now } : s;
+          // After `done` the turn is over: a late beat must not start a spinner nothing will stop.
+          return s.ended || s.busySince !== null ? s : { ...s, busySince: now };
         case 'text':
           return { ...s, entries: [...s.entries, { kind: 'text', text: event.text }] };
         case 'tool-start':
           return {
             ...s,
-            busySince: s.busySince ?? now,
+            busySince: s.ended ? null : (s.busySince ?? now),
             entries: [
               ...s.entries,
               { kind: 'tool', id: event.id, title: formatToolTitle(event.name), args: formatToolArgs(event.args), status: 'running', summary: null },
@@ -124,7 +128,7 @@ export function transcriptReducer(state: TranscriptState, action: TranscriptActi
           return hit ? { ...s, entries } : s;
         }
         case 'done':
-          return { ...s, busySince: null };
+          return { ...s, busySince: null, ended: true };
         default:
           return s;
       }
