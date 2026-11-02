@@ -46,14 +46,88 @@ describe('Map Point Picking Architecture', () => {
   });
 
   describe('resolveClickTarget', () => {
-    it('resolves raw coordinates when no search feature is hit', () => {
-      const clickEvent = {
-        lngLat: { lng: -73.98513, lat: 40.748817 },
-      };
+    const clickAt = { lngLat: { lng: -73.98513, lat: 40.748817 }, point: { x: 400, y: 300 } };
 
-      const result = resolveClickTarget(clickEvent);
+    interface FakeFeature {
+      geometry: GeoJSON.Geometry;
+      properties?: Record<string, unknown> | null;
+    }
+    const label = (x: number, y: number, properties: Record<string, unknown> | null): FakeFeature => ({
+      geometry: { type: 'Point', coordinates: [x, y] },
+      properties,
+    });
+
+    /** A map whose labels sit at the given pixels (`project` maps a coordinate to the same pixel). */
+    function fakeMap(features: FakeFeature[], layerIds = ['settlement-major-label', 'poi-label', 'road-label']) {
+      const queryRenderedFeatures = vi.fn(() => features);
+      const map = {
+        queryRenderedFeatures,
+        project: ([x, y]: [number, number]) => ({ x, y }),
+        getStyle: () => ({ version: 8, sources: {}, layers: layerIds.map((id) => ({ id, type: 'symbol' })) }),
+      };
+      return { map: map as unknown as NonNullable<Parameters<typeof resolveClickTarget>[0]['target']>, queryRenderedFeatures };
+    }
+
+    beforeEach(() => {
+      useProjectStore.setState({ mapStyle: 'streets' });
+    });
+
+    it('resolves raw coordinates when the click has no map to ask', () => {
+      const result = resolveClickTarget({ lngLat: { lng: -73.98513, lat: 40.748817 } });
       expect(result.lngLat).toEqual([-73.98513, 40.748817]);
       expect(result.name).toBe('-73.98513, 40.74882');
+    });
+
+    it('names the point after the nearest place label, keeping the exact clicked point', () => {
+      const { map, queryRenderedFeatures } = fakeMap([
+        label(430, 300, { name: 'Far Town', name_en: 'Far Town' }),
+        label(405, 304, { name: 'Ville', name_en: 'Town' }),
+      ]);
+      const result = resolveClickTarget({ ...clickAt, target: map });
+      expect(result).toEqual({ lngLat: [-73.98513, 40.748817], name: 'Town' });
+      // A box around the click, on the place and POI label layers only.
+      expect(queryRenderedFeatures).toHaveBeenCalledWith([[expect.any(Number), expect.any(Number)], [expect.any(Number), expect.any(Number)]], {
+        layers: ['settlement-major-label', 'poi-label'],
+      });
+    });
+
+    it('uses the local name when a label has no English one', () => {
+      const { map } = fakeMap([label(401, 301, { name: 'Zürich' })]);
+      expect(resolveClickTarget({ ...clickAt, target: map }).name).toBe('Zürich');
+    });
+
+    it('ignores labels with no name, labels that are not points and labels beyond the radius', () => {
+      const { map } = fakeMap([
+        label(401, 300, null),
+        label(402, 300, { name: '  ' }),
+        label(403, 300, { class: 'park' }),
+        { geometry: { type: 'LineString', coordinates: [[400, 300], [410, 300]] }, properties: { name: 'Main Street' } },
+        label(480, 300, { name: 'Faraway' }),
+      ]);
+      expect(resolveClickTarget({ ...clickAt, target: map }).name).toBe('-73.98513, 40.74882');
+    });
+
+    it('does not query a style that has no place or POI label layers', () => {
+      const { map, queryRenderedFeatures } = fakeMap([label(401, 300, { name: 'Town' })], ['road-label', 'water']);
+      expect(resolveClickTarget({ ...clickAt, target: map }).name).toBe('-73.98513, 40.74882');
+      expect(queryRenderedFeatures).not.toHaveBeenCalled();
+    });
+
+    it('asks the basemap featuresets of Standard, whose layers cannot be queried by id', () => {
+      useProjectStore.setState({ mapStyle: 'standard' });
+      const { map, queryRenderedFeatures } = fakeMap([label(398, 301, { name: 'Midtown' })]);
+      expect(resolveClickTarget({ ...clickAt, target: map }).name).toBe('Midtown');
+      expect(queryRenderedFeatures).toHaveBeenCalledWith(expect.anything(), { target: { featuresetId: 'place-labels', importId: 'basemap' } });
+      expect(queryRenderedFeatures).toHaveBeenCalledWith(expect.anything(), { target: { featuresetId: 'poi', importId: 'basemap' } });
+    });
+
+    it('falls back to the coordinates when the map cannot be queried', () => {
+      const { map, queryRenderedFeatures } = fakeMap([]);
+      queryRenderedFeatures.mockImplementation(() => {
+        throw new Error('Style is not done loading');
+      });
+      const result = resolveClickTarget({ ...clickAt, target: map });
+      expect(result).toEqual({ lngLat: [-73.98513, 40.748817], name: '-73.98513, 40.74882' });
     });
   });
 

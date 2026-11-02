@@ -19,7 +19,7 @@ import type { AspectRatio, ExportResolution } from '@/types/render';
 
 export interface PickResult {
   lngLat: [number, number];
-  /** The coordinates as a label for a place field. Not a place name. */
+  /** The label for a place field: the name of the place label picked on the map, else the coordinates. */
   name: string;
 }
 
