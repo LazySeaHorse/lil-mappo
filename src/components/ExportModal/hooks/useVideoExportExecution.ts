@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { saveAs } from 'file-saver';
-import { loadVideoExport } from '@/lib/lazyModules';
+import { loadDemoFakeExport, loadVideoExport } from '@/lib/lazyModules';
+import { IS_DEMO_FRAME } from '@/demo/isDemo';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Branding } from '@/overlays';
 import type { ExportPlan } from '../exportPlan';
@@ -46,7 +47,8 @@ export function useVideoExportExecution(
 
     try {
       // Loaded on demand: the export pipeline (mediabunny) stays out of the initial bundle.
-      const { runExport } = await loadVideoExport();
+      // The demo frame fills the bar with a scripted export instead (no encoder, no file).
+      const { runExport } = IS_DEMO_FRAME ? await loadDemoFakeExport() : await loadVideoExport();
       if (controller.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
       const blob = await runExport(runtimeRef, {
         ...exportPlan,
@@ -60,7 +62,7 @@ export function useVideoExportExecution(
 
       const sanitizedName = projectName.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'export';
       const fileName = `${sanitizedName}.mp4`;
-      saveAs(blob, fileName);
+      if (!IS_DEMO_FRAME) saveAs(blob, fileName);
       setProgress(100);
       track('export_succeeded', exportProps);
       setPersonProps({ has_exported: true });

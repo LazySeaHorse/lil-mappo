@@ -85,6 +85,35 @@ export interface Locators {
   walkSmoothSwitch: Locator;
   walkAddPointButton: Locator;
   routeNameField: Locator;
+  timelinePanel: Locator;
+  /** The timeline's scroll box, which the zoom controls fit the clips into. */
+  timelineViewport: Locator;
+  /** A clip's bar: press it to move the clip. */
+  timelineClip: (itemId: string) => Locator;
+  /** A clip's edge handle: press it to trim that edge. */
+  timelineHandle: (itemId: string, edge: 'start' | 'end') => Locator;
+  timelineRuler: Locator;
+  timelineZoomOut: Locator;
+  /** The transport's jump to start button. */
+  timelineJumpToStart: Locator;
+
+  /** The toolbar button that adds a camera view at the playhead. */
+  addCameraViewButton: Locator;
+
+  /** The transport's play / pause button. */
+  timelinePlay: Locator;
+
+  /** The toolbar's Export button, which opens the export modal. */
+  exportButton: Locator;
+  exportDialog: Locator;
+  /** A select of the export modal, by its row's label. */
+  exportSelect: (label: string) => Locator;
+  /** An option of a segmented control of the export modal, by its row's label. */
+  exportChoice: (label: string, option: string) => Locator;
+  /** A number field of the export modal, by its row's label. */
+  exportField: (label: string) => Locator;
+  /** The modal's Export button (it says Export again after a first export). */
+  exportConfirm: Locator;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -123,6 +152,8 @@ const routeLocators = {
   walkAddPointButton: { role: 'button', name: /^(Add point on map|Click map to place point)/, within: addRoutePanel, description: 'the Add point on map button' },
   routeNameField: { role: 'textbox', name: 'Route name', description: 'the route name field' },
 } satisfies Partial<Locators>;
+const exportDialog: Locator = { role: 'dialog', description: 'the export modal' };
+const timelinePanel: Locator = { walkthrough: 'timeline-panel', description: 'the timeline' };
 
 export const DESKTOP_LOCATORS: Locators = {
   mapStyleTrigger: { walkthrough: 'map-style', description: 'the map style picker' },
@@ -206,6 +237,27 @@ export const DESKTOP_LOCATORS: Locators = {
   }),
   modelAddButton: { role: 'button', name: MODEL_TERMS.add, within: modelDialog, description: 'the Add to map button' },
   ...routeLocators,
+  timelinePanel,
+  timelineViewport: { attrs: { 'data-slot': 'scroll-area-viewport' }, within: timelinePanel, description: 'the timeline' },
+  timelineClip: (itemId) => ({ attrs: { 'data-testid': `timeline-item-${itemId}` }, description: `the timeline clip ${itemId}` }),
+  timelineHandle: (itemId, edge) => ({
+    attrs: { 'data-testid': `timeline-item-${itemId}-${edge}-handle` },
+    description: `the ${edge} handle of the clip ${itemId}`,
+  }),
+  timelineRuler: { attrs: { 'data-testid': 'timeline-ruler' }, description: 'the timeline ruler' },
+  timelineZoomOut: { role: 'button', name: 'Zoom Out', within: timelinePanel, description: 'the timeline Zoom Out button' },
+  timelineJumpToStart: { walkthrough: 'timeline-start', description: 'the timeline Jump to Start button' },
+
+  addCameraViewButton: { walkthrough: 'camera-keyframe', description: 'the Add camera view button' },
+
+  timelinePlay: { walkthrough: 'timeline-play', description: 'the timeline Play button' },
+
+  exportButton: { walkthrough: 'render', description: 'the Export button' },
+  exportDialog,
+  exportSelect: (label) => ({ label, role: 'combobox', within: exportDialog, description: `the export ${label} select` }),
+  exportChoice: (label, option) => ({ label, role: 'radio', name: option, within: exportDialog, description: `the export ${label} ${option} option` }),
+  exportField: (label) => ({ label, role: 'textbox', within: exportDialog, description: `the export ${label} field` }),
+  exportConfirm: { role: 'button', name: /^Export (locally|again)/, within: exportDialog, description: 'the Export button of the export modal' },
 };
 
 /** The locators for the layout on screen. Desktop only for now. */

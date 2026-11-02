@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pickProject } from '@/store/projectDocument';
+import type { BoundaryItem } from '@/store/types';
 import { applyStep, boundaryBaseline, boundaryEdits, deepEqual, diffLeaves, orderLikeFile, planDemo, setPath } from './plan';
 import { startingProject } from './startState';
 import { demoFixture, editedBoundary } from './testFixture';
@@ -54,17 +55,34 @@ describe('planDemo', () => {
       { path: 'style.maskOpacity', value: 0.6 },
       { path: 'style.animationStyle', value: 'trace' },
       { path: 'style.traceLength', value: 0.25 },
-      { path: 'startTime', value: 1.5 },
-      { path: 'endTime', value: 9 },
       { path: 'easing', value: 'linear' },
       { path: 'exitAnimation', value: 'fade' },
     ]);
-    // A boundary left as Add made it (at its start time) has only its timing to change.
+    // A boundary left as Add made it has only its timing to change, which is the timeline step's.
     const spain = steps.find((s) => s.kind === 'item' && s.itemId === 'b-spain');
-    expect(spain && 'edits' in spain ? spain.edits : null).toEqual([
-      { path: 'endTime', value: 15 },
-      { path: 'startTime', value: 10 },
-    ]);
+    expect(spain && 'edits' in spain ? spain.edits : null).toEqual([]);
+  });
+
+  it('leaves each item the timing the UI gives it, for the timeline step to change', () => {
+    const timingOf = (id: string) => {
+      const step = steps.find((s) => s.kind === 'item' && s.itemId === id);
+      return step && 'timing' in step ? step.timing : undefined;
+    };
+    const france = file.items['b-france'];
+    expect(timingOf('b-france')).toEqual({ startTime: 0, endTime: boundaryBaseline(france as BoundaryItem).endTime });
+    for (const id of ['b-spain', 'b-france', 'r-paris-lyon', 'c-paris', 'mi-tower']) {
+      const timing = timingOf(id)!;
+      expect(timing.startTime).toBe(0);
+      expect(timing.endTime).toBeGreaterThan(0);
+    }
+    // After the item steps the clips sit where the UI put them; the timeline step moves them to the file's.
+    const itemSteps = steps.filter((s) => s.kind === 'item');
+    const placed = itemSteps.reduce((p, s) => applyStep(p, s, file), startingProject(file));
+    expect(placed.items['b-spain']).toMatchObject({ startTime: 0 });
+    expect(placed.items['b-spain']).not.toMatchObject({ startTime: 10 });
+    const timeline = steps.find((s) => s.kind === 'timeline')!;
+    const after = applyStep(placed, timeline, file);
+    for (const id of ['b-spain', 'b-france', 'r-paris-lyon', 'c-paris', 'mi-tower']) expect(after.items[id]).toEqual(file.items[id]);
   });
 
   it('moves the end first when the new start is past the current end', () => {

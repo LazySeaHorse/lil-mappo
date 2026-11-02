@@ -11,7 +11,11 @@ import { runModel } from './modelRunner';
 import { currentLocators, type Locators } from './locators';
 import { mockBoundarySearch } from './mocks';
 import { runRoute } from './routeRunner';
-import { applyStep, boundaryEdits, deepEqual, type DemoStep, type FieldEdit } from './plan';
+import { runCamera } from './cameraRunner';
+import { runExport } from './exportRunner';
+import { runPlay } from './playRunner';
+import { runTimeline } from './timelineRunner';
+import { applyStep, boundaryEdits, deepEqual, hasTiming, isTimingEdit, type DemoStep, type FieldEdit } from './plan';
 
 /**
  * What each step does on screen, then its final write. A step whose UI flow is
@@ -38,7 +42,15 @@ export function commitStep(step: DemoStep, file: Project, { replace }: { replace
   const state = useProjectStore.getState();
   const before = pickProject(state);
   const base = replace && step.kind === 'item' && replace !== step.itemId ? withoutItem(before, replace) : before;
-  const after = applyStep(base, step, file);
+  let after = applyStep(base, step, file);
+  // The clip keeps the timing the UI gave the item it made; the timeline step drags it to the file's.
+  if (step.kind === 'item' && replace) {
+    const made = before.items[replace];
+    const placed = after.items[step.itemId];
+    if (made && placed && hasTiming(made) && hasTiming(placed)) {
+      after = { ...after, items: { ...after.items, [placed.id]: { ...placed, startTime: made.startTime, endTime: made.endTime } } };
+    }
+  }
   const patch: Partial<Project> = {};
   for (const key of Object.keys({ ...before, ...after }) as (keyof Project)[]) {
     if (!deepEqual(before[key], after[key])) (patch as Record<string, unknown>)[key] = after[key];
@@ -168,6 +180,7 @@ async function runBoundary(ctx: DemoContext, step: StepOf<'item'>, file: Project
     // What the panel made, against the file: the edits left to show in the inspector.
     for (const edit of boundaryEdits(live() ?? target, target)) {
       ctx.clock.check();
+      if (step.timing && isTimingEdit(edit)) continue;
       await showEdit(ctx, BOUNDARY_FIELDS, edit, live, target);
     }
   }
@@ -191,6 +204,14 @@ export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): 
       if (step.itemKind === 'route') return runRoute(ctx, step, file);
       commitStep(step, file);
       return;
+    case 'timeline':
+      return runTimeline(ctx, step, file);
+    case 'camera':
+      return runCamera(ctx, step, file);
+    case 'play':
+      return runPlay(ctx, step, file);
+    case 'export':
+      return runExport(ctx, step, file);
     default:
       commitStep(step, file);
   }
