@@ -228,6 +228,36 @@ describe('runExport', () => {
     expect(target.discard).toHaveBeenCalledTimes(1);
   });
 
+  it('stops at once with the same message when the browser goes offline mid-export', async () => {
+    const { ref, runtime } = installRuntime();
+    runtime.waitUntilRendered.mockImplementation((wait?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+      wait?.signal?.addEventListener('abort', () => reject(wait.signal!.reason));
+      window.dispatchEvent(new Event('offline'));
+    }));
+
+    await expect(runExport(ref, options())).rejects.toThrow(
+      'Export stopped: the map stopped loading. Check your internet connection and try again.',
+    );
+    expect(runtime.waitUntilRendered).toHaveBeenCalledTimes(1);
+    expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not capture any frames when the browser is already offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { ref, runtime } = installRuntime();
+
+    await expect(runExport(ref, options())).rejects.toThrow('Export stopped: the map stopped loading.');
+    expect(runtime.renderAt).not.toHaveBeenCalled();
+    expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops listening for the connection once the export settles', async () => {
+    const removeListener = vi.spyOn(window, 'removeEventListener');
+    await runExport(installRuntime().ref, options());
+
+    expect(removeListener).toHaveBeenCalledWith('offline', expect.any(Function));
+  });
+
   it('refuses without a map runtime, before starting an encoder', async () => {
     await expect(runExport({ current: null } as never, options())).rejects.toThrow('Map runtime not available');
     expect(target.created).toBe(0);
