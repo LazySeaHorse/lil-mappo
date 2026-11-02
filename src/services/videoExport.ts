@@ -312,7 +312,8 @@ async function prewarmTileCache(
     const cam = getProjectCameraAt(clampedT);
     if (cam) applyCamera(map, cam, zoomOffset);
 
-    // Wait for map to settle, max 2s.
+    // Wait for map to settle, max 2s. Best-effort: this only warms the tile cache, and a
+    // timeout is fine because each frame waits for its own render before capture.
     await waitForMapIdle(map, {
       timeoutMs: 2_000,
       signal: abortSignal,
@@ -442,7 +443,8 @@ export async function runExport(
   try {
     return await withTemporaryMapViewport(map, width, height, () => (
       withTemporaryProjectPlayhead(async () => {
-        // Wait for map ready
+        // Wait for map ready. Best-effort: the result is ignored because every frame waits for
+        // its own render, and those timeouts are what incompleteFrames counts.
         await waitForMapIdle(map, { timeoutMs: 3_000, signal: abortSignal });
         await document.fonts.ready;
         const { items: annotationItems, itemOrder: annotationOrder } = useProjectStore.getState();

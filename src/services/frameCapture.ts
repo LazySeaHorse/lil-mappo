@@ -80,6 +80,7 @@ export async function withFrameCapturer<T>(
       zoomOffset,
       previewZoom,
       async captureNow() {
+        // Best-effort: a single still is captured even if the map did not go idle in time.
         await waitForMapIdle(map, { timeoutMs: 3_000 });
         await document.fonts.ready;
         const { items, itemOrder } = useProjectStore.getState();
