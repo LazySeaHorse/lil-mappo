@@ -92,15 +92,26 @@ describe('AiMode', () => {
     const { mode, sent } = setup();
     ctx.cursor.setHidden(false);
 
+    // The panel is open only for a stretch of the run, and a poll can miss it when the machine is busy:
+    // watch the stores for the moments instead.
+    const seen = { panelOpenWhileOn: false, panelOpenWhileConnected: false };
+    const watch = () => {
+      const { open, bridgeStatus } = useAiPanelStore.getState();
+      const enabled = useAgentStore.getState().enabled;
+      seen.panelOpenWhileOn ||= open && enabled;
+      seen.panelOpenWhileConnected ||= open && enabled && bridgeStatus === 'connected';
+    };
+    const stops = [useAiPanelStore.subscribe(watch), useAgentStore.subscribe(watch)];
+
     const run = mode.run(ctx, file, settings);
-    // Midway: the panel is open and AI is on, the bridge dialling or connected.
-    await vi.waitFor(() => expect(useAiPanelStore.getState().open).toBe(true));
-    await vi.waitFor(() => expect(useAgentStore.getState().enabled).toBe(true));
-    await vi.waitFor(() => expect(useAiPanelStore.getState().bridgeStatus).toBe('connected'));
-    await vi.waitFor(() => expect(useAiPanelStore.getState().open).toBe(false));
+    // The panel closes once the connection shows, and the cursor leaves the map to the pill: wait for the end state.
+    await vi.waitFor(() => expect(ctx.cursor.hidden).toBe(true));
+    stops.forEach((stop) => stop());
+    expect(seen).toEqual({ panelOpenWhileOn: true, panelOpenWhileConnected: true });
+    expect(useAiPanelStore.getState()).toMatchObject({ open: false, bridgeStatus: 'connected' });
+    expect(useAgentStore.getState().enabled).toBe(true);
     await vi.waitFor(() => expect(document.querySelector('[data-testid="ai-status-pill"]')).not.toBeNull());
-    expect(ctx.cursor.hidden).toBe(true);
-    expect(sent.find((m) => m.type === 'ai-panel')).toEqual({ type: 'ai-panel', open: true });
+    await vi.waitFor(() => expect(sent.find((m) => m.type === 'ai-panel')).toEqual({ type: 'ai-panel', open: true }));
     await run;
   });
 
