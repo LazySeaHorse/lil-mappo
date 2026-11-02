@@ -92,7 +92,8 @@ class FakeFrame {
   close() {}
 }
 
-function installRuntime() {
+let lastRenderedAt = 0;
+function installRuntime(renderResultAt: (t: number) => 'idle' | 'timeout' = () => 'idle') {
   const map = {
     getContainer: () => ({ clientWidth: 640 }),
     triggerRepaint: vi.fn(() => { log.push('repaint'); }),
@@ -100,8 +101,8 @@ function installRuntime() {
   const runtime = {
     getMap: () => map,
     sync: vi.fn(() => { log.push('sync'); }),
-    renderAt: vi.fn((t: number) => { log.push(`renderAt:${t}`); }),
-    waitUntilRendered: vi.fn(async () => { log.push('rendered'); }),
+    renderAt: vi.fn((t: number) => { log.push(`renderAt:${t}`); lastRenderedAt = t; }),
+    waitUntilRendered: vi.fn(async () => { log.push('rendered'); return renderResultAt(lastRenderedAt); }),
   };
   return { map, runtime, ref: { current: runtime } as never };
 }
@@ -142,9 +143,10 @@ describe('runExport', () => {
 
   it('steps, renders, composites and encodes every frame in order, then finalizes', async () => {
     const { ref } = installRuntime();
-    const blob = await runExport(ref, options());
+    const { blob, incompleteFrames } = await runExport(ref, options());
 
     expect(blob).toBeInstanceOf(Blob);
+    expect(incompleteFrames).toBe(0);
     expect(target.getBlob).toHaveBeenCalledTimes(1);
     const capture = log.slice(log.indexOf('playhead:0'));
     // zoomOffset = log2(1280 / 640) = 1
@@ -165,6 +167,16 @@ describe('runExport', () => {
     expect(mux.outputs[0].finalize).toHaveBeenCalled();
     expect(target.discard).not.toHaveBeenCalled();
     expect(useProjectStore.getState().playheadTime).toBe(0.25);
+  });
+
+  it('still encodes a frame whose map did not go idle in time, and counts it as incomplete', async () => {
+    const { ref } = installRuntime((t) => (t === 0.5 ? 'timeout' : 'idle'));
+    const { blob, incompleteFrames } = await runExport(ref, options());
+
+    expect(blob).toBeInstanceOf(Blob);
+    expect(incompleteFrames).toBe(1);
+    expect(log.filter((e) => e.startsWith('encode:'))).toEqual(['encode:0', 'encode:500000', 'encode:1000000']);
+    expect(mux.outputs[0].finalize).toHaveBeenCalled();
   });
 
   it('refuses without a map runtime, before starting an encoder', async () => {
