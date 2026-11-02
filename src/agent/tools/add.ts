@@ -173,14 +173,14 @@ export const addBoundary = defineTool({
     'With `year` it is the historical region from OpenHistoricalMap that existed in that year (e.g. "Prussia" in 1850, "Roman Empire" in 117, "Soviet Union" in 1960): use it for documentary or history requests. ' +
     'Historical coverage is uneven and borders may be approximate; the result names the place, its period and the source. If no period covers the year, the error lists the periods found, so retry with another year or name (English or historical names work best, e.g. "Kingdom of Prussia"). ' +
     'It animates in at startTime and leaves at endTime (seconds; default: playhead to +5s). `style` is partial (strokeColor, fillColor, fillOpacity, animationStyle fade|draw|trace, maskOutside + maskColor + maskOpacity to dim everything outside the region as a spotlight, fillUnderRoads to put the color fill under the roads so streets show through it, fillMode "flag" to fill a country with its flag (flagCode is pre-filled from the search result when there is one; override it with a lowercase ISO 3166-1 alpha-2 code)...). ' +
-    '`detail` sets outline accuracy: detailed (~1 m, cities and neighbourhoods, close-ups), standard (~10 m, default, most regions) or light (~50 m, countries and continents, wide shots). ' +
+    '`detail` sets outline accuracy: detailed (~1 m, cities and neighbourhoods, close-ups), standard (~10 m, most regions) or light (~50 m, default, countries and continents, wide shots). ' +
     'One undo step. Returns the item id, resolved place name, bbox [west, south, east, north] (pass the id to frame_items to frame it) and, for a historical boundary, its period and source.',
   input: z.strictObject({
     query: z.string().min(2).max(200).describe('Region name, e.g. "Portugal", "Manhattan, New York", "Bavaria". With `year`, a historical name works too, e.g. "Kingdom of Prussia".'),
     year: z.number().int().min(-9999).max(9999).optional().describe(
       'Optional. Pass it to get the region as it was in that year (OpenHistoricalMap) instead of today\'s outline. Whole year, e.g. 1871, or -44 for 45 BC (astronomical numbering: 0 is 1 BC, -1 is 2 BC, so the BC year is 1 minus the number). Omit for the present-day border.',
     ),
-    detail: z.enum(['detailed', 'standard', 'light']).optional().describe('Outline detail. Default "standard".'),
+    detail: z.enum(['detailed', 'standard', 'light']).optional().describe('Outline detail. Default "light".'),
     ...timing,
     style: boundaryStylePatchSchema.optional().describe('Partial boundary style merged over the defaults.'),
   }),

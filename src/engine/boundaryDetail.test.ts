@@ -9,7 +9,7 @@ const count = (g: GeoJSON.Geometry) =>
     : g.type === 'MultiPolygon' ? g.coordinates.flat().reduce((n, r) => n + r.length, 0) : 0;
 
 describe('BOUNDARY_DETAIL_LEVELS', () => {
-  it('defines detailed/standard/light with 1/10/50 m and defaults to standard', () => {
+  it('defines detailed/standard/light with 1/10/50 m and defaults to light', () => {
     expect(BOUNDARY_DETAIL_LEVELS.map((l) => [l.id, l.toleranceM])).toEqual([
       ['detailed', 1], ['standard', 10], ['light', 50],
     ]);
@@ -17,7 +17,7 @@ describe('BOUNDARY_DETAIL_LEVELS', () => {
       expect(l.label).toBeTruthy();
       expect(l.hint).toBeTruthy();
     }
-    expect(DEFAULT_BOUNDARY_DETAIL).toBe('standard');
+    expect(DEFAULT_BOUNDARY_DETAIL).toBe('light');
   });
 });
 

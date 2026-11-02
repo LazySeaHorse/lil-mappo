@@ -98,7 +98,7 @@ describe('BoundaryAddDropdown', () => {
     expect(boundaries()).toHaveLength(0);
   });
 
-  it('shows Detailed / Standard / Light with Standard selected by default and the helper text', () => {
+  it('shows Detailed / Standard / Light with the level chosen last selected and the helper text', () => {
     open();
     choose();
     expect(screen.getByRole('radio', { name: /detailed/i })).toHaveAttribute('aria-checked', 'false');

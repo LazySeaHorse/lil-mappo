@@ -33,7 +33,7 @@ import { SwitchRow } from '@/components/Inspector/controls/SwitchRow';
 import { ColorRow } from '@/components/Inspector/controls/ColorRow';
 import { HistoricalPeriodPicker } from '@/components/Inspector/controls/HistoricalPeriodPicker';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
-import { BoundaryDetailPicker } from './BoundaryDetailPicker';
+import { BoundaryDetailPicker } from '@/components/Inspector/controls/BoundaryDetailPicker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
@@ -310,7 +310,7 @@ export const BoundaryAddDropdown = ({
           </div>
 
           <div>
-            <SectionLabel>Detail</SectionLabel>
+            <SectionLabel>{BOUNDARY_TERMS.detail}</SectionLabel>
             <BoundaryDetailPicker value={boundaryDetail} onChange={handleDetail} />
           </div>
 

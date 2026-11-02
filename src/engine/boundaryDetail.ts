@@ -19,7 +19,8 @@ export const BOUNDARY_DETAIL_LEVELS: readonly BoundaryDetailLevel[] = [
   { id: 'light', label: 'Light', toleranceM: 50, hint: 'Countries and continents, wide shots' },
 ];
 
-export const DEFAULT_BOUNDARY_DETAIL: BoundaryDetailId = 'standard';
+/** Light: most boundaries are countries and regions in wide shots, and it keeps saved projects small. */
+export const DEFAULT_BOUNDARY_DETAIL: BoundaryDetailId = 'light';
 
 export function getBoundaryDetailLevel(id: BoundaryDetailId): BoundaryDetailLevel {
   return BOUNDARY_DETAIL_LEVELS.find((l) => l.id === id) ?? BOUNDARY_DETAIL_LEVELS[1];

@@ -36,6 +36,8 @@ export const BOUNDARY_TERMS = {
   fill: 'Fill',
   fillColor: 'Fill color',
   fillOpacity: 'Fill opacity',
+  /** How closely the stored outline follows the real border (Detailed, Standard, Light). */
+  detail: 'Detail',
   animation: 'Animation',
   /** How much of the outline the Trace animation lights up at one time. */
   highlightLength: 'Highlight length',

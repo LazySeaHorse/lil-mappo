@@ -206,16 +206,16 @@ describe('add tools', () => {
     expect(bad.isError).toBe(true);
   });
 
-  it('add_boundary simplifies at Standard by default and honours an optional detail level', async () => {
+  it('add_boundary simplifies at Light by default and honours an optional detail level', async () => {
     const island = syntheticIsland();
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
       type: 'FeatureCollection',
       features: [{ type: 'Feature', properties: { display_name: 'Isola, Italia', type: 'island' }, geometry: island }],
     }))));
     const ringOf = (id: string) => ((state().items[id] as { geojson: GeoJSON.Polygon }).geojson.coordinates[0]);
-    const std = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola' }));
-    expect(ringOf(std.created.id)).toEqual((applyBoundaryDetail(island, 'standard') as GeoJSON.Polygon).coordinates[0]);
-    const light = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola', detail: 'light' }));
+    const light = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola' }));
+    expect(ringOf(light.created.id)).toEqual((applyBoundaryDetail(island, 'light') as GeoJSON.Polygon).coordinates[0]);
+    const std = resultJson<{ created: { id: string } }>(await runAgentTool('add_boundary', { query: 'Isola', detail: 'standard' }));
     expect(ringOf(light.created.id).length).toBeLessThan(ringOf(std.created.id).length);
   });
 

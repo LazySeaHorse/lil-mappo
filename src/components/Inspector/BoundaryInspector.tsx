@@ -2,7 +2,7 @@ import React from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { withHistoryLabel } from '@/store/history';
 import type { BoundaryItem } from '@/store/types';
-import { applyBoundaryDetail } from '@/engine/boundaryDetail';
+import { applyBoundaryDetail, getBoundaryDetailLevel, type BoundaryDetailId } from '@/engine/boundaryDetail';
 import { formatDateRange } from '@/engine/historicalDate';
 import { sourceForVersion } from '@/engine/historicalSource';
 import type { BoundarySearchResult } from '@/services/boundarySearch';
@@ -11,6 +11,7 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { toast } from 'sonner';
 import { BoundarySearch } from './BoundarySearch';
 import { HistoricalPeriodPicker } from './controls/HistoricalPeriodPicker';
+import { BoundaryDetailPicker } from './controls/BoundaryDetailPicker';
 import { FlagPicker } from './FlagPicker';
 import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -41,14 +42,40 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   const request = useLatestRequest();
   /** The period whose outline is downloading, if any. */
   const [loadingId, setLoadingId] = React.useState<string | null>(null);
+  /**
+   * The full outline of the place or period last picked here, and the detail it
+   * was stored at. Only a saved boundary's simplified outline is kept, so the
+   * detail can change only while the full one is at hand.
+   */
+  const [picked, setPicked] = React.useState<{ raw: GeoJSON.Geometry; detail: BoundaryDetailId } | null>(null);
 
-  // Another item in the panel: forget a download that was for this one.
+  // Another item in the panel: forget a download and an outline that were for this one.
   React.useEffect(() => {
     return () => {
       request.cancel();
       setLoadingId(null);
+      setPicked(null);
     };
   }, [item.id, request]);
+
+  /** Simplifies a picked outline at the detail chosen last (here or in Add Boundary) and remembers it. */
+  const pickOutline = (raw: GeoJSON.Geometry) => {
+    const detail = useProjectStore.getState().boundaryDetail;
+    setPicked({ raw, detail });
+    return applyBoundaryDetail(raw, detail);
+  };
+
+  // The stored outline is still the one picked here (no undo or other edit since), so its detail can change.
+  const detailEditable = !!picked && item.geojson === applyBoundaryDetail(picked.raw, picked.detail);
+
+  const handleDetail = (detail: BoundaryDetailId) => {
+    if (!picked) return;
+    useProjectStore.getState().setBoundaryDetail(detail);
+    setPicked({ raw: picked.raw, detail });
+    withHistoryLabel(`Changed detail of ${item.placeName} to ${getBoundaryDetailLevel(detail).label}`, () =>
+      updateItem(item.id, { geojson: applyBoundaryDetail(picked.raw, detail) }),
+    );
+  };
 
   /**
    * Downloads one period's outline, then `apply` writes it in one go. A newer
@@ -79,7 +106,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
         withHistoryLabel(`Changed area to ${r.placeName} (${formatDateRange(version.startDate, version.endDate)})`, () =>
           updateItem(item.id, {
             ...(outline.countryCode ? { style: { ...current.style, flagCode: outline.countryCode } } : {}),
-            geojson: applyBoundaryDetail(outline.geojson),
+            geojson: pickOutline(outline.geojson),
             placeName: r.placeName,
             source: sourceForVersion(r, version),
           }),
@@ -92,7 +119,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
     setLoadingId(null);
     u({
       ...(r.countryCode ? { style: { ...item.style, flagCode: r.countryCode } } : {}),
-      geojson: applyBoundaryDetail(r.geojson),
+      geojson: pickOutline(r.geojson),
       placeName: r.placeName,
       source: null,
     });
@@ -109,7 +136,7 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
       if (current?.kind !== 'boundary' || !current.source) return;
       const nextSource = sourceForVersion(current.source, version);
       withHistoryLabel(`Changed period of ${current.placeName} to ${formatDateRange(version.startDate, version.endDate)}`, () =>
-        updateItem(item.id, { geojson: applyBoundaryDetail(outline.geojson), source: nextSource }),
+        updateItem(item.id, { geojson: pickOutline(outline.geojson), source: nextSource }),
       );
     });
   };
@@ -170,6 +197,12 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
             loading={!!loadingPeriod}
           />
         </div>
+      )}
+
+      {detailEditable && picked && (
+        <Field label={BOUNDARY_TERMS.detail} className="mb-2.5">
+          <BoundaryDetailPicker value={picked.detail} onChange={handleDetail} />
+        </Field>
       )}
 
       <InspectorSection kind="boundary" id="appearance">
