@@ -199,6 +199,81 @@ describe('SliderRow layout', () => {
   });
 });
 
+describe('SliderRow logarithmic keyboard stepping', () => {
+  // The log sliders in the app: marker size, model size and the follow-camera distance.
+  const cases = [
+    { name: 'marker size', min: 0.2, max: 10000, step: 0.01, starts: [0.2, 0.37, 1, 1.01, 25, 480, 9999] },
+    { name: 'model size', min: 0.01, max: 10000, step: 0.01, starts: [0.01, 0.02, 0.5, 1, 130, 9000] },
+    { name: 'camera distance', min: 100, max: 25000, step: 50, starts: [100, 150, 800, 4000, 24950] },
+  ];
+
+  function Harness({ start, min, max, step, seen }: { start: number; min: number; max: number; step: number; seen: number[] }) {
+    const [value, setValue] = React.useState(start);
+    return (
+      <SliderRow
+        label="Size"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        logarithmic
+        onChange={(v) => {
+          seen.push(v);
+          setValue(v);
+        }}
+      />
+    );
+  }
+
+  const press = (key: string) => {
+    const thumb = screen.getByRole('slider');
+    thumb.focus();
+    fireEvent.keyDown(thumb, { key });
+  };
+
+  for (const { name, min, max, step, starts } of cases) {
+    it(`${name}: every arrow press moves to a new value, both ways, from any start`, () => {
+      for (const start of starts) {
+        for (const [key, dir] of [['ArrowRight', 1], ['ArrowLeft', -1]] as const) {
+          const seen: number[] = [];
+          const { unmount } = render(<Harness start={start} min={min} max={max} step={step} seen={seen} />);
+          let previous = start;
+          for (let i = 0; i < 6; i++) {
+            const atEnd = dir > 0 ? previous >= max : previous <= min;
+            if (atEnd) break;
+            const before = seen.length;
+            press(key);
+            expect(seen.length, `${key} #${i + 1} from ${start}`).toBe(before + 1);
+            const next = seen[seen.length - 1];
+            expect((next - previous) * dir, `${key} #${i + 1} from ${start}`).toBeGreaterThan(0);
+            expect(next).toBeGreaterThanOrEqual(min);
+            expect(next).toBeLessThanOrEqual(max);
+            // No giant jump either: a few percent, or one `step` where that is more.
+            expect(Math.abs(next - previous), `${key} #${i + 1} from ${start}`).toBeLessThanOrEqual(Math.max(previous * 0.05, step * 1.5));
+            previous = next;
+          }
+          unmount();
+        }
+      }
+    });
+  }
+
+  it('PageUp and PageDown move further than an arrow, Home and End reach the ends', () => {
+    const seen: number[] = [];
+    render(<Harness start={1} min={0.01} max={10000} step={0.01} seen={seen} />);
+    press('ArrowRight');
+    press('PageUp');
+    press('PageDown');
+    press('End');
+    press('Home');
+    const [arrow, pageUp, pageDown, end, home] = seen;
+    expect(arrow).toBeGreaterThan(1);
+    expect(pageUp - arrow).toBeGreaterThan(arrow - 1);
+    expect(pageDown).toBeLessThan(pageUp);
+    expect([end, home]).toEqual([10000, 0.01]);
+  });
+});
+
 describe('ColorRow', () => {
   it('renders label and color picker', () => {
     const onChange = vi.fn();
