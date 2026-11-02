@@ -1,3 +1,4 @@
+import { scrollWithinContainer } from '@/lib/scrollWithinContainer';
 import { useProjectStore } from '@/store/useProjectStore';
 
 /** `data-section` value of the Map section in the project settings (see `InspectorSection`). */
@@ -8,7 +9,7 @@ function scrollToMapSection(framesLeft = 20) {
   const section = document.querySelector(MAP_SECTION_SELECTOR);
   if (section) {
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    section.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+    scrollWithinContainer(section, { block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
     return;
   }
   if (framesLeft > 0) requestAnimationFrame(() => scrollToMapSection(framesLeft - 1));
