@@ -6,6 +6,7 @@ import { importRouteFiles } from '@/services/fileImport';
 import { RouteImportError } from '@/services/routeFileFormats';
 import { createCameraKeyframe, createImportedRouteItem } from '@/store/itemFactories';
 import { parseProjectDocument, toProjectDocument } from '@/store/projectDocument';
+import { stringifyProjectFile } from '@/store/projectFileJson';
 import { useMapRef } from '@/hooks/useMapRef';
 import { useFrameOnMap } from '@/hooks/useFrameOnMap';
 import { projectLibraryCoordinator } from '@/services/projectLibraryCoordinator';
@@ -107,7 +108,7 @@ export function useToolbarActions() {
       return;
     }
     const projectState = useProjectStore.getState();
-    const data = JSON.stringify(toProjectDocument(projectState), null, 2);
+    const data = stringifyProjectFile(toProjectDocument(projectState));
     const blob = new Blob([data], { type: 'application/json' });
     const fileName = `${projectState.name.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'project'}.lilmap`;
     saveAs(blob, fileName);

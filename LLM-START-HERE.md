@@ -65,6 +65,7 @@ Everything lives in a single Zustand store. The `Project` type contains **only e
 - `projection`, `lightPreset`, `starIntensity`, `fogColor`, `terrainExaggeration`: Environment.
 - `mapStyle` (a `MAP_STYLES` key; unknown keys parse to `standard`), `customStyle` (a custom map style over `mapStyle`, or null; see 3.5a), `terrainEnabled`, `buildingsEnabled`, `labelVisibility` (stable category id -> boolean), `show3dLandmarks`, `show3dTrees`, `show3dFacades`: Map look. Old documents without them parse to the defaults; new projects start from Standard.
 - `mapCenter`: For search proximity bias.
+- **`.lilmap` file text**: `stringifyProjectFile` (`store/projectFileJson.ts`) writes indented JSON, except arrays with no object inside (coordinates) stay on one line; a boundary outline indented one number per line was about 4x bigger. Any JSON reader loads it; library and cloud saves store the document as data, not this text.
 
 **Transient (UI State — NOT persisted)**:
 - `playheadTime`, `isInspectorOpen`, selection state (selectedItemId, selectedKeyframeId, selectedAutoCamRouteId), drafting state (search results, preview geometries).
