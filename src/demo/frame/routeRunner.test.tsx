@@ -10,6 +10,7 @@ import { pickProject } from '@/store/projectDocument';
 import { clearHistory, getHistoryEntries, installGestureTracking } from '@/store/history';
 import { createEndpointRouteItem, createImportedRouteItem, createWalkRouteItem, wrapGeometry } from '@/store/itemFactories';
 import { loadAirports } from '@/services/airports/airportService';
+import { autoCamPresetPatch, routeFitOf } from '@/config/vehicles';
 import { createProject } from '@/store/projectDocument';
 import type { Project, RouteItem, TimelineItem } from '@/store/types';
 import { installPointerCapturePatch } from './actions';
@@ -167,6 +168,23 @@ describe('route runner', () => {
     expect(state.selectedAutoCamRouteId).toBeNull();
     expect(getHistoryEntries().past.length).toBeGreaterThan(8);
     expect(getHistoryEntries().past.every((entry) => entry.source === 'user')).toBe(true);
+  }, 30_000);
+
+  it('sets the Follow camera up in its panel: the Drone preset, then a tuned angle and a dragged distance', async () => {
+    const car = editedCar();
+    const drone = autoCamPresetPatch('drone', 'car', routeFitOf(car));
+    const autoCam = { ...drone, enabled: true, mode: 'cinematic', pitch: 38, orbit: 0.3, distance: Math.round(drone.distance / 2) } as RouteItem['autoCam'];
+    const target: RouteItem = { ...car, autoCam };
+    const { last } = await runRoute(fileWith(target), 'r-car');
+
+    expect(last.autoCam).toMatchObject({ enabled: true, mode: 'cinematic', preset: 'drone', pitch: 38 });
+    expect(last.autoCam?.orbit).toBeCloseTo(0.3, 1);
+    // The distance slider is dragged, so it lands within a pixel of the file's value.
+    expect(last.autoCam!.distance / autoCam!.distance).toBeGreaterThan(0.9);
+    expect(last.autoCam!.distance / autoCam!.distance).toBeLessThan(1.1);
+    expect(useProjectStore.getState().items['r-car']).toEqual(target);
+    expect(useProjectStore.getState().selectedAutoCamRouteId).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
   }, 30_000);
 
   it('places a walk’s points one by one, then tunes the curvature in the Path section', async () => {
