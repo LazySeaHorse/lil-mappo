@@ -80,6 +80,10 @@ export interface Locators {
   routeMode: (label: string) => Locator;
   /** A place field of the panel, by its label above it (Start, End, Departure, Arrival). */
   routePlaceField: (label: string) => Locator;
+  /** The Pick on the map button of a place field, by the label above it. */
+  routePickOnMapButton: (label: string) => Locator;
+  /** The Pick on the map button of the list of places of a hub and spoke plan. */
+  routeSpokePickOnMapButton: Locator;
   /** The "+" pill of a place field that makes it a list of places. */
   routeMakeListPill: (label: string) => Locator;
   /** The search box of the list of places of a hub and spoke plan. */
@@ -141,6 +145,19 @@ const routeLocators = {
   addRoutePanel,
   routeMode: (label: string) => ({ role: 'radio', name: label, within: addRoutePanel, description: `the ${label} travel mode` }),
   routePlaceField: (label: string) => ({ label, selector: 'input', within: addRoutePanel, description: `the ${label} place field` }),
+  routePickOnMapButton: (label: string) => ({
+    label,
+    role: 'button',
+    name: SEARCH_TERMS.pickOnMap,
+    within: addRoutePanel,
+    description: `the Pick on the map button of the ${label} place field`,
+  }),
+  routeSpokePickOnMapButton: {
+    role: 'button',
+    name: SEARCH_TERMS.pickOnMap,
+    within: { selector: '[data-testid="hub-spoke-list"]', within: addRoutePanel },
+    description: 'the Pick on the map button of the list of places',
+  },
   routeMakeListPill: (label: string) => ({ label, role: 'button', name: 'Add more places', within: addRoutePanel, description: `the "add more places" pill of ${label}` }),
   routeSpokeField: { selector: '[data-testid="hub-spoke-list"] input', within: addRoutePanel, description: 'the list of places field' },
   routePlaceResult: (placeName: string) => ({

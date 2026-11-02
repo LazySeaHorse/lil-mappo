@@ -19,6 +19,7 @@ import { click, drag, find, key, pause, query, setSlider, selectOption, type, wa
 import { travelDuration } from './cursor';
 import { openSection, showEdit, type EditOutcome } from './edits';
 import { currentLayout, currentLocators, type Locators } from './locators';
+import { pickOnMap } from './mapPick';
 import { mockDirections, mockPlaceSearch } from './mocks';
 import { showAddBar } from './phone';
 import { deepEqual, getPath, hasPlacedEndpoints, isTimingEdit, routeEdits, type DemoStep, type FieldEdit } from './plan';
@@ -90,26 +91,48 @@ async function chooseMode(ctx: DemoContext, L: Locators, mode: 'car' | 'walk' | 
   return click(ctx, L.routeMode(label));
 }
 
+/** A place field of the panel: the box to type in and the Pick on the map button beside it. */
+interface PlaceField {
+  input: Locator;
+  pickButton: Locator;
+}
+
+const placeField = (L: Locators, label: string): PlaceField => ({
+  input: L.routePlaceField(label),
+  pickButton: L.routePickOnMapButton(label),
+});
+
+/**
+ * Puts a point that has no place name into a field. A saved file does not keep
+ * the name of a point that was picked on the map, so this does what the person
+ * did: Pick on the map, then the click. Coordinates are typed (a field takes
+ * them on Enter) only when the map cannot be picked on.
+ */
+async function pickPoint(ctx: DemoContext, field: PlaceField, point: Point): Promise<boolean> {
+  if (await pickOnMap(ctx, field.pickButton, point)) return true;
+  return type(ctx, field.input, `${point[0]}, ${point[1]}`, { enter: true });
+}
+
 /** Searches an airport for the place (by the code, else the name) and picks it from the list. */
-async function pickAirport(ctx: DemoContext, L: Locators, field: Locator, point: Point, name: string): Promise<boolean> {
+async function pickAirport(ctx: DemoContext, L: Locators, field: PlaceField, point: Point, name: string): Promise<boolean> {
   const airports = await loadAirports();
   const airport = airports.find((a) => samePoint(a.coordinates, point)) ?? airports.find((a) => a.name === name);
-  // A point that is no airport: typed as coordinates, which the field takes on Enter.
-  if (!airport) return type(ctx, field, `${point[0]}, ${point[1]}`, { enter: true });
-  if (!(await type(ctx, field, airport.iata || airport.name))) return false;
+  // A point that is no airport was picked on the map.
+  if (!airport) return pickPoint(ctx, field, point);
+  if (!(await type(ctx, field.input, airport.iata || airport.name))) return false;
   return click(ctx, L.routeAirportResult(airport.name));
 }
 
 /**
  * Types the place into a field and picks the result. The search is answered
- * from the file's place (name and coordinates); a place with no name is typed
- * as coordinates, which a field takes on Enter.
+ * from the file's place (name and coordinates); a place with no name is picked
+ * on the map.
  */
-async function pickPlace(ctx: DemoContext, L: Locators, mode: 'car' | 'flight', field: Locator, point: Point, name: string): Promise<boolean> {
+async function pickPlace(ctx: DemoContext, L: Locators, mode: 'car' | 'flight', field: PlaceField, point: Point, name: string): Promise<boolean> {
   if (mode === 'flight') return pickAirport(ctx, L, field, point, name);
-  if (!name) return type(ctx, field, `${point[0]}, ${point[1]}`, { enter: true });
+  if (!name) return pickPoint(ctx, field, point);
   mockPlaceSearch(name, [{ name, coordinates: point }]);
-  if (!(await type(ctx, field, name, { enter: true }))) return false;
+  if (!(await type(ctx, field.input, name, { enter: true }))) return false;
   return click(ctx, L.routePlaceResult(name));
 }
 
@@ -135,8 +158,8 @@ async function addEndpointRoute(ctx: DemoContext, item: RouteItem, calc: Endpoin
   const before = new Set(routeIds());
 
   if (!(await openRoutePanel(ctx, L)) || !(await chooseMode(ctx, L, calc.mode))) return null;
-  if (!(await pickPlace(ctx, L, calc.mode, L.routePlaceField(labels.start), calc.startPoint, calc.startName))) return null;
-  if (!(await pickPlace(ctx, L, calc.mode, L.routePlaceField(labels.end), calc.endPoint, calc.endName))) return null;
+  if (!(await pickPlace(ctx, L, calc.mode, placeField(L, labels.start), calc.startPoint, calc.startName))) return null;
+  if (!(await pickPlace(ctx, L, calc.mode, placeField(L, labels.end), calc.endPoint, calc.endName))) return null;
   if (!(await click(ctx, L.routePreviewButton))) return null;
   if (!(await find(ctx, L.routeInsertButton, { timeout: 5000 })) || !(await click(ctx, L.routeInsertButton))) return null;
   return addedRoutes(before)[0] ?? null;
@@ -163,11 +186,11 @@ async function addHubRoutes(ctx: DemoContext, plan: HubPlan, file: Project): Pro
   const before = new Set(routeIds());
 
   if (!(await openRoutePanel(ctx, L)) || !(await chooseMode(ctx, L, plan.mode))) return [];
-  if (!(await pickPlace(ctx, L, plan.mode, L.routePlaceField(labels[hubKey]), hubPoint(calcs[0]), hubName(calcs[0])))) return [];
-  if (!(await pickPlace(ctx, L, plan.mode, L.routePlaceField(labels[spokeKey]), spokePoint(calcs[0]), spokeName(calcs[0])))) return [];
+  if (!(await pickPlace(ctx, L, plan.mode, placeField(L, labels[hubKey]), hubPoint(calcs[0]), hubName(calcs[0])))) return [];
+  if (!(await pickPlace(ctx, L, plan.mode, placeField(L, labels[spokeKey]), spokePoint(calcs[0]), spokeName(calcs[0])))) return [];
   if (!(await click(ctx, L.routeMakeListPill(labels[spokeKey])))) return [];
   for (const calc of calcs.slice(1)) {
-    if (!(await pickPlace(ctx, L, plan.mode, L.routeSpokeField, spokePoint(calc), spokeName(calc)))) return [];
+    if (!(await pickPlace(ctx, L, plan.mode, { input: L.routeSpokeField, pickButton: L.routeSpokePickOnMapButton }, spokePoint(calc), spokeName(calc)))) return [];
   }
 
   // Staggered with a gap of one second is what the panel starts on.
