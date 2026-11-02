@@ -7,7 +7,7 @@ import { withoutHistory } from '@/store/history';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraKeyframe, EasingName, Project } from '@/store/types';
 import { TIMING_LABELS } from '@/lib/terms';
-import { click, pause, warn, type DemoContext } from './actions';
+import { click, find, pause, warn, type DemoContext } from './actions';
 import { showEdit } from './edits';
 import type { FieldTable } from './fields';
 import { currentLocators } from './locators';
@@ -126,8 +126,10 @@ async function addViewOnScreen(ctx: DemoContext, view: CameraKeyframe): Promise<
 
 export async function runCamera(ctx: DemoContext, step: Extract<DemoStep, { kind: 'camera' }>, file: Project): Promise<void> {
   const views = fileViews(file);
+  // No Add camera view button on screen: write the track without waiting for each view.
+  const onScreen = !!(await find(ctx, currentLocators().addCameraViewButton, { timeout: 1500 }));
   const made: (string | null)[] = [];
-  for (const view of views) {
+  for (const view of onScreen ? views : []) {
     ctx.clock.check();
     made.push(await addViewOnScreen(ctx, view));
   }

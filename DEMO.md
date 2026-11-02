@@ -28,3 +28,10 @@ Two pages, same origin:
 3. `start` → countdown in the shell, then the frame runs the plan. Order: map style and settings → boundaries → routes → callouts → models → timeline tweaks → camera views → play from 0 → fake export.
 4. Per item: the cursor clicks the real toolbar/menu/inspector controls; the final values are written to the store so the result matches the file exactly. Inspector edits are the fields that differ from what "Add" creates (`src/store/itemFactories.ts`).
 5. Mock AI mode: the cursor clicks the AI toolbar button and switches AI control on, then the frame asks the shell to open the Claude Code window, the prompt from the widget is typed there, and scripted `runAgentTool` calls build the project (no cursor). The frame streams `ai-event`s for the transcript.
+
+### The end of a run
+
+- **Timeline.** Item steps leave the timing the app gave the new item; the timeline step drags each clip (whole clip to move, edge handles to trim) to the file's start and end, zooming out with the real zoom button when needed. The final write makes the times exact.
+- **Camera views.** Per view, in time order: click the ruler at its time, ease the map to it (`moveToCamera`), click Add camera view, edit what differs in the inspector (zoom, pitch, bearing, time, motion).
+- **Play.** Jump to Start, Play, then wait the project's real length (not speed-scaled; pause holds playback, reset stops it).
+- **Fake export.** The real export modal and Export button run their own flow; `useVideoExportExecution` loads `src/demo/frame/fakeExport.ts` instead of the encoder in the frame (`IS_DEMO_FRAME`) and skips `saveAs`. The bar fills on the run's clock. Needs a browser with `VideoEncoder` (the Export button is off without it).

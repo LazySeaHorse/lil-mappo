@@ -49,11 +49,24 @@ export interface Locators {
 
   /** The transport's play / pause button. */
   timelinePlay: Locator;
+
+  /** The toolbar's Export button, which opens the export modal. */
+  exportButton: Locator;
+  exportDialog: Locator;
+  /** A select of the export modal, by its row's label. */
+  exportSelect: (label: string) => Locator;
+  /** An option of a segmented control of the export modal, by its row's label. */
+  exportChoice: (label: string, option: string) => Locator;
+  /** A number field of the export modal, by its row's label. */
+  exportField: (label: string) => Locator;
+  /** The modal's Export button (it says Export again after a first export). */
+  exportConfirm: Locator;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const addBoundaryPanel: Locator = { role: 'menu', description: 'the Add Boundary panel' };
+const exportDialog: Locator = { role: 'dialog', description: 'the export modal' };
 const timelinePanel: Locator = { walkthrough: 'timeline-panel', description: 'the timeline' };
 
 export const DESKTOP_LOCATORS: Locators = {
@@ -109,6 +122,13 @@ export const DESKTOP_LOCATORS: Locators = {
   addCameraViewButton: { walkthrough: 'camera-keyframe', description: 'the Add camera view button' },
 
   timelinePlay: { walkthrough: 'timeline-play', description: 'the timeline Play button' },
+
+  exportButton: { walkthrough: 'render', description: 'the Export button' },
+  exportDialog,
+  exportSelect: (label) => ({ label, role: 'combobox', within: exportDialog, description: `the export ${label} select` }),
+  exportChoice: (label, option) => ({ label, role: 'radio', name: option, within: exportDialog, description: `the export ${label} ${option} option` }),
+  exportField: (label) => ({ label, role: 'textbox', within: exportDialog, description: `the export ${label} field` }),
+  exportConfirm: { role: 'button', name: /^Export (locally|again)/, within: exportDialog, description: 'the Export button of the export modal' },
 };
 
 /** The locators for the layout on screen. Desktop only for now. */

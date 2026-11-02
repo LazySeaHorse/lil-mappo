@@ -9,6 +9,7 @@ import { openSection, showEdit } from './edits';
 import { currentLocators, type Locators } from './locators';
 import { mockBoundarySearch } from './mocks';
 import { runCamera } from './cameraRunner';
+import { runExport } from './exportRunner';
 import { runPlay } from './playRunner';
 import { runTimeline } from './timelineRunner';
 import { applyStep, boundaryEdits, deepEqual, hasTiming, isTimingEdit, type DemoStep, type FieldEdit } from './plan';
@@ -203,6 +204,8 @@ export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): 
       return runCamera(ctx, step, file);
     case 'play':
       return runPlay(ctx, step, file);
+    case 'export':
+      return runExport(ctx, step, file);
     default:
       commitStep(step, file);
   }

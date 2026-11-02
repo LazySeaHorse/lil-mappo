@@ -16,3 +16,4 @@ export const loadFflate = () => import('fflate');
 export const loadDemoShell = () => import('@/demo/shell/DemoShell');
 export const loadDemoFrame = () => import('@/demo/frame/DemoFrame');
 export const loadDemoFrameSetup = () => import('@/demo/frame/setup');
+export const loadDemoFakeExport = () => import('@/demo/frame/fakeExport');
