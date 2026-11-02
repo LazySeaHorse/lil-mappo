@@ -48,7 +48,7 @@ export function useVideoExportExecution(
       // Loaded on demand: the export pipeline (mediabunny) stays out of the initial bundle.
       const { runExport } = await loadVideoExport();
       if (controller.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
-      const blob = await runExport(runtimeRef, {
+      const { blob } = await runExport(runtimeRef, {
         ...exportPlan,
         branding,
         onProgress: (pct, p) => {

@@ -105,7 +105,7 @@ export function HeadlessRenderer({ jobId, secret }: HeadlessRendererProps) {
       setStatus('Rendering...');
       try {
         const { runExport } = await loadVideoExport();
-        const blob = await runExport(runtimeRef, {
+        const { blob } = await runExport(runtimeRef, {
           renderConfig: jobData!.renderConfig,
           startTime: jobData!.startTime,
           endTime: jobData!.endTime,

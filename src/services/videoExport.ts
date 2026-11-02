@@ -17,7 +17,7 @@ import {
   type Target,
 } from 'mediabunny';
 import { createVideoExportTarget, type VideoExportTarget } from './videoExportTarget';
-import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
+import { waitForMapIdle, type MapIdleResult } from '@/components/MapViewport/runtime/mapWait';
 import { withTemporaryProjectPlayhead } from './captureSession';
 import { errorMessage } from '@/lib/utils';
 import { exportBitrate } from './videoBitrate';
@@ -42,6 +42,15 @@ export interface ExportOptions {
   onProgress: (pct: number, phase: 'prewarm' | 'capture') => void;
   abortSignal: AbortSignal;
   branding: Branding;
+}
+
+export interface ExportResult {
+  blob: Blob;
+  /**
+   * Frames encoded after the map's render wait timed out. They may show missing
+   * or low-res tiles; the export still completes.
+   */
+  incompleteFrames: number;
 }
 
 interface EncoderState {
@@ -331,12 +340,13 @@ interface CaptureFrameOptions {
   zoomOffset: number;
 }
 
-async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, overlays, zoomOffset }: CaptureFrameOptions) {
+/** Encodes one frame and resolves whether the map went idle before it was captured. */
+async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, overlays, zoomOffset }: CaptureFrameOptions): Promise<MapIdleResult> {
   const { videoEncoder, compCanvas, compCtx } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
 
   // runExport syncs the runtime once before the loop; each frame only redraws the scene.
-  await stepToTime(runtime, map, time, zoomOffset, { sync: false });
+  const renderResult = await stepToTime(runtime, map, time, zoomOffset, { sync: false });
 
   // Back-pressure: don't let the encoder queue grow unbounded
   if (videoEncoder.encodeQueueSize > 8) {
@@ -371,6 +381,7 @@ async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, over
     ...(encoder.quantizer !== undefined ? { avc: { quantizer: encoder.quantizer } } : {}),
   });
   videoFrame.close();
+  return renderResult;
 }
 
 // ─── Finalize ─────────────────────────────────────────────────────────────────
@@ -395,7 +406,7 @@ async function finalizeExport(
 export async function runExport(
   runtimeRef: MapSceneRuntimeRef,
   options: ExportOptions,
-): Promise<Blob> {
+): Promise<ExportResult> {
   const { renderConfig, startTime = 0, endTime: requestedEndTime, onProgress, abortSignal } = options;
   const overlays = resolveSystemOverlays({ mode: 'export', branding: options.branding });
   await preloadOverlayAssets();
@@ -448,6 +459,7 @@ export async function runExport(
         runtime.sync();
 
         // Phase 2: capture frames
+        let incompleteFrames = 0;
         for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
           if (abortSignal.aborted) {
             throw new DOMException('Export cancelled', 'AbortError');
@@ -456,15 +468,16 @@ export async function runExport(
           const currentTime = (startFrame + frameIndex) / fps;
           const clampedTime = Math.min(currentTime, duration);
 
-          await captureFrame({ runtime, map, encoder: encoderState, frameIndex, fps, time: clampedTime, overlays, zoomOffset });
+          const renderResult = await captureFrame({ runtime, map, encoder: encoderState, frameIndex, fps, time: clampedTime, overlays, zoomOffset });
+          if (renderResult === 'timeout') incompleteFrames++;
           const encoderError = encoderState.getEncoderError();
           if (encoderError) throw encoderError;
           onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');
         }
 
-        const result = await finalizeExport(encoderState);
+        const blob = await finalizeExport(encoderState);
         completed = true;
-        return result;
+        return { blob, incompleteFrames };
       })
     ));
   } catch (error: unknown) {
