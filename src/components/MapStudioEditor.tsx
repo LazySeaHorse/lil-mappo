@@ -38,6 +38,8 @@ import { SelectionPreviewPill } from "@/components/MapViewport/SelectionPreviewP
 import { isFitModeOn } from "@/components/FitMode/useFitFrame";
 import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
+import { AiStatusPill } from "@/components/AI/AiStatusPill";
+import { MapStatusPills } from "@/components/MapStatusPills/MapStatusPills";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
 import { useImportedModels } from "@/models/useImportedModels";
@@ -209,14 +211,15 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
           </MapLoadGate>
         </FitModeMap>
 
-        {/* Outside the map's wrapper, so fit mode's scale leaves it at full size, and before the
-            floating UI so the panels stay above it while Hide UI, which fades them, keeps it. */}
-        {mapLoadGate.ready && !mapLoadGate.blocked && <SelectionPreviewPill />}
-
         {/* Floating UI Layer */}
         <div
           className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${hideUI ? "opacity-0 invisible" : "opacity-100 visible"}`}
         >
+          {/* First, so the panels after it draw over the pills. */}
+          <MapStatusPills>
+            <AiStatusPill />
+            {mapLoadGate.ready && !mapLoadGate.blocked && <SelectionPreviewPill />}
+          </MapStatusPills>
           <Toolbar
             onExport={() => {
               setShowExport(true);
