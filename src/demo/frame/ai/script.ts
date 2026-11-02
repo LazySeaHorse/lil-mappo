@@ -337,11 +337,13 @@ export function buildAiScript(file: Project, steps: DemoStep[], { modelReady = (
   const kept: DemoStep[] = [];
   const fallbackLocation: [number, number] = file.mapCenter;
 
-  for (const [index, step] of steps.entries()) {
-    if (step.kind === 'timeline' || step.kind === 'export' || step.kind === 'play') {
-      kept.push(step);
+  for (const [index, planned] of steps.entries()) {
+    if (planned.kind === 'timeline' || planned.kind === 'export' || planned.kind === 'play') {
+      kept.push(planned);
       continue;
     }
+    // The agent sets each item's timing with its own calls, so its commit writes the file's exact item, not the UI's timing.
+    const step: DemoStep = planned.kind === 'item' ? { ...planned, timing: undefined } : planned;
     const item = step.kind === 'item' ? file.items[step.itemId] : null;
     if (item?.kind === 'model' && !modelReady(item.assetId)) continue;
     kept.push(step);

@@ -114,6 +114,13 @@ describe('buildAiScript', () => {
     expect(finalize && finalize.kind === 'finalize' ? finalize.steps.map((s) => s.kind) : []).toContain('export');
   });
 
+  it('swaps in the file’s exact items, timing included: the agent sets timing itself, nothing drags a clip', () => {
+    expect(steps.some((s) => s.kind === 'item' && s.timing)).toBe(true);
+    const itemSteps = script.flatMap((a) => (a.kind === 'commit' || a.kind === 'place') && a.step.kind === 'item' ? [a.step] : []);
+    expect(itemSteps.length).toBeGreaterThan(0);
+    expect(itemSteps.every((s) => s.kind === 'item' && !s.timing)).toBe(true);
+  });
+
   it('places a model the user added, then only retimes it', () => {
     const at = script.findIndex((a) => a.kind === 'place');
     expect(script[at]).toMatchObject({ kind: 'place', file: { items: { 'mi-tower': { startTime: 0, endTime: 45 } } } });
