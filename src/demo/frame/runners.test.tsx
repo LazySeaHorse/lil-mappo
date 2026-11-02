@@ -151,10 +151,11 @@ describe('map style and settings runners', () => {
 });
 
 describe('a whole run', () => {
+  // Slow on purpose: this editor lacks the route, callout and model panels, so those steps wait out their finds.
   it('ends with the store holding exactly the file’s project', async () => {
     render(<Editor />);
     const ctx = testContext();
     for (const step of steps) await runStep(ctx, step, file);
     expect(pickProject(useProjectStore.getState())).toEqual(pickProject(file));
-  }, 20_000);
+  }, 60_000);
 });
