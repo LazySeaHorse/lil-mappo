@@ -38,3 +38,32 @@ export function sourceForVersion(
     versions: place.versions.map(({ osmId, startDate, endDate }) => ({ osmId, startDate, endDate })),
   };
 }
+
+/**
+ * The whole span of a place: the earliest start to the latest end. A start that
+ * is missing from any period leaves the start unknown (null); an end missing
+ * from any period leaves the span open ("present").
+ */
+export function placeSpan(versions: readonly BoundaryVersion[]): { startDate: string | null; endDate: string | null } {
+  let startDate: string | null = null;
+  let endDate: string | null = null;
+  let startKey = Infinity;
+  let endKey = -Infinity;
+  let startUnknown = false;
+  let endOpen = false;
+  for (const version of versions) {
+    const start = historicalDateKey(version.startDate);
+    const end = historicalDateKey(version.endDate);
+    if (start === null) startUnknown = true;
+    else if (start < startKey) {
+      startKey = start;
+      startDate = version.startDate;
+    }
+    if (end === null) endOpen = true;
+    else if (end > endKey) {
+      endKey = end;
+      endDate = version.endDate;
+    }
+  }
+  return { startDate: startUnknown ? null : startDate, endDate: endOpen ? null : endDate };
+}

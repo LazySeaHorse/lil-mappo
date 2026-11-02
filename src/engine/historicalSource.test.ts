@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickVersionForYear, sourceForVersion } from './historicalSource';
+import { pickVersionForYear, placeSpan, sourceForVersion } from './historicalSource';
 
 const versions = [
   { osmId: 'R1', startDate: null, endDate: '1701' },
@@ -63,5 +63,22 @@ describe('sourceForVersion', () => {
         { osmId: 'R2', startDate: '1744', endDate: null },
       ],
     });
+  });
+});
+
+describe('placeSpan', () => {
+  it('runs from the earliest start to the latest end', () => {
+    expect(
+      placeSpan([
+        { osmId: 'R2', startDate: '1744', endDate: '1918-11-09' },
+        { osmId: 'R1', startDate: '1701-01-18', endDate: '1744' },
+      ]),
+    ).toEqual({ startDate: '1701-01-18', endDate: '1918-11-09' });
+  });
+
+  it('stays open when any period has no end, and unknown when any has no start', () => {
+    expect(placeSpan([{ osmId: 'R1', startDate: '1800', endDate: '1850' }, { osmId: 'R2', startDate: '1850', endDate: null }]))
+      .toEqual({ startDate: '1800', endDate: null });
+    expect(placeSpan([{ osmId: 'R1', startDate: null, endDate: '1693' }])).toEqual({ startDate: null, endDate: '1693' });
   });
 });
