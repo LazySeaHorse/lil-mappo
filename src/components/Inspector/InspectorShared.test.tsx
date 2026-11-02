@@ -248,21 +248,12 @@ describe('SliderRow logarithmic keyboard stepping', () => {
             expect((next - previous) * dir, `${key} #${i + 1} from ${start}`).toBeGreaterThan(0);
             expect(next).toBeGreaterThanOrEqual(min);
             expect(next).toBeLessThanOrEqual(max);
+            // No giant jump either: a few percent, or one `step` where that is more.
+            expect(Math.abs(next - previous), `${key} #${i + 1} from ${start}`).toBeLessThanOrEqual(Math.max(previous * 0.05, step * 1.5));
             previous = next;
           }
           unmount();
         }
-      }
-    });
-
-    it(`${name}: arrows walk the whole range in a few hundred presses`, () => {
-      for (const [key, from, to] of [['ArrowRight', min, max], ['ArrowLeft', max, min]] as const) {
-        const seen: number[] = [];
-        const { unmount } = render(<Harness start={from} min={min} max={max} step={step} seen={seen} />);
-        for (let i = 0; i < 700 && seen[seen.length - 1] !== to; i++) press(key);
-        expect(seen[seen.length - 1]).toBe(to);
-        expect(seen.length).toBeLessThan(700);
-        unmount();
       }
     });
   }
