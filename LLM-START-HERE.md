@@ -391,6 +391,8 @@ Tablet now uses **Desktop Toolbar as base** but with a **Condensed Layers Dropdo
 
 **Tile Cache Prewarm**: 24-frame scrub before actual capture, waiting for `map.once('idle')` (max 2s/frame) to pre-load tiles.
 
+**Frame readiness** (`videoExport.ts`, `mapWait.ts`): each frame waits for map idle with `extendWhileLoading`, so the 30s limit restarts whenever a tile arrives and only a stall (30s with no tile) gives up. A stalled frame is still encoded and counted in `runExport`'s `incompleteFrames`; 3 stalled frames in a row, or the browser going offline, throw `MapLoadError` ("Export stopped: the map stopped loading…"). A map whose tiles are all in but which never goes idle counts as ready. Cancel and going offline both abort the frame wait itself, through one signal (`abortWhenOffline`).
+
 **Encoder Back-Pressure**: Monitor `videoEncoder.encodeQueueSize`. If > 8, wait via requestAnimationFrame drain loop until <= 4 before encoding next frame.
 
 **WebCodecs config**: Codec Level 5.2 (`avc1.640034`). Relies on browser hardware encoder (no software fallback for cloud renders).

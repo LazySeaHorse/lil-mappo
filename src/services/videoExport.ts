@@ -57,6 +57,34 @@ export class MapLoadError extends Error {
   }
 }
 
+/**
+ * A signal that aborts when `signal` does, or with a MapLoadError as soon as the
+ * browser goes offline: no tile can arrive, so waiting out the stalls is pointless.
+ */
+function abortWhenOffline(signal: AbortSignal): { signal: AbortSignal; dispose: () => void } {
+  const controller = new AbortController();
+  const goOffline = () => controller.abort(new MapLoadError());
+  const forward = () => controller.abort(signal.reason);
+
+  if (signal.aborted) forward();
+  else if (!navigator.onLine) goOffline();
+  window.addEventListener('offline', goOffline);
+  signal.addEventListener('abort', forward, { once: true });
+
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      window.removeEventListener('offline', goOffline);
+      signal.removeEventListener('abort', forward);
+    },
+  };
+}
+
+/** Throws the signal's reason: the user's AbortError, or a MapLoadError when offline. */
+function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) throw signal.reason;
+}
+
 export interface ExportResult {
   blob: Blob;
   /**
@@ -457,13 +485,15 @@ export async function runExport(
 
   const encoderState = await initEncoder(width, height, fps, maximumPacketCount);
   let completed = false;
+  // Everything below stops on this: the user's Cancel, or the browser going offline.
+  const { signal, dispose: stopWatchingConnection } = abortWhenOffline(abortSignal);
 
   try {
     return await withTemporaryMapViewport(map, width, height, () => (
       withTemporaryProjectPlayhead(async () => {
         // Wait for map ready. Best-effort: the result is ignored because every frame waits for
         // its own render, and those timeouts are what incompleteFrames counts.
-        await waitForMapIdle(map, { timeoutMs: 3_000, signal: abortSignal });
+        await waitForMapIdle(map, { timeoutMs: 3_000, signal });
         await document.fonts.ready;
         const { items: annotationItems, itemOrder: annotationOrder } = useProjectStore.getState();
         await loadAnnotationAssets(annotationItems, annotationOrder);
@@ -472,8 +502,8 @@ export async function runExport(
         await loadProjectTerrain();
 
         // Phase 1: pre-warm tile cache
-        await prewarmTileCache(map, effectiveDuration, startTime, onProgress, abortSignal, zoomOffset);
-        if (abortSignal.aborted) throw new DOMException('Export cancelled', 'AbortError');
+        await prewarmTileCache(map, effectiveDuration, startTime, onProgress, signal, zoomOffset);
+        throwIfAborted(signal);
 
         // Reconcile basemap and renderers once; frames below only redraw the scene.
         runtime.sync();
@@ -482,15 +512,13 @@ export async function runExport(
         let incompleteFrames = 0;
         let stalledInARow = 0;
         for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
-          if (abortSignal.aborted) {
-            throw new DOMException('Export cancelled', 'AbortError');
-          }
+          throwIfAborted(signal);
 
           const currentTime = (startFrame + frameIndex) / fps;
           const clampedTime = Math.min(currentTime, duration);
 
           const renderResult = await captureFrame({
-            runtime, map, encoder: encoderState, frameIndex, fps, time: clampedTime, overlays, zoomOffset, signal: abortSignal,
+            runtime, map, encoder: encoderState, frameIndex, fps, time: clampedTime, overlays, zoomOffset, signal,
           });
           if (renderResult === 'timeout') {
             incompleteFrames++;
@@ -515,6 +543,7 @@ export async function runExport(
     }
     throw error;
   } finally {
+    stopWatchingConnection();
     if (!completed) {
       if (encoderState.videoEncoder.state !== 'closed') encoderState.videoEncoder.close();
       await cancelAndDiscard(encoderState.output, encoderState.exportTarget);
