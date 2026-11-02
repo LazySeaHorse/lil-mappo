@@ -61,6 +61,7 @@ export async function runPlay(ctx: DemoContext, step: Extract<DemoStep, { kind: 
     return;
   }
   if (useProjectStore.getState().playheadTime > 0.005) await click(ctx, L.timelineJumpToStart);
-  if (await click(ctx, L.timelinePlay)) await untilPlaybackEnds(ctx, useProjectStore.getState().duration);
+  // No beat after the click: a pause that lands right on it must already hold playback.
+  if (await click(ctx, L.timelinePlay, { hold: false })) await untilPlaybackEnds(ctx, useProjectStore.getState().duration);
   commitStep(step, file);
 }
