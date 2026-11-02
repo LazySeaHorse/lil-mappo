@@ -60,6 +60,10 @@ async function stubExternalServices(page: Page) {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_STYLE) }),
   );
   await page.route('https://events.mapbox.com/**', (route) => route.fulfill({ status: 204, body: '' }));
+  // OpenHistoricalMap answers the same search with no historical places.
+  await page.route('https://nominatim.openhistoricalmap.org/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+  );
   await page.route('https://nominatim.openstreetmap.org/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_BOUNDARY) }),
   );

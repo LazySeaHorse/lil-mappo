@@ -88,6 +88,10 @@ async function stubBaseServices(page: Page) {
     route.fulfill({ status: 204, body: "" }),
   );
   // Default boundary
+  // OpenHistoricalMap answers the same search with no historical places.
+  await page.route("https://nominatim.openhistoricalmap.org/**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
+  );
   await page.route("https://nominatim.openstreetmap.org/**", (route) =>
     route.fulfill({
       status: 200,
@@ -280,6 +284,9 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
     await expect(page.getByText("Select travel mode and route points")).not.toBeVisible();
 
     // --- Subtest B: HTTP 500 Internal Server Error on Boundary Search ---
+    await page.route("https://nominatim.openhistoricalmap.org/**", (route) =>
+      route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Internal Server Error" }) }),
+    );
     await page.route("https://nominatim.openstreetmap.org/**", (route) =>
       route.fulfill({
         status: 500,
@@ -344,6 +351,10 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     await openEditor(page);
 
+    // OpenHistoricalMap answers the same search with no historical places.
+    await page.route("https://nominatim.openhistoricalmap.org/**", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
+    );
     await page.route("https://nominatim.openstreetmap.org/search**", async (route) => {
       const url = new URL(route.request().url());
       const query = url.searchParams.get("q") || "";
@@ -397,6 +408,7 @@ test.describe("Network Fault & Async Race Injection Chaos Suite", () => {
 
     // Abort all external network calls to simulate sudden network failure / offline mode
     await page.route("https://api.mapbox.com/directions/v5/**", (route) => route.abort("failed"));
+    await page.route("https://nominatim.openhistoricalmap.org/**", (route) => route.abort("failed"));
     await page.route("https://nominatim.openstreetmap.org/**", (route) => route.abort("failed"));
 
     // 1. Route Planning under network drop
