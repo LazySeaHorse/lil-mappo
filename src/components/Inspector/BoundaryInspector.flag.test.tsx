@@ -15,7 +15,7 @@ vi.mock('@/components/MapViewport/runtime/flagImages', async (importActual) => (
 function boundary(style: Partial<BoundaryItem['style']> = {}): BoundaryItem {
   return {
     id: 'b1',
-    kind: 'boundary',
+    kind: 'boundary', source: null,
     placeName: 'France',
     geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
     startTime: 0,

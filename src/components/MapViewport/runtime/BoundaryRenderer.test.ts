@@ -45,6 +45,7 @@ function createMapDouble() {
 
 const sampleBoundary: BoundaryItem = {
   kind: "boundary",
+  source: null,
   id: "test-boundary",
   placeName: "Testland",
   geojson: {

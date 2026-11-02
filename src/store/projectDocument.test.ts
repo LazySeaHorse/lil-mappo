@@ -6,6 +6,7 @@ import {
   toProjectDocument,
 } from './projectDocument';
 import { createTransientState, useProjectStore } from './useProjectStore';
+import type { BoundaryItem } from './types';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 import '@/annotations/styles';
 import { getAllStyles } from '@/annotations/registry';
@@ -472,6 +473,44 @@ describe('project document persistence boundary', () => {
     const parsed = parseProjectDocument({ ...document, items: { ...document.items, b1: boundary }, itemOrder: [...document.itemOrder, 'b1'] });
     expect(parsed.items.b1).toMatchObject({ kind: 'boundary', geojson: boundary.geojson });
     expect(parsed.items.b1).not.toHaveProperty('resolveStatus');
+  });
+
+  describe('boundary source', () => {
+    const boundary = {
+      kind: 'boundary', id: 'b1', placeName: 'Kingdom of Prussia',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
+      startTime: 0, endTime: 5, easing: 'linear', exitAnimation: 'none',
+      style: {
+        strokeColor: '#123456', fillColor: '#123456', strokeWidth: 3, glow: false, fillOpacity: 0.2,
+        animateStroke: true, animationStyle: 'draw', traceLength: 0.1,
+      },
+    };
+    const parseWith = (item: Record<string, unknown>) => {
+      const document = toProjectDocument(createProject());
+      return parseProjectDocument({ ...document, items: { ...document.items, b1: item }, itemOrder: [...document.itemOrder, 'b1'] });
+    };
+
+    it('loads a boundary saved before historical boundaries with no source', () => {
+      expect((parseWith(boundary).items.b1 as BoundaryItem).source).toBeNull();
+    });
+
+    it('keeps a historical source through save and load', () => {
+      const source = {
+        provider: 'ohm', osmId: 'R2', wikidata: 'Q27306', startDate: '1867-02-01', endDate: null,
+        versions: [
+          { osmId: 'R1', startDate: null, endDate: '1867-02-01' },
+          { osmId: 'R2', startDate: '1867-02-01', endDate: null },
+        ],
+      };
+      const parsed = parseWith({ ...boundary, source });
+      expect((parsed.items.b1 as BoundaryItem).source).toEqual(source);
+      const again = parseProjectDocument(JSON.parse(JSON.stringify(toProjectDocument(parsed))));
+      expect((again.items.b1 as BoundaryItem).source).toEqual(source);
+    });
+
+    it('rejects a source from an unknown provider', () => {
+      expect(() => parseWith({ ...boundary, source: { provider: 'other', osmId: 'R2', wikidata: null, startDate: null, endDate: null, versions: [] } })).toThrow();
+    });
   });
 
   describe('boundary fillOpacity', () => {

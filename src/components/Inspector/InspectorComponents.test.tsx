@@ -135,7 +135,7 @@ describe('Inspector Components Integration', () => {
   it('renders BoundaryInspector and updates styling & timing', () => {
     const boundaryItem: BoundaryItem = {
       id: 'boundary-1',
-      kind: 'boundary',
+      kind: 'boundary', source: null,
       placeName: 'California',
       geojson: {
         type: 'Polygon',
@@ -184,7 +184,7 @@ describe('Inspector Components Integration', () => {
   it('shows mask color and opacity once Mask outside is on', () => {
     const boundaryItem: BoundaryItem = {
       id: 'boundary-2',
-      kind: 'boundary',
+      kind: 'boundary', source: null,
       placeName: 'Maskland',
       geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
       startTime: 0,
@@ -206,7 +206,7 @@ describe('Inspector Components Integration', () => {
   it('shows a zero trace length as zero instead of the default', () => {
     const boundaryItem: BoundaryItem = {
       id: 'boundary-3',
-      kind: 'boundary',
+      kind: 'boundary', source: null,
       placeName: 'Traceland',
       geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
       startTime: 0,

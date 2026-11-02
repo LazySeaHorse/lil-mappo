@@ -79,7 +79,7 @@ const route: RouteItem = {
 };
 
 const boundary: BoundaryItem = {
-  kind: 'boundary',
+  kind: 'boundary', source: null,
   id: 'styled-boundary',
   placeName: 'Styled boundary',
   geojson: {

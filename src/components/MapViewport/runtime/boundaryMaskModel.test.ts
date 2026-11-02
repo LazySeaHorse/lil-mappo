@@ -112,7 +112,7 @@ describe('buildMaskRegions', () => {
 
 function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, geojson: GeoJSON.Geometry | null = poly(0, 0, 1)): BoundaryItem {
   return {
-    kind: 'boundary',
+    kind: 'boundary', source: null,
     id,
     placeName: id,
     geojson,
