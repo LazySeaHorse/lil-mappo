@@ -1,4 +1,5 @@
 import type { DemoTiming } from '../protocol';
+import { scrollWithinContainer } from '@/lib/scrollWithinContainer';
 import { beginGesture, endGesture } from '@/store/history';
 import type { DemoClock } from './clock';
 import { cursorKindFor, travelDuration, type CursorController } from './cursor';
@@ -320,9 +321,12 @@ export function dismissOpenLayers(doc: Document = document): void {
 /** Holds still for `ms` of clock time. */
 export const pause = (ctx: DemoContext, ms: number) => ctx.clock.wait(ms);
 
-/** Scrolls the element into view when it is outside its scroll box or the window. */
+/**
+ * Scrolls the element into view when it is outside its scroll box or the window.
+ * Only the app's own scroll boxes move: `scrollIntoView` would also scroll the
+ * demo shell around the frame.
+ */
 async function reveal(ctx: DemoContext, el: Element): Promise<void> {
-  if (IS_JSDOM || typeof el.scrollIntoView !== 'function') return;
   const rect = el.getBoundingClientRect();
   let outside = rect.top < 0 || rect.bottom > window.innerHeight || rect.left < 0 || rect.right > window.innerWidth;
   for (let node = el.parentElement; node && !outside; node = node.parentElement) {
@@ -332,7 +336,7 @@ async function reveal(ctx: DemoContext, el: Element): Promise<void> {
     outside = rect.top < box.top || rect.bottom > box.bottom;
   }
   if (!outside) return;
-  el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+  if (!scrollWithinContainer(el, { block: 'center', inline: 'nearest', behavior: 'smooth' })) return;
   await ctx.clock.realDelay(SCROLL_SETTLE_MS);
 }
 

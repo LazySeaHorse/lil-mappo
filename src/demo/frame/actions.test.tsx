@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { click, find, installPointerCapturePatch, query, selectOption, setSlider, type } from './actions';
+import { click, find, installPointerCapturePatch, moveTo, query, selectOption, setSlider, type } from './actions';
 import { testContext } from './testContext';
 import { BoundaryAddDropdown } from '@/components/Toolbar/BoundaryAddDropdown';
 import { SliderRow } from '@/components/Inspector/controls/SliderRow';
@@ -174,6 +174,44 @@ describe('primitives on the real controls', () => {
       restore();
       Element.prototype.setPointerCapture = native;
     }
+  });
+});
+
+describe('revealing a control outside its scroll box', () => {
+  const rect = (top: number, height: number) =>
+    ({ top, bottom: top + height, left: 0, right: 100, width: 100, height, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function renderScrollBox(buttonTop: number) {
+    render(
+      <div data-testid="box" style={{ overflowY: 'auto' }}>
+        <button>Far</button>
+      </div>,
+    );
+    const box = screen.getByTestId('box');
+    Object.defineProperty(box, 'clientHeight', { value: 200 });
+    Object.defineProperty(box, 'scrollHeight', { value: 1000 });
+    box.getBoundingClientRect = () => rect(0, 200);
+    box.scrollTo = vi.fn() as never;
+    const button = screen.getByRole('button', { name: 'Far' });
+    button.getBoundingClientRect = () => rect(buttonTop, 40);
+    return { box, button };
+  }
+
+  it('scrolls the scroll box that holds it, never the ancestors scrollIntoView would chain into', async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { box, button } = renderScrollBox(600);
+    await moveTo(testContext(), button);
+    // Centred: 600 below the box top, minus half of the 160px of spare room.
+    expect(box.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 520, behavior: 'smooth' }));
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    scrollIntoView.mockRestore();
+  });
+
+  it('leaves a control that is already inside its scroll box alone', async () => {
+    const { box, button } = renderScrollBox(80);
+    await moveTo(testContext(), button);
+    expect(box.scrollTo).not.toHaveBeenCalled();
   });
 });
 
