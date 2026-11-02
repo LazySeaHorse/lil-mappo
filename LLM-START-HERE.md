@@ -11,6 +11,8 @@ Welcome to **li'l Mappo**, a cinematic map animation and export tool. This docum
 - **Annotate**: 3D callout cards with multiple style variants (default, modern, news, topo).
 - **Save & Export**: Local IndexedDB library, cloud sync via Supabase, MP4 video export.
 - **User Accounts**: Supabase Auth with credits, render job history, subscription tiers.
+
+> **Not live: cloud rendering and credits.** The code exists (section 6.5) but neither is available to users. Every export renders in the user's own browser. Don't use cloud renders, render workers or credits as a reason for a design decision, and don't describe them to users as working features.
 - **Payment Strategy**: Dodo Payments integration with a B.Y.O.K option to offload infra costs.
 
 **UI Design**: Premium "floating island" aesthetic with responsive mobile/tablet/desktop modes. Tools are **mutually exclusive and non-modal** — opening one closes others, and they stay open during map interaction.
