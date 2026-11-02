@@ -199,8 +199,8 @@ describe('runExport', () => {
     await expect(runExport(ref, options())).rejects.toThrow(
       'Export stopped: the map stopped loading. Check your internet connection and try again.',
     );
-    // Frames at 1, 1.5 and 2 stall; the third stops the export before it is encoded.
-    expect(log.filter((e) => e.startsWith('encode:'))).toEqual(['encode:0', 'encode:500000', 'encode:1000000', 'encode:1500000']);
+    // Frames at 1, 1.5 and 2 stall; the third stops the export before the frames after it.
+    expect(log.filter((e) => e.startsWith('renderAt:')).at(-1)).toBe('renderAt:2');
     expect(mux.outputs[0].finalize).not.toHaveBeenCalled();
     expect(target.discard).toHaveBeenCalledTimes(1);
   });

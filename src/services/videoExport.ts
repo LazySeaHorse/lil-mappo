@@ -44,11 +44,24 @@ export interface ExportOptions {
   branding: Branding;
 }
 
+/** How long a frame may go without a single tile arriving before it counts as stalled. */
+const FRAME_STALL_MS = 30_000;
+/** Stalled frames in a row that stop the export: the map is not loading, not just slow. */
+const MAX_STALLED_FRAMES_IN_A_ROW = 3;
+
+/** The map stopped loading partway through an export. Its message is shown to the user as is. */
+export class MapLoadError extends Error {
+  constructor() {
+    super('Export stopped: the map stopped loading. Check your internet connection and try again.');
+    this.name = 'MapLoadError';
+  }
+}
+
 export interface ExportResult {
   blob: Blob;
   /**
-   * Frames encoded after the map's render wait timed out. They may show missing
-   * or low-res tiles; the export still completes.
+   * Frames encoded after their map stalled. They may show missing or low-res
+   * tiles; the export still completes unless stalls come several in a row.
    */
   incompleteFrames: number;
 }
@@ -339,15 +352,20 @@ interface CaptureFrameOptions {
   time: number;
   overlays: OverlayLayer[];
   zoomOffset: number;
+  signal: AbortSignal;
 }
 
 /** Encodes one frame and resolves whether the map went idle before it was captured. */
-async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, overlays, zoomOffset }: CaptureFrameOptions): Promise<MapIdleResult> {
+async function captureFrame({ runtime, map, encoder, frameIndex, fps, time, overlays, zoomOffset, signal }: CaptureFrameOptions): Promise<MapIdleResult> {
   const { videoEncoder, compCanvas, compCtx } = encoder;
   const [width, height] = [compCanvas.width, compCanvas.height];
 
   // runExport syncs the runtime once before the loop; each frame only redraws the scene.
-  const renderResult = await stepToTime(runtime, map, time, zoomOffset, { sync: false });
+  // A slow connection gets as long as tiles keep arriving; only a stall gives up on the frame.
+  const renderResult = await stepToTime(runtime, map, time, zoomOffset, {
+    sync: false,
+    wait: { timeoutMs: FRAME_STALL_MS, extendWhileLoading: true, signal },
+  });
 
   // Back-pressure: don't let the encoder queue grow unbounded
   if (videoEncoder.encodeQueueSize > 8) {
@@ -462,6 +480,7 @@ export async function runExport(
 
         // Phase 2: capture frames
         let incompleteFrames = 0;
+        let stalledInARow = 0;
         for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex++) {
           if (abortSignal.aborted) {
             throw new DOMException('Export cancelled', 'AbortError');
@@ -470,8 +489,16 @@ export async function runExport(
           const currentTime = (startFrame + frameIndex) / fps;
           const clampedTime = Math.min(currentTime, duration);
 
-          const renderResult = await captureFrame({ runtime, map, encoder: encoderState, frameIndex, fps, time: clampedTime, overlays, zoomOffset });
-          if (renderResult === 'timeout') incompleteFrames++;
+          const renderResult = await captureFrame({
+            runtime, map, encoder: encoderState, frameIndex, fps, time: clampedTime, overlays, zoomOffset, signal: abortSignal,
+          });
+          if (renderResult === 'timeout') {
+            incompleteFrames++;
+            stalledInARow++;
+            if (stalledInARow >= MAX_STALLED_FRAMES_IN_A_ROW) throw new MapLoadError();
+          } else {
+            stalledInARow = 0;
+          }
           const encoderError = encoderState.getEncoderError();
           if (encoderError) throw encoderError;
           onProgress(Math.round((frameIndex / totalFrames) * 100), 'capture');

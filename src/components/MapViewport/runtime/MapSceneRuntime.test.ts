@@ -28,7 +28,7 @@ describe('waitForMapRender', () => {
   });
 
   it('reports a timeout when the map never goes idle', async () => {
-    const waiting = waitForMapRender(createMapDouble(false), 100);
+    const waiting = waitForMapRender(createMapDouble(false), { timeoutMs: 100 });
 
     await vi.advanceTimersByTimeAsync(100);
 
@@ -36,7 +36,7 @@ describe('waitForMapRender', () => {
   });
 
   it('reports idle once a loaded map has painted', async () => {
-    const waiting = waitForMapRender(createMapDouble(true), 100);
+    const waiting = waitForMapRender(createMapDouble(true), { timeoutMs: 100 });
 
     await vi.runAllTimersAsync();
 
