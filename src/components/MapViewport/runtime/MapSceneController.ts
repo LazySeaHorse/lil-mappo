@@ -1,8 +1,9 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { BoundaryItem, ModelItem, RouteItem } from '@/store/types';
-import type { MapSceneRuntime } from './MapSceneRuntime';
+import type { MapRenderWaitOptions, MapSceneRuntime } from './MapSceneRuntime';
 import { waitForMapRender } from './MapSceneRuntime';
+import type { MapIdleResult } from './mapWait';
 import { BasemapController } from './BasemapController';
 import { BoundaryMaskRenderer } from './BoundaryMaskRenderer';
 import { BoundaryRenderer } from './BoundaryRenderer';
@@ -203,8 +204,8 @@ export class MapSceneController implements MapSceneRuntime {
     this.renderedRevision = this.sceneRevision;
   };
 
-  waitUntilRendered(timeoutMs?: number): Promise<void> {
-    return waitForMapRender(this.map, timeoutMs);
+  waitUntilRendered(wait?: MapRenderWaitOptions): Promise<MapIdleResult> {
+    return waitForMapRender(this.map, wait);
   }
 
   dispose(): void {

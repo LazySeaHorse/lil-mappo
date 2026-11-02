@@ -92,7 +92,8 @@ class FakeFrame {
   close() {}
 }
 
-function installRuntime() {
+let lastRenderedAt = 0;
+function installRuntime(renderResultAt: (t: number) => 'idle' | 'timeout' = () => 'idle') {
   const map = {
     getContainer: () => ({ clientWidth: 640 }),
     triggerRepaint: vi.fn(() => { log.push('repaint'); }),
@@ -100,8 +101,11 @@ function installRuntime() {
   const runtime = {
     getMap: () => map,
     sync: vi.fn(() => { log.push('sync'); }),
-    renderAt: vi.fn((t: number) => { log.push(`renderAt:${t}`); }),
-    waitUntilRendered: vi.fn(async () => { log.push('rendered'); }),
+    renderAt: vi.fn((t: number) => { log.push(`renderAt:${t}`); lastRenderedAt = t; }),
+    waitUntilRendered: vi.fn(async (_wait?: unknown): Promise<'idle' | 'timeout'> => {
+      log.push('rendered');
+      return renderResultAt(lastRenderedAt);
+    }),
   };
   return { map, runtime, ref: { current: runtime } as never };
 }
@@ -142,9 +146,10 @@ describe('runExport', () => {
 
   it('steps, renders, composites and encodes every frame in order, then finalizes', async () => {
     const { ref } = installRuntime();
-    const blob = await runExport(ref, options());
+    const { blob, incompleteFrames } = await runExport(ref, options());
 
     expect(blob).toBeInstanceOf(Blob);
+    expect(incompleteFrames).toBe(0);
     expect(target.getBlob).toHaveBeenCalledTimes(1);
     const capture = log.slice(log.indexOf('playhead:0'));
     // zoomOffset = log2(1280 / 640) = 1
@@ -165,6 +170,92 @@ describe('runExport', () => {
     expect(mux.outputs[0].finalize).toHaveBeenCalled();
     expect(target.discard).not.toHaveBeenCalled();
     expect(useProjectStore.getState().playheadTime).toBe(0.25);
+  });
+
+  it('still encodes a frame whose map did not go idle in time, and counts it as incomplete', async () => {
+    const { ref } = installRuntime((t) => (t === 0.5 ? 'timeout' : 'idle'));
+    const { blob, incompleteFrames } = await runExport(ref, options());
+
+    expect(blob).toBeInstanceOf(Blob);
+    expect(incompleteFrames).toBe(1);
+    expect(log.filter((e) => e.startsWith('encode:'))).toEqual(['encode:0', 'encode:500000', 'encode:1000000']);
+    expect(mux.outputs[0].finalize).toHaveBeenCalled();
+  });
+
+  it('waits for each frame as long as tiles keep arriving, giving up after 30s with no progress', async () => {
+    const { ref, runtime } = installRuntime();
+    await runExport(ref, options());
+
+    expect(runtime.waitUntilRendered).toHaveBeenCalledTimes(3);
+    for (const [wait] of runtime.waitUntilRendered.mock.calls) {
+      expect(wait).toMatchObject({ timeoutMs: 30_000, extendWhileLoading: true, signal: expect.any(AbortSignal) });
+    }
+  });
+
+  it('stops with a plain message after 3 frames in a row stall, and discards the output', async () => {
+    useProjectStore.setState({ duration: 3 });
+    const { ref } = installRuntime((t) => (t >= 1 ? 'timeout' : 'idle'));
+
+    await expect(runExport(ref, options())).rejects.toThrow(
+      'Export stopped: the map stopped loading. Check your internet connection and try again.',
+    );
+    // Frames at 1, 1.5 and 2 stall; the third stops the export before the frames after it.
+    expect(log.filter((e) => e.startsWith('renderAt:')).at(-1)).toBe('renderAt:2');
+    expect(mux.outputs[0].finalize).not.toHaveBeenCalled();
+    expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('finishes when stalls are not 3 in a row, counting every stalled frame', async () => {
+    useProjectStore.setState({ duration: 3 });
+    const stalled = new Set([0.5, 1, 2, 2.5]);
+    const { ref } = installRuntime((t) => (stalled.has(t) ? 'timeout' : 'idle'));
+
+    const { incompleteFrames } = await runExport(ref, options());
+
+    expect(incompleteFrames).toBe(4);
+    expect(log.filter((e) => e.startsWith('encode:'))).toHaveLength(7);
+  });
+
+  it('cancels a frame that is still waiting for the map', async () => {
+    const { ref, runtime } = installRuntime();
+    const controller = new AbortController();
+    runtime.waitUntilRendered.mockImplementation((wait?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+      wait?.signal?.addEventListener('abort', () => reject(wait.signal!.reason));
+      controller.abort();
+    }));
+
+    await expect(runExport(ref, options({ abortSignal: controller.signal }))).rejects.toMatchObject({ name: 'AbortError' });
+    expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops at once with the same message when the browser goes offline mid-export', async () => {
+    const { ref, runtime } = installRuntime();
+    runtime.waitUntilRendered.mockImplementation((wait?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+      wait?.signal?.addEventListener('abort', () => reject(wait.signal!.reason));
+      window.dispatchEvent(new Event('offline'));
+    }));
+
+    await expect(runExport(ref, options())).rejects.toThrow(
+      'Export stopped: the map stopped loading. Check your internet connection and try again.',
+    );
+    expect(runtime.waitUntilRendered).toHaveBeenCalledTimes(1);
+    expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not capture any frames when the browser is already offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { ref, runtime } = installRuntime();
+
+    await expect(runExport(ref, options())).rejects.toThrow('Export stopped: the map stopped loading.');
+    expect(runtime.renderAt).not.toHaveBeenCalled();
+    expect(target.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops listening for the connection once the export settles', async () => {
+    const removeListener = vi.spyOn(window, 'removeEventListener');
+    await runExport(installRuntime().ref, options());
+
+    expect(removeListener).toHaveBeenCalledWith('offline', expect.any(Function));
   });
 
   it('refuses without a map runtime, before starting an encoder', async () => {

@@ -1,39 +1,42 @@
 import { useMemo } from 'react';
 import { selectAgentCalls, useAgentEvents } from '@/agent';
-import { useResponsive } from '@/hooks/useResponsive';
-import { belowToolbarTop } from './aiUtils';
+import { useProjectStore } from '@/store/useProjectStore';
 import { useAiPanelStore } from './useAiPanelStore';
+import { MapPill } from '@/components/MapStatusPills/MapPill';
 
-/** Visible only while tools are registered with the browser or linked to the bridge. Opens the panel on Activity. */
+/**
+ * Visible only while tools are registered with the browser or linked to the
+ * bridge, and not while the panel is open or a video exports. Opens the panel
+ * on Activity. `MapStatusPills` places it.
+ */
 export function AiStatusPill() {
   const registered = useAiPanelStore((s) => s.registeredCount);
   const bridged = useAiPanelStore((s) => s.bridgeStatus === 'connected');
   const open = useAiPanelStore((s) => s.open);
   const openPanel = useAiPanelStore((s) => s.openPanel);
-  const { isMobile } = useResponsive();
+  const isExporting = useProjectStore((s) => s.isExporting);
   const events = useAgentEvents();
   const { calls, running } = useMemo(() => {
     const all = selectAgentCalls(events);
     return { calls: all.length, running: all.some((c) => c.phase === 'started') };
   }, [events]);
 
-  if ((registered === 0 && !bridged) || open) return null;
+  if ((registered === 0 && !bridged) || open || isExporting) return null;
 
   return (
-    <button
-      type="button"
-      data-testid="ai-status-pill"
+    <MapPill
+      testId="ai-status-pill"
+      leading={(
+        <span
+          data-testid="ai-status-dot"
+          data-running={running}
+          className={`size-2 shrink-0 rounded-full bg-success ${running ? 'agent-dot-active' : ''}`}
+        />
+      )}
+      title="Open AI activity"
       onClick={() => openPanel('activity')}
-      className="absolute left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-full border border-border/50 bg-background/85 px-3 py-1.5 text-2xs font-medium shadow-lg backdrop-blur-xl pointer-events-auto hover:bg-background"
-      style={{ top: belowToolbarTop(isMobile) }}
     >
-      <span
-        data-testid="ai-status-dot"
-        data-running={running}
-        className={`h-2 w-2 rounded-full bg-success ${running ? 'agent-dot-active' : ''}`}
-      />
-      <span>AI connected</span>
-      <span className="text-muted-foreground">{calls} {calls === 1 ? 'call' : 'calls'}</span>
-    </button>
+      AI connected <span className="ml-1 text-muted-foreground">{calls} {calls === 1 ? 'call' : 'calls'}</span>
+    </MapPill>
   );
 }

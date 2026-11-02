@@ -64,7 +64,7 @@ describe('stepToTime', () => {
     getMap: vi.fn(),
     sync: vi.fn(() => { calls.push('sync'); }),
     renderAt: vi.fn((t: number) => { calls.push(`renderAt:${t}`); }),
-    waitUntilRendered: vi.fn(async () => { calls.push('rendered'); }),
+    waitUntilRendered: vi.fn(async () => { calls.push('rendered'); return 'idle' as const; }),
   };
   const map = { triggerRepaint: vi.fn(() => { calls.push('repaint'); }) } as never;
 

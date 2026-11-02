@@ -50,7 +50,7 @@ export function useVideoExportExecution(
       // The demo frame fills the bar with a scripted export instead (no encoder, no file).
       const { runExport } = IS_DEMO_FRAME ? await loadDemoFakeExport() : await loadVideoExport();
       if (controller.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
-      const blob = await runExport(runtimeRef, {
+      const { blob } = await runExport(runtimeRef, {
         ...exportPlan,
         branding,
         onProgress: (pct, p) => {

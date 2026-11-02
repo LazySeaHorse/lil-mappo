@@ -61,3 +61,10 @@ export function rightReserved({
   if (!isInspectorOpen || isMobile) return PANEL_MARGIN;
   return isTablet ? RIGHT_RESERVED_TABLET : RIGHT_RESERVED_DESKTOP;
 }
+
+/** Top offset of floating content that sits just below the toolbar (toolbar is 56px tall). */
+export function belowToolbarTop(isMobile: boolean): string {
+  return isMobile
+    ? `calc(env(safe-area-inset-top, 0px) + 56px + ${PANEL_MARGIN}px)`
+    : `${PANEL_MARGIN + 56 + PANEL_MARGIN}px`;
+}

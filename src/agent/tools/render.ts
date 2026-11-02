@@ -71,6 +71,7 @@ export const renderFrames = defineTool({
       withFrameCapturer(map, { width: captureWidth, height: captureHeight, overlays: [] }, async ({ zoomOffset, captureNow }) => {
         for (const [index, time] of times.entries()) {
           // Same stepping as the video exporter: playhead, camera, layers, then wait for tiles.
+          // Best-effort like the exporter: a frame whose tiles were slow is still returned.
           await stepToTime(runtime, map, time, zoomOffset);
 
           const canvas = await captureNow();

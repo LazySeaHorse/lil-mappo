@@ -40,7 +40,7 @@ afterEach(() => {
 describe('useVideoExportExecution', () => {
   it('pauses during export and restores the previous workflow state', async () => {
     useProjectStore.setState({ isPlaying: true, hideUI: true });
-    let finishExport!: (blob: Blob) => void;
+    let finishExport!: (result: { blob: Blob; incompleteFrames: number }) => void;
     mockedRunExport.mockReturnValue(new Promise((resolve) => {
       finishExport = resolve;
     }));
@@ -60,7 +60,7 @@ describe('useVideoExportExecution', () => {
     });
 
     await act(async () => {
-      finishExport(new Blob());
+      finishExport({ blob: new Blob(), incompleteFrames: 0 });
       await exporting;
     });
 
@@ -94,7 +94,7 @@ describe('useVideoExportExecution', () => {
     const props = { resolution: '720p', fps: 30, duration_bucket: '<10s' };
 
     it('reports started and succeeded with coarse settings, and marks has_exported', async () => {
-      mockedRunExport.mockResolvedValue(new Blob());
+      mockedRunExport.mockResolvedValue({ blob: new Blob(), incompleteFrames: 0 });
       const { result } = renderHook(() => useVideoExportExecution(runtimeRef, exportPlan, 'paid', 'My secret trip'));
       await act(async () => { await result.current.startExport(); });
       expect(track).toHaveBeenNthCalledWith(1, 'export_started', props);

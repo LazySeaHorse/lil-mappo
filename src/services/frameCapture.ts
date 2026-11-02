@@ -2,27 +2,31 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyCamera, getProjectCameraAt } from '@/engine/cameraUtils';
 import { mapContainerSize } from '@/engine/mapFraming';
-import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
+import type { MapRenderWaitOptions, MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { preloadOverlayAssets, type OverlayLayer } from '@/overlays';
 import { loadAnnotationAssets } from '@/annotations/draw';
-import { waitForMapIdle } from '@/components/MapViewport/runtime/mapWait';
+import { waitForMapIdle, type MapIdleResult } from '@/components/MapViewport/runtime/mapWait';
 
 /**
  * Puts the project at `time` for capture: moves the playhead and the camera (zoom shifted by
  * `zoomOffset`), redraws the scene at exactly that time, and resolves once the map has
- * rendered it. Shared by video export and the AI `render_frames` tool.
+ * rendered it, or the render wait timed out. Shared by video export and the AI `render_frames` tool.
+ *
+ * Resolves `'timeout'` when the map did not go idle in time: the frame can still be captured,
+ * but tiles may be missing or low-res.
  *
  * `sync: false` skips the full runtime sync (basemap reconcile + renderer reconcile) for a
  * caller that synced once before a run of frames; the project cannot change mid-export.
+ * `wait` sets how long to wait for the render (5s by default) and what cancels it.
  */
 export async function stepToTime(
   runtime: MapSceneRuntime,
   map: MapboxMap,
   time: number,
   zoomOffset: number,
-  { sync = true }: { sync?: boolean } = {},
-): Promise<void> {
+  { sync = true, wait }: { sync?: boolean; wait?: MapRenderWaitOptions } = {},
+): Promise<MapIdleResult> {
   useProjectStore.getState().setPlayheadTime(time);
   const cam = getProjectCameraAt(time);
   if (cam) applyCamera(map, cam, zoomOffset);
@@ -30,7 +34,7 @@ export async function stepToTime(
   runtime.renderAt(time);
   map.triggerRepaint();
   // Waits for the map to go idle, then one animation frame to flush compositing.
-  await runtime.waitUntilRendered();
+  return runtime.waitUntilRendered(wait);
 }
 
 export interface FrameCaptureOptions {
@@ -77,6 +81,7 @@ export async function withFrameCapturer<T>(
       zoomOffset,
       previewZoom,
       async captureNow() {
+        // Best-effort: a single still is captured even if the map did not go idle in time.
         await waitForMapIdle(map, { timeoutMs: 3_000 });
         await document.fonts.ready;
         const { items, itemOrder } = useProjectStore.getState();
