@@ -15,6 +15,7 @@ import { DEFAULT_TIMING, type DemoRunSettings, type FrameToShell } from '../../p
 import { clearMocks, installFetchMocks } from '../mocks';
 import { startingProject } from '../startState';
 import { testContext } from '../testContext';
+import { PHONE_WIDTH, setViewportWidth } from '../testViewport';
 import { demoFixture } from '../testFixture';
 import { AiMode } from './mode';
 
@@ -101,6 +102,34 @@ describe('AiMode', () => {
     expect(ctx.cursor.hidden).toBe(true);
     expect(sent.find((m) => m.type === 'ai-panel')).toEqual({ type: 'ai-panel', open: true });
     await run;
+  });
+
+  it('switches AI on without a button on the phone, whose toolbar has no AI panel', async () => {
+    const restoreViewport = setViewportWidth(PHONE_WIDTH);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const ctx = testContext();
+      // The phone's toolbar leaves the AI button out.
+      render(<AgentToolRegistrar />);
+      const { mode } = setup();
+      let panelOpened = false;
+      const unsubscribe = useAiPanelStore.subscribe((s) => {
+        panelOpened ||= s.open;
+      });
+
+      const run = mode.run(ctx, file, settings);
+      await vi.waitFor(() => expect(useAiPanelStore.getState().bridgeStatus).toBe('connected'));
+      expect(useAgentStore.getState().enabled).toBe(true);
+      await run;
+      unsubscribe();
+
+      expect(panelOpened).toBe(false);
+      expect(warn).not.toHaveBeenCalled();
+      expect(pickProject(useProjectStore.getState())).toEqual(pickProject(file));
+    } finally {
+      warn.mockRestore();
+      restoreViewport();
+    }
   });
 
   it('builds the project through the tools: it ends equal to the file, as the AI’s writes', async () => {

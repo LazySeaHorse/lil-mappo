@@ -4,6 +4,7 @@ import { isModelReady } from '@/models/modelRegistry';
 import { useAiPanelStore } from '@/components/AI/useAiPanelStore';
 import type { Project } from '@/store/types';
 import { click, type DemoContext, type Locator } from '../actions';
+import { isPhoneLayout } from '../locators';
 import { planDemo } from '../plan';
 import { AiAgent } from './agent';
 import { buildAiScript } from './script';
@@ -58,11 +59,16 @@ export class AiMode {
    */
   private async switchOn(ctx: DemoContext): Promise<void> {
     const panel = useAiPanelStore.getState();
-    if (!panel.open) await click(ctx, AI_BUTTON);
-    const flick = await click(ctx, AI_SWITCH);
-    if (!flick || !useAgentStore.getState().enabled) {
-      console.warn('[demo] could not switch AI control on through the panel: switched on directly');
+    if (isPhoneLayout()) {
+      // The phone's toolbar has no AI button or panel: nothing to click, AI control is simply on.
       useAgentStore.getState().setEnabled(true);
+    } else {
+      if (!panel.open) await click(ctx, AI_BUTTON);
+      const flick = await click(ctx, AI_SWITCH);
+      if (!flick || !useAgentStore.getState().enabled) {
+        console.warn('[demo] could not switch AI control on through the panel: switched on directly');
+        useAgentStore.getState().setEnabled(true);
+      }
     }
     // The real bridge is not dialled in the demo frame.
     useAiPanelStore.getState().setBridgeStatus('connecting');
