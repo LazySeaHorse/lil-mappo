@@ -126,6 +126,29 @@ export interface RouteItem {
   calculation?: RouteCalculation;
 }
 
+/** One period of a historical place: an OpenHistoricalMap relation or way with the dates OHM gives it. */
+export interface BoundaryVersion {
+  /** OSM type letter plus id, as OHM's lookup wants it ("R2693579"). */
+  osmId: string;
+  /** Raw OHM date ("1867", "1888-02-16", "-0500"); null when OHM has none (unknown start). */
+  startDate: string | null;
+  /** Raw OHM date; null when OHM has none (the place still exists). */
+  endDate: string | null;
+}
+
+/** Where a historical boundary came from. Present-day boundaries have no source. */
+export interface BoundarySource {
+  provider: 'ohm';
+  /** The chosen period (one of `versions`). */
+  osmId: string;
+  wikidata: string | null;
+  /** Dates of the chosen period. */
+  startDate: string | null;
+  endDate: string | null;
+  /** Every period of this place, oldest first, so the period can change without searching again. */
+  versions: BoundaryVersion[];
+}
+
 export interface BoundaryItem {
   kind: 'boundary';
   id: string;
@@ -136,6 +159,8 @@ export interface BoundaryItem {
   style: BoundaryStyle;
   easing: EasingName;
   exitAnimation: ExitAnimation;
+  /** Set for a historical boundary (OpenHistoricalMap); null for a present-day one. */
+  source: BoundarySource | null;
 }
 
 export type CalloutSizeMode = 'screen' | 'map';

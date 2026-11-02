@@ -41,6 +41,7 @@ describe('route style sections', () => {
   it('are registered in order, all open at first', () => {
     expect(INSPECTOR_SECTIONS.route.map((s) => [s.id, s.title])).toEqual([
       ['path', 'Path'],
+      ['elevation', 'Elevation'],
       ['line', 'Line'],
       ['animation', 'Animation'],
       ['marker', 'Marker'],

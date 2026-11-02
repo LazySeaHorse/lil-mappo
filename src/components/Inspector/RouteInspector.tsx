@@ -13,6 +13,7 @@ import { InspectorSection } from './InspectorSection';
 import { RouteLineSection } from './RouteLineSection';
 import { RouteAnimationSection } from './RouteAnimationSection';
 import { RouteMarkerSection } from './RouteMarkerSection';
+import { RouteElevationSection } from './RouteElevationSection';
 import { PanelWrapper } from './InspectorLayout';
 import { InspectorHeader } from './InspectorHeader';
 import { FOLLOW_CAMERA_BLOCKED } from '@/lib/terms';
@@ -68,6 +69,8 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       <InspectorSection kind="route" id="path">
         <RoutePathSection key={item.id} item={item} />
       </InspectorSection>
+
+      <RouteElevationSection item={item} />
 
       <RouteLineSection style={item.style} onStyle={us} />
 

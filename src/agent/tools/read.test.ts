@@ -25,6 +25,37 @@ describe('read tools', () => {
     expect(text).toContain('sizeMode');
   });
 
+  it('get_guide tells agents when to pass a year to add_boundary', async () => {
+    const text = resultText(await runAgentTool('get_guide', {}));
+    expect(text).toMatch(/year parameter for historical or documentary requests/);
+    expect(text).toContain('-44');
+    expect(text).toMatch(/approximate/);
+  });
+
+  it('boundary reads name the period and source of a historical boundary only', async () => {
+    const ring: GeoJSON.Polygon = { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] };
+    const store = useProjectStore.getState();
+    const versions = [
+      { osmId: 'R1', startDate: '1701', endDate: '1867' },
+      { osmId: 'R2', startDate: '1867', endDate: '1876' },
+    ];
+    const historical = createBoundaryItem({
+      placeName: 'Kingdom of Prussia', geojson: ring, startTime: 0,
+      source: { provider: 'ohm', osmId: 'R2', wikidata: 'Q27306', startDate: '1867', endDate: '1876', versions },
+    });
+    const present = createBoundaryItem({ placeName: 'Portugal', geojson: ring, startTime: 0 });
+    store.addItem(historical);
+    store.addItem(present);
+
+    const project = resultJson<{ items: Record<string, unknown>[] }>(await runAgentTool('get_project', {}));
+    expect(project.items.find((i) => i.id === historical.id)?.historical).toEqual({ period: '1867–1876', source: 'OpenHistoricalMap' });
+    expect(project.items.find((i) => i.id === present.id)).not.toHaveProperty('historical');
+
+    const detail = resultJson<{ historical: unknown }>(await runAgentTool('get_item', { id: historical.id }));
+    expect(detail.historical).toEqual({ period: '1867–1876', source: 'OpenHistoricalMap', allPeriods: ['1701–1867', '1867–1876'] });
+    expect(resultJson(await runAgentTool('get_item', { id: present.id }))).not.toHaveProperty('historical');
+  });
+
   it('get_project stays compact with a huge route and boundary geometry', async () => {
     const store = useProjectStore.getState();
     store.addItem(createEndpointRouteItem({

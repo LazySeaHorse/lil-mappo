@@ -42,7 +42,7 @@ function route(id: string, name = `Route ${id}`): RouteItem {
 
 function boundary(id: string, placeName = 'Paris'): BoundaryItem {
   return {
-    kind: 'boundary', id, placeName, geojson: { type: 'Point', coordinates: [0, 0] },
+    kind: 'boundary', source: null, id, placeName, geojson: { type: 'Point', coordinates: [0, 0] },
     startTime: 0, endTime: 5,
     style: {
       strokeColor: '#fff', fillColor: '#fff', strokeWidth: 2, glow: false, fillOpacity: 0.2,

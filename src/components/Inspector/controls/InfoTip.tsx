@@ -12,9 +12,22 @@ import { cn } from '@/lib/utils';
  *   toggles from the state that was open before the press (a mouse click just opens).
  * - Escape, a tap elsewhere, and leaving the icon close it.
  *
- * It is a real button. Its name is "More info"; the open tooltip is its description.
+ * It is a real button. Its name is "More info" (or `label`); the open tooltip is its description.
+ * `children` swap the icon for other content, such as the date badge of a historical search result.
  */
-export function InfoTip({ text, className }: { text: string; className?: string }) {
+export function InfoTip({
+  text,
+  className,
+  label = 'More info',
+  children,
+}: {
+  text: string;
+  className?: string;
+  /** The button's accessible name. */
+  label?: string;
+  /** What the button shows instead of the (i) icon; the caller styles it through `className`. */
+  children?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   // State before the press: Radix closes an open tooltip on pointer down, before click.
   const openBeforePress = useRef<boolean | null>(null);
@@ -24,7 +37,7 @@ export function InfoTip({ text, className }: { text: string; className?: string 
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label="More info"
+          aria-label={label}
           data-slot="info-tip"
           // A mouse click on a tip that hover opened keeps it open; a tap toggles.
           onPointerDown={(event) => { openBeforePress.current = event.pointerType === 'mouse' ? false : open; }}
@@ -36,11 +49,12 @@ export function InfoTip({ text, className }: { text: string; className?: string 
             setOpen(!wasOpen);
           }}
           className={cn(
-            'inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground/60 outline-none transition-colors hover:text-muted-foreground focus-visible:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
+            'inline-flex shrink-0 items-center justify-center outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50',
+            !children && 'size-4 rounded-full text-muted-foreground/60 hover:text-muted-foreground focus-visible:text-foreground',
             className,
           )}
         >
-          <Info size={12} aria-hidden="true" />
+          {children ?? <Info size={12} aria-hidden="true" />}
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-56 text-center leading-snug">

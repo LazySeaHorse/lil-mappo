@@ -7,6 +7,7 @@ import { buildWalkGeometry, createWalkCalculation } from '@/engine/routeCurves';
 import type {
   AnnotationContent,
   BoundaryItem,
+  BoundarySource,
   BoundaryStyle,
   CalloutItem,
   CameraKeyframe,
@@ -192,6 +193,8 @@ export interface BoundaryInput {
   style?: BoundaryStyle;
   /** Country code of the search result; becomes `style.flagCode` unless the style already has one. */
   countryCode?: string | null;
+  /** Set for a historical boundary; omitted (null) for a present-day one. */
+  source?: BoundarySource | null;
   id?: string;
 }
 
@@ -209,6 +212,7 @@ export function createBoundaryItem(input: BoundaryInput): BoundaryItem {
     },
     easing: 'easeInOutCubic',
     exitAnimation: 'none',
+    source: input.source ?? null,
   };
 }
 

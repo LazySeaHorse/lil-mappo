@@ -59,7 +59,7 @@ const square = (x: number, size: number): GeoJSON.Polygon => ({
 
 function boundary(id: string, overrides: Partial<BoundaryItem['style']> = {}, extra: Partial<BoundaryItem> = {}): BoundaryItem {
   return {
-    kind: 'boundary',
+    kind: 'boundary', source: null,
     id,
     placeName: id,
     geojson: square(0, 10),

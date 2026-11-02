@@ -136,6 +136,21 @@ const boundaryStyleSchema = z.object({
   flagCode: z.string().nullable().default(null),
 });
 
+const boundaryVersionSchema = z.object({
+  osmId: z.string(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+});
+
+const boundarySourceSchema = z.object({
+  provider: z.literal('ohm'),
+  osmId: z.string(),
+  wikidata: z.string().nullable(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  versions: z.array(boundaryVersionSchema),
+});
+
 const boundaryItemSchema = z.object({
   kind: z.literal('boundary'),
   id: z.string().min(1),
@@ -146,6 +161,8 @@ const boundaryItemSchema = z.object({
   style: boundaryStyleSchema,
   easing: easingSchema,
   exitAnimation: exitAnimationSchema,
+  // Added with historical boundaries; older documents parse to null (a present-day boundary).
+  source: boundarySourceSchema.nullable().default(null),
 });
 
 // Callout schema now lives in the annotation system

@@ -59,7 +59,7 @@ const patchSchema = z
     curved: z.boolean().describe('Walk routes only: smooth curve vs straight segments.'),
     sharpness: z.number().min(0).max(1).describe('Walk routes only: curve tightness 0-1.'),
     // boundary
-    placeName: z.string().min(1).max(200).describe('Boundary label (does not re-search the region; remove and add_boundary to change the region).'),
+    placeName: z.string().min(1).max(200).describe('Boundary label (does not re-search the region; remove and add_boundary to change the region, with `year` for a historical one).'),
     // route + boundary style (which keys apply depends on the item kind)
     style: z
       .strictObject({ ...routeStyleShape, ...boundaryStyleShape })

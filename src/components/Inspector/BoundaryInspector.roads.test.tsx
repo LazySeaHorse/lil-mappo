@@ -11,7 +11,7 @@ vi.mock('./BoundarySearch', () => ({ BoundarySearch: () => <div data-testid="bou
 function boundary(style: Partial<BoundaryItem['style']> = {}): BoundaryItem {
   return {
     id: 'b1',
-    kind: 'boundary',
+    kind: 'boundary', source: null,
     placeName: 'Manhattan',
     geojson: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
     startTime: 0,

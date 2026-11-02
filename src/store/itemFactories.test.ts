@@ -110,6 +110,12 @@ describe('itemFactories', () => {
     expect(defaults).not.toHaveProperty('referenceZoom');
   });
 
+  it('gives a boundary no source unless one is passed', () => {
+    expect(createBoundaryItem({ placeName: 'X', geojson: null, startTime: 0 }).source).toBeNull();
+    const source = { provider: 'ohm' as const, osmId: 'R1', wikidata: 'Q1', startDate: '1707', endDate: '1918', versions: [{ osmId: 'R1', startDate: '1707', endDate: '1918' }] };
+    expect(createBoundaryItem({ placeName: 'X', geojson: null, startTime: 0, source }).source).toEqual(source);
+  });
+
   it('builds boundaries, callouts and keyframes with defaults', () => {
     expect(createBoundaryItem({ placeName: 'X', geojson: null, startTime: 1 })).toMatchObject({
       endTime: 6, style: { strokeColor: '#a855f7' },

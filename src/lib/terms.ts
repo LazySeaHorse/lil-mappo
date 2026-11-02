@@ -36,6 +36,8 @@ export const BOUNDARY_TERMS = {
   fill: 'Fill',
   fillColor: 'Fill color',
   fillOpacity: 'Fill opacity',
+  /** How closely the stored outline follows the real border (Detailed, Standard, Light). */
+  detail: 'Detail',
   animation: 'Animation',
   /** How much of the outline the Trace animation lights up at one time. */
   highlightLength: 'Highlight length',
@@ -228,6 +230,27 @@ export const CALLOUT_ADD_TERMS = {
   /** The footer button that adds the previewed callout to the timeline. */
   add: 'Add callout',
   moreNote: 'More options are in the inspector once it is added.',
+} as const;
+
+/** Words for places from the past (OpenHistoricalMap): the search badge, the period picker and their messages. */
+export const HISTORICAL_TERMS = {
+  /** Where the outlines come from. */
+  sourceName: 'OpenHistoricalMap',
+  /** Label of the field that picks which period of a place to show. */
+  period: 'Period',
+  /** Name of the badge button on a search row (a screen reader hears it with the date range). */
+  badge: (range: string) => (range ? `Historical, ${range}` : 'Historical'),
+  /** The badge's tooltip: "Historical · 24 periods, 1701–1918 · Source: OpenHistoricalMap". */
+  badgeTip: (periodCount: number, range: string) => {
+    const when = [periodCount > 1 ? `${periodCount} periods` : '', range].filter(Boolean).join(', ');
+    return ['Historical', when, 'Source: OpenHistoricalMap'].filter(Boolean).join(' · ');
+  },
+  /** The period field's hint when OpenHistoricalMap itself says a period is uncertain. */
+  notes: (notes: readonly string[]) => `OpenHistoricalMap notes: ${notes.join('; ')}`,
+  /** A period with no dates at all. */
+  undated: 'Undated',
+  loading: 'Loading outline…',
+  loadFailed: 'Cannot load the outline of this period.',
 } as const;
 
 /** Words of the Add Boundary panel. */
