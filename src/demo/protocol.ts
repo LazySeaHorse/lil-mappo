@@ -38,7 +38,25 @@ export interface DemoRunSettings {
   mockAi: boolean;
   /** The prompt shown being typed into the mock Claude Code window (mock AI mode only). */
   aiPrompt: string;
+  /** The shell zooms in on the part of the app being worked on (see `shell/zoom.ts`). */
+  autoZoom: boolean;
+  /** The most the auto zoom magnifies the stage. */
+  maxZoom: number;
 }
+
+/** A box in the frame's CSS pixels (the iframe's own viewport). */
+export interface DemoRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * How closely the camera should look. `work`: the region being worked on fills the view as far as
+ * the max zoom allows. `wide`: a wide strip (the timeline), which only gets a gentle zoom.
+ */
+export type DemoFocusIntent = 'work' | 'wide';
 
 export interface DemoMissingModel {
   modelId: string;
@@ -82,6 +100,8 @@ export type FrameToShell =
   /** Open/close the mock Claude Code window (the app window shrinks to make room). */
   | { type: 'ai-panel'; open: boolean }
   | { type: 'ai-event'; event: DemoAiEvent }
+  /** Where the run is working, for the shell's auto zoom; `rect: null` asks for the whole stage. */
+  | { type: 'focus'; rect: DemoRect | null; intent: DemoFocusIntent }
   /** Cmd/Ctrl+Period pressed while the frame has focus: show or hide the widget. */
   | { type: 'toggle-widget' };
 

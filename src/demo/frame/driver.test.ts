@@ -50,6 +50,8 @@ const settings = (patch: Partial<DemoRunSettings> = {}): DemoRunSettings => ({
   speed: 1,
   mockAi: false,
   aiPrompt: '',
+  autoZoom: false,
+  maxZoom: 1.8,
   ...patch,
 });
 

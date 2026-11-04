@@ -5,6 +5,8 @@ import { DEFAULT_TIMING, type DemoRunSettings, type DemoTiming } from '../protoc
 export const SETTINGS_KEY = 'lilmappo-demo-settings';
 export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 3;
+export const ZOOM_MIN = 1.2;
+export const ZOOM_MAX = 2.5;
 const TIMING_MAX = 60_000;
 
 export const DEFAULT_PROMPT = 'Make me an animated map of my trip: Paris to Lyon by train, then down to Nice.';
@@ -14,6 +16,8 @@ export const DEFAULT_SETTINGS: DemoRunSettings = {
   speed: 1,
   mockAi: false,
   aiPrompt: DEFAULT_PROMPT,
+  autoZoom: true,
+  maxZoom: 1.8,
 };
 
 export const TIMING_FIELDS: { key: keyof DemoTiming; label: string }[] = [
@@ -27,6 +31,11 @@ export const TIMING_FIELDS: { key: keyof DemoTiming; label: string }[] = [
 export function clampSpeed(speed: unknown): number {
   const n = typeof speed === 'number' && Number.isFinite(speed) ? speed : 1;
   return Math.min(SPEED_MAX, Math.max(SPEED_MIN, n));
+}
+
+export function clampMaxZoom(zoom: unknown): number {
+  const n = typeof zoom === 'number' && Number.isFinite(zoom) ? zoom : DEFAULT_SETTINGS.maxZoom;
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, n));
 }
 
 function cleanMs(value: unknown, fallback: number): number {
@@ -44,6 +53,8 @@ export function sanitizeSettings(raw: unknown): DemoRunSettings {
     speed: clampSpeed(r.speed),
     mockAi: typeof r.mockAi === 'boolean' ? r.mockAi : DEFAULT_SETTINGS.mockAi,
     aiPrompt: typeof r.aiPrompt === 'string' ? r.aiPrompt : DEFAULT_SETTINGS.aiPrompt,
+    autoZoom: typeof r.autoZoom === 'boolean' ? r.autoZoom : DEFAULT_SETTINGS.autoZoom,
+    maxZoom: clampMaxZoom(r.maxZoom),
   };
 }
 

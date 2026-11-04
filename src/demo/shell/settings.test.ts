@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_TIMING } from '../protocol';
-import { DEFAULT_SETTINGS, SETTINGS_KEY, clampSpeed, loadSettings, sanitizeSettings, saveSettings } from './settings';
+import { DEFAULT_SETTINGS, SETTINGS_KEY, clampMaxZoom, clampSpeed, loadSettings, sanitizeSettings, saveSettings } from './settings';
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = { ...initial };
@@ -16,7 +16,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 describe('settings persistence', () => {
   it('round-trips through storage', () => {
     const storage = memoryStorage();
-    const settings = { timing: { ...DEFAULT_TIMING, move: 400 }, speed: 1.5, mockAi: true, aiPrompt: 'Map Japan' };
+    const settings = { timing: { ...DEFAULT_TIMING, move: 400 }, speed: 1.5, mockAi: true, aiPrompt: 'Map Japan', autoZoom: false, maxZoom: 2.2 };
     saveSettings(settings, storage);
     expect(JSON.parse(storage.data[SETTINGS_KEY])).toEqual(settings);
     expect(loadSettings(storage)).toEqual(settings);
@@ -37,6 +37,18 @@ describe('settings persistence', () => {
     expect(s.speed).toBe(3);
     expect(s.mockAi).toBe(false);
     expect(s.aiPrompt).toBe(DEFAULT_SETTINGS.aiPrompt);
+  });
+
+  it('sanitizes the auto zoom fields', () => {
+    expect(sanitizeSettings(null)).toMatchObject({ autoZoom: true, maxZoom: 1.8 });
+    expect(sanitizeSettings({ autoZoom: 'no', maxZoom: 'big' })).toMatchObject({ autoZoom: true, maxZoom: 1.8 });
+    expect(sanitizeSettings({ autoZoom: false, maxZoom: 2 })).toMatchObject({ autoZoom: false, maxZoom: 2 });
+  });
+
+  it('clamps the max zoom into 1.2x to 2.5x', () => {
+    expect(clampMaxZoom(0.5)).toBe(1.2);
+    expect(clampMaxZoom(9)).toBe(2.5);
+    expect(clampMaxZoom(Number.NaN)).toBe(1.8);
   });
 
   it('clamps speed into 0.5x to 3x', () => {
