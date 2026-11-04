@@ -16,6 +16,11 @@ export const PHONE_SCREEN = { width: 402, height: 874 };
 export const PHONE_EDGE = 13;
 export const PHONE_OUTER = { width: PHONE_SCREEN.width + PHONE_EDGE * 2, height: PHONE_SCREEN.height + PHONE_EDGE * 2 };
 
+/** The kit's window bar is a fixed 38 px. */
+export const BAR_HEIGHT = 38;
+/** Below the iOS status bar: the app starts here on the phone. */
+export const STATUS_HEIGHT = 62;
+
 function validAspect(aspect: number): number {
   return Number.isFinite(aspect) && aspect > 0 ? aspect : DEFAULT_ASPECT;
 }
@@ -92,4 +97,23 @@ export function stageLayout(width: number, height: number, aspect: number, aiOpe
     height: Math.round(ph),
   };
   return { portrait, app, terminal, phoneScale, margin };
+}
+
+/** The app's viewport (where the iframe is shown) in stage px. */
+export function appViewportBox(layout: StageLayout): Box {
+  const { app, portrait, phoneScale } = layout;
+  if (!portrait) return { left: app.left, top: app.top + BAR_HEIGHT, width: app.width, height: Math.max(0, app.height - BAR_HEIGHT) };
+  return {
+    left: app.left + PHONE_EDGE * phoneScale,
+    top: app.top + (PHONE_EDGE + STATUS_HEIGHT) * phoneScale,
+    width: PHONE_SCREEN.width * phoneScale,
+    height: (PHONE_SCREEN.height - STATUS_HEIGHT) * phoneScale,
+  };
+}
+
+/** A box in the frame's CSS px (the iframe's own viewport), turned into stage px. */
+export function frameToStage(layout: StageLayout, rect: { x: number; y: number; width: number; height: number }): Box {
+  const at = appViewportBox(layout);
+  const scale = layout.portrait ? layout.phoneScale : 1;
+  return { left: at.left + rect.x * scale, top: at.top + rect.y * scale, width: rect.width * scale, height: rect.height * scale };
 }

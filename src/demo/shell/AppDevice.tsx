@@ -2,13 +2,8 @@ import type { CSSProperties, RefObject } from 'react';
 import { Phone } from './kit/phone';
 import { CORNER, superellipsePath } from './kit/phoneGeometry';
 import { Window } from './kit/window';
-import { PHONE_EDGE, PHONE_OUTER, PHONE_SCREEN, type StageLayout } from './layout';
+import { BAR_HEIGHT, PHONE_EDGE, PHONE_OUTER, PHONE_SCREEN, STATUS_HEIGHT, type StageLayout } from './layout';
 
-
-/** The kit's window bar is a fixed 38 px. */
-const BAR_HEIGHT = 38;
-/** Below the iOS status bar: the app starts here on the phone. */
-const STATUS_HEIGHT = 62;
 const SCREEN_CLIP = `path('${superellipsePath(PHONE_SCREEN.width, PHONE_SCREEN.height, CORNER.a, CORNER.n)}')`;
 
 interface AppDeviceProps {

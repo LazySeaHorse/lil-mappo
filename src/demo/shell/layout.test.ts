@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ASPECT, PHONE_OUTER, fitAspect, stageLayout } from './layout';
+import { BAR_HEIGHT, DEFAULT_ASPECT, PHONE_EDGE, PHONE_OUTER, PHONE_SCREEN, STATUS_HEIGHT, appViewportBox, fitAspect, frameToStage, stageLayout } from './layout';
 
 describe('fitAspect', () => {
   it('letterboxes a 16:9 stage top and bottom in a taller viewport', () => {
@@ -57,5 +57,44 @@ describe('stageLayout', () => {
     expect(open.phoneScale).toBeLessThan(closed.phoneScale);
     expect(open.app.top).toBeGreaterThanOrEqual(open.terminal.top + open.terminal.height + open.margin);
     expect(open.app.top + open.app.height).toBeLessThanOrEqual(900 - open.margin);
+  });
+});
+
+describe('frameToStage', () => {
+  it('puts a landscape frame under the window bar, at true size', () => {
+    const layout = stageLayout(1600, 900, 16 / 9, false);
+    expect(appViewportBox(layout)).toEqual({ left: layout.app.left, top: layout.app.top + BAR_HEIGHT, width: layout.app.width, height: layout.app.height - BAR_HEIGHT });
+    expect(frameToStage(layout, { x: 10, y: 20, width: 300, height: 100 })).toEqual({
+      left: layout.app.left + 10,
+      top: layout.app.top + BAR_HEIGHT + 20,
+      width: 300,
+      height: 100,
+    });
+  });
+
+  it('follows the app window when the AI panel narrows it', () => {
+    const layout = stageLayout(1600, 900, 16 / 9, true);
+    expect(frameToStage(layout, { x: 0, y: 0, width: 1, height: 1 }).left).toBe(layout.app.left);
+    expect(layout.app.left).toBeGreaterThan(layout.margin);
+  });
+
+  it('scales a phone frame and offsets it by the edge and the status bar', () => {
+    const layout = stageLayout(500, 900, 9 / 16, false);
+    const s = layout.phoneScale;
+    const box = frameToStage(layout, { x: 100, y: 200, width: 40, height: 80 });
+    expect(box.left).toBeCloseTo(layout.app.left + (PHONE_EDGE + 100) * s);
+    expect(box.top).toBeCloseTo(layout.app.top + (PHONE_EDGE + STATUS_HEIGHT + 200) * s);
+    expect(box.width).toBeCloseTo(40 * s);
+    expect(box.height).toBeCloseTo(80 * s);
+  });
+
+  it('maps the whole phone frame onto the app viewport box', () => {
+    const layout = stageLayout(500, 900, 9 / 16, false);
+    const vp = appViewportBox(layout);
+    const full = frameToStage(layout, { x: 0, y: 0, width: PHONE_SCREEN.width, height: PHONE_SCREEN.height - STATUS_HEIGHT });
+    expect(full.left).toBeCloseTo(vp.left);
+    expect(full.top).toBeCloseTo(vp.top);
+    expect(full.width).toBeCloseTo(vp.width);
+    expect(full.height).toBeCloseTo(vp.height);
   });
 });
