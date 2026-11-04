@@ -1,6 +1,6 @@
 import { useRef, type ChangeEvent } from 'react';
 import type { DemoMissingModel, DemoRunSettings, DemoRunState } from '../protocol';
-import { SPEED_MAX, SPEED_MIN, TIMING_FIELDS } from './settings';
+import { SPEED_MAX, SPEED_MIN, TIMING_FIELDS, ZOOM_MAX, ZOOM_MIN } from './settings';
 
 /** The save formats the app's own "Open project" accepts. */
 export const PROJECT_ACCEPT = '.lilmap,.json';
@@ -141,6 +141,26 @@ export function Widget(props: WidgetProps) {
             onChange={(e) => set({ speed: Number(e.target.value) })}
           />
           <output>{settings.speed}×</output>
+        </label>
+      </div>
+
+      <div className="ds-widget__section">
+        <label className="ds-widget__toggle">
+          <input type="checkbox" checked={settings.autoZoom} onChange={(e) => set({ autoZoom: e.target.checked })} />
+          <span>Auto zoom</span>
+        </label>
+        <label className="ds-widget__speed">
+          <span>Max zoom</span>
+          <input
+            type="range"
+            min={ZOOM_MIN}
+            max={ZOOM_MAX}
+            step={0.1}
+            value={settings.maxZoom}
+            disabled={!settings.autoZoom}
+            onChange={(e) => set({ maxZoom: Number(e.target.value) })}
+          />
+          <output>{settings.maxZoom.toFixed(1)}×</output>
         </label>
       </div>
 

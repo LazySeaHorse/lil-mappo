@@ -11,11 +11,21 @@ import {
 import { AppDevice } from './AppDevice';
 import { ClaudeCode } from './ClaudeCode';
 import { Countdown } from './Countdown';
-import { DEFAULT_ASPECT, fitAspect, stageLayout } from './layout';
+import { DEFAULT_ASPECT, appViewportBox, fitAspect, frameToStage, stageLayout } from './layout';
 import { loadSettings, sanitizeSettings, saveSettings } from './settings';
 import { Stage } from './Stage';
 import { INITIAL_TRANSCRIPT, transcriptReducer } from './transcript';
 import { useViewportSize } from './useViewportSize';
+import {
+  INITIAL_DIRECTOR,
+  cameraView,
+  directFocus,
+  directIdle,
+  idleDelay,
+  viewStyle,
+  type DirectorState,
+  type ZoomSpace,
+} from './zoom';
 import { Widget, type LoadStatus, type Progress } from './Widget';
 import './shell.css';
 
@@ -58,9 +68,16 @@ export default function DemoShell() {
     else queue.current.push(msg);
   }, []);
 
+  /** The auto zoom camera. `instant` snaps it (a reset) instead of easing. */
+  const [camera, setCamera] = useState<{ director: DirectorState; instant: boolean }>({ director: INITIAL_DIRECTOR, instant: false });
+
+  const box = fitAspect(view.width, view.height, aspect);
+  const layout = stageLayout(box.width, box.height, aspect, aiOpen);
+  const zoomSpace: ZoomSpace = { stage: { width: box.width, height: box.height }, viewport: appViewportBox(layout), maxZoom: settings.maxZoom };
+
   /** Live values the message handler and typing read without re-subscribing. */
-  const live = useRef({ settings, runState });
-  live.current = { settings, runState };
+  const live = useRef({ settings, runState, layout, zoomSpace });
+  live.current = { settings, runState, layout, zoomSpace };
 
   useEffect(
     () =>
@@ -108,6 +125,14 @@ export default function DemoShell() {
           case 'ai-event':
             dispatchTranscript({ type: 'event', event: msg.event, now: performance.now() });
             break;
+          case 'focus': {
+            // Mock AI mode has its own camera (the terminal while typing), so the frame's focus is not used there.
+            const { settings: s, layout: l, zoomSpace: space } = live.current;
+            if (!s.autoZoom || s.mockAi) break;
+            const region = msg.rect ? frameToStage(l, msg.rect) : null;
+            setCamera((c) => ({ director: directFocus(c.director, { region, intent: msg.intent }, performance.now(), space), instant: false }));
+            break;
+          }
         }
       }),
     [],
@@ -126,6 +151,29 @@ export default function DemoShell() {
   }, [typing]);
 
   useEffect(() => saveSettings(settings), [settings]);
+
+  // Turning auto zoom (or mock AI mode) on or off starts the camera from the whole stage; it eases there.
+  const { autoZoom, mockAi } = settings;
+  useEffect(() => setCamera({ director: INITIAL_DIRECTOR, instant: false }), [autoZoom, mockAi]);
+
+  // No focus for a while: the camera eases back out. A paused run holds its zoom.
+  useEffect(() => {
+    if (runState !== 'running') return;
+    const delay = idleDelay(camera.director, performance.now());
+    if (delay === null) return;
+    const id = window.setTimeout(
+      () => setCamera((c) => ({ director: directIdle(c.director, performance.now() + 5), instant: false })),
+      delay,
+    );
+    return () => window.clearTimeout(id);
+  }, [camera.director, runState]);
+
+  // A snap lasts one render.
+  useEffect(() => {
+    if (!camera.instant) return;
+    const id = window.setTimeout(() => setCamera((c) => (c.instant ? { ...c, instant: false } : c)), 60);
+    return () => window.clearTimeout(id);
+  }, [camera.instant]);
 
   // Speed follows the slider live during a run.
   const speed = settings.speed;
@@ -199,22 +247,31 @@ export default function DemoShell() {
   }, [count, send]);
 
   const reset = () => {
+    setCamera({ director: INITIAL_DIRECTOR, instant: true });
     dispatchTranscript({ type: 'clear' });
     setProgress(null);
     send({ type: 'reset' });
   };
 
-  const box = fitAspect(view.width, view.height, aspect);
-  const layout = stageLayout(box.width, box.height, aspect, aiOpen);
+  // Mock AI mode: the terminal while the prompt is typed, then the whole stage for the rest of the run.
+  const aiTyping = settings.mockAi && aiOpen && transcript.typing !== null;
+  const zoomView = cameraView({ ...settings, aiTyping, director: camera.director, terminal: layout.terminal, space: zoomSpace });
   const termFont = Math.max(11, Math.min(15, Math.round(Math.max(box.width, box.height) / 112)));
 
   return (
     <div className="ds-root" data-moving={moving || undefined}>
-      <Stage box={box}>
+      <Stage
+        box={box}
+        zoom={viewStyle(zoomView, { speed: settings.speed, instant: camera.instant })}
+        overlay={
+          <>
+            <div className="ds-shield" />
+            <Countdown count={count} />
+          </>
+        }
+      >
         <ClaudeCode box={layout.terminal} open={aiOpen} portrait={layout.portrait} transcript={transcript} fontSize={termFont} />
         <AppDevice layout={layout} iframeRef={iframeRef} src={FRAME_SRC} />
-        <div className="ds-shield" />
-        <Countdown count={count} />
       </Stage>
       {widgetOpen && (
         <Widget

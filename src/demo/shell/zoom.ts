@@ -163,3 +163,24 @@ export function viewStyle(view: ZoomView, { speed, instant }: { speed: number; i
     transitionDuration: instant ? '0ms' : `${Math.round(TRANSITION_MS / Math.max(0.1, speed))}ms`,
   };
 }
+
+export interface CameraInput {
+  autoZoom: boolean;
+  mockAi: boolean;
+  /** Mock AI mode: the prompt is being typed into the terminal. */
+  aiTyping: boolean;
+  director: DirectorState;
+  terminal: Box;
+  space: ZoomSpace;
+}
+
+/**
+ * Where the camera looks. Off: the whole stage. Mock AI mode: the terminal while the prompt is
+ * typed, then the whole stage for the rest of the run (the frame's focus is ignored). Otherwise
+ * the director's view.
+ */
+export function cameraView({ autoZoom, mockAi, aiTyping, director, terminal, space }: CameraInput): ZoomView {
+  if (!autoZoom) return IDENTITY_VIEW;
+  if (mockAi) return aiTyping ? terminalView(terminal, space) : IDENTITY_VIEW;
+  return director.view;
+}

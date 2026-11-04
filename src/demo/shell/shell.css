@@ -16,6 +16,17 @@
   cursor: none;
 }
 
+/* The auto zoom camera: everything on the stage but the shield and countdown moves as one. The
+   transform and its duration come from zoom.ts. No will-change here: Chrome would keep the low-res
+   raster of the unzoomed page and text goes soft when zoomed. */
+.ds-zoom {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
 /* A deep blue dusk in the logo's colours (public/logo.svg): navy #122d56 up top and at the edges, brand blue
    #1c6bde through the middle, soft swells of light blue #649ee8, and a faint cream #fdf8ec glow low down,
    so the white app window and the dark terminal both have depth to sit on */

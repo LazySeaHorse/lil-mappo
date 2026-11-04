@@ -6,6 +6,7 @@ import {
   INITIAL_DIRECTOR,
   TRANSITION_MS,
   WIDE_MAX_ZOOM,
+  cameraView,
   clampView,
   directFocus,
   directIdle,
@@ -177,5 +178,25 @@ describe('viewStyle', () => {
     expect(viewStyle(IDENTITY_VIEW, { speed: 1, instant: false }).transitionDuration).toBe(`${TRANSITION_MS}ms`);
     expect(viewStyle(IDENTITY_VIEW, { speed: 2, instant: false }).transitionDuration).toBe(`${TRANSITION_MS / 2}ms`);
     expect(viewStyle(IDENTITY_VIEW, { speed: 2, instant: true }).transitionDuration).toBe('0ms');
+  });
+});
+
+describe('cameraView', () => {
+  const terminal = box(72, 72, 560, 756);
+  const director = directFocus(INITIAL_DIRECTOR, { region: box(1000, 300, 200, 150), intent: 'work' }, 0, space);
+  const input = { autoZoom: true, mockAi: false, aiTyping: false, director, terminal, space };
+
+  it('follows the director in normal mode', () => {
+    expect(cameraView(input)).toBe(director.view);
+  });
+
+  it('is the whole stage with auto zoom off, even mid-zoom', () => {
+    expect(cameraView({ ...input, autoZoom: false })).toEqual(IDENTITY_VIEW);
+  });
+
+  it('looks at the terminal while the prompt is typed, then never zooms again in AI mode', () => {
+    const typing = cameraView({ ...input, mockAi: true, aiTyping: true });
+    expect(typing.scale).toBeGreaterThan(1.5);
+    expect(cameraView({ ...input, mockAi: true, aiTyping: false })).toEqual(IDENTITY_VIEW);
   });
 });
