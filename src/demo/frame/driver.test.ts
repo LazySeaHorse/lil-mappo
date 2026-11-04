@@ -12,12 +12,14 @@ const flow = vi.hoisted(() => ({
   ms: 1000,
   fail: null as string | null,
   calls: [] as string[],
+  ctx: null as DemoContext | null,
 }));
 vi.mock('./runners', async (importActual) => {
   const actual = await importActual<typeof import('./runners')>();
   return {
     ...actual,
     runStep: vi.fn(async (ctx: DemoContext, step: DemoStep, file) => {
+      flow.ctx = ctx;
       flow.calls.push(step.label);
       await ctx.clock.wait(flow.ms);
       if (step.label === flow.fail) throw new Error('flow broke');
@@ -68,6 +70,7 @@ beforeEach(() => {
   flow.ms = 1000;
   flow.fail = null;
   flow.calls = [];
+  flow.ctx = null;
   ai.runs = 0;
   ai.teardowns = 0;
   ai.ms = 1000;
@@ -93,6 +96,22 @@ describe('DemoDriver runs', () => {
     ]);
     expect(states()).toEqual(['ready', 'running', 'done']);
     expect(pickProject(useProjectStore.getState())).toEqual(pickProject(file));
+  });
+
+  it('opens and closes the run on the whole stage and gives the primitives a way to report focus', async () => {
+    const { driver, sent } = setup();
+    await driver.handle({ type: 'load', fileName: 'tour.json', json });
+    void driver.handle({ type: 'start', settings: settings() });
+    await vi.advanceTimersByTimeAsync(0);
+    const focuses = () => sent.filter((m) => m.type === 'focus');
+    expect(focuses()).toEqual([{ type: 'focus', rect: null, intent: 'work' }]);
+    expect(flow.ctx?.focus).toBeTypeOf('function');
+    flow.ctx?.focus?.({ rect: { x: 1, y: 2, width: 3, height: 4 }, intent: 'wide' });
+    expect(focuses().at(-1)).toEqual({ type: 'focus', rect: { x: 1, y: 2, width: 3, height: 4 }, intent: 'wide' });
+    await vi.advanceTimersByTimeAsync(11 * 1000);
+    expect(focuses().at(-1)).toEqual({ type: 'focus', rect: null, intent: 'work' });
+    await driver.handle({ type: 'reset' });
+    expect(focuses().length).toBeGreaterThan(2);
   });
 
   it('pauses and resumes mid-run, and changes speed', async () => {

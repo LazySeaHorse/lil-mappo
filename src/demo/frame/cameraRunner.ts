@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraKeyframe, EasingName, Project } from '@/store/types';
 import { TIMING_LABELS } from '@/lib/terms';
 import { click, find, pause, warn, type DemoContext } from './actions';
+import { withFocusOut } from './focus';
 import { showEdit } from './edits';
 import type { FieldTable } from './fields';
 import { currentLocators } from './locators';
@@ -90,8 +91,10 @@ function fileViews(file: Project): CameraKeyframe[] {
 async function easeMapTo(ctx: DemoContext, view: CameraKeyframe['camera']): Promise<void> {
   const map = getAgentMap();
   if (!map || !moveToCamera(map, view)) return;
-  // Easing runs on real time, whatever the speed of the run.
-  for (let waited = 0; waited < EASE_WAIT_MS && map.isMoving(); waited += 50) await ctx.clock.realDelay(50);
+  // The map is the subject while it eases. Easing runs on real time, whatever the speed of the run.
+  await withFocusOut(ctx, async () => {
+    for (let waited = 0; waited < EASE_WAIT_MS && map.isMoving(); waited += 50) await ctx.clock.realDelay(50);
+  });
 }
 
 const viewById = (id: string) => cameraTrack(useProjectStore.getState())?.keyframes.find((k) => k.id === id) ?? null;

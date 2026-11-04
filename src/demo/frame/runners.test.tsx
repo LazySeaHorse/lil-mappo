@@ -12,6 +12,7 @@ import { pickProject } from '@/store/projectDocument';
 import { clearHistory, getHistoryEntries, installGestureTracking } from '@/store/history';
 import type { BoundaryItem, TimelineItem } from '@/store/types';
 import { clearMocks, installFetchMocks } from './mocks';
+import { focusFor } from './focus';
 import { planDemo, type DemoStep } from './plan';
 import { runStep } from './runners';
 import { startingProject } from './startState';
@@ -113,6 +114,22 @@ describe('boundary runner', () => {
     expect(getHistoryEntries().past.every((entry) => entry.source === 'user')).toBe(true);
   }, 15_000);
 
+  it('reports the Add panel and the inspector as the places it works in', async () => {
+    render(<Editor />);
+    const ctx = testContext();
+    const seen: Array<ReturnType<typeof focusFor>> = [];
+    ctx.focus = (f) => seen.push(f);
+    // jsdom lays nothing out: every element gets a box, so the regions have a size to report.
+    const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ left: 10, top: 10, right: 110, bottom: 60, width: 100, height: 50, x: 10, y: 10, toJSON: () => ({}) });
+    try {
+      await runStep(ctx, stepFor('b-france'), file);
+    } finally {
+      rect.mockRestore();
+    }
+    expect(seen.length).toBeGreaterThan(3);
+    expect(seen.every((f) => f?.rect && f.intent === 'work')).toBe(true);
+  }, 30_000);
+
   it('still ends on the file’s boundary when the panel cannot be found', async () => {
     render(<InspectorPanel />);
     await (runStep(testContext(), stepFor('b-spain'), file));
@@ -148,6 +165,23 @@ describe('map style and settings runners', () => {
     // Typed one character at a time: a step per keystroke, like a user's typing.
     expect(getHistoryEntries().past.length).toBeGreaterThan(10);
   }, 15_000);
+
+  it('keeps the camera on the whole stage for the style and settings steps', async () => {
+    render(<Editor />);
+    const ctx = testContext();
+    const seen: Array<boolean> = [];
+    ctx.focus = (f) => seen.push(f.rect === null);
+    // Every element has a box, so the clicks would report a region if the steps let them.
+    const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ left: 10, top: 10, right: 110, bottom: 60, width: 100, height: 50, x: 10, y: 10, toJSON: () => ({}) });
+    try {
+      await runStep(ctx, steps[0], file);
+      await runStep(ctx, steps[1], file);
+    } finally {
+      rect.mockRestore();
+    }
+    // Only the "whole stage" requests: the controls clicked in between report nothing.
+    expect(seen).toEqual([true, true]);
+  }, 30_000);
 });
 
 describe('a whole run', () => {

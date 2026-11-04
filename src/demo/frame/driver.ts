@@ -121,7 +121,14 @@ export class DemoDriver {
     const file = this.demo.project;
     const clock = new DemoClock({ speed: settings.speed });
     this.clock = clock;
-    const ctx: DemoContext = { clock, cursor: this.cursor, timing: settings.timing };
+    const ctx: DemoContext = {
+      clock,
+      cursor: this.cursor,
+      timing: settings.timing,
+      focus: (focus) => this.post({ type: 'focus', ...focus }),
+    };
+    // The run opens on the whole stage.
+    this.post({ type: 'focus', rect: null, intent: 'work' });
     this.cursor.setHidden(false);
     if (this.cursor.position.x === 0 && this.cursor.position.y === 0) {
       this.cursor.jumpTo({ x: window.innerWidth * 0.62, y: window.innerHeight * 0.58 });
@@ -135,7 +142,7 @@ export class DemoDriver {
   private async runAi(ctx: DemoContext, file: DemoFile['project'], settings: DemoRunSettings): Promise<void> {
     try {
       await this.ai.run(ctx, file, settings);
-      if (this.clock === ctx.clock) this.setState('done');
+      if (this.clock === ctx.clock) this.finish();
     } catch (error) {
       if (!isDemoAborted(error)) throw error;
     }
@@ -157,10 +164,16 @@ export class DemoDriver {
         }
         await ctx.clock.wait(ctx.timing.betweenSteps);
       }
-      if (this.clock === ctx.clock) this.setState('done');
+      if (this.clock === ctx.clock) this.finish();
     } catch (error) {
       if (!isDemoAborted(error)) throw error;
     }
+  }
+
+  /** The run is over: the camera returns to the whole stage, and the state says so. */
+  private finish(): void {
+    this.post({ type: 'focus', rect: null, intent: 'work' });
+    this.setState('done');
   }
 
   /** Cancels a run in progress and waits for it to unwind. */
@@ -177,6 +190,7 @@ export class DemoDriver {
     await this.stopRun();
     if (!this.demo) return;
     clearMocks();
+    this.post({ type: 'focus', rect: null, intent: 'work' });
     this.cursor.setHidden(true);
     dismissOpenLayers();
     showStartingState(this.demo.project);

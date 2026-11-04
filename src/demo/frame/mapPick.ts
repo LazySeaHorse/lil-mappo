@@ -1,6 +1,7 @@
 import { getAgentMap } from '@/agent/mapRef';
 import { useProjectStore } from '@/store/useProjectStore';
 import { click, pressAndRelease, warn, type DemoContext, type Target } from './actions';
+import { withFocusOut } from './focus';
 import { travelDuration } from './cursor';
 import type { Point } from './cursors';
 
@@ -56,7 +57,11 @@ export async function pickOnMap(ctx: DemoContext, button: Target, lngLat: [numbe
   if (!(await click(ctx, button))) return false;
   const picking = () => useProjectStore.getState().activePicker !== null;
   if (!picking()) return false;
+  // The map is the subject from here: the camera looks at the whole stage.
+  return withFocusOut(ctx, () => pickOnCanvas(ctx, map, lngLat, picking));
+}
 
+async function pickOnCanvas(ctx: DemoContext, map: PickMap, lngLat: [number, number], picking: () => boolean): Promise<boolean> {
   // The picker off again, as Escape does (a panel can step aside while it picks, taking its button).
   const cancel = () => {
     useProjectStore.getState().stopPicking();

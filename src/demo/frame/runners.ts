@@ -5,6 +5,7 @@ import type { BoundaryItem, Project } from '@/store/types';
 import { getMapStyleDef } from '@/config/mapbox';
 import { click, find, key, pause, query, type, warn, type DemoContext } from './actions';
 import { BOUNDARY_FIELDS, PROJECT_FIELDS } from './fields';
+import { withFocusOut } from './focus';
 import { openSection, showEdit } from './edits';
 import { runCallout } from './calloutRunner';
 import { runModel } from './modelRunner';
@@ -203,10 +204,11 @@ async function runBoundary(ctx: DemoContext, step: StepOf<'item'>, file: Project
 /** Runs one step: its UI flow where built, then its final write. */
 export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): Promise<void> {
   switch (step.kind) {
+    // The map is the subject of these: the camera stays on the whole stage.
     case 'map-style':
-      return runMapStyle(ctx, step, file);
+      return withFocusOut(ctx, () => runMapStyle(ctx, step, file));
     case 'settings':
-      return runSettings(ctx, step, file);
+      return withFocusOut(ctx, () => runSettings(ctx, step, file));
     case 'item':
       if (step.itemKind === 'boundary') return runBoundary(ctx, step, file);
       if (step.itemKind === 'callout') return runCallout(ctx, step, file);
@@ -219,7 +221,7 @@ export async function runStep(ctx: DemoContext, step: DemoStep, file: Project): 
     case 'camera':
       return runCamera(ctx, step, file);
     case 'play':
-      return runPlay(ctx, step, file);
+      return withFocusOut(ctx, () => runPlay(ctx, step, file));
     case 'export':
       return runExport(ctx, step, file);
     default:
