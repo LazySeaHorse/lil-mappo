@@ -3,6 +3,7 @@ import { scrollWithinContainer } from '@/lib/scrollWithinContainer';
 import { beginGesture, endGesture } from '@/store/history';
 import type { DemoClock } from './clock';
 import { cursorKindFor, travelDuration, type CursorController } from './cursor';
+import { focusOn, type DemoFocus } from './focus';
 import type { Point } from './cursors';
 
 /**
@@ -20,6 +21,10 @@ export interface DemoContext {
   clock: DemoClock;
   cursor: CursorController;
   timing: DemoTiming;
+  /** Where the run is working, for the shell's auto zoom. Absent: nothing listens (tests). */
+  focus?: (focus: DemoFocus) => void;
+  /** While above 0 (see `withFocusOut`), the primitives do not move the camera. */
+  focusHold?: number;
 }
 
 /** How a control is found. Every field given must match. */
@@ -349,6 +354,7 @@ export async function moveTo(
   const el = await find(ctx, target, { timeout });
   if (!el) return null;
   await reveal(ctx, el);
+  focusOn(ctx, el);
   const point = () => (at ? at(el) : centerOf(el));
   let to = point();
   await ctx.cursor.travel(to, travelDuration(ctx.cursor.position, to, ctx.timing.move), ctx.clock, cursorKindFor(el));
