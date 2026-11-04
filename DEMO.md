@@ -46,6 +46,14 @@ A portrait project runs in an iframe of phone width, so the app lays itself out 
 - **Play.** Jump to Start, Play, then wait the project's real length (not speed-scaled; pause holds playback, reset stops it).
 - **Fake export.** The real export modal and Export button run their own flow; `useVideoExportExecution` loads `src/demo/frame/fakeExport.ts` instead of the encoder in the frame (`IS_DEMO_FRAME`) and skips `saveAs`. The bar fills on the run's clock. Needs a browser with `VideoEncoder` (the Export button is off without it).
 
+## Full screen and split
+
+Widget settings `fullScreen` (default off) and `terminalShare` (Claude's share of the width, 1/4 default or 1/3). `stageLayout(..., { fullScreen, terminalShare })` in `shell/layout.ts` is the only geometry; the share applies to the floating layout (of the free width after gutters) and to full screen.
+
+- **Full screen (landscape only; portrait ignores it).** Like macOS full screen / Split View: no wallpaper (the stage is black), no gutters, corners or shadows. The app's browser window keeps its 38 px toolbar and URL pill but has no traffic lights (`hideLights` on the kit `Window`); the terminal has no bar at all (`hideBar`), so its content starts at the top, and the app viewport box is unchanged (`BAR_HEIGHT`). Solo (mock AI off) the app fills the stage; with mock AI the terminal is on the left, the app on the right, and a 3 px black divider (`DIVIDER`) between them. `data-fullscreen` on `.ds-root` drives the CSS.
+- Toggling full screen or the split glides like the AI panel opening (`data-moving`); the iframe never remounts.
+- **Zoom.** Any layout change (window resize, full screen, split, the AI panel) sends the camera back to 1x (`layoutKey`), since the view was computed against the old geometry; the next focus frames the new one.
+
 ## Auto zoom
 
 Like Screen Studio's zoom-ins, for recorded videos: the camera moves toward the part of the app being worked on and eases back out. The frame says where to look; the shell moves the camera.
