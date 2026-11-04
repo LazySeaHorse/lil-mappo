@@ -54,6 +54,8 @@ const settings = (patch: Partial<DemoRunSettings> = {}): DemoRunSettings => ({
   aiPrompt: '',
   autoZoom: false,
   maxZoom: 1.8,
+  fullScreen: false,
+  terminalShare: 0.25,
   ...patch,
 });
 

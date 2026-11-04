@@ -1,4 +1,5 @@
 import { DEFAULT_TIMING, type DemoRunSettings, type DemoTiming } from '../protocol';
+import { DEFAULT_TERMINAL_SHARE, SHARE_THIRD } from './layout';
 
 /** The widget's run settings, remembered between sessions in localStorage. */
 
@@ -18,6 +19,8 @@ export const DEFAULT_SETTINGS: DemoRunSettings = {
   aiPrompt: DEFAULT_PROMPT,
   autoZoom: true,
   maxZoom: 1.8,
+  fullScreen: false,
+  terminalShare: DEFAULT_TERMINAL_SHARE,
 };
 
 export const TIMING_FIELDS: { key: keyof DemoTiming; label: string }[] = [
@@ -38,6 +41,11 @@ export function clampMaxZoom(zoom: unknown): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, n));
 }
 
+/** Anything near a third is a third; everything else is the default quarter. */
+export function cleanShare(share: unknown): number {
+  return typeof share === 'number' && Math.abs(share - SHARE_THIRD) < 0.01 ? SHARE_THIRD : DEFAULT_TERMINAL_SHARE;
+}
+
 function cleanMs(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.min(TIMING_MAX, Math.round(value)) : fallback;
 }
@@ -55,6 +63,8 @@ export function sanitizeSettings(raw: unknown): DemoRunSettings {
     aiPrompt: typeof r.aiPrompt === 'string' ? r.aiPrompt : DEFAULT_SETTINGS.aiPrompt,
     autoZoom: typeof r.autoZoom === 'boolean' ? r.autoZoom : DEFAULT_SETTINGS.autoZoom,
     maxZoom: clampMaxZoom(r.maxZoom),
+    fullScreen: typeof r.fullScreen === 'boolean' ? r.fullScreen : DEFAULT_SETTINGS.fullScreen,
+    terminalShare: cleanShare(r.terminalShare),
   };
 }
 

@@ -33,7 +33,7 @@ vi.mock('@/models/modelRegistry', async (importActual) => ({
 }));
 
 const file = demoFixture();
-const settings: DemoRunSettings = { timing: DEFAULT_TIMING, speed: 1000, mockAi: true, aiPrompt: 'Show me a trip around France', autoZoom: false, maxZoom: 1.8 };
+const settings: DemoRunSettings = { timing: DEFAULT_TIMING, speed: 1000, mockAi: true, aiPrompt: 'Show me a trip around France', autoZoom: false, maxZoom: 1.8, fullScreen: false, terminalShare: 0.25 };
 
 /** The editor's AI parts, as the app mounts them. */
 function Editor() {

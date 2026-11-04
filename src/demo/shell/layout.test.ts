@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BAR_HEIGHT, DEFAULT_ASPECT, PHONE_EDGE, PHONE_OUTER, PHONE_SCREEN, STATUS_HEIGHT, appViewportBox, fitAspect, frameToStage, stageLayout } from './layout';
+import { BAR_HEIGHT, DEFAULT_ASPECT, PHONE_EDGE, PHONE_OUTER, PHONE_SCREEN, STATUS_HEIGHT, DIVIDER, SHARE_THIRD, appViewportBox, fitAspect, frameToStage, layoutKey, stageLayout } from './layout';
 
 describe('fitAspect', () => {
   it('letterboxes a 16:9 stage top and bottom in a taller viewport', () => {
@@ -32,6 +32,14 @@ describe('stageLayout', () => {
     expect(l.portrait).toBe(false);
     expect(l.margin).toBe(41);
     expect(l.app).toEqual({ left: 41, top: 41, width: 1518, height: 818 });
+  });
+
+  it('takes a quarter of the free width for the terminal by default, a third on request', () => {
+    const quarter = stageLayout(1600, 900, 16 / 9, true);
+    expect(quarter.terminal.width).toBe(Math.round((1518 - 41) * 0.25));
+    const third = stageLayout(1600, 900, 16 / 9, true, { terminalShare: SHARE_THIRD });
+    expect(third.terminal.width).toBe(Math.round((1518 - 41) / 3));
+    expect(third.app.left + third.app.width).toBe(1600 - third.margin);
   });
 
   it('puts the terminal on the left and narrows the app window beside it', () => {
@@ -96,5 +104,56 @@ describe('frameToStage', () => {
     expect(full.top).toBeCloseTo(vp.top);
     expect(full.width).toBeCloseTo(vp.width);
     expect(full.height).toBeCloseTo(vp.height);
+  });
+});
+
+describe('stageLayout in full screen', () => {
+  it('fills the stage edge to edge with the app alone', () => {
+    const l = stageLayout(1600, 900, 16 / 9, false, { fullScreen: true });
+    expect(l).toMatchObject({ fullScreen: true, margin: 0, app: { left: 0, top: 0, width: 1600, height: 900 } });
+  });
+
+  it('splits at a quarter: terminal left, a thin divider, the app right', () => {
+    const l = stageLayout(1600, 900, 16 / 9, true, { fullScreen: true });
+    expect(l.terminal).toEqual({ left: 0, top: 0, width: Math.round((1600 - DIVIDER) * 0.25), height: 900 });
+    expect(l.app.left).toBe(l.terminal.width + DIVIDER);
+    expect(l.app.left + l.app.width).toBe(1600);
+    expect(l.app.height).toBe(900);
+    expect(l.divider).toBe(DIVIDER);
+  });
+
+  it('splits at a third', () => {
+    const l = stageLayout(1500, 900, 16 / 9, true, { fullScreen: true, terminalShare: SHARE_THIRD });
+    expect(l.terminal.width).toBe(Math.round((1500 - DIVIDER) / 3));
+    expect(l.app.left + l.app.width).toBe(1500);
+  });
+
+  it('ignores full screen on a portrait stage', () => {
+    expect(stageLayout(506, 900, 9 / 16, true, { fullScreen: true, terminalShare: SHARE_THIRD })).toEqual(stageLayout(506, 900, 9 / 16, true));
+    expect(stageLayout(506, 900, 9 / 16, true).fullScreen).toBe(false);
+  });
+
+  it('keeps the browser toolbar above the app viewport', () => {
+    const l = stageLayout(1600, 900, 16 / 9, true, { fullScreen: true });
+    expect(appViewportBox(l)).toEqual({ left: l.app.left, top: BAR_HEIGHT, width: l.app.width, height: 900 - BAR_HEIGHT });
+    expect(frameToStage(l, { x: 10, y: 20, width: 30, height: 40 })).toEqual({ left: l.app.left + 10, top: BAR_HEIGHT + 20, width: 30, height: 40 });
+  });
+});
+
+describe('layoutKey', () => {
+  const stage = { width: 1600, height: 900 };
+  const key = (aiOpen: boolean, options = {}, s = stage) => layoutKey(stageLayout(s.width, s.height, 16 / 9, aiOpen, options), s);
+
+  it('is stable for the same layout', () => {
+    expect(key(true)).toBe(key(true));
+  });
+
+  it('changes with the window size, the AI panel, full screen and the split', () => {
+    const base = key(true);
+    expect(key(true, {}, { width: 1280, height: 720 })).not.toBe(base);
+    expect(key(false)).not.toBe(base);
+    expect(key(true, { fullScreen: true })).not.toBe(base);
+    expect(key(true, { terminalShare: SHARE_THIRD })).not.toBe(base);
+    expect(key(false, { fullScreen: true })).not.toBe(key(false));
   });
 });

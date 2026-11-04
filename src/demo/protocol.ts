@@ -42,6 +42,10 @@ export interface DemoRunSettings {
   autoZoom: boolean;
   /** The most the auto zoom magnifies the stage. */
   maxZoom: number;
+  /** macOS full screen: windows edge to edge, no wallpaper (landscape only; a shell setting). */
+  fullScreen: boolean;
+  /** The Claude Code window's share of the width beside the app: 1/4 or 1/3 (a shell setting). */
+  terminalShare: number;
 }
 
 /** A box in the frame's CSS pixels (the iframe's own viewport). */

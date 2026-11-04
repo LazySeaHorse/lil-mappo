@@ -16,7 +16,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 describe('settings persistence', () => {
   it('round-trips through storage', () => {
     const storage = memoryStorage();
-    const settings = { timing: { ...DEFAULT_TIMING, move: 400 }, speed: 1.5, mockAi: true, aiPrompt: 'Map Japan', autoZoom: false, maxZoom: 2.2 };
+    const settings = { timing: { ...DEFAULT_TIMING, move: 400 }, speed: 1.5, mockAi: true, aiPrompt: 'Map Japan', autoZoom: false, maxZoom: 2.2, fullScreen: true, terminalShare: 1 / 3 };
     saveSettings(settings, storage);
     expect(JSON.parse(storage.data[SETTINGS_KEY])).toEqual(settings);
     expect(loadSettings(storage)).toEqual(settings);
@@ -55,5 +55,18 @@ describe('settings persistence', () => {
     expect(clampSpeed(0.1)).toBe(0.5);
     expect(clampSpeed(2)).toBe(2);
     expect(clampSpeed(Number.NaN)).toBe(1);
+  });
+});
+
+describe('full screen and split settings', () => {
+  it('default to floating windows with Claude at a quarter', () => {
+    expect(sanitizeSettings(null)).toMatchObject({ fullScreen: false, terminalShare: 0.25 });
+  });
+
+  it('keep a boolean full screen and only the two known shares', () => {
+    expect(sanitizeSettings({ fullScreen: true, terminalShare: 1 / 3 })).toMatchObject({ fullScreen: true, terminalShare: 1 / 3 });
+    expect(sanitizeSettings({ fullScreen: 'yes', terminalShare: 0.4 })).toMatchObject({ fullScreen: false, terminalShare: 0.25 });
+    expect(sanitizeSettings({ terminalShare: 'third' }).terminalShare).toBe(0.25);
+    expect(sanitizeSettings({ terminalShare: 0.333 }).terminalShare).toBe(1 / 3);
   });
 });

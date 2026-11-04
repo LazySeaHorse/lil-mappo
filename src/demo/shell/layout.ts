@@ -52,12 +52,29 @@ export interface StageLayout {
   terminal: Box;
   /** Portrait only: the phone's scale from its true size (PHONE_OUTER). */
   phoneScale: number;
-  /** The gutter between the stage's edge and its windows. */
+  /** The gutter between the stage's edge and its windows (0 in full screen). */
   margin: number;
+  /** Landscape full screen: windows edge to edge, a thin divider between them, no wallpaper. */
+  fullScreen: boolean;
+  /** Full screen split: the black divider's width (the gap between the terminal and the app). */
+  divider: number;
 }
 
-/** Share of the free width the Claude Code window takes beside the app window. */
-const TERMINAL_SHARE_LANDSCAPE = 0.36;
+export interface LayoutOptions {
+  /** macOS full screen / Split View. Landscape only: a portrait stage ignores it. */
+  fullScreen?: boolean;
+  /** The Claude Code window's share of the width beside the app (landscape): one of TERMINAL_SHARES. */
+  terminalShare?: number;
+}
+
+/** The two splits the widget offers: Claude gets a quarter or a third of the width. */
+export const SHARE_QUARTER = 0.25;
+export const SHARE_THIRD = 1 / 3;
+export const TERMINAL_SHARES = [SHARE_QUARTER, SHARE_THIRD] as const;
+export const DEFAULT_TERMINAL_SHARE = SHARE_QUARTER;
+/** Split View's divider, in stage px. */
+export const DIVIDER = 3;
+
 /** Share of the free height the Claude Code window takes above the phone. */
 const TERMINAL_SHARE_PORTRAIT = 0.34;
 
@@ -67,19 +84,30 @@ const TERMINAL_SHARE_PORTRAIT = 0.34;
  * Portrait: a phone centred at the largest scale that fits; with the AI panel open, the terminal takes
  * the top and the phone shrinks into the space below.
  */
-export function stageLayout(width: number, height: number, aspect: number, aiOpen: boolean): StageLayout {
+export function stageLayout(width: number, height: number, aspect: number, aiOpen: boolean, options: LayoutOptions = {}): StageLayout {
   const portrait = validAspect(aspect) < 1;
+  const share = options.terminalShare !== undefined && Number.isFinite(options.terminalShare) ? Math.min(0.5, Math.max(0.1, options.terminalShare)) : DEFAULT_TERMINAL_SHARE;
+
+  if (!portrait && options.fullScreen) {
+    const w = Math.max(0, width);
+    const h = Math.max(0, height);
+    const termW = Math.round(Math.max(0, w - DIVIDER) * share);
+    const terminal = { left: 0, top: 0, width: termW, height: h };
+    const app = aiOpen ? { left: termW + DIVIDER, top: 0, width: Math.max(0, w - termW - DIVIDER), height: h } : { left: 0, top: 0, width: w, height: h };
+    return { portrait, app, terminal, phoneScale: 1, margin: 0, fullScreen: true, divider: DIVIDER };
+  }
+
   const margin = Math.round(Math.min(width, height) * 0.045);
   const innerW = Math.max(0, width - margin * 2);
   const innerH = Math.max(0, height - margin * 2);
 
   if (!portrait) {
-    const termW = Math.round((innerW - margin) * TERMINAL_SHARE_LANDSCAPE);
+    const termW = Math.round((innerW - margin) * share);
     const terminal = { left: margin, top: margin, width: termW, height: innerH };
     const app = aiOpen
       ? { left: margin * 2 + termW, top: margin, width: innerW - margin - termW, height: innerH }
       : { left: margin, top: margin, width: innerW, height: innerH };
-    return { portrait, app, terminal, phoneScale: 1, margin };
+    return { portrait, app, terminal, phoneScale: 1, margin, fullScreen: false, divider: 0 };
   }
 
   const termH = Math.round((innerH - margin) * TERMINAL_SHARE_PORTRAIT);
@@ -96,7 +124,7 @@ export function stageLayout(width: number, height: number, aspect: number, aiOpe
     width: Math.round(pw),
     height: Math.round(ph),
   };
-  return { portrait, app, terminal, phoneScale, margin };
+  return { portrait, app, terminal, phoneScale, margin, fullScreen: false, divider: 0 };
 }
 
 /** The app's viewport (where the iframe is shown) in stage px. */
@@ -116,4 +144,15 @@ export function frameToStage(layout: StageLayout, rect: { x: number; y: number; 
   const at = appViewportBox(layout);
   const scale = layout.portrait ? layout.phoneScale : 1;
   return { left: at.left + rect.x * scale, top: at.top + rect.y * scale, width: rect.width * scale, height: rect.height * scale };
+}
+
+/**
+ * Everything the auto zoom's view depends on, as one string: when it changes (window resize, full
+ * screen, split, the AI panel, a device switch) a zoom view computed before is stale, so the camera
+ * goes back to the whole stage.
+ */
+export function layoutKey(layout: StageLayout, stage: { width: number; height: number }): string {
+  const { app, terminal } = layout;
+  const boxKey = (b: Box) => `${b.left},${b.top},${b.width},${b.height}`;
+  return [stage.width, stage.height, layout.portrait ? 'p' : 'l', layout.fullScreen ? 'f' : 'w', boxKey(app), boxKey(terminal)].join('|');
 }
