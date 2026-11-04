@@ -33,16 +33,16 @@ describe('demo fetch mocks', () => {
     expect(network).not.toHaveBeenCalled();
   });
 
-  it('answers driving directions along the registered path, or a straight line', async () => {
+  it('answers driving directions along the registered path, or a straight line when none is registered', async () => {
+    const straight = await getDirections([0, 0], [1, 1]);
+    expect(straight.geometry.coordinates).toEqual([[0, 0], [1, 1]]);
+
     const path: GeoJSON.LineString = { type: 'LineString', coordinates: [[2.35, 48.85], [3, 48], [4.83, 45.76]] };
     mockDirections({ start: [2.35, 48.85], end: [4.83, 45.76], geometry: path, distance: 460_000, duration: 16_000 });
     const route = await getDirections([2.35, 48.85], [4.83, 45.76]);
     expect(route.geometry.coordinates[0]).toEqual([2.35, 48.85]);
     expect(route.geometry.coordinates[route.geometry.coordinates.length - 1]).toEqual([4.83, 45.76]);
     expect(route.distance).toBe(460_000);
-
-    const straight = await getDirections([0, 0], [1, 1]);
-    expect(straight.geometry.coordinates).toEqual([[0, 0], [1, 1]]);
     expect(network).not.toHaveBeenCalled();
   });
 
@@ -54,6 +54,13 @@ describe('demo fetch mocks', () => {
     const picked = await getDirections([2.3512, 48.8493], [12.5006, 41.8995]);
     expect(picked.geometry.coordinates).toEqual(rome.coordinates);
     expect(picked.distance).toBe(2);
+  });
+
+  it('answers ends picked on a whole-globe view, a quarter of a degree off, with the registered path, not a straight line', async () => {
+    const road: GeoJSON.LineString = { type: 'LineString', coordinates: [[-111.89, 40.76], [-110.5, 41.1], [-109.47, 41.53]] };
+    mockDirections({ start: [-111.89, 40.76], end: [-109.47, 41.53], geometry: road });
+    const picked = await getDirections([-112.13, 40.55], [-109.21, 41.79]);
+    expect(picked.geometry.coordinates).toEqual(road.coordinates);
   });
 
   it('answers Mapbox Search Box suggest and retrieve through search-js-core', async () => {

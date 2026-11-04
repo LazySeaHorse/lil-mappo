@@ -169,26 +169,24 @@ function geocoding(url: URL): Response {
   return json({ type: 'FeatureCollection', features: results.map(placeFeature), attribution: '' });
 }
 
-/** How far, in degrees, a picked end may be from the file's (about 5 km); the clicks at any zoom the run uses land well inside. */
-const PICK_TOLERANCE = 0.05;
-
 const gap = (a: LngLat, b: LngLat) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 /**
- * The registered route whose ends are the nearest to the asked ones, within the
- * tolerance. A place the driver picked on the map is a click away from the
- * file's point (a pixel is many metres), so the ends are matched by distance,
- * not by equality.
+ * The registered route whose ends are the nearest to the asked ones. A place
+ * the driver picked on the map is only as close to the file's point as a click
+ * can get: on a whole-globe view a pixel is a quarter of a degree, so the ends
+ * are matched by distance, with no cut-off. Every directions request in the
+ * frame comes from a route the driver registered first, so the nearest one is
+ * the route being built.
  */
 function nearestRoute(start: LngLat, end: LngLat): MockRoute | undefined {
   let best: MockRoute | undefined;
   let bestTotal = Infinity;
   for (const route of registry.routes) {
-    const fromStart = gap(route.start, start);
-    const fromEnd = gap(route.end, end);
-    if (fromStart > PICK_TOLERANCE || fromEnd > PICK_TOLERANCE || fromStart + fromEnd >= bestTotal) continue;
+    const total = gap(route.start, start) + gap(route.end, end);
+    if (total >= bestTotal) continue;
     best = route;
-    bestTotal = fromStart + fromEnd;
+    bestTotal = total;
   }
   return best;
 }
