@@ -11,7 +11,7 @@ import {
 import { AppDevice } from './AppDevice';
 import { ClaudeCode } from './ClaudeCode';
 import { Countdown } from './Countdown';
-import { DEFAULT_ASPECT, appViewportBox, fitAspect, frameToStage, stageLayout } from './layout';
+import { DEFAULT_ASPECT, appViewportBox, fitAspect, frameToStage, layoutKey, stageLayout } from './layout';
 import { loadSettings, sanitizeSettings, saveSettings } from './settings';
 import { Stage } from './Stage';
 import { INITIAL_TRANSCRIPT, transcriptReducer } from './transcript';
@@ -72,7 +72,7 @@ export default function DemoShell() {
   const [camera, setCamera] = useState<{ director: DirectorState; instant: boolean }>({ director: INITIAL_DIRECTOR, instant: false });
 
   const box = fitAspect(view.width, view.height, aspect);
-  const layout = stageLayout(box.width, box.height, aspect, aiOpen);
+  const layout = stageLayout(box.width, box.height, aspect, aiOpen, { fullScreen: settings.fullScreen, terminalShare: settings.terminalShare });
   const zoomSpace: ZoomSpace = { stage: { width: box.width, height: box.height }, viewport: appViewportBox(layout), maxZoom: settings.maxZoom };
 
   /** Live values the message handler and typing read without re-subscribing. */
@@ -153,8 +153,24 @@ export default function DemoShell() {
   useEffect(() => saveSettings(settings), [settings]);
 
   // Turning auto zoom (or mock AI mode) on or off starts the camera from the whole stage; it eases there.
+  // So does any change of layout (window resize, full screen, split, the AI panel): a view computed
+  // against the old geometry is stale, and the next focus frames the new one.
   const { autoZoom, mockAi } = settings;
-  useEffect(() => setCamera({ director: INITIAL_DIRECTOR, instant: false }), [autoZoom, mockAi]);
+  const geometry = layoutKey(layout, box);
+  useEffect(() => setCamera({ director: INITIAL_DIRECTOR, instant: false }), [autoZoom, mockAi, geometry]);
+
+  // Full screen and the split glide like the AI panel does (not on first render).
+  const { fullScreen, terminalShare } = settings;
+  const firstLayout = useRef(true);
+  useEffect(() => {
+    if (firstLayout.current) {
+      firstLayout.current = false;
+      return;
+    }
+    setMoving(true);
+    window.clearTimeout(movingTimer.current);
+    movingTimer.current = window.setTimeout(() => setMoving(false), MOVE_MS + 100);
+  }, [fullScreen, terminalShare]);
 
   // No focus for a while: the camera eases back out. A paused run holds its zoom.
   useEffect(() => {
@@ -259,7 +275,7 @@ export default function DemoShell() {
   const termFont = Math.max(11, Math.min(15, Math.round(Math.max(box.width, box.height) / 112)));
 
   return (
-    <div className="ds-root" data-moving={moving || undefined}>
+    <div className="ds-root" data-moving={moving || undefined} data-fullscreen={layout.fullScreen || undefined}>
       <Stage
         box={box}
         zoom={viewStyle(zoomView, { speed: settings.speed, instant: camera.instant })}
@@ -270,7 +286,7 @@ export default function DemoShell() {
           </>
         }
       >
-        <ClaudeCode box={layout.terminal} open={aiOpen} portrait={layout.portrait} transcript={transcript} fontSize={termFont} />
+        <ClaudeCode box={layout.terminal} open={aiOpen} portrait={layout.portrait} fullScreen={layout.fullScreen} transcript={transcript} fontSize={termFont} />
         <AppDevice layout={layout} iframeRef={iframeRef} src={FRAME_SRC} />
       </Stage>
       {widgetOpen && (

@@ -16,6 +16,8 @@ interface ClaudeCodeProps {
   box: Box;
   open: boolean;
   portrait: boolean;
+  /** Full screen: no title bar at all, the content starts at the window's top. */
+  fullScreen?: boolean;
   transcript: TranscriptState;
   /** Monospace size in px, from the stage's size. */
   fontSize: number;
@@ -92,7 +94,7 @@ function Entry({ entry }: { entry: TranscriptEntry }) {
  * A mock Claude Code session in a Mac Terminal window: the welcome box, the transcript, the spinner
  * while Claude works and the input box where the prompt is typed. Kept scrolled to the bottom.
  */
-export function ClaudeCode({ box, open, portrait, transcript, fontSize }: ClaudeCodeProps) {
+export function ClaudeCode({ box, open, portrait, fullScreen, transcript, fontSize }: ClaudeCodeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const spinner = useSpinner(transcript.busySince);
   const typing = transcript.typing;
@@ -107,6 +109,7 @@ export function ClaudeCode({ box, open, portrait, transcript, fontSize }: Claude
     <Window
       chrome="terminal"
       lightsSize="large"
+      hideBar={fullScreen}
       title="maps — ✳ Claude Code"
       className="ds-term"
       data-open={open || undefined}

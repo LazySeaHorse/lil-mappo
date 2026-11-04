@@ -58,6 +58,10 @@ export interface WindowProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title
    * the lights level with the controls (centered 26px down). Only for a
    * product whose real toolbar is that tall. Native chrome only. */
   barSize?: 'standard' | 'tall'
+  /** Leave the traffic lights out (a full screen window); the bar keeps its height. Terminal and plain native chrome only. */
+  hideLights?: boolean
+  /** Leave the whole bar out, so the body starts at the window's top (a full screen terminal). Terminal chrome only. */
+  hideBar?: boolean
   children?: ReactNode
 }
 
@@ -95,7 +99,7 @@ function Chevron({ back }: { back?: boolean }) {
  * - app (`title`): a plain title bar with a centered title
  * - sidebar app (`sidebar`): the sidebar runs to the top and holds the lights; the content column gets its own toolbar
  */
-export function Window({ url, urlShape, tabs, nav, title, sidebar, sidebarWidth = 180, sidebarStyle, toolbar, lead, body, className, receded, chrome, lights, lightsSize, barSize, children, ...rest }: WindowProps) {
+export function Window({ url, urlShape, tabs, nav, title, sidebar, sidebarWidth = 180, sidebarStyle, toolbar, lead, body, className, receded, chrome, lights, lightsSize, barSize, hideLights, hideBar, children, ...rest }: WindowProps) {
   const cls = `ss-window ss-recede${className ? ` ${className}` : ''}`
   const large = lightsSize === 'large' ? 'large' : undefined
   const tall = barSize === 'tall' ? 'tall' : undefined
@@ -103,10 +107,12 @@ export function Window({ url, urlShape, tabs, nav, title, sidebar, sidebarWidth 
   if (chrome === 'terminal') {
     return (
       <div {...rest} className={cls} data-chrome="terminal" data-lights={lights === 'grey' ? 'grey' : undefined} data-lights-size={large} data-receded={receded || undefined}>
-        <div className="ss-window__bar">
-          <Lights />
-          {title !== undefined && <span className="ss-term__title">{title}</span>}
-        </div>
+        {!hideBar && (
+          <div className="ss-window__bar">
+            {!hideLights && <Lights />}
+            {title !== undefined && <span className="ss-term__title">{title}</span>}
+          </div>
+        )}
         <div {...body} className={`ss-window__body ss-term${body?.className ? ` ${body.className}` : ''}`}>{children}</div>
       </div>
     )
@@ -189,7 +195,7 @@ export function Window({ url, urlShape, tabs, nav, title, sidebar, sidebarWidth 
   return (
     <div {...rest} className={cls} data-receded={receded || undefined} data-url-shape={urlShape} data-lights={lights === 'grey' ? 'grey' : undefined} data-lights-size={large} data-bar={tall}>
       <div className="ss-window__bar">
-        <Lights />
+        {!hideLights && <Lights />}
         {address}
         {title !== undefined && <span className="ss-window__title" data-toolbar={toolbar ? true : undefined}>{title}</span>}
         {lead}

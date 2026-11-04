@@ -1,9 +1,15 @@
 import { useRef, type ChangeEvent } from 'react';
 import type { DemoMissingModel, DemoRunSettings, DemoRunState } from '../protocol';
+import { SHARE_QUARTER, SHARE_THIRD } from './layout';
 import { SPEED_MAX, SPEED_MIN, TIMING_FIELDS, ZOOM_MAX, ZOOM_MIN } from './settings';
 
 /** The save formats the app's own "Open project" accepts. */
 export const PROJECT_ACCEPT = '.lilmap,.json';
+
+const SHARE_OPTIONS = [
+  { share: SHARE_QUARTER, label: '¼' },
+  { share: SHARE_THIRD, label: '⅓' },
+];
 
 export type LoadStatus =
   | { kind: 'none' }
@@ -162,6 +168,30 @@ export function Widget(props: WidgetProps) {
           />
           <output>{settings.maxZoom.toFixed(1)}×</output>
         </label>
+      </div>
+
+      <div className="ds-widget__section">
+        <label className="ds-widget__toggle">
+          <input type="checkbox" checked={settings.fullScreen} onChange={(e) => set({ fullScreen: e.target.checked })} />
+          <span>Full screen (landscape)</span>
+        </label>
+        <div className="ds-widget__speed" role="radiogroup" aria-label="Claude width">
+          <span>Claude width</span>
+          <div className="ds-seg">
+            {SHARE_OPTIONS.map(({ share, label }) => (
+              <button
+                key={label}
+                type="button"
+                role="radio"
+                aria-checked={settings.terminalShare === share}
+                data-active={settings.terminalShare === share || undefined}
+                onClick={() => set({ terminalShare: share })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="ds-widget__section">

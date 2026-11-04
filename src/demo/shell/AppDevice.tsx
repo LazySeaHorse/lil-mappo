@@ -50,6 +50,7 @@ export function AppDevice({ layout, iframeRef, src }: AppDeviceProps) {
         <Window
           className="ds-browser"
           lightsSize="large"
+          hideLights={layout.fullScreen}
           urlShape="pill"
           url={
             <>
