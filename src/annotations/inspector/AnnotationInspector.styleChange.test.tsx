@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@/annotations/styles/index';
 import { clearHistory } from '@/store/history';
@@ -13,6 +13,8 @@ vi.mock('./stylePreview', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./stylePreview')>()),
   getStylePreview: vi.fn().mockResolvedValue(null),
 }));
+// The dialog's animated previews draw on a canvas, which jsdom lacks.
+vi.mock('@/annotations/inspector/AnimatedStylePreview', () => ({ AnimatedStylePreview: () => null }));
 vi.mock('sonner', () => ({ toast: Object.assign(toastMessage, { success: vi.fn(), error: vi.fn() }) }));
 
 function setCallout() {
@@ -22,10 +24,12 @@ function setCallout() {
   clearHistory();
   return withColor;
 }
-/** Opens the folded picker and clicks a style. */
+/** Opens the style dialog, chooses a style and clicks Use style (In use for the current one). */
 function pickStyle(name: string) {
   fireEvent.click(screen.getByRole('button', { name: STYLE_TERMS.change }));
-  fireEvent.click(screen.getByRole('button', { name }));
+  const dialog = within(screen.getByRole('dialog'));
+  fireEvent.click(dialog.getByRole('option', { name: new RegExp(`^${name}`) }));
+  fireEvent.click(dialog.getByRole('button', { name: new RegExp(`${STYLE_TERMS.use}|${STYLE_TERMS.inUse}`) }));
 }
 const stored = () => useProjectStore.getState().items.c1 as CalloutItem;
 

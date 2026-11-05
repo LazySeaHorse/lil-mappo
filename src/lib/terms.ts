@@ -199,8 +199,20 @@ export const MAP_STYLE_TERMS = {
 export const STYLE_TERMS = {
   changed: 'Style changed.',
   undo: 'Undo',
-  /** Opens the full list of styles. */
+  /** Opens the style dialog. */
   change: 'Change',
+  dialogTitle: 'Callout style',
+  /** Name of the list of styles in the dialog. */
+  list: 'Styles',
+  /** Marks the callout's current style. */
+  now: 'Now',
+  /** Marks the style being looked at. */
+  next: 'New',
+  use: 'Use style',
+  /** The button when the style looked at is the current one. */
+  inUse: 'In use',
+  /** Reduced motion: plays the previews once. */
+  playAgain: 'Play again',
   /** The text a style picture shows when the callout has no title. */
   sampleText: 'Paris',
 } as const;
