@@ -15,6 +15,8 @@ const DEFAULT_PIXELS_PER_SECOND = 60;
 const EDGE_MARGIN = 24;
 /** The zoom out button's steps are 1.25x; a project never needs more than this many to fit. */
 const MAX_ZOOM_CLICKS = 14;
+/** A zoom that moved by less than this (px per second) did not move. */
+const ZOOM_EPSILON = 0.01;
 
 /** Pixels per second of the timeline as drawn, read off the ruler's past-the-end shade (it starts at duration x zoom). */
 export function pixelsPerSecond(): number {
@@ -26,15 +28,22 @@ export function pixelsPerSecond(): number {
 /**
  * Zooms the timeline out, with its zoom button, until the first `seconds` of it
  * show without scrolling, so a drag can reach anywhere in them. Does nothing
- * when they already do (or when the screen cannot say, as in tests).
+ * when they already do (or when the screen cannot say, as in tests). The button
+ * stops at the zoom that fits the whole project, so it also stops when a press
+ * changes nothing: the span never fits (it runs past the project's end, or a
+ * scrollbar takes some of the room), and more presses would only be spam.
  */
 export async function fitSpan(ctx: DemoContext, L: Locators, seconds: number): Promise<void> {
   const viewport = query(L.timelineViewport);
   if (!viewport || viewport.clientWidth <= 0) return;
   const needed = () => seconds * pixelsPerSecond() + timelineGutterWidth(isPhoneLayout()) + EDGE_MARGIN;
+  let zoom = pixelsPerSecond();
   for (let clicks = 0; needed() > viewport.clientWidth && clicks < MAX_ZOOM_CLICKS; clicks++) {
     if (!(await click(ctx, L.timelineZoomOut, { hold: false }))) return;
     await ctx.clock.wait(ctx.timing.afterClick * 0.4);
+    const now = pixelsPerSecond();
+    if (now >= zoom - ZOOM_EPSILON) return;
+    zoom = now;
   }
 }
 
