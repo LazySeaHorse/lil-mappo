@@ -19,6 +19,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSubscription } from "@/hooks/useSubscription";
 import { isFreeUser, hasByok, brandingFor } from "@/lib/cloudAccess";
+import { IS_DEMO_FRAME } from "@/demo/isDemo";
 import { useMapLoadGate } from "@/hooks/useMapLoadGate";
 import { syncProjects } from "@/services/cloudSync";
 import { toast } from "sonner";
@@ -238,7 +239,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
         </div>
 
         {hideUI && (
-          <SystemOverlays layers={resolveSystemOverlays({ mode: "present", branding: brandingFor(subscription) })} />
+          <SystemOverlays layers={resolveSystemOverlays({ mode: "present", branding: IS_DEMO_FRAME ? "free" : brandingFor(subscription) })} />
         )}
 
         {hideUI && (
