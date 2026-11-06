@@ -17,7 +17,7 @@ import { commitStep } from './runners';
 
 /**
  * The callout step on screen: the Add Callout panel (search the place, or pick
- * it on the map), Add, then the inspector: the style card, the text and each
+ * it on the map), Add, then the inspector: the style dialog, the text and each
  * field that differs from what Add made. Then the file's callout takes its
  * place, so the result is exactly the file's.
  */
@@ -68,13 +68,17 @@ function closeAddPanel(L: Locators): void {
   if (panel) key(panel, 'Escape');
 }
 
-/** Opens the style grid in the Style section and picks the style's card. */
+/** Opens the style dialog from the Style section, picks the style in its list and applies it. */
 async function changeStyle(ctx: DemoContext, styleId: string): Promise<void> {
   const style = getStyle(styleId);
   if (!style) return;
   const L = currentLocators();
   if (!(await openSection(ctx, 'callout', 'style'))) return;
-  if (!(await click(ctx, L.styleChangeButton)) || !(await click(ctx, L.styleCard(style.name)))) {
+  if (
+    !(await click(ctx, L.styleChangeButton))
+    || !(await click(ctx, L.styleOption(style.name)))
+    || !(await click(ctx, L.styleUseButton))
+  ) {
     warn(`callout style ${style.name}: written directly`);
   }
 }

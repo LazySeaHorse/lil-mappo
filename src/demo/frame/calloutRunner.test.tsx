@@ -106,7 +106,7 @@ function watchShown(targetId: string): { seen: TimelineItem[]; stop: () => void 
 }
 
 describe('callout runner', () => {
-  it('searches the place, adds the callout, picks the style card and edits each field in the inspector', async () => {
+  it('searches the place, adds the callout, picks the style in the dialog and edits each field in the inspector', async () => {
     const target = styledCallout('Eiffel Tower');
     const file = fileWith(target);
     const step = stepFor(planDemo(file), target.id);

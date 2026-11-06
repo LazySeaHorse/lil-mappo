@@ -56,9 +56,13 @@ export interface Locators {
   pickOnMapButton: (within: Locator) => Locator;
   /** The name field at the top of an item's panel. */
   inspectorTitleField: (placeholder: string) => Locator;
-  /** Opens the callout style grid. */
+  /** Opens the callout style dialog. */
   styleChangeButton: Locator;
-  styleCard: (styleName: string) => Locator;
+  styleDialog: Locator;
+  /** A style's row in the dialog's list. */
+  styleOption: (styleName: string) => Locator;
+  /** The dialog's button that applies the style looked at. */
+  styleUseButton: Locator;
   /** The closed group a panel keeps rarely used rows in (inside `within`). */
   disclosureToggle: (label: string, within: Element) => Locator;
 
@@ -136,6 +140,7 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
 const addBoundaryPanel: Locator = { role: 'menu', description: 'the Add Boundary panel' };
 const addCalloutPanel: Locator = { role: 'menu', description: 'the Add Callout panel' };
 const modelDialog: Locator = { role: 'dialog', description: 'the 3D model popup' };
+const styleDialog: Locator = { role: 'dialog', name: STYLE_TERMS.dialogTitle, description: 'the callout style popup' };
 
 // --- routes ---
 const addRoutePanel: Locator = { role: 'menu', description: 'the Plan Route panel' };
@@ -257,12 +262,14 @@ export const DESKTOP_LOCATORS: Locators = {
     within: { attrs: { 'data-section': 'callout-style' } },
     description: 'the style Change button',
   },
-  styleCard: (styleName) => ({
-    role: 'button',
-    name: styleName,
-    within: { attrs: { 'data-section': 'callout-style' } },
+  styleDialog,
+  styleOption: (styleName) => ({
+    role: 'option',
+    name: new RegExp(`^${escapeRegExp(styleName)}$`),
+    within: styleDialog,
     description: `the ${styleName} style`,
   }),
+  styleUseButton: { role: 'button', name: STYLE_TERMS.use, within: styleDialog, description: 'the Use style button' },
   disclosureToggle: (label, within) => ({ role: 'button', name: label, within, description: `the ${label} group` }),
 
   modelButton: { walkthrough: 'import-model', description: 'the 3D model button' },
