@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import type { AnnotationStyleDefinition, SceneNode, ShadowConfig, StyleBounds, StyleRenderInput } from '../types';
+import type { AnnotationStyleDefinition, SceneNode, StyleBounds, StyleRenderInput } from '../types';
 import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeOutBack, easeOutCubic, stage } from '../motion';
 import { circle, group, image, path, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
+import { CONTENT_WINDOW, droppingPin, groundShadow, PIN_SHADOW, pinDrop, pinDropBounds, pinPath } from './pinDrop';
 import { boundsOf, HALO_CONTROL, haloSchema, haloShadow, SIDE_CONTROL, sideSchema } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
@@ -38,27 +39,11 @@ const TITLE_TRAVEL = 14;
 const PLACEHOLDER_FILL = '#D9DDE2';
 const PLACEHOLDER_GLYPH = '#AEB4BB';
 
-const PIN_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.45)', blur: 10, offsetX: 0, offsetY: 4 };
-const GROUND_SHADOW = 'rgba(0, 0, 0, 0.35)';
-const GROUND_SHADOW_RADIUS = 12;
-/** The ground shadow is a disc squashed to this share of its height. */
-const GROUND_SHADOW_FLATTEN = 0.35;
-
-/** Height the pin falls from. */
-const DROP_HEIGHT = 70;
-/** Squash on landing: the pin widens and shortens by this share, about its tip. */
-const SQUASH = 0.14;
-
 /**
- * Entrance timeline as windows of the 0–1 build progress: the pin falls onto
- * the point and its shadow grows under it, it squashes as it lands, the photo
- * pops open inside the head and the title slides out last. The exit plays it
- * backwards.
+ * After the pin's drop (`pinDrop.ts`) the photo pops open inside the head and
+ * the title slides out last, as windows of the 0–1 build progress. The exit
+ * plays it backwards.
  */
-const SHADOW_WINDOW = [0, 0.42] as const;
-const FALL_WINDOW = [0, 0.42] as const;
-const SQUASH_WINDOW = [0.42, 0.62] as const;
-const PHOTO_WINDOW = [0.45, 0.8] as const;
 const TITLE_WINDOW = [0.66, 1] as const;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -94,17 +79,6 @@ function layout(input: StyleRenderInput<PhotoPinSettings>): Layout {
   };
 }
 
-/** A map pin with its tip at the origin: a circle of `radius` round (0, headY) narrowing to the tip. */
-export function pinPath(radius: number, headY: number): string {
-  const depth = -headY;
-  // Where the sides leave the circle: tangents from the tip.
-  const angle = Math.acos(radius / depth);
-  const x = radius * Math.sin(angle);
-  const y = headY + radius * Math.cos(angle);
-  const f = (n: number) => n.toFixed(2);
-  return `M0 0L${f(-x)} ${f(y)}A${f(radius)} ${f(radius)} 0 1 1 ${f(x)} ${f(y)}Z`;
-}
-
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 /** Grey stand-in for a missing photo: a sun over two hills, inside the head. */
@@ -125,53 +99,32 @@ export function renderPhotoPin(input: StyleRenderInput<PhotoPinSettings>): Scene
   const l = layout(input);
   const build = buildProgress(phase, phaseProgress);
 
-  const shadowGrow = stage(build, ...SHADOW_WINDOW, easeOutCubic);
-  const fall = stage(build, ...FALL_WINDOW, (t) => t * t);
-  const squash = Math.sin(Math.PI * stage(build, ...SQUASH_WINDOW));
-  const photo = stage(build, ...PHOTO_WINDOW, (t) => easeOutBack(t, 1.4));
+  const drop = pinDrop(build);
+  const photo = stage(build, ...CONTENT_WINDOW, (t) => easeOutBack(t, 1.4));
   const titleReveal = stage(build, ...TITLE_WINDOW, easeOutCubic);
 
-  const children: SceneNode[] = [];
+  const pin: SceneNode[] = [
+    path({ d: pinPath(l.radius, l.headY), fill: settings.pinColor, shadow: settings.halo ? PIN_SHADOW : undefined }),
+  ];
 
-  if (shadowGrow > 0) {
-    children.push(group({
-      scaleY: GROUND_SHADOW_FLATTEN,
-      children: [circle({ cx: 0, cy: 0, r: GROUND_SHADOW_RADIUS * shadowGrow, fill: GROUND_SHADOW })],
-    }));
-  }
-
-  if (fall > 0) {
-    const pin: SceneNode[] = [
-      path({ d: pinPath(l.radius, l.headY), fill: settings.pinColor, shadow: settings.halo ? PIN_SHADOW : undefined }),
-    ];
-
-    if (photo > 0) {
-      const r = l.photoRadius;
-      const size = r * 2;
-      pin.push(group({
-        scale: photo,
-        anchorX: 0,
-        anchorY: l.headY,
-        children: l.src
-          ? [
-              image({ x: -r, y: l.headY - r, width: size, height: size, src: l.src, objectFit: 'cover', cornerRadius: r }),
-              // A hairline where the photo meets the pin.
-              circle({ cx: 0, cy: l.headY, r, stroke: 'rgba(0, 0, 0, 0.15)', strokeWidth: 1 }),
-            ]
-          : placeholder(r, l.headY),
-      }));
-    }
-
-    children.push(group({
-      y: -DROP_HEIGHT * (1 - fall),
-      scaleX: 1 + SQUASH * squash,
-      scaleY: 1 - SQUASH * squash,
+  if (photo > 0) {
+    const r = l.photoRadius;
+    const size = r * 2;
+    pin.push(group({
+      scale: photo,
       anchorX: 0,
-      anchorY: 0,
-      opacity: Math.min(1, fall * 4),
-      children: pin,
+      anchorY: l.headY,
+      children: l.src
+        ? [
+            image({ x: -r, y: l.headY - r, width: size, height: size, src: l.src, objectFit: 'cover', cornerRadius: r }),
+            // A hairline where the photo meets the pin.
+            circle({ cx: 0, cy: l.headY, r, stroke: 'rgba(0, 0, 0, 0.15)', strokeWidth: 1 }),
+          ]
+        : placeholder(r, l.headY),
     }));
   }
+
+  const children: SceneNode[] = [...groundShadow(drop), ...droppingPin(drop, pin)];
 
   if (l.title && titleReveal > 0) {
     children.push(text({
@@ -201,11 +154,7 @@ export function renderPhotoPin(input: StyleRenderInput<PhotoPinSettings>): Scene
 export function measurePhotoPin(input: StyleRenderInput<PhotoPinSettings>): StyleBounds {
   const l = layout(input);
   const finished = renderPhotoPin({ ...input, phase: 'visible', phaseProgress: 1 });
-  const shadowReach = PIN_SHADOW.blur + (PIN_SHADOW.offsetY ?? 0);
-  const halfWidth = l.radius * (1 + SQUASH) + shadowReach;
-  const top = l.headY - l.radius - DROP_HEIGHT - shadowReach;
-  const pin = rect({ x: -halfWidth, y: top, width: halfWidth * 2, height: shadowReach - top });
-  return boundsOf(finished, pin);
+  return boundsOf(finished, rect(pinDropBounds(l.radius, l.headY - l.radius)));
 }
 
 // ─── Style Definition ─────────────────────────────────────────────────────────

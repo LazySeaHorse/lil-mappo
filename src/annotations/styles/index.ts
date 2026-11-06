@@ -13,9 +13,11 @@ import { handDrawnStyle } from './hand-drawn';
 import { highlightTagStyle } from './highlight-tag';
 import { leaderLineStyle } from './leader-line';
 import { mapLabelStyle } from './map-label';
+import { markerStyle } from './marker';
 import { pinCalloutStyle } from './pin-callout';
 import { photoPinStyle } from './photo-pin';
 import { polaroidStyle } from './polaroid';
+import { poleLabelStyle } from './pole-label';
 import { radiusRingStyle } from './radius-ring';
 import { roadSignStyle } from './road-sign';
 import { stampStyle } from './stamp';
@@ -24,6 +26,7 @@ import { waypointStyle } from './waypoint';
 
 // Registration order is the order the style picker lists them in.
 registerStyle(leaderLineStyle);
+registerStyle(poleLabelStyle);
 registerStyle(mapLabelStyle);
 registerStyle(highlightTagStyle);
 registerStyle(pinCalloutStyle);
@@ -33,6 +36,7 @@ registerStyle(stampStyle);
 registerStyle(flagStyle);
 registerStyle(polaroidStyle);
 registerStyle(photoPinStyle);
+registerStyle(markerStyle);
 registerStyle(bigNumberStyle);
 registerStyle(handDrawnStyle);
 registerStyle(radiusRingStyle);

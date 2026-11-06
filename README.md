@@ -17,7 +17,7 @@ li'l Mappo is a web application for map animation. You can animate camera moveme
 
 ### 2. Annotations and Boundaries
 - **Canvas 2D Scene Graph**: A fast callout overlay renders directly in the Mapbox render loop at native resolution.
-- **15 Visual Styles**: Choose from 15 styles: Leader Line, Map Label, Highlight Tag, Pin Callout, Target Lock, Editorial, Stamp, Flag, Polaroid, Photo Pin, Big Number, Hand Drawn, Radius Ring, Waypoint, and Road Sign.
+- **17 Visual Styles**: Choose from 17 styles: Leader Line, Pole Label, Map Label, Highlight Tag, Pin Callout, Target Lock, Editorial, Stamp, Flag, Polaroid, Photo Pin, Marker, Big Number, Hand Drawn, Radius Ring, Waypoint, and Road Sign.
 - **Screen-Space Altitude**: Pixel-based altitude controls prevent zoom drift and keep 3D terrain positions stable.
 - **Boundary Search**: Search administrative boundaries with OpenStreetMap Nominatim, or places from the past (with their dates) from OpenHistoricalMap. Animate boundary polygons on the map.
 - **Manual Pick Mode**: Set coordinates with crosshairs directly on 3D terrain.
