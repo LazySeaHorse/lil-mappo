@@ -5,10 +5,10 @@ import {
   defaultPhotoPinSettings,
   measurePhotoPin,
   photoPinStyle,
-  pinPath,
   renderPhotoPin,
   type PhotoPinSettings,
 } from './photo-pin';
+import { pinPath } from './pinDrop';
 
 const SRC = 'https://example.com/photo.jpg';
 

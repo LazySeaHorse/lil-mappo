@@ -4,7 +4,7 @@ import { ANNOTATION_FONTS } from '../fonts';
 import { buildProgress, easeOutBack, easeOutCubic, stage } from '../motion';
 import { circle, group, image, path, rect, text } from '../scene/primitives';
 import { measureTextWidth } from '../scene/textMetrics';
-import { CONTENT_WINDOW, droppingPin, groundShadow, PIN_SHADOW, pinDrop, pinDropBounds } from './pinDrop';
+import { CONTENT_WINDOW, droppingPin, groundShadow, PIN_SHADOW, pinDrop, pinDropBounds, pinPath } from './pinDrop';
 import { boundsOf, HALO_CONTROL, haloSchema, haloShadow, SIDE_CONTROL, sideSchema } from './shared';
 
 // ─── Settings Schema ──────────────────────────────────────────────────────────
@@ -77,17 +77,6 @@ function layout(input: StyleRenderInput<PhotoPinSettings>): Layout {
     titleWidth: title ? measureTextWidth(title, TITLE_SIZE, ANNOTATION_FONTS.body, TITLE_WEIGHT) : 0,
     src: (content.image ?? '').trim(),
   };
-}
-
-/** A map pin with its tip at the origin: a circle of `radius` round (0, headY) narrowing to the tip. */
-export function pinPath(radius: number, headY: number): string {
-  const depth = -headY;
-  // Where the sides leave the circle: tangents from the tip.
-  const angle = Math.acos(radius / depth);
-  const x = radius * Math.sin(angle);
-  const y = headY + radius * Math.cos(angle);
-  const f = (n: number) => n.toFixed(2);
-  return `M0 0L${f(-x)} ${f(y)}A${f(radius)} ${f(radius)} 0 1 1 ${f(x)} ${f(y)}Z`;
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────

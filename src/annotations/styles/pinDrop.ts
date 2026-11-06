@@ -1,12 +1,24 @@
 /**
- * The drop shared by the styles that are a pin standing on the point: the pin
- * falls onto it from above, its shadow grows under it and it squashes as it
- * lands. A style adds what opens inside or beside the head after that.
+ * What the styles that are a pin standing on the point share: its shape and
+ * its drop. The pin falls onto the point from above, its shadow grows under it
+ * and it squashes as it lands. A style adds what opens inside or beside the
+ * head after that.
  */
 
 import type { SceneNode, ShadowConfig, StyleBounds } from '../types';
 import { easeOutCubic, stage } from '../motion';
 import { circle, group } from '../scene/primitives';
+
+/** A map pin with its tip at the origin: a circle of `radius` round (0, headY) narrowing to the tip. */
+export function pinPath(radius: number, headY: number): string {
+  const depth = -headY;
+  // Where the sides leave the circle: tangents from the tip.
+  const angle = Math.acos(radius / depth);
+  const x = radius * Math.sin(angle);
+  const y = headY + radius * Math.cos(angle);
+  const f = (n: number) => n.toFixed(2);
+  return `M0 0L${f(-x)} ${f(y)}A${f(radius)} ${f(radius)} 0 1 1 ${f(x)} ${f(y)}Z`;
+}
 
 /** Shadow of the pin itself, with the head lifted off the map. */
 export const PIN_SHADOW: ShadowConfig = { color: 'rgba(0, 0, 0, 0.45)', blur: 10, offsetX: 0, offsetY: 4 };
