@@ -17,6 +17,7 @@ import { markerStyle } from './marker';
 import { pinCalloutStyle } from './pin-callout';
 import { photoPinStyle } from './photo-pin';
 import { polaroidStyle } from './polaroid';
+import { poleLabelStyle } from './pole-label';
 import { radiusRingStyle } from './radius-ring';
 import { roadSignStyle } from './road-sign';
 import { stampStyle } from './stamp';
@@ -25,6 +26,7 @@ import { waypointStyle } from './waypoint';
 
 // Registration order is the order the style picker lists them in.
 registerStyle(leaderLineStyle);
+registerStyle(poleLabelStyle);
 registerStyle(mapLabelStyle);
 registerStyle(highlightTagStyle);
 registerStyle(pinCalloutStyle);
