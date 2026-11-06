@@ -5,6 +5,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/store/types';
 import type { DemoContext } from '../actions';
 import { mockBoundarySearch, mockDirections, mockPlaceSearch } from '../mocks';
+import { runPlay } from '../playRunner';
 import { commitStep } from '../runners';
 import { CREATED, type AiAction, type AiMock } from './script';
 
@@ -20,8 +21,6 @@ const TOOL_LEAD_MS = 300;
 const TOOL_TAIL_MS = 250;
 /** Holds on a finished item so the app's pulse and map follow read before the next turn. */
 const SETTLE_MS = 1300;
-/** How often a playing project is checked on (real time). */
-const PLAY_POLL_MS = 150;
 
 export function registerMocks(mocks: AiMock[] = []): void {
   for (const mock of mocks) {
@@ -65,8 +64,6 @@ export class AiAgent {
   private toolCalls = 0;
   /** The id the last call created, for the update and the swap that follow it. */
   private createdId: string | null = null;
-  /** The running playback watch, from `play` until the project reaches its end. */
-  private playback: Promise<void> = Promise.resolve();
 
   constructor({ ctx, file, post }: AiAgentOptions) {
     this.ctx = ctx;
@@ -121,10 +118,7 @@ export class AiAgent {
         await clock.wait(this.ctx.timing.betweenSteps);
         return;
       case 'play':
-        this.startPlay();
-        return;
-      case 'play-end':
-        await this.playback;
+        await this.playBack();
         return;
       case 'finalize':
         for (const step of action.steps) commitAiWrite(`AI: ${step.label}`, () => commitStep(step, this.file));
@@ -158,36 +152,13 @@ export class AiAgent {
   }
 
   /**
-   * Starts the project playing from the playhead. No tool does this, so the transcript shows nothing for it.
-   * The watch runs on its own, so a pause during the closing message still holds playback; `play-end` joins it.
+   * The turn is over and the cursor is back: it plays the project as a person does, through zen mode.
+   * No tool plays, so the transcript shows nothing for it.
    */
-  private startPlay(): void {
-    useProjectStore.getState().setIsPlaying(true);
-    const watch = this.watchPlay();
-    // Joined later by `play-end`; if the run unwinds first, nobody is left to hear this reject.
-    watch.catch(() => {});
-    this.playback = watch;
-  }
-
-  /** Follows playback to its end; pausing the run pauses it, and a reset stops it. */
-  private async watchPlay(): Promise<void> {
-    const { clock } = this.ctx;
-    const store = () => useProjectStore.getState();
-    let halted = false;
-    try {
-      while (halted || store().isPlaying) {
-        await new Promise<void>((resolve) => setTimeout(resolve, PLAY_POLL_MS));
-        clock.check();
-        if (clock.paused && store().isPlaying) {
-          store().setIsPlaying(false);
-          halted = true;
-        } else if (!clock.paused && halted) {
-          store().setIsPlaying(true);
-          halted = false;
-        }
-      }
-    } finally {
-      if (clock.aborted) store().setIsPlaying(false);
-    }
+  private async playBack(): Promise<void> {
+    const { cursor } = this.ctx;
+    cursor.setHidden(false);
+    await runPlay(this.ctx, { kind: 'play', label: 'Play' }, this.file);
+    cursor.setHidden(true);
   }
 }

@@ -1,10 +1,11 @@
 import { cleanup, render } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { agentEvents, useAgentStore } from '@/agent';
 import { AgentToolRegistrar } from '@/components/AI/AgentToolRegistrar';
 import { AiPanel } from '@/components/AI/AiPanel';
 import { AiStatusPill } from '@/components/AI/AiStatusPill';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
+import TimelinePanel from '@/components/Timeline/TimelinePanel';
 import { useAgentActionVisuals } from '@/components/AI/useAgentActionVisuals';
 import { useAiPanelStore } from '@/components/AI/useAiPanelStore';
 import { PRO, setSignedIn } from '@/components/AI/testUtils';
@@ -35,18 +36,34 @@ vi.mock('@/models/modelRegistry', async (importActual) => ({
 const file = demoFixture();
 const settings: DemoRunSettings = { timing: DEFAULT_TIMING, speed: 1000, mockAi: true, aiPrompt: 'Show me a trip around France', autoZoom: false, maxZoom: 1.8, fullScreen: false, terminalShare: 0.25 };
 
-/** The editor's AI parts, as the app mounts them. */
+/** The editor's AI parts, as the app mounts them, with the timeline and zen mode's switch and transport. */
 function Editor() {
   useAgentActionVisuals();
+  const hideUI = useProjectStore((s) => s.hideUI);
+  const isPlaying = useProjectStore((s) => s.isPlaying);
   return (
     <div>
-      <AiToolbarButton />
-      <AiPanel />
-      <AiStatusPill />
+      <div className={hideUI ? 'invisible' : 'visible'}>
+        <button title="Hide UI" onClick={() => useProjectStore.getState().setHideUI(true)} />
+        <AiToolbarButton />
+        <AiPanel />
+        <AiStatusPill />
+        <TimelinePanel />
+      </div>
+      {hideUI && (
+        <>
+          <button title={isPlaying ? 'Pause' : 'Play'} onClick={() => useProjectStore.getState().setIsPlaying(!isPlaying)} />
+          <button title="Show UI" onClick={() => useProjectStore.getState().setHideUI(false)} />
+        </>
+      )}
       <AgentToolRegistrar />
     </div>
   );
 }
+
+beforeAll(() => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+});
 
 let stopGestures: () => void;
 let uninstallMocks: () => void;
@@ -121,7 +138,7 @@ describe('AiMode', () => {
     try {
       const ctx = testContext();
       // The phone's toolbar leaves the AI button out.
-      render(<AgentToolRegistrar />);
+      render(<><AgentToolRegistrar /><TimelinePanel /></>);
       const { mode } = setup();
       let panelOpened = false;
       const unsubscribe = useAiPanelStore.subscribe((s) => {
@@ -148,18 +165,19 @@ describe('AiMode', () => {
     render(<Editor />);
     const { mode, aiEvents, sent } = setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    // How many transcript events had been sent when playback started.
-    const playedAfter: number[] = [];
+    // How many transcript events had been sent when playback started, and whether zen mode was on.
+    const playedAfter: Array<[number, boolean]> = [];
     const stopWatching = useProjectStore.subscribe((state, prev) => {
-      if (state.isPlaying && !prev.isPlaying) playedAfter.push(aiEvents().length);
+      if (state.isPlaying && !prev.isPlaying) playedAfter.push([aiEvents().length, state.hideUI]);
     });
 
     await mode.run(ctx, file, settings);
     stopWatching();
 
-    // Playback starts right after the playhead call, before the closing message and `done`; the run waits it out.
-    expect(playedAfter).toEqual([aiEvents().length - 2]);
+    // Once the agent has said done, the cursor goes into zen mode and plays; the editor is back when it ends.
+    expect(playedAfter).toEqual([[aiEvents().length, true]]);
     expect(useProjectStore.getState().isPlaying).toBe(false);
+    expect(useProjectStore.getState().hideUI).toBe(false);
 
     const project = pickProject(useProjectStore.getState());
     expect(project).toEqual(pickProject(file));
@@ -169,11 +187,11 @@ describe('AiMode', () => {
     expect(order.slice(0, 4)).toEqual(['ai-panel', 'user', 'thinking', 'text']);
     expect(aiEvents()[0]).toEqual({ kind: 'user', text: 'Show me a trip around France' });
     // The agent's last call (playhead to the start) comes before the closing summary, and the turn ends on it:
-    // nothing but `done` follows, so the terminal goes idle while the playback plays out.
+    // nothing but `done` follows, so the terminal goes idle while the cursor plays the project.
     const kinds = aiEvents().map((e) => e.kind);
     expect(kinds.slice(-4)).toEqual(['tool-start', 'tool-end', 'text', 'done']);
     expect(aiEvents().at(-3)).toMatchObject({ kind: 'tool-end', summary: expect.stringContaining('Playhead') });
-    expect(aiEvents().at(-2)).toMatchObject({ kind: 'text', text: expect.stringContaining('started playback') });
+    expect(aiEvents().at(-2)).toMatchObject({ kind: 'text', text: expect.stringContaining("ready to play") });
     expect(kinds.filter((k) => k === 'done')).toHaveLength(1);
 
     // Every call is started then ended, in pairs, and succeeded.

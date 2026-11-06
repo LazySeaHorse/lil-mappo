@@ -19,7 +19,7 @@ describe('buildAiScript', () => {
     expect([...BOUNDARY_STYLE_KEYS].sort()).toEqual(Object.keys(boundaryStyleShape).sort());
   });
 
-  it('reads first, builds in the plan’s order, then reads back, summarises and plays', () => {
+  it('reads first, builds in the plan’s order, then reads back and summarises', () => {
     expect(toolNames()).toEqual([
       'get_guide',
       'get_project',
@@ -40,16 +40,16 @@ describe('buildAiScript', () => {
     expect(kinds.at(-1)).toBe('finalize');
   });
 
-  it('ends the turn on the closing message: the agent’s last calls and the playback start come before it', () => {
+  it('ends the turn on the closing message, then the cursor plays the project back', () => {
     const kinds = script.map((a) => a.kind);
-    // set_playhead, playback starts, the closing summary, done; then the run waits out the playback, then finalises.
-    expect(kinds.slice(-6)).toEqual(['tool', 'play', 'text', 'done', 'play-end', 'finalize']);
-    expect(script.at(-6)).toMatchObject({ name: 'set_playhead', input: { time: 0 } });
+    // set_playhead, the closing summary, done; then the cursor plays the project, then the run finalises.
+    expect(kinds.slice(-5)).toEqual(['tool', 'text', 'done', 'play', 'finalize']);
+    expect(script.at(-5)).toMatchObject({ name: 'set_playhead', input: { time: 0 } });
     // Nothing the terminal would show as work follows done.
     const afterDone = script.slice(kinds.indexOf('done') + 1).map((a) => a.kind);
-    expect(afterDone).toEqual(['play-end', 'finalize']);
+    expect(afterDone).toEqual(['play', 'finalize']);
     expect(texts().at(-1)).toBe(
-      'Your map "Tour de France" is ready: 2 boundaries, 1 route, 1 callout, 1 3D model and 2 camera views. I\'ve set the playhead to the start and started playback.',
+      'Your map "Tour de France" is ready: 2 boundaries, 1 route, 1 callout, 1 3D model and 2 camera views. I\'ve set the playhead to the start, so it\'s ready to play.',
     );
   });
 
