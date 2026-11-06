@@ -13,6 +13,10 @@ function createMapDouble() {
     spec: { models?: Record<string, { uri: string }> };
     setData: ReturnType<typeof vi.fn>;
     setModels: ReturnType<typeof vi.fn>;
+    on: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
+    /** Test only: fires an event of this type on the source. */
+    fire: (type: string) => void;
   };
   const sources = new Map<string, Source>();
   const models = new Set<string>();
@@ -41,7 +45,15 @@ function createMapDouble() {
       }
     }),
     getSource: vi.fn((id: string) => sources.get(id)),
-    addSource: vi.fn((id: string, spec: Source["spec"] & { type: string }) => sources.set(id, { type: spec.type, spec, setData: vi.fn(), setModels: vi.fn() })),
+    addSource: vi.fn((id: string, spec: Source["spec"] & { type: string }) => {
+      const listeners = new Map<string, Set<() => void>>();
+      sources.set(id, {
+        type: spec.type, spec, setData: vi.fn(), setModels: vi.fn(),
+        on: vi.fn((type: string, fn: () => void) => { listeners.set(type, (listeners.get(type) ?? new Set()).add(fn)); }),
+        off: vi.fn((type: string, fn: () => void) => { listeners.get(type)?.delete(fn); }),
+        fire: (type) => [...(listeners.get(type) ?? [])].forEach((fn) => fn()),
+      });
+    }),
     removeSource: vi.fn((id: string) => sources.delete(id)),
     hasModel: vi.fn((id: string) => models.has(id)),
     addModel: vi.fn((id: string) => models.add(id)),
