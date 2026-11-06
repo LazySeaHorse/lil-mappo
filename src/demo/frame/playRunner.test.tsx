@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { useRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import TimelinePanel from '@/components/Timeline/TimelinePanel';
 import { usePlayback } from '@/hooks/usePlayback';
@@ -22,6 +23,29 @@ const VIDEO_SECONDS = 1;
 function Editor() {
   usePlayback({ current: null });
   return <TimelinePanel />;
+}
+
+/** The editor with zen mode's switch and transport, as MapStudioEditor wires them: the editor's layer goes invisible. */
+function ZenEditor() {
+  // Stable, as in the app: usePlayback restarts with its ref, and this editor re-renders as playback starts.
+  const mapRef = useRef(null);
+  usePlayback(mapRef);
+  const hideUI = useProjectStore((s) => s.hideUI);
+  const isPlaying = useProjectStore((s) => s.isPlaying);
+  return (
+    <>
+      <div className={hideUI ? 'invisible' : 'visible'}>
+        <button title="Hide UI" onClick={() => useProjectStore.getState().setHideUI(true)} />
+        <TimelinePanel />
+      </div>
+      {hideUI && (
+        <>
+          <button title={isPlaying ? 'Pause' : 'Play'} onClick={() => useProjectStore.getState().setIsPlaying(!isPlaying)} />
+          <button title="Show UI" onClick={() => useProjectStore.getState().setHideUI(false)} />
+        </>
+      )}
+    </>
+  );
 }
 
 let warn: ReturnType<typeof vi.spyOn>;
@@ -61,6 +85,24 @@ describe('play runner', () => {
     // The run's speed (x1000 here) does not shorten playback: it took the video's own length.
     expect(Date.now() - started).toBeGreaterThanOrEqual(VIDEO_SECONDS * 1000 * 0.9);
     expect(useProjectStore.getState().isPlaying).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+  }, 15_000);
+
+  it('goes into zen mode, plays from there and brings the editor back when the video ends', async () => {
+    render(<ZenEditor />);
+    const zen: boolean[] = [];
+    const plays: Array<[boolean, boolean]> = [];
+    const unsubscribe = useProjectStore.subscribe((s, prev) => {
+      if (s.hideUI !== prev.hideUI) zen.push(s.hideUI);
+      if (s.isPlaying !== prev.isPlaying) plays.push([s.isPlaying, s.hideUI]);
+    });
+    await runStep(testContext(), step, file);
+    unsubscribe();
+
+    expect(zen).toEqual([true, false]);
+    // Playback started and ended while zen mode was on.
+    expect(plays).toEqual([[true, true], [false, true]]);
+    expect(useProjectStore.getState().hideUI).toBe(false);
     expect(warn).not.toHaveBeenCalled();
   }, 15_000);
 

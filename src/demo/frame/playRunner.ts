@@ -1,16 +1,17 @@
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/store/types';
-import { click, find, warn, type DemoContext } from './actions';
+import { click, find, query, warn, type DemoContext } from './actions';
 import { currentLocators } from './locators';
-import { closeInspectorDrawer } from './phone';
+import { closeInspectorDrawer, showMainBar } from './phone';
 import type { DemoStep } from './plan';
 import { commitStep } from './runners';
 
 /**
  * The play step: the cursor clicks the transport's Jump to Start (when the
- * playhead is not already there) and Play, and the run waits while the project
- * plays. Playback runs on real time, whatever the speed of the run, and stops
- * itself at the end of the video.
+ * playhead is not already there), goes into zen mode with Hide UI and clicks
+ * zen mode's Play, and the run waits while the project plays. Playback runs on
+ * real time, whatever the speed of the run, and stops itself at the end of the
+ * video. Show UI then brings the editor back for the steps after it.
  */
 
 /** How often the wait looks at playback, in real ms. */
@@ -64,6 +65,11 @@ export async function runPlay(ctx: DemoContext, step: Extract<DemoStep, { kind: 
   }
   if (useProjectStore.getState().playheadTime > 0.005) await click(ctx, L.timelineJumpToStart);
   // No beat after the click: a pause that lands right on it must already hold playback.
-  if (await click(ctx, L.timelinePlay, { hold: false })) await untilPlaybackEnds(ctx, useProjectStore.getState().duration);
+  // Without a Hide UI button on the toolbar, the timeline's Play does the job.
+  await showMainBar(ctx, L);
+  const zen = query(L.hideUiButton) !== null && (await click(ctx, L.hideUiButton));
+  const play = zen ? L.zenPlayButton : L.timelinePlay;
+  if (await click(ctx, play, { hold: false })) await untilPlaybackEnds(ctx, useProjectStore.getState().duration);
+  if (zen && !(await click(ctx, L.showUiButton))) useProjectStore.getState().setHideUI(false);
   commitStep(step, file);
 }

@@ -43,7 +43,7 @@ A portrait project runs in an iframe of phone width, so the app lays itself out 
 
 - **Timeline.** Item steps leave the timing the app gave the new item; the timeline step drags each clip (whole clip to move, edge handles to trim) to the file's start and end, zooming out with the real zoom button when needed. The final write makes the times exact.
 - **Camera views.** Per view, in time order: click the ruler at its time, ease the map to it (`moveToCamera`), click Add camera view, edit what differs in the inspector (zoom, pitch, bearing, time, motion).
-- **Play.** Jump to Start, Play, then wait the project's real length (not speed-scaled; pause holds playback, reset stops it).
+- **Play.** Jump to Start, Hide UI (zen mode, whose top-left li'l Mappo watermark the frame shows even for a Pro account), zen mode's Play, then wait the project's real length (not speed-scaled; pause holds playback, reset stops it); Show UI then brings the editor back for the export.
 - **Fake export.** The real export modal and Export button run their own flow; `useVideoExportExecution` loads `src/demo/frame/fakeExport.ts` instead of the encoder in the frame (`IS_DEMO_FRAME`) and skips `saveAs`. The bar fills on the run's clock. Needs a browser with `VideoEncoder` (the Export button is off without it).
 
 ## Full screen and split

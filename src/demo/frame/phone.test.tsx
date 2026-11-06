@@ -1,4 +1,5 @@
 import { act, cleanup, render } from '@testing-library/react';
+import { useRef } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MapRef } from 'react-map-gl/mapbox';
 import Toolbar from '@/components/Toolbar/Toolbar';
@@ -50,12 +51,24 @@ const map = fakeMap();
 
 /** The editor's phone layout: the real toolbar (its collapsed bars), the timeline and the inspector (a drawer). */
 function PhoneEditor({ withTimeline = false, withMap = false }: { withTimeline?: boolean; withMap?: boolean }) {
-  usePlayback({ current: null });
+  // Stable, as in the app: usePlayback restarts with its ref.
+  const playbackRef = useRef(null);
+  usePlayback(playbackRef);
+  const hideUI = useProjectStore((s) => s.hideUI);
+  const isPlaying = useProjectStore((s) => s.isPlaying);
   return (
     <MapRefContext.Provider value={{ current: withMap ? ({ getMap: () => map } as unknown as MapRef) : null }}>
-      <Toolbar onExport={() => {}} onLibrary={() => {}} onWalkthrough={() => {}} onAddToolOpenChange={() => undefined} />
-      {withTimeline && <TimelinePanel />}
-      <InspectorPanel />
+      <div className={hideUI ? 'invisible' : 'visible'}>
+        <Toolbar onExport={() => {}} onLibrary={() => {}} onWalkthrough={() => {}} onAddToolOpenChange={() => undefined} />
+        {withTimeline && <TimelinePanel />}
+        <InspectorPanel />
+      </div>
+      {hideUI && (
+        <>
+          <button title={isPlaying ? 'Pause' : 'Play'} onClick={() => useProjectStore.getState().setIsPlaying(!isPlaying)} />
+          <button title="Show UI" onClick={() => useProjectStore.getState().setHideUI(false)} />
+        </>
+      )}
     </MapRefContext.Provider>
   );
 }

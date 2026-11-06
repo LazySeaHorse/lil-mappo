@@ -121,6 +121,11 @@ export interface Locators {
 
   /** The transport's play / pause button. */
   timelinePlay: Locator;
+  /** The toolbar's Hide UI button, which turns zen mode on. */
+  hideUiButton: Locator;
+  zenPlayButton: Locator;
+  /** Zen mode's button back to the editor. */
+  showUiButton: Locator;
 
   /** The toolbar's Export button, which opens the export modal. */
   exportButton: Locator;
@@ -298,6 +303,11 @@ export const DESKTOP_LOCATORS: Locators = {
   addCameraViewButton: { walkthrough: 'camera-keyframe', description: 'the Add camera view button' },
 
   timelinePlay: { walkthrough: 'timeline-play', description: 'the timeline Play button' },
+
+  hideUiButton: { role: 'button', name: 'Hide UI', description: 'the Hide UI button' },
+  /** Zen mode's own transport: the toolbar and timeline are invisible there. */
+  zenPlayButton: { role: 'button', name: 'Play', description: "zen mode's Play button" },
+  showUiButton: { role: 'button', name: 'Show UI', description: "zen mode's Show UI button" },
 
   exportButton: { walkthrough: 'render', description: 'the Export button' },
   exportDialog,
