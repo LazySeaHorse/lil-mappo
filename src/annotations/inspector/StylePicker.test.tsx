@@ -43,6 +43,15 @@ describe('StylePicker', () => {
     expect(names).toEqual(listed().map((s) => (s.id === 'leader-line' ? `${s.name}Now` : s.name)));
   });
 
+  it('puts Mappo holding a callout at the top of the dialog', () => {
+    render(<StylePicker value="leader-line" onChange={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    const hero = screen.getByRole('dialog', { name: 'Callout style' }).firstElementChild;
+    expect(hero?.getAttribute('data-slot')).toBe('pin-drop');
+    expect(hero?.getAttribute('data-scene')).toBe('callouts');
+    expect(hero?.querySelector('svg[data-mood="callout"]')).not.toBeNull();
+  });
+
   it('plays the current style beside the next one in the list, with the callout title', () => {
     render(<StylePicker value="leader-line" onChange={() => {}} title="Eiffel Tower" />);
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));

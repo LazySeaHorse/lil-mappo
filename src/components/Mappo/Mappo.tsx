@@ -325,6 +325,21 @@ const PlugInHand = () => (
   </>
 );
 
+/** A callout held up by its leader line, for choosing a callout's style. The callout is its own part so a page can bob it. */
+const CalloutInHand = () => (
+  <>
+    <Arm d="M874 660 Q930 650 944 604" />
+    <g data-part="callout" transform="rotate(-8 1000 520)">
+      <path d="M972 508 L944 590" stroke={INK} strokeWidth={12} strokeLinecap="round" fill="none" />
+      <rect x={930} y={372} width={260} height={140} rx={22} fill={CREAM} strokeWidth={12} {...outline} />
+      <circle cx={988} cy={442} r={28} fill={BLUE} />
+      <rect x={1034} y={420} width={124} height={22} rx={11} fill={INK} />
+      <rect x={1034} y={456} width={82} height={18} rx={9} fill="#c9d6e8" />
+    </g>
+    <Fist x={940} y={594} />
+  </>
+);
+
 /** Two fists gripping an edge, for peeking over the top of a card. */
 const GripFists = () => (
   <>
@@ -534,6 +549,16 @@ const POSES: Record<PoseMood, Pose> = {
       </>
     ),
     front: PlugInHand,
+  },
+  callout: {
+    face: () => (
+      <>
+        <LookEyes dx={14} dy={-10} />
+        <Blush />
+        <OpenSmile />
+      </>
+    ),
+    front: CalloutInHand,
   },
   peek: {
     face: () => (

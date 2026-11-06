@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/icon-button';
+import { PinDropHero } from '@/components/ui/pin-drop';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { STYLE_TERMS } from '@/lib/terms';
 import { cn } from '@/lib/utils';
@@ -47,10 +48,11 @@ export function StylePickerDialog({ open, onOpenChange, ...rest }: StylePickerDi
       <DialogContent
         size="lg"
         aria-describedby={undefined}
-        className="flex h-[min(620px,calc(100dvh-2rem))] flex-col sm:max-w-[820px]"
+        className="flex h-[min(680px,calc(100dvh-2rem))] flex-col sm:max-w-[820px]"
         // The picker can sit inside a dropdown panel; keys typed here must not reach it.
         onKeyDown={(e) => e.stopPropagation()}
       >
+        <PinDropHero mood="callout" scene="callouts" size="compact" />
         {/* Mounted only while open, so it starts from the next style each time. */}
         <PickerBody onOpenChange={onOpenChange} {...rest} />
       </DialogContent>

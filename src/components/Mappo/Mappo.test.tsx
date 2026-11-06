@@ -24,7 +24,7 @@ describe('accountMood', () => {
 
 describe('<Mappo />', () => {
   const moods: MappoMood[] = ['default', 'sleepy', 'inquisitive', 'curious', 'happy', 'blush', 'sparkle', 'worried', 'explorer', 'key'];
-  const poses: MappoMood[] = ['phone', 'camera', 'map', 'wave', 'cheer', 'reel', 'tangled', 'ticket', 'balloon', 'peek', 'peek-worried', 'nervous', 'cube', 'plug'];
+  const poses: MappoMood[] = ['phone', 'camera', 'map', 'wave', 'cheer', 'reel', 'tangled', 'ticket', 'balloon', 'peek', 'peek-worried', 'nervous', 'cube', 'plug', 'callout'];
   const viewBox = (mood: MappoMood) => render(<Mappo mood={mood} />).container.querySelector('svg')?.getAttribute('viewBox');
 
   it.each([...moods, ...poses])('renders the %s mood', (mood) => {
@@ -42,7 +42,7 @@ describe('<Mappo />', () => {
     expect(viewBox('blush')).toBe('351 287 553 678');
   });
 
-  it.each(['phone', 'camera', 'wave', 'cheer', 'reel', 'ticket', 'balloon', 'cube', 'plug'] as MappoMood[])(
+  it.each(['phone', 'camera', 'wave', 'cheer', 'reel', 'ticket', 'balloon', 'cube', 'plug', 'callout'] as MappoMood[])(
     'widens the frame so the %s prop shows',
     (mood) => {
       expect(viewBox(mood)).not.toBe('351 287 553 678');
@@ -73,6 +73,7 @@ describe('<Mappo />', () => {
     expect(part('balloon', 'balloon')).not.toBeNull();
     expect(part('cube', 'cube')).not.toBeNull();
     expect(part('plug', 'plug')).not.toBeNull();
+    expect(part('callout', 'callout')).not.toBeNull();
     expect(part('cheer', 'confetti')).not.toBeNull();
   });
 

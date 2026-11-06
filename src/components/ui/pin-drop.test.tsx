@@ -48,6 +48,13 @@ describe('<PinDropHero />', () => {
     expect(container.querySelector('img')).toBeNull();
   });
 
+  it('has a drawn scene for the callout style picker', () => {
+    const { container } = render(<PinDropHero mood="callout" scene="callouts" size="compact" />);
+    expect(container.querySelector('[data-slot="pin-drop"]')?.getAttribute('data-scene')).toBe('callouts');
+    expect(container.querySelector('svg[data-mood="callout"]')).not.toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
   it('can label the scene', () => {
     render(<PinDropHero mood="phone" scene="mobile" tag="You are here" />);
     expect(screen.getByText('You are here')).toBeTruthy();

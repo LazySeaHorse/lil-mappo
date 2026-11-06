@@ -237,6 +237,36 @@ function ModelScene() {
   );
 }
 
+/** Callouts of different styles on the map: a label on a leader line, a photo pin and a pill. */
+function CalloutsScene() {
+  const id = useId();
+  const clip = `${id}-photo`;
+  return (
+    <g>
+      <defs>
+        <clipPath id={clip}><circle cx={478} cy={88} r={17} /></clipPath>
+      </defs>
+      <path d="M244 94 L234 136" stroke={C.fg} strokeWidth={2} strokeLinecap="round" opacity={0.7} />
+      <circle cx={234} cy={138} r={5} fill={C.primary} stroke={C.bg} strokeWidth={2} />
+      <g style={lift}>
+        <Card x={222} y={56} w={88} h={40} />
+        <circle cx={240} cy={76} r={7} fill={C.primary} />
+        <Line x={254} y={68} w={44} o={0.7} />
+        <Line x={254} y={80} w={28} o={0.35} h={4} />
+      </g>
+      <g style={lift}>
+        <path d="M478 140 C472 128 460 118 460 100 a18 18 0 0 1 36 0 C496 118 484 128 478 140Z" fill={C.bg} stroke={C.border} strokeWidth={1.2} />
+        <g clipPath={`url(#${clip})`}><MiniMap x={461} y={70} w={34} h={36} /></g>
+        <circle cx={478} cy={88} r={17} fill="none" stroke={C.bg} strokeWidth={2} />
+      </g>
+      <g style={lift}>
+        <rect x={500} y={118} width={30} height={20} rx={10} fill={C.wish} />
+        <rect x={507} y={126} width={16} height={4} rx={2} fill="#fff" />
+      </g>
+    </g>
+  );
+}
+
 /** A fresh 16:9 frame around the spot. */
 function NewProjectScene() {
   const b = (d: string) => <path d={d} stroke={C.primary} strokeWidth={3} fill="none" strokeLinecap="round" />;
@@ -499,6 +529,7 @@ const SCENES = {
   export: { center: 700, Scene: ExportScene },
   model: { center: 560, Scene: ModelScene },
   bridge: { center: 450, Scene: BridgeScene },
+  callouts: { center: 700, Scene: CalloutsScene },
 };
 
 export type PinDropSceneName = keyof typeof SCENES;
