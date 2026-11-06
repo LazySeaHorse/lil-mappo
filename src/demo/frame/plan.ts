@@ -205,10 +205,17 @@ const NO_MARKER = { enabled: false, type: 'dot', modelId: '', scale: 1 } as cons
 export const hasPlacedEndpoints = (calc: NonNullable<RouteItem['calculation']>) =>
   calc.mode !== 'walk' && isPlacedPoint(calc.startPoint) && isPlacedPoint(calc.endPoint);
 
+/** A walk with more points than this is not clicked out on the map, but shown as an imported route file. */
+export const MAX_CLICKED_WALK_POINTS = 10;
+
+/** Whether this calculation is a walk long enough to be shown as an import. */
+export const isImportedWalk = (calc: NonNullable<RouteItem['calculation']> | undefined) =>
+  calc?.mode === 'walk' && calc.points.length > MAX_CLICKED_WALK_POINTS;
+
 /** What the Plan Route panel (or the route import) makes for this file route. */
 export function routeBaseline(item: RouteItem): RouteItem {
   const calc = item.calculation;
-  if (calc?.mode === 'walk') {
+  if (calc?.mode === 'walk' && !isImportedWalk(calc)) {
     return createWalkRouteItem({ id: item.id, points: calc.points, curved: calc.curved, startTime: 0 });
   }
   if (calc && hasPlacedEndpoints(calc)) {
@@ -237,7 +244,7 @@ export function routeBaseline(item: RouteItem): RouteItem {
 export function routeEdits(base: RouteItem, target: RouteItem): FieldEdit[] {
   const calc = target.calculation;
   const shown: RouteItem =
-    !base.calculation && calc && calc.mode !== 'walk' && !hasPlacedEndpoints(calc)
+    !base.calculation && calc && (calc.mode === 'walk' ? isImportedWalk(calc) : !hasPlacedEndpoints(calc))
       ? { ...base, calculation: { ...calc, ...(calc.vehicle ? { vehicle: { ...NO_MARKER } } : {}) } }
       : base;
   return orderSpan(orderEdits(diffLeaves(shown, target, ITEM_SKIP), ROUTE_FIELD_ORDER), base);

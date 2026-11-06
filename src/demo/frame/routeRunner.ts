@@ -22,7 +22,7 @@ import { currentLayout, currentLocators, type Locators } from './locators';
 import { pickOnMap } from './mapPick';
 import { mockDirections, mockPlaceSearch } from './mocks';
 import { showAddBar } from './phone';
-import { deepEqual, getPath, hasPlacedEndpoints, isTimingEdit, routeEdits, type DemoStep, type FieldEdit } from './plan';
+import { deepEqual, getPath, hasPlacedEndpoints, isImportedWalk, isTimingEdit, routeEdits, type DemoStep, type FieldEdit } from './plan';
 import { commitStep } from './runners';
 import { ROUTE_FIELDS } from './routeFields';
 import { hubPlanFor, type HubPlan } from './routePlan';
@@ -31,7 +31,7 @@ import { hubPlanFor, type HubPlan } from './routePlan';
  * Routes on screen. The Plan Route panel makes the route the way a person
  * would: the mode, the places typed into the real search (answered from the
  * file's route, see mocks.ts), Preview path, Insert; a list of places for a
- * hub and spoke; a walk's points placed on the map; an imported file's entry
+ * hub and spoke; a walk's points placed on the map (a walk of more than ten points is imported as a file instead); an imported file's entry
  * clicked. Then the inspector edits whatever still differs from the file
  * (RouteInspector's sections, the Follow camera panel), and the step's final
  * write swaps in the file's route.
@@ -460,10 +460,13 @@ function pendingSpoke(target: RouteItem, file: Project): string | null {
   }) ?? null;
 }
 
-/** Makes the route on screen: the hub and spoke list, the walk, the imported file or the two places. Null when it could not. */
+/**
+ * Makes the route on screen: the hub and spoke list, the walk, the imported file or the two places. Null when it could not.
+ * A walk of many points is imported as a file: nobody clicks that many out on the map.
+ */
 async function addRouteOnScreen(ctx: DemoContext, target: RouteItem, file: Project): Promise<string | null> {
   const calc = target.calculation;
-  if (!calc || (calc.mode !== 'walk' && !hasPlacedEndpoints(calc))) return importRoute(ctx, target);
+  if (!calc || (calc.mode !== 'walk' && !hasPlacedEndpoints(calc)) || isImportedWalk(calc)) return importRoute(ctx, target);
   if (calc.mode === 'walk') return addWalkRoute(ctx, target, calc);
 
   const plan = hubPlanFor(file, target.id);

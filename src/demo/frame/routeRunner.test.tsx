@@ -207,6 +207,29 @@ describe('route runner', () => {
     expect(useProjectStore.getState().activePicker).toBeNull();
   }, 30_000);
 
+  it('imports a walk of more than ten points as a route file instead of clicking them out', async () => {
+    const many: [number, number][] = Array.from({ length: 11 }, (_, i) => [2 + i * 0.3, 48 - i * 0.2]);
+    const walk = createWalkRouteItem({ id: 'r-long', points: many, curved: true, name: 'Camino', startTime: 1 });
+    const { seen, last, step } = await runRoute(fileWith(walk), 'r-long');
+
+    // The chooser's click was held back and the route first on screen is the imported one: no walk path, no placed points.
+    expect(chooserPrevented).toEqual([true]);
+    expect(seen[0].calculation).toBeUndefined();
+    expect(seen[0].geojson).toEqual(walk.geojson);
+    expect(seen.some((r) => r.name === 'Walk path')).toBe(false);
+    expect(last).toMatchObject({ name: 'Camino', ...step.timing });
+    expect(useProjectStore.getState().items['r-long']).toEqual(onUiTiming(walk, step));
+    expect(warn).not.toHaveBeenCalled();
+  }, 30_000);
+
+  it('still clicks out a walk of exactly ten points', async () => {
+    const ten: [number, number][] = Array.from({ length: 10 }, (_, i) => [2 + i * 0.3, 48 - i * 0.2]);
+    const walk = createWalkRouteItem({ id: 'r-ten', points: ten, curved: true, startTime: 0 });
+    const { seen } = await runRoute(fileWith(walk), 'r-ten');
+    expect(chooserPrevented).toEqual([]);
+    expect(seen.find((r) => r.calculation?.mode === 'walk')?.calculation).toMatchObject({ points: ten });
+  }, 60_000);
+
   it('turns Smooth Curve off in the panel for a straight walk', async () => {
     const walk = createWalkRouteItem({ id: 'r-straight', points: [PARIS, LYON, NICE], curved: false, startTime: 0 });
     const { seen } = await runRoute(fileWith(walk), 'r-straight');
