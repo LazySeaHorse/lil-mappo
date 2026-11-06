@@ -109,7 +109,7 @@ export function ModelPickerDialog({ open, onOpenChange, onFile, onPickModel, tes
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent size="sm">
         <PinDropHero mood="cube" scene="model" size="compact" tag={MODEL_TERMS.popupTag} />
         {children ?? (
           <>

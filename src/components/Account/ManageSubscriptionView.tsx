@@ -79,7 +79,7 @@ export function ManageSubscriptionView({
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto">
+      <div className="flex flex-col gap-6 px-6 pb-6 pt-4">
         {/* Status card */}
         <div className="bg-secondary/30 rounded-xl p-4 space-y-2.5">
           <div className="flex items-center justify-between">

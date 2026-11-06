@@ -4,10 +4,12 @@ import { cva } from 'class-variance-authority';
  * The surface every DialogContent and AlertDialogContent uses. Popups open with a `PinDropHero` and put
  * their padding in `PopupBody`, so the surface itself has none. Its one grid column is `minmax(0, 1fr)`,
  * so content keeps to the popup width (an `auto` column grows to the widest unbreakable text and cuts off
- * the rest), and long words such as links wrap.
+ * the rest), and long words such as links wrap. It never grows past the viewport (`100dvh` less the
+ * wrapper's padding) and scrolls when its content is taller; a popup with pinned parts makes itself a
+ * `flex flex-col` and gives its body `min-h-0 flex-1 overflow-y-auto`.
  */
 export const popupSurfaceVariants = cva(
-  'pointer-events-auto relative grid grid-cols-[minmax(0,1fr)] break-words w-full max-w-[calc(100%-2rem)] gap-0 overflow-hidden rounded-[18px] border border-border/60 bg-background p-0 shadow-2xl duration-200 ease-spring data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-90 data-[state=open]:zoom-in-90',
+  'pointer-events-auto relative grid grid-cols-[minmax(0,1fr)] break-words w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto rounded-[18px] border border-border/60 bg-background p-0 shadow-2xl duration-200 ease-spring data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-90 data-[state=open]:zoom-in-90',
   {
     variants: {
       size: {

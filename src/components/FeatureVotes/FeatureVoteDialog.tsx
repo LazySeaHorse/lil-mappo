@@ -99,7 +99,7 @@ export function FeatureVoteDialog({ featureId, open, onOpenChange }: FeatureVote
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent size="md">
         <PinDropHero mood="balloon" scene="soon" size="compact" />
         <DialogHeader className="px-6 text-left">
           <DialogTitle>{feature.title}</DialogTitle>

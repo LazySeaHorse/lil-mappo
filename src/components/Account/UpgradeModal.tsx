@@ -95,7 +95,7 @@ export function UpgradeModal() {
       open={showUpgradeModal}
       onOpenChange={(open) => !open && closeUpgradeModal()}
     >
-      <DialogContent size="lg">
+      <DialogContent size="lg" className="flex flex-col">
         <PinDropHero mood="key" scene="upgrade" size="compact" />
         <DialogHeader className="px-6 pb-4 text-left">
           <DialogTitle>Upgrade to Wanderer</DialogTitle>
@@ -104,7 +104,7 @@ export function UpgradeModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 pb-6 max-h-[72vh] overflow-y-auto">
+        <div className="px-6 pb-6 min-h-0 flex-1 overflow-y-auto">
           <div className="rounded-xl border border-border/50 overflow-hidden bg-secondary/10">
             <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_120px_170px] items-center px-4 py-2.5 bg-secondary/30 border-b border-border/40 text-2xs font-medium text-muted-foreground">
               <span>Feature</span>

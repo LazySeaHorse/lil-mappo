@@ -41,7 +41,7 @@ export function CreditsModal() {
       open={showCreditsModal}
       onOpenChange={(open) => !open && closeCreditsModal()}
     >
-      <DialogContent size="lg">
+      <DialogContent size="lg" className="flex flex-col">
         <PinDropHero mood="sparkle" scene="credits" size="compact" />
         <DialogHeader className="px-6 pb-2 text-left">
           <DialogTitle>Plans and credits</DialogTitle>
@@ -101,7 +101,7 @@ function CreditsModalBody() {
   }
 
   return (
-    <div className="px-6 pb-6 pt-2 max-h-[75vh] md:max-h-none overflow-y-auto">
+    <div className="px-6 pb-6 pt-2 min-h-0 flex-1 overflow-y-auto">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* TOP-UP CREDITS TEMPORARILY DISABLED — not dead code.
             Re-enable the second TabsTrigger and TabsContent below once cloud

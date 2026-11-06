@@ -155,7 +155,7 @@ function AccountSettingsModalBody() {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex flex-col gap-8 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto">
+      <div className="flex flex-col gap-8 px-6 pb-6 pt-4">
         {/* ─── Account Info ─── */}
         <section>
           <AccountSectionHeading icon={<User size={14} />} label="Account" />

@@ -145,7 +145,7 @@ export function BridgeGuideDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent size="md" className="max-h-[90vh] overflow-y-auto" data-testid="bridge-guide">
+      <DialogContent size="md" data-testid="bridge-guide">
         <PinDropHero mood="plug" scene="bridge" size="compact" tag="AI bridge" />
         <PopupBody className="gap-4">
           <div className="flex flex-col gap-2">

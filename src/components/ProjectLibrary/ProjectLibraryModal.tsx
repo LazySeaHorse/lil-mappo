@@ -50,13 +50,13 @@ export default function ProjectLibraryModal({ open, onClose }: ProjectLibraryMod
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
         <DialogContent size="md" className="flex flex-col">
           <PinDropHero mood="wave" scene="library" size="compact" />
-          <DialogHeader className="px-6 pb-4 text-left">
+          <DialogHeader className="px-6 pb-4 text-left shrink-0">
             <DialogTitle>Projects</DialogTitle>
             <DialogDescription>Open, delete, and upload projects.</DialogDescription>
           </DialogHeader>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto px-6 pb-2 max-h-[60vh]">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-2">
             {isLoading ? (
               <div className="flex items-center justify-center p-8 text-muted-foreground">
                 <span className="text-sm">Loading projects</span>

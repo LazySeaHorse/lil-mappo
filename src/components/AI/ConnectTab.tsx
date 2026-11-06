@@ -108,7 +108,7 @@ export function ConnectTab() {
       </Collapsible>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent size="md" className="max-h-[90vh] overflow-y-auto">
+        <AlertDialogContent size="md">
           <PinDropHero mood="inquisitive" scene="connect" size="compact" />
           <PopupBody>
             <AlertDialogTitle>Let AI agents control this project?</AlertDialogTitle>

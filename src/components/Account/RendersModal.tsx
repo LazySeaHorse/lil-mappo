@@ -107,7 +107,7 @@ function RendersModalBody() {
             </Button>
           </div>
 
-          <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto pr-1 pb-2">
+          <div className="flex flex-col gap-3 pb-2">
             {jobs.map((job) => (
               <RenderJobRow key={job.id} job={job} />
             ))}

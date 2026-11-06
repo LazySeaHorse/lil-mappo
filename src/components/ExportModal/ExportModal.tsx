@@ -165,7 +165,7 @@ export default function ExportModal({ open, onClose }: ExportModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 pt-4 pb-2 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="px-6 pt-4 pb-2 space-y-4 min-h-0 flex-1 overflow-y-auto">
           <ExportSettingsForm
             aspectRatio={aspectRatio}
             isVertical={isVertical}
