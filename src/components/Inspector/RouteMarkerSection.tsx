@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Box, Car, Circle, Plane, Upload } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Box, Car, Circle, Loader2, Plane, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RouteItem } from '@/store/types';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -15,16 +15,19 @@ import { readModelAsset } from '@/models/modelImport';
 import { ModelPickerDialog } from '@/models/ModelPickerDialog';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { useModelImportAccess } from '@/models/useModelAccess';
+import { useVehicleModelLoading } from '@/models/vehicleLoading';
 
 type RouteVehicle = NonNullable<NonNullable<RouteItem['calculation']>['vehicle']>;
 
 /** The marker that travels along the route: on or off, its model and its size. */
 export function RouteMarkerSection({
+  routeId,
   vehicle,
   isPro,
   onChange,
   onLockedSelect,
 }: {
+  routeId: string;
   vehicle: RouteVehicle | undefined;
   isPro: boolean;
   onChange: (patch: Partial<RouteVehicle>) => void;
@@ -34,7 +37,12 @@ export function RouteMarkerSection({
   const [pickerOpen, setPickerOpen] = useState(false);
   const { canImport, askToUpgrade } = useModelImportAccess();
   const imported = Object.values(models);
+  const modelLoading = useVehicleModelLoading(routeId);
   const customAsset = vehicle?.type === 'custom' ? models[vehicle.modelId] : undefined;
+
+  // The Car or Plane tile of the chosen marker shows a spinner while its model loads on the map.
+  const tileIcon = (type: 'car' | 'plane', icon: ReactNode) =>
+    modelLoading && vehicle?.type === type ? <Loader2 size={14} className="animate-spin" /> : icon;
 
   const rideModel = (modelId: string) =>
     onChange({ type: 'custom', modelId, scale: clampVehicleScale('custom', vehicle?.scale || 1) });
@@ -85,8 +93,8 @@ export function RouteMarkerSection({
             <VisualCardSelect
               options={[
                 { value: 'dot', label: 'Dot', icon: <Circle size={14} /> },
-                { value: 'car', label: 'Car', icon: <Car size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
-                { value: 'plane', label: 'Plane', icon: <Plane size={14} />, badge: !isPro ? 'PRO' : undefined, locked: !isPro },
+                { value: 'car', label: 'Car', icon: tileIcon('car', <Car size={14} />), badge: !isPro ? 'PRO' : undefined, locked: !isPro },
+                { value: 'plane', label: 'Plane', icon: tileIcon('plane', <Plane size={14} />), badge: !isPro ? 'PRO' : undefined, locked: !isPro },
                 // Using a model already in the project is open to everyone; importing one is Pro.
                 {
                   value: 'custom',

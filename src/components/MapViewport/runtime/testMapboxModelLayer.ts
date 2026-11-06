@@ -35,6 +35,11 @@ interface SourceRecord {
   models?: Record<string, { uri: string; position?: number[]; orientation?: number[]; featureProperties?: Record<string, unknown> }>;
   setData?: (data: GeoJSON.Feature) => void;
   setModels?: (models: SourceRecord['models']) => void;
+  /** Model source: the Evented API. */
+  on?: (type: string, fn: () => void) => void;
+  off?: (type: string, fn: () => void) => void;
+  /** Test only: fires an event of this type on the source. */
+  fire?: (type: string) => void;
 }
 
 interface LayerRecord {
@@ -109,6 +114,10 @@ export function createModelLayerMap() {
       if (record.type === 'model') {
         record.models = structuredClone(spec.models as SourceRecord['models']);
         record.setModels = vi.fn((models: SourceRecord['models']) => { record.models = structuredClone(models); });
+        const listeners = new Map<string, Set<() => void>>();
+        record.on = vi.fn((type: string, fn: () => void) => { listeners.set(type, (listeners.get(type) ?? new Set()).add(fn)); });
+        record.off = vi.fn((type: string, fn: () => void) => { listeners.get(type)?.delete(fn); });
+        record.fire = (type) => [...(listeners.get(type) ?? [])].forEach((fn) => fn());
       }
       sources.set(id, record);
     }),

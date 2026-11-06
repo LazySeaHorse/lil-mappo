@@ -1,4 +1,4 @@
-import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
+import type { ExpressionSpecification, Map as MapboxMap, ModelSource } from 'mapbox-gl';
 import { extractLineCoords, facingAlong, splitAtAntimeridian } from '@/engine/geoUtils';
 import { getLineSegment } from '@/engine/lineAnimation';
 import { getRoutePath } from '@/engine/routePath';
@@ -19,6 +19,7 @@ import carModelUrl from '@/assets/models/car.glb?url';
 import airplaneModelUrl from '@/assets/models/airplane.glb?url';
 import { routeTiming, type RouteTiming } from './routeTiming';
 import { modelExtent } from '@/models/modelGeometry';
+import { setVehicleModelLoading } from '@/models/vehicleLoading';
 import type { ModelResolver } from './ModelCatalog';
 
 /** The route marker as drawn. */
@@ -154,6 +155,8 @@ export class RouteRenderer {
   private marker: DrawnMarker | null = null;
   /** The model file the vehicle's model source was made with. */
   private vehicleModelUrl = '';
+  /** The built-in marker's model source while it loads, and the listener that ends the wait. */
+  private vehicleLoad: { source: ModelSource; settled: () => void } | null = null;
 
   constructor(
     private readonly map: MapboxMap,
@@ -272,6 +275,7 @@ export class RouteRenderer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.stopWatchingVehicleLoad();
     [this.ids.vehicleLayer, this.ids.glowLayer, this.ids.cometLayer, this.ids.mainLayer]
       .forEach((id) => removeLayerIfPresent(this.map, id));
     [this.ids.vehicleSource, this.ids.cometSource, this.ids.mainSource]
@@ -354,7 +358,7 @@ export class RouteRenderer {
     if (!vehicle?.enabled) {
       this.marker = null;
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
-      removeSourceIfPresent(this.map, this.ids.vehicleSource);
+      this.removeVehicleSource();
       return;
     }
 
@@ -367,15 +371,17 @@ export class RouteRenderer {
       || this.map.getSource(this.ids.vehicleSource)?.type !== expectedSource
       || (marker.kind === 'model' && marker.url !== this.vehicleModelUrl)) {
       removeLayerIfPresent(this.map, this.ids.vehicleLayer);
-      removeSourceIfPresent(this.map, this.ids.vehicleSource);
+      this.removeVehicleSource();
     }
 
     if (!this.map.getSource(this.ids.vehicleSource)) {
+      this.stopWatchingVehicleLoad();
       const [lng, lat] = this.coordinates[0] ?? [0, 0];
       this.vehicleModelUrl = marker.kind === 'model' ? marker.url : '';
       this.map.addSource(this.ids.vehicleSource, marker.kind === 'dot'
         ? { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lng, lat] } } }
         : { type: 'model', models: vehicleModel(marker.url, [lng, lat], 0) });
+      if (marker.kind === 'model' && vehicle.type !== 'custom') this.watchVehicleLoad();
     }
     if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(marker);
 
@@ -391,6 +397,36 @@ export class RouteRenderer {
       this.map.setPaintProperty(this.ids.vehicleLayer, 'model-scale', [s, s, s]);
     });
     this.layers.setPaint(this.ids.vehicleLayer, 'model-translation', [0, 0, marker.lift], 'vehicleLift', marker.lift);
+  }
+
+  private removeVehicleSource(): void {
+    this.stopWatchingVehicleLoad();
+    removeSourceIfPresent(this.map, this.ids.vehicleSource);
+  }
+
+  /**
+   * Shows the route's marker tile as loading until the model source settles. The source fires 'data'
+   * once every model has loaded or failed (it is also what the map reports as 'sourcedata'), and an
+   * error for each failure. Listening on this source itself, not the map, means a replaced source's
+   * late events never reach the new one.
+   */
+  private watchVehicleLoad(): void {
+    const source = getModelSource(this.map, this.ids.vehicleSource);
+    if (!source) return;
+    const settled = () => this.stopWatchingVehicleLoad();
+    source.on('data', settled);
+    source.on('error', settled);
+    this.vehicleLoad = { source, settled };
+    setVehicleModelLoading(this.route.id, true);
+  }
+
+  private stopWatchingVehicleLoad(): void {
+    if (!this.vehicleLoad) return;
+    const { source, settled } = this.vehicleLoad;
+    this.vehicleLoad = null;
+    source.off('data', settled);
+    source.off('error', settled);
+    setVehicleModelLoading(this.route.id, false);
   }
 
   private addVehicleLayer(marker: DrawnMarker): void {

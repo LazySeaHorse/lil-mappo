@@ -77,6 +77,7 @@ export function RouteInspector({ item }: { item: RouteItem }) {
       <RouteAnimationSection style={item.style} onStyle={us} />
 
       <RouteMarkerSection
+        routeId={item.id}
         vehicle={calc.vehicle}
         isPro={isPro}
         onChange={updateVehicle}

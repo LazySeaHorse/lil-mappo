@@ -9,6 +9,8 @@ import { clearHistory, getHistoryEntries } from '@/store/history';
 import '@/annotations/styles/index';
 import { AnnotationAddDropdown } from './AnnotationAddDropdown';
 
+// The dialog's animated previews draw on a canvas, which jsdom lacks.
+vi.mock('@/annotations/inspector/AnimatedStylePreview', () => ({ AnimatedStylePreview: () => null }));
 vi.mock('@/annotations/inspector/stylePreview', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/annotations/inspector/stylePreview')>()),
   getStylePreview: vi.fn().mockResolvedValue(null),
@@ -173,7 +175,8 @@ describe('AnnotationAddDropdown', () => {
     expect(staged()[0].settings).toMatchObject({ lineColor: '#ef4444', accentColor: '#ef4444' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Waypoint' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Waypoint' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use style' }));
     expect(staged()[0]).toMatchObject({ styleId: 'waypoint', content: { subtitle: 'Since 1998' } });
     expect(callouts()).toHaveLength(0);
     expect(getHistoryEntries().past).toHaveLength(0);
