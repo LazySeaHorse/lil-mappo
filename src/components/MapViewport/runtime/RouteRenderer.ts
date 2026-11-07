@@ -287,6 +287,7 @@ export class RouteRenderer {
     if (!this.map.getSource(this.ids.cometSource)) this.map.addSource(this.ids.cometSource, geoJSONSource(true));
 
     const resolvedPaint = resolveRoutePaint(this.route);
+    // Emissive: Standard's dusk and night lighting would otherwise darken the route and its glow.
     if (!this.map.getLayer(this.ids.mainLayer)) {
       this.map.addLayer({
         id: this.ids.mainLayer,
@@ -297,6 +298,7 @@ export class RouteRenderer {
           'line-color': resolvedPaint.lineColor,
           'line-width': this.route.style.width,
           'line-opacity': 1,
+          'line-emissive-strength': 1,
           ...noPaintTransitions('line-color', 'line-width', 'line-opacity'),
         },
       });
@@ -312,6 +314,7 @@ export class RouteRenderer {
           'line-width': resolvedPaint.glowWidth,
           'line-opacity': 0.35,
           'line-blur': resolvedPaint.glowBlur,
+          'line-emissive-strength': 1,
           ...noPaintTransitions('line-color', 'line-width', 'line-opacity', 'line-blur'),
         },
       }, this.ids.mainLayer);
@@ -325,6 +328,7 @@ export class RouteRenderer {
         paint: {
           'line-width': this.route.style.width,
           'line-gradient': gradient(this.route.style.color),
+          'line-emissive-strength': 1,
           ...noPaintTransitions('line-width'),
         },
       });

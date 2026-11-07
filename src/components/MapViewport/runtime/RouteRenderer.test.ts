@@ -258,6 +258,14 @@ describe("RouteRenderer vehicle type switching", () => {
     expect(double.layers.get("vehicle-layer-switch-route")?.paint?.["circle-color"]).toBe("#ef4444");
   });
 
+  it("makes the line, glow and comet emissive, so dusk and night lighting leave the route colour alone", () => {
+    const double = createMapDouble();
+    new RouteRenderer(double.map, routeWithVehicle("dot")).mount();
+    for (const id of ["route-layer-switch-route", "route-glow-layer-switch-route", "route-comet-layer-switch-route"]) {
+      expect(double.layers.get(id)?.paint?.["line-emissive-strength"], id).toBe(1);
+    }
+  });
+
   it.each(["dot", "car"] as const)("creates the %s route layers without paint transitions", (type) => {
     const double = createMapDouble();
     new RouteRenderer(double.map, routeWithVehicle(type)).mount();
