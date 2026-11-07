@@ -29,12 +29,35 @@ export type BoundarySearchResult = PresentBoundaryResult | HistoricalBoundaryRes
 export const MAX_PRESENT_RESULTS = 5;
 export const MAX_HISTORICAL_RESULTS = 8;
 
+/** How long a provider may take before the search goes on without it. */
+export const PROVIDER_TIMEOUT_MS = 8000;
+
+/**
+ * Runs a provider with the caller's signal plus a deadline. A provider past the deadline is aborted
+ * with a TimeoutError (not an AbortError), so it counts as that provider failing, not as the
+ * caller giving up.
+ */
+async function withDeadline<T>(signal: AbortSignal | undefined, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new DOMException('The provider took too long.', 'TimeoutError')), PROVIDER_TIMEOUT_MS);
+  const forward = () => controller.abort(signal?.reason);
+  if (signal?.aborted) forward();
+  signal?.addEventListener('abort', forward, { once: true });
+  try {
+    return await run(controller.signal);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', forward);
+  }
+}
+
 const isAbort = (reason: unknown) => reason instanceof DOMException && reason.name === 'AbortError';
 
 /**
  * Searches today's places and historical places together: up to 5 present
  * results first, then up to 8 historical places. One source failing is not an
- * error (the other's results still return); both failing throws. An abort
+ * error (the other's results still return), and neither waits longer than
+ * `PROVIDER_TIMEOUT_MS` for the other; both failing throws. An abort
  * always throws an AbortError, so callers can ignore a superseded search.
  * `view` only ranks present results nearer the map first.
  */
@@ -44,8 +67,8 @@ export async function searchBoundaries(
   view?: SearchBBox | null,
 ): Promise<BoundarySearchResult[]> {
   const [present, historical] = await Promise.allSettled([
-    searchBoundary(query, signal, view),
-    searchHistorical(query, signal),
+    withDeadline(signal, (s) => searchBoundary(query, s, view)),
+    withDeadline(signal, (s) => searchHistorical(query, s)),
   ]);
   if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
   for (const outcome of [present, historical]) {

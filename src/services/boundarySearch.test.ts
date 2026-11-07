@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { searchBoundaries, MAX_PRESENT_RESULTS, MAX_HISTORICAL_RESULTS } from './boundarySearch';
+import { searchBoundaries, MAX_PRESENT_RESULTS, MAX_HISTORICAL_RESULTS, PROVIDER_TIMEOUT_MS } from './boundarySearch';
 import { syntheticIsland } from '@/test/syntheticGeometry';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const presentBody = (n: number) => JSON.stringify({
   type: 'FeatureCollection',
@@ -20,9 +23,9 @@ const historicalBody = (places: number, periodsEach = 2) => JSON.stringify(
   }))).flat(),
 );
 
-type Respond = (url: URL) => Response | Promise<Response>;
+type Respond = (url: URL, init: RequestInit) => Response | Promise<Response>;
 function stubFetch(respond: Respond) {
-  const fetchMock = vi.fn(async (input: unknown) => respond(new URL(String(input))));
+  const fetchMock = vi.fn(async (input: unknown, init: RequestInit) => respond(new URL(String(input)), init));
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
@@ -53,9 +56,23 @@ describe('searchBoundaries', () => {
     await searchBoundaries('park', controller.signal, [-74.1, 40.7, -73.8, 40.9]);
     const calls = fetchMock.mock.calls as unknown as [string, RequestInit][];
     expect(calls).toHaveLength(2);
-    for (const [, init] of calls) expect(init.signal).toBe(controller.signal);
+    for (const [, init] of calls) expect(init.signal).toBeInstanceOf(AbortSignal);
     const nominatim = new URL(calls.find(([u]) => !u.includes('openhistoricalmap'))![0]);
     expect(nominatim.searchParams.get('viewbox')).toBe('-74.1,40.9,-73.8,40.7');
+  });
+
+  it('aborts both providers when the caller aborts', async () => {
+    const controller = new AbortController();
+    const signals: AbortSignal[] = [];
+    stubFetch((_, init) => {
+      signals.push(init.signal!);
+      return new Promise<Response>((_, reject) => init.signal!.addEventListener('abort', () => reject(init.signal!.reason)));
+    });
+    const search = searchBoundaries('x', controller.signal);
+    controller.abort();
+    await expect(search).rejects.toMatchObject({ name: 'AbortError' });
+    expect(signals).toHaveLength(2);
+    expect(signals.every((s) => s.aborted)).toBe(true);
   });
 
   it('still returns present results when the historical source fails', async () => {
@@ -66,6 +83,16 @@ describe('searchBoundaries', () => {
   it('still returns historical results when the present source fails', async () => {
     stubFetch((url) => (isOhm(url) ? new Response(historicalBody(1)) : new Response('', { status: 500 })));
     expect((await searchBoundaries('x')).map((r) => r.kind)).toEqual(['historical']);
+  });
+
+  it('returns the present results when the historical source never answers', async () => {
+    vi.useFakeTimers();
+    stubFetch((url, init) => (isOhm(url)
+      ? new Promise<Response>((_, reject) => init.signal?.addEventListener('abort', () => reject(init.signal!.reason)))
+      : new Response(presentBody(2))));
+    const search = searchBoundaries('x');
+    await vi.advanceTimersByTimeAsync(PROVIDER_TIMEOUT_MS);
+    expect((await search).map((r) => r.kind)).toEqual(['present', 'present']);
   });
 
   it('throws when both fail', async () => {
