@@ -138,10 +138,8 @@ export interface StyleAtmosphere {
  */
 export type BasemapKind = 'standard' | 'classic';
 
-/** The feel of a style, for the filter chips in the style picker. */
+/** The feel of a style, shown under its name in the style picker. */
 export type StyleMood = 'Day' | 'Night' | 'Imagery' | 'Playful';
-
-export const STYLE_MOODS: readonly StyleMood[] = ['Day', 'Night', 'Imagery', 'Playful'];
 
 export interface MapStyleDef {
   label: string;

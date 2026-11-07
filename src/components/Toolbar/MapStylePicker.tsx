@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, ChevronDown, Globe, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MAP_STYLES, STYLE_MOODS, getMapStyleDef, type MapStyleDef, type StyleMood } from '@/config/mapbox';
+import { MAP_STYLES, getMapStyleDef, type MapStyleDef } from '@/config/mapbox';
 import { customStyleSwatches, sameCustomLook } from '@/customMapStyles/model';
 import { useSavedMapStyles, type SavedMapStyle } from '@/customMapStyles/savedStyles';
 import { useCustomStylesAllowed } from '@/customMapStyles/useCustomStylesAllowed';
@@ -155,13 +155,12 @@ interface MapStylePickerProps {
   className?: string;
 }
 
-/** The saved custom styles, the mood chips and the list of styles. Picking either applies it to the project. */
+/** The saved custom styles and the list of styles. Picking either applies it to the project. */
 function MapStylePanel({ onPicked, className }: {
   /** After a style was applied. */
   onPicked: () => void;
   className?: string;
 }) {
-  const [mood, setMood] = useState<StyleMood | 'All'>('All');
   const value = useProjectStore((s) => s.mapStyle);
   // A built-in style is the one in use only without a custom style over it.
   const custom = useProjectStore((s) => s.customStyle !== null);
@@ -169,9 +168,7 @@ function MapStylePanel({ onPicked, className }: {
     useProjectStore.getState().setMapStyle(style);
     onPicked();
   };
-  const entries = Object.entries(MAP_STYLES as Record<string, MapStyleDef>).filter(
-    ([, def]) => mood === 'All' || def.mood === mood,
-  );
+  const entries = Object.entries(MAP_STYLES as Record<string, MapStyleDef>);
 
   const handleRowKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
@@ -184,21 +181,6 @@ function MapStylePanel({ onPicked, className }: {
   return (
     <div className={className}>
       <SavedStyles onPicked={onPicked} />
-      <div className="mb-2 flex flex-wrap gap-1" role="group" aria-label="Filter by mood">
-        {(['All', ...STYLE_MOODS] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            aria-pressed={mood === m}
-            onClick={() => setMood(m)}
-            className={`rounded-full px-2.5 py-1 text-2xs font-medium transition-colors ${
-              mood === m ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
       <div role="radiogroup" aria-label="Map style" className="flex max-h-[360px] flex-col gap-0.5 overflow-y-auto">
         {entries.map(([key, def]) => {
           const checked = key === value && !custom;

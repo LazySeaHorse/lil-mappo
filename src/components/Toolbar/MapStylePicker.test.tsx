@@ -37,19 +37,14 @@ describe('MapStylePicker', () => {
     expect(useProjectStore.getState().mapStyle).toBe('streets');
   });
 
-  it('shows the current style and lists every style until a mood is picked', async () => {
+  it('shows the current style and lists every style', async () => {
     render(<MapStylePicker />);
     expect(screen.getByRole('button', { name: 'Map style: Streets' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Map style: Streets' }));
     expect(screen.getAllByRole('radio')).toHaveLength(Object.keys(MAP_STYLES).length);
     expect(screen.getByRole('radio', { name: /^Streets/ })).toHaveAttribute('aria-checked', 'true');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Imagery' }));
-    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
-      expect.stringContaining('Satellite'),
-      expect.stringContaining('Satellite Streets'),
-    ]);
+    expect(screen.queryByRole('group', { name: 'Filter by mood' })).not.toBeInTheDocument();
   });
 
   it('picks a style and closes', async () => {
