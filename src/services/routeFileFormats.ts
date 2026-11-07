@@ -41,6 +41,9 @@ export const ROUTE_FILE_ACCEPT = [
   'application/zip', 'application/gzip', 'application/octet-stream',
 ].join(',');
 
+/** The two most common formats, named on the import button before "and more". */
+export const ROUTE_IMPORT_EXAMPLES = ['GPX', 'KML'] as const;
+
 const SNIFF_BYTES = 2048;
 
 /** Decodes route-file text, honouring a UTF-8 or UTF-16 byte-order mark (what `readAsText` did). */

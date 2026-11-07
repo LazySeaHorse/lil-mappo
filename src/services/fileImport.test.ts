@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { importRouteFiles } from './fileImport';
 import type { ImportedRoute } from './fileImport';
-import { MAX_ROUTE_FILE_BYTES, ROUTE_FILE_ACCEPT, decodeRouteText, detectRouteFormat, routeNameOf } from './routeFileFormats';
+import { MAX_ROUTE_FILE_BYTES, ROUTE_FILE_ACCEPT, ROUTE_IMPORT_EXAMPLES, decodeRouteText, detectRouteFormat, routeNameOf } from './routeFileFormats';
 import { extractLineCoords } from '@/engine/geoUtils';
 import { decimals, maxDeviationMeters, syntheticRoad } from '@/test/syntheticGeometry';
 
@@ -164,5 +164,10 @@ describe('ROUTE_FILE_ACCEPT', () => {
     const accept = ROUTE_FILE_ACCEPT.split(',');
     for (const ext of ['.gpx', '.kml', '.kmz', '.tcx', '.fit', '.geojson', '.json', '.zip', '.gz']) expect(accept).toContain(ext);
     expect(accept).toContain('application/octet-stream');
+  });
+
+  it('accepts every format the import button names', () => {
+    const accept = ROUTE_FILE_ACCEPT.split(',');
+    for (const name of ROUTE_IMPORT_EXAMPLES) expect(accept).toContain(`.${name.toLowerCase()}`);
   });
 });

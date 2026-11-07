@@ -40,12 +40,16 @@ import {
 import { useSpokePaths } from '@/hooks/useSpokePaths';
 import { createHubRoutes } from '@/services/hubRoutes';
 import { reportRouteAdded } from '@/lib/analytics/reporters';
+import { ROUTE_IMPORT_EXAMPLES } from '@/services/routeFileFormats';
 import { WalkPointList } from '../Inspector/WalkPointList';
 import { SwitchRow } from '../Inspector/InspectorShared';
 
 // ---------------------------------------------------------------------------
 // Types / constants
 // ---------------------------------------------------------------------------
+
+/** "GPX, KML and more": the import button names two formats, not the whole list. */
+const IMPORT_FORMATS = `${ROUTE_IMPORT_EXAMPLES.join(', ')} and more`;
 
 const ROUTE_MODE_OPTIONS: SegmentedControlOption<RouteMode>[] = [
   { value: 'car', label: 'Car', icon: <Car size={12} /> },
@@ -415,7 +419,7 @@ export const RouteAddDropdown = ({
         className="w-full"
       >
         {isGuest ? <Lock size={13} /> : <Upload size={13} />}
-        {isGuest ? 'Sign in to import a route file' : 'Import route file'}
+        {isGuest ? `Sign in to import ${IMPORT_FORMATS}` : `Import route from ${IMPORT_FORMATS}`}
       </Button>
     </div>
   );

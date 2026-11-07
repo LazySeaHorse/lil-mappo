@@ -325,15 +325,15 @@ describe('RouteAddDropdown file import button', () => {
   it('tells guests before they click that import needs sign-in', () => {
     useAuthStore.setState({ user: null });
     const onImportClick = renderDropdown();
-    expect(screen.queryByRole('button', { name: 'Import route file' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in to import a route file' }));
+    expect(screen.queryByRole('button', { name: 'Import route from GPX, KML and more' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in to import GPX, KML and more' }));
     expect(onImportClick).toHaveBeenCalledTimes(1);
   });
 
   it('shows the plain label to signed-in users', () => {
     useAuthStore.setState({ user: { id: 'u1' } as never });
     renderDropdown();
-    expect(screen.getByRole('button', { name: 'Import route file' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import route from GPX, KML and more' })).toBeInTheDocument();
     useAuthStore.setState({ user: null });
   });
 });
