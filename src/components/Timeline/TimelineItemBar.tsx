@@ -92,7 +92,11 @@ const TimelineItemBar = React.memo(({
         id,
         startTime: clip.startTime,
         endTime: clip.endTime,
-        blockedRanges: isAutoCamRoute(clip) ? getOtherAutoCamRanges(Object.values(state.items), movedIds) : [],
+        // A move keeps the selected clips' places relative to each other, so only the clips left
+        // behind block it. A trim moves one edge of each clip, so the others' edges still block it.
+        blockedRanges: isAutoCamRoute(clip)
+          ? getOtherAutoCamRanges(Object.values(state.items), type === 'move' ? movedIds : new Set([id]))
+          : [],
       }];
     });
     const initialStart = item.startTime;

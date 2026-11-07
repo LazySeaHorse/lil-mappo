@@ -229,6 +229,20 @@ describe('TimelinePanel', () => {
       expect(items.long.kind === 'route' && items.long.startTime).toBeCloseTo(1.8);
     });
 
+    it('stops a group trim at an auto-camera route in the selection', () => {
+      renderTimeline(route('first', 1, 3, true), route('second', 4, 6, true));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      drag('timeline-item-first-end-handle', 120);
+
+      // The first route may only reach the start of the second, and the second follows by as much.
+      const { items } = useProjectStore.getState();
+      expect(items.first).toMatchObject({ startTime: 1, endTime: 4 });
+      expect(items.second).toMatchObject({ startTime: 4, endTime: 7 });
+    });
+
     it('trims a group in one store write per pointer move', () => {
       renderTimeline(route('first', 1, 3), route('second', 4, 6));
       act(() => {
