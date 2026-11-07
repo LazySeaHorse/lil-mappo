@@ -18,7 +18,7 @@ import {
   getUpcomingFeature,
   type UpcomingFeatureId,
 } from '@/config/upcomingFeatures';
-import { GallerySkeleton, MultiEditSkeleton, OverlaysSkeleton, RenderSkeleton } from './FeatureSkeletons';
+import { EarthSkeleton, GallerySkeleton, MultiEditSkeleton, OverlaysSkeleton, RenderSkeleton } from './FeatureSkeletons';
 
 interface FeatureVoteDialogProps {
   featureId: UpcomingFeatureId;
@@ -35,6 +35,29 @@ interface Preview {
 }
 
 const PREVIEWS: Record<UpcomingFeatureId, Preview> = {
+  'google-earth': {
+    intro:
+      'Google Earth would be a map style that draws its real-world 3D: photographed buildings, trees and terrain, so a city looks the way it does in life.',
+    sections: [
+      {
+        heading: 'Benefits',
+        items: [
+          'Real buildings and landmarks instead of simple blocks.',
+          'Great for travel, property and city videos.',
+        ],
+      },
+      {
+        heading: 'Constraints',
+        items: [
+          "Google's data comes with its own terms and costs, so it may be limited to paid plans.",
+          'Detail and coverage vary by place.',
+          "Google's credit would show on the map.",
+        ],
+      },
+    ],
+    footnote: 'A preview of the difference is below, flat blocks on the left and real buildings on the right.',
+    skeleton: <EarthSkeleton />,
+  },
   overlays: {
     intro:
       'Overlays are your own graphics on top of the map in the video: a logo, a title, stickers, photos. Place them, choose when they show on the timeline, and they come out in your export.',

@@ -37,6 +37,11 @@ export const UPCOMING_FEATURES = [
     title: 'Overlays',
     description: 'Put your own logos, text, stickers and images on top of the video.',
   },
+  {
+    id: 'google-earth',
+    title: 'Google Earth',
+    description: 'Real 3D buildings and terrain from Google Earth as a map style.',
+  },
 ] as const satisfies readonly UpcomingFeature[];
 
 export type UpcomingFeatureId = (typeof UPCOMING_FEATURES)[number]['id'];

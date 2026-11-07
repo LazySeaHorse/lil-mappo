@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useFeatureVoted } from '@/hooks/useFeatureVotes';
 import { getUpcomingFeature, type UpcomingFeatureId } from '@/config/upcomingFeatures';
 import { FeatureVoteDialog } from './FeatureVoteDialog';
+import { openFeatureVote } from './featureVoteHostState';
 
 export type UpcomingFeatureVariant = 'control' | 'inline' | 'toolbar';
 
@@ -167,4 +168,53 @@ function SignedInTrigger(props: UpcomingFeatureProps) {
 export function UpcomingFeature(props: UpcomingFeatureProps) {
   const signedIn = useAuthStore((s) => !!s.user);
   return signedIn ? <SignedInTrigger {...props} /> : <Trigger {...props} voted={false} />;
+}
+
+interface UpcomingFeatureRowProps {
+  featureId: UpcomingFeatureId;
+  icon: React.ReactNode;
+  /** A line under the feature's name. */
+  hint: string;
+  /** Called as the dialog opens, e.g. to close the list the row sits in. */
+  onOpen?: () => void;
+}
+
+function Row({ featureId, icon, hint, onOpen, voted }: UpcomingFeatureRowProps & { voted: boolean }) {
+  const feature = getUpcomingFeature(featureId);
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-label={`${feature.title}, not built yet${voted ? ', you asked for it' : ''}`}
+      data-ph-unmask
+      onClick={() => {
+        onOpen?.();
+        openFeatureVote(featureId);
+      }}
+      className={cn(
+        'flex w-full items-center gap-2.5 rounded-lg border border-dashed border-muted-foreground/40 p-1.5 text-left transition-colors',
+        'hover:border-muted-foreground hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
+      )}
+    >
+      <span className="grid size-10 shrink-0 place-items-center rounded-md bg-secondary/60 text-muted-foreground">{icon}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-xs font-medium">{feature.title}</span>
+        <span className="truncate text-2xs text-muted-foreground">{hint}</span>
+      </span>
+      <WishHeart voted={voted} size={16} animate={false} />
+    </button>
+  );
+}
+
+function SignedInRow(props: UpcomingFeatureRowProps) {
+  return <Row {...props} voted={useFeatureVoted(props.featureId)} />;
+}
+
+/**
+ * A list row standing in for an unbuilt choice (a map style, say). The dialog is shown by
+ * `FeatureVoteHost` rather than by the row, so it stays open when the list closes on the click.
+ */
+export function UpcomingFeatureRow(props: UpcomingFeatureRowProps) {
+  const signedIn = useAuthStore((s) => !!s.user);
+  return signedIn ? <SignedInRow {...props} /> : <Row {...props} voted={false} />;
 }

@@ -40,6 +40,7 @@ import { SystemOverlays, resolveSystemOverlays } from "@/overlays";
 import { AiRuntime, AiOverlays } from "@/components/AI/AiFeature";
 import { AiStatusPill } from "@/components/AI/AiStatusPill";
 import { MapStatusPills } from "@/components/MapStatusPills/MapStatusPills";
+import { FeatureVoteHost } from "@/components/FeatureVotes/FeatureVoteHost";
 import { useWorkingProjectDraft } from "@/hooks/useWorkingProjectDraft";
 import { useRouteDeepLink } from "@/hooks/useRouteDeepLink";
 import { useImportedModels } from "@/models/useImportedModels";
@@ -235,6 +236,7 @@ export default function MapStudioEditor({ routeDeepLink = null, onRouteDeepLinkS
           <InspectorPanel />
           <TimelinePanel />
           <AiOverlays />
+          <FeatureVoteHost />
         </div>
 
         {hideUI && (

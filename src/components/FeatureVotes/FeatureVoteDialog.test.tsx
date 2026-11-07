@@ -129,6 +129,13 @@ describe('FeatureVoteDialog', () => {
     expect(screen.getByTestId('feature-skeleton')).toBeTruthy();
   });
 
+  it('previews Google Earth with its benefits and constraints', () => {
+    render(<FeatureVoteDialog featureId="google-earth" open onOpenChange={() => {}} />);
+    expect(screen.getByRole('dialog', { name: 'Google Earth' })).toBeTruthy();
+    expect(screen.getByText('Constraints')).toBeTruthy();
+    expect(screen.getByTestId('feature-skeleton')).toBeTruthy();
+  });
+
   it('describes the feature as not built yet', () => {
     render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
     expect(screen.getByText('Not built yet')).toBeTruthy();

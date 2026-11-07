@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Eye, Image as ImageIcon, Smile, Star, Type } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronsLeftRight, Eye, Image as ImageIcon, Smile, Star, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -233,6 +233,43 @@ export function OverlaysSkeleton() {
           <ClipBar left={10} width={42} className="bg-item-callout/60" />
           <ClipBar left={58} width={30} className="bg-item-boundary/60" />
         </Lane>
+      </div>
+    </Frame>
+  );
+}
+
+/** Building heights as a share of the scene, left to right. */
+const SKYLINE = [38, 62, 46, 80, 54, 70, 42];
+
+/** The same street twice: flat blocks on the left, the real buildings with roofs and windows on the right. */
+export function EarthSkeleton() {
+  return (
+    <Frame>
+      <div className="relative h-28 overflow-hidden rounded-lg border border-border/40 bg-gradient-to-b from-sky-500/20 to-sky-500/5">
+        <div className="absolute inset-x-0 bottom-0 h-3 bg-emerald-500/20" />
+        <div className="absolute inset-0 flex items-end justify-around px-3 pb-3">
+          {SKYLINE.map((height, i) => {
+            const real = i >= 4;
+            return (
+              <div
+                key={i}
+                className={cn('relative w-[11%] rounded-t-[3px]', real ? 'bg-stone-400/60' : 'bg-muted-foreground/20')}
+                style={{
+                  height: `${real ? height : 28}%`,
+                  ...(real
+                    ? { backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 5px, rgba(255,255,255,0.35) 5px 7px), repeating-linear-gradient(90deg, transparent 0 4px, rgba(0,0,0,0.12) 4px 5px)' }
+                    : {}),
+                }}
+              >
+                {real && i % 2 === 0 && <span className="absolute -top-1.5 left-1/2 h-1.5 w-[70%] -translate-x-1/2 rounded-t-full bg-stone-500/60" />}
+              </div>
+            );
+          })}
+        </div>
+        <div className="absolute inset-y-0 left-[52%] w-px bg-foreground/50" />
+        <span className="absolute left-[52%] top-1/2 grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-foreground/40 bg-background text-muted-foreground">
+          <ChevronsLeftRight size={11} />
+        </span>
       </div>
     </Frame>
   );

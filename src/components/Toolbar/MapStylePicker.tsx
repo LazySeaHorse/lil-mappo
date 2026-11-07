@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ChevronDown, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Globe, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAP_STYLES, STYLE_MOODS, getMapStyleDef, type MapStyleDef, type StyleMood } from '@/config/mapbox';
@@ -8,6 +8,7 @@ import { useSavedMapStyles, type SavedMapStyle } from '@/customMapStyles/savedSt
 import { useCustomStylesAllowed } from '@/customMapStyles/useCustomStylesAllowed';
 import { MAP_STYLE_TERMS } from '@/lib/terms';
 import { useProjectStore } from '@/store/useProjectStore';
+import { UpcomingFeatureRow } from '@/components/FeatureVotes/UpcomingFeature';
 
 const THUMB_PX = 40;
 
@@ -225,6 +226,9 @@ function MapStylePanel({ onPicked, className }: {
             </button>
           );
         })}
+      </div>
+      <div className="mt-2 border-t border-border/50 pt-2">
+        <UpcomingFeatureRow featureId="google-earth" icon={<Globe size={18} />} hint="Real 3D buildings and terrain" onOpen={onPicked} />
       </div>
     </div>
   );

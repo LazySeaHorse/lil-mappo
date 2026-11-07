@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { toast } from 'sonner';
 import { MapStylePicker, THUMBNAIL_FILES } from './MapStylePicker';
+import { openFeatureVote } from '@/components/FeatureVotes/featureVoteHostState';
 import { MAP_STYLES } from '@/config/mapbox';
 import { SAVED_MAP_STYLES_STORAGE_KEY, useSavedMapStyles } from '@/customMapStyles/savedStyles';
 import { useCustomStylesAllowed } from '@/customMapStyles/useCustomStylesAllowed';
@@ -10,6 +11,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 
 vi.mock('@/customMapStyles/useCustomStylesAllowed', () => ({ useCustomStylesAllowed: vi.fn(() => true) }));
 vi.mock('sonner', () => ({ toast: vi.fn() }));
+vi.mock('@/components/FeatureVotes/featureVoteHostState', () => ({ openFeatureVote: vi.fn() }));
 
 const ink: CustomMapStyle = { name: 'Ink', colors: { land: '#101820' }, theme: 'default' };
 const paper: CustomMapStyle = { name: 'Paper', colors: { land: '#f2e8d5' }, theme: 'faded' };
@@ -23,6 +25,18 @@ beforeEach(() => {
 });
 
 describe('MapStylePicker', () => {
+  it('ends the list with Google Earth to ask for, which closes the list and opens its vote dialog', () => {
+    render(<MapStylePicker />);
+    fireEvent.click(screen.getByRole('button', { name: 'Map style: Streets' }));
+    // It is not a style, so it is not one of the radios.
+    expect(screen.getAllByRole('radio')).toHaveLength(Object.keys(MAP_STYLES).length);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Google Earth, not built yet' }));
+    expect(openFeatureVote).toHaveBeenCalledWith('google-earth');
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(useProjectStore.getState().mapStyle).toBe('streets');
+  });
+
   it('shows the current style and lists every style until a mood is picked', async () => {
     render(<MapStylePicker />);
     expect(screen.getByRole('button', { name: 'Map style: Streets' })).toBeInTheDocument();
