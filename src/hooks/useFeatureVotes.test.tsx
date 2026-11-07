@@ -3,6 +3,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { UPCOMING_FEATURE_IDS } from '@/config/upcomingFeatures';
+
 const rpcMock = vi.hoisted(() => vi.fn());
 const track = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
@@ -43,7 +45,7 @@ describe('feature vote hooks', () => {
     await waitFor(() => expect(result.current.data).toEqual(rows));
     expect(rpcMock).toHaveBeenCalledTimes(1);
     expect(rpcMock).toHaveBeenCalledWith('get_feature_vote_summaries', {
-      p_feature_ids: ['cloud-render', 'example-projects'],
+      p_feature_ids: [...UPCOMING_FEATURE_IDS],
     });
   });
 

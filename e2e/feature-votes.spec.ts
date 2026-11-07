@@ -60,7 +60,7 @@ test("signed in: voting toggles and calls set_feature_vote", async ({ page }) =>
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(
-        ["cloud-render", "example-projects"].map((id) => ({
+        ["cloud-render", "example-projects", "multi-edit-groups", "overlays", "google-earth"].map((id) => ({
           feature_id: id,
           tier: votes.get(id) ? "few" : "none",
           most_requested: false,
