@@ -106,6 +106,31 @@ export function constrainGroupMove(
     .sort((a, b) => Math.abs(a - target) - Math.abs(b - target))[0] ?? null;
 }
 
+/**
+ * The offset to move the same edge of every clip by: `proposedDelta`, held back to what the most
+ * limited clip allows (not shorter than `minimumDuration`, not outside the video, not into its
+ * blocked ranges), or null when a clip cannot be trimmed at all. Every clip's own limit is a range
+ * around no change, so the shortest allowed move is the one that suits them all.
+ */
+export function constrainGroupTrim(
+  edge: 'start' | 'end',
+  proposedDelta: number,
+  clips: readonly MovingClip[],
+  minimumDuration: number,
+  timelineDuration: number,
+): number | null {
+  const allowed: number[] = [];
+  for (const clip of clips) {
+    const trimmed = edge === 'start'
+      ? constrainStartTrim(clip.startTime + proposedDelta, clip.endTime, clip.blockedRanges, minimumDuration)
+      : constrainEndTrim(clip.startTime, clip.endTime + proposedDelta, clip.blockedRanges, minimumDuration, timelineDuration);
+    if (trimmed === null) return null;
+    allowed.push(trimmed - (edge === 'start' ? clip.startTime : clip.endTime));
+  }
+  if (allowed.length === 0) return null;
+  return proposedDelta >= 0 ? Math.min(...allowed) : Math.max(...allowed);
+}
+
 export function constrainMove(
   proposedStart: number,
   itemDuration: number,

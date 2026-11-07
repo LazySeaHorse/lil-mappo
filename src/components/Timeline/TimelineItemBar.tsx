@@ -6,9 +6,8 @@ import { useModelStatus } from '@/models/modelRegistry';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { TIMELINE_LANE_HEIGHT } from '@/constants/layout';
 import {
-  constrainEndTrim,
   constrainGroupMove,
-  constrainStartTrim,
+  constrainGroupTrim,
   getOtherAutoCamRanges,
   type MovingClip,
 } from './timelineConstraints';
@@ -48,7 +47,6 @@ const TimelineItemBar = React.memo(({
   onToggleSelect,
   drag,
 }: TimelineItemBarProps) => {
-  const updateItem = useProjectStore((state) => state.updateItem);
   const updateItems = useProjectStore((state) => state.updateItems);
   const duration = useProjectStore((state) => state.duration);
   const colorClass = COLOR_CLASS[item.kind];
@@ -63,9 +61,7 @@ const TimelineItemBar = React.memo(({
     itemDuration: number;
     laneOffset: number;
     snapTimes: number[];
-    isAutoCamConstrained: boolean;
-    blockedRanges: ReturnType<typeof getOtherAutoCamRanges>;
-    /** The clips a move carries: this one, or every selected clip when it is one of several. */
+    /** The clips a drag carries: this one, or every selected clip when it is one of several. */
     moving: (MovingClip & { id: string })[];
   } | null>(null);
 
@@ -82,13 +78,13 @@ const TimelineItemBar = React.memo(({
     }
 
     const state = useProjectStore.getState();
-    // Moving one of several selected clips moves them all; an edge handle trims only the clip it is on.
-    const movesSelection = type === 'move' && state.selectedItemIds.length > 1 && state.selectedItemIds.includes(item.id);
-    if (!movesSelection) onSelect(item.id);
+    // Pressing one of several selected clips moves or trims them all, and keeps the selection.
+    const inSelection = state.selectedItemIds.length > 1 && state.selectedItemIds.includes(item.id);
+    if (!inSelection) onSelect(item.id);
 
     event.currentTarget.setPointerCapture?.(event.pointerId);
 
-    const movedIds = new Set(movesSelection ? state.selectedItemIds : [item.id]);
+    const movedIds = new Set(inSelection ? state.selectedItemIds : [item.id]);
     const moving = [...movedIds].flatMap((id) => {
       const clip = state.items[id];
       if (!clip || clip.kind === 'camera') return [];
@@ -99,7 +95,6 @@ const TimelineItemBar = React.memo(({
         blockedRanges: isAutoCamRoute(clip) ? getOtherAutoCamRanges(Object.values(state.items), movedIds) : [],
       }];
     });
-    const own = moving.find((clip) => clip.id === item.id);
     const initialStart = item.startTime;
     const initialEnd = item.endTime;
     const itemDuration = Math.max(0.1, initialEnd - initialStart);
@@ -113,8 +108,6 @@ const TimelineItemBar = React.memo(({
       itemDuration,
       laneOffset: 0,
       snapTimes: snapTimes(state, { itemIds: movedIds }),
-      isAutoCamConstrained: isAutoCamRoute(state.items[item.id]),
-      blockedRanges: own?.blockedRanges ?? [],
       moving,
     };
     drag.begin(item.id);
@@ -127,24 +120,19 @@ const TimelineItemBar = React.memo(({
     const deltaTime = (event.clientX - state.startX) / pixelsPerSecond;
     const tolerance = SNAP_PIXELS / pixelsPerSecond;
 
-    if (state.type === 'start') {
-      const proposed = state.initialStart + deltaTime;
+    if (state.type !== 'move') {
+      // An edge handle moves that edge of every clip being dragged by the same amount.
+      const edge = state.type;
+      const initialEdge = edge === 'start' ? state.initialStart : state.initialEnd;
+      const proposed = initialEdge + deltaTime;
       const snapped = nearestSnap(proposed, state.snapTimes, tolerance);
-      const newStart = Math.max(0, Math.min(state.initialEnd - MIN_TIMELINE_ITEM_DURATION, snapped ?? proposed));
-      const constrainedStart = state.isAutoCamConstrained
-        ? constrainStartTrim(newStart, state.initialEnd, state.blockedRanges, MIN_TIMELINE_ITEM_DURATION)
-        : newStart;
-      drag.showSnap(constrainedStart === snapped ? snapped : null);
-      if (constrainedStart !== null) updateItem(item.id, { startTime: constrainedStart });
-    } else if (state.type === 'end') {
-      const proposed = state.initialEnd + deltaTime;
-      const snapped = nearestSnap(proposed, state.snapTimes, tolerance);
-      const newEnd = Math.max(state.initialStart + MIN_TIMELINE_ITEM_DURATION, Math.min(duration, snapped ?? proposed));
-      const constrainedEnd = state.isAutoCamConstrained
-        ? constrainEndTrim(state.initialStart, newEnd, state.blockedRanges, MIN_TIMELINE_ITEM_DURATION, duration)
-        : newEnd;
-      drag.showSnap(constrainedEnd === snapped ? snapped : null);
-      if (constrainedEnd !== null) updateItem(item.id, { endTime: constrainedEnd });
+      const delta = constrainGroupTrim(edge, (snapped ?? proposed) - initialEdge, state.moving, MIN_TIMELINE_ITEM_DURATION, duration);
+      drag.showSnap(snapped !== null && delta === snapped - initialEdge ? snapped : null);
+      if (delta === null) return;
+      updateItems(Object.fromEntries(state.moving.map((clip) => [
+        clip.id,
+        edge === 'start' ? { startTime: clip.startTime + delta } : { endTime: clip.endTime + delta },
+      ])));
     } else {
       const snap = snapMove(state.initialStart + deltaTime, state.itemDuration, state.snapTimes, tolerance);
       const proposedDelta = snap.startTime - state.initialStart;

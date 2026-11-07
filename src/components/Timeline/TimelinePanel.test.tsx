@@ -200,8 +200,8 @@ describe('TimelinePanel', () => {
       expect(writes).toHaveBeenCalledTimes(1);
     });
 
-    it('trims only the clip whose edge is dragged and selects it alone', () => {
-      renderTimeline(route('first', 1, 3), route('second', 4, 6));
+    it('trims the same edge of every selected clip by the same amount, keeping the selection', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6), route('other', 7, 9));
       act(() => {
         useProjectStore.getState().selectItem('first');
         useProjectStore.getState().toggleItemSelection('second');
@@ -210,8 +210,52 @@ describe('TimelinePanel', () => {
 
       const { items, selectedItemIds } = useProjectStore.getState();
       expect(items.second).toMatchObject({ startTime: 4, endTime: 7 });
+      expect(items.first).toMatchObject({ startTime: 1, endTime: 4 });
+      expect(items.other).toMatchObject({ startTime: 7, endTime: 9 });
+      expect(selectedItemIds).toEqual(['first', 'second']);
+    });
+
+    it('stops a group trim when one clip would get shorter than the minimum', () => {
+      renderTimeline(route('long', 1, 6), route('short', 2, 3));
+      act(() => {
+        useProjectStore.getState().selectItem('long');
+        useProjectStore.getState().toggleItemSelection('short');
+      });
+      drag('timeline-item-long-start-handle', 300);
+
+      const { items } = useProjectStore.getState();
+      expect(items.short.kind === 'route' && items.short.startTime).toBeCloseTo(2.8);
+      // Both starts moved by the same 0.8 s, the most the short clip allows.
+      expect(items.long.kind === 'route' && items.long.startTime).toBeCloseTo(1.8);
+    });
+
+    it('trims a group in one store write per pointer move', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      const writes = vi.fn();
+      const unsubscribe = useProjectStore.subscribe((state, previous) => {
+        if (state.items !== previous.items) writes();
+      });
+      drag('timeline-item-first-end-handle', 60);
+      unsubscribe();
+      expect(writes).toHaveBeenCalledTimes(1);
+    });
+
+    it('trims only a clip that is not part of the selection, and selects it alone', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6), route('apart', 7, 9));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      drag('timeline-item-apart-end-handle', -60);
+
+      const { items, selectedItemIds } = useProjectStore.getState();
+      expect(items.apart).toMatchObject({ startTime: 7, endTime: 8 });
       expect(items.first).toMatchObject({ startTime: 1, endTime: 3 });
-      expect(selectedItemIds).toEqual(['second']);
+      expect(selectedItemIds).toEqual(['apart']);
     });
 
     it('deletes every selected clip with one Delete press, and one undo brings them back', () => {

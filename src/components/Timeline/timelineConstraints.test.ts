@@ -1,6 +1,7 @@
 import {
   constrainEndTrim,
   constrainGroupMove,
+  constrainGroupTrim,
   constrainMove,
   constrainStartTrim,
   type TimeRange,
@@ -67,6 +68,34 @@ describe('timeline auto-camera constraints', () => {
 
     it('agrees with the single-clip move', () => {
       expect(constrainGroupMove(3, [{ startTime: 0, endTime: 2, blockedRanges: blocked }], 12)).toBe(4);
+    });
+  });
+
+  describe('trimming the same edge of several clips', () => {
+    const free = (startTime: number, endTime: number) => ({ startTime, endTime, blockedRanges: [] });
+
+    it('moves every clip by the proposed amount when all of them allow it', () => {
+      expect(constrainGroupTrim('end', 1, [free(0, 3), free(4, 8)], 0.2, 12)).toBe(1);
+      expect(constrainGroupTrim('start', -1, [free(2, 5), free(4, 8)], 0.2, 12)).toBe(-1);
+    });
+
+    it('holds the whole group back at the clip that cannot go further', () => {
+      // The second clip is only 1 s long, so its start can move 0.8 s later at most.
+      expect(constrainGroupTrim('start', 2, [free(0, 5), free(6, 7)], 0.2, 12)).toBeCloseTo(0.8);
+      // The first clip starts at 1 s, so no start can move more than 1 s earlier.
+      expect(constrainGroupTrim('start', -3, [free(1, 5), free(6, 9)], 0.2, 12)).toBe(-1);
+      // The second clip ends at 11 s, so no end can move more than 1 s later.
+      expect(constrainGroupTrim('end', 3, [free(0, 4), free(6, 11)], 0.2, 12)).toBe(1);
+    });
+
+    it('stops a clip at its blocked range', () => {
+      const clips = [free(0, 5), { startTime: 5, endTime: 7, blockedRanges: [{ startTime: 8, endTime: 10 }] }];
+      expect(constrainGroupTrim('end', 2, clips, 0.2, 12)).toBe(1);
+    });
+
+    it('finds nothing without clips, or when a clip is stuck inside a blocked range', () => {
+      expect(constrainGroupTrim('end', 1, [], 0.2, 12)).toBeNull();
+      expect(constrainGroupTrim('start', 1, [{ startTime: 3, endTime: 6, blockedRanges: [{ startTime: 5, endTime: 7 }] }], 0.2, 12)).toBeNull();
     });
   });
 });
