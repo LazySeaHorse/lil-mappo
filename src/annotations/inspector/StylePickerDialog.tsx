@@ -6,7 +6,8 @@
  * chosen. The styles are a plain list of icons and names grouped by category,
  * so it stays light however many styles there are: only two previews ever
  * animate. It opens on the style after the current one, so the comparison is
- * live at once. Use style applies the choice and closes.
+ * live at once. Use style applies the choice and closes; Set as default makes
+ * the choice the style new callouts start with.
  */
 
 import { useMemo, useRef, useState } from 'react';
@@ -21,6 +22,8 @@ import { PinDropHero } from '@/components/ui/pin-drop';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { STYLE_TERMS } from '@/lib/terms';
 import { cn } from '@/lib/utils';
+import { startingCalloutStyleId } from '@/store/itemFactories';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import { AnimatedStylePreview } from './AnimatedStylePreview';
 import { StyleIcon } from './StyleIcon';
 
@@ -85,6 +88,8 @@ function PickerBody({ value, onChange, text, subtitle, onOpenChange }: Omit<Styl
     return flat[(index + 1) % flat.length]?.id ?? value;
   });
   const [replay, setReplay] = useState(0);
+  const defaultStyle = useUiPreferencesStore((s) => startingCalloutStyleId(s.defaultCalloutStyle));
+  const setDefaultStyle = useUiPreferencesStore((s) => s.setDefaultCalloutStyle);
   const rows = useRef<Record<string, HTMLButtonElement | null>>({});
   const next = getStyle(candidate);
 
@@ -165,6 +170,14 @@ function PickerBody({ value, onChange, text, subtitle, onOpenChange }: Omit<Styl
                 <RotateCcw />
               </IconButton>
             )}
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={candidate === defaultStyle}
+              onClick={() => setDefaultStyle(candidate)}
+            >
+              {candidate === defaultStyle ? STYLE_TERMS.isDefault : STYLE_TERMS.setDefault}
+            </Button>
             <Button
               size="sm"
               disabled={candidate === value}

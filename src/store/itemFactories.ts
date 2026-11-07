@@ -219,6 +219,11 @@ export function createBoundaryItem(input: BoundaryInput): BoundaryItem {
 /** Style new callouts use unless one is chosen. */
 export const DEFAULT_CALLOUT_STYLE_ID = 'leader-line';
 
+/** The style new callouts start with: the user's choice if that style still exists, else the built-in one. */
+export function startingCalloutStyleId(preferred: string | null): string {
+  return preferred && getStyle(preferred) ? preferred : DEFAULT_CALLOUT_STYLE_ID;
+}
+
 export interface CalloutInput {
   styleId: string;
   content: AnnotationContent;

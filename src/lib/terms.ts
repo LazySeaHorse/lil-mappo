@@ -211,6 +211,10 @@ export const STYLE_TERMS = {
   use: 'Use style',
   /** The button when the style looked at is the current one. */
   inUse: 'In use',
+  /** Makes the style looked at the one new callouts start with. */
+  setDefault: 'Set as default',
+  /** The button when the style looked at is already that one. */
+  isDefault: 'Default',
   /** Reduced motion: plays the previews once. */
   playAgain: 'Play again',
   /** The text a style picture shows when the callout has no title. */

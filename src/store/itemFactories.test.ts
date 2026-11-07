@@ -12,7 +12,9 @@ import {
   createDefaultVehicle,
   createImportedRouteItem,
   createWalkRouteItem,
+  DEFAULT_CALLOUT_STYLE_ID,
   defaultEndpointRouteName,
+  startingCalloutStyleId,
   switchCalloutStyle,
   wrapGeometry,
 } from './itemFactories';
@@ -136,6 +138,14 @@ describe('itemFactories', () => {
     expect(createCalloutItem({ styleId: 'nope', content: { title: '' }, lngLat: [0, 0], startTime: 0 })).toBeNull();
     expect(createCameraKeyframe({ time: 3, center: [1, 2], zoom: 4 })).toMatchObject({
       time: 3, easing: 'easeInOutCubic', followRoute: null, camera: { pitch: 0, bearing: 0, altitude: null },
+    });
+  });
+
+  describe('startingCalloutStyleId', () => {
+    it('is the style the user chose, or the built-in one when none is chosen or the chosen one is gone', () => {
+      expect(startingCalloutStyleId('pole-label')).toBe('pole-label');
+      expect(startingCalloutStyleId(null)).toBe(DEFAULT_CALLOUT_STYLE_ID);
+      expect(startingCalloutStyleId('removed-style')).toBe(DEFAULT_CALLOUT_STYLE_ID);
     });
   });
 

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@/annotations/styles/index';
 import { getAllStyles, getCategories } from '@/annotations/registry';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
+import { CALLOUT_STYLE_STORAGE_KEY } from '@/store/calloutStylePreference';
 import { StylePicker } from './StylePicker';
 
 const { getStylePreview } = vi.hoisted(() => ({ getStylePreview: vi.fn() }));
@@ -26,6 +28,31 @@ describe('StylePicker', () => {
     getStylePreview.mockReset();
     getStylePreview.mockResolvedValue('data:image/png;base64,AAAA');
     useProjectStore.setState({ mapStyle: 'standard', lightPreset: 'day' });
+    useUiPreferencesStore.setState({ defaultCalloutStyle: null });
+    localStorage.removeItem(CALLOUT_STYLE_STORAGE_KEY);
+  });
+
+  it('sets the style being looked at as the default for new callouts, without applying it', () => {
+    const onChange = vi.fn();
+    render(<StylePicker value="leader-line" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Waypoint' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set as default' }));
+
+    expect(useUiPreferencesStore.getState().defaultCalloutStyle).toBe('waypoint');
+    expect(localStorage.getItem(CALLOUT_STYLE_STORAGE_KEY)).toBe('waypoint');
+    expect(screen.getByRole('button', { name: 'Default' })).toBeDisabled();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('marks the built-in style as the default until another is chosen', () => {
+    render(<StylePicker value="waypoint" onChange={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Leader Line' }));
+    expect(screen.getByRole('button', { name: 'Default' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('option', { name: 'Waypoint Now' }));
+    expect(screen.getByRole('button', { name: 'Set as default' })).toBeEnabled();
   });
 
   it('shows the style name with a Change button, and no dialog', () => {

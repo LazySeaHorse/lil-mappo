@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { readDefaultCalloutStyle, writeDefaultCalloutStyle } from './calloutStylePreference';
 import {
   readInspectorSections,
   writeInspectorSections,
@@ -9,6 +10,9 @@ import {
 interface UiPreferencesState {
   inspectorSections: InspectorSectionChoices;
   setInspectorSectionOpen: (panel: string, section: string, open: boolean) => void;
+  /** The style new callouts start with; null until the user picks one. */
+  defaultCalloutStyle: string | null;
+  setDefaultCalloutStyle: (styleId: string) => void;
 }
 
 export const useUiPreferencesStore = create<UiPreferencesState>((set, get) => ({
@@ -18,5 +22,10 @@ export const useUiPreferencesStore = create<UiPreferencesState>((set, get) => ({
     const next = { ...current, [panel]: { ...current[panel], [section]: open } };
     set({ inspectorSections: next });
     writeInspectorSections(next);
+  },
+  defaultCalloutStyle: readDefaultCalloutStyle(),
+  setDefaultCalloutStyle: (styleId) => {
+    set({ defaultCalloutStyle: styleId });
+    writeDefaultCalloutStyle(styleId);
   },
 }));

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -100,6 +101,14 @@ describe('AnnotationAddDropdown', () => {
     expect(useProjectStore.getState().selectedItemId).toBeNull();
     expect(getHistoryEntries().past).toHaveLength(0);
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  it('starts a new callout in the style the user set as default', () => {
+    useUiPreferencesStore.setState({ defaultCalloutStyle: 'pole-label' });
+    renderDropdown();
+    pickOnMap([2.35, 48.85]);
+    expect(staged()[0].styleId).toBe('pole-label');
+    useUiPreferencesStore.setState({ defaultCalloutStyle: null });
   });
 
   it('brings a callout that is off screen into view, at the same zoom', async () => {

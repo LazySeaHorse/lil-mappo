@@ -16,7 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Flag, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { createCalloutItem, DEFAULT_CALLOUT_STYLE_ID, moveCalloutPatch, switchCalloutStyle } from '@/store/itemFactories';
+import { createCalloutItem, moveCalloutPatch, startingCalloutStyleId, switchCalloutStyle } from '@/store/itemFactories';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import type { CalloutItem } from '@/store/types';
 import { getStyle } from '@/annotations/registry';
 import { StylePicker } from '@/annotations/inspector/StylePicker';
@@ -69,7 +70,7 @@ export const AnnotationAddDropdown = ({
     const item = draft
       ? { ...draft, ...moveCalloutPatch(draft, lngLat, name) }
       : createCalloutItem({
-          styleId: DEFAULT_CALLOUT_STYLE_ID,
+          styleId: startingCalloutStyleId(useUiPreferencesStore.getState().defaultCalloutStyle),
           content: { title: name || CALLOUT_ADD_TERMS.defaultTitle },
           lngLat,
           startTime: useProjectStore.getState().playheadTime,
