@@ -16,7 +16,7 @@ interface UpcomingFeatureProps {
   /**
    * `control`: full-size split segment standing in for the unbuilt control (label half + heart half).
    * `inline`: small "I'd like this" text button for empty states, settings rows and cards.
-   * `toolbar`: an icon-only toolbar button (pass `icon`) with a small heart in its corner.
+   * `toolbar`: an icon-only toolbar button (pass `icon`); the vote itself shows in the dialog.
    */
   variant: UpcomingFeatureVariant;
   /** The toolbar variant's icon. */
@@ -82,12 +82,9 @@ function Trigger({ featureId, variant, icon, className, voted }: TriggerProps) {
           size="sm"
           title={`${feature.title} (not built yet)`}
           aria-label={`${feature.title}, not built yet${voted ? ', you asked for it' : ''}`}
-          className={cn('relative', className)}
+          className={className}
         >
           {icon}
-          <span className="absolute right-0 top-0 grid size-3.5 place-items-center rounded-full bg-background/90">
-            <WishHeart voted={voted} size={9} animate={everOpened} />
-          </span>
         </IconButton>
         {dialog}
       </>
@@ -192,7 +189,8 @@ function Row({ featureId, icon, hint, onOpen, voted }: UpcomingFeatureRowProps &
         openFeatureVote(featureId);
       }}
       className={cn(
-        'flex w-full items-center gap-2.5 rounded-lg border border-dashed border-muted-foreground/40 p-1.5 text-left transition-colors',
+        // 5px padding plus the 1px border puts the thumbnail and the heart where the style rows put theirs.
+        'flex w-full items-center gap-2.5 rounded-lg border border-dashed border-muted-foreground/40 p-[5px] text-left transition-colors',
         'hover:border-muted-foreground hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
       )}
     >
@@ -201,7 +199,8 @@ function Row({ featureId, icon, hint, onOpen, voted }: UpcomingFeatureRowProps &
         <span className="truncate text-xs font-medium">{feature.title}</span>
         <span className="truncate text-2xs text-muted-foreground">{hint}</span>
       </span>
-      <WishHeart voted={voted} size={16} animate={false} />
+      {/* The size and place of the check on the style rows. */}
+      <WishHeart voted={voted} size={13} animate={false} />
     </button>
   );
 }

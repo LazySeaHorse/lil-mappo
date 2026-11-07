@@ -181,7 +181,7 @@ describe('UpcomingFeature trigger', () => {
     expect(trigger.querySelector('.wish-pop')).toBeNull();
   });
 
-  it('toolbar: an icon button named for the feature that opens the dialog, with a heart that fills once voted', () => {
+  it('toolbar: an icon-only button named for the feature, with no heart on it, that opens the dialog', () => {
     useAuthStore.setState({ user: { id: 'u1' } as never });
     votesState.value = { data: [summary({ feature_id: 'overlays' })], isError: false };
     const { rerender } = render(<UpcomingFeature featureId="overlays" variant="toolbar" icon={<svg data-testid="icon" />} />);
@@ -189,14 +189,12 @@ describe('UpcomingFeature trigger', () => {
     expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
     expect(trigger.getAttribute('title')).toBe('Overlays (not built yet)');
     expect(screen.getByTestId('icon')).toBeTruthy();
-    expect(trigger.querySelector('[data-voted="false"]')).toBeTruthy();
+    expect(trigger.querySelector('[data-voted]')).toBeNull();
 
+    // A vote is named for screen readers; the dialog is where it shows.
     votesState.value = { data: [summary({ feature_id: 'overlays', has_voted: true })], isError: false };
     rerender(<UpcomingFeature featureId="overlays" variant="toolbar" icon={<svg />} />);
-    const voted = screen.getByRole('button', { name: 'Overlays, not built yet, you asked for it' });
-    expect(voted.querySelector('[data-voted="true"]')).toBeTruthy();
-
-    fireEvent.click(voted);
+    fireEvent.click(screen.getByRole('button', { name: 'Overlays, not built yet, you asked for it' }));
     expect(screen.getByRole('dialog', { name: 'Overlays' })).toBeTruthy();
   });
 
