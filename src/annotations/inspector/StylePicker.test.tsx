@@ -12,8 +12,8 @@ vi.mock('./stylePreview', async (importOriginal) => ({
 }));
 // The animated previews draw on a canvas; here they only say what they show.
 vi.mock('./AnimatedStylePreview', () => ({
-  AnimatedStylePreview: ({ styleId, text }: { styleId: string; text: string }) => (
-    <div data-testid="animated-preview">{`${styleId}|${text}`}</div>
+  AnimatedStylePreview: ({ styleId, text, subtitle }: { styleId: string; text: string; subtitle?: string }) => (
+    <div data-testid="animated-preview">{subtitle ? `${styleId}|${text}|${subtitle}` : `${styleId}|${text}`}</div>
   ),
 }));
 
@@ -58,6 +58,13 @@ describe('StylePicker', () => {
     const next = listed()[listed().findIndex((s) => s.id === 'leader-line') + 1];
     expect(previews()).toEqual(['leader-line|Eiffel Tower', `${next.id}|Eiffel Tower`]);
     expect(screen.getByRole('option', { selected: true })).toHaveAccessibleName(next.name);
+  });
+
+  it('gives both previews the callout subtitle', () => {
+    render(<StylePicker value="leader-line" onChange={() => {}} title="Eiffel Tower" subtitle=" Paris, France " />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Pole Label' }));
+    expect(previews()).toEqual(['leader-line|Eiffel Tower|Paris, France', 'pole-label|Eiffel Tower|Paris, France']);
   });
 
   it('shows a chosen style beside the current one without applying it', () => {

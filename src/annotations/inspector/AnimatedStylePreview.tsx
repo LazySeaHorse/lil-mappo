@@ -44,26 +44,28 @@ function loadAssets(item: CalloutItem, key: string): Promise<void> {
 interface AnimatedStylePreviewProps {
   styleId: string;
   text: string;
+  /** The callout's subtitle, for the styles that show one. */
+  subtitle?: string;
   /** Changing it starts the loop again from the entrance, so two previews stay in step. */
   restartKey?: unknown;
   /** Reduced motion only: bumping it plays one cycle. */
   replay?: number;
 }
 
-export function AnimatedStylePreview({ styleId, text, restartKey, replay = 0 }: AnimatedStylePreviewProps) {
+export function AnimatedStylePreview({ styleId, text, subtitle, restartKey, replay = 0 }: AnimatedStylePreviewProps) {
   const reduced = usePrefersReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0, dpr: 1 });
   const [loadedKey, setLoadedKey] = useState('');
-  const key = `${styleId}|${text}`;
+  const key = `${styleId}|${text}|${subtitle ?? ''}`;
 
   const built = useMemo(() => {
-    const base = createCalloutItem({ styleId, content: { title: text }, lngLat: SAMPLE_POINT, startTime: 0 });
+    const base = createCalloutItem({ styleId, content: { title: text, ...(subtitle ? { subtitle } : {}) }, lngLat: SAMPLE_POINT, startTime: 0 });
     if (!base) return null;
     const end = base.transition.enterDuration + HOLD + base.transition.exitDuration;
     const timing: LoopTiming = { end, cycle: end + GAP };
     return { item: { ...base, endTime: end } as CalloutItem, timing };
-  }, [styleId, text]);
+  }, [styleId, text, subtitle]);
 
   // The canvas follows its box.
   useEffect(() => {

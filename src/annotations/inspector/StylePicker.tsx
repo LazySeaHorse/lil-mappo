@@ -20,9 +20,11 @@ interface StylePickerProps {
   onChange: (styleId: string) => void;
   /** The callout's own title; the pictures show it. */
   title?: string;
+  /** The callout's own subtitle; the dialog's previews show it. */
+  subtitle?: string;
 }
 
-export function StylePicker({ value, onChange, title }: StylePickerProps) {
+export function StylePicker({ value, onChange, title, subtitle }: StylePickerProps) {
   const [open, setOpen] = useState(false);
   const sample = title?.trim().slice(0, SAMPLE_TEXT_LIMIT) || STYLE_TERMS.sampleText;
   const current = getStyle(value);
@@ -46,7 +48,7 @@ export function StylePicker({ value, onChange, title }: StylePickerProps) {
         </div>
         {current && <div className="truncate text-2xs text-muted-foreground">{current.description}</div>}
       </div>
-      <StylePickerDialog open={open} onOpenChange={setOpen} value={value} onChange={onChange} text={sample} />
+      <StylePickerDialog open={open} onOpenChange={setOpen} value={value} onChange={onChange} text={sample} subtitle={subtitle?.trim() || undefined} />
     </div>
   );
 }

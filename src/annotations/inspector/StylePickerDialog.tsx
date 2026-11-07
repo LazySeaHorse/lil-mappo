@@ -40,6 +40,8 @@ interface StylePickerDialogProps {
   onChange: (styleId: string) => void;
   /** Text the previews show: the callout's title. */
   text: string;
+  /** The callout's subtitle: both previews show it, in the styles that have a place for one. */
+  subtitle?: string;
 }
 
 export function StylePickerDialog({ open, onOpenChange, ...rest }: StylePickerDialogProps) {
@@ -69,7 +71,7 @@ function Pane({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function PickerBody({ value, onChange, text, onOpenChange }: Omit<StylePickerDialogProps, 'open'>) {
+function PickerBody({ value, onChange, text, subtitle, onOpenChange }: Omit<StylePickerDialogProps, 'open'>) {
   const reduced = usePrefersReducedMotion();
   const groups = useMemo(() => {
     const all = getAllStyles();
@@ -146,13 +148,13 @@ function PickerBody({ value, onChange, text, onOpenChange }: Omit<StylePickerDia
         <div className="flex shrink-0 flex-col gap-3 p-4 sm:min-w-0 sm:flex-1">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:min-h-[200px] sm:flex-1">
             <Pane label={STYLE_TERMS.now}>
-              <AnimatedStylePreview styleId={value} text={text} restartKey={candidate} replay={replay} />
+              <AnimatedStylePreview styleId={value} text={text} subtitle={subtitle} restartKey={candidate} replay={replay} />
             </Pane>
             <span className="grid size-6 place-items-center rounded-full bg-secondary text-muted-foreground">
               <ArrowRight className="size-3.5" />
             </span>
             <Pane label={STYLE_TERMS.next}>
-              <AnimatedStylePreview styleId={candidate} text={text} restartKey={candidate} replay={replay} />
+              <AnimatedStylePreview styleId={candidate} text={text} subtitle={subtitle} restartKey={candidate} replay={replay} />
             </Pane>
           </div>
 

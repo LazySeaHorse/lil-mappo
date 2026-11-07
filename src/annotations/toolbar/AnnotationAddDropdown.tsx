@@ -156,6 +156,7 @@ export const AnnotationAddDropdown = ({
           <StylePicker
             value={draft.styleId}
             title={draft.content.title}
+            subtitle={draft.content.subtitle}
             onChange={(styleId) => {
               const patch = switchCalloutStyle(draft, styleId);
               if (patch) edit(patch, { play: true });
