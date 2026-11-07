@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Clapperboard, Video, EyeOff, Frame, Mountain, Building2,
-  Layers2, Settings2, Loader2
+  Layers2, Settings2, Loader2, Sticker
 } from 'lucide-react';
 import { Toggle } from '@/components/ui/toggle';
 import {
@@ -15,6 +15,7 @@ import { BoundaryAddDropdown } from './BoundaryAddDropdown';
 import { ToolbarButton, ToolbarToggle, Divider } from './ToolbarPrimitives';
 import { IconButton } from '@/components/ui/icon-button';
 import { AiToolbarButton } from '@/components/AI/AiToolbarButton';
+import { UpcomingFeature } from '@/components/FeatureVotes/UpcomingFeature';
 import { HistoryButtons } from './HistoryButtons';
 import { ModelImportButton } from './ModelImportButton';
 import { useMapStyleCapabilities } from '@/hooks/useMapStyleCapabilities';
@@ -156,6 +157,7 @@ export function DesktopToolbarLayout({
       <Divider />
 
       <AiToolbarButton />
+      <UpcomingFeature featureId="overlays" variant="toolbar" icon={<Sticker size={16} />} />
       <ToolbarButton icon={<Clapperboard size={16} />} label="Export" hideLabel onClick={onExport} walkthroughTarget="render" />
       <Divider className="hidden sm:block" />
       <div className="hidden sm:block">

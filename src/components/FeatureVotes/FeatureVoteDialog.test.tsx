@@ -122,6 +122,13 @@ describe('FeatureVoteDialog', () => {
     expect(screen.getByTestId('feature-skeleton')).toBeTruthy();
   });
 
+  it('previews overlays with the frame, its layers and their bars', () => {
+    render(<FeatureVoteDialog featureId="overlays" open onOpenChange={() => {}} />);
+    expect(screen.getByRole('dialog', { name: 'Overlays' })).toBeTruthy();
+    expect(screen.getByText(/A logo or watermark/)).toBeTruthy();
+    expect(screen.getByTestId('feature-skeleton')).toBeTruthy();
+  });
+
   it('describes the feature as not built yet', () => {
     render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
     expect(screen.getByText('Not built yet')).toBeTruthy();
@@ -165,6 +172,25 @@ describe('UpcomingFeature trigger', () => {
     expect(trigger.querySelector('[data-voted="true"]')).toBeTruthy();
     // A saved vote that loads in must not play the vote animation.
     expect(trigger.querySelector('.wish-pop')).toBeNull();
+  });
+
+  it('toolbar: an icon button named for the feature that opens the dialog, with a heart that fills once voted', () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    votesState.value = { data: [summary({ feature_id: 'overlays' })], isError: false };
+    const { rerender } = render(<UpcomingFeature featureId="overlays" variant="toolbar" icon={<svg data-testid="icon" />} />);
+    const trigger = screen.getByRole('button', { name: 'Overlays, not built yet' });
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(trigger.getAttribute('title')).toBe('Overlays (not built yet)');
+    expect(screen.getByTestId('icon')).toBeTruthy();
+    expect(trigger.querySelector('[data-voted="false"]')).toBeTruthy();
+
+    votesState.value = { data: [summary({ feature_id: 'overlays', has_voted: true })], isError: false };
+    rerender(<UpcomingFeature featureId="overlays" variant="toolbar" icon={<svg />} />);
+    const voted = screen.getByRole('button', { name: 'Overlays, not built yet, you asked for it' });
+    expect(voted.querySelector('[data-voted="true"]')).toBeTruthy();
+
+    fireEvent.click(voted);
+    expect(screen.getByRole('dialog', { name: 'Overlays' })).toBeTruthy();
   });
 
   it('inline: swaps copy and name when voted', () => {

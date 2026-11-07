@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Eye, Image as ImageIcon, Smile, Star, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -166,6 +166,73 @@ export function MultiEditSkeleton() {
             <span className="block size-3 translate-x-4 rounded-full bg-background" />
           </div>
         </div>
+      </div>
+    </Frame>
+  );
+}
+
+/** One layer in the overlays list: a visibility eye, its name line and the kind of overlay. */
+function LayerRow({ kind: Kind, selected, delay }: { kind: typeof Type; selected?: boolean; delay: number }) {
+  return (
+    <div
+      className={cn(
+        'skeleton-card-in flex items-center gap-1.5 rounded-md border bg-background/70 px-1.5 py-1',
+        selected ? 'border-primary/60' : 'border-border/40',
+      )}
+      style={{ ['--skeleton-delay' as string]: `${delay}s` }}
+    >
+      <Eye size={10} className="shrink-0 text-muted-foreground/70" />
+      <Block className="h-2 flex-1" delay={delay} />
+      <Kind size={10} className="shrink-0 text-muted-foreground/70" />
+    </div>
+  );
+}
+
+function Handle({ className }: { className: string }) {
+  return <span className={cn('absolute size-1.5 border border-primary bg-background', className)} />;
+}
+
+/** The video frame with a logo, a title, a sticker and a photo placed on the map, beside the list of those layers and their bars on the timeline. */
+export function OverlaysSkeleton() {
+  return (
+    <Frame className="space-y-3">
+      <div className="flex gap-3">
+        <div className="relative aspect-video min-w-0 flex-1 overflow-hidden rounded-lg border border-border/40 bg-gradient-to-br from-emerald-500/15 via-sky-500/10 to-sky-500/25">
+          {/* A faint road so the overlays read as sitting on a map. */}
+          <div className="absolute -left-2 top-[58%] h-1 w-[120%] -rotate-12 rounded-full bg-background/60" />
+          <div className="absolute left-2 top-2 grid size-6 place-items-center rounded-md bg-primary/75 text-primary-foreground">
+            <Star size={12} />
+          </div>
+          <div className="absolute bottom-2.5 left-2.5 space-y-1">
+            <Block className="h-3 w-24 !bg-foreground/25" />
+            <Block className="h-2 w-16" delay={0.2} />
+          </div>
+          <div className="absolute right-[26%] top-3 grid size-8 rotate-12 place-items-center rounded-full bg-amber-400/80 text-amber-950">
+            <Smile size={16} />
+          </div>
+          <div className="absolute bottom-2 right-2 grid h-10 w-16 place-items-center rounded border-2 border-primary bg-item-boundary/40 text-foreground/60">
+            <ImageIcon size={14} />
+            <Handle className="-left-1 -top-1" />
+            <Handle className="-right-1 -top-1" />
+            <Handle className="-bottom-1 -left-1" />
+            <Handle className="-bottom-1 -right-1" />
+          </div>
+        </div>
+        <div className="w-24 shrink-0 space-y-1.5 sm:w-28">
+          <LayerRow kind={Star} delay={0} />
+          <LayerRow kind={Type} delay={0.12} />
+          <LayerRow kind={Smile} delay={0.24} />
+          <LayerRow kind={ImageIcon} delay={0.36} selected />
+        </div>
+      </div>
+      <div className="space-y-1 rounded-lg border border-border/40 bg-background/70 p-2">
+        <Lane>
+          <ClipBar left={0} width={100} className="bg-primary/35" />
+        </Lane>
+        <Lane>
+          <ClipBar left={10} width={42} className="bg-item-callout/60" />
+          <ClipBar left={58} width={30} className="bg-item-boundary/60" />
+        </Lane>
       </div>
     </Frame>
   );

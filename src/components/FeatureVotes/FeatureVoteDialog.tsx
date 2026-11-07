@@ -18,7 +18,7 @@ import {
   getUpcomingFeature,
   type UpcomingFeatureId,
 } from '@/config/upcomingFeatures';
-import { GallerySkeleton, MultiEditSkeleton, RenderSkeleton } from './FeatureSkeletons';
+import { GallerySkeleton, MultiEditSkeleton, OverlaysSkeleton, RenderSkeleton } from './FeatureSkeletons';
 
 interface FeatureVoteDialogProps {
   featureId: UpcomingFeatureId;
@@ -35,6 +35,25 @@ interface Preview {
 }
 
 const PREVIEWS: Record<UpcomingFeatureId, Preview> = {
+  overlays: {
+    intro:
+      'Overlays are your own graphics on top of the map in the video: a logo, a title, stickers, photos. Place them, choose when they show on the timeline, and they come out in your export.',
+    sections: [
+      {
+        heading: 'What you could add',
+        items: ['A logo or watermark.', 'Text, with your choice of font and colour.', 'Stickers.', 'Your own images.'],
+      },
+      {
+        heading: 'How it would work',
+        items: [
+          'Drag to place and resize an overlay right on the video frame.',
+          'Each overlay gets a bar on the timeline, so you choose when it appears and disappears.',
+        ],
+      },
+    ],
+    footnote: 'A preview of the frame and its layers is below.',
+    skeleton: <OverlaysSkeleton />,
+  },
   'multi-edit-groups': {
     intro:
       'Select several clips on the timeline with Shift-click and change what they share in one go. Group them to keep a long timeline tidy.',

@@ -1,21 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { IconButton } from '@/components/ui/icon-button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useFeatureVoted } from '@/hooks/useFeatureVotes';
 import { getUpcomingFeature, type UpcomingFeatureId } from '@/config/upcomingFeatures';
 import { FeatureVoteDialog } from './FeatureVoteDialog';
 
-export type UpcomingFeatureVariant = 'control' | 'inline';
+export type UpcomingFeatureVariant = 'control' | 'inline' | 'toolbar';
 
 interface UpcomingFeatureProps {
   featureId: UpcomingFeatureId;
   /**
    * `control`: full-size split segment standing in for the unbuilt control (label half + heart half).
    * `inline`: small "I'd like this" text button for empty states, settings rows and cards.
+   * `toolbar`: an icon-only toolbar button (pass `icon`) with a small heart in its corner.
    */
   variant: UpcomingFeatureVariant;
+  /** The toolbar variant's icon. */
+  icon?: React.ReactNode;
   className?: string;
 }
 
@@ -48,7 +52,7 @@ interface TriggerProps extends UpcomingFeatureProps {
   voted: boolean;
 }
 
-function Trigger({ featureId, variant, className, voted }: TriggerProps) {
+function Trigger({ featureId, variant, icon, className, voted }: TriggerProps) {
   const [open, setOpen] = useState(false);
   // Mount the dialog on first use so a closed trigger costs nothing beyond the shared vote query.
   const [everOpened, setEverOpened] = useState(false);
@@ -67,6 +71,27 @@ function Trigger({ featureId, variant, className, voted }: TriggerProps) {
   };
 
   const dialog = everOpened && <FeatureVoteDialog featureId={featureId} open={open} onOpenChange={setOpen} />;
+
+  if (variant === 'toolbar') {
+    return (
+      <>
+        <IconButton
+          {...common}
+          variant="toolbar"
+          size="sm"
+          title={`${feature.title} (not built yet)`}
+          aria-label={`${feature.title}, not built yet${voted ? ', you asked for it' : ''}`}
+          className={cn('relative', className)}
+        >
+          {icon}
+          <span className="absolute right-0 top-0 grid size-3.5 place-items-center rounded-full bg-background/90">
+            <WishHeart voted={voted} size={9} animate={everOpened} />
+          </span>
+        </IconButton>
+        {dialog}
+      </>
+    );
+  }
 
   if (variant === 'inline') {
     return (
