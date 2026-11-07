@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import TimelinePanel from './TimelinePanel';
 import { wheelZoomFactor } from './timelineZoom';
 import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
+import { selectionOf } from '@/store/selection';
 import type { CameraItem, RouteItem } from '@/store/types';
 
 const responsive = vi.hoisted(() => ({
@@ -78,7 +79,7 @@ function renderTimeline(...routes: RouteItem[]) {
     isScrubbing: false,
     isCameraEnabled: true,
     isInspectorOpen: false,
-    selectedItemId: null,
+    ...selectionOf([]),
     selectedKeyframeId: null,
     selectedAutoCamRouteId: null,
     items: Object.fromEntries([
@@ -129,6 +130,101 @@ describe('TimelinePanel', () => {
     act(() => useProjectStore.getState().selectItem('first'));
     expect(screen.getByTestId('timeline-item-first')).toHaveClass('ring-2', 'ring-primary');
     expect(screen.getByTestId('timeline-item-second')).not.toHaveClass('ring-primary');
+  });
+
+  describe('selecting several clips', () => {
+    const shiftClick = (testId: string) => fireEvent.pointerDown(screen.getByTestId(testId), { shiftKey: true, pointerId: 1 });
+
+    it('adds a shift-clicked clip to the selection and rings both', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6), route('third', 7, 9));
+      fireEvent.pointerDown(screen.getByTestId('timeline-item-first'), { pointerId: 1 });
+      shiftClick('timeline-item-second');
+
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['first', 'second']);
+      expect(screen.getByTestId('timeline-item-first')).toHaveClass('ring-primary');
+      expect(screen.getByTestId('timeline-item-second')).toHaveClass('ring-primary');
+      expect(screen.getByTestId('timeline-item-third')).not.toHaveClass('ring-primary');
+
+      shiftClick('timeline-item-first');
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['second']);
+    });
+
+    it('does not move a clip that is shift-clicked', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6));
+      shiftClick('timeline-item-first');
+      fireEvent.pointerMove(screen.getByTestId('timeline-item-first'), { clientX: 200, pointerId: 1 });
+      fireEvent.pointerUp(screen.getByTestId('timeline-item-first'), { pointerId: 1 });
+      expect(useProjectStore.getState().items.first).toMatchObject({ startTime: 1, endTime: 3 });
+    });
+
+    it('moves every selected clip together, keeping the selection', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6), route('other', 7, 9));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      drag('timeline-item-second', 60);
+
+      const { items, selectedItemIds } = useProjectStore.getState();
+      expect(items.first).toMatchObject({ startTime: 2, endTime: 4 });
+      expect(items.second).toMatchObject({ startTime: 5, endTime: 7 });
+      expect(items.other).toMatchObject({ startTime: 7, endTime: 9 });
+      expect(selectedItemIds).toEqual(['first', 'second']);
+    });
+
+    it('stops the whole group when one clip reaches the end of the video', () => {
+      renderTimeline(route('first', 1, 3), route('second', 7, 9));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      drag('timeline-item-first', 600);
+
+      const { items } = useProjectStore.getState();
+      expect(items.second).toMatchObject({ startTime: 8, endTime: 10 });
+      expect(items.first).toMatchObject({ startTime: 2, endTime: 4 });
+    });
+
+    it('moves a group in one store write per pointer move', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      const writes = vi.fn();
+      const unsubscribe = useProjectStore.subscribe((state, previous) => {
+        if (state.items !== previous.items) writes();
+      });
+      drag('timeline-item-first', 60);
+      unsubscribe();
+      expect(writes).toHaveBeenCalledTimes(1);
+    });
+
+    it('trims only the clip whose edge is dragged and selects it alone', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      drag('timeline-item-second-end-handle', 60);
+
+      const { items, selectedItemIds } = useProjectStore.getState();
+      expect(items.second).toMatchObject({ startTime: 4, endTime: 7 });
+      expect(items.first).toMatchObject({ startTime: 1, endTime: 3 });
+      expect(selectedItemIds).toEqual(['second']);
+    });
+
+    it('deletes every selected clip with one Delete press, and one undo brings them back', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6), route('other', 7, 9));
+      act(() => {
+        useProjectStore.getState().selectItem('first');
+        useProjectStore.getState().toggleItemSelection('second');
+      });
+      fireEvent.keyDown(window, { code: 'Delete' });
+
+      expect(useProjectStore.getState().itemOrder).toEqual([CAMERA_TRACK_ID, 'other']);
+      expect(useProjectStore.getState().selectedItemIds).toEqual([]);
+    });
   });
 
   it('keeps the ruler running to the panel edge and greys out the time after the project ends', () => {

@@ -5,14 +5,15 @@ export interface TimeRange {
   endTime: number;
 }
 
+/** The time ranges of the auto-camera routes that are not in `excludedIds` (the clips being edited). */
 export function getOtherAutoCamRanges(
   items: Iterable<TimelineItem>,
-  currentItemId: string,
+  excludedIds: ReadonlySet<string>,
 ): TimeRange[] {
   return Array.from(items)
     .filter(
       (item): item is RouteItem =>
-        item.id !== currentItemId &&
+        !excludedIds.has(item.id) &&
         item.kind === 'route' &&
         item.autoCam?.enabled,
     )
@@ -66,34 +67,52 @@ export function constrainEndTrim(
   return Math.max(fixedStart + minimumDuration, Math.min(proposedEnd, earliestBlockedStart));
 }
 
+/** A clip being moved, with the ranges it may not overlap. */
+export interface MovingClip extends TimeRange {
+  blockedRanges: TimeRange[];
+}
+
+/**
+ * The offset to move every clip by: the one nearest `proposedDelta` that keeps all of them inside
+ * the video and out of their blocked ranges, or null when none fits. The clips move together, so
+ * they keep their places relative to each other.
+ */
+export function constrainGroupMove(
+  proposedDelta: number,
+  clips: readonly MovingClip[],
+  timelineDuration: number,
+): number | null {
+  if (clips.length === 0) return null;
+  const lowest = 0 - Math.min(...clips.map((clip) => clip.startTime));
+  const highest = timelineDuration - Math.max(...clips.map((clip) => clip.endTime));
+  if (highest < lowest) return null;
+
+  const clamp = (delta: number) => Math.max(lowest, Math.min(highest, delta));
+  const target = clamp(proposedDelta);
+  const candidates = new Set<number>([target, lowest, highest]);
+  for (const clip of clips) {
+    for (const range of clip.blockedRanges) {
+      candidates.add(clamp(range.endTime - clip.startTime));
+      candidates.add(clamp(range.startTime - clip.endTime));
+    }
+  }
+
+  const fits = (delta: number) =>
+    clips.every((clip) =>
+      clip.blockedRanges.every((range) => !overlaps(clip.startTime + delta, clip.endTime + delta, range)),
+    );
+  return Array.from(candidates)
+    .filter(fits)
+    .sort((a, b) => Math.abs(a - target) - Math.abs(b - target))[0] ?? null;
+}
+
 export function constrainMove(
   proposedStart: number,
   itemDuration: number,
   blockedRanges: TimeRange[],
   timelineDuration: number,
 ): TimeRange | null {
-  const maximumStart = timelineDuration - itemDuration;
-  if (maximumStart < 0) return null;
-
-  const clampStart = (startTime: number) => Math.max(0, Math.min(maximumStart, startTime));
-  const candidates = new Set<number>([
-    clampStart(proposedStart),
-    0,
-    maximumStart,
-  ]);
-
-  for (const range of blockedRanges) {
-    candidates.add(clampStart(range.endTime));
-    candidates.add(clampStart(range.startTime - itemDuration));
-  }
-
-  const nearestStart = Array.from(candidates)
-    .filter((startTime) =>
-      blockedRanges.every((range) => !overlaps(startTime, startTime + itemDuration, range)),
-    )
-    .sort((a, b) => Math.abs(a - proposedStart) - Math.abs(b - proposedStart))[0];
-
-  return nearestStart === undefined
-    ? null
-    : { startTime: nearestStart, endTime: nearestStart + itemDuration };
+  const clip = { startTime: 0, endTime: itemDuration, blockedRanges };
+  const startTime = constrainGroupMove(proposedStart, [clip], timelineDuration);
+  return startTime === null ? null : { startTime, endTime: startTime + itemDuration };
 }

@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import { STANDARD_CAPABILITIES } from '@/config/mapbox';
 import { DEFAULT_BOUNDARY_DETAIL } from '@/engine/boundaryDetail';
 import { readTimelineHeight } from '../timelineHeightPreference';
+import { selectionOf } from '../selection';
 import type { MapEnvironmentSlice, ProjectStore, TransientProjectState } from './types';
 
 /** Fresh transient editor state shared by initial creation and project loads. */
@@ -15,7 +16,7 @@ export function createTransientState(): TransientProjectState {
     terrainLoading: false,
     isCameraEnabled: true,
     detectedCapabilities: STANDARD_CAPABILITIES,
-    selectedItemId: null,
+    ...selectionOf([]),
     selectedKeyframeId: null,
     selectedAutoCamRouteId: null,
     previewDismissedId: null,

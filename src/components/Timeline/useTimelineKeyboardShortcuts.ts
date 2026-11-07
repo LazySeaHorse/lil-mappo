@@ -5,8 +5,8 @@ interface TimelineKeyboardShortcutsOptions {
   duration: number;
   fps: number;
   isPlaying: boolean;
-  selectedItemId: string | null;
-  removeItem: (itemId: string) => void;
+  selectedItemIds: readonly string[];
+  removeItems: (itemIds: readonly string[]) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   setPlayheadTime: (time: number) => void;
 }
@@ -15,8 +15,8 @@ export function useTimelineKeyboardShortcuts({
   duration,
   fps,
   isPlaying,
-  selectedItemId,
-  removeItem,
+  selectedItemIds,
+  removeItems,
   setIsPlaying,
   setPlayheadTime,
 }: TimelineKeyboardShortcutsOptions) {
@@ -39,10 +39,10 @@ export function useTimelineKeyboardShortcuts({
         case 'Backspace': {
           // A keyframe is selected along with the camera track, which itself is never deleted.
           const { selectedKeyframeId, removeCameraKeyframe } = useProjectStore.getState();
-          if (selectedItemId === CAMERA_TRACK_ID) {
+          if (selectedItemIds.includes(CAMERA_TRACK_ID)) {
             if (selectedKeyframeId) removeCameraKeyframe(selectedKeyframeId);
-          } else if (selectedItemId) {
-            removeItem(selectedItemId);
+          } else if (selectedItemIds.length > 0) {
+            removeItems(selectedItemIds);
           }
           break;
         }
@@ -65,5 +65,5 @@ export function useTimelineKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [duration, fps, isPlaying, removeItem, selectedItemId, setIsPlaying, setPlayheadTime]);
+  }, [duration, fps, isPlaying, removeItems, selectedItemIds, setIsPlaying, setPlayheadTime]);
 }

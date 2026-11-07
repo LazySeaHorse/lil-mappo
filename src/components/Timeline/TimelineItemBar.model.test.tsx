@@ -29,7 +29,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('a placed model on the timeline', () => {
   it('shows its name on its clip, and a warning while its file is missing', () => {
     render(
-      <TimelineItemBar item={item} lane={0} pixelsPerSecond={20} isSelected={false} onSelect={vi.fn()} drag={drag} />,
+      <TimelineItemBar item={item} lane={0} pixelsPerSecond={20} isSelected={false} onSelect={vi.fn()} onToggleSelect={vi.fn()} drag={drag} />,
     );
     expect(screen.getAllByText('Tower').length).toBeGreaterThan(0);
     expect(screen.getByRole('img', { name: MODEL_TERMS.missingTitle })).toBeInTheDocument();
@@ -40,7 +40,7 @@ describe('a placed model on the timeline', () => {
   it('marks the clip when the map could not load the model file', () => {
     registerModelBytes(SHA, new ArrayBuffer(4));
     render(
-      <TimelineItemBar item={item} lane={0} pixelsPerSecond={20} isSelected={false} onSelect={vi.fn()} drag={drag} />,
+      <TimelineItemBar item={item} lane={0} pixelsPerSecond={20} isSelected={false} onSelect={vi.fn()} onToggleSelect={vi.fn()} drag={drag} />,
     );
     expect(screen.queryByRole('img', { name: MODEL_TERMS.failedTitle })).not.toBeInTheDocument();
     act(() => { markModelFailed(SHA); });

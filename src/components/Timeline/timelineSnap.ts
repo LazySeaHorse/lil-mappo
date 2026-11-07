@@ -15,7 +15,7 @@ interface SnapSource {
  */
 export function snapTimes(
   { items, duration, playheadTime }: SnapSource,
-  dragged: { itemId?: string; keyframeId?: string },
+  dragged: { itemIds?: ReadonlySet<string>; keyframeId?: string },
 ): number[] {
   const times = [0, duration, playheadTime];
   for (const item of Object.values(items)) {
@@ -23,7 +23,7 @@ export function snapTimes(
       for (const keyframe of item.keyframes) {
         if (keyframe.id !== dragged.keyframeId) times.push(keyframe.time);
       }
-    } else if (item.id !== dragged.itemId) {
+    } else if (!dragged.itemIds?.has(item.id)) {
       times.push(item.startTime, item.endTime);
     }
   }

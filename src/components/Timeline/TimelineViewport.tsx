@@ -23,7 +23,7 @@ interface TimelineViewportProps {
   lanes: string[][];
   pixelsPerSecond: number;
   rulerDiamondRef: RefObject<HTMLDivElement>;
-  selectedItemId: string | null;
+  selectedItemIds: readonly string[];
   selectedKeyframeId: string | null;
   setIsPlaying: (isPlaying: boolean) => void;
   setIsScrubbing: (isScrubbing: boolean) => void;
@@ -34,6 +34,7 @@ interface TimelineViewportProps {
   trackLineRef: RefObject<HTMLDivElement>;
   zoomBounds: ZoomBounds;
   onSelectItem: (itemId: string) => void;
+  onToggleItemSelection: (itemId: string) => void;
   onSelectAutoCam: (routeId: string) => void;
   onSelectKeyframe: (keyframeId: string | null) => void;
 }
@@ -49,7 +50,7 @@ export default function TimelineViewport({
   lanes,
   pixelsPerSecond,
   rulerDiamondRef,
-  selectedItemId,
+  selectedItemIds,
   selectedKeyframeId,
   setIsPlaying,
   setIsScrubbing,
@@ -60,6 +61,7 @@ export default function TimelineViewport({
   trackLineRef,
   zoomBounds,
   onSelectItem,
+  onToggleItemSelection,
   onSelectAutoCam,
   onSelectKeyframe,
 }: TimelineViewportProps) {
@@ -189,7 +191,7 @@ export default function TimelineViewport({
             <TimelineCameraLane
               item={cameraItem}
               pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedItemId === cameraItem.id}
+              isSelected={selectedItemIds.includes(cameraItem.id)}
               selectedKeyframeId={selectedKeyframeId}
               onSelectItem={onSelectItem}
               onSelectKeyframe={onSelectKeyframe}
@@ -222,8 +224,9 @@ export default function TimelineViewport({
                     item={item}
                     lane={lane}
                     pixelsPerSecond={pixelsPerSecond}
-                    isSelected={selectedItemId === id}
+                    isSelected={selectedItemIds.includes(id)}
                     onSelect={onSelectItem}
+                    onToggleSelect={onToggleItemSelection}
                     drag={drag}
                   />
                 );

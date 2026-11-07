@@ -1,15 +1,16 @@
 import React from 'react';
 import { AlertTriangle, FileWarning } from 'lucide-react';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { BoundaryItem, CalloutItem, ModelItem, RouteItem } from '@/store/types';
+import type { BoundaryItem, CalloutItem, ModelItem, RouteItem, TimelineItem } from '@/store/types';
 import { useModelStatus } from '@/models/modelRegistry';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { TIMELINE_LANE_HEIGHT } from '@/constants/layout';
 import {
   constrainEndTrim,
-  constrainMove,
+  constrainGroupMove,
   constrainStartTrim,
   getOtherAutoCamRanges,
+  type MovingClip,
 } from './timelineConstraints';
 import { timelineItemLabel } from './timelineItemLabel';
 import { nearestSnap, SNAP_PIXELS, snapMove, snapTimes } from './timelineSnap';
@@ -34,6 +35,7 @@ interface TimelineItemBarProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   onSelect: (itemId: string) => void;
+  onToggleSelect: (itemId: string) => void;
   drag: TimelineDragHandlers;
 }
 
@@ -43,9 +45,11 @@ const TimelineItemBar = React.memo(({
   pixelsPerSecond,
   isSelected,
   onSelect,
+  onToggleSelect,
   drag,
 }: TimelineItemBarProps) => {
   const updateItem = useProjectStore((state) => state.updateItem);
+  const updateItems = useProjectStore((state) => state.updateItems);
   const duration = useProjectStore((state) => state.duration);
   const colorClass = COLOR_CLASS[item.kind];
   const label = timelineItemLabel(item);
@@ -61,6 +65,8 @@ const TimelineItemBar = React.memo(({
     snapTimes: number[];
     isAutoCamConstrained: boolean;
     blockedRanges: ReturnType<typeof getOtherAutoCamRanges>;
+    /** The clips a move carries: this one, or every selected clip when it is one of several. */
+    moving: (MovingClip & { id: string })[];
   } | null>(null);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -69,19 +75,34 @@ const TimelineItemBar = React.memo(({
     const type = handle && event.currentTarget.contains(handle) ? (handle.dataset.handle as 'start' | 'end') : 'move';
     event.stopPropagation();
     event.preventDefault();
-    onSelect(item.id);
+    // Shift or Ctrl/Cmd adds the clip to the selection, or takes it out, without starting a drag.
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      onToggleSelect(item.id);
+      return;
+    }
+
+    const state = useProjectStore.getState();
+    // Moving one of several selected clips moves them all; an edge handle trims only the clip it is on.
+    const movesSelection = type === 'move' && state.selectedItemIds.length > 1 && state.selectedItemIds.includes(item.id);
+    if (!movesSelection) onSelect(item.id);
 
     event.currentTarget.setPointerCapture?.(event.pointerId);
 
-    const state = useProjectStore.getState();
+    const movedIds = new Set(movesSelection ? state.selectedItemIds : [item.id]);
+    const moving = [...movedIds].flatMap((id) => {
+      const clip = state.items[id];
+      if (!clip || clip.kind === 'camera') return [];
+      return [{
+        id,
+        startTime: clip.startTime,
+        endTime: clip.endTime,
+        blockedRanges: isAutoCamRoute(clip) ? getOtherAutoCamRanges(Object.values(state.items), movedIds) : [],
+      }];
+    });
+    const own = moving.find((clip) => clip.id === item.id);
     const initialStart = item.startTime;
     const initialEnd = item.endTime;
     const itemDuration = Math.max(0.1, initialEnd - initialStart);
-    const currentItem = state.items[item.id];
-    const isAutoCamConstrained = currentItem?.kind === 'route' && currentItem.autoCam?.enabled;
-    const blockedRanges = isAutoCamConstrained
-      ? getOtherAutoCamRanges(Object.values(state.items), item.id)
-      : [];
 
     dragStateRef.current = {
       type,
@@ -91,9 +112,10 @@ const TimelineItemBar = React.memo(({
       initialEnd,
       itemDuration,
       laneOffset: 0,
-      snapTimes: snapTimes(state, { itemId: item.id }),
-      isAutoCamConstrained: Boolean(isAutoCamConstrained),
-      blockedRanges,
+      snapTimes: snapTimes(state, { itemIds: movedIds }),
+      isAutoCamConstrained: isAutoCamRoute(state.items[item.id]),
+      blockedRanges: own?.blockedRanges ?? [],
+      moving,
     };
     drag.begin(item.id);
   };
@@ -125,20 +147,24 @@ const TimelineItemBar = React.memo(({
       if (constrainedEnd !== null) updateItem(item.id, { endTime: constrainedEnd });
     } else {
       const snap = snapMove(state.initialStart + deltaTime, state.itemDuration, state.snapTimes, tolerance);
-      const newStart = Math.max(0, Math.min(duration - state.itemDuration, snap.startTime));
-      const constrainedRange = state.isAutoCamConstrained
-        ? constrainMove(newStart, state.itemDuration, state.blockedRanges, duration)
-        : { startTime: newStart, endTime: newStart + state.itemDuration };
-      drag.showSnap(constrainedRange?.startTime === snap.startTime ? snap.snappedTo : null);
+      const proposedDelta = snap.startTime - state.initialStart;
+      const delta = constrainGroupMove(proposedDelta, state.moving, duration);
+      drag.showSnap(delta === proposedDelta ? snap.snappedTo : null);
 
-      // `|| 0` turns NaN (a pointer event without a clientY) and -0 into no move.
-      const laneOffset = Math.round((event.clientY - state.startY) / TIMELINE_LANE_HEIGHT) || 0;
+      // A single clip can change lanes; moving several stays in the lanes they have. `|| 0` turns
+      // NaN (a pointer event without a clientY) and -0 into no move.
+      const laneOffset = state.moving.length === 1
+        ? Math.round((event.clientY - state.startY) / TIMELINE_LANE_HEIGHT) || 0
+        : 0;
       if (laneOffset !== state.laneOffset) {
         state.laneOffset = laneOffset;
         drag.moveLanes(laneOffset);
       }
-      if (!constrainedRange) return;
-      updateItem(item.id, constrainedRange);
+      if (delta === null) return;
+      updateItems(Object.fromEntries(state.moving.map((clip) => [
+        clip.id,
+        { startTime: clip.startTime + delta, endTime: clip.endTime + delta },
+      ])));
     }
   };
 
@@ -223,6 +249,10 @@ function ModelFileMark({ assetId }: { assetId: string }) {
       {failed ? <AlertTriangle size={12} aria-hidden="true" /> : <FileWarning size={12} aria-hidden="true" />}
     </span>
   );
+}
+
+function isAutoCamRoute(item: TimelineItem | undefined): boolean {
+  return item?.kind === 'route' && Boolean(item.autoCam?.enabled);
 }
 
 TimelineItemBar.displayName = 'TimelineItemBar';

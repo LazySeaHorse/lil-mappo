@@ -68,6 +68,7 @@ function describeItemsChange(before: TrackedState, after: TrackedState): string 
   const removed = Object.keys(bi).filter((id) => !(id in ai));
   if (added.length === 1 && removed.length === 0) return `Added ${KIND_LABEL[ai[added[0]].kind]}`;
   if (removed.length === 1 && added.length === 0) return `Deleted ${itemName(bi[removed[0]])}`;
+  if (removed.length > 1 && added.length === 0) return `Deleted ${removed.length} items`;
   if (added.length || removed.length) return `Changed ${added.length + removed.length} items`;
 
   const changed = Object.keys(ai).filter((id) => ai[id] !== bi[id]);

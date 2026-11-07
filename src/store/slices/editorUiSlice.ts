@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { EditorUiSlice, ProjectStore } from './types';
 import { writeTimelineHeight } from '../timelineHeightPreference';
 import { CAMERA_TRACK_ID } from '../projectDocument';
+import { selectionOf } from '../selection';
 import { savedCalculation } from '@/engine/routeDraft';
 import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
@@ -19,7 +20,7 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
       }
     }
     set({
-      selectedItemId: id,
+      ...selectionOf(id ? [id] : []),
       selectedKeyframeId: null,
       selectedAutoCamRouteId: null,
       isInspectorOpen: true,
@@ -27,6 +28,14 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
       ...(id && id !== state.previewDismissedId ? { previewDismissedId: null } : {}),
       ...(newPlayheadTime !== state.playheadTime ? { playheadTime: newPlayheadTime } : {}),
     });
+  },
+  toggleItemSelection: (id) => {
+    const state = get();
+    if (!state.items[id] || id === CAMERA_TRACK_ID) return;
+    // The camera lane is selected on its own, so a click on a clip starts a new selection from it.
+    const current = state.selectedItemIds.filter((selected) => selected !== CAMERA_TRACK_ID);
+    const next = current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id];
+    set({ ...selectionOf(next), selectedKeyframeId: null, selectedAutoCamRouteId: null });
   },
   dismissSelectionPreview: () => set((s) => ({ previewDismissedId: s.selectedItemId })),
 

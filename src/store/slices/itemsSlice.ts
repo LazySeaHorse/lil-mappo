@@ -8,6 +8,7 @@ import { autoCamForRoute, defaultAutoCamFor } from '@/config/vehicles';
 import { canEnableFollowCamera } from '../followCamera';
 import { isRouteItem } from '../typeGuards';
 import { pruneModels } from '../modelAssets';
+import { selectionOf } from '../selection';
 import { stagedAt, stagedItemsOf } from '@/engine/stagedItems';
 
 export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set, get) => ({
@@ -29,18 +30,22 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
     return added;
   },
 
-  removeItem: (id) =>
+  removeItem: (id) => get().removeItems([id]),
+
+  removeItems: (ids) =>
     set((s) => {
-      const { [id]: _, ...rest } = s.items;
-      // Clean up camera keyframes followRoute if pointing to this deleted item
+      const gone = new Set(ids.filter((id) => id in s.items));
+      if (gone.size === 0) return s;
+      const rest = Object.fromEntries(Object.entries(s.items).filter(([id]) => !gone.has(id)));
+      // Clean up camera keyframes followRoute if pointing to a deleted item
       const cam = rest[CAMERA_TRACK_ID];
       let updatedCam = cam;
       if (cam && cam.kind === 'camera' && Array.isArray(cam.keyframes)) {
-        const hasFollow = cam.keyframes.some((k) => k.followRoute === id);
+        const hasFollow = cam.keyframes.some((k) => k.followRoute !== null && gone.has(k.followRoute));
         if (hasFollow) {
           updatedCam = {
             ...cam,
-            keyframes: cam.keyframes.map((k) => (k.followRoute === id ? { ...k, followRoute: null } : k)),
+            keyframes: cam.keyframes.map((k) => (k.followRoute !== null && gone.has(k.followRoute) ? { ...k, followRoute: null } : k)),
           };
         }
       }
@@ -49,11 +54,11 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
         items,
         // An imported model nothing uses any more goes with its last item (undo brings both back).
         models: pruneModels(items, s.models),
-        itemOrder: s.itemOrder.filter((i) => i !== id),
-        selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
-        selectedAutoCamRouteId: s.selectedAutoCamRouteId === id ? null : s.selectedAutoCamRouteId,
-        activePicker: s.activePicker?.ownerId === id ? null : s.activePicker,
-        routeDraft: s.routeDraft?.routeId === id ? null : s.routeDraft,
+        itemOrder: s.itemOrder.filter((i) => !gone.has(i)),
+        ...selectionOf(s.selectedItemIds.filter((i) => !gone.has(i))),
+        selectedAutoCamRouteId: s.selectedAutoCamRouteId && gone.has(s.selectedAutoCamRouteId) ? null : s.selectedAutoCamRouteId,
+        activePicker: s.activePicker && gone.has(s.activePicker.ownerId) ? null : s.activePicker,
+        routeDraft: s.routeDraft && gone.has(s.routeDraft.routeId) ? null : s.routeDraft,
       };
     }),
 
@@ -62,6 +67,15 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
       const existing = s.items[id];
       if (!existing) return s;
       const items = { ...s.items, [id]: { ...existing, ...updates } as TimelineItem };
+      return { items, models: pruneModels(items, s.models) };
+    }),
+
+  updateItems: (updates) =>
+    set((s) => {
+      const known = Object.entries(updates).filter(([id]) => id in s.items);
+      if (known.length === 0) return s;
+      const items = { ...s.items };
+      for (const [id, patch] of known) items[id] = { ...items[id], ...patch } as TimelineItem;
       return { items, models: pruneModels(items, s.models) };
     }),
 
@@ -115,7 +129,7 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
       return {
         items: { ...s.items, [newId]: newItem },
         itemOrder: [...s.itemOrder, newId],
-        selectedItemId: newId,
+        ...selectionOf([newId]),
         isInspectorOpen: true,
       };
     }),

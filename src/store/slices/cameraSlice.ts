@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { CameraItem, CameraKeyframe } from '../types';
 import { CAMERA_TRACK_ID } from '../projectDocument';
+import { selectionOf } from '../selection';
 import type { CameraSlice, ProjectStore } from './types';
 
 const CAMERA_ID = CAMERA_TRACK_ID;
@@ -18,7 +19,7 @@ export const createCameraSlice: StateCreator<ProjectStore, [], [], CameraSlice> 
       const keyframes = [...cam.keyframes, kf].sort((a, b) => a.time - b.time);
       return {
         items: { ...s.items, [CAMERA_ID]: { ...cam, keyframes } },
-        selectedItemId: CAMERA_ID,
+        ...selectionOf([CAMERA_ID]),
         selectedKeyframeId: kf.id,
       };
     }),
@@ -63,7 +64,7 @@ export const createCameraSlice: StateCreator<ProjectStore, [], [], CameraSlice> 
     const keyframes = [...cam.keyframes, copy].sort((a, b) => a.time - b.time);
     set({
       items: { ...s.items, [CAMERA_ID]: { ...cam, keyframes } },
-      selectedItemId: CAMERA_ID,
+      ...selectionOf([CAMERA_ID]),
       selectedKeyframeId: copy.id,
       isInspectorOpen: true,
     });

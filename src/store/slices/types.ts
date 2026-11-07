@@ -48,6 +48,9 @@ export interface TransientProjectState {
   isCameraEnabled: boolean;
   detectedCapabilities: MapStyleCapabilities | null;
   // Transient selection state (not persisted)
+  /** The items selected on the timeline, in the order they were picked. Set only through `selectionOf`. */
+  selectedItemIds: string[];
+  /** The one item being edited: the only selected item, or null when none or several are selected. */
   selectedItemId: string | null;
   selectedKeyframeId: string | null;
   selectedAutoCamRouteId: string | null;
@@ -87,7 +90,11 @@ export interface ItemsSlice {
   /** Adds what `owner` staged to the project at the playhead, in one step, and clears it. Returns what was added. */
   addStagedItems: (owner: StagingOwner) => StagedItem[];
   removeItem: (id: string) => void;
+  /** Removes several items in one step, so one undo brings them all back. */
+  removeItems: (ids: readonly string[]) => void;
   updateItem: (id: string, updates: Partial<TimelineItem>) => void;
+  /** Updates several items in one write (one undo step, one render). Unknown ids are skipped. */
+  updateItems: (updates: Readonly<Record<string, Partial<TimelineItem>>>) => void;
   /**
    * Edits a walk route's points or curve settings and rebuilds its geometry.
    * Function updates receive the latest stored calculation, so edits that
@@ -159,6 +166,8 @@ export interface MapEnvironmentSlice {
 
 export interface EditorUiSlice {
   selectItem: (id: string | null) => void;
+  /** Adds the item to the selection, or takes it out when it is already in. The camera cannot be one of several. */
+  toggleItemSelection: (id: string) => void;
   /** Turns off the selected item's show-in-full preview (see `previewDismissedId`). */
   dismissSelectionPreview: () => void;
   selectKeyframe: (id: string | null) => void;

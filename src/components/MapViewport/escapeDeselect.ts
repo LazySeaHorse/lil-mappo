@@ -29,7 +29,7 @@ export function handleEscapeKey(e: KeyboardEvent): void {
   const s = useProjectStore.getState();
   if (s.activePicker) {
     s.stopPicking();
-  } else if (s.selectedItemId && !isEscapeHandledElsewhere(e)) {
+  } else if (s.selectedItemIds.length > 0 && !isEscapeHandledElsewhere(e)) {
     clearSelection();
   }
 }

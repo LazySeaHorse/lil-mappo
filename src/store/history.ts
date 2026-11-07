@@ -1,6 +1,7 @@
 import { useStore } from 'zustand';
 import { useProjectStore } from './useProjectStore';
 import { CAMERA_TRACK_ID } from './projectDocument';
+import { selectionOf } from './selection';
 import { partializeHistory, trackedStatesEqual } from './historyKeys';
 import {
   HISTORY_LIMIT,
@@ -129,7 +130,8 @@ function cleanupSelection(): void {
     camera?.kind === 'camera' &&
     camera.keyframes.some((k) => k.id === s.selectedKeyframeId);
   const patch: Partial<typeof s> = {};
-  if (s.selectedItemId && !s.items[s.selectedItemId]) patch.selectedItemId = null;
+  const stillThere = s.selectedItemIds.filter((id) => s.items[id]);
+  if (stillThere.length !== s.selectedItemIds.length) Object.assign(patch, selectionOf(stillThere));
   if (s.selectedKeyframeId && !keyframeExists) patch.selectedKeyframeId = null;
   if (s.selectedAutoCamRouteId && s.items[s.selectedAutoCamRouteId]?.kind !== 'route') {
     patch.selectedAutoCamRouteId = null;

@@ -10,7 +10,7 @@ const items = {
 
 describe('snapTimes', () => {
   it('collects the ends of the video, the playhead, item edges and camera views, less what is dragged', () => {
-    expect(snapTimes({ items, duration: 10, playheadTime: 3 }, { itemId: 'a' }).sort((x, y) => x - y))
+    expect(snapTimes({ items, duration: 10, playheadTime: 3 }, { itemIds: new Set(['a']) }).sort((x, y) => x - y))
       .toEqual([0, 1.5, 3, 5, 6, 7, 10]);
     expect(snapTimes({ items, duration: 10, playheadTime: 3 }, { keyframeId: 'k2' }).sort((x, y) => x - y))
       .toEqual([0, 1.5, 2, 3, 4, 5, 6, 10]);

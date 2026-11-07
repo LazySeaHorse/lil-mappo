@@ -1,5 +1,6 @@
 import {
   constrainEndTrim,
+  constrainGroupMove,
   constrainMove,
   constrainStartTrim,
   type TimeRange,
@@ -38,5 +39,34 @@ describe('timeline auto-camera constraints', () => {
 
   it('returns null when no complete gap exists', () => {
     expect(constrainMove(1, 3, [{ startTime: 0, endTime: 10 }], 10)).toBeNull();
+  });
+
+  describe('moving several clips together', () => {
+    const free = (startTime: number, endTime: number) => ({ startTime, endTime, blockedRanges: [] });
+
+    it('moves them by the proposed offset when nothing is in the way', () => {
+      expect(constrainGroupMove(2, [free(1, 3), free(5, 6)], 12)).toBe(2);
+    });
+
+    it('stops when the earliest clip reaches the start or the latest reaches the end', () => {
+      expect(constrainGroupMove(-4, [free(1, 3), free(5, 6)], 12)).toBe(-1);
+      expect(constrainGroupMove(9, [free(1, 3), free(5, 6)], 12)).toBe(6);
+    });
+
+    it('finds nothing when the clips together are longer than the video', () => {
+      expect(constrainGroupMove(0, [free(0, 6), free(8, 14)], 12)).toBeNull();
+      expect(constrainGroupMove(0, [], 12)).toBeNull();
+    });
+
+    it('keeps a clip out of its blocked ranges by moving the group to the nearest gap', () => {
+      const clips = [{ startTime: 0, endTime: 2, blockedRanges: [{ startTime: 4, endTime: 6 }] }, free(3, 4)];
+      // Offset 3 would put the first clip on 3..5, inside 4..6; the legal offsets are up to 2 or from 6.
+      expect(constrainGroupMove(3, clips, 12)).toBe(2);
+      expect(constrainGroupMove(5, clips, 12)).toBe(6);
+    });
+
+    it('agrees with the single-clip move', () => {
+      expect(constrainGroupMove(3, [{ startTime: 0, endTime: 2, blockedRanges: blocked }], 12)).toBe(4);
+    });
   });
 });

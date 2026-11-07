@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useProjectStore, CAMERA_TRACK_ID, createTransientState } from './useProjectStore';
 import { createProject, toProjectDocument } from './projectDocument';
+import { selectionOf } from './selection';
 import {
   HISTORY_EXCLUDED_PROJECT_KEYS,
   PROJECT_KEYS_CLASSIFIED,
@@ -355,7 +356,7 @@ describe('selection cleanup and blocking', () => {
     state().addItem(route('r1'));
     state().updateItem(CAMERA_TRACK_ID, { keyframes: [keyframe('k1', 1)] });
     useProjectStore.setState({
-      selectedItemId: 'r1', selectedKeyframeId: 'k1', selectedAutoCamRouteId: 'r1',
+      ...selectionOf(['r1']), selectedKeyframeId: 'k1', selectedAutoCamRouteId: 'r1',
       activePicker: { id: 'p', ownerId: 'r1', onPick: () => {} },
     });
     undo(); // keyframe gone
@@ -370,7 +371,7 @@ describe('selection cleanup and blocking', () => {
   it('keeps valid selection', () => {
     state().addItem(route('r1'));
     state().updateItem('r1', { name: 'B' });
-    useProjectStore.setState({ selectedItemId: 'r1' });
+    useProjectStore.setState(selectionOf(['r1']));
     undo();
     expect(state().selectedItemId).toBe('r1');
   });

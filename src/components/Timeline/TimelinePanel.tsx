@@ -29,17 +29,18 @@ export default function TimelinePanel() {
 
   const {
     duration, setPlayheadTime, items, itemOrder,
-    selectedItemId, selectItem, selectKeyframe, selectedKeyframeId,
+    selectedItemIds, selectItem, toggleItemSelection, selectKeyframe, selectedKeyframeId,
     isInspectorOpen, timelineHeight, setTimelineHeight,
-    isPlaying, setIsPlaying, fps, removeItem, setIsScrubbing,
+    isPlaying, setIsPlaying, fps, removeItems, setIsScrubbing,
     setSelectedAutoCamRouteId,
   } = useProjectStore(useShallow((state) => ({
     duration: state.duration,
     setPlayheadTime: state.setPlayheadTime,
     items: state.items,
     itemOrder: state.itemOrder,
-    selectedItemId: state.selectedItemId,
+    selectedItemIds: state.selectedItemIds,
     selectItem: state.selectItem,
+    toggleItemSelection: state.toggleItemSelection,
     selectKeyframe: state.selectKeyframe,
     selectedKeyframeId: state.selectedKeyframeId,
     isInspectorOpen: state.isInspectorOpen,
@@ -48,7 +49,7 @@ export default function TimelinePanel() {
     isPlaying: state.isPlaying,
     setIsPlaying: state.setIsPlaying,
     fps: state.fps,
-    removeItem: state.removeItem,
+    removeItems: state.removeItems,
     setIsScrubbing: state.setIsScrubbing,
     setSelectedAutoCamRouteId: state.setSelectedAutoCamRouteId,
   })));
@@ -163,8 +164,8 @@ export default function TimelinePanel() {
     duration,
     fps,
     isPlaying,
-    selectedItemId,
-    removeItem,
+    selectedItemIds,
+    removeItems,
     setIsPlaying,
     setPlayheadTime,
   });
@@ -234,7 +235,7 @@ export default function TimelinePanel() {
         lanes={lanes}
         pixelsPerSecond={pixelsPerSecond}
         rulerDiamondRef={rulerDiamondRef}
-        selectedItemId={selectedItemId}
+        selectedItemIds={selectedItemIds}
         selectedKeyframeId={selectedKeyframeId}
         setIsPlaying={setIsPlaying}
         setIsScrubbing={setIsScrubbing}
@@ -245,6 +246,7 @@ export default function TimelinePanel() {
         trackLineRef={trackLineRef}
         zoomBounds={zoomBounds}
         onSelectItem={selectItem}
+        onToggleItemSelection={toggleItemSelection}
         onSelectAutoCam={handleSelectAutoCam}
         onSelectKeyframe={selectKeyframe}
       />
