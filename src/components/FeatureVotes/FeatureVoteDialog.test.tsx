@@ -114,6 +114,14 @@ describe('FeatureVoteDialog', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
+  it('shows the timeline and inspector preview for multi-edit and groups', () => {
+    render(<FeatureVoteDialog featureId="multi-edit-groups" open onOpenChange={() => {}} />);
+    expect(screen.getByRole('dialog', { name: 'Multi-edit and groups' })).toBeTruthy();
+    expect(screen.getByText(/Ctrl\+G/)).toBeTruthy();
+    expect(screen.getByText(/Mixed/)).toBeTruthy();
+    expect(screen.getByTestId('feature-skeleton')).toBeTruthy();
+  });
+
   it('describes the feature as not built yet', () => {
     render(<FeatureVoteDialog featureId="cloud-render" open onOpenChange={() => {}} />);
     expect(screen.getByText('Not built yet')).toBeTruthy();

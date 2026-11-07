@@ -50,6 +50,11 @@ describe('selecting several items', () => {
     expect(state().playheadTime).toBe(0);
   });
 
+  it('opens the inspector, which has something to say about the selection', () => {
+    state().toggleItemSelection('a');
+    expect(state().isInspectorOpen).toBe(true);
+  });
+
   it('never makes the camera one of several', () => {
     state().selectItem(CAMERA_TRACK_ID);
     state().toggleItemSelection('a');

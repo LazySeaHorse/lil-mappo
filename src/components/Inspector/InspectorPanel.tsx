@@ -8,11 +8,13 @@ import { AnnotationInspector } from "@/annotations/inspector/AnnotationInspector
 import { CameraKFInspector } from "./CameraKFInspector";
 import { AutoCamInspector } from "./AutoCamInspector";
 import { ModelInspector } from "./ModelInspector";
+import { MultiSelectionInspector } from "./MultiSelectionInspector";
 
 export default function InspectorPanel() {
-  const { selectedItemId, selectedAutoCamRouteId, items, isInspectorOpen } = useProjectStore(
+  const { selectedItemId, selectedItemCount, selectedAutoCamRouteId, items, isInspectorOpen } = useProjectStore(
     useShallow(s => ({
       selectedItemId: s.selectedItemId,
+      selectedItemCount: s.selectedItemIds.length,
       selectedAutoCamRouteId: s.selectedAutoCamRouteId,
       items: s.items,
       isInspectorOpen: s.isInspectorOpen,
@@ -20,6 +22,7 @@ export default function InspectorPanel() {
   );
 
   if (!isInspectorOpen) return null;
+  if (selectedItemCount > 1) return <MultiSelectionInspector count={selectedItemCount} />;
   if (!selectedItemId) return <ProjectSettings />;
 
   const item = items[selectedItemId];

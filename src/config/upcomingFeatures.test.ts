@@ -19,8 +19,8 @@ describe('upcomingFeatures config', () => {
     }
   });
 
-  it('ships exactly the two v1 features', () => {
-    expect([...UPCOMING_FEATURE_IDS].sort()).toEqual(['cloud-render', 'example-projects']);
+  it('lists the features people can ask for', () => {
+    expect([...UPCOMING_FEATURE_IDS].sort()).toEqual(['cloud-render', 'example-projects', 'multi-edit-groups']);
   });
 
   it('has copy for every tier', () => {

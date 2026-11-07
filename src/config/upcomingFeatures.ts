@@ -27,6 +27,11 @@ export const UPCOMING_FEATURES = [
     title: 'Example projects',
     description: 'A gallery of sample projects to open, inspect, and remix.',
   },
+  {
+    id: 'multi-edit-groups',
+    title: 'Multi-edit and groups',
+    description: 'Edit several clips at once, and group them to keep a long timeline tidy.',
+  },
 ] as const satisfies readonly UpcomingFeature[];
 
 export type UpcomingFeatureId = (typeof UPCOMING_FEATURES)[number]['id'];

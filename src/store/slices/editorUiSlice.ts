@@ -35,7 +35,12 @@ export const createEditorUiSlice: StateCreator<ProjectStore, [], [], EditorUiSli
     // The camera lane is selected on its own, so a click on a clip starts a new selection from it.
     const current = state.selectedItemIds.filter((selected) => selected !== CAMERA_TRACK_ID);
     const next = current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id];
-    set({ ...selectionOf(next), selectedKeyframeId: null, selectedAutoCamRouteId: null });
+    set({
+      ...selectionOf(next),
+      selectedKeyframeId: null,
+      selectedAutoCamRouteId: null,
+      ...(next.length > 0 ? { isInspectorOpen: true } : {}),
+    });
   },
   dismissSelectionPreview: () => set((s) => ({ previewDismissedId: s.selectedItemId })),
 

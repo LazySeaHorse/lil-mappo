@@ -18,7 +18,7 @@ import {
   getUpcomingFeature,
   type UpcomingFeatureId,
 } from '@/config/upcomingFeatures';
-import { GallerySkeleton, RenderSkeleton } from './FeatureSkeletons';
+import { GallerySkeleton, MultiEditSkeleton, RenderSkeleton } from './FeatureSkeletons';
 
 interface FeatureVoteDialogProps {
   featureId: UpcomingFeatureId;
@@ -35,6 +35,29 @@ interface Preview {
 }
 
 const PREVIEWS: Record<UpcomingFeatureId, Preview> = {
+  'multi-edit-groups': {
+    intro:
+      'Select several clips on the timeline with Shift-click and change what they share in one go. Group them to keep a long timeline tidy.',
+    sections: [
+      {
+        heading: 'Editing together',
+        items: [
+          'Select clips of one type, like routes or callouts, and the inspector shows their shared settings.',
+          'A setting that differs between them reads "Mixed". Change it and every selected clip gets your value.',
+        ],
+      },
+      {
+        heading: 'Groups',
+        items: [
+          'Press Ctrl+G (Cmd+G on a Mac) to group the selection. The group gets a colour dot and a collapse arrow beside the timeline.',
+          'Collapse a group into one bar that moves all of its clips together.',
+          'Click the dot to change the colour or ungroup.',
+        ],
+      },
+    ],
+    footnote: 'A preview of the timeline and inspector is below.',
+    skeleton: <MultiEditSkeleton />,
+  },
   'example-projects': {
     intro:
       'Example projects provides a small gallery of curated projects to open, inspect, and learn from. Users can also publish their own projects for anyone to browse.',
