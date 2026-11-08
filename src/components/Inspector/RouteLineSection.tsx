@@ -1,6 +1,7 @@
 import type { RouteItem } from '@/store/types';
-import { ColorRow, SliderRow, SwitchRow, VisualCardSelect, type VisualCardOption } from './InspectorShared';
+import { ColorRow, MixedTag, SliderRow, SwitchRow, VisualCardSelect, type VisualCardOption } from './InspectorShared';
 import { InspectorSection } from './InspectorSection';
+import type { MixedFields } from './mergeValues';
 
 type RouteLineStyle = 'solid' | 'dashed' | 'dotted';
 
@@ -21,29 +22,32 @@ function lineStyleOf(style: RouteItem['style']): RouteLineStyle {
 export function RouteLineSection({
   style,
   onStyle,
+  mixed,
 }: {
   style: RouteItem['style'];
   onStyle: (patch: Partial<RouteItem['style']>) => void;
+  mixed?: MixedFields<RouteItem['style']>;
 }) {
+  const dashMixed = mixed?.has('dashPattern') ?? false;
   return (
     <InspectorSection kind="route" id="line">
-      <ColorRow label="Color" value={style.color} onChange={(color) => onStyle({ color })} />
+      <ColorRow label="Color" value={style.color} onChange={(color) => onStyle({ color })} mixed={mixed?.has('color')} />
 
-      <SliderRow label="Width" value={style.width} onChange={(width) => onStyle({ width })} min={1} max={15} step={1} unit="px" />
+      <SliderRow label="Width" value={style.width} onChange={(width) => onStyle({ width })} min={1} max={15} step={1} unit="px" mixed={mixed?.has('width')} />
 
       <div className="flex flex-col gap-1.5 pt-0.5">
-        <span className="text-xs font-medium text-muted-foreground">Line style</span>
+        <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">Line style{dashMixed && <MixedTag />}</span>
         <VisualCardSelect
           options={LINE_STYLES}
-          value={lineStyleOf(style)}
+          value={dashMixed ? null : lineStyleOf(style)}
           onChange={(v) => onStyle({ dashPattern: DASH_PATTERNS[v] })}
           columns={3}
         />
       </div>
 
-      <SwitchRow label="Glow" checked={style.glow} onChange={(glow) => onStyle({ glow })} />
+      <SwitchRow label="Glow" checked={style.glow} onChange={(glow) => onStyle({ glow })} mixed={mixed?.has('glow')} />
 
-      {style.glow && (
+      {style.glow && !mixed?.has('glow') && (
         <SliderRow
           label="Glow width"
           value={style.glowWidth}
@@ -52,6 +56,7 @@ export function RouteLineSection({
           max={40}
           step={1}
           unit="px"
+          mixed={mixed?.has('glowWidth')}
         />
       )}
     </InspectorSection>

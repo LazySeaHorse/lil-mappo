@@ -35,6 +35,7 @@ import { DynamicControls } from './DynamicControls';
 import { StylePicker } from './StylePicker';
 import { ContentFields } from './ContentFields';
 import { SizeControls } from './SizeControls';
+import { CalloutConnectorSection } from './CalloutConnectorSection';
 
 export function AnnotationInspector({ item }: { item: CalloutItem }) {
   const updateItem = useProjectStore((s) => s.updateItem);
@@ -166,22 +167,7 @@ export function AnnotationInspector({ item }: { item: CalloutItem }) {
       </InspectorSection>
 
       {supportsAltitude && !style?.drawsConnector && (
-        <InspectorSection kind="callout" id="connector">
-          <div className="flex flex-col gap-2.5">
-            <SwitchRow
-              label="Show anchor line"
-              checked={item.connector.visible}
-              onChange={(v) => u({ connector: { ...item.connector, visible: v } })}
-            />
-            {item.connector.visible && (
-              <ColorRow
-                label="Line color"
-                value={item.connector.color}
-                onChange={(v) => u({ connector: { ...item.connector, color: v } })}
-              />
-            )}
-          </div>
-        </InspectorSection>
+        <CalloutConnectorSection connector={item.connector} onChange={(connector) => u({ connector: { ...item.connector, ...connector } })} />
       )}
 
       <TimingSection adapter={calloutTiming} item={item} onChange={u} />

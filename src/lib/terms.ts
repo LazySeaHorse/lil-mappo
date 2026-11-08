@@ -19,6 +19,14 @@ export type InspectorItemKind = keyof typeof ITEM_TYPE_LABELS;
 /** What a control shows while the selected clips hold different values. */
 export const MIXED_VALUE = 'Mixed';
 
+/** Words of the inspector while several clips are selected. */
+export const MULTI_SELECT_TERMS = {
+  /** The panel title for clips of one kind. */
+  countOf: { route: 'routes', callout: 'callouts', boundary: 'areas', model: '3D models' },
+  mixedKindsTitle: (count: number) => `${count} items selected`,
+  mixedKindsBody: 'Select clips of one kind to edit them together. Drag one to move them all, or press Delete to remove them.',
+} as const;
+
 /** Labels of the timing fields, shared by every item that has a time range. */
 export const TIMING_LABELS = {
   section: 'Timing',

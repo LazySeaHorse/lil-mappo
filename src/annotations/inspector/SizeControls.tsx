@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SliderRow, SwitchRow } from '@/components/Inspector/InspectorShared';
 import { useMapRef } from '@/hooks/useMapRef';
 import { projectZoomOf } from '@/engine/frameScale';
+import type { MixedFields } from '@/components/Inspector/mergeValues';
 import { DEFAULT_VIEW_ZOOM } from '@/annotations/migration';
 import type { CalloutItem } from '@/store/types';
 import {
@@ -19,20 +20,24 @@ import {
   sliderToScale,
 } from './sizeSlider';
 
-type SizePatch = Partial<Pick<CalloutItem, 'scale' | 'sizeMode' | 'referenceZoom'>>;
+type SizeFields = Pick<CalloutItem, 'scale' | 'sizeMode' | 'referenceZoom'>;
+type SizePatch = Partial<SizeFields>;
 
 interface SizeControlsProps {
-  item: Pick<CalloutItem, 'scale' | 'sizeMode' | 'referenceZoom'>;
+  item: SizeFields;
   onChange: (patch: SizePatch) => void;
+  /** Fields on which the selected callouts differ. */
+  mixed?: MixedFields<SizeFields>;
 }
 
-export function SizeControls({ item, onChange }: SizeControlsProps) {
+export function SizeControls({ item, onChange, mixed }: SizeControlsProps) {
   const mapRef = useMapRef();
   const currentZoom = () => {
     const map = mapRef.current?.getMap?.();
     return map ? projectZoomOf(map) : DEFAULT_VIEW_ZOOM;
   };
-  const scalesWithMap = item.sizeMode === 'map';
+  const modeMixed = mixed?.has('sizeMode') ?? false;
+  const scalesWithMap = item.sizeMode === 'map' && !modeMixed;
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -45,16 +50,18 @@ export function SizeControls({ item, onChange }: SizeControlsProps) {
         max={SIZE_SLIDER_MAX}
         step={SIZE_SLIDER_STEP}
         formatValue={(t) => formatScale(sliderToScale(t))}
+        mixed={mixed?.has('scale')}
       />
       <SwitchRow
         label="Scale with map"
         sublabel="Grows and shrinks with the zoom, like it is printed on the map"
         checked={scalesWithMap}
+        mixed={modeMixed}
         onChange={(on) => onChange(on ? { sizeMode: 'map', referenceZoom: currentZoom() } : { sizeMode: 'screen' })}
       />
       {scalesWithMap && (
         <div className="flex items-center justify-between gap-3 px-0.5 text-xs text-muted-foreground">
-          <span>Size is set at zoom {item.referenceZoom.toFixed(1)}</span>
+          <span>{mixed?.has('referenceZoom') ? 'Size is set at different zooms' : `Size is set at zoom ${item.referenceZoom.toFixed(1)}`}</span>
           <Button
             type="button"
             variant="outline"

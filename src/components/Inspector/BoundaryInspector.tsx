@@ -12,27 +12,14 @@ import { toast } from 'sonner';
 import { BoundarySearch } from './BoundarySearch';
 import { HistoricalPeriodPicker } from './controls/HistoricalPeriodPicker';
 import { BoundaryDetailPicker } from './controls/BoundaryDetailPicker';
-import { FlagPicker } from './FlagPicker';
-import { CountryCutoutFeature } from '@/components/FeatureVotes/CountryCutoutFeature';
 import { Field } from '@/components/ui/field';
-import { SegmentedControl } from '@/components/ui/segmented-control';
-import { 
-  SliderRow, 
-  ColorRow, 
-  SwitchRow, 
-  VisualCardSelect,
-  type VisualCardOption,
-} from './InspectorShared';
-import { formatPercent } from './inspectorValues';
 import { PanelWrapper } from './InspectorLayout';
-import { InspectorSection } from './InspectorSection';
+import { BoundaryAnimationSection, BoundaryAppearanceSection } from './BoundaryStyleSections';
 import { InspectorHeader } from './InspectorHeader';
-import { BOUNDARY_ANIMATION_LABELS, BOUNDARY_TERMS, HISTORICAL_TERMS } from '@/lib/terms';
+import { BOUNDARY_TERMS, HISTORICAL_TERMS } from '@/lib/terms';
 import { TimingSection } from './timing/TimingSection';
 import { boundaryTiming } from './timing/timingAdapters';
-import { Shield, Ban, Layers, PenLine, Sparkles, Loader2 } from 'lucide-react';
-
-type BoundaryAnimationMode = 'none' | BoundaryItem['style']['animationStyle'];
+import { Shield, Loader2 } from 'lucide-react';
 
 export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   const updateItem = useProjectStore(s => s.updateItem);
@@ -145,24 +132,6 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
   // A download for another period of this place locks the picker; one for a different place shows a plain line.
   const loadingPeriod = item.source?.versions.some((v) => v.osmId === loadingId) ? loadingId : null;
 
-  // Determine active animation card
-  const activeAnimMode = item.style.animateStroke ? item.style.animationStyle : 'none';
-
-  const handleAnimModeChange = (mode: BoundaryAnimationMode) => {
-    if (mode === 'none') {
-      us({ animateStroke: false });
-    } else {
-      us({ animateStroke: true, animationStyle: mode });
-    }
-  };
-
-  const animationOptions = [
-    { value: 'none', label: BOUNDARY_ANIMATION_LABELS.none, icon: <Ban size={13} /> },
-    { value: 'fade', label: BOUNDARY_ANIMATION_LABELS.fade, icon: <Layers size={13} /> },
-    { value: 'draw', label: BOUNDARY_ANIMATION_LABELS.draw, icon: <PenLine size={13} /> },
-    { value: 'trace', label: BOUNDARY_ANIMATION_LABELS.trace, icon: <Sparkles size={13} /> },
-  ] as const satisfies readonly VisualCardOption<BoundaryAnimationMode>[];
-
   return (
     <PanelWrapper 
       title="Area" 
@@ -206,129 +175,9 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
         </Field>
       )}
 
-      <InspectorSection kind="boundary" id="appearance">
-        <div className="flex flex-col gap-3">
-          <ColorRow 
-            label={BOUNDARY_TERMS.borderColor} 
-            value={item.style.strokeColor} 
-            onChange={(v) => us({ strokeColor: v })} 
-          />
-          
-          <SliderRow 
-            label={BOUNDARY_TERMS.borderWidth}
-            value={item.style.strokeWidth} 
-            onChange={(v) => us({ strokeWidth: v })} 
-            min={1} 
-            max={15} 
-            step={1} 
-            unit="px"
-          />
-          
-          <SwitchRow 
-            label="Glow" 
-            checked={item.style.glow} 
-            onChange={(v) => us({ glow: v })} 
-          />
-          
-          <Field label={BOUNDARY_TERMS.fill}>
-            <SegmentedControl
-              options={[{ value: 'color', label: 'Color' }, { value: 'flag', label: 'Flag' }]}
-              value={item.style.fillMode}
-              onValueChange={(v) => us({ fillMode: v })}
-            />
-          </Field>
+      <BoundaryAppearanceSection style={item.style} onStyle={us} />
 
-          {item.style.fillMode === 'flag' ? (
-            <div className="flex flex-col gap-1.5">
-              <FlagPicker value={item.style.flagCode} onChange={(code) => us({ flagCode: code })} />
-              {!item.style.flagCode && (
-                <span className="text-2xs text-muted-foreground leading-tight">
-                  Select a country to show its flag inside the boundary.
-                </span>
-              )}
-            </div>
-          ) : (
-            <ColorRow
-              label={BOUNDARY_TERMS.fillColor}
-              value={item.style.fillColor}
-              onChange={(v) => us({ fillColor: v })}
-            />
-          )}
-
-          <SliderRow 
-            label={BOUNDARY_TERMS.fillOpacity} 
-            value={item.style.fillOpacity} 
-            onChange={(v) => us({ fillOpacity: v })} 
-            min={0} 
-            max={1} 
-            step={0.01} 
-            formatValue={formatPercent}
-          />
-
-          {item.style.fillMode === 'color' && (
-            <SwitchRow
-              label="Keep roads visible"
-              sublabel="Streets show through the fill"
-              checked={item.style.fillUnderRoads}
-              onChange={(v) => us({ fillUnderRoads: v })}
-            />
-          )}
-
-          <CountryCutoutFeature />
-
-          <SwitchRow
-            label="Mask outside"
-            sublabel="Cover the map area outside the boundary"
-            checked={item.style.maskOutside}
-            onChange={(v) => us({ maskOutside: v })}
-          />
-
-          {item.style.maskOutside && (
-            <div className="flex flex-col gap-3 pl-2 border-l-2 border-primary/20">
-              <ColorRow
-                label="Mask color"
-                value={item.style.maskColor}
-                onChange={(v) => us({ maskColor: v })}
-              />
-              <SliderRow
-                label="Mask opacity"
-                value={item.style.maskOpacity}
-                onChange={(v) => us({ maskOpacity: v })}
-                min={0}
-                max={1}
-                step={0.01}
-                formatValue={formatPercent}
-              />
-            </div>
-          )}
-        </div>
-      </InspectorSection>
-
-      <InspectorSection kind="boundary" id="animation">
-        <div className="flex flex-col gap-3">
-          <VisualCardSelect
-            options={animationOptions}
-            value={activeAnimMode}
-            onChange={handleAnimModeChange}
-            columns={4}
-          />
-
-          {activeAnimMode === 'trace' && (
-            <SliderRow 
-              label={BOUNDARY_TERMS.highlightLength}
-              hint={BOUNDARY_TERMS.highlightHint}
-              endLabels={BOUNDARY_TERMS.highlightEnds}
-              value={item.style.traceLength}
-              onChange={(v) => us({ traceLength: v })} 
-              min={0.01} 
-              max={0.5} 
-              step={0.01} 
-              // The value is the part of the outline that is lit: 0.1 is 10 %.
-              formatValue={formatPercent}
-            />
-          )}
-        </div>
-      </InspectorSection>
+      <BoundaryAnimationSection style={item.style} onStyle={us} />
 
       <TimingSection adapter={boundaryTiming} item={item} onChange={u} />
 

@@ -14,11 +14,10 @@ import { NumberRow } from './controls/NumberRow';
 import { ReadoutRow } from './controls/ReadoutRow';
 import { CoordinatesRows } from './controls/CoordinatesRows';
 import { Disclosure } from './controls/Disclosure';
-import { formatWideMultiplier } from './inspectorValues';
+import { ModelSizeSlider } from './ModelSizeSlider';
 import { TimingSection } from './timing/TimingSection';
 import { modelTiming } from './timing/timingAdapters';
 import { ModelRelinkPrompt } from './ModelRelinkPrompt';
-import { VEHICLE_SCALE_RANGE } from '@/config/vehicles';
 
 const degrees = (value: number) => `${Math.round(value)}°`;
 
@@ -103,18 +102,7 @@ export function ModelInspector({ item }: { item: ModelItem }) {
       </InspectorSection>
 
       <InspectorSection kind="model" id="size">
-        <SliderRow
-          label={MODEL_TERMS.size}
-          hint={MODEL_TERMS.sizeHint}
-          value={item.scale}
-          onChange={(scale) => u({ scale })}
-          min={VEHICLE_SCALE_RANGE.custom.min}
-          max={VEHICLE_SCALE_RANGE.custom.max}
-          step={0.01}
-          logarithmic
-          formatValue={formatWideMultiplier}
-          onReset={() => u({ scale: 1 })}
-        />
+        <ModelSizeSlider value={item.scale} onChange={(scale) => u({ scale })} />
         {height !== null && <ReadoutRow label={MODEL_TERMS.heightLabel} value={formatMeters(height)} />}
       </InspectorSection>
 

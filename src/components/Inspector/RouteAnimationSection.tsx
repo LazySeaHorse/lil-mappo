@@ -1,7 +1,8 @@
 import type { RouteItem } from '@/store/types';
 import { ROUTE_ANIMATION_TERMS } from '@/lib/terms';
-import { SliderRow, VisualCardSelect, type VisualCardOption } from './InspectorShared';
+import { MixedTag, SliderRow, VisualCardSelect, type VisualCardOption } from './InspectorShared';
 import { InspectorSection } from './InspectorSection';
+import type { MixedFields } from './mergeValues';
 import { RouteAnimationPreview } from './RouteAnimationPreview';
 
 type RouteAnimationType = RouteItem['style']['animationType'];
@@ -16,23 +17,25 @@ const ANIMATION_OPTIONS = (['draw', 'navigation', 'comet'] as const).map((value)
 export function RouteAnimationSection({
   style,
   onStyle,
+  mixed,
 }: {
   style: RouteItem['style'];
   onStyle: (patch: Partial<RouteItem['style']>) => void;
+  mixed?: MixedFields<RouteItem['style']>;
 }) {
-  const type = style.animationType;
+  const type = mixed?.has('animationType') ? null : style.animationType;
 
   return (
     <InspectorSection kind="route" id="animation">
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-muted-foreground">{ROUTE_ANIMATION_TERMS.label}</span>
+        <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">{ROUTE_ANIMATION_TERMS.label}{!type && <MixedTag />}</span>
         <VisualCardSelect
           options={ANIMATION_OPTIONS}
           value={type}
           onChange={(animationType) => onStyle({ animationType })}
           columns={3}
         />
-        <p className="text-2xs leading-tight text-muted-foreground">{ROUTE_ANIMATION_TERMS[type].hint}</p>
+        {type && <p className="text-2xs leading-tight text-muted-foreground">{ROUTE_ANIMATION_TERMS[type].hint}</p>}
       </div>
 
       {type === 'comet' && (
@@ -44,6 +47,7 @@ export function RouteAnimationSection({
           max={0.8}
           step={0.05}
           formatValue={(v) => v.toFixed(2)}
+          mixed={mixed?.has('cometTrailLength')}
         />
       )}
     </InspectorSection>

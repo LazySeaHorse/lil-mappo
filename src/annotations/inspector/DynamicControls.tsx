@@ -12,11 +12,12 @@ import {
   ColorRow,
   SwitchRow,
   SelectRow,
+  MixedTag,
 } from '@/components/Inspector/InspectorShared';
 import { FlagPicker } from '@/components/Inspector/FlagPicker';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Disclosure } from '@/components/Inspector/controls/Disclosure';
-import { ACCENT_TERMS } from '@/lib/terms';
+import { ACCENT_TERMS, MIXED_VALUE } from '@/lib/terms';
 import { MAP_FONTS } from '@/constants/fonts';
 import { accentControls, accentSettings } from '@/annotations/accent';
 
@@ -25,6 +26,8 @@ interface DynamicControlsProps {
   settings: Record<string, unknown>;
   /** Settings to change, by key. One call is one undo step. */
   onUpdate: (changes: Record<string, unknown>) => void;
+  /** Settings on which the selected callouts differ. A control that depends on one of them is left out. */
+  mixed?: ReadonlySet<string>;
 }
 
 type ColorControl = Extract<ControlDefinition, { type: 'color' }>;
@@ -34,8 +37,8 @@ type ColorControl = Extract<ControlDefinition, { type: 'color' }>;
  * that sets them all (it shows the first one's value). The style's other
  * colors then sit behind "Customize colors", closed by default.
  */
-export function DynamicControls({ controls: allControls, settings, onUpdate }: DynamicControlsProps) {
-  const controls = allControls.filter((c) => !c.when || settings[c.when.key] === c.when.equals);
+export function DynamicControls({ controls: allControls, settings, onUpdate, mixed }: DynamicControlsProps) {
+  const controls = allControls.filter((c) => !c.when || (!mixed?.has(c.when.key) && settings[c.when.key] === c.when.equals));
   const accents = accentControls(controls);
   const colors = controls.filter((c): c is ColorControl => c.type === 'color' && c.role !== 'accent');
   // Without an accent every color shows as before.
@@ -45,6 +48,7 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
   const renderControl = (control: ControlDefinition) => {
     const value = settings[control.key];
     const set = (v: unknown) => onUpdate({ [control.key]: v });
+    const isMixed = mixed?.has(control.key) ?? false;
 
     switch (control.type) {
       case 'color':
@@ -54,6 +58,7 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
             label={control.label}
             value={(value as string) || '#000000'}
             onChange={set}
+            mixed={isMixed}
           />
         );
 
@@ -68,6 +73,7 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
             max={control.max}
             step={control.step}
             unit={control.unit}
+            mixed={isMixed}
           />
         );
 
@@ -78,6 +84,7 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
             label={control.label}
             checked={!!value}
             onChange={set}
+            mixed={isMixed}
           />
         );
 
@@ -89,16 +96,17 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
             value={(value as string) ?? control.options[0]?.value ?? ''}
             onChange={set}
             options={control.options}
+            mixed={isMixed}
           />
         );
 
       case 'tabs':
         return (
           <div key={control.key} className="space-y-1">
-            <label className="text-xs text-muted-foreground">{control.label}</label>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">{control.label}{isMixed && <MixedTag />}</label>
             <SegmentedControl
               options={control.options}
-              value={(value as string) ?? control.options[0]?.value ?? ''}
+              value={isMixed ? null : (value as string) ?? control.options[0]?.value ?? ''}
               onValueChange={set}
             />
           </div>
@@ -113,6 +121,7 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
             onChange={set}
             options={MAP_FONTS.map((f) => ({ value: f, label: f, style: { fontFamily: f } }))}
             renderOption={(o) => <span style={{ fontFamily: o.value }}>{o.label}</span>}
+            mixed={isMixed}
           />
         );
 
@@ -122,9 +131,9 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
             <label className="text-xs text-muted-foreground">{control.label}</label>
             <input
               type="text"
-              value={(value as string) || ''}
+              value={isMixed ? '' : (value as string) || ''}
               onChange={(e) => set(e.target.value)}
-              placeholder={control.placeholder}
+              placeholder={isMixed ? MIXED_VALUE : control.placeholder}
               className="w-full h-8 px-2.5 text-xs bg-secondary/20 border border-transparent rounded-md focus:border-border/50 transition-all outline-none"
             />
           </div>
@@ -134,7 +143,7 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
         return (
           <div key={control.key} className="space-y-1">
             <label className="text-xs text-muted-foreground">{control.label}</label>
-            <FlagPicker value={(value as string) || null} onChange={set} />
+            <FlagPicker value={isMixed ? null : (value as string) || null} onChange={set} />
           </div>
         );
 
@@ -150,6 +159,7 @@ export function DynamicControls({ controls: allControls, settings, onUpdate }: D
           label={ACCENT_TERMS.accent}
           value={(settings[accents[0].key] as string) || '#000000'}
           onChange={(v) => onUpdate(accentSettings(accents, v))}
+          mixed={accents.some((accent) => mixed?.has(accent.key))}
         />
       )}
       {plain.map(renderControl)}
