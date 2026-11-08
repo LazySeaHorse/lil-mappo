@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_FRAME_WIDTH,
   PROJECT_SCHEMA_VERSION,
   createProject,
   parseProjectDocument,
@@ -45,6 +46,7 @@ describe('project document persistence boundary', () => {
       'itemOrder',
       'models',
       'mapCenter',
+      'frameWidth',
     ]);
     expect(document.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
     expect(document).not.toHaveProperty('playheadTime');
@@ -928,6 +930,36 @@ describe('project document persistence boundary', () => {
   });
 });
 
+describe('frame width', () => {
+  const stored = toProjectDocument(createProject({ id: 'framed' }));
+
+  it('loads a document from before it was stored with none, so the editor fills it in', () => {
+    const { frameWidth: _, ...legacy } = stored;
+    expect(parseProjectDocument(legacy).frameWidth).toBeNull();
+  });
+
+  it('keeps a stored width and drops an invalid one', () => {
+    expect(parseProjectDocument({ ...stored, frameWidth: 1440 }).frameWidth).toBe(1440);
+    expect(parseProjectDocument({ ...stored, frameWidth: -5 }).frameWidth).toBeNull();
+    expect(parseProjectDocument({ ...stored, frameWidth: 'wide' }).frameWidth).toBeNull();
+  });
+
+  it('is adopted once from the map for a project without one, and never undone', () => {
+    useProjectStore.getState().loadFullProject({ ...createProject(), frameWidth: null });
+    useProjectStore.getState().adoptFrameWidth(1194);
+    useProjectStore.getState().adoptFrameWidth(1920);
+    expect(useProjectStore.getState().frameWidth).toBe(1194);
+    useProjectStore.temporal.getState().undo();
+    expect(useProjectStore.getState().frameWidth).toBe(1194);
+  });
+
+  it('is cleared by loading a project without one, not carried over from the last project', () => {
+    useProjectStore.getState().loadFullProject(createProject({ frameWidth: 1440 }));
+    useProjectStore.getState().loadFullProject({ ...createProject(), frameWidth: null });
+    expect(useProjectStore.getState().frameWidth).toBeNull();
+  });
+});
+
 describe('createProject', () => {
   it('builds a complete project with the documented defaults', () => {
     const project = createProject();
@@ -957,6 +989,7 @@ describe('createProject', () => {
       itemOrder: ['camera-track'],
       models: {},
       mapCenter: [0, 0],
+      frameWidth: DEFAULT_FRAME_WIDTH,
     });
     expect(createProject().id).not.toBe(project.id);
   });

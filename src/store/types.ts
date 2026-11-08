@@ -319,6 +319,12 @@ export interface Project {
   /** Metadata of imported 3D models, by id. The bytes are kept in memory only (`src/models`). */
   models: Record<string, ModelAsset>;
   mapCenter: [number, number];
+  /**
+   * Width in pixels of the video frame that zooms and pixel sizes are measured on (see
+   * `engine/frameScale`). Null for a project from before it was stored, until the editor fills
+   * in the width its map had, which is the frame those zooms were set on.
+   */
+  frameWidth: number | null;
   // Custom map styles (future feature accommodation)
   customMapStyleUrl?: string;
   customMapStyleLabel?: string;

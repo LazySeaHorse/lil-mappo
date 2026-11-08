@@ -34,10 +34,11 @@ export const TRACKED_PROJECT_KEYS = [
 ] as const satisfies readonly (keyof Project)[];
 
 /**
- * Persisted fields that never create history: `id` is identity, and
- * `mapCenter` is rewritten on every map pan (search proximity bias only).
+ * Persisted fields that never create history: `id` is identity, `mapCenter` is
+ * rewritten on every map pan (search proximity bias only), and `frameWidth` is
+ * filled in once by the editor, never edited.
  */
-export const HISTORY_EXCLUDED_PROJECT_KEYS = ['id', 'mapCenter'] as const satisfies readonly (keyof Project)[];
+export const HISTORY_EXCLUDED_PROJECT_KEYS = ['id', 'mapCenter', 'frameWidth'] as const satisfies readonly (keyof Project)[];
 
 /** Every key `toProjectDocument` serialises: what the working draft must save. */
 export const PERSISTED_PROJECT_KEYS = [...TRACKED_PROJECT_KEYS, ...HISTORY_EXCLUDED_PROJECT_KEYS] as const;

@@ -280,6 +280,8 @@ const projectDocumentSchema = z.object({
   // Added after v5 shipped; older documents have no imported models.
   models: z.record(modelAssetSchema).default({}),
   mapCenter: coordinateSchema.default([0, 0]),
+  // Added after v5 shipped; older documents have none until the editor fills it in.
+  frameWidth: z.number().positive().finite().nullable().default(null).catch(null),
   customMapStyleUrl: z.string().optional(),
   customMapStyleLabel: z.string().optional(),
 }).superRefine((doc, ctx) => {
@@ -657,6 +659,9 @@ export function toProjectDocument(state: Project): ProjectDocument {
   };
 }
 
+/** The frame width new projects measure zooms and pixel sizes on (see `Project.frameWidth`). */
+export const DEFAULT_FRAME_WIDTH = 1920;
+
 /**
  * Creates a complete project without routing partial data through the loader.
  * Only fields without a schema default are set here; the schema fills the rest.
@@ -675,6 +680,7 @@ export function createProject(overrides: Partial<Project> = {}): Project {
     ),
     items: { [CAMERA_TRACK_ID]: camera },
     itemOrder: [CAMERA_TRACK_ID],
+    frameWidth: DEFAULT_FRAME_WIDTH,
     ...overrides,
   });
 }

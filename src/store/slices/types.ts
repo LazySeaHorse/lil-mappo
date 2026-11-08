@@ -148,6 +148,8 @@ export interface ProjectSettingsSlice {
   setLightPreset: (v: Project['lightPreset']) => void;
   setAtmosphere: (updates: Partial<Pick<Project, 'starIntensity' | 'fogColor'>>) => void;
   setTerrainExaggeration: (v: number) => void;
+  /** Gives a project from before `frameWidth` was stored the width its map shows it at. Does nothing once set. */
+  adoptFrameWidth: (width: number) => void;
   /** Replaces the project with one parsed by `parseProjectDocument` (or made by `createProject`) and resets transient editor state. */
   loadFullProject: (project: Project) => void;
 }

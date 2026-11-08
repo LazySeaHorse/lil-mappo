@@ -7,6 +7,7 @@ import { MAP_STYLES, transformMapboxRequest } from '@/config/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cameraUtils';
 import { isPlacedPoint } from '@/engine/routeMode';
+import { mapContainerSize } from '@/engine/mapFraming';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 
@@ -107,6 +108,20 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
       if (runtimeRef.current === runtime) runtimeRef.current = null;
     };
   }, [mapReady, mapRef, runtimeRef]);
+
+  // A project from before frameWidth was stored had its zooms set on this map at this width, so
+  // that is its frame. Not while a capture has the map at another size.
+  useEffect(() => {
+    if (!mapReady) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const adopt = () => {
+      const { frameWidth, isCapturingViewport, adoptFrameWidth } = useProjectStore.getState();
+      if (frameWidth === null && !isCapturingViewport) adoptFrameWidth(mapContainerSize(map).width);
+    };
+    adopt();
+    return useProjectStore.subscribe(adopt);
+  }, [mapReady, mapRef]);
 
   // Mapbox only resizes its canvas on window events, so a container size change on its own (fit
   // mode, project orientation, aspect ratio) would leave it drawing at the old size. resize() reads

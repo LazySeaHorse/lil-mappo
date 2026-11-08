@@ -30,6 +30,7 @@ export const createProjectSettingsSlice: StateCreator<
   setLightPreset: (v) => set({ lightPreset: v }),
   setAtmosphere: (updates) => set(updates),
   setTerrainExaggeration: (v) => set({ terrainExaggeration: v }),
+  adoptFrameWidth: (width) => set((s) => (s.frameWidth === null && width > 0 ? { frameWidth: width } : {})),
 
   loadFullProject: (loaded) => {
     // Only the project's fields: a loaded object can carry more (a whole store), and it must not
