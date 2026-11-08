@@ -157,6 +157,41 @@ describe('TimelinePanel', () => {
       expect(useProjectStore.getState().items.first).toMatchObject({ startTime: 1, endTime: 3 });
     });
 
+    it('clears the selection when empty timeline space is pressed, but not with a modifier held', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6));
+      fireEvent.pointerDown(screen.getByTestId('timeline-item-first'), { pointerId: 1 });
+      shiftClick('timeline-item-second');
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['first', 'second']);
+
+      fireEvent.pointerDown(screen.getByTestId('timeline-lane'), { shiftKey: true, pointerId: 1 });
+      fireEvent.pointerDown(screen.getByTestId('timeline-empty-space'), { ctrlKey: true, pointerId: 1 });
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['first', 'second']);
+
+      fireEvent.pointerDown(screen.getByTestId('timeline-lane'), { pointerId: 1 });
+      expect(useProjectStore.getState().selectedItemIds).toEqual([]);
+      expect(screen.getByTestId('timeline-item-first')).not.toHaveClass('ring-primary');
+
+      fireEvent.pointerDown(screen.getByTestId('timeline-item-first'), { pointerId: 1 });
+      fireEvent.pointerDown(screen.getByTestId('timeline-empty-space'), { pointerId: 1 });
+      expect(useProjectStore.getState().selectedItemIds).toEqual([]);
+    });
+
+    it('keeps a closed inspector closed when empty space clears the selection', () => {
+      renderTimeline(route('first', 1, 3));
+      fireEvent.pointerDown(screen.getByTestId('timeline-item-first'), { pointerId: 1 });
+      act(() => useProjectStore.getState().setIsInspectorOpen(false));
+      fireEvent.pointerDown(screen.getByTestId('timeline-lane'), { pointerId: 1 });
+      expect(useProjectStore.getState().isInspectorOpen).toBe(false);
+    });
+
+    it('does not clear the selection when a clip is pressed', () => {
+      renderTimeline(route('first', 1, 3), route('second', 4, 6));
+      fireEvent.pointerDown(screen.getByTestId('timeline-item-first'), { pointerId: 1 });
+      shiftClick('timeline-item-second');
+      fireEvent.pointerDown(screen.getByTestId('timeline-item-first'), { pointerId: 1 });
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['first', 'second']);
+    });
+
     it('moves every selected clip together, keeping the selection', () => {
       renderTimeline(route('first', 1, 3), route('second', 4, 6), route('other', 7, 9));
       act(() => {

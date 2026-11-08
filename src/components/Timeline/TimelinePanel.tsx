@@ -6,6 +6,7 @@ import TimelineHeader from './TimelineHeader';
 import TimelineViewport from './TimelineViewport';
 import type { AutoCamBlock } from './TimelineCameraLane';
 import { useTimelineLanes } from './useTimelineLanes';
+import { clearSelection } from '@/components/MapViewport/escapeDeselect';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useTimelineKeyboardShortcuts } from './useTimelineKeyboardShortcuts';
 import { useTimelinePlayheadSync } from './useTimelinePlayheadSync';
@@ -246,6 +247,7 @@ export default function TimelinePanel() {
         trackLineRef={trackLineRef}
         zoomBounds={zoomBounds}
         onSelectItem={selectItem}
+        onClearSelection={clearSelection}
         onToggleItemSelection={toggleItemSelection}
         onSelectAutoCam={handleSelectAutoCam}
         onSelectKeyframe={selectKeyframe}

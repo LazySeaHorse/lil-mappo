@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction, type WheelEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type RefObject, type SetStateAction, type WheelEvent } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem, TimelineItem } from '@/store/types';
@@ -34,6 +34,7 @@ interface TimelineViewportProps {
   trackLineRef: RefObject<HTMLDivElement>;
   zoomBounds: ZoomBounds;
   onSelectItem: (itemId: string) => void;
+  onClearSelection: () => void;
   onToggleItemSelection: (itemId: string) => void;
   onSelectAutoCam: (routeId: string) => void;
   onSelectKeyframe: (keyframeId: string | null) => void;
@@ -61,6 +62,7 @@ export default function TimelineViewport({
   trackLineRef,
   zoomBounds,
   onSelectItem,
+  onClearSelection,
   onToggleItemSelection,
   onSelectAutoCam,
   onSelectKeyframe,
@@ -68,6 +70,12 @@ export default function TimelineViewport({
   const initialPlayheadX = useProjectStore.getState().playheadTime * pixelsPerSecond;
 
   const isScrubbingRef = useRef(false);
+
+  // Clips stop their own pointerdown, so one that reaches the clip lanes or the space under them is on empty space.
+  const handleEmptySpacePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.shiftKey || event.metaKey || event.ctrlKey) return;
+    onClearSelection();
+  };
 
   // The ruler runs to the panel's edge, not just to the project's end.
   const contentRef = useRef<HTMLDivElement>(null);
@@ -202,7 +210,11 @@ export default function TimelineViewport({
             />
           )}
 
-          <div className="relative" style={{ height: lanes.length * TIMELINE_LANE_HEIGHT }}>
+          <div
+            className="relative"
+            style={{ height: lanes.length * TIMELINE_LANE_HEIGHT }}
+            onPointerDown={handleEmptySpacePointerDown}
+          >
             {lanes.map((_, lane) => (
               <div key={lane} data-testid="timeline-lane" className="flex h-10">
                 {/* No divider or lane line here, so the gutter beside the clips reads as margin; it still covers clips scrolled under it. */}
@@ -233,6 +245,7 @@ export default function TimelineViewport({
               }))}
             </div>
           </div>
+          <div data-testid="timeline-empty-space" className="grow" onPointerDown={handleEmptySpacePointerDown} />
         </div>
       </div>
       <ScrollBar orientation="horizontal" className="z-40 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
