@@ -103,7 +103,11 @@ export class BoundaryRenderer {
     if (fillMode !== previous.fillMode || flagCode !== previous.flagCode) preloadFlag(fillMode === 'flag', flagCode);
   }
 
-  render = (playheadTime: number): void => {
+  /**
+   * `pixelScale` is how much larger than set the border is drawn: 2^the map's zoom offset from the
+   * project's frame (see engine/frameScale), so it keeps its width relative to the frame.
+   */
+  render = (playheadTime: number, pixelScale = 1): void => {
     if (this.disposed) return;
     const boundary = this.boundary;
     const geometry = boundary.geojson;
@@ -120,7 +124,7 @@ export class BoundaryRenderer {
     this.ensureFillLayer();
     const { fillColor } = style;
     this.layers.setPaint(this.ids.fillLayer, 'fill-color', fillColor, 'fillColor', fillColor);
-    this.updateStrokeStyle();
+    this.updateStrokeStyle(pixelScale);
 
     const glowVisible = style.glow && !reverseExit;
     this.layers.setLayout(this.ids.glowLayer, 'visibility', glowVisible ? 'visible' : 'none', 'glowVisible', glowVisible);
@@ -262,20 +266,21 @@ export class BoundaryRenderer {
     }
   }
 
-  private updateStrokeStyle(): void {
+  private updateStrokeStyle(pixelScale: number): void {
     const style = this.boundary.style;
+    const strokeWidth = style.strokeWidth * pixelScale;
     if (this.layers.cache.strokeColor !== style.strokeColor) {
       if (this.layers.mutate('setPaintProperty:stroke-color', this.ids.strokeLayer, () => {
         this.map.setPaintProperty(this.ids.strokeLayer, 'line-color', style.strokeColor);
         this.map.setPaintProperty(this.ids.glowLayer, 'line-color', style.strokeColor);
       })) this.layers.cache.strokeColor = style.strokeColor;
     }
-    if (this.layers.cache.strokeWidth !== style.strokeWidth) {
+    if (this.layers.cache.strokeWidth !== strokeWidth) {
       if (this.layers.mutate('setPaintProperty:stroke-size', this.ids.strokeLayer, () => {
-        this.map.setPaintProperty(this.ids.strokeLayer, 'line-width', style.strokeWidth);
-        this.map.setPaintProperty(this.ids.glowLayer, 'line-width', style.strokeWidth * 3);
-        this.map.setPaintProperty(this.ids.glowLayer, 'line-blur', style.strokeWidth * 2);
-      })) this.layers.cache.strokeWidth = style.strokeWidth;
+        this.map.setPaintProperty(this.ids.strokeLayer, 'line-width', strokeWidth);
+        this.map.setPaintProperty(this.ids.glowLayer, 'line-width', strokeWidth * 3);
+        this.map.setPaintProperty(this.ids.glowLayer, 'line-blur', strokeWidth * 2);
+      })) this.layers.cache.strokeWidth = strokeWidth;
     }
   }
 

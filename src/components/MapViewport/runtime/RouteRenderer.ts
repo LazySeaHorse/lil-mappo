@@ -36,6 +36,7 @@ type DrawnMarker =
   };
 
 const DOT_BASE_RADIUS = 9;
+const DOT_STROKE_WIDTH = 2.5;
 // Imported so Vite gives each model a content-hashed URL that browsers can cache until the file changes.
 const MODELS: Record<'car' | 'plane', string> = {
   car: carModelUrl,
@@ -72,6 +73,8 @@ interface PaintCache {
   vehiclePosition: string;
   /** Last model-translation height written to the vehicle layer. */
   vehicleLift: number;
+  /** Last radius written to the dot marker, in pixels as drawn. */
+  dotRadius: number;
   dashPattern: number[] | null;
 }
 
@@ -93,7 +96,7 @@ function createPaintCache(): PaintCache {
     glowColor: '', glowWidth: -1, glowOpacity: -1, glowVisible: false, glowTrim: '',
     cometColor: '', cometWidth: -1,
     lastAnimationType: '',
-    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleLift: 0,
+    vehicleVisible: true, vehicleOpacity: -1, vehiclePosition: '', vehicleLift: 0, dotRadius: -1,
     dashPattern: null,
   };
 }
@@ -192,7 +195,11 @@ export class RouteRenderer {
     if (vehicleChanged || colorChanged) this.ensureVehicleResources();
   }
 
-  render = (playheadTime: number): void => {
+  /**
+   * `pixelScale` is how much larger than set the line, glow and dot are drawn: 2^the map's zoom
+   * offset from the project's frame (see engine/frameScale), so they keep their size relative to it.
+   */
+  render = (playheadTime: number, pixelScale = 1): void => {
     if (this.disposed) return;
     const route = this.route;
     const coordinates = this.coordinates;
@@ -204,6 +211,7 @@ export class RouteRenderer {
     const timing = routeTiming(route, playheadTime);
     const { progress, isBeforeStart, exitActive, exitProgress, isAfterExit } = timing;
     const { animationType } = route.style;
+    const width = route.style.width * pixelScale;
 
     if (this.layers.cache.lastAnimationType === 'comet' && animationType !== 'comet') {
       getGeoJSONSource(this.map, this.ids.cometSource)?.setData(EMPTY_FC);
@@ -227,7 +235,7 @@ export class RouteRenderer {
           this.lastCometState = state;
         }
         this.layers.setPaint(this.ids.cometLayer, 'line-gradient', gradient(routeColor), 'cometColor', routeColor);
-        this.layers.setPaint(this.ids.cometLayer, 'line-width', route.style.width, 'cometWidth', route.style.width);
+        this.layers.setPaint(this.ids.cometLayer, 'line-width', width, 'cometWidth', width);
       }
     } else {
       if (isBeforeStart || isAfterExit) {
@@ -241,18 +249,19 @@ export class RouteRenderer {
         const { opacity } = timing;
         this.layers.setPaint(this.ids.mainLayer, 'line-color', routeColor, 'mainColor', routeColor);
         this.layers.setPaint(this.ids.mainLayer, 'line-opacity', opacity, 'mainOpacity', opacity);
-        this.layers.setPaint(this.ids.mainLayer, 'line-width', route.style.width, 'mainWidth', route.style.width);
+        this.layers.setPaint(this.ids.mainLayer, 'line-width', width, 'mainWidth', width);
         this.updateDashPattern();
 
         if (glowVisible) {
           const glowOpacity = 0.35 * opacity;
           this.layers.setPaint(this.ids.glowLayer, 'line-color', routeColor, 'glowColor', routeColor);
           this.layers.setPaint(this.ids.glowLayer, 'line-opacity', glowOpacity, 'glowOpacity', glowOpacity);
-          if (this.layers.cache.glowWidth !== resolvedPaint.glowWidth) {
+          const glowWidth = resolvedPaint.glowWidth * pixelScale;
+          if (this.layers.cache.glowWidth !== glowWidth) {
             if (this.layers.mutate('setPaintProperty:glow-size', this.ids.glowLayer, () => {
-              this.map.setPaintProperty(this.ids.glowLayer, 'line-width', resolvedPaint.glowWidth);
-              this.map.setPaintProperty(this.ids.glowLayer, 'line-blur', resolvedPaint.glowBlur);
-            })) this.layers.cache.glowWidth = resolvedPaint.glowWidth;
+              this.map.setPaintProperty(this.ids.glowLayer, 'line-width', glowWidth);
+              this.map.setPaintProperty(this.ids.glowLayer, 'line-blur', resolvedPaint.glowBlur * pixelScale);
+            })) this.layers.cache.glowWidth = glowWidth;
           }
         }
 
@@ -269,7 +278,7 @@ export class RouteRenderer {
       }
     }
 
-    this.renderVehicle(playheadTime, timing);
+    this.renderVehicle(playheadTime, timing, pixelScale);
   };
 
   dispose(): void {
@@ -390,8 +399,9 @@ export class RouteRenderer {
     if (!this.map.getLayer(this.ids.vehicleLayer)) this.addVehicleLayer(marker);
 
     if (marker.kind === 'dot') {
+      // The radius is drawn at the frame's scale (see renderVehicle): write it again on the next render.
+      this.layers.cache.dotRadius = -1;
       this.layers.mutate('setPaintProperty:vehicle-dot', this.ids.vehicleLayer, () => {
-        this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', marker.radius);
         this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-color', this.route.style.color);
       });
       return;
@@ -438,6 +448,7 @@ export class RouteRenderer {
     this.layers.cache.vehicleVisible = true;
     this.layers.cache.vehicleOpacity = -1;
     this.layers.cache.vehicleLift = marker.kind === 'model' ? marker.lift : 0;
+    this.layers.cache.dotRadius = marker.kind === 'dot' ? marker.radius : -1;
     if (marker.kind === 'dot') {
       this.map.addLayer({
         id: this.ids.vehicleLayer,
@@ -447,7 +458,7 @@ export class RouteRenderer {
           'circle-radius': marker.radius,
           'circle-color': this.route.style.color,
           'circle-stroke-color': '#FFFFFF',
-          'circle-stroke-width': 2.5,
+          'circle-stroke-width': DOT_STROKE_WIDTH,
           'circle-stroke-opacity': 1,
           ...noPaintTransitions('circle-radius', 'circle-color', 'circle-opacity'),
         },
@@ -481,9 +492,18 @@ export class RouteRenderer {
     })) this.layers.cache.dashPattern = pattern ? [...pattern] : null;
   }
 
-  private renderVehicle(playheadTime: number, { progress, exitProgress, opacity }: RouteTiming): void {
+  private renderVehicle(playheadTime: number, { progress, exitProgress, opacity }: RouteTiming, pixelScale: number): void {
     const marker = this.marker;
     if (!marker || this.coordinates.length < 2) return;
+    if (marker.kind === 'dot') {
+      const radius = marker.radius * pixelScale;
+      if (this.layers.cache.dotRadius !== radius) {
+        if (this.layers.mutate('setPaintProperty:vehicle-dot-size', this.ids.vehicleLayer, () => {
+          this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-radius', radius);
+          this.map.setPaintProperty(this.ids.vehicleLayer, 'circle-stroke-width', DOT_STROKE_WIDTH * pixelScale);
+        })) this.layers.cache.dotRadius = radius;
+      }
+    }
     const visible = playheadTime >= this.route.startTime && exitProgress < 1
       && !(this.route.style.animationType === 'comet' && progress === 0);
     this.layers.setLayout(this.ids.vehicleLayer, 'visibility', visible ? 'visible' : 'none', 'vehicleVisible', visible);

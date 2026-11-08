@@ -26,6 +26,8 @@ function createMapDouble() {
     mapbox,
     on: mapbox.api.on,
     off: mapbox.api.off,
+    // The project's frame width: pixel sizes are drawn as set.
+    getContainer: vi.fn(() => ({ clientWidth: 1920, clientHeight: 1080 })),
     once: vi.fn(),
     loaded: vi.fn(() => true),
     isStyleLoaded: vi.fn(() => styleLoaded),

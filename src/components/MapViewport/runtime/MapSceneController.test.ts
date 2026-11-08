@@ -51,6 +51,8 @@ function createMapDouble() {
       listeners.set(name, group);
     }),
     off: vi.fn((name: string, listener: (event: unknown) => void) => listeners.get(name)?.delete(listener)),
+    // The project's frame width: pixel sizes are drawn as set.
+    getContainer: vi.fn(() => ({ clientWidth: 1920, clientHeight: 1080 })),
     once: vi.fn(),
     loaded: vi.fn(() => true),
     isStyleLoaded: vi.fn(() => styleLoaded),
@@ -170,6 +172,44 @@ describe('MapSceneController', () => {
 
     expect([...double.listeners.values()].every((group) => group.size === 0)).toBe(true);
     expect(double.layers.has('route-layer-scene-route')).toBe(false);
+  });
+
+  it('draws line widths relative to the project frame, again when the map resizes, and at a capture\'s size', () => {
+    const previous = useProjectStore.getState();
+    useProjectStore.setState({ items: { [route.id]: route }, itemOrder: [route.id], playheadTime: 2.5, frameWidth: 3840 });
+    const double = createMapDouble();
+    let width = 1920;
+    double.getContainer.mockImplementation(() => ({ clientWidth: width, clientHeight: 1080 }));
+    const controller = new MapSceneController(double.map, vi.fn());
+    const lastWidth = () => double.setPaintProperty.mock.calls
+      .filter(([id, prop]) => id === 'route-layer-scene-route' && prop === 'line-width').at(-1)?.[2];
+    try {
+      controller.mount();
+      // A map half the frame's width draws the route half as wide, as the frame shows it.
+      expect(lastWidth()).toBe(route.style.width / 2);
+
+      width = 3840;
+      double.listeners.get('resize')?.forEach((listener) => listener({}));
+      expect(lastWidth()).toBe(route.style.width);
+
+      // A capture lends the map its own size and draws at it; its end draws at the editor's again.
+      useProjectStore.setState({ isCapturingViewport: true });
+      width = 7680;
+      controller.renderAt(2.5);
+      expect(lastWidth()).toBe(route.style.width * 2);
+      width = 3840;
+      useProjectStore.setState({ isCapturingViewport: false });
+      expect(lastWidth()).toBe(route.style.width);
+    } finally {
+      controller.dispose();
+      useProjectStore.setState({
+        items: previous.items,
+        itemOrder: previous.itemOrder,
+        playheadTime: previous.playheadTime,
+        frameWidth: previous.frameWidth,
+        isCapturingViewport: false,
+      });
+    }
   });
 
   it('loads and draws a boundary, mask included, saved with a stale search status', () => {

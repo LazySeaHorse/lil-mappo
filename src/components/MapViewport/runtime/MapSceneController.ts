@@ -15,6 +15,7 @@ import { isSelectionPreview, previewableSelectionId, selectionPreviewTime } from
 import { activeAppearPreview, entranceEnd, type AppearPreviewFrame } from '@/engine/appearPreview';
 import { sceneItems, type SceneItems } from '@/engine/stagedItems';
 import { useModelRegistry } from '@/models/modelRegistry';
+import { mapZoomOffset } from '@/engine/frameScale';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -93,6 +94,7 @@ export class MapSceneController implements MapSceneRuntime {
   private sceneRevision = 0;
   private renderedRevision = -1;
   private lastRenderedTime = Number.NaN;
+  private lastRenderedPixelScale = Number.NaN;
   /** Selection the last live render used, so selecting an item redraws even at the same playhead time. */
   private lastRenderedSelection: string | null = null;
   /** The appear preview the last render drew (its items and time), '' for none. */
@@ -115,6 +117,8 @@ export class MapSceneController implements MapSceneRuntime {
 
   mount(): void {
     this.unsubscribe = useProjectStore.subscribe(this.handleStoreChange);
+    // A new size is a new frame width, so pixel sizes are drawn at a new scale (see renderScene).
+    this.map.on('resize', this.handleResize);
     // A relinked file arrives (or a released one goes) without a project change.
     this.unsubscribeModels = useModelRegistry.subscribe(this.refreshModels);
     this.catalog.attach();
@@ -178,8 +182,11 @@ export class MapSceneController implements MapSceneRuntime {
       return;
     }
     const previewKey = preview ? `${[...preview.itemIds].join()}@${preview.time}` : '';
+    // Line widths and the dot are drawn relative to the frame, as callouts are (see engine/frameScale).
+    const pixelScale = 2 ** mapZoomOffset(this.map);
     if (
       time === this.lastRenderedTime
+      && pixelScale === this.lastRenderedPixelScale
       && selectedId === this.lastRenderedSelection
       && previewKey === this.lastRenderedPreview
       && this.renderedRevision === this.sceneRevision
@@ -190,15 +197,16 @@ export class MapSceneController implements MapSceneRuntime {
       if (!item || item.kind === 'camera') return time;
       return staged.has(id) ? entranceEnd(item) : selectionPreviewTime(item, time, id === selectedId);
     };
-    this.routes.forEach((renderer, id) => renderer.render(timeFor(id)));
+    this.routes.forEach((renderer, id) => renderer.render(timeFor(id), pixelScale));
     this.mask.render(this.maskBoundaries, timeFor);
-    this.boundaries.forEach((renderer, id) => renderer.render(timeFor(id)));
+    this.boundaries.forEach((renderer, id) => renderer.render(timeFor(id), pixelScale));
     // A selected model off the playhead is shown in full, like a callout, so it can be placed.
     this.models.forEach((renderer, id) => {
       const item = items[id];
       renderer.render(time, { settled: staged.has(id) || (!!item && item.kind === 'model' && isSelectionPreview(item, time, id === selectedId)) });
     });
     this.lastRenderedTime = time;
+    this.lastRenderedPixelScale = pixelScale;
     this.lastRenderedSelection = selectedId;
     this.lastRenderedPreview = previewKey;
     this.renderedRevision = this.sceneRevision;
@@ -212,6 +220,7 @@ export class MapSceneController implements MapSceneRuntime {
     if (this.disposed) return;
     this.disposed = true;
     if (this.previewFrame !== undefined) cancelAnimationFrame(this.previewFrame);
+    this.map.off('resize', this.handleResize);
     this.unsubscribe?.();
     this.unsubscribeModels?.();
     this.catalog.detach();
@@ -280,6 +289,7 @@ export class MapSceneController implements MapSceneRuntime {
     this.lastItems = undefined;
     this.lastItemOrder = undefined;
     this.lastRenderedTime = Number.NaN;
+    this.lastRenderedPixelScale = Number.NaN;
     this.renderedRevision = -1;
     this.sceneDirty = true;
     const state = useProjectStore.getState();
@@ -301,6 +311,13 @@ export class MapSceneController implements MapSceneRuntime {
     this.renderLive(state);
   };
 
+  /** A capture draws at its own size itself (renderAt); its end is a store change (see below). */
+  private readonly handleResize = (): void => {
+    if (this.disposed) return;
+    const state = useProjectStore.getState();
+    if (!state.isCapturingViewport) this.renderLive(state);
+  };
+
   private readonly handleStoreChange = (state: ProjectState, previous: ProjectState) => {
     if (this.disposed) return;
     const scene = sceneItems(state);
@@ -317,6 +334,8 @@ export class MapSceneController implements MapSceneRuntime {
       || state.isPlaying !== previous.isPlaying
       || state.hideUI !== previous.hideUI
       || state.appearPreview !== previous.appearPreview
+      || state.frameWidth !== previous.frameWidth
+      || state.isCapturingViewport !== previous.isCapturingViewport
     ) this.renderLive(state);
   };
 }

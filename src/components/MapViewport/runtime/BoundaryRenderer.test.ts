@@ -99,6 +99,20 @@ describe("BoundaryRenderer paint transitions", () => {
   });
 });
 
+describe("BoundaryRenderer border width", () => {
+  it("draws the border and its glow at the frame's pixel scale, so they keep their size relative to it", () => {
+    const { map, layers } = createMapDouble();
+    const renderer = new BoundaryRenderer(map, sampleBoundary);
+    renderer.mount();
+    renderer.render(5, 0.5);
+    expect(layers.get("boundary-stroke-layer-test-boundary")?.paint?.["line-width"]).toBe(2);
+    expect(layers.get("boundary-glow-layer-test-boundary")?.paint?.["line-width"]).toBe(6);
+    expect(layers.get("boundary-glow-layer-test-boundary")?.paint?.["line-blur"]).toBe(4);
+    renderer.render(5);
+    expect(layers.get("boundary-stroke-layer-test-boundary")?.paint?.["line-width"]).toBe(4);
+  });
+});
+
 describe("BoundaryRenderer animated stroke uploads", () => {
   function setup(style: Partial<BoundaryItem["style"]> = {}) {
     const { map, sources } = createMapDouble();

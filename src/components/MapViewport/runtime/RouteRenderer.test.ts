@@ -330,6 +330,28 @@ describe("RouteRenderer trim-driven line", () => {
     return { double, renderer, main: double.sources.get("route-sync-test-route")! };
   };
 
+  it("draws the line, glow and dot at the frame's pixel scale, so they keep their size relative to it", () => {
+    const { double, renderer } = mounted(sampleRoute);
+    const dot = "vehicle-layer-sync-test-route";
+    renderer.render(5, 2);
+    expect(double.layers.get(MAIN)?.paint?.["line-width"]).toBe(8);
+    expect(double.layers.get(GLOW)?.paint?.["line-width"]).toBe(20);
+    expect(double.layers.get(GLOW)?.paint?.["line-blur"]).toBe(10);
+    expect(double.layers.get(dot)?.paint?.["circle-radius"]).toBe(18);
+    expect(double.layers.get(dot)?.paint?.["circle-stroke-width"]).toBe(5);
+
+    renderer.render(5, 1);
+    expect(double.layers.get(MAIN)?.paint?.["line-width"]).toBe(4);
+    expect(double.layers.get(GLOW)?.paint?.["line-width"]).toBe(10);
+    expect(double.layers.get(dot)?.paint?.["circle-radius"]).toBe(9);
+  });
+
+  it("draws the comet at the frame's pixel scale", () => {
+    const { double, renderer } = mounted(withStyle({ animationType: "comet" }));
+    renderer.render(5, 0.5);
+    expect(double.layers.get("route-comet-layer-sync-test-route")?.paint?.["line-width"]).toBe(2);
+  });
+
   it("uploads the whole line once, to a lineMetrics source shared by the main and glow layers", () => {
     const { double, renderer, main } = mounted(sampleRoute);
     expect(double.addSource).toHaveBeenCalledWith("route-sync-test-route", expect.objectContaining({ lineMetrics: true }));
