@@ -114,14 +114,6 @@ describe('FeatureVoteDialog', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the timeline and inspector preview for multi-edit and groups', () => {
-    render(<FeatureVoteDialog featureId="multi-edit-groups" open onOpenChange={() => {}} />);
-    expect(screen.getByRole('dialog', { name: 'Multi-edit and groups' })).toBeTruthy();
-    expect(screen.getByText(/Ctrl\+G/)).toBeTruthy();
-    expect(screen.getByText(/Mixed/)).toBeTruthy();
-    expect(screen.getByTestId('feature-skeleton')).toBeTruthy();
-  });
-
   it('previews overlays with the frame, its layers and their bars', () => {
     render(<FeatureVoteDialog featureId="overlays" open onOpenChange={() => {}} />);
     expect(screen.getByRole('dialog', { name: 'Overlays' })).toBeTruthy();

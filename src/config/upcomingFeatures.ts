@@ -28,11 +28,6 @@ export const UPCOMING_FEATURES = [
     description: 'A gallery of sample projects to open, inspect, and remix.',
   },
   {
-    id: 'multi-edit-groups',
-    title: 'Multi-edit and groups',
-    description: 'Edit several clips at once, and group them to keep a long timeline tidy.',
-  },
-  {
     id: 'overlays',
     title: 'Overlays',
     description: 'Put your own logos, text, stickers and images on top of the video.',
