@@ -13,6 +13,7 @@ import { BoundarySearch } from './BoundarySearch';
 import { HistoricalPeriodPicker } from './controls/HistoricalPeriodPicker';
 import { BoundaryDetailPicker } from './controls/BoundaryDetailPicker';
 import { FlagPicker } from './FlagPicker';
+import { CountryCutoutFeature } from '@/components/FeatureVotes/CountryCutoutFeature';
 import { Field } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { 
@@ -272,6 +273,8 @@ export function BoundaryInspector({ item }: { item: BoundaryItem }) {
               onChange={(v) => us({ fillUnderRoads: v })}
             />
           )}
+
+          <CountryCutoutFeature />
 
           <SwitchRow
             label="Mask outside"

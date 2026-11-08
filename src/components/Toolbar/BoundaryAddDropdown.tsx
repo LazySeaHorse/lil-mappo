@@ -34,6 +34,7 @@ import { ColorRow } from '@/components/Inspector/controls/ColorRow';
 import { HistoricalPeriodPicker } from '@/components/Inspector/controls/HistoricalPeriodPicker';
 import { BoundarySearch } from '../Inspector/BoundarySearch';
 import { BoundaryDetailPicker } from '@/components/Inspector/controls/BoundaryDetailPicker';
+import { CountryCutoutFeature } from '@/components/FeatureVotes/CountryCutoutFeature';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
@@ -295,6 +296,9 @@ export const BoundaryAddDropdown = ({
                 onChange={handleFlag}
               />
             )}
+            <div className="my-3">
+              <CountryCutoutFeature onOpen={() => onOpenChange(false)} />
+            </div>
             <SwitchRow
               label="Dim surroundings"
               sublabel="Darken the map outside this area"
