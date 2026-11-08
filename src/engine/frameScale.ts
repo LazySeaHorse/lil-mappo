@@ -7,20 +7,32 @@ import { useProjectStore } from '@/store/useProjectStore';
  * log2(its width / frameWidth), and pixel sizes (route widths, callouts) scaled by 2^that, so a
  * keyframe frames the same ground on any screen and at any export resolution.
  *
- * The frame is the map's layout width: the editor's map in the editor (fit mode scales the
- * layout down with CSS, which leaves this width alone), the target width while a capture or
- * export has the map resized to it.
+ * The frame is the largest rectangle of the video's shape that fits the map (see `mapFrameSize`).
  */
 export function frameZoomOffset(frameWidthPx: number, frameWidth: number): number {
   return frameWidthPx > 0 && frameWidth > 0 ? Math.log2(frameWidthPx / frameWidth) : 0;
 }
 
-/** The map's layout width: fit mode's CSS scale leaves it alone (see `mapContainerSize`). */
-const mapWidth = (map: Pick<MapboxMap, 'getContainer'>) => map.getContainer().clientWidth;
+/**
+ * The video frame as the map shows it: the largest rectangle of the project's shape that fits the
+ * map's layout size (fit mode's CSS scale leaves that alone, see `mapContainerSize`). Fit mode
+ * shapes the map like the video and a capture sizes it to the frame, so there it is the whole map;
+ * zen mode and the full-screen editor show more map around it. Fitting inside matches the follow
+ * camera, which keeps the frame's height in view whatever the map's width.
+ */
+export function mapFrameSize(map: Pick<MapboxMap, 'getContainer'>): { width: number; height: number } {
+  const { clientWidth: width, clientHeight: height } = map.getContainer();
+  const [videoWidth, videoHeight] = useProjectStore.getState().resolution;
+  if (!(height > 0) || !(videoWidth > 0) || !(videoHeight > 0)) return { width, height };
+  const aspect = videoWidth / videoHeight;
+  return width / height > aspect ? { width: height * aspect, height } : { width, height: width / aspect };
+}
+
+const mapWidth = (map: Pick<MapboxMap, 'getContainer'>) => mapFrameSize(map).width;
 
 /**
  * The project's frame width. A project from before it was stored, until MapViewport adopts the
- * map's width for it, uses the map's own width, which is how it was shown then.
+ * map's frame width for it, uses that width, so it shows as it did then.
  */
 export function projectFrameWidth(map: Pick<MapboxMap, 'getContainer'>): number {
   return useProjectStore.getState().frameWidth ?? mapWidth(map);

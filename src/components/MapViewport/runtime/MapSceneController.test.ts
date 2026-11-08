@@ -176,10 +176,11 @@ describe('MapSceneController', () => {
 
   it('draws line widths relative to the project frame, again when the map resizes, and at a capture\'s size', () => {
     const previous = useProjectStore.getState();
-    useProjectStore.setState({ items: { [route.id]: route }, itemOrder: [route.id], playheadTime: 2.5, frameWidth: 3840 });
+    useProjectStore.setState({ items: { [route.id]: route }, itemOrder: [route.id], playheadTime: 2.5, frameWidth: 3840, resolution: [1920, 1080] });
     const double = createMapDouble();
     let width = 1920;
-    double.getContainer.mockImplementation(() => ({ clientWidth: width, clientHeight: 1080 }));
+    // Shaped like the 16:9 video, as fit mode and captures shape the map.
+    double.getContainer.mockImplementation(() => ({ clientWidth: width, clientHeight: (width * 9) / 16 }));
     const controller = new MapSceneController(double.map, vi.fn());
     const lastWidth = () => double.setPaintProperty.mock.calls
       .filter(([id, prop]) => id === 'route-layer-scene-route' && prop === 'line-width').at(-1)?.[2];
@@ -207,6 +208,7 @@ describe('MapSceneController', () => {
         itemOrder: previous.itemOrder,
         playheadTime: previous.playheadTime,
         frameWidth: previous.frameWidth,
+        resolution: previous.resolution,
         isCapturingViewport: false,
       });
     }

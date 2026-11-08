@@ -7,8 +7,7 @@ import { MAP_STYLES, transformMapboxRequest } from '@/config/mapbox';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cameraUtils';
 import { isPlacedPoint } from '@/engine/routeMode';
-import { mapContainerSize } from '@/engine/mapFraming';
-import { frameZoomOffset } from '@/engine/frameScale';
+import { frameZoomOffset, mapFrameSize } from '@/engine/frameScale';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 
@@ -110,15 +109,15 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     };
   }, [mapReady, mapRef, runtimeRef]);
 
-  // A project from before frameWidth was stored had its zooms set on this map at this width, so
-  // that is its frame. Not while a capture has the map at another size.
+  // A project from before frameWidth was stored had its zooms set on this map at this size, so its
+  // frame here is its frame. Not while a capture has the map at another size.
   useEffect(() => {
     if (!mapReady) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
     const adopt = () => {
       const { frameWidth, isCapturingViewport, adoptFrameWidth } = useProjectStore.getState();
-      if (frameWidth === null && !isCapturingViewport) adoptFrameWidth(mapContainerSize(map).width);
+      if (frameWidth === null && !isCapturingViewport) adoptFrameWidth(mapFrameSize(map).width);
     };
     adopt();
     return useProjectStore.subscribe(adopt);

@@ -334,7 +334,9 @@ export class MapSceneController implements MapSceneRuntime {
       || state.isPlaying !== previous.isPlaying
       || state.hideUI !== previous.hideUI
       || state.appearPreview !== previous.appearPreview
+      // The frame's size on the map (see engine/frameScale), so the pixel scale.
       || state.frameWidth !== previous.frameWidth
+      || state.resolution !== previous.resolution
       || state.isCapturingViewport !== previous.isCapturingViewport
     ) this.renderLive(state);
   };

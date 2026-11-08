@@ -18,7 +18,7 @@ import {
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { track } from '@/lib/analytics';
 import { mapContainerSize, withMinimumSpan } from '@/engine/mapFraming';
-import { mapZoomOffset } from '@/engine/frameScale';
+import { mapFrameSize, mapZoomOffset } from '@/engine/frameScale';
 
 const KEYFRAME_TIME_EPSILON = 1e-3;
 
@@ -215,7 +215,7 @@ export const frameItems = defineTool({
     if (!map) {
       throw new ToolError('map_not_ready', 'The map is not ready yet (the editor may still be loading). Retry shortly, or use add_camera_keyframe with explicit center and zoom.');
     }
-    const { duration, resolution } = getState();
+    const { duration } = getState();
     if (time < 0 || time > duration) {
       throw new ToolError('time_out_of_range', `time ${time}s must be within 0..${duration}s (project duration).`, { duration });
     }
@@ -223,16 +223,17 @@ export const frameItems = defineTool({
     const bbox = withMinimumSpan(boundsOfItems(itemIds));
     const pad = padding ?? 60;
 
-    // The export is width-matched to the editor viewport but has the project's
-    // aspect ratio. Extra vertical padding makes the fit valid for that frame. Fit mode already
-    // shapes the map like the video, so there is none.
+    // The video frame is the part of the map of the project's shape (see mapFrameSize): padding the
+    // rest out makes the fit valid for the frame. Fit mode already shapes the map like the video,
+    // so there is none.
     const rect = mapContainerSize(map);
-    const exportHeight = rect.width / (resolution[0] / resolution[1]);
-    const extraV = Math.min(Math.max(0, (rect.height - exportHeight) / 2), rect.height * 0.35);
+    const frame = mapFrameSize(map);
+    const extraV = Math.min(Math.max(0, (rect.height - frame.height) / 2), rect.height * 0.35);
+    const extraH = Math.min(Math.max(0, (rect.width - frame.width) / 2), rect.width * 0.35);
     const cam = map.cameraForBounds(
       [[bbox[0], bbox[1]], [bbox[2], bbox[3]]],
       {
-        padding: { top: pad + extraV, bottom: pad + extraV, left: pad, right: pad },
+        padding: { top: pad + extraV, bottom: pad + extraV, left: pad + extraH, right: pad + extraH },
         bearing: bearing ?? 0,
         pitch: pitch ?? 0,
       },

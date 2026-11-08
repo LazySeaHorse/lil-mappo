@@ -34,7 +34,10 @@ function overlayStateChanged(state: ProjectState, previous: ProjectState): boole
     || state.hideUI !== previous.hideUI
     || state.isCapturingViewport !== previous.isCapturingViewport
     || state.appearPreview !== previous.appearPreview
-    || state.stagedItems !== previous.stagedItems;
+    || state.stagedItems !== previous.stagedItems
+    // The frame's size on the map (see engine/frameScale), so the callouts' scale.
+    || state.frameWidth !== previous.frameWidth
+    || state.resolution !== previous.resolution;
 }
 
 export class AnnotationOverlay {
