@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
+import { withHistoryLabel } from '@/store/history';
+import { TIMELINE_GROUP_TERMS } from '@/lib/terms';
 
 interface TimelineKeyboardShortcutsOptions {
   duration: number;
@@ -43,6 +45,21 @@ export function useTimelineKeyboardShortcuts({
             if (selectedKeyframeId) removeCameraKeyframe(selectedKeyframeId);
           } else if (selectedItemIds.length > 0) {
             removeItems(selectedItemIds);
+          }
+          break;
+        }
+        case 'KeyG': {
+          if (!event.ctrlKey && !event.metaKey) break;
+          const { groups, groupItems, ungroupItems } = useProjectStore.getState();
+          const clips = selectedItemIds.filter((id) => id !== CAMERA_TRACK_ID);
+          // Only when there is something to do, so the browser keeps its find-next otherwise.
+          if (event.shiftKey) {
+            if (!Object.values(groups).some((group) => group.itemIds.some((id) => clips.includes(id)))) break;
+            event.preventDefault();
+            withHistoryLabel(TIMELINE_GROUP_TERMS.ungrouped, () => ungroupItems(clips));
+          } else if (clips.length > 1) {
+            event.preventDefault();
+            withHistoryLabel(TIMELINE_GROUP_TERMS.grouped(clips.length), () => groupItems(clips));
           }
           break;
         }

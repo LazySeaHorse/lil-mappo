@@ -178,6 +178,8 @@ export interface MapEnvironmentSlice {
 export interface EditorUiSlice {
   selectItem: (id: string | null) => void;
   /** Adds the item to the selection, or takes it out when it is already in. The camera cannot be one of several. */
+  /** Selects exactly these clips, without moving the playhead. */
+  selectItems: (ids: readonly string[]) => void;
   toggleItemSelection: (id: string) => void;
   /** Turns off the selected item's show-in-full preview (see `previewDismissedId`). */
   dismissSelectionPreview: () => void;

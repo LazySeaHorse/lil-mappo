@@ -141,3 +141,31 @@ export function constrainMove(
   const startTime = constrainGroupMove(proposedStart, [clip], timelineDuration);
   return startTime === null ? null : { startTime, endTime: startTime + itemDuration };
 }
+
+function isAutoCamRoute(item: TimelineItem): boolean {
+  return item.kind === 'route' && Boolean(item.autoCam?.enabled);
+}
+
+/**
+ * The clips a drag carries, with what blocks each. A move keeps their places relative to each
+ * other, so only the clips left behind block it. A trim moves one edge of each clip, so the other
+ * clips' edges still block it.
+ */
+export function movingClips(
+  items: Record<string, TimelineItem>,
+  ids: ReadonlySet<string>,
+  gesture: 'move' | 'trim',
+): (MovingClip & { id: string })[] {
+  return [...ids].flatMap((id) => {
+    const clip = items[id];
+    if (!clip || clip.kind === 'camera') return [];
+    return [{
+      id,
+      startTime: clip.startTime,
+      endTime: clip.endTime,
+      blockedRanges: isAutoCamRoute(clip)
+        ? getOtherAutoCamRanges(Object.values(items), gesture === 'move' ? ids : new Set([id]))
+        : [],
+    }];
+  });
+}

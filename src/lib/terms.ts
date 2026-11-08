@@ -19,6 +19,19 @@ export type InspectorItemKind = keyof typeof ITEM_TYPE_LABELS;
 /** What a control shows while the selected clips hold different values. */
 export const MIXED_VALUE = 'Mixed';
 
+/** Words of groups on the timeline. */
+export const TIMELINE_GROUP_TERMS = {
+  clipCount: (count: number) => `${count} clips`,
+  options: 'Group options',
+  collapse: 'Collapse group',
+  expand: 'Expand group',
+  ungroup: 'Ungroup',
+  color: (color: string) => `Use color ${color}`,
+  grouped: (count: number) => `Grouped ${count} clips`,
+  ungrouped: 'Ungrouped clips',
+  hint: (keys: string) => `Press ${keys} to group them`,
+} as const;
+
 /** Words of the inspector while several clips are selected. */
 export const MULTI_SELECT_TERMS = {
   /** The panel title for clips of one kind. */

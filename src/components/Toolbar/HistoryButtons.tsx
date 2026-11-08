@@ -1,8 +1,7 @@
 import { Redo2, Undo2 } from 'lucide-react';
 import { redo, undo, useHistoryControls } from '@/store/history';
+import { isMac } from '@/lib/platform';
 import { ToolbarButton } from './ToolbarPrimitives';
-
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
 
 /** Undo/redo toolbar buttons; subscribe only to stack availability and labels. */
 export function HistoryButtons({ iconSize = 16 }: { iconSize?: number }) {

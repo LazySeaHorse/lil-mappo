@@ -4,6 +4,8 @@ import TimelinePanel from './TimelinePanel';
 import { wheelZoomFactor } from './timelineZoom';
 import { CAMERA_TRACK_ID, useProjectStore } from '@/store/useProjectStore';
 import { selectionOf } from '@/store/selection';
+import { GROUP_COLORS } from '@/store/timelineGroups';
+import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 
 const responsive = vi.hoisted(() => ({
@@ -130,6 +132,143 @@ describe('TimelinePanel', () => {
     act(() => useProjectStore.getState().selectItem('first'));
     expect(screen.getByTestId('timeline-item-first')).toHaveClass('ring-2', 'ring-primary');
     expect(screen.getByTestId('timeline-item-second')).not.toHaveClass('ring-primary');
+  });
+
+  describe('groups', () => {
+    const groupClips = (...ids: string[]) => {
+      act(() => {
+        useProjectStore.getState().selectItems(ids);
+      });
+      fireEvent.keyDown(window, { code: 'KeyG', ctrlKey: true });
+    };
+    const onlyGroup = () => Object.values(useProjectStore.getState().groups)[0];
+
+    beforeEach(() => {
+      useUiPreferencesStore.setState({ groupHintSeen: true });
+    });
+
+    it('groups the selection with Ctrl+G and shows the group in the gutter', () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+      groupClips('a', 'b');
+
+      expect(onlyGroup().itemIds).toEqual(['a', 'b']);
+      expect(screen.getByRole('button', { name: 'Group options' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Collapse group' })).toBeInTheDocument();
+    });
+
+    it('accepts Cmd+G too', () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+      act(() => { useProjectStore.getState().selectItems(['a', 'b']); });
+      fireEvent.keyDown(window, { code: 'KeyG', metaKey: true });
+      expect(onlyGroup()).toBeDefined();
+    });
+
+    it('leaves Ctrl+G to the browser when there is nothing to group', () => {
+      renderTimeline(route('a', 1, 3));
+      act(() => { useProjectStore.getState().selectItems(['a']); });
+      // fireEvent returns false when the default was prevented.
+      expect(fireEvent.keyDown(window, { code: 'KeyG', ctrlKey: true })).toBe(true);
+      expect(useProjectStore.getState().groups).toEqual({});
+    });
+
+    it('ungroups with Ctrl+Shift+G', () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+      groupClips('a', 'b');
+      fireEvent.keyDown(window, { code: 'KeyG', ctrlKey: true, shiftKey: true });
+      expect(useProjectStore.getState().groups).toEqual({});
+    });
+
+    it('selects only the clip that is clicked inside an expanded group', () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+      groupClips('a', 'b');
+      act(() => { useProjectStore.getState().selectItems([]); });
+
+      drag('timeline-item-a', 0);
+
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['a']);
+    });
+
+    it('selects the whole group from its dot', () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+      groupClips('a', 'b');
+      act(() => { useProjectStore.getState().selectItems([]); });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Group options' }));
+
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['a', 'b']);
+    });
+
+    it('changes colour and ungroups from the dot', async () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+      groupClips('a', 'b');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Group options' }));
+      fireEvent.click(await screen.findByRole('button', { name: `Use color ${GROUP_COLORS[3]}` }));
+      expect(onlyGroup().color).toBe(GROUP_COLORS[3]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ungroup' }));
+      expect(useProjectStore.getState().groups).toEqual({});
+    });
+
+    it('folds into one bar spanning its clips, and back', () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 6));
+      groupClips('a', 'b');
+      const lanesOpen = screen.getAllByTestId('timeline-lane').length;
+
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse group' }));
+
+      expect(screen.queryByTestId('timeline-item-a')).not.toBeInTheDocument();
+      expect(screen.getAllByTestId('timeline-lane').length).toBe(lanesOpen - 1);
+      const bar = screen.getByTestId(`timeline-group-${onlyGroup().id}`);
+      expect(bar).toHaveTextContent('2 clips');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Expand group' }));
+      expect(screen.getByTestId('timeline-item-a')).toBeInTheDocument();
+    });
+
+    it('moves every clip when the collapsed bar is dragged, as one undo step', () => {
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+      groupClips('a', 'b');
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse group' }));
+      const startA = (useProjectStore.getState().items.a as RouteItem).startTime;
+
+      const bar = `timeline-group-${onlyGroup().id}`;
+      drag(bar, 200);
+
+      const { items } = useProjectStore.getState();
+      const delta = (items.a as RouteItem).startTime - startA;
+      expect(delta).toBeGreaterThan(0);
+      expect((items.b as RouteItem).startTime).toBeCloseTo(2 + delta);
+      expect((items.b as RouteItem).endTime).toBeCloseTo(4 + delta);
+      expect(useProjectStore.getState().selectedItemIds).toEqual(['a', 'b']);
+    });
+
+    it('keeps a clip dragged past a group out of it', () => {
+      renderTimeline(route('x', 1, 3), route('a', 1, 3), route('b', 1, 3));
+      groupClips('a', 'b');
+
+      const target = screen.getByTestId('timeline-item-x');
+      fireEvent.pointerDown(target, { clientX: 100, clientY: 100, pointerId: 1 });
+      fireEvent.pointerMove(target, { clientX: 100, clientY: 140, pointerId: 1 });
+      fireEvent.pointerUp(target, { pointerId: 1 });
+
+      expect(useProjectStore.getState().itemOrder).toEqual([CAMERA_TRACK_ID, 'a', 'b', 'x']);
+    });
+
+    it('shows the grouping hint only the first time several clips are selected', () => {
+      useUiPreferencesStore.setState({ groupHintSeen: false });
+      renderTimeline(route('a', 1, 3), route('b', 2, 4));
+
+      act(() => { useProjectStore.getState().selectItems(['a', 'b']); });
+      expect(screen.getByRole('status')).toHaveTextContent('G to group them');
+
+      act(() => { useProjectStore.getState().selectItems([]); });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+      act(() => { useProjectStore.getState().selectItems(['a', 'b']); });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(useUiPreferencesStore.getState().groupHintSeen).toBe(true);
+    });
   });
 
   describe('selecting several clips', () => {

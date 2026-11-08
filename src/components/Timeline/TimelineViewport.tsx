@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type PointerEv
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem, TimelineItem } from '@/store/types';
+import type { GroupBlock } from '@/store/timelineLanes';
 import { TIMELINE_LANE_HEIGHT } from '@/constants/layout';
 import TimelineCameraLane, { type AutoCamBlock } from './TimelineCameraLane';
 import TimelineItemBar from './TimelineItemBar';
+import TimelineGroupBar from './TimelineGroupBar';
+import TimelineGroupGutter from './TimelineGroupGutter';
 import type { TimelineDragHandlers } from './useTimelineLanes';
 import { formatRulerLabel, formatTimelineTime, rulerSteps } from './timelineTime';
 import { wheelZoomFactor, zoomBy, type ZoomBounds } from './timelineZoom';
@@ -14,6 +17,7 @@ const RULER_HEIGHT = TIMELINE_LANE_HEIGHT;
 
 interface TimelineViewportProps {
   autoCamBlocks: AutoCamBlock[];
+  blocks: GroupBlock[];
   cameraItem: CameraItem | undefined;
   drag: TimelineDragHandlers;
   duration: number;
@@ -42,6 +46,7 @@ interface TimelineViewportProps {
 
 export default function TimelineViewport({
   autoCamBlocks,
+  blocks,
   cameraItem,
   drag,
   duration,
@@ -68,6 +73,7 @@ export default function TimelineViewport({
   onSelectKeyframe,
 }: TimelineViewportProps) {
   const initialPlayheadX = useProjectStore.getState().playheadTime * pixelsPerSecond;
+  const foldedIds = new Set(blocks.filter((block) => block.collapsed).flatMap((block) => block.memberIds));
 
   const isScrubbingRef = useRef(false);
 
@@ -215,21 +221,27 @@ export default function TimelineViewport({
             style={{ height: lanes.length * TIMELINE_LANE_HEIGHT }}
             onPointerDown={handleEmptySpacePointerDown}
           >
-            {lanes.map((_, lane) => (
-              <div key={lane} data-testid="timeline-lane" className="flex h-10">
-                {/* No divider or lane line here, so the gutter beside the clips reads as margin; it still covers clips scrolled under it. */}
-                <div
-                  className="shrink-0 sticky left-0 z-10 bg-background/90 backdrop-blur-sm"
-                  style={{ width: gutterWidth }}
-                />
-                <div className="flex-1 border-b border-border/30" />
-              </div>
-            ))}
+            {lanes.map((_, lane) => {
+              const block = blocks.find(({ firstLane, laneCount }) => lane >= firstLane && lane < firstLane + laneCount);
+              return (
+                <div key={lane} data-testid="timeline-lane" className="flex h-10">
+                  {/* No divider or lane line here, so the gutter beside the clips reads as margin; it still covers clips scrolled under it. */}
+                  <div
+                    className="shrink-0 sticky left-0 z-10 bg-background/90 backdrop-blur-sm"
+                    style={{ width: gutterWidth }}
+                  >
+                    {block && <div className="absolute left-0.5 inset-y-0 w-0.5" style={{ backgroundColor: block.color }} />}
+                    {block?.firstLane === lane && <TimelineGroupGutter block={block} />}
+                  </div>
+                  <div className="flex-1 border-b border-border/30" />
+                </div>
+              );
+            })}
             {/* One layer for every clip, so a clip dragged to another lane moves rather than remounts. */}
             <div className="absolute inset-y-0 right-0 isolate pointer-events-none" style={{ left: gutterWidth }}>
               {lanes.flatMap((ids, lane) => ids.map((id) => {
                 const item = items[id];
-                if (!item || item.kind === 'camera') return null;
+                if (!item || item.kind === 'camera' || foldedIds.has(id)) return null;
                 return (
                   <TimelineItemBar
                     key={id}
@@ -243,6 +255,16 @@ export default function TimelineViewport({
                   />
                 );
               }))}
+              {blocks.filter((block) => block.collapsed).map((block) => (
+                <TimelineGroupBar
+                  key={block.groupId}
+                  block={block}
+                  items={items}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={block.memberIds.some((id) => selectedItemIds.includes(id))}
+                  drag={drag}
+                />
+              ))}
             </div>
           </div>
           <div data-testid="timeline-empty-space" className="grow" onPointerDown={handleEmptySpacePointerDown} />

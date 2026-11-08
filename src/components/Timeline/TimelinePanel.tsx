@@ -4,6 +4,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import type { CameraItem, RouteItem } from '@/store/types';
 import TimelineHeader from './TimelineHeader';
 import TimelineViewport from './TimelineViewport';
+import TimelineGroupHint from './TimelineGroupHint';
 import type { AutoCamBlock } from './TimelineCameraLane';
 import { useTimelineLanes } from './useTimelineLanes';
 import { clearSelection } from '@/components/MapViewport/escapeDeselect';
@@ -29,7 +30,7 @@ export default function TimelinePanel() {
   const [panelWidth, setPanelWidth] = useState(0);
 
   const {
-    duration, setPlayheadTime, items, itemOrder,
+    duration, setPlayheadTime, items, itemOrder, groups, collapsedGroupIds,
     selectedItemIds, selectItem, toggleItemSelection, selectKeyframe, selectedKeyframeId,
     isInspectorOpen, timelineHeight, setTimelineHeight,
     isPlaying, setIsPlaying, fps, removeItems, setIsScrubbing,
@@ -39,6 +40,8 @@ export default function TimelinePanel() {
     setPlayheadTime: state.setPlayheadTime,
     items: state.items,
     itemOrder: state.itemOrder,
+    groups: state.groups,
+    collapsedGroupIds: state.collapsedGroupIds,
     selectedItemIds: state.selectedItemIds,
     selectItem: state.selectItem,
     toggleItemSelection: state.toggleItemSelection,
@@ -75,7 +78,7 @@ export default function TimelinePanel() {
     () => orderedItems.find((item): item is CameraItem => item.kind === 'camera'),
     [orderedItems],
   );
-  const { lanes, snapTime, handlers: dragHandlers } = useTimelineLanes(orderedItems);
+  const { lanes, blocks, snapTime, handlers: dragHandlers } = useTimelineLanes(orderedItems, { groups, collapsedGroupIds });
   const laneCount = 1 + lanes.length;
   const maxContentHeight = timelineContentHeight(laneCount);
 
@@ -227,6 +230,7 @@ export default function TimelinePanel() {
 
       <TimelineViewport
         autoCamBlocks={autoCamBlocks}
+        blocks={blocks}
         cameraItem={cameraItem}
         drag={dragHandlers}
         duration={duration}
@@ -252,6 +256,7 @@ export default function TimelinePanel() {
         onSelectAutoCam={handleSelectAutoCam}
         onSelectKeyframe={selectKeyframe}
       />
+      <TimelineGroupHint />
     </div>
   );
 }

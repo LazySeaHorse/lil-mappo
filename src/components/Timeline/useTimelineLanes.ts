@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { orderForLane, packLanes } from '@/store/timelineLanes';
+import { droppableLane, layoutLanes, orderForLane, type GroupBlock, type TimelineGrouping } from '@/store/timelineLanes';
 import type { TimelineItem } from '@/store/types';
 
 interface LaneDrag {
   itemId: string;
   /** The lanes as they were when the drag began, held still so nothing jumps under the pointer. */
   lanes: string[][];
+  blocks: GroupBlock[];
   order: string[];
   from: number;
   to: number;
@@ -28,8 +29,11 @@ export interface TimelineDragHandlers {
  * to another lane rewrites itemOrder there and then, so the whole drag is one undo step, and
  * the lanes are packed again from the new order when it ends.
  */
-export function useTimelineLanes(orderedItems: TimelineItem[]) {
-  const packed = useMemo(() => packLanes(orderedItems), [orderedItems]);
+export function useTimelineLanes(orderedItems: TimelineItem[], { groups, collapsedGroupIds }: TimelineGrouping) {
+  const packed = useMemo(
+    () => layoutLanes(orderedItems, { groups, collapsedGroupIds }),
+    [orderedItems, groups, collapsedGroupIds],
+  );
   const packedRef = useRef(packed);
   packedRef.current = packed;
 
@@ -43,10 +47,10 @@ export function useTimelineLanes(orderedItems: TimelineItem[]) {
   };
 
   const begin = useCallback((itemId: string) => {
-    const lanes = packedRef.current;
+    const { lanes, blocks } = packedRef.current;
     const from = lanes.findIndex((ids) => ids.includes(itemId));
     if (from < 0) return;
-    update({ itemId, lanes, order: useProjectStore.getState().itemOrder, from, to: from });
+    update({ itemId, lanes, blocks, order: useProjectStore.getState().itemOrder, from, to: from });
   }, []);
 
   const moveLanes = useCallback((offset: number) => {
@@ -54,7 +58,12 @@ export function useTimelineLanes(orderedItems: TimelineItem[]) {
     if (!current) return;
     // One past the last lane starts a new one, unless the clip already sits alone at the bottom.
     const aloneAtBottom = current.from === current.lanes.length - 1 && current.lanes[current.from].length === 1;
-    const to = Math.max(0, Math.min(current.lanes.length - (aloneAtBottom ? 1 : 0), current.from + offset));
+    const to = droppableLane(
+      current.blocks,
+      current.itemId,
+      current.from,
+      Math.max(0, Math.min(current.lanes.length - (aloneAtBottom ? 1 : 0), current.from + offset)),
+    );
     if (to === current.to) return;
     update({ ...current, to });
 
@@ -75,9 +84,9 @@ export function useTimelineLanes(orderedItems: TimelineItem[]) {
     [begin, moveLanes, end],
   );
 
-  const lanes = useMemo(() => (drag ? withClipInLane(drag) : packed), [drag, packed]);
+  const lanes = useMemo(() => (drag ? withClipInLane(drag) : packed.lanes), [drag, packed]);
 
-  return { lanes, snapTime, handlers };
+  return { lanes, blocks: drag ? drag.blocks : packed.blocks, snapTime, handlers };
 }
 
 function withClipInLane({ lanes, itemId, from, to }: LaneDrag): string[][] {

@@ -1,14 +1,14 @@
 import React from 'react';
 import { AlertTriangle, FileWarning } from 'lucide-react';
 import { useProjectStore } from '@/store/useProjectStore';
-import type { BoundaryItem, CalloutItem, ModelItem, RouteItem, TimelineItem } from '@/store/types';
+import type { BoundaryItem, CalloutItem, ModelItem, RouteItem } from '@/store/types';
 import { useModelStatus } from '@/models/modelRegistry';
 import { MODEL_TERMS } from '@/models/modelTerms';
 import { TIMELINE_LANE_HEIGHT } from '@/constants/layout';
 import {
   constrainGroupMove,
   constrainGroupTrim,
-  getOtherAutoCamRanges,
+  movingClips,
   type MovingClip,
 } from './timelineConstraints';
 import { timelineItemLabel } from './timelineItemLabel';
@@ -85,20 +85,7 @@ const TimelineItemBar = React.memo(({
     event.currentTarget.setPointerCapture?.(event.pointerId);
 
     const movedIds = new Set(inSelection ? state.selectedItemIds : [item.id]);
-    const moving = [...movedIds].flatMap((id) => {
-      const clip = state.items[id];
-      if (!clip || clip.kind === 'camera') return [];
-      return [{
-        id,
-        startTime: clip.startTime,
-        endTime: clip.endTime,
-        // A move keeps the selected clips' places relative to each other, so only the clips left
-        // behind block it. A trim moves one edge of each clip, so the others' edges still block it.
-        blockedRanges: isAutoCamRoute(clip)
-          ? getOtherAutoCamRanges(Object.values(state.items), type === 'move' ? movedIds : new Set([id]))
-          : [],
-      }];
-    });
+    const moving = movingClips(state.items, movedIds, type === 'move' ? 'move' : 'trim');
     const initialStart = item.startTime;
     const initialEnd = item.endTime;
     const itemDuration = Math.max(0.1, initialEnd - initialStart);
@@ -241,10 +228,6 @@ function ModelFileMark({ assetId }: { assetId: string }) {
       {failed ? <AlertTriangle size={12} aria-hidden="true" /> : <FileWarning size={12} aria-hidden="true" />}
     </span>
   );
-}
-
-function isAutoCamRoute(item: TimelineItem | undefined): boolean {
-  return item?.kind === 'route' && Boolean(item.autoCam?.enabled);
 }
 
 TimelineItemBar.displayName = 'TimelineItemBar';
