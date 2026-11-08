@@ -1,3 +1,5 @@
+// NOT LIVE: cloud renders are not a shipped feature; users only export locally. Don't account
+// for this renderer (or modal/render_worker.py) when making design decisions.
 import { useEffect, useRef, useState } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { MapRefContext } from '@/hooks/useMapRef';

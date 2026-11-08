@@ -1,6 +1,10 @@
 """
 li'l Mappo — Cloud Render Worker
 =================================
+NOT LIVE: cloud renders are not a shipped feature. Users only export locally in
+their browser. Don't account for this worker (its 1920x1080 viewport, its output)
+when making design decisions.
+
 Runs headless Chromium (SwiftShader software renderer) on a Modal CPU instance.
 
 Architecture (two-function pattern):

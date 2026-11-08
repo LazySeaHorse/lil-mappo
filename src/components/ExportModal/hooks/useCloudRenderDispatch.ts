@@ -5,6 +5,8 @@ import { toProjectDocument } from '@/store/projectDocument';
 import { errorMessage } from '@/lib/utils';
 import type { ExportPlan } from '../exportPlan';
 
+// NOT LIVE: cloud renders are not a shipped feature; users only export locally. Don't account
+// for cloud rendering (this hook, HeadlessRenderer, modal/render_worker.py) when making design decisions.
 export function useCloudRenderDispatch(
   session: Session | null,
   exportPlan: ExportPlan,
