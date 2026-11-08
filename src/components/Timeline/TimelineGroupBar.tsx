@@ -99,8 +99,8 @@ export default function TimelineGroupBar({
         width: Math.max(endTime * pixelsPerSecond - left, 4),
         top: block.firstLane * TIMELINE_LANE_HEIGHT + BAR_INSET,
         height: TIMELINE_LANE_HEIGHT - BAR_INSET * 2,
-        backgroundColor: `${block.color}66`,
-        borderColor: block.color,
+        backgroundColor: block.color,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
