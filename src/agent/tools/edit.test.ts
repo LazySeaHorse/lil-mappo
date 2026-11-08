@@ -193,7 +193,7 @@ describe('update_item', () => {
 
   it('resizes callouts, and bases map sizing on the zoom the user is looking at', async () => {
     const { callout } = seed();
-    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 14.5 }) } } as never);
+    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 14.5, getContainer: () => ({ clientWidth: 1920 }) }) } } as never);
 
     await runAgentTool('update_item', { id: callout.id, patch: { scale: 2 } });
     expect(state().items[callout.id]).toMatchObject({ scale: 2, sizeMode: 'screen' });
@@ -202,7 +202,7 @@ describe('update_item', () => {
     expect(state().items[callout.id]).toMatchObject({ scale: 2, sizeMode: 'map', referenceZoom: 14.5 });
 
     // Already sized with the map: the zoom it was set at is kept.
-    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 9 }) } } as never);
+    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 9, getContainer: () => ({ clientWidth: 1920 }) }) } } as never);
     await runAgentTool('update_item', { id: callout.id, patch: { sizeMode: 'map', scale: 3 } });
     expect(state().items[callout.id]).toMatchObject({ scale: 3, sizeMode: 'map', referenceZoom: 14.5 });
 

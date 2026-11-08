@@ -19,6 +19,7 @@ import { isRepaintPending } from '@/components/MapViewport/runtime/mapboxResourc
 import { previewableSelectionId } from '@/engine/selectionPreview';
 import { activeAppearPreview } from '@/engine/appearPreview';
 import { sceneItems } from '@/engine/stagedItems';
+import { mapZoomOffset } from '@/engine/frameScale';
 
 type ProjectState = ReturnType<typeof useProjectStore.getState>;
 
@@ -145,6 +146,7 @@ export class AnnotationOverlay {
     // Staged callouts are drawn too (see `sceneItems`).
     const { items, itemOrder, staged } = sceneItems(state);
     compositeAnnotations(this.map, ctx, items, itemOrder, state.playheadTime, {
+      zoomOffset: mapZoomOffset(this.map),
       selectedId: previewableSelectionId(state),
       preview,
       staged,

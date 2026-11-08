@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '@/store/useProjectStore';
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
+import type { CameraItem } from '@/store/types';
 import { undo } from '@/store/history';
 import { createBoundaryItem, createCalloutItem, createEndpointRouteItem, wrapGeometry } from '@/store/itemFactories';
 import { setAgentMapRef } from '../mapRef';
@@ -82,8 +83,22 @@ describe('frame_items', () => {
     const cameraForBounds = vi.fn(() => ({ center: { lng: 10, lat: 20 }, zoom: 6.5, bearing: 0, pitch: 0 }));
     const map = { cameraForBounds, getContainer: () => ({ clientWidth: rect.width, clientHeight: rect.height }) };
     setAgentMapRef({ current: { getMap: () => map } } as never);
+    // A map at the project's frame width: its zooms are the project's.
+    useProjectStore.setState({ frameWidth: rect.width });
     return cameraForBounds;
   }
+
+  it('stores the fit in the project frame\'s zoom when the map is another width', async () => {
+    mockMap({ width: 1000, height: 800 });
+    useProjectStore.setState({ frameWidth: 2000 });
+    const route = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry({ type: 'LineString', coordinates: [[0, 0], [4, 2]] }), start: [0, 0], end: [4, 2], name: 'r', startTime: 0 });
+    state().addItem(route);
+    const result = await runAgentTool('frame_items', { itemIds: [route.id], time: 1 });
+    expect(resultJson(result).error).toBeUndefined();
+    // The 1000 px map fits at 6.5; the 2000 px frame shows that view one level further in.
+    const camera = state().items[CAMERA_TRACK_ID] as CameraItem;
+    expect(camera.keyframes[0].camera.zoom).toBe(7.5);
+  });
 
   it('fails clearly when the map is not ready', async () => {
     const route = createEndpointRouteItem({ mode: 'car', geojson: wrapGeometry({ type: 'LineString', coordinates: [[0, 0], [1, 1]] }), start: [0, 0], end: [1, 1], name: 'r', startTime: 0 });

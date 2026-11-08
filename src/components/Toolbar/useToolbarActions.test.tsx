@@ -103,6 +103,8 @@ describe('useToolbarActions handleAddCameraKF', () => {
       isInspectorOpen: false,
       selectedItemId: null,
       selectedKeyframeId: null,
+      // The fake map's width: the live zoom is the project's.
+      frameWidth: 1200,
     });
   });
 
@@ -113,6 +115,14 @@ describe('useToolbarActions handleAddCameraKF', () => {
     act(() => result.current.handleAddCameraKF());
     const added = keyframes().find((k) => k.time === 3);
     expect(added?.camera).toMatchObject({ center: [8.5, 47.3], zoom: 5, pitch: 30, bearing: 15 });
+  });
+
+  it('stores the view in the project frame\'s zoom when the map is another width', () => {
+    useProjectStore.setState({ frameWidth: 2400 });
+    const { result } = renderHook(() => useToolbarActions(), { wrapper });
+    act(() => result.current.handleAddCameraKF());
+    // The 1200 px map at zoom 5 frames what the 2400 px frame shows at 6.
+    expect(keyframes().find((k) => k.time === 3)?.camera.zoom).toBe(6);
   });
 
   it('selects the new camera view and opens the inspector on it', () => {

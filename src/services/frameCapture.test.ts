@@ -40,10 +40,11 @@ describe('withFrameCapturer', () => {
   });
 
   it('exposes zoom offset and composites at the current playhead', async () => {
+    useProjectStore.setState({ frameWidth: 640 });
     useProjectStore.getState().setPlayheadTime(4);
     const result = await withFrameCapturer(fakeMap, { width: 1280, height: 720, overlays }, async (c) => {
       expect(c.zoomOffset).toBe(1);
-      expect(c.previewZoom).toBe(3);
+      expect(c.sameViewZoom).toBe(4);
       const canvas = await c.captureNow();
       return { w: canvas.width, h: canvas.height };
     });
@@ -51,6 +52,15 @@ describe('withFrameCapturer', () => {
     expect(withTemporaryMapViewport).toHaveBeenCalledWith(fakeMap, 1280, 720, expect.any(Function));
     expect(waitForMapIdle).toHaveBeenCalled();
     expect(compositeFrame).toHaveBeenCalledWith(fakeMap, expect.anything(), 1280, 720, expect.anything(), expect.anything(), 4, overlays, 1);
+  });
+
+  it('offsets project zooms from the project frame, and keeps the editor view from the editor', async () => {
+    useProjectStore.setState({ frameWidth: 2560 });
+    await withFrameCapturer(fakeMap, { width: 1280, height: 720, overlays }, async (c) => {
+      // A camera's zoom is measured on the 2560 px frame; the 640 px editor's view doubles to 1280.
+      expect(c.zoomOffset).toBe(-1);
+      expect(c.sameViewZoom).toBe(4);
+    });
   });
 
   it('rejects when canvas conversion fails', async () => {

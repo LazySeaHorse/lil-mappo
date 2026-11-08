@@ -13,9 +13,9 @@ import { entranceEnd, type AppearPreviewFrame } from '@/engine/appearPreview';
 
 export interface CompositeView {
   /**
-   * log2(output width / editor width): how far the map was zoomed in to render
-   * larger than the editor. Callouts are drawn 2^zoomOffset times larger so they
-   * keep their size relative to the frame. Default 0, the editor itself.
+   * log2(frame width / the project's frame width): how far the map is zoomed from the project's
+   * zooms (see engine/frameScale). Callouts are drawn 2^zoomOffset times larger so they keep
+   * their size relative to the frame. Default 0, a frame of the project's width.
    */
   zoomOffset?: number;
   /**
@@ -38,7 +38,7 @@ export function compositeAnnotations(
   playheadTime: number,
   { zoomOffset = 0, selectedId = null, preview = null, staged }: CompositeView = {},
 ): void {
-  // The zoom the editor shows, whatever size the map was rendered at.
+  // The zoom as the project measures it, whatever size the map was rendered at.
   const viewZoom = map.getZoom() - zoomOffset;
   const pixelScale = 2 ** zoomOffset;
 

@@ -3,6 +3,7 @@ import { useMapRef } from '@/hooks/useMapRef';
 import { useResponsive } from '@/hooks/useResponsive';
 import { frameGeometry, frameModel, framePixelBox, framePoint, type FramePoint } from '@/engine/mapFraming';
 import { settledCalloutBounds } from '@/annotations/draw';
+import { mapZoomOffset } from '@/engine/frameScale';
 import type { CalloutItem } from '@/store/types';
 
 /**
@@ -33,7 +34,8 @@ export function useFrameOnMap() {
       frameCallout: (callout: CalloutItem) => {
         const map = mapRef.current?.getMap?.();
         if (!map || callout.binding.kind !== 'geographic') return;
-        const box = settledCalloutBounds(callout, map.getZoom()) ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+        const zoomOffset = mapZoomOffset(map);
+        const box = settledCalloutBounds(callout, map.getZoom() - zoomOffset, 2 ** zoomOffset) ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 };
         framePixelBox(map, callout.binding.lngLat, box, layout);
       },
     };

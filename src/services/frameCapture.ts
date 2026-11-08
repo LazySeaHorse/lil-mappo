@@ -2,6 +2,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyCamera, getProjectCameraAt } from '@/engine/cameraUtils';
 import { mapContainerSize } from '@/engine/mapFraming';
+import { frameZoomOffset, projectFrameWidth } from '@/engine/frameScale';
 import type { MapRenderWaitOptions, MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneRuntime';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
 import { preloadOverlayAssets, type OverlayLayer } from '@/overlays';
@@ -47,12 +48,12 @@ export interface FrameCaptureOptions {
 
 export interface FrameCapturer {
   /**
-   * log2(target width / preview width). Add it to a camera zoom so the framing
-   * matches what the user designed at preview size.
+   * log2(target width / the project's frame width). Add it to a project zoom (a camera's) so the
+   * target frame shows what it frames (see engine/frameScale).
    */
   zoomOffset: number;
-  /** Zoom of the map before it was resized. */
-  previewZoom: number;
+  /** The map zoom that shows what the editor showed before the resize, at the target size. */
+  sameViewZoom: number;
   /**
    * Waits for the map to settle, then composites the map canvas and callouts
    * for the store's current playhead onto a new canvas of the target size.
@@ -72,14 +73,14 @@ export async function withFrameCapturer<T>(
   run: (capturer: FrameCapturer) => Promise<T>,
 ): Promise<T> {
   await preloadOverlayAssets();
-  const previewWidth = mapContainerSize(map).width;
-  const previewZoom = map.getZoom();
-  const zoomOffset = Math.log2(width / previewWidth);
+  // Read before the resize: the project's frame and the editor's view at the editor's size.
+  const zoomOffset = frameZoomOffset(width, projectFrameWidth(map));
+  const sameViewZoom = map.getZoom() + Math.log2(width / mapContainerSize(map).width);
 
   return withTemporaryMapViewport(map, width, height, () =>
     run({
       zoomOffset,
-      previewZoom,
+      sameViewZoom,
       async captureNow() {
         // Best-effort: a single still is captured even if the map did not go idle in time.
         await waitForMapIdle(map, { timeoutMs: 3_000 });

@@ -20,6 +20,8 @@ const map = {
   getZoom: () => 13.5,
   getPitch: () => 50,
   getBearing: () => 75,
+  // The project's frame width (createProject's), so zooms read and show as they are.
+  getContainer: () => ({ clientWidth: 1920, clientHeight: 1080 }),
   easeTo,
 };
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -33,6 +35,7 @@ beforeEach(() => {
   easeTo.mockClear();
   useUiPreferencesStore.setState({ inspectorSections: {} });
   useProjectStore.setState({
+    frameWidth: 1920,
     items: { [item.id]: item },
     itemOrder: [item.id],
     selectedItemId: item.id,

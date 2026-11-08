@@ -42,6 +42,8 @@ beforeEach(() => {
   resetAgentTestState();
   useAiPanelStore.setState({ followAi: true });
   useProjectStore.setState({
+    // The fake map's width, so keyframe zooms show as they are.
+    frameWidth: 1200,
     items: { ...useProjectStore.getState().items, r1: route as never },
     isInspectorOpen: false,
     isPlaying: false,

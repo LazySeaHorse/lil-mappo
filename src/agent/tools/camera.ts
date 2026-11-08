@@ -18,6 +18,7 @@ import {
 import { CAMERA_TRACK_ID } from '@/store/projectDocument';
 import { track } from '@/lib/analytics';
 import { mapContainerSize, withMinimumSpan } from '@/engine/mapFraming';
+import { mapZoomOffset } from '@/engine/frameScale';
 
 const KEYFRAME_TIME_EPSILON = 1e-3;
 
@@ -241,7 +242,8 @@ export const frameItems = defineTool({
     }
     const c = cam.center as unknown as { lng: number; lat: number } | [number, number];
     const center: LngLat = Array.isArray(c) ? [c[0], c[1]] : [c.lng, c.lat];
-    const zoom = Math.max(0, Math.min(22, cam.zoom));
+    // The fit is in the live map's zoom; the keyframe stores the project's.
+    const zoom = Math.max(0, Math.min(22, cam.zoom - mapZoomOffset(map)));
 
     const label = `AI: frame ${itemIds.length} item${itemIds.length === 1 ? '' : 's'} at ${round(time, 2)}s`;
     let kf: CameraKeyframe;

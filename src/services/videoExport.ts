@@ -3,7 +3,7 @@ import type { MapSceneRuntime } from '@/components/MapViewport/runtime/MapSceneR
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { useProjectStore } from '@/store/useProjectStore';
 import { applyCamera, getProjectCameraAt, loadProjectTerrain } from '@/engine/cameraUtils';
-import { mapContainerSize } from '@/engine/mapFraming';
+import { frameZoomOffset, projectFrameWidth } from '@/engine/frameScale';
 import { stepToTime } from './frameCapture';
 import { preloadOverlayAssets, resolveSystemOverlays, type Branding, type OverlayLayer } from '@/overlays';
 import { compositeFrame, withTemporaryMapViewport } from './mapCapture';
@@ -477,11 +477,9 @@ export async function runExport(
   if (!runtime) throw new Error('Map runtime not available');
   const map = runtime.getMap();
 
-  // Zoom offset: compensates for the viewport size change during export so the
-  // rendered framing matches what was designed at preview resolution.
-  // log2(renderWidth / previewWidth) — positive when rendering larger than preview.
-  const previewWidth = mapContainerSize(map).width;
-  const zoomOffset = Math.log2(width / previewWidth);
+  // How far the camera zooms from the project's zooms so the frame shows what they frame at this
+  // width (see engine/frameScale). Read before the map is resized to the frame.
+  const zoomOffset = frameZoomOffset(width, projectFrameWidth(map));
 
   const encoderState = await initEncoder(width, height, fps, maximumPacketCount);
   let completed = false;

@@ -137,6 +137,8 @@ function setStore(callouts: CalloutItem[], extra: Partial<ReturnType<typeof useP
     isPlaying: false,
     hideUI: false,
     stagedItems: [],
+    // The fake map's width: callouts draw at the size they are set at.
+    frameWidth: 400,
     ...extra,
   });
 }
@@ -416,6 +418,17 @@ describe('AnnotationOverlay', () => {
     raw.getZoom.mockReturnValue(13);
     fire('render');
     expect(ctx.calls.filter(([name]) => name === 'scale')).toContainEqual(['scale', 2, 2]);
+  });
+
+  it('draws callouts relative to the project frame, on a map of another width', () => {
+    // The 400 px map is half the project's frame: it is zoomed one level out from the project's
+    // zooms, and draws callouts at half size, as an 800 px export would at full size.
+    setStore([makeCallout({ sizeMode: 'map', referenceZoom: 12 })], { frameWidth: 800 });
+    const { fire, ctx, raw } = mount();
+    raw.getZoom.mockReturnValue(12);
+    fire('render');
+    // At the project's zoom 13, a map-sized callout is twice its size; on half the frame, 1.
+    expect(ctx.calls.filter(([name]) => name === 'scale')).toContainEqual(['scale', 1, 1]);
   });
 
   it('loads fonts and images for the callouts, then redraws', async () => {

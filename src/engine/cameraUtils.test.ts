@@ -19,10 +19,12 @@ function setKeyframes(keyframes: CameraKeyframe[]) {
 }
 
 describe('syncMapToProject', () => {
-  const map = { jumpTo: vi.fn() };
+  let width = 1920;
+  const map = { jumpTo: vi.fn(), getContainer: () => ({ clientWidth: width }) };
 
   beforeEach(() => {
     map.jumpTo.mockClear();
+    width = 1920;
     useProjectStore.getState().loadFullProject(createProject());
     useProjectStore.setState({ isCameraEnabled: true, mapCenter: [0, 0] });
   });
@@ -31,6 +33,21 @@ describe('syncMapToProject', () => {
     setKeyframes([keyframe(0, 4), keyframe(10, 8)]);
     syncMapToProject(map as unknown as mapboxgl.Map, 5);
     expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ center: [10, 20], zoom: 6 }));
+  });
+
+  it('zooms by how much wider or narrower the map is than the project frame', () => {
+    setKeyframes([keyframe(0, 4), keyframe(10, 8)]);
+    width = 960;
+    syncMapToProject(map as unknown as mapboxgl.Map, 5);
+    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 5 }));
+  });
+
+  it('shows a project from before the frame width was stored as the map always showed it', () => {
+    setKeyframes([keyframe(0, 4), keyframe(10, 8)]);
+    useProjectStore.setState({ frameWidth: null });
+    width = 960;
+    syncMapToProject(map as unknown as mapboxgl.Map, 5);
+    expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 6 }));
   });
 
   it('falls back to the saved map centre without keyframes', () => {

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { agentEvents, getAgentMap, getAgentTools, type AgentEvent } from '@/agent';
 import { boundsOfItems } from '@/agent/tools/camera';
 import { canMoveCamera, frameBox, frameDuration, type FrameLayout } from '@/engine/mapFraming';
+import { mapZoomOffset } from '@/engine/frameScale';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useProjectStore, CAMERA_TRACK_ID } from '@/store/useProjectStore';
 import type { CameraItem } from '@/store/types';
@@ -110,7 +111,7 @@ function followOnMap(job: VisualJob, layout: FrameLayout): void {
       if (!kf) return;
       map.easeTo({
         center: kf.camera.center as [number, number],
-        zoom: kf.camera.zoom,
+        zoom: kf.camera.zoom + mapZoomOffset(map),
         pitch: kf.camera.pitch,
         bearing: kf.camera.bearing,
         duration: frameDuration(),

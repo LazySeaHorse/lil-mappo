@@ -7,6 +7,7 @@ import type { CameraItem, TimelineItem } from '@/store/types';
 import { EASING_NAMES } from '@/engine/easings';
 import { ToolError } from '../errors';
 import { getAgentMap } from '../mapRef';
+import { projectZoomOf } from '@/engine/frameScale';
 
 export { EASING_NAMES };
 
@@ -30,9 +31,13 @@ export const colorSchema = z.string().min(1).max(64).describe('CSS color, e.g. "
 
 export const itemIdSchema = z.string().min(1).describe('Timeline item id from get_project.');
 
-/** Zoom of the map the user is looking at, or the editor's default zoom before the map exists. */
+/**
+ * Zoom of the map the user is looking at, as the project measures it (see engine/frameScale),
+ * or the editor's default zoom before the map exists.
+ */
 export function currentMapZoom(): number {
-  return getAgentMap()?.getZoom() ?? DEFAULT_VIEW_ZOOM;
+  const map = getAgentMap();
+  return map ? projectZoomOf(map) : DEFAULT_VIEW_ZOOM;
 }
 
 // ---- store access ----------------------------------------------------------

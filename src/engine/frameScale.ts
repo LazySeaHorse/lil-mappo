@@ -1,6 +1,5 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useProjectStore } from '@/store/useProjectStore';
-import { mapContainerSize } from '@/engine/mapFraming';
 
 /**
  * A project's zooms and pixel sizes are measured on a video frame `frameWidth` pixels wide (see
@@ -16,15 +15,23 @@ export function frameZoomOffset(frameWidthPx: number, frameWidth: number): numbe
   return frameWidthPx > 0 && frameWidth > 0 ? Math.log2(frameWidthPx / frameWidth) : 0;
 }
 
+/** The map's layout width: fit mode's CSS scale leaves it alone (see `mapContainerSize`). */
+const mapWidth = (map: Pick<MapboxMap, 'getContainer'>) => map.getContainer().clientWidth;
+
 /**
- * The project's frame width. A project from before it was stored, until the map has measured it
- * (see `useProjectFrameWidth`), uses the map's own width, which is how it was shown then.
+ * The project's frame width. A project from before it was stored, until MapViewport adopts the
+ * map's width for it, uses the map's own width, which is how it was shown then.
  */
 export function projectFrameWidth(map: Pick<MapboxMap, 'getContainer'>): number {
-  return useProjectStore.getState().frameWidth ?? mapContainerSize(map).width;
+  return useProjectStore.getState().frameWidth ?? mapWidth(map);
 }
 
 /** How far the map is zoomed from the project's zooms, at its current size. */
 export function mapZoomOffset(map: Pick<MapboxMap, 'getContainer'>): number {
-  return frameZoomOffset(mapContainerSize(map).width, projectFrameWidth(map));
+  return frameZoomOffset(mapWidth(map), projectFrameWidth(map));
+}
+
+/** The map's zoom as the project measures it: what a keyframe or callout set from this view stores. */
+export function projectZoomOf(map: Pick<MapboxMap, 'getContainer' | 'getZoom'>): number {
+  return map.getZoom() - mapZoomOffset(map);
 }

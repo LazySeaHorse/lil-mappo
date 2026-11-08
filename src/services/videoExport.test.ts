@@ -130,7 +130,7 @@ describe('runExport', () => {
     vi.stubGlobal('VideoFrame', FakeFrame);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({} as never);
     Object.defineProperty(document, 'fonts', { value: { ready: Promise.resolve() }, configurable: true });
-    useProjectStore.setState({ duration: 1, playheadTime: 0.25 });
+    useProjectStore.setState({ duration: 1, playheadTime: 0.25, frameWidth: 640 });
     useProjectStore.setState({
       setPlayheadTime: (t: number) => {
         log.push(`playhead:${t}`);
@@ -152,7 +152,7 @@ describe('runExport', () => {
     expect(incompleteFrames).toBe(0);
     expect(target.getBlob).toHaveBeenCalledTimes(1);
     const capture = log.slice(log.indexOf('playhead:0'));
-    // zoomOffset = log2(1280 / 640) = 1
+    // zoomOffset = log2(1280 / the project's 640 px frame) = 1
     expect(capture.slice(0, 7)).toEqual([
       'playhead:0', 'camera:0:1', 'renderAt:0', 'repaint', 'rendered', 'composite:0', 'encode:0',
     ]);
@@ -170,6 +170,14 @@ describe('runExport', () => {
     expect(mux.outputs[0].finalize).toHaveBeenCalled();
     expect(target.discard).not.toHaveBeenCalled();
     expect(useProjectStore.getState().playheadTime).toBe(0.25);
+  });
+
+  it('zooms against the project frame, not the editor, so every screen exports the same framing', async () => {
+    useProjectStore.setState({ frameWidth: 2560 });
+    const { ref } = installRuntime();
+    await runExport(ref, options());
+    // log2(1280 / 2560), whatever width the 640 px editor map had.
+    expect(log).toContain('camera:0:-1');
   });
 
   it('still encodes a frame whose map did not go idle in time, and counts it as incomplete', async () => {

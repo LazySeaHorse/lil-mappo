@@ -1,4 +1,5 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
+import { projectZoomOf } from './frameScale';
 
 /** The part of a camera that a user sets by moving the map. */
 export interface MapCameraView {
@@ -16,9 +17,12 @@ export const DEFAULT_MAP_CAMERA: Readonly<MapCameraView> = {
   bearing: 0,
 };
 
-/** Reads the live camera from the map. Without a map it returns the world view. */
-export function readMapCamera(map: Pick<MapboxMap, 'getCenter' | 'getZoom' | 'getPitch' | 'getBearing'> | null | undefined): MapCameraView {
+/**
+ * Reads the live camera from the map, with its zoom as the project measures it (see
+ * `engine/frameScale`). Without a map it returns the world view.
+ */
+export function readMapCamera(map: Pick<MapboxMap, 'getCenter' | 'getZoom' | 'getPitch' | 'getBearing' | 'getContainer'> | null | undefined): MapCameraView {
   if (!map) return { ...DEFAULT_MAP_CAMERA, center: [...DEFAULT_MAP_CAMERA.center] };
   const c = map.getCenter();
-  return { center: [c.lng, c.lat], zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
+  return { center: [c.lng, c.lat], zoom: projectZoomOf(map), pitch: map.getPitch(), bearing: map.getBearing() };
 }

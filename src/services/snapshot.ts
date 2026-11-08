@@ -25,9 +25,9 @@ export async function takeSnapshot(mapRef: React.MutableRefObject<MapRef | null>
   const id = toast.loading('Preparing high-res snapshot...');
 
   try {
-    await withFrameCapturer(map, { width, height, overlays: resolveSystemOverlays({ mode: 'export', branding }) }, async ({ zoomOffset, previewZoom, captureNow }) => {
+    await withFrameCapturer(map, { width, height, overlays: resolveSystemOverlays({ mode: 'export', branding }) }, async ({ sameViewZoom, captureNow }) => {
       // Restore equivalent framing at the new resolution.
-      if (zoomOffset !== 0) map.jumpTo({ zoom: previewZoom + zoomOffset });
+      if (sameViewZoom !== map.getZoom()) map.jumpTo({ zoom: sameViewZoom });
 
       toast.loading('Rendering high-res tiles...', { id });
       const compCanvas = await captureNow();

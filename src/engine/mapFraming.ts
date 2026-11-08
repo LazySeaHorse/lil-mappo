@@ -5,6 +5,7 @@ import { timelineLaneCount } from '@/store/timelineLanes';
 import { PANEL_GAP, PANEL_MARGIN, rightReserved, visibleTimelineHeight } from '@/constants/layout';
 import { geojsonBounds } from '@/engine/geoUtils';
 import type { MapCameraView } from '@/engine/readMapCamera';
+import { mapZoomOffset } from '@/engine/frameScale';
 
 /** [west, south, east, north] */
 export type FrameBox = [number, number, number, number];
@@ -226,13 +227,13 @@ export function frameGeometry(map: MapboxMap, geojson: GeoJSON.GeoJSON, layout: 
 /**
  * Eases the map to a stored camera view, such as a camera view in the timeline.
  * The view fills the whole map, as it does in the video, so there is no panel offset.
- * Returns false when the camera must not move.
+ * Its zoom is the project's (see `engine/frameScale`). Returns false when the camera must not move.
  */
 export function moveToCamera(map: MapboxMap, view: MapCameraView): boolean {
   if (!canMoveCamera()) return false;
   map.easeTo({
     center: view.center,
-    zoom: view.zoom,
+    zoom: view.zoom + mapZoomOffset(map),
     pitch: view.pitch,
     bearing: view.bearing,
     duration: frameDuration(),

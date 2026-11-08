@@ -10,7 +10,9 @@ type Sizing = Pick<CalloutItem, 'scale' | 'sizeMode' | 'referenceZoom'>;
 
 function mount(item: Sizing, zoom: number | null = 14.25) {
   const onChange = vi.fn();
-  const mapRef = { current: zoom === null ? null : ({ getMap: () => ({ getZoom: () => zoom }) } as unknown as MapRef) };
+  // A map at the project's frame width (createProject's), so its zoom is the project's.
+  const map = { getZoom: () => zoom, getContainer: () => ({ clientWidth: 1920 }) };
+  const mapRef = { current: zoom === null ? null : ({ getMap: () => map } as unknown as MapRef) };
   render(
     <MapRefContext.Provider value={mapRef}>
       <SizeControls item={item} onChange={onChange} />

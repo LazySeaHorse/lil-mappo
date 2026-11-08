@@ -215,11 +215,19 @@ describe('moveToCamera', () => {
   const view = { center: [8, 46] as [number, number], zoom: 9, pitch: 40, bearing: 120 };
 
   it('eases the map to the camera with no panel offset', () => {
+    useProjectStore.setState({ frameWidth: 1200 });
     const { map, api } = fakeMap();
     expect(moveToCamera(api, view)).toBe(true);
     expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining(view));
     expect(map.easeTo.mock.calls[0][0]).not.toHaveProperty('padding');
     expect(map.easeTo.mock.calls[0][0]).not.toHaveProperty('offset');
+  });
+
+  it('zooms out on a map narrower than the project frame, so it frames the same ground', () => {
+    useProjectStore.setState({ frameWidth: 2400 });
+    const { map, api } = fakeMap();
+    moveToCamera(api, view);
+    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: view.zoom - 1 }));
   });
 
   it('does not move while playing, scrubbing, exporting or dragging', () => {

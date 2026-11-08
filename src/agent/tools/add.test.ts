@@ -371,7 +371,7 @@ describe('add tools', () => {
   });
 
   it('add_callout sizes the callout, with map sizing based on the current map zoom', async () => {
-    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 15.25 }) } } as never);
+    setAgentMapRef({ current: { getMap: () => ({ getZoom: () => 15.25, getContainer: () => ({ clientWidth: 1920 }) }) } } as never);
     const plain = resultJson<{ created: { id: string } }>(await runAgentTool('add_callout', { title: 'Plain', location: [1, 2] }));
     expect(state().items[plain.created.id]).toMatchObject({ scale: 1, sizeMode: 'screen' });
 

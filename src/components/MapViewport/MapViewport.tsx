@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { getProjectCameraAt, hasMapCenter, syncMapToProject } from '@/engine/cameraUtils';
 import { isPlacedPoint } from '@/engine/routeMode';
 import { mapContainerSize } from '@/engine/mapFraming';
+import { frameZoomOffset } from '@/engine/frameScale';
 import { PreviewRouteLayer } from './PreviewRouteLayer';
 import { toast } from 'sonner';
 
@@ -140,13 +141,15 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
     return () => observer.disconnect();
   }, [mapReady, mapRef]);
 
-  // Start close to where syncMapToProject will put the map, to avoid a visible jump.
+  // Start close to where syncMapToProject will put the map, to avoid a visible jump. The map isn't
+  // laid out yet, so the window's width stands in for its width.
   const initialViewState = useMemo(() => {
-    const { playheadTime, mapCenter } = useProjectStore.getState();
+    const { playheadTime, mapCenter, frameWidth } = useProjectStore.getState();
     const cam = getProjectCameraAt(playheadTime);
     if (cam?.type === 'jumpTo') {
       const [longitude, latitude] = cam.center;
-      return { longitude, latitude, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing };
+      const zoom = cam.zoom + frameZoomOffset(window.innerWidth, frameWidth ?? window.innerWidth);
+      return { longitude, latitude, zoom, pitch: cam.pitch, bearing: cam.bearing };
     }
     const [longitude, latitude] = hasMapCenter(mapCenter) ? mapCenter : [-73.97, 40.77];
     return { longitude, latitude, zoom: 12, pitch: 0, bearing: 0 };
