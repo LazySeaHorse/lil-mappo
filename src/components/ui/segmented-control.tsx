@@ -14,7 +14,8 @@ interface SegmentedControlOption<T extends string> {
 
 interface SegmentedControlProps<T extends string> {
   options: SegmentedControlOption<T>[];
-  value: T;
+  /** Null marks no option: the selected clips differ. */
+  value: T | null;
   /** NoInfer: T comes from options/value, so a useState setter can be passed straight in. */
   onValueChange: (value: NoInfer<T>) => void;
   /** Deprecated optional shape preserved for API compatibility, standardized to concentric geometry */
@@ -30,10 +31,11 @@ function SegmentedControl<T extends string>({
   className,
   disabled,
 }: SegmentedControlProps<T>) {
+  const selectedIndex = options.findIndex((o) => o.value === value);
   return (
     <ToggleGroupPrimitive.Root
       type="single"
-      value={value}
+      value={value ?? ''}
       disabled={disabled}
       onValueChange={(v) => { if (v) onValueChange(v as T); }}
       data-slot="segmented-control"
@@ -62,13 +64,15 @@ function SegmentedControl<T extends string>({
         </ToggleGroupPrimitive.Item>
       ))}
       {/* Animated sliding indicator */}
-      <div
-        className="absolute top-1 bottom-1 bg-background shadow-sm rounded-lg transition-all duration-200 ease-out z-0"
-        style={{
-          width: `calc(${100 / options.length}% - 4px)`,
-          left: `calc(${(options.findIndex((o) => o.value === value) * 100) / options.length}% + 2px)`,
-        }}
-      />
+      {selectedIndex >= 0 && (
+        <div
+          className="absolute top-1 bottom-1 bg-background shadow-sm rounded-lg transition-all duration-200 ease-out z-0"
+          style={{
+            width: `calc(${100 / options.length}% - 4px)`,
+            left: `calc(${(selectedIndex * 100) / options.length}% + 2px)`,
+          }}
+        />
+      )}
     </ToggleGroupPrimitive.Root>
   );
 }

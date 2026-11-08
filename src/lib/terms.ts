@@ -16,6 +16,9 @@ export const ITEM_TYPE_LABELS = {
 
 export type InspectorItemKind = keyof typeof ITEM_TYPE_LABELS;
 
+/** What a control shows while the selected clips hold different values. */
+export const MIXED_VALUE = 'Mixed';
+
 /** Labels of the timing fields, shared by every item that has a time range. */
 export const TIMING_LABELS = {
   section: 'Timing',

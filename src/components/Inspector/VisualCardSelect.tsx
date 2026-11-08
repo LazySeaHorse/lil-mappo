@@ -25,7 +25,8 @@ export function VisualCardSelect<T extends string>({
   columns = 4,
 }: {
   options: readonly VisualCardOption<T>[];
-  value: T;
+  /** Null marks no card: the selected clips differ. */
+  value: T | null;
   onChange: (v: T) => void;
   onLockedSelect?: (v: T) => void;
   columns?: number;

@@ -3,6 +3,7 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { cn } from "@/lib/utils";
 import { RowLabel } from './RowLabel';
 import { InfoTip } from './InfoTip';
+import { MixedTag } from './MixedTag';
 
 /** A color control: the label (and optional (i) tip) on top, the swatches below. */
 export function ColorRow({
@@ -12,6 +13,7 @@ export function ColorRow({
   presets,
   hint,
   action,
+  mixed = false,
   className,
 }: {
   label: string;
@@ -22,6 +24,8 @@ export function ColorRow({
   hint?: string;
   /** Extra control next to the swatches, e.g. a Reset button. */
   action?: React.ReactNode;
+  /** The selected clips differ here: no swatch is marked as chosen. */
+  mixed?: boolean;
   className?: string;
 }) {
   return (
@@ -29,9 +33,10 @@ export function ColorRow({
       <div data-slot="color-row-label" className="flex min-w-0 items-center gap-1">
         <RowLabel label={label} className="min-w-0 shrink" />
         {hint && <InfoTip text={hint} />}
+        {mixed && <MixedTag />}
       </div>
       <div className="flex items-center gap-2">
-        <ColorPicker value={value} onChange={onChange} presets={presets} className="min-w-0 flex-1" />
+        <ColorPicker value={mixed ? '' : value} onChange={onChange} presets={presets} className="min-w-0 flex-1" />
         {action}
       </div>
     </div>

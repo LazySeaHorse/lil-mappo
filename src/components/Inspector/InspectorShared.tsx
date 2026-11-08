@@ -15,6 +15,7 @@ export { ColorRow } from './controls/ColorRow';
 export { SwitchRow } from './controls/SwitchRow';
 export { NumberRow } from './controls/NumberRow';
 export { SelectRow } from './controls/SelectRow';
+export { MixedTag } from './controls/MixedTag';
 export { EasingSelect } from './controls/EasingSelect';
 export { VisualCardSelect } from './VisualCardSelect';
 export type { VisualCardOption } from './VisualCardSelect';

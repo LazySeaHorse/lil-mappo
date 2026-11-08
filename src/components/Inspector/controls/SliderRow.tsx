@@ -3,6 +3,7 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { RowLabel } from './RowLabel';
 import { InfoTip } from './InfoTip';
+import { MIXED_VALUE } from '@/lib/terms';
 
 /** How many pointer positions a log slider has end to end. */
 const LOG_SLIDER_STEPS = 500;
@@ -26,6 +27,7 @@ export function SliderRow({
   hint,
   endLabels,
   showValue = true,
+  mixed = false,
   className,
 }: {
   label: string;
@@ -47,9 +49,11 @@ export function SliderRow({
   endLabels?: readonly [string, string];
   /** Set to false to hide the number, usually when `endLabels` say enough. */
   showValue?: boolean;
+  /** The selected clips differ here. The number reads "Mixed" until the slider is moved. */
+  mixed?: boolean;
   className?: string;
 }) {
-  const displayVal = formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ''}`;
+  const displayVal = mixed ? MIXED_VALUE : formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ''}`;
   // A log slider runs over ln(value); its values snap back to `step` on the way out.
   const toSlider = (v: number) => (logarithmic ? Math.log(Math.max(min, v)) : v);
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
@@ -76,7 +80,7 @@ export function SliderRow({
           <RowLabel label={label} icon={icon} className="min-w-0 shrink" />
           {hint && <InfoTip text={hint} />}
         </div>
-        {showValue && (
+        {(showValue || mixed) && (
           <span className="shrink-0 text-xs font-mono text-muted-foreground tabular-nums">{displayVal}</span>
         )}
       </div>
