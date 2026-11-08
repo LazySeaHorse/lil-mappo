@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronRight, ChevronsLeftRight, Eye, Image as ImageIcon, Smile, Star, Type } from 'lucide-react';
+import { useId } from 'react';
+import { ArrowRight, ChevronDown, ChevronRight, ChevronsLeftRight, Eye, Image as ImageIcon, Smile, Star, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -20,6 +21,54 @@ function Frame({ className, children }: { className?: string; children: React.Re
     >
       {children}
     </div>
+  );
+}
+
+const COUNTRY_OUTLINE = 'M49 12 59 17 66 15 69 25 84 29 79 42 87 51 74 62 72 77 57 88 42 79 29 78 28 63 20 49 9 45 12 33 26 34 35 25 44 24 Z';
+
+/** A decorative flag-filled outline, shared by the transparent and composited frames. */
+function CountryCutout() {
+  const clipId = useId();
+  return (
+    <svg viewBox="0 0 100 100" className="h-28 w-28 max-w-full drop-shadow-sm">
+      <defs>
+        <clipPath id={clipId}><path d={COUNTRY_OUTLINE} /></clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <path d="M0 0H34V100H0Z" fill="#2563eb" />
+        <path d="M34 0H65V100H34Z" fill="#fff" />
+        <path d="M65 0H100V100H65Z" fill="#ef4444" />
+      </g>
+      <path d={COUNTRY_OUTLINE} fill="none" stroke="currentColor" strokeWidth="1.5" pathLength="1" className="route-preview-draw text-foreground/70" />
+    </svg>
+  );
+}
+
+/** A country on transparency, then the same cutout over a backdrop in an edit. */
+export function CountryCutoutSkeleton() {
+  return (
+    <Frame>
+      <div className="flex items-center gap-2">
+        <div
+          className="grid min-w-0 flex-1 place-items-center overflow-hidden rounded-lg border border-border/40 py-2"
+          style={{
+            backgroundColor: 'hsl(var(--background))',
+            backgroundImage: 'conic-gradient(hsl(var(--muted)) 25%, transparent 0 50%, hsl(var(--muted)) 0 75%, transparent 0)',
+            backgroundSize: '16px 16px',
+          }}
+        >
+          <CountryCutout />
+        </div>
+        <ArrowRight size={16} className="shrink-0 text-muted-foreground" />
+        <div className="grid min-w-0 flex-1 place-items-center overflow-hidden rounded-lg border border-border/40 bg-gradient-to-br from-sky-500/25 via-emerald-500/15 to-amber-500/25 py-2">
+          <CountryCutout />
+        </div>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        <Lane><ClipBar left={6} width={78} className="bg-item-boundary/60" /></Lane>
+        <Lane><ClipBar left={0} width={100} className="bg-muted-foreground/20" /></Lane>
+      </div>
+    </Frame>
   );
 }
 

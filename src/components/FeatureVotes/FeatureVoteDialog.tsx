@@ -18,7 +18,7 @@ import {
   getUpcomingFeature,
   type UpcomingFeatureId,
 } from '@/config/upcomingFeatures';
-import { EarthSkeleton, GallerySkeleton, MultiEditSkeleton, OverlaysSkeleton, RenderSkeleton } from './FeatureSkeletons';
+import { CountryCutoutSkeleton, EarthSkeleton, GallerySkeleton, MultiEditSkeleton, OverlaysSkeleton, RenderSkeleton } from './FeatureSkeletons';
 
 interface FeatureVoteDialogProps {
   featureId: UpcomingFeatureId;
@@ -35,6 +35,28 @@ interface Preview {
 }
 
 const PREVIEWS: Record<UpcomingFeatureId, Preview> = {
+  'country-cutouts': {
+    intro:
+      "Export a country's animated fill, flag and border with a transparent background, ready to layer over your own footage in a video editor.",
+    sections: [
+      {
+        heading: 'What you could export',
+        items: [
+          'A country filled with its flag or your chosen colour.',
+          'Its animated border, with optional place labels.',
+        ],
+      },
+      {
+        heading: 'How you could use it',
+        items: [
+          'Place a country beside a presenter or over travel footage.',
+          'Use your own background for an explainer or presentation.',
+        ],
+      },
+    ],
+    footnote: 'The checkerboard shows transparency. The same cutout can sit over your own background.',
+    skeleton: <CountryCutoutSkeleton />,
+  },
   'google-earth': {
     intro:
       'Google Earth would be a map style that draws its real-world 3D: photographed buildings, trees and terrain, so a city looks the way it does in life.',

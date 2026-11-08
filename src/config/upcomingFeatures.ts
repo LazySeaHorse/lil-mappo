@@ -42,6 +42,11 @@ export const UPCOMING_FEATURES = [
     title: 'Google Earth',
     description: 'Real 3D buildings and terrain from Google Earth as a map style.',
   },
+  {
+    id: 'country-cutouts',
+    title: 'Animated country cutouts',
+    description: "Export a country's animated fill, flag and border with a transparent background.",
+  },
 ] as const satisfies readonly UpcomingFeature[];
 
 export type UpcomingFeatureId = (typeof UPCOMING_FEATURES)[number]['id'];

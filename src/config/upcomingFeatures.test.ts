@@ -20,7 +20,7 @@ describe('upcomingFeatures config', () => {
   });
 
   it('lists the features people can ask for', () => {
-    expect([...UPCOMING_FEATURE_IDS].sort()).toEqual(['cloud-render', 'example-projects', 'google-earth', 'multi-edit-groups', 'overlays']);
+    expect([...UPCOMING_FEATURE_IDS].sort()).toEqual(['cloud-render', 'country-cutouts', 'example-projects', 'google-earth', 'multi-edit-groups', 'overlays']);
   });
 
   it('has copy for every tier', () => {
