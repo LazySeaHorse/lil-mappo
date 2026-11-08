@@ -69,7 +69,7 @@ export function useFitFrame(ref: RefObject<HTMLElement | null>): FitFrameState {
       isFitMode: s.isFitMode,
       hideUI: s.hideUI,
       resolution: s.resolution,
-      timelineHeight: visibleTimelineHeight(s.timelineHeight, timelineLaneCount(s.items, s.itemOrder)),
+      timelineHeight: visibleTimelineHeight(s.timelineHeight, timelineLaneCount(s.items, s.itemOrder, s)),
     })),
   );
   const { isMobile, isTablet, isToolbarCollapsed } = useResponsive();

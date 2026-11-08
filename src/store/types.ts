@@ -289,6 +289,14 @@ export interface ModelItem {
 
 export type TimelineItem = RouteItem | BoundaryItem | CalloutItem | CameraItem | ModelItem;
 
+/** Clips kept together on the timeline. Groups only organise the timeline: they never change the video. */
+export interface TimelineGroup {
+  id: string;
+  color: string;
+  /** Always two or more clips; a clip is in one group at most. */
+  itemIds: string[];
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -316,6 +324,9 @@ export interface Project {
   show3dFacades: boolean;
   items: Record<string, TimelineItem>;
   itemOrder: string[];
+  groups: Record<string, TimelineGroup>;
+  /** Groups folded into one bar. Saved with the project but not an edit, so undo leaves it alone. */
+  collapsedGroupIds: string[];
   /** Metadata of imported 3D models, by id. The bytes are kept in memory only (`src/models`). */
   models: Record<string, ModelAsset>;
   mapCenter: [number, number];

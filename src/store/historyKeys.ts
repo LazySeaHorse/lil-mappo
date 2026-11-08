@@ -28,6 +28,7 @@ export const TRACKED_PROJECT_KEYS = [
   'show3dFacades',
   'items',
   'itemOrder',
+  'groups',
   'models',
   'customMapStyleUrl',
   'customMapStyleLabel',
@@ -35,10 +36,11 @@ export const TRACKED_PROJECT_KEYS = [
 
 /**
  * Persisted fields that never create history: `id` is identity, `mapCenter` is
- * rewritten on every map pan (search proximity bias only), and `frameWidth` is
- * filled in once by the editor, never edited.
+ * rewritten on every map pan (search proximity bias only), `frameWidth` is
+ * filled in once by the editor, never edited, and `collapsedGroupIds` is how the
+ * timeline is folded, which is a view of the project rather than a change to it.
  */
-export const HISTORY_EXCLUDED_PROJECT_KEYS = ['id', 'mapCenter', 'frameWidth'] as const satisfies readonly (keyof Project)[];
+export const HISTORY_EXCLUDED_PROJECT_KEYS = ['id', 'mapCenter', 'frameWidth', 'collapsedGroupIds'] as const satisfies readonly (keyof Project)[];
 
 /** Every key `toProjectDocument` serialises: what the working draft must save. */
 export const PERSISTED_PROJECT_KEYS = [...TRACKED_PROJECT_KEYS, ...HISTORY_EXCLUDED_PROJECT_KEYS] as const;

@@ -109,10 +109,10 @@ function currentPadding(map: MapboxMap, layout: FrameLayout): PaddingOptions {
     const inset = FIT_INSET / scale;
     return { top: inset, bottom: inset, left: inset, right: inset };
   }
-  const { isInspectorOpen, timelineHeight, items, itemOrder } = useProjectStore.getState();
+  const { isInspectorOpen, timelineHeight, items, itemOrder, groups, collapsedGroupIds } = useProjectStore.getState();
   return framePadding({ width, height }, layout, {
     isInspectorOpen,
-    timelineHeight: visibleTimelineHeight(timelineHeight, timelineLaneCount(items, itemOrder)),
+    timelineHeight: visibleTimelineHeight(timelineHeight, timelineLaneCount(items, itemOrder, { groups, collapsedGroupIds })),
   });
 }
 

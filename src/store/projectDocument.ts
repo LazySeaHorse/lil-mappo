@@ -18,6 +18,7 @@ import { MAX_MODEL_EXTENT_M } from '@/models/modelGeometry';
 import { DEFAULT_SHARPNESS } from '@/engine/routeCurves';
 import { leaderLineStyle } from '@/annotations/styles/leader-line';
 import { createCalloutStyleDefaults } from './itemFactories';
+import { pruneGroups } from './timelineGroups';
 
 export const PROJECT_SCHEMA_VERSION = 5 as const;
 export const CAMERA_TRACK_ID = 'camera-track';
@@ -247,6 +248,12 @@ const timelineItemSchema = z.discriminatedUnion('kind', [
   modelItemSchema,
 ]);
 
+const timelineGroupSchema = z.object({
+  id: z.string().min(1),
+  color: z.string(),
+  itemIds: z.array(z.string()),
+});
+
 const projectDocumentSchema = z.object({
   schemaVersion: z.literal(PROJECT_SCHEMA_VERSION),
   id: z.string().min(1),
@@ -277,6 +284,9 @@ const projectDocumentSchema = z.object({
   show3dFacades: z.boolean().default(true),
   items: z.record(timelineItemSchema),
   itemOrder: z.array(z.string()).default([]),
+  // Added after v5 shipped; older documents have no groups.
+  groups: z.record(timelineGroupSchema).default({}),
+  collapsedGroupIds: z.array(z.string()).default([]),
   // Added after v5 shipped; older documents have no imported models.
   models: z.record(modelAssetSchema).default({}),
   mapCenter: coordinateSchema.default([0, 0]),
@@ -635,7 +645,13 @@ export function parseProjectDocument(input: unknown): Project {
 
   const knownOrder = project.itemOrder.filter((id) => id in project.items);
   const missingIds = Object.keys(project.items).filter((id) => !knownOrder.includes(id));
-  return { ...project, itemOrder: [...knownOrder, ...missingIds] } as Project;
+  const groups = pruneGroups(project.groups as Project['groups'], project.items);
+  return {
+    ...project,
+    itemOrder: [...knownOrder, ...missingIds],
+    groups,
+    collapsedGroupIds: project.collapsedGroupIds.filter((id) => id in groups),
+  } as Project;
 }
 
 /**

@@ -9,6 +9,7 @@ import { canEnableFollowCamera } from '../followCamera';
 import { isRouteItem } from '../typeGuards';
 import { pruneModels } from '../modelAssets';
 import { selectionOf } from '../selection';
+import { gatherInOrder, nextGroupColor, withoutMembers } from '../timelineGroups';
 import { stagedAt, stagedItemsOf } from '@/engine/stagedItems';
 
 export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = (set, get) => ({
@@ -55,6 +56,7 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
         // An imported model nothing uses any more goes with its last item (undo brings both back).
         models: pruneModels(items, s.models),
         itemOrder: s.itemOrder.filter((i) => !gone.has(i)),
+        groups: withoutMembers(s.groups, gone),
         ...selectionOf(s.selectedItemIds.filter((i) => !gone.has(i))),
         selectedAutoCamRouteId: s.selectedAutoCamRouteId && gone.has(s.selectedAutoCamRouteId) ? null : s.selectedAutoCamRouteId,
         activePicker: s.activePicker && gone.has(s.activePicker.ownerId) ? null : s.activePicker,
@@ -111,6 +113,49 @@ export const createItemsSlice: StateCreator<ProjectStore, [], [], ItemsSlice> = 
   },
 
   reorderItems: (newOrder) => set({ itemOrder: newOrder }),
+
+  groupItems: (ids) =>
+    set((s) => {
+      const members = new Set(ids.filter((id) => s.items[id] && s.items[id].kind !== 'camera'));
+      if (members.size < 2) return s;
+      const alreadyGrouped = Object.values(s.groups).some(
+        (group) => group.itemIds.length === members.size && group.itemIds.every((id) => members.has(id)),
+      );
+      if (alreadyGrouped) return s;
+      const groups = withoutMembers(s.groups, members);
+      const id = nanoid();
+      return {
+        groups: {
+          ...groups,
+          [id]: { id, color: nextGroupColor(groups), itemIds: s.itemOrder.filter((itemId) => members.has(itemId)) },
+        },
+        itemOrder: gatherInOrder(s.itemOrder, members),
+        collapsedGroupIds: s.collapsedGroupIds.filter((groupId) => groupId in groups),
+      };
+    }),
+
+  ungroupItems: (ids) =>
+    set((s) => {
+      const groups = Object.fromEntries(
+        Object.entries(s.groups).filter(([, group]) => !group.itemIds.some((id) => ids.includes(id))),
+      );
+      if (Object.keys(groups).length === Object.keys(s.groups).length) return s;
+      return { groups, collapsedGroupIds: s.collapsedGroupIds.filter((groupId) => groupId in groups) };
+    }),
+
+  setGroupColor: (groupId, color) =>
+    set((s) => (s.groups[groupId] ? { groups: { ...s.groups, [groupId]: { ...s.groups[groupId], color } } } : s)),
+
+  toggleGroupCollapsed: (groupId) =>
+    set((s) => {
+      if (!s.groups[groupId]) return s;
+      const collapsed = s.collapsedGroupIds.includes(groupId);
+      return {
+        collapsedGroupIds: collapsed
+          ? s.collapsedGroupIds.filter((id) => id !== groupId)
+          : [...s.collapsedGroupIds, groupId],
+      };
+    }),
 
   duplicateItem: (id) =>
     set((s) => {

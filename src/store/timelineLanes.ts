@@ -1,4 +1,4 @@
-import type { CameraItem, TimelineItem } from './types';
+import type { CameraItem, Project, TimelineItem } from './types';
 
 type Clip = Exclude<TimelineItem, CameraItem>;
 
@@ -27,17 +27,99 @@ function overlapsInTime(a: Clip, b: Clip): boolean {
   return a.startTime < b.endTime && b.startTime < a.endTime;
 }
 
-let lastCount: { items: Record<string, TimelineItem>; itemOrder: readonly string[]; count: number } | null = null;
+export type TimelineGrouping = Pick<Project, 'groups' | 'collapsedGroupIds'>;
+
+const NO_GROUPS: TimelineGrouping = { groups: {}, collapsedGroupIds: [] };
+
+/** A group's lanes on the timeline. A collapsed group holds one lane, drawn as one bar. */
+export interface GroupBlock {
+  groupId: string;
+  color: string;
+  firstLane: number;
+  laneCount: number;
+  collapsed: boolean;
+  memberIds: string[];
+}
+
+export interface TimelineLayout {
+  lanes: string[][];
+  blocks: GroupBlock[];
+}
+
+/**
+ * The lanes with groups in them. Each group packs into its own block of lanes, at the place of its
+ * first clip in `items`, and the clips around it pack as usual on either side, so nothing shares a
+ * lane with a group. A collapsed group's lane still lists its clips, for reordering around it.
+ */
+export function layoutLanes(items: readonly TimelineItem[], { groups, collapsedGroupIds }: TimelineGrouping): TimelineLayout {
+  const groupIdOf = new Map(Object.values(groups).flatMap((group) => group.itemIds.map((id) => [id, group.id] as const)));
+  const clips = items.filter((item): item is Clip => item.kind !== 'camera');
+  const segments: { groupId: string | null; clips: Clip[] }[] = [];
+  const placedGroups = new Set<string>();
+
+  for (const clip of clips) {
+    const groupId = groupIdOf.get(clip.id) ?? null;
+    if (groupId === null) {
+      const last = segments[segments.length - 1];
+      if (last?.groupId === null) last.clips.push(clip);
+      else segments.push({ groupId: null, clips: [clip] });
+    } else if (!placedGroups.has(groupId)) {
+      placedGroups.add(groupId);
+      segments.push({ groupId, clips: clips.filter((other) => groupIdOf.get(other.id) === groupId) });
+    }
+  }
+
+  const lanes: string[][] = [];
+  const blocks: GroupBlock[] = [];
+  for (const segment of segments) {
+    const collapsed = segment.groupId !== null && collapsedGroupIds.includes(segment.groupId);
+    const packed = collapsed ? [segment.clips.map((clip) => clip.id)] : packLanes(segment.clips);
+    if (segment.groupId !== null) {
+      blocks.push({
+        groupId: segment.groupId,
+        color: groups[segment.groupId].color,
+        firstLane: lanes.length,
+        laneCount: packed.length,
+        collapsed,
+        memberIds: segment.clips.map((clip) => clip.id),
+      });
+    }
+    lanes.push(...packed);
+  }
+  return { lanes, blocks };
+}
+
+/**
+ * The lane a dragged clip can really go to. A group's clips stay in its block, and any other clip
+ * goes past a block rather than into it: to its far side, the way it was heading.
+ */
+export function droppableLane(blocks: readonly GroupBlock[], itemId: string, from: number, to: number): number {
+  const own = blocks.find((block) => block.memberIds.includes(itemId));
+  if (own) return Math.max(own.firstLane, Math.min(own.firstLane + own.laneCount - 1, to));
+  const entered = blocks.find((block) => to >= block.firstLane && to < block.firstLane + block.laneCount);
+  if (!entered) return to;
+  return to > from ? entered.firstLane + entered.laneCount - 1 : entered.firstLane;
+}
+
+let lastCount: (TimelineGrouping & { items: Record<string, TimelineItem>; itemOrder: readonly string[]; count: number }) | null = null;
 
 /**
  * How many lanes the timeline shows: the camera's and the packed ones under it. Store selectors
  * call this on every store write (each playhead tick), so the last answer is kept and reused
- * while `items` and `itemOrder` are the same objects.
+ * while what it depends on is the same objects.
  */
-export function timelineLaneCount(items: Record<string, TimelineItem>, itemOrder: readonly string[]): number {
-  if (lastCount?.items === items && lastCount.itemOrder === itemOrder) return lastCount.count;
-  const count = 1 + packLanes(itemOrder.map((id) => items[id]).filter(Boolean)).length;
-  lastCount = { items, itemOrder, count };
+export function timelineLaneCount(
+  items: Record<string, TimelineItem>,
+  itemOrder: readonly string[],
+  { groups, collapsedGroupIds }: TimelineGrouping = NO_GROUPS,
+): number {
+  if (
+    lastCount?.items === items && lastCount.itemOrder === itemOrder
+    && lastCount.groups === groups && lastCount.collapsedGroupIds === collapsedGroupIds
+  ) return lastCount.count;
+  const grouping = { groups, collapsedGroupIds };
+  const count = 1 + layoutLanes(itemOrder.map((id) => items[id]).filter(Boolean), grouping).lanes.length;
+  lastCount = { items, itemOrder, ...grouping, count };
   return count;
 }
 

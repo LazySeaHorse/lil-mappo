@@ -108,6 +108,15 @@ export interface ItemsSlice {
    */
   setFollowCamera: (routeId: string, on: boolean) => FollowCameraResult;
   reorderItems: (newOrder: string[]) => void;
+  /**
+   * Makes the clips one new group, taking them out of any group they were in, and puts them next
+   * to each other in `itemOrder` so the group fits in one block of lanes. One undo step.
+   */
+  groupItems: (ids: readonly string[]) => void;
+  /** Dissolves every group holding one of these clips. */
+  ungroupItems: (ids: readonly string[]) => void;
+  setGroupColor: (groupId: string, color: string) => void;
+  toggleGroupCollapsed: (groupId: string) => void;
   duplicateItem: (id: string) => void;
   /**
    * Adds an imported model's metadata (kept if it is already there) and, when given, a placed

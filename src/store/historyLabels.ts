@@ -43,6 +43,7 @@ const SETTING_LABELS: Partial<Record<TrackedKey, string>> = {
   exportResolution: 'Changed resolution',
   isVertical: 'Changed resolution',
   models: 'Changed 3D models',
+  groups: 'Changed timeline groups',
 };
 
 function describeCameraChange(before: CameraItem, after: CameraItem): string {
