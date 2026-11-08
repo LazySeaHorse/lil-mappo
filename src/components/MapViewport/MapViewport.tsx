@@ -12,9 +12,8 @@ import { toast } from 'sonner';
 
 import { resolveClickTarget } from './mapUtils';
 import { AnnotationLayer } from '@/annotations/preview/AnnotationLayer';
-import { RouteWaypointMarkers, DraftWalkMarkers } from './RouteWaypointMarkers';
 import { DraftWalkLayer } from './DraftWalkLayer';
-import { ModelDragHandle } from './ModelDragHandle';
+import { EditorMapOverlays } from './EditorMapOverlays';
 import { handleEscapeKey } from './escapeDeselect';
 import type { MapSceneRuntimeRef } from '@/hooks/useMapRuntime';
 import { MapSceneController } from './runtime/MapSceneController';
@@ -197,9 +196,7 @@ export default function MapViewport({ mapRef, runtimeRef, onMapReady, onMapGestu
         {/* Callouts draw on their own overlay canvas, so they are safe outside the styleLoaded gate.
             AnnotationLayer reads the store itself so MapViewport never re-renders during playback. */}
         <AnnotationLayer />
-        <RouteWaypointMarkers />
-        <DraftWalkMarkers />
-        <ModelDragHandle />
+        <EditorMapOverlays />
       </MapGL>
     </div>
   );

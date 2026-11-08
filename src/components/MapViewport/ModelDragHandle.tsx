@@ -4,11 +4,11 @@ import { Box } from 'lucide-react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { MODEL_TERMS } from '@/models/modelTerms';
 
-/** A handle at the selected 3D model's base: drag it to move the model. Hidden while playing or exporting. */
+/** A handle at the selected 3D model's base: drag it to move the model. Shown by `EditorMapOverlays`, which hides it where the map shows the video. */
 export function ModelDragHandle() {
   const item = useProjectStore((s) => {
     const selected = s.selectedItemId ? s.items[s.selectedItemId] : null;
-    return selected?.kind === 'model' && !s.isPlaying && !s.isExporting ? selected : null;
+    return selected?.kind === 'model' ? selected : null;
   });
   const updateItem = useProjectStore((s) => s.updateItem);
   if (!item) return null;

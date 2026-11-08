@@ -32,11 +32,8 @@ describe('ModelDragHandle', () => {
     expect((useProjectStore.getState().items.m1 as ModelItem).position).toEqual([3, 49]);
   });
 
-  it('is not there without a selected model or while playing', () => {
-    const { rerender } = render(<ModelDragHandle />);
-    expect(screen.queryByTestId('map-marker')).not.toBeInTheDocument();
-    useProjectStore.setState({ selectedItemId: 'm1', isPlaying: true });
-    rerender(<ModelDragHandle />);
+  it('is not there without a selected model', () => {
+    render(<ModelDragHandle />);
     expect(screen.queryByTestId('map-marker')).not.toBeInTheDocument();
   });
 });
