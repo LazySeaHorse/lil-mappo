@@ -9,6 +9,15 @@ import InspectorPanel from './InspectorPanel';
 
 vi.mock('@/hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false, isTablet: false }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ data: null }) }));
+vi.mock('sonner', () => ({ toast: vi.fn() }));
+vi.mock('@/annotations/inspector/stylePreview', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/annotations/inspector/stylePreview')>()),
+  getStylePreview: vi.fn().mockResolvedValue(null),
+}));
+// The animated previews draw on a canvas; here they only say what they show.
+vi.mock('@/annotations/inspector/AnimatedStylePreview', () => ({
+  AnimatedStylePreview: ({ styleId }: { styleId: string }) => <div data-testid="animated-preview">{styleId}</div>,
+}));
 
 const BLUE = '#3b82f6';
 
@@ -158,6 +167,62 @@ describe('the inspector with several clips of one kind selected', () => {
     selectAll('c1', 'c3');
     expect(screen.queryByRole('region', { name: 'Appearance' })).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Size' })).toBeInTheDocument();
+  });
+});
+
+describe('changing the style of several callouts', () => {
+  const useStyle = (name: string) => {
+    fireEvent.click(section('Style').getByRole('button', { name: 'Change' }));
+    fireEvent.click(screen.getByRole('option', { name }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use style' }));
+  };
+
+  it('reads Mixed while the styles differ, with no current style in the dialog', () => {
+    setItems(callout('c1', 'leader-line'), callout('c2', 'waypoint'));
+    render(<InspectorPanel />);
+    selectAll('c1', 'c2');
+
+    expect(section('Style').getByText('Mixed')).toBeInTheDocument();
+    fireEvent.click(section('Style').getByRole('button', { name: 'Change' }));
+    expect(screen.queryByText('In use')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('animated-preview')).toHaveLength(1);
+  });
+
+  it('can give them all the style one of them already has, leaving that one untouched', () => {
+    setItems(callout('c1', 'leader-line'), callout('c2', 'waypoint'));
+    render(<InspectorPanel />);
+    selectAll('c1', 'c2');
+    const alreadyThere = stored<CalloutItem>('c2');
+
+    useStyle('Waypoint');
+
+    expect(stored<CalloutItem>('c1').styleId).toBe('waypoint');
+    expect(stored<CalloutItem>('c2')).toBe(alreadyThere);
+  });
+
+  it('keeps each callout\'s own text and offers the style\'s controls afterwards', () => {
+    setItems(callout('c1', 'leader-line'), callout('c2', 'highlight-tag'));
+    render(<InspectorPanel />);
+    selectAll('c1', 'c2');
+
+    useStyle('Waypoint');
+
+    expect(stored<CalloutItem>('c1').content.title).toBe('c1');
+    expect(stored<CalloutItem>('c2').content.title).toBe('c2');
+    expect(section('Style').queryByText('Mixed')).not.toBeInTheDocument();
+    expect(section('Style').getByText('Waypoint')).toBeInTheDocument();
+  });
+
+  it('undoes the change on all of them in one step', () => {
+    setItems(callout('c1', 'leader-line'), callout('c2', 'highlight-tag'));
+    render(<InspectorPanel />);
+    selectAll('c1', 'c2');
+
+    useStyle('Waypoint');
+    act(() => { undo(); });
+
+    expect(stored<CalloutItem>('c1').styleId).toBe('leader-line');
+    expect(stored<CalloutItem>('c2').styleId).toBe('highlight-tag');
   });
 });
 

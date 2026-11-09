@@ -7,7 +7,8 @@
  * so it stays light however many styles there are: only two previews ever
  * animate. It opens on the style after the current one, so the comparison is
  * live at once. Use style applies the choice and closes; Set as default makes
- * the choice the style new callouts start with.
+ * the choice the style new callouts start with. Callouts of different styles
+ * have no current style, so "Now" just says so and every style can be applied.
  */
 
 import { useMemo, useRef, useState } from 'react';
@@ -20,7 +21,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/icon-button';
 import { PinDropHero } from '@/components/ui/pin-drop';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
-import { STYLE_TERMS } from '@/lib/terms';
+import { MIXED_VALUE, STYLE_TERMS } from '@/lib/terms';
 import { cn } from '@/lib/utils';
 import { startingCalloutStyleId } from '@/store/itemFactories';
 import { useUiPreferencesStore } from '@/store/useUiPreferencesStore';
@@ -39,7 +40,8 @@ const CATEGORY_LABELS: Record<StyleCategory, string> = {
 interface StylePickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  value: string;
+  /** The current style; null while the callouts have different ones. */
+  value: string | null;
   onChange: (styleId: string) => void;
   /** Text the previews show: the callout's title. */
   text: string;
@@ -85,7 +87,7 @@ function PickerBody({ value, onChange, text, subtitle, onOpenChange }: Omit<Styl
   const flat = useMemo(() => groups.flatMap((group) => group.styles), [groups]);
   const [candidate, setCandidate] = useState(() => {
     const index = flat.findIndex((style) => style.id === value);
-    return flat[(index + 1) % flat.length]?.id ?? value;
+    return flat[(index + 1) % flat.length]?.id ?? value ?? '';
   });
   const [replay, setReplay] = useState(0);
   const defaultStyle = useUiPreferencesStore((s) => startingCalloutStyleId(s.defaultCalloutStyle));
@@ -153,7 +155,11 @@ function PickerBody({ value, onChange, text, subtitle, onOpenChange }: Omit<Styl
         <div className="flex shrink-0 flex-col gap-3 p-4 sm:min-w-0 sm:flex-1">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:min-h-[200px] sm:flex-1">
             <Pane label={STYLE_TERMS.now}>
-              <AnimatedStylePreview styleId={value} text={text} subtitle={subtitle} restartKey={candidate} replay={replay} />
+              {value === null ? (
+                <div className="grid h-full place-items-center text-xs text-muted-foreground">{MIXED_VALUE}</div>
+              ) : (
+                <AnimatedStylePreview styleId={value} text={text} subtitle={subtitle} restartKey={candidate} replay={replay} />
+              )}
             </Pane>
             <span className="grid size-6 place-items-center rounded-full bg-secondary text-muted-foreground">
               <ArrowRight className="size-3.5" />

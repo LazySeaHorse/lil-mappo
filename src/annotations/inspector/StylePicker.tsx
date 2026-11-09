@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import { getStyle } from '@/annotations/registry';
-import { STYLE_TERMS } from '@/lib/terms';
+import { MIXED_VALUE, STYLE_TERMS } from '@/lib/terms';
 import { StylePickerDialog } from './StylePickerDialog';
 import { StylePreview } from './StylePreview';
 
@@ -16,7 +16,8 @@ import { StylePreview } from './StylePreview';
 const SAMPLE_TEXT_LIMIT = 24;
 
 interface StylePickerProps {
-  value: string;
+  /** Null while the selected callouts have different styles. */
+  value: string | null;
   onChange: (styleId: string) => void;
   /** The callout's own title; the pictures show it. */
   title?: string;
@@ -27,16 +28,18 @@ interface StylePickerProps {
 export function StylePicker({ value, onChange, title, subtitle }: StylePickerProps) {
   const [open, setOpen] = useState(false);
   const sample = title?.trim().slice(0, SAMPLE_TEXT_LIMIT) || STYLE_TERMS.sampleText;
-  const current = getStyle(value);
+  const current = value ? getStyle(value) : undefined;
 
   return (
     <div className="flex items-center gap-3">
-      <div className="w-20 shrink-0 rounded-lg border border-border/40 bg-secondary/40">
-        {current && <StylePreview styleId={current.id} icon={current.icon} text={sample} />}
-      </div>
+      {value && (
+        <div className="w-20 shrink-0 rounded-lg border border-border/40 bg-secondary/40">
+          {current && <StylePreview styleId={current.id} icon={current.icon} text={sample} />}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs font-medium text-foreground">
-          {current?.name ?? value}
+          {value ? current?.name ?? value : MIXED_VALUE}
           <span className="text-muted-foreground"> · </span>
           <button
             type="button"

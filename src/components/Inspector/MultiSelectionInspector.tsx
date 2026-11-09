@@ -1,11 +1,15 @@
 import type { ReactNode } from 'react';
 import { Box, Layers, MapPin, Navigation, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 import { CalloutConnectorSection } from '@/annotations/inspector/CalloutConnectorSection';
 import { DynamicControls } from '@/annotations/inspector/DynamicControls';
 import { SizeControls } from '@/annotations/inspector/SizeControls';
+import { StylePicker } from '@/annotations/inspector/StylePicker';
 import { getStyle } from '@/annotations/registry';
 import type { TransitionConfig } from '@/annotations/types';
-import { MULTI_SELECT_TERMS } from '@/lib/terms';
+import { MULTI_SELECT_TERMS, STYLE_TERMS } from '@/lib/terms';
+import { undo } from '@/store/history';
+import { switchCalloutStyle } from '@/store/itemFactories';
 import type { BoundaryItem, CalloutItem, CameraItem, ModelItem, RouteItem, TimelineItem } from '@/store/types';
 import { useProjectStore } from '@/store/useProjectStore';
 import { BoundaryAnimationSection, BoundaryAppearanceSection } from './BoundaryStyleSections';
@@ -19,12 +23,18 @@ import { TimingBehaviour } from './timing/TimingBehaviour';
 import { boundaryTiming, calloutTiming, modelTiming, routeTiming, type TimingAdapter } from './timing/timingAdapters';
 
 type Clip = Exclude<TimelineItem, CameraItem>;
-type UpdateEach<T> = (patchFor: (item: T) => Partial<T>) => void;
+type UpdateEach<T> = (patchFor: (item: T) => Partial<T> | null) => void;
 
-/** One store write, so a whole edit is one undo step; each clip's patch is built from that clip. */
+/** One store write, so a whole edit is one undo step; each clip's patch is built from that clip, and null leaves it alone. */
 function useUpdateEach<T extends Clip>(items: readonly T[]): UpdateEach<T> {
   const updateItems = useProjectStore((s) => s.updateItems);
-  return (patchFor) => updateItems(Object.fromEntries(items.map((item) => [item.id, patchFor(item)])));
+  return (patchFor) => {
+    const updates = items.flatMap((item) => {
+      const patch = patchFor(item);
+      return patch ? [[item.id, patch] as const] : [];
+    });
+    if (updates.length > 0) updateItems(Object.fromEntries(updates));
+  };
 }
 
 /**
@@ -89,6 +99,11 @@ function CalloutSections({ items }: { items: readonly CalloutItem[] }) {
   const style = getStyle(items[0].styleId);
   // A style's own controls only make sense while every callout has that style.
   const sameStyle = items.every((callout) => callout.styleId === items[0].styleId);
+  const changeStyle = (styleId: string) => {
+    // Each callout carries over its own settings; one already in this style is left as it is.
+    updateEach((callout) => switchCalloutStyle(callout, styleId));
+    toast(STYLE_TERMS.changed, { action: { label: STYLE_TERMS.undo, onClick: () => { undo(); } } });
+  };
   const settings = mergeValues(items.map((callout) => callout.settings));
   const size = mergeValues(items.map(({ scale, sizeMode, referenceZoom }) => ({ scale, sizeMode, referenceZoom })));
   const connector = mergeValues(items.map((callout) => callout.connector));
@@ -98,6 +113,9 @@ function CalloutSections({ items }: { items: readonly CalloutItem[] }) {
   });
   return (
     <>
+      <InspectorSection kind="callout" id="style">
+        <StylePicker value={sameStyle ? items[0].styleId : null} onChange={changeStyle} />
+      </InspectorSection>
       {sameStyle && style && style.controls.length > 0 && (
         <InspectorSection kind="callout" id="appearance">
           <DynamicControls

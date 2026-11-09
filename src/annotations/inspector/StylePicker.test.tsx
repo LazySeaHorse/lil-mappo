@@ -32,6 +32,17 @@ describe('StylePicker', () => {
     localStorage.removeItem(CALLOUT_STYLE_STORAGE_KEY);
   });
 
+  it('names no style and marks none as current while the callouts differ', () => {
+    render(<StylePicker value={null} onChange={() => {}} />);
+    expect(screen.getByText('Mixed')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+
+    expect(previews()).toHaveLength(1);
+    expect(within(screen.getByRole('listbox', { name: 'Styles' })).queryByText('Now')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use style' })).toBeEnabled();
+  });
+
   it('sets the style being looked at as the default for new callouts, without applying it', () => {
     const onChange = vi.fn();
     render(<StylePicker value="leader-line" onChange={onChange} />);
