@@ -49,6 +49,35 @@ describe('guardShadowCasterCheck', () => {
     expect(painter._shadowRenderer._hasCasterGeometry()).toBe(true);
   });
 
+  it('guards the new painter Mapbox builds when a lost WebGL context is restored', () => {
+    const map = { painter: {} as { _shadowRenderer?: ReturnType<typeof shadowRenderer> } };
+    guardShadowCasterCheck(map as unknown as MapboxMap);
+
+    map.painter = {};
+    map.painter._shadowRenderer = shadowRenderer({ type: 'model' });
+    expect(map.painter._shadowRenderer._hasCasterGeometry()).toBe(false);
+  });
+
+  it('patches the check on the renderer class, so renderers created later are covered too', () => {
+    const source: { type: string; getModels?: () => unknown[] } = { type: 'model' };
+    const style = { getLayerSourceCache: () => ({ getSource: () => source }) };
+    class FakeShadowRenderer {
+      painter = { style };
+      _hasCasterGeometry(): boolean {
+        return (this.painter.style.getLayerSourceCache().getSource() as { getModels: () => unknown[] }).getModels().length > 0;
+      }
+    }
+    const original = FakeShadowRenderer.prototype._hasCasterGeometry;
+    guardShadowCasterCheck({ painter: { _shadowRenderer: new FakeShadowRenderer() } } as unknown as MapboxMap);
+    guardShadowCasterCheck({ painter: { _shadowRenderer: new FakeShadowRenderer() } } as unknown as MapboxMap);
+
+    expect(FakeShadowRenderer.prototype._hasCasterGeometry).not.toBe(original);
+    const later = new FakeShadowRenderer();
+    expect(later._hasCasterGeometry()).toBe(false);
+    source.getModels = () => [{}];
+    expect(later._hasCasterGeometry()).toBe(true);
+  });
+
   it('does nothing when the internals are not there', () => {
     expect(() => guardShadowCasterCheck({} as MapboxMap)).not.toThrow();
   });

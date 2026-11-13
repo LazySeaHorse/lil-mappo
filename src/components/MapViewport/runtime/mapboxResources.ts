@@ -80,20 +80,50 @@ interface ShadowRendererInternals {
   painter: { style: { getLayerSourceCache(layer: unknown): { getSource(): { type: string; getModels?: unknown } } | undefined } };
   _hasCasterGeometry: CasterCheck;
 }
+interface PainterInternals {
+  _shadowRenderer?: ShadowRendererInternals | null;
+}
 
 /**
  * Mapbox loads model sources lazily: until the model module arrives, a `model`
  * source is a placeholder without `getModels`, and the shadow pass calls it
- * anyway (`n.getModels is not a function`, mapbox-gl 3.32 and 3.33), so adding a
- * model under a style that casts shadows throws on every frame until the module
- * loads. A placeholder casts no shadow yet; this answers that instead of throwing.
+ * anyway (`n.getModels is not a function`, mapbox-gl 3.32 and 3.33), so a model
+ * under a style that casts shadows throws on every frame until the module loads
+ * (or forever, if it fails to load). A placeholder casts no shadow yet; this
+ * answers that instead of throwing.
+ *
  * The painter creates its private `_shadowRenderer` only once a style turns on 3D
- * lights, so the guard goes on as it is assigned. Does nothing if the painter is
- * not there. Re-check this when upgrading mapbox-gl.
+ * lights, so the guard goes on as it is assigned. A restored WebGL context gets a
+ * whole new painter (`Map._contextRestored` -> `_setupPainter`), so the guard also
+ * follows `map.painter`. The check is patched on the ShadowRenderer prototype, so
+ * once one renderer has been seen every later one is covered too. Does nothing if
+ * the painter is not there. Re-check this when upgrading mapbox-gl.
  */
 export function guardShadowCasterCheck(map: MapboxMap): void {
-  const painter = (map as unknown as { painter?: { _shadowRenderer?: ShadowRendererInternals | null } }).painter;
+  const internal = map as unknown as { painter?: PainterInternals };
+  let painter = internal.painter;
   if (!painter || typeof painter !== 'object') return;
+  guardPainter(painter);
+  if (guardedMaps.has(map)) return;
+  guardedMaps.add(map);
+  Object.defineProperty(map, 'painter', {
+    configurable: true,
+    enumerable: true,
+    get: () => painter,
+    set: (next: PainterInternals | undefined) => {
+      painter = next;
+      if (next && typeof next === 'object') guardPainter(next);
+    },
+  });
+}
+
+const guardedMaps = new WeakSet<object>();
+const guardedPainters = new WeakSet<object>();
+const guardedChecks = new WeakSet<object>();
+
+function guardPainter(painter: PainterInternals): void {
+  if (guardedPainters.has(painter)) return;
+  guardedPainters.add(painter);
   let renderer = painter._shadowRenderer;
   if (renderer) guardRenderer(renderer);
   Object.defineProperty(painter, '_shadowRenderer', {
@@ -107,17 +137,20 @@ export function guardShadowCasterCheck(map: MapboxMap): void {
   });
 }
 
-const guardedRenderers = new WeakSet<object>();
-
 function guardRenderer(renderer: ShadowRendererInternals): void {
-  const check = renderer._hasCasterGeometry;
-  if (guardedRenderers.has(renderer) || typeof check !== 'function') return;
-  guardedRenderers.add(renderer);
-  renderer._hasCasterGeometry = function (layer, coords) {
+  // Mapbox's check is a class method; patch it where it lives so every renderer shares the guard.
+  const owner: ShadowRendererInternals = Object.prototype.hasOwnProperty.call(renderer, '_hasCasterGeometry')
+    ? renderer
+    : Object.getPrototypeOf(renderer);
+  const check = owner?._hasCasterGeometry;
+  if (typeof check !== 'function' || guardedChecks.has(check)) return;
+  const guarded: CasterCheck = function (this: ShadowRendererInternals, layer, coords) {
     const source = this.painter.style.getLayerSourceCache(layer)?.getSource();
     if (source?.type === 'model' && typeof source.getModels !== 'function') return false;
     return check.call(this, layer, coords);
   };
+  guardedChecks.add(guarded);
+  owner._hasCasterGeometry = guarded;
 }
 
 /**
